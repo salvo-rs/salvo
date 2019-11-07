@@ -1,0 +1,12 @@
+[profile.dev]
+codegen-units = 4
+
+[workspace]
+members = [
+  "core",
+  "extra",
+  # "make",
+  "examples/hello_world",
+  "examples/file_list",
+  "examples/basic_auth",
+]
