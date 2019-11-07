@@ -178,7 +178,7 @@ impl Context{
     pub fn render_file_from_path<T>(&mut self, path: T) -> std::io::Result<()> where T: AsRef<Path> {
         let mut file = File::open(path.as_ref())?;
         if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-            return self.render_file(mime.to_string(), &mut file);
+            self.render_file(mime.to_string(), &mut file)
         }else{
             self.unsupported_media_type();
             error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());

@@ -26,8 +26,8 @@ struct RegexSegment{
 impl RegexSegment{
 	fn new(regex: Regex, names: Vec<String>)->RegexSegment{
 		RegexSegment{
-			regex: regex,
-			names: names,
+			regex,
+			names,
 		}
 	}
 }
@@ -139,7 +139,7 @@ impl PathParser{
 				ch = c;
 				if ch == '/' {
 					let pch = self.peek();
-					if let None = pch {
+					if pch.is_none() {
 						return Err("path end but regex is not ended".to_owned());
 					}else if let Some('>') = pch {
 						break;
@@ -328,7 +328,7 @@ impl Router {
 		let methods = method.to_http_methods();
 		let handler = Arc::new(handler);
 		for method in methods {
-			if let None = self.befores.get(&method) {
+			if self.befores.get(&method).is_none() {
 				self.befores.insert(method.clone(), vec![]);
 			}
 			if let Some(ref mut handlers) = self.befores.get_mut(&method){
@@ -341,7 +341,7 @@ impl Router {
 		let methods = method.to_http_methods();
 		let handler = Arc::new(handler);
 		for method in methods {
-			if let None = self.afters.get(&method) {
+			if self.afters.get(&method).is_none() {
 				self.afters.insert(method.clone(), vec![]);
 			}
 			if let Some(ref mut handlers) = self.afters.get_mut(&method){
@@ -408,7 +408,7 @@ impl Router {
 		let methods = method.to_http_methods();
 		let handler = Arc::new(handler);
 		for method in methods {
-			if let None = self.handlers.get(&method) {
+			if self.handlers.get(&method).is_none() {
 				self.handlers.insert(method.clone(), vec![]);
 			}
 

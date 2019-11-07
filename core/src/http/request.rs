@@ -215,6 +215,8 @@ impl Request {
         }
         list
     }
+    
+    #[inline(always)]
     pub fn frist_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
         if accept.len() > 0 {
@@ -223,14 +225,17 @@ impl Request {
             None
         }
     }
+
+    #[inline(always)]
     pub fn content_type(&self) -> Option<Mime> {
-        return if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
-            return ctype.parse().ok()
+        if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
+            ctype.parse().ok()
         } else{
             None
         }
     }
     
+    #[inline(always)]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }

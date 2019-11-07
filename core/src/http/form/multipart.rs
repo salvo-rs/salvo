@@ -40,23 +40,23 @@ pub struct FilePart {
     /// not necessary when they are generated.
     pub size: Option<usize>,
     // The temporary directory the upload was put into, saved for the Drop trait
-    tempdir: Option<PathBuf>,
+    temp_dir: Option<PathBuf>,
 }
 impl FilePart {
     pub fn new(headers: HeaderMap, path: &Path) -> FilePart
     {
         FilePart {
-            headers: headers,
+            headers,
             path: path.to_owned(),
             size: None,
-            tempdir: None,
+            temp_dir: None,
         }
     }
 
     /// If you do not want the file on disk to be deleted when Self drops, call this
     /// function.  It will become your responsability to clean up.
     pub fn do_not_delete_on_drop(&mut self) {
-        self.tempdir = None;
+        self.temp_dir = None;
     }
 
     /// Create a new temporary FilePart (when created this way, the file will be
@@ -64,13 +64,13 @@ impl FilePart {
     pub fn create(headers: HeaderMap) -> Result<FilePart, Error> {
         // Setup a file to capture the contents.
         let mut path = TempDir::new("novel_http_multipart")?.into_path();
-        let tempdir = Some(path.clone());
+        let temp_dir = Some(path.clone());
         path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
         Ok(FilePart {
-            headers: headers,
-            path: path,
+            headers,
+            path,
             size: None,
-            tempdir: tempdir,
+            temp_dir,
         })
     }
 
@@ -90,9 +90,9 @@ impl FilePart {
 }
 impl Drop for FilePart {
     fn drop(&mut self) {
-        if self.tempdir.is_some() {
+        if self.temp_dir.is_some() {
             let _ = ::std::fs::remove_file(&self.path);
-            let _ = ::std::fs::remove_dir(&self.tempdir.as_ref().unwrap());
+            let _ = ::std::fs::remove_dir(&self.temp_dir.as_ref().unwrap());
         }
     }
 }

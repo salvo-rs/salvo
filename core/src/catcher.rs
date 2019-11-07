@@ -40,9 +40,9 @@ pub struct CatcherImpl{
 impl CatcherImpl{
     pub fn new(code: u16, name: String, summary: String)->CatcherImpl{
         CatcherImpl{
-            code: code,
-            name: name,
-            summary: summary,
+            code,
+            name,
+            summary,
         }
     }
 }

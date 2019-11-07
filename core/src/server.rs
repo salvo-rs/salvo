@@ -171,7 +171,7 @@ impl<H: Handler> hyper::service::Service for HyperHandler<H>{
             }
             let mut response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
 
-           if let None = ctx.response.status{
+           if ctx.response.status.is_none(){
                 if ctx.response.body_writers.len() == 0 {
                     ctx.response.status = Some(StatusCode::NOT_FOUND);
                 }else {
