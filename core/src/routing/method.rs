@@ -18,16 +18,16 @@ bitflags! {
 }
 impl Method {
 	pub fn from_http_method(m: &HttpMethod) -> Option<Method> {
-		match m {
-			&HttpMethod::GET => 		Some(Method::GET),
-			&HttpMethod::POST => 		Some(Method::POST),
-			&HttpMethod::PUT => 		Some(Method::PUT),
-			&HttpMethod::DELETE => 	Some(Method::DELETE),
-			&HttpMethod::HEAD => 		Some(Method::HEAD),
-			&HttpMethod::OPTIONS => 	Some(Method::OPTIONS),
-			&HttpMethod::CONNECT => 	Some(Method::CONNECT),
-			&HttpMethod::PATCH => 	Some(Method::PATCH),
-			&HttpMethod::TRACE => 	Some(Method::TRACE),
+		match *m {
+			HttpMethod::GET => 		Some(Method::GET),
+			HttpMethod::POST => 		Some(Method::POST),
+			HttpMethod::PUT => 		Some(Method::PUT),
+			HttpMethod::DELETE => 	Some(Method::DELETE),
+			HttpMethod::HEAD => 		Some(Method::HEAD),
+			HttpMethod::OPTIONS => 	Some(Method::OPTIONS),
+			HttpMethod::CONNECT => 	Some(Method::CONNECT),
+			HttpMethod::PATCH => 	Some(Method::PATCH),
+			HttpMethod::TRACE => 	Some(Method::TRACE),
 			_ => None,
 		}
 	}

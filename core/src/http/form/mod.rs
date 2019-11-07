@@ -91,7 +91,7 @@ fn get_content_disposition_name(hv: &HeaderValue) -> Option<String> {
 /// Stream out `multipart/form-data` body content matching the passed in `form_data`.  This
 /// does not stream out headers, so the caller must stream those out before calling
 /// write_form_data().
-pub fn write_form_data<S: Write>(stream: &mut S, boundary: &Vec<u8>, form_data: &FormData) -> Result<usize, Error> {
+pub fn write_form_data<S: Write>(stream: &mut S, boundary: &[u8], form_data: &FormData) -> Result<usize, Error> {
     let nodes = form_data.to_multipart()?;
     let count = multipart::write_multipart(stream, boundary, &nodes)?;
     Ok(count)
@@ -100,7 +100,7 @@ pub fn write_form_data<S: Write>(stream: &mut S, boundary: &Vec<u8>, form_data: 
 /// Stream out `multipart/form-data` body content matching the passed in `form_data` as
 /// Transfer-Encoding: Chunked.  This does not strea m out headers, so the caller must stream
 /// those out before calling write_form_data().
-pub fn write_form_data_chunked<S: Write>(stream: &mut S, boundary: &Vec<u8>, form_data: &FormData)
+pub fn write_form_data_chunked<S: Write>(stream: &mut S, boundary: &[u8], form_data: &FormData)
                                         -> Result<(), Error>
 {
     let nodes = form_data.to_multipart()?;

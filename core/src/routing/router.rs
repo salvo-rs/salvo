@@ -383,11 +383,11 @@ impl Router {
 			allh.extend(afters);
 			return (true, allh, params);
 		}
-		if rest.len() > 0 && self.minions.len() > 0 {
+		if !rest.is_empty() && !self.minions.is_empty() {
 			for minion in &self.minions {
 				let (matched, handlers, kv) = minion.detect(method.clone(), segments[i..].to_vec());
 				if matched{
-					if kv.len() > 0 {
+					if !kv.is_empty() {
 						params.extend(kv);
 					}
 					let mut allh = vec![];

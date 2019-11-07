@@ -353,7 +353,7 @@ impl<T: Write> WriteAllCount for T {
 /// Returns the number of bytes written, or an error.
 pub fn write_multipart<S: Write>(
     stream: &mut S,
-    boundary: &Vec<u8>,
+    boundary: &[u8],
     nodes: &Vec<Node>)
     -> Result<usize, Error>
 {
@@ -366,7 +366,7 @@ pub fn write_multipart<S: Write>(
         count += stream.write_all_count(b"\r\n")?;
 
         match node {
-            &Node::Part(ref part) => {
+            Node::Part(ref part) => {
                 // write the part's headers
                 for (name, value) in part.headers.iter() {
                     count += stream.write_all_count(name.as_str().as_bytes())?;
@@ -381,7 +381,7 @@ pub fn write_multipart<S: Write>(
                 // Write the part's content
                 count += stream.write_all_count(&part.body)?;
             },
-            &Node::File(ref filepart) => {
+            Node::File(ref filepart) => {
                 // write the part's headers
                 for (name, value) in filepart.headers.iter() {
                     count += stream.write_all_count(name.as_str().as_bytes())?;
@@ -397,7 +397,7 @@ pub fn write_multipart<S: Write>(
                 let mut file = File::open(&filepart.path)?;
                 count += ::std::io::copy(&mut file, stream)? as usize;
             },
-            &Node::Multipart((ref headers, ref subnodes)) => {
+            Node::Multipart((ref headers, ref subnodes)) => {
                 // Get boundary
                 let boundary = get_multipart_boundary(headers)?;
 
@@ -444,7 +444,7 @@ pub fn write_chunk<S: Write>(
 /// stream; the caller must send those prior to calling write_multipart_chunked().
 pub fn write_multipart_chunked<S: Write>(
     stream: &mut S,
-    boundary: &Vec<u8>,
+    boundary: &[u8],
     nodes: &Vec<Node>)
     -> Result<(), Error>
 {
@@ -454,8 +454,8 @@ pub fn write_multipart_chunked<S: Write>(
         write_chunk(stream, &boundary)?;
         write_chunk(stream, b"\r\n")?;
 
-        match node {
-            &Node::Part(ref part) => {
+        match *node {
+            Node::Part(ref part) => {
                 // write the part's headers
                 for (name, value) in part.headers.iter() {
                     write_chunk(stream, name.as_str().as_bytes())?;
@@ -470,7 +470,7 @@ pub fn write_multipart_chunked<S: Write>(
                 // Write the part's content
                 write_chunk(stream, &part.body)?;
             },
-            &Node::File(ref filepart) => {
+            Node::File(ref filepart) => {
                 // write the part's headers
                 for (name, value) in filepart.headers.iter() {
                     write_chunk(stream, name.as_str().as_bytes())?;
@@ -488,10 +488,10 @@ pub fn write_multipart_chunked<S: Write>(
 
                 // Write out the file's content
                 let mut file = File::open(&filepart.path)?;
-                ::std::io::copy(&mut file, stream)? as usize;
+                ::std::io::copy(&mut file, stream)?;
                 stream.write(b"\r\n")?;
             },
-            &Node::Multipart((ref headers, ref subnodes)) => {
+            Node::Multipart((ref headers, ref subnodes)) => {
                 // Get boundary
                 let boundary = get_multipart_boundary(headers)?;
 

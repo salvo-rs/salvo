@@ -67,7 +67,7 @@ impl Display for Error {
                 format!("{}: {}", self.description(), e).fmt(f),
             Error::Http(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
-            _ => format!("{}", self.description()).fmt(f),
+            _ => self.description().to_string().fmt(f),
         }
     }
 }
