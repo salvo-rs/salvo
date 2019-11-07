@@ -101,11 +101,11 @@ impl PathParser{
 		PathParser{
 			offset: 0,
 			// raw_path: raw_path.to_owned(),
-			path: raw_path.chars().into_iter().collect(),
+			path: raw_path.chars().collect(),
 		}
 	}
 	fn next(&mut self, skip_blank: bool)->Option<char>{
-		if self.path.len() >= 1 && self.offset < self.path.len() - 1 {
+		if !self.path.is_empty() && self.offset < self.path.len() - 1 {
 			self.offset += 1;
 			if skip_blank {
 				self.skip_blank();
@@ -236,7 +236,7 @@ impl PathParser{
 		}
 	}
 	fn peek(&self)->Option<char> {
-		if self.path.len() >= 1 && self.offset < self.path.len() - 1 {
+		if !self.path.is_empty() && self.offset < self.path.len() - 1 {
 			Some(self.path[self.offset+1])
 		}else{
 			None
@@ -245,7 +245,7 @@ impl PathParser{
 	fn skip_blank(&mut self) {
 		let mut ch = self.curr();
 		while ch == ' ' || ch == '\t' {
-			if self.path.len() >= 1 && self.offset < self.path.len() - 1 {
+			if !self.path.is_empty() && self.offset < self.path.len() - 1 {
 				self.offset += 1;
 				ch = self.path[self.offset];
 			}else{
@@ -374,7 +374,7 @@ impl Router {
 			}
 			i += 1;
 		}
-		if rest.len() == 0 {
+		if rest.is_empty() {
 			let mut allh = vec![];
 			allh.extend(befores);
 			for h in self.handlers.get(&method).unwrap_or(&vec![]) {

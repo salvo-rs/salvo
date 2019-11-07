@@ -57,7 +57,7 @@ fn fill_form_data(form_data: &mut FormData, nodes: Vec<Node>) -> Result<(), Erro
                     get_content_disposition_name(&cd)
                 };*/
                 
-                let cd_name: Option<String> = headers.get(&CONTENT_DISPOSITION).and_then(|hv|get_content_disposition_name(&hv));
+                let cd_name: Option<String> = headers.get(CONTENT_DISPOSITION).and_then(|hv|get_content_disposition_name(&hv));
                 let key = cd_name.ok_or(Error::NoName)?;
                 for node in nodes {
                     match node {
