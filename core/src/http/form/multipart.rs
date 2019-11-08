@@ -77,7 +77,7 @@ impl FilePart {
     /// Filename that was specified when the file was uploaded.  Returns `Ok<None>` if there
     /// was no content-disposition header supplied.
     pub fn filename(&self) -> Result<Option<String>, Error> {
-        match self.headers.get(&CONTENT_DISPOSITION) {
+        match self.headers.get(CONTENT_DISPOSITION) {
             Some(cd) => get_content_disposition_filename(cd),
             None => Ok(None),
         }
@@ -195,7 +195,7 @@ fn inner<R: BufRead>(reader: &mut R, headers: &HeaderMap, nodes: &mut Vec<Node>,
             output.extend(boundary.clone());
             (vec![b'\r', b'\n'], vec![b'\r', b'\n', b'\r', b'\n'], output)
         }
-        else if peeker.len() > 0 && peeker[0]==b'\n' {
+        else if !peeker.is_empty() && peeker[0]==b'\n' {
             let mut output = Vec::with_capacity(1 + boundary.len());
             output.push(b'\n');
             output.extend(boundary.clone());
@@ -351,12 +351,7 @@ impl<T: Write> WriteAllCount for T {
 /// given.  Top-level headers are NOT included in this stream; the caller must send
 /// those prior to calling write_multipart().
 /// Returns the number of bytes written, or an error.
-pub fn write_multipart<S: Write>(
-    stream: &mut S,
-    boundary: &[u8],
-    nodes: &Vec<Node>)
-    -> Result<usize, Error>
-{
+pub fn write_multipart<S: Write>(stream: &mut S, boundary: &[u8], nodes: &[Node]) -> Result<usize, Error> {
     let mut count: usize = 0;
 
     for node in nodes {
@@ -429,10 +424,8 @@ pub fn write_multipart<S: Write>(
     Ok(count)
 }
 
-pub fn write_chunk<S: Write>(
-    stream: &mut S,
-    chunk: &[u8]) -> Result<(), ::std::io::Error>
-{
+#[warn(clippy::write_with_newline)]
+pub fn write_chunk<S: Write>(stream: &mut S, chunk: &[u8]) -> Result<(), ::std::io::Error> {
     write!(stream, "{:x}\r\n", chunk.len())?;
     stream.write_all(chunk)?;
     stream.write_all(b"\r\n")?;
@@ -442,12 +435,8 @@ pub fn write_chunk<S: Write>(
 /// Stream a multipart body to the output `stream` given, made up of the `parts`
 /// given, using Tranfer-Encoding: Chunked.  Top-level headers are NOT included in this
 /// stream; the caller must send those prior to calling write_multipart_chunked().
-pub fn write_multipart_chunked<S: Write>(
-    stream: &mut S,
-    boundary: &[u8],
-    nodes: &Vec<Node>)
-    -> Result<(), Error>
-{
+#[allow(clippy::write_with_newline)]
+pub fn write_multipart_chunked<S: Write>(stream: &mut S, boundary: &[u8], nodes: &[Node]) -> Result<(), Error> {
     for node in nodes {
         // write a boundary
         write_chunk(stream, b"--")?;
@@ -489,7 +478,7 @@ pub fn write_multipart_chunked<S: Write>(
                 // Write out the file's content
                 let mut file = File::open(&filepart.path)?;
                 ::std::io::copy(&mut file, stream)?;
-                stream.write(b"\r\n")?;
+                stream.write_all(b"\r\n")?;
             },
             Node::Multipart((ref headers, ref subnodes)) => {
                 // Get boundary

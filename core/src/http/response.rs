@@ -134,7 +134,7 @@ impl Response {
         if let Method::HEAD = req_method {
             return 
         }else{
-            if self.body_writers.len() == 0 {
+            if self.body_writers.is_empty() {
                 http_res.headers_mut().insert(
                     headers::CONTENT_LENGTH,
                     headers::HeaderValue::from_static("0"),
@@ -149,14 +149,13 @@ impl Response {
 
     pub fn cookies(&self) -> Vec<Cookie<'_>> {
         let mut cookies = vec![];
-        for header in self.headers().get(headers::SET_COOKIE) {
+        for header in self.headers().get_all(headers::SET_COOKIE).iter() {
             if let Ok(header) = header.to_str() {
                 if let Ok(cookie) = Cookie::parse_encoded(header) {
                     cookies.push(cookie);
                 }
             }
         }
-
         cookies
     }
 

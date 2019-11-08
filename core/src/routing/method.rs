@@ -2,15 +2,15 @@ use http::Method as HttpMethod;
 
 bitflags! {
 	pub struct Method: u16 {
-		const GET = 	0b0000000000000001;
-        const POST = 	0b0000000000000010;
-        const PUT = 	0b0000000000000100;
-        const DELETE = 	0b0000000000001000;
-        const HEAD = 	0b0000000000010000;
-        const OPTIONS = 0b0000000000100000;
-        const CONNECT = 0b0000000001000000;
-        const PATCH = 	0b0000000010000000;
-        const TRACE = 	0b0000000100000000;
+		const GET = 	0b0000_0000_0000_0001;
+        const POST = 	0b0000_0000_0000_0010;
+        const PUT = 	0b0000_0000_0000_0100;
+        const DELETE = 	0b0000_0000_0000_1000;
+        const HEAD = 	0b0000_0000_0001_0000;
+        const OPTIONS = 0b0000_0000_0010_0000;
+        const CONNECT = 0b0000_0000_0100_0000;
+        const PATCH = 	0b0000_0000_1000_0000;
+        const TRACE = 	0b0000_0001_0000_0000;
         const ALL = Self::GET.bits | Self::POST.bits | Self::PUT.bits | 
 			Self::DELETE.bits | Self::HEAD.bits | Self::OPTIONS.bits | 
 			Self::CONNECT.bits | Self::PATCH.bits | Self::TRACE.bits;

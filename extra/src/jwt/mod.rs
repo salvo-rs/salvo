@@ -20,6 +20,7 @@ pub trait JwtExtractor: Send+Sync{
     fn get_token(&self, ctx: &mut Context)->Option<String>;
 }
 
+#[derive(Default)]
 pub struct HeaderExtractor;
 impl HeaderExtractor{
     pub fn new()->Self{
@@ -59,7 +60,7 @@ impl QueryExtractor{
 }
 impl JwtExtractor for QueryExtractor{
     fn get_token(&self, ctx: &mut Context)->Option<String>{
-        ctx.get_query(&self.0).map(|s|s.clone())
+        ctx.get_query(&self.0)
     }
 }
 

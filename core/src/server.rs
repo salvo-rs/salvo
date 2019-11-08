@@ -8,6 +8,8 @@ use crate::{Context, Handler, Protocol, Catcher};
 use crate::http::{StatusCode, Request, Response, Mime};
 use crate::http::headers::{CONTENT_TYPE, SET_COOKIE};
 use crate::catcher;
+use crate::logging;
+use super::pick_port;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 use futures::{future, Future};
@@ -118,11 +120,24 @@ impl<H: Handler> Server<H> {
         }
     }
 
-    pub fn serve<A>(mut self, addr: A) -> impl Future<Item=(), Error=()> + Send + 'static 
-        where A: ToSocketAddrs
-    {
-        let addr: SocketAddr = addr.to_socket_addrs().unwrap().next().unwrap();
-        Arc::get_mut(&mut self.config).unwrap().local_addr = Some(addr);
+    pub fn with_addr<T>(handler: H, addr: T) -> Server<H> where T: ToSocketAddrs {
+        let mut config = ServerConfig::default();
+        config.local_addr = addr.to_socket_addrs().unwrap().next();
+        Server{
+            handler: Arc::new(handler),
+            config: Arc::new(config),
+        }
+    }
+
+    pub fn serve(self) -> impl Future<Item=(), Error=()> + Send + 'static {
+        let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
+            let port = pick_port::pick_unused_port().expect("Pick unused port failed");
+            let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
+            warn!(logging::logger(), "Local address is not set, randrom address used.");
+            addr
+        });
+        info!(logging::logger(), "Server will be served"; "address" => addr);
+        // Arc::get_mut(&mut self.config).unwrap().local_addr = Some(addr);
         HyperServer::bind(&addr)
             .tcp_keepalive(self.config.timeouts.keep_alive)
             .serve(self).map_err(|e| eprintln!("server error: {}", e))

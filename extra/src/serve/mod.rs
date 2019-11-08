@@ -72,7 +72,7 @@ fn list_json(root: &BaseInfo)->String{
 }
 fn list_xml(root: &BaseInfo)->String{
     let mut ftxt = "<list>".to_owned();
-    if root.dirs.len() == 0 && root.files.len() == 0 {
+    if root.dirs.is_empty() && root.files.is_empty() {
         ftxt.push_str("No files");
     }else{
         ftxt.push_str("<table>");
@@ -99,7 +99,7 @@ fn list_html(root: &BaseInfo)->String{
         <hr/>
         <a href=\"../\">[../]</a><br><br>
 ", root.path, root.path);
-    if root.dirs.len() == 0 && root.files.len() == 0 {
+    if root.dirs.is_empty() && root.files.is_empty() {
         ftxt.push_str("No files");
     }else{
         ftxt.push_str("<table>");
@@ -126,9 +126,9 @@ struct BaseInfo{
 impl BaseInfo{
     fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>)->BaseInfo {
         BaseInfo{
-            path: path,
-            files: files,
-            dirs: dirs,
+            path,
+            files,
+            dirs,
         }
     }
 }
@@ -141,9 +141,9 @@ struct FileInfo {
 impl FileInfo {
     fn new(name: String, metadata: Metadata)->FileInfo {
         FileInfo{
-            name: name,
+            name,
             size: metadata.len(),
-            modified: metadata.modified().unwrap_or(SystemTime::now()).into(),
+            modified: metadata.modified().unwrap_or_else(|_| SystemTime::now()).into(),
         }
     }
 }
@@ -155,15 +155,15 @@ struct DirInfo{
 impl DirInfo{
     fn new(name: String, metadata: Metadata)->DirInfo {
         DirInfo{
-            name: name,
-            modified: metadata.modified().unwrap_or(SystemTime::now()).into(),
+            name,
+            modified: metadata.modified().unwrap_or_else(|_|SystemTime::now()).into(),
         }
     }
 }
 
 impl Handler for Static {
     fn handle(&self, ctx: &mut Context) {
-        let param = ctx.params().iter().find(|(key, _)|key.starts_with("*"));
+        let param = ctx.params().iter().find(|(key, _)|key.starts_with('*'));
         let base_path = if let Some((_, value)) = param {
             value
         } else{
@@ -193,9 +193,9 @@ impl Handler for Static {
                         if let Ok(entry) = entry {
                             if let Ok(metadata) = entry.metadata() {
                                 if metadata.is_dir() {
-                                    dirs.entry(entry.file_name().into_string().unwrap_or("".to_owned())).or_insert(metadata);
+                                    dirs.entry(entry.file_name().into_string().unwrap_or_else(|_|"".to_owned())).or_insert(metadata);
                                 }else{
-                                    files.entry(entry.file_name().into_string().unwrap_or("".to_owned())).or_insert(metadata);
+                                    files.entry(entry.file_name().into_string().unwrap_or_else(|_|"".to_owned())).or_insert(metadata);
                                 }
                             }
                         }

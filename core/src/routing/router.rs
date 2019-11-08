@@ -220,12 +220,12 @@ impl PathParser{
 		if self.offset < self.path.len() - 1 && self.curr() != '/' {
 			return Err(format!("expect '/' here, but found {:?}   {:?}", self.curr(), self.offset));
 		}
-		return if &regex_seg != "" {
+		if &regex_seg != "" {
 			if &const_seg != "" {
 				regex_seg.push_str(&const_seg);
 			}
 			let regex = Regex::new(&regex_seg);
-			return match regex {
+			match regex {
 				Ok(r)=> Ok(Box::new(RegexSegment::new(r, regex_names))),
 				Err(_)=> Err("regex error".to_owned())
 			}

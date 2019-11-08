@@ -187,11 +187,11 @@ impl Request {
     pub fn form_data(&self) -> &Result<FormData, FormError>{
         self.form_data.get_or_init(||{
             let bdata = self.body_data().as_ref();
-            if let Err(_) = bdata {
-                Err(FormError::Decoding(Borrowed("get body data error")))
-            }else{
-                let mut reader = bdata.unwrap().as_slice();
+            if let Ok(bdata) = bdata {
+                let mut reader = bdata.as_slice();
                 form::read_form_data(&mut reader, &self.headers)
+            } else {
+                Err(FormError::Decoding(Borrowed("get body data error")))
             }
         })
     }
@@ -219,7 +219,7 @@ impl Request {
     #[inline(always)]
     pub fn frist_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
-        if accept.len() > 0 {
+        if !accept.is_empty() {
             Some(accept.remove(0))
         }else{
             None
