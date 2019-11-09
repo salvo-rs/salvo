@@ -33,6 +33,9 @@ impl RegexSegment{
 }
 impl Segment for RegexSegment {
 	fn detect<'a>(&self, segments:Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>){
+		if segments.is_empty() {
+			return (false, segments, None)
+		}
 		let caps = self.regex.captures(segments[0]);
 		if let Some(caps) = caps {
 			let mut kv = HashMap::<String, String>::new();
@@ -58,6 +61,9 @@ impl RestSegment{
 }
 impl Segment for RestSegment {
 	fn detect<'a>(&self, segments:Vec<&'a str>)->(bool, Vec<&'a str>, Option<HashMap<String, String>>){
+		if segments.is_empty() {
+			return (false, segments, None)
+		}
 		let mut kv = HashMap::new();
 		kv.insert(self.0.clone(), segments.join("/"));
 		(true, Vec::new(), Some(kv))
@@ -77,6 +83,9 @@ impl ConstSegment {
 }
 impl Segment for ConstSegment {
 	fn detect<'a>(&self, segments:Vec<&'a str>)->(bool, Vec<&'a str>, Option<HashMap<String, String>>){
+		if segments.is_empty() {
+			return (false, segments, None)
+		}
 		let matched = self.0 == segments[0];
 		if matched {
 			(matched, segments[1..].to_vec(), None)
