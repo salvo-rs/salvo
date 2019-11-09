@@ -175,7 +175,7 @@ impl PathParser{
 				self.next(true);
 				let rest_seg = self.scan_ident()?;
 				if self.offset < self.path.len() - 1 {
-					panic!("no chars allowed after rest segment");
+					panic!("no chars allowed after rest egment");
 				}
 				return Ok(Box::new(RestSegment::new(format!("*{}", rest_seg))))
 			}else{
@@ -197,16 +197,11 @@ impl PathParser{
 					}
 					self.next(false);
 					rrgex = self.scan_regex()?;
-					// if self.curr() != '/' {
-					// 	return Err(format!("except '/' to end regex current char is '{}'", self.curr()));
-					// }
 				}
-				let is_rb = match self.next(true){
-					Some(c) => c == '>',
-					None => false,
-				};
-				if !is_rb {
+				if self.curr() != '>' {
 					return Err(format!("except '>' to end regex segement, current char is '{}'", self.curr()));
+				} else {
+					self.next(false);
 				}
 				if &const_seg != "" {
 					regex_seg.push_str(&const_seg);
