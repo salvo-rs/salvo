@@ -211,8 +211,11 @@ impl<H: Handler> hyper::service::Service for HyperHandler<H>{
                 if !is_allowed {
                     ctx.response.status = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
-            } else if !has_error {
-                ctx.response.status = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            } else {
+                warn!(logging::logger(), "Http response content type header is not set"; "url" => ctx.request().url().as_str(), "method" => ctx.request().method().as_str());
+                if !has_error {
+                    ctx.response.status = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                }
             }
             if ctx.response.body_writers.len() == 0 &&  has_error{
                 for catcher in &*catchers {

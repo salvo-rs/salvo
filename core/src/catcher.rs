@@ -24,7 +24,7 @@ fn error_html(code: u16, name: &str, summary: &str)->String {
 </html>", code, name, summary)
 }
 fn error_json(code: u16, name: &str, summary: &str)->String {
-   format!("{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\"}}", code, name, summary)
+   format!("{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\"}}}}", code, name, summary)
 }
 fn error_text(code: u16, name: &str, summary: &str)->String {
    format!("code:{},\nname:{},\nsummary:{}", code, name, summary)
