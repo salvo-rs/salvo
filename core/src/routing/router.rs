@@ -360,24 +360,34 @@ impl Router {
 		let mut afters = vec![];
 		let mut i = 0;
 		let mut rest = segments.clone();
-		for ps in &self.path_segments {
-			let (matched, nrest, kv) = ps.detect(rest);
-			if !matched {
-				return (false, vec![], params);
-			}else{
-				if let Some(kv) = kv {
-					params.extend(kv);
+		if self.path_segments.len() > 0 {
+			for ps in &self.path_segments {
+				let (matched, nrest, kv) = ps.detect(rest);
+				if !matched {
+					return (false, vec![], params);
+				}else{
+					if let Some(kv) = kv {
+						params.extend(kv);
+					}
+					rest = nrest;
+					for b in self.befores.get(&method).unwrap_or(&vec![]) {
+						befores.push(b.clone());
+					}
+					for a in self.afters.get(&method).unwrap_or(&vec![]) {
+						afters.push(a.clone());
+					}
 				}
-				rest = nrest;
-				for b in self.befores.get(&method).unwrap_or(&vec![]) {
-					befores.push(b.clone());
-				}
-				for a in self.afters.get(&method).unwrap_or(&vec![]) {
-					afters.push(a.clone());
-				}
+				i += 1;
 			}
-			i += 1;
+		}else {
+			for b in self.befores.get(&method).unwrap_or(&vec![]) {
+				befores.push(b.clone());
+			}
+			for a in self.afters.get(&method).unwrap_or(&vec![]) {
+				afters.push(a.clone());
+			}
 		}
+
 		if rest.is_empty() {
 			let mut allh = vec![];
 			allh.extend(befores);
