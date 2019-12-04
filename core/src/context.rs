@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use crate::error::Error;
 use crate::http::form::Error as FormError;
 // use std::sync::Arc;
-use crate::state::State;
+use crate::depot::Depot;
 use crate::http::{headers, Request, form::FormData, Response, BodyWriter, StatusCode};
 use cookie::{Cookie, CookieJar};
 use serde_json;
@@ -26,7 +26,7 @@ pub struct Context{
     pub(crate) response: Response,
     pub(crate) params: HashMap<String, String>,
     pub(crate) server_config: Arc<ServerConfig>,
-    pub(crate) state: State,
+    pub(crate) depot: Depot,
     pub(crate) cookies: CookieJar,
     is_commited: bool,
 }
@@ -38,7 +38,7 @@ impl Context{
             server_config,
             request,
             response,
-            state: State::new(),
+            depot: Depot::new(),
             is_commited: false,
             cookies: CookieJar::new(),
         }
@@ -91,7 +91,9 @@ impl Context{
     pub fn get_payload(&self) -> Result<String, Error> {
         if let Ok(data) = self.request.body_data().as_ref(){
             match String::from_utf8(data.to_vec()){
-                Ok(payload) => Ok(payload),
+                Ok(payload) => {
+                    println!("????????????????{:#?}", payload);
+                    Ok(payload)},
                 Err(err) => Err(Error::Utf8(err)),
             }
         } else {
@@ -113,12 +115,16 @@ impl Context{
         self.cookies.remove(Cookie::named(name));
     }
     #[inline]
-    pub fn state(&self)->&State {
-        &self.state
+    pub fn depot(&self)->&Depot {
+        &self.depot
     }
     #[inline]
-    pub fn state_mut(&mut self)->&mut State {
-        &mut self.state
+    pub fn depot_mut(&mut self)->&mut Depot {
+        &mut self.depot
+    }
+    #[inline]
+    pub fn set_status_code(&mut self, code: StatusCode) {
+        self.response.status = Some(code);
     }
 
     #[inline]

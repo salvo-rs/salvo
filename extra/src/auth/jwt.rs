@@ -95,13 +95,13 @@ impl<C> Handler for JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'sta
            if let Some(token) = extractor.get_token(ctx) {
                 if let Ok(claims) = self.decode(&token){
                     if let Some(key) = &self.config.context_user_key {
-                        ctx.state_mut().insert(key.clone(), claims);
+                        ctx.depot_mut().insert(key.clone(), claims);
                     }
                 }else{
                     if self.config.response_error {
                         ctx.forbidden();
                     } else if let Some(key) = &self.config.context_state_key {
-                        ctx.state_mut().insert(key.clone(), "forbidden");
+                        ctx.depot_mut().insert(key.clone(), "forbidden");
                     }
                 }
                 return;
@@ -110,7 +110,7 @@ impl<C> Handler for JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'sta
        if self.config.response_error {
            ctx.unauthorized();
        }  else if let Some(key) = &self.config.context_state_key {
-           ctx.state_mut().insert(key.clone(), "unauthorized");
+           ctx.depot_mut().insert(key.clone(), "unauthorized");
        }
     }
 }

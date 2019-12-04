@@ -6,7 +6,7 @@ mod catcher;
 mod pick_port;
 pub mod http;
 pub mod routing;
-pub mod state;
+pub mod depot;
 pub mod error;
 pub mod logging;
 

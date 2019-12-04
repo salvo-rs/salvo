@@ -61,7 +61,7 @@ impl Handler for BasicAuthHandler{
                         if let Ok((user_name, password)) = self.parse_authorization(auth){
                             if self.config.validator.validate(user_name.clone(), password) {
                                 if let Some(key) = &self.config.context_key {
-                                    ctx.state_mut().insert(key.clone(), user_name);
+                                    ctx.depot_mut().insert(key.clone(), user_name);
                                 }
                                 return
                             }

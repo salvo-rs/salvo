@@ -1,13 +1,13 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-pub struct State {
+pub struct Depot {
     data: HashMap<String, Box<dyn Any + Send>>,
 }
 
-impl State {
-    pub(crate) fn new() -> State {
-        State {
+impl Depot {
+    pub(crate) fn new() -> Depot {
+        Depot {
             data: HashMap::new(),
         }
     }
@@ -40,7 +40,7 @@ impl State {
         V: Any + Send,
     {
         self.try_borrow(key)
-            .expect("required type is not present in State container")
+            .expect("required type is not present in Depot container")
     }
     pub fn try_borrow_mut<K, V>(&mut self, key: K) -> Option<&mut V>
     where
@@ -58,7 +58,7 @@ impl State {
         V: Any + Send,
     {
         self.try_borrow_mut(key)
-            .expect("required type is not present in State container")
+            .expect("required type is not present in Depot container")
     }
 
     pub fn try_take<K, V>(&mut self, key: K) -> Option<V>
@@ -78,6 +78,6 @@ impl State {
         V: Any + Send,
     {
         self.try_take(key)
-            .expect("required type is not present in State container")
+            .expect("required type is not present in Depot container")
     }
 }
