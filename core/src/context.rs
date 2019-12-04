@@ -92,7 +92,6 @@ impl Context{
         if let Ok(data) = self.request.body_data().as_ref(){
             match String::from_utf8(data.to_vec()){
                 Ok(payload) => {
-                    println!("????????????????{:#?}", payload);
                     Ok(payload)},
                 Err(err) => Err(Error::Utf8(err)),
             }
