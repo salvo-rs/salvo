@@ -123,6 +123,26 @@ impl PathParser{
 		}
 		None
 	}
+	fn peek(&self, skip_blank: bool)->Option<char> {
+		if !self.path.is_empty() && self.offset < self.path.len() - 1 {
+			if skip_blank {
+				let mut offset = self.offset + 1;
+				let mut ch = self.path[offset];
+				while ch == ' ' || ch == '\t' {
+					offset += 1;
+					if offset >= self.path.len() {
+						return None;
+					}
+					ch = self.path[offset]
+				}
+				Some(ch)
+			}else{
+				Some(self.path[self.offset+1])
+			}
+		}else{
+			None
+		}
+	}
 	fn curr(&self)->char{
 		self.path[self.offset]
 	}
@@ -147,10 +167,11 @@ impl PathParser{
 			if let Some(c) = self.next(false){
 				ch = c;
 				if ch == '/' {
-					let pch = self.peek();
+					let pch = self.peek(true);
 					if pch.is_none() {
 						return Err("path end but regex is not ended".to_owned());
 					}else if let Some('>') = pch {
+						self.next(true);
 						break;
 					}
 				}
@@ -237,13 +258,6 @@ impl PathParser{
 			Ok(Box::new(ConstSegment::new(const_seg)))
 		}else{
 			Err("parse path error 1".to_owned())
-		}
-	}
-	fn peek(&self)->Option<char> {
-		if !self.path.is_empty() && self.offset < self.path.len() - 1 {
-			Some(self.path[self.offset+1])
-		}else{
-			None
 		}
 	}
 	fn skip_blank(&mut self) {
