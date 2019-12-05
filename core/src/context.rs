@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::borrow::Cow;
 use crate::error::Error;
 use crate::http::form::Error as FormError;
-// use std::sync::Arc;
+use std::str::FromStr;
 use crate::depot::Depot;
 use crate::http::{headers, Request, form::FormData, Response, BodyWriter, StatusCode};
 use cookie::{Cookie, CookieJar};
@@ -89,8 +89,12 @@ impl Context{
         &self.params
     }
     #[inline]
-    pub fn get_param<T>(&self, key:T) -> Option<&String> where T: AsRef<str> {
-        self.params().get(key.as_ref())
+    pub fn get_param<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
+        if let Some(value) = self.params().get(key) {
+            value.parse::<F>().ok()
+        } else {
+            None
+        }
     }
     
     #[inline]
