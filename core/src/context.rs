@@ -9,6 +9,7 @@ use crate::http::form::Error as FormError;
 use crate::depot::Depot;
 use crate::http::{headers, Request, form::FormData, Response, BodyWriter, StatusCode};
 use cookie::{Cookie, CookieJar};
+use serde::{Serialize, Deserialize};
 use serde_json;
 use serde_urlencoded;
 use serde::de::DeserializeOwned;
@@ -20,6 +21,29 @@ use mime::Mime;
 use super::server::ServerConfig;
 use super::Content;
 use crate::logging;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorInfo {
+    name: String,
+    summary: String,
+    detail: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorWrap {
+    error: ErrorInfo,
+}
+
+impl ErrorWrap{
+    pub fn new<N, S, D>(name:N, summary: S, detail: D) -> ErrorWrap where N: Into<String>, S: Into<String>, D: Into<String> {
+        ErrorWrap {
+            error: ErrorInfo {
+                name: name.into(),
+                summary: summary.into(),
+                detail: detail.into(),
+            },
+        }
+    }
+}
 
 pub struct Context{
     pub(crate) request: Request,
@@ -148,19 +172,38 @@ impl Context{
     }
 
     #[inline]
-    pub fn render_json<T:Into<String>>(&mut self, writer: T) {
+    pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
+        if let Ok(data) = serde_cbor::to_vec(writer) {
+            self.render("application/cbor", data);
+        } else {
+            self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to cbor");
+            self.render("application/cbor", serde_cbor::to_vec(&emsg).unwrap());
+        }
+    }
+    #[inline]
+    pub fn render_json<'a, T: Serialize>(&mut self, writer: &'a T) {
+        if let Ok(data) = serde_json::to_string(writer) {
+            self.render("application/json", data);
+        } else {
+            self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
+            self.render("application/json", serde_json::to_string(&emsg).unwrap());
+        }
+    }
+    pub fn render_json_text<T: Into<String>>(&mut self, writer: T) {
         self.render("application/json", writer.into());
     }
     #[inline]
-    pub fn render_html<T:Into<String>>(&mut self, writer: T) {
+    pub fn render_html_text<T: Into<String>>(&mut self, writer: T) {
         self.render("text/html", writer.into());
     }
     #[inline]
-    pub fn render_text<T:Into<String>>(&mut self, writer: T) {
+    pub fn render_plain_text<T: Into<String>>(&mut self, writer: T) {
         self.render("text/plain", writer.into());
     }
     #[inline]
-    pub fn render_xml<T:Into<String>>(&mut self, writer: T) {
+    pub fn render_xml_text<T: Into<String>>(&mut self, writer: T) {
         self.render("text/xml", writer.into());
     }
     // RenderBinary is like RenderFile() except that it instead of a file on disk,

@@ -3,10 +3,10 @@ use novel::{Server, Context};
 use novel::routing::{Router};
 
 fn hello_world(ctx: &mut Context) {
-    ctx.render_text("Hello World");
+    ctx.render_plain_text("Hello World");
 }
 fn hello_world2(ctx: &mut Context) {
-    ctx.render_text("Hello World2");
+    ctx.render_plain_text("Hello World2");
 }
 fn main() {
     let mut router = Router::new("/");

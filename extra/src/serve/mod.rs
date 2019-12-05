@@ -220,10 +220,10 @@ impl Handler for Static {
         dirs.sort_by(|a,b|a.name.cmp(&b.name));
         let root = BaseInfo::new(ctx.request().url().path().to_owned(), files, dirs);
         match format.subtype().as_ref(){
-            "text"=> ctx.render_text(list_text(&root)),
-            "json"=> ctx.render_json(list_json(&root)),
-            "xml"=> ctx.render_xml(list_xml(&root)),
-            _ => ctx.render_html(list_html(&root)),
+            "text"=> ctx.render_plain_text(list_text(&root)),
+            "json"=> ctx.render_json_text(list_json(&root)),
+            "xml"=> ctx.render_xml_text(list_xml(&root)),
+            _ => ctx.render_html_text(list_html(&root)),
         }
     }
 }

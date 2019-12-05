@@ -25,6 +25,8 @@ extern crate bitflags;
 extern crate lazy_static;
 
 pub use content::Content;
+pub use context::ErrorWrap;
+pub use context::ErrorInfo;
 pub use context::Context;
 pub use server::{Server};
 pub use handler::Handler;
