@@ -1,7 +1,7 @@
 use novel::{Server};
 use novel::routing::{Router};
 use novel_extra::serve::Static;
-use novel_extra::auth::{BasicAuthHandler, BasicAuthConfig};
+use novel_extra::auth::basic::{BasicAuthHandler, BasicAuthConfig};
 use novel::routing::Method;
 use hyper;
 

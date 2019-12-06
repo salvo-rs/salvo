@@ -10,14 +10,20 @@ pub mod depot;
 pub mod error;
 pub mod logging;
 
-#[macro_use]
+// #[macro_use]
 extern crate serde;
-extern crate slog;
-extern crate bitflags;
-extern crate lazy_static;
+// #[macro_use]
 // extern crate serde_derive;
+// #[macro_use]
 // extern crate serde_json;
+// #[macro_use]
 // extern crate mime;
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate lazy_static;
 
 pub use content::Content;
 pub use context::ErrorWrap;
