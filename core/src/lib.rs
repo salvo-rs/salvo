@@ -10,19 +10,14 @@ pub mod depot;
 pub mod error;
 pub mod logging;
 
+#[macro_use]
 extern crate serde;
-// #[macro_use]
-// extern crate serde_derive;
-// #[macro_use]
-// extern crate serde_json;
-// #[macro_use]
-// extern crate mime;
-#[macro_use]
 extern crate slog;
-#[macro_use]
 extern crate bitflags;
-#[macro_use]
 extern crate lazy_static;
+// extern crate serde_derive;
+// extern crate serde_json;
+// extern crate mime;
 
 pub use content::Content;
 pub use context::ErrorWrap;
@@ -35,8 +30,6 @@ pub use catcher::{Catcher, CatcherImpl};
 pub use cookie;
 
 use std::ops::{Bound, RangeBounds};
-// #[macro_use]
-// extern crate bitflags;
 
 trait StringUtils {
     fn substring(&self, start: usize, len: usize) -> &str;
