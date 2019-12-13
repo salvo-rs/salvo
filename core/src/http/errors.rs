@@ -1,9 +1,9 @@
 use std::any::{Any, TypeId};
 use std::error::Error as StdError;
 use std::fmt;
-use crate::http::StatusCode;
+use http::StatusCode;
 
-pub trait HttpError: Send + Sync + Sendfmt::Display + fmt::Debug + 'static {
+pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
     fn code(&self) -> StatusCode;
     fn name(&self) -> &str;
     fn summary(&self) -> &str;
@@ -18,7 +18,7 @@ impl dyn HttpError {
         self.get_type_id() == TypeId::of::<T>()
     }
 
-    pub fn from_std_error(err: Box<dyn StdError + Send>) -> Box<dyn HttpError> {
+    pub fn from_std_error(err: Box<dyn StdError + Send>) -> InternalServerError {
         InternalServerError::new("Internal Server Error", format!("{}", err))
     }
 }
@@ -40,7 +40,7 @@ impl HttpError for Box<dyn HttpError> {
 
 pub type HttpResult<T> = Result<T, Box<dyn HttpError>>;
 
-impl<E: StdError + Send + 'static> HttpError for E {
+impl<E: StdError + Send + Sync + 'static> HttpError for E {
     fn code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }
@@ -55,9 +55,9 @@ impl<E: StdError + Send + 'static> HttpError for E {
     }
 }
 
-impl<E: StdError + Send + 'static> From<E> for Box<dyn HttpError> {
+impl<E: StdError + Send + Sync + 'static> From<E> for Box<dyn HttpError> {
     fn from(err: E) -> Box<dyn HttpError> {
-        InternalServerError::new("Internal Server Error", format!("{}", err))
+        Box::new(InternalServerError::new("Internal Server Error", format!("{}", err)))
     }
 }
 
@@ -91,14 +91,14 @@ impl HttpError for ConcreteError {
         self.name.as_str()
     }
     fn summary(&self) -> &str {
-        if let Some(summary) = self.summary {
+        if let Some(ref summary) = self.summary {
             summary.as_str()
         } else {
             ""
         }
     }
     fn detail(&self) -> &str {
-        if let Some(detail) = self.detail {
+        if let Some(ref detail) = self.detail {
             detail.as_str()
         } else {
             ""

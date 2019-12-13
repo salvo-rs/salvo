@@ -36,16 +36,16 @@ fn error_xml(e: &Box<dyn HttpError>)->String {
     format!("<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>", 
         e.code(), e.name(), e.summary(), e.detail())
 }
-pub struct CatcherImpl(Box<dyn HttpError + Sync + Send>);
+pub struct CatcherImpl(Box<dyn HttpError>);
 impl CatcherImpl{
-    pub fn new(e: Box<dyn HttpError + Sync + Send>) -> CatcherImpl{
+    pub fn new(e: Box<dyn HttpError>) -> CatcherImpl{
         CatcherImpl(e)
     }
 }
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, resp: &mut Response)->bool {
         let status = resp.status.unwrap_or(StatusCode::NOT_FOUND);
-        if status != self.0.code {
+        if status != self.0.code() {
             return false;
         }
         let dmime: Mime = "text/html".parse().unwrap();
@@ -67,10 +67,10 @@ impl Catcher for CatcherImpl {
 }
 
 macro_rules! default_catchers {
-    ($($name:ident),+) => (
+    ($($name:ty),+) => (
         let mut list: Vec<Box<dyn Catcher>> = vec![];
         $(
-            list.push(Box::new(CatcherImpl::new(Box::new($name::with_default()))));
+            list.push(Box::new(CatcherImpl::new(Box::new(<$name>::with_default()))));
         )+
         list
     )
@@ -78,6 +78,7 @@ macro_rules! default_catchers {
 
 pub mod defaults {
     use super::{Catcher, CatcherImpl};
+    use crate::http::errors::*;
 
     pub fn get() -> Vec<Box<dyn Catcher>> {
         default_catchers! {
