@@ -1,4 +1,6 @@
 use crate::Context;
+use crate::Content;
+use crate::http::errors::*;
 
 pub trait Handler: Send + Sync + 'static {
     fn handle(&self, ctx: &mut Context);
@@ -10,6 +12,27 @@ where
 {
     fn handle(&self, ctx: &mut Context) {
         (*self)(ctx);
+    }
+}
+pub trait HandlerWithResult: Handler + 'static {
+    fn handle_with_result(&self, ctx: &mut Context) -> HttpResult<Box<dyn Content>>;
+    fn handle(&self, ctx: &mut Context) {
+        match self.handle_with_result(ctx) {
+            Ok(content) => {
+                ctx.write_content(&content);
+            },
+            Err(err) => {
+                ctx.write_error(&err);
+            },
+        }
+    }
+}
+impl<F> HandlerWithResult for F
+where
+    F: Send + Sync + 'static + Fn(&mut Context) -> HttpResult<Box<dyn Content>>,
+{
+    fn handle_with_result(&self, ctx: &mut Context) -> HttpResult<Box<dyn Content>> {
+        (*self)(ctx)
     }
 }
 

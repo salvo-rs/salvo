@@ -21,6 +21,7 @@ use mime::Mime;
 use super::server::ServerConfig;
 use super::Content;
 use crate::logging;
+use crate::http::errors::HttpError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ErrorInfo {
@@ -171,8 +172,18 @@ impl Context{
         }
     }
 
-    pub fn write_content(&mut self, content: impl Content){
+    #[inline]
+    pub fn write_error(&mut self, err: &dyn HttpError){
+        self.response.status = Some(err.code());
+        self.commit();
+    }
+    #[inline]
+    pub fn write_content(&mut self, content: &dyn Content){
         content.apply(self);
+    }
+    #[inline]
+    pub fn write_body(&mut self, writer: impl BodyWriter+'static) {
+        self.response.body_writers.push(Box::new(writer))
     }
 
     #[inline]
@@ -292,10 +303,6 @@ impl Context{
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
         self.response.status = Some(StatusCode::SEE_OTHER);
         self.response.headers.insert(headers::LOCATION, url.as_ref().parse().unwrap());
-    }
-    #[inline]
-    pub fn write_body(&mut self, writer: impl BodyWriter+'static) {
-        self.response.body_writers.push(Box::new(writer))
     }
     #[inline]
     pub fn commit(&mut self) {

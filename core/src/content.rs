@@ -4,6 +4,12 @@ pub trait Content {
     fn apply(self, ctx: &mut Context);
 }
 
+impl Content for Box<dyn Content> {
+    fn apply(self, ctx: &mut Context) {
+        *self.apply(ctx);
+    }
+}
+
 pub struct HtmlTextContent<T>(T) where T: Into<String>;
 impl<T> Content for HtmlTextContent<T> where T: Into<String> {
     fn apply(self, ctx: &mut Context){
