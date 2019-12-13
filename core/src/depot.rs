@@ -17,7 +17,8 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.data.insert(key.into(), Box::new(value));
+        let x = key.into();
+        self.data.insert(x, Box::new(value));
     }
 
     pub fn has<K>(&self, key: K) -> bool
