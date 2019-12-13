@@ -17,8 +17,7 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        let x = key.into();
-        self.data.insert(x, Box::new(value));
+        self.data.insert(key.into(), Box::new(value));
     }
 
     pub fn has<K>(&self, key: K) -> bool
@@ -32,7 +31,8 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.data.get(&key.into()).and_then(|b| b.downcast_ref::<V>())
+        self.data.get(&key.into()).and_then(|b| {
+            b.downcast_ref::<V>()})
     }
 
     pub fn borrow<K, V>(&self, key: K) -> &V
@@ -41,7 +41,7 @@ impl Depot {
         V: Any + Send,
     {
         self.try_borrow(key)
-            .expect("required type is not present in Depot container")
+            .expect("required type is not present in depot container")
     }
     pub fn try_borrow_mut<K, V>(&mut self, key: K) -> Option<&mut V>
     where
@@ -59,7 +59,7 @@ impl Depot {
         V: Any + Send,
     {
         self.try_borrow_mut(key)
-            .expect("required type is not present in Depot container")
+            .expect("required type is not present in depot container")
     }
 
     pub fn try_take<K, V>(&mut self, key: K) -> Option<V>
@@ -79,6 +79,6 @@ impl Depot {
         V: Any + Send,
     {
         self.try_take(key)
-            .expect("required type is not present in Depot container")
+            .expect("required type is not present in depot container")
     }
 }
