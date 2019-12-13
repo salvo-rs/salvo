@@ -1,17 +1,16 @@
 use hyper::header::AUTHORIZATION;
-use jsonwebtoken::{decode, TokenData};
-use jsonwebtoken::errors::Error as JwtError;
 use serde::de::{DeserializeOwned};
 use std::{marker::PhantomData};
 use novel::{Context, Handler};
-pub use jsonwebtoken::{Validation, Algorithm};
+pub use jsonwebtoken::errors::Error as JwtError;
+pub use jsonwebtoken::{decode, Validation, Algorithm, TokenData};
 
 pub struct JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static{
     config: JwtConfig<C>,
 }
 pub struct JwtConfig<C> where C: DeserializeOwned + Sync + Send + 'static{
     pub secret: String,
-    pub context_claims_key: Option<String>,
+    pub context_data_key: Option<String>,
     pub context_state_key: Option<String>,
     pub response_error: bool,
     pub claims: PhantomData<C>,
@@ -63,7 +62,6 @@ impl QueryExtractor{
 }
 impl JwtExtractor for QueryExtractor{
     fn get_token(&self, ctx: &mut Context) -> Option<String>{
-        println!("==========get query: {}, {:#?}", &self.0, ctx.get_query(&self.0));
         ctx.get_query(&self.0)
     }
 }
@@ -92,16 +90,11 @@ impl<C> JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
 }
 impl<C> Handler for JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
     fn handle(&self, ctx: &mut Context){
-        println!("==============1,  {}", self.config.extractors.len());
         for extractor in &self.config.extractors {
-            println!("==============...2");
            if let Some(token) = extractor.get_token(ctx) {
-            println!("==============2");
-                if let Ok(claims) = self.decode(&token){
-                    println!("==============3");
-                    if let Some(key) = &self.config.context_claims_key {
-                        println!("==============4{}", key);
-                        ctx.depot_mut().insert(key.clone(), claims);
+                if let Ok(data) = self.decode(&token){
+                    if let Some(key) = &self.config.context_data_key {
+                        ctx.depot_mut().insert(key.clone(), data);
                     }
                 }else{
                     if self.config.response_error {
