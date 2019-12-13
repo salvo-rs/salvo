@@ -19,6 +19,7 @@ mod request;
 mod response;
 pub mod form;
 pub mod headers;
+pub mod errors;
 
 pub use request::Request;
 pub use response::{Response, BodyWriter};
