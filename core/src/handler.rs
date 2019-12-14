@@ -14,27 +14,22 @@ where
         (*self)(ctx);
     }
 }
-pub trait HandlerWithResult: Send + Sync + 'static {
-    fn handle_with_result(&self, ctx: &mut Context) -> HttpResult<Box<dyn Content>>;
-    fn handle(&self, ctx: &mut Context) {
-        match self.handle_with_result(ctx) {
-            Ok(content) => {
-                ctx.write_content(content);
-            },
-            Err(err) => {
-                ctx.write_error(err);
-            },
-        }
-    }
-}
-impl<F> HandlerWithResult for F
-where
-    F: Send + Sync + 'static + Fn(&mut Context) -> HttpResult<Box<dyn Content>>,
-{
-    fn handle_with_result(&self, ctx: &mut Context) -> HttpResult<Box<dyn Content>> {
-        (*self)(ctx)
-    }
-}
+//https://github.com/rust-lang/rust/issues/60074
+// impl<F> Handler for F
+// where
+//     F: Send + Sync + 'static + Fn(&mut Context) -> HttpResult<Box<dyn Content>>,
+// {
+//     fn handle(&self, ctx: &mut Context) {
+//         match (*self)(ctx) {
+//             Ok(content) => {
+//                 ctx.write_content(content);
+//             },
+//             Err(err) => {
+//                 ctx.write_error(err);
+//             },
+//         }
+//     }
+// }
 
 macro_rules! handler_tuple_impls {
     ($(
