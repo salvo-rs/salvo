@@ -173,12 +173,12 @@ impl Context{
     }
 
     #[inline]
-    pub fn write_error(&mut self, err: &dyn HttpError){
+    pub fn write_error(&mut self, err: impl HttpError){
         self.response.status = Some(err.code());
         self.commit();
     }
     #[inline]
-    pub fn write_content(&mut self, content: &dyn Content){
+    pub fn write_content(&mut self, content: impl Content){
         content.apply(self);
     }
     #[inline]

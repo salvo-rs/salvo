@@ -1,39 +1,39 @@
 use crate::Context;
 
 pub trait Content {
-    fn apply(self, ctx: &mut Context);
+    fn apply(&self, ctx: &mut Context);
 }
 
 impl Content for Box<dyn Content> {
-    fn apply(self, ctx: &mut Context) {
-        *self.apply(ctx);
+    fn apply(&self, ctx: &mut Context) {
+        (**self).apply(ctx);
     }
 }
 
-pub struct HtmlTextContent<T>(T) where T: Into<String>;
-impl<T> Content for HtmlTextContent<T> where T: Into<String> {
-    fn apply(self, ctx: &mut Context){
-        ctx.render("text/html", self.0.into());
+pub struct HtmlTextContent(String);
+impl Content for HtmlTextContent {
+    fn apply(&self, ctx: &mut Context){
+        ctx.render("text/html", self.0.clone());
     }
 }
 
-pub struct JsonTextContent<T>(T) where T: Into<String>;
-impl<T> Content for JsonTextContent<T> where T: Into<String> {
-    fn apply(self, ctx: &mut Context){
-        ctx.render("application/json", self.0.into());
+pub struct JsonTextContent(String);
+impl Content for JsonTextContent {
+    fn apply(&self, ctx: &mut Context){
+        ctx.render("application/json", self.0.clone());
     }
 }
 
-pub struct PlainTextContent<T>(T) where T: Into<String>;
-impl<T> Content for PlainTextContent<T> where T: Into<String> {
-    fn apply(self, ctx: &mut Context){
-        ctx.render("text/plain", self.0.into());
+pub struct PlainTextContent(String);
+impl Content for PlainTextContent {
+    fn apply(&self, ctx: &mut Context){
+        ctx.render("text/plain", self.0.clone());
     }
 }
 
-pub struct XmlTextContent<T>(T) where T: Into<String>;
-impl<T> Content for XmlTextContent<T> where T: Into<String> {
-    fn apply(self, ctx: &mut Context){
-        ctx.render("text/xml", self.0.into());
+pub struct XmlTextContent(String);
+impl Content for XmlTextContent{
+    fn apply(&self, ctx: &mut Context){
+        ctx.render("text/xml", self.0.clone());
     }
 }

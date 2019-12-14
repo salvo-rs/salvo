@@ -14,15 +14,15 @@ where
         (*self)(ctx);
     }
 }
-pub trait HandlerWithResult: Handler + 'static {
+pub trait HandlerWithResult: Send + Sync + 'static {
     fn handle_with_result(&self, ctx: &mut Context) -> HttpResult<Box<dyn Content>>;
     fn handle(&self, ctx: &mut Context) {
         match self.handle_with_result(ctx) {
             Ok(content) => {
-                ctx.write_content(&content);
+                ctx.write_content(content);
             },
             Err(err) => {
-                ctx.write_error(&err);
+                ctx.write_error(err);
             },
         }
     }
