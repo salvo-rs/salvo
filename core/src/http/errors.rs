@@ -62,7 +62,7 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Box<dyn HttpError> {
 }
 
 #[derive(Debug)]
-struct ConcreteError {
+pub struct ConcreteError {
     code: StatusCode,
     name: String,
     summary: Option<String>,
