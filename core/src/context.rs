@@ -21,8 +21,30 @@ use mime::Mime;
 use super::server::ServerConfig;
 use super::Content;
 use crate::logging;
-use crate::http::errors::{HttpError, HttpErrorDisplay};
+use crate::http::errors::HttpError;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorInfo {
+    name: String,
+    summary: String,
+    detail: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorWrap {
+    error: ErrorInfo,
+}
+
+impl ErrorWrap{
+    pub fn new<N, S, D>(name:N, summary: S, detail: D) -> ErrorWrap where N: Into<String>, S: Into<String>, D: Into<String> {
+        ErrorWrap {
+            error: ErrorInfo {
+                name: name.into(),
+                summary: summary.into(),
+                detail: detail.into(),
+            },
+        }
+    }
+}
 
 pub struct Context{
     pub(crate) request: Request,
@@ -170,7 +192,7 @@ impl Context{
             self.render("application/cbor", data);
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            let emsg = HttpErrorDisplay::new(StatusCode::INTERNAL_SERVER_ERROR, "internal_server_error", "internal server error", "error when serialize object to cbor");
+            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to cbor");
             self.render("application/cbor", serde_cbor::to_vec(&emsg).unwrap());
         }
     }
@@ -180,7 +202,7 @@ impl Context{
             self.render("application/json", data);
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            let emsg = HttpErrorDisplay::new(StatusCode::INTERNAL_SERVER_ERROR, "internal_server_error", "internal server error", "error when serialize object to json");
+            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
             self.render("application/json", serde_json::to_string(&emsg).unwrap());
         }
     }

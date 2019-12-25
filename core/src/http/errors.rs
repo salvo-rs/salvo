@@ -62,9 +62,8 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Box<dyn HttpError> {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
 pub struct ConcreteError {
-    #[serde(skip_serializing)]
     code: StatusCode,
     name: String,
     summary: Option<String>,
@@ -103,24 +102,6 @@ impl HttpError for ConcreteError {
             detail.as_str()
         } else {
             ""
-        }
-    }
-}
-
-#[derive(Serialize, Debug)]
-pub struct HttpErrorDisplay{
-    error: ConcreteError,
-}
-
-impl HttpErrorDisplay{
-    pub fn new<N, S, D>(code: StatusCode, name:N, summary: S, detail: D) -> HttpErrorDisplay where N: Into<String>, S: Into<String>, D: Into<String> {
-        HttpErrorDisplay {
-            error: ConcreteError {
-                code: code,
-                name: name.into(),
-                summary: Some(summary.into()),
-                detail: Some(detail.into()),
-            },
         }
     }
 }
