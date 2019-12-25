@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::error::Error as StdError;
 use std::fmt;
 use http::StatusCode;
+use serde::{Serialize, Deserialize};
 
 pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
     fn code(&self) -> StatusCode;
@@ -61,8 +62,9 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Box<dyn HttpError> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct ConcreteError {
+    #[serde(skip_serializing)]
     code: StatusCode,
     name: String,
     summary: Option<String>,
@@ -81,7 +83,6 @@ impl fmt::Display for ConcreteError {
         Ok(())
     }
 }
-
 
 impl HttpError for ConcreteError {
     fn code(&self) -> StatusCode {
@@ -106,8 +107,26 @@ impl HttpError for ConcreteError {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub struct HttpErrorDisplay{
+    error: ConcreteError,
+}
+
+impl HttpErrorDisplay{
+    pub fn new<N, S, D>(code: StatusCode, name:N, summary: S, detail: D) -> HttpErrorDisplay where N: Into<String>, S: Into<String>, D: Into<String> {
+        HttpErrorDisplay {
+            error: ConcreteError {
+                code: code,
+                name: name.into(),
+                summary: Some(summary.into()),
+                detail: Some(detail.into()),
+            },
+        }
+    }
+}
+
 macro_rules! default_errors {
-    ($($sname:ident, $code:expr, $name:expr, $summary:expr, $detail:expr),+) => (
+    ($($sname:ident, $code:expr, $name:expr, $summary:expr, $detail:expr),+) => {
         $(
             #[derive(Debug, Clone)]
             pub struct $sname(String, String);
@@ -141,7 +160,7 @@ macro_rules! default_errors {
                 }
             }
         )+
-    )
+    }
 }
 
 default_errors! {
