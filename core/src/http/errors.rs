@@ -2,7 +2,6 @@ use std::any::{Any, TypeId};
 use std::error::Error as StdError;
 use std::fmt;
 use http::StatusCode;
-use serde::{Serialize, Deserialize};
 
 pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
     fn code(&self) -> StatusCode;
