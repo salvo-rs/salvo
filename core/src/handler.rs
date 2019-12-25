@@ -1,6 +1,4 @@
 use crate::Context;
-use crate::Content;
-use crate::http::errors::*;
 
 pub trait Handler: Send + Sync + 'static {
     fn handle(&self, ctx: &mut Context);
