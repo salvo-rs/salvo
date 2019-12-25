@@ -91,11 +91,7 @@ impl Context{
     }
     #[inline]
     pub fn get_param<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
-        if let Some(value) = self.params().get(key) {
-            value.parse::<F>().ok()
-        } else {
-            None
-        }
+        self.params().get(key).and_then(|v|v.parse::<F>().ok())
     }
     
     #[inline]
@@ -103,19 +99,19 @@ impl Context{
         self.request.queries()
     }
     #[inline]
-    pub fn get_query<T>(&self, key:T) -> Option<String> where T: AsRef<str> {
-        self.request.queries().get(key.as_ref()).map(|s|s.clone())
+    pub fn get_query<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
+        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
     pub fn posts(&self) -> &Result<FormData, FormError> {
         self.request.form_data()
     }
     #[inline]
-    pub fn get_post<T>(&self, key:T) -> Option<String> where T: AsRef<str> {
-        self.request.form_data().as_ref().ok().and_then(|ps|ps.get_one_field(key.as_ref()).map(|s|s.clone()))
+    pub fn get_post<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
+        self.request.form_data().as_ref().ok().and_then(|ps|ps.get_one_field(key).map(|s|s.clone())).and_then(|v|v.parse::<F>().ok())
     }
-    pub fn get_form<T>(&self, key:T) -> Option<String> where T: AsRef<str> {
-        self.get_post(key.as_ref()).or(self.get_query(key.as_ref()).map(|s|s.clone()))
+    pub fn get_form<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
+        self.get_post::<F>(key.as_ref()).or(self.get_query::<F>(key))
     }
     pub fn get_payload(&self) -> Result<String, Error> {
         if let Ok(data) = self.request.body_data().as_ref(){
