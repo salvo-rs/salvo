@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::cell::{RefCell, Ref};
 use url::{Url};
 use std::borrow::Cow::Borrowed;
+use multimap::MultiMap;
 use double_checked_cell::DoubleCheckedCell;
 
 use http;
@@ -15,7 +16,6 @@ use futures::{Future, Stream};
 #[cfg(test)]
 use std::net::ToSocketAddrs;
 
-use std::collections::HashMap;
 use crate::http::headers::{self, HeaderMap};
 use crate::http::{Body, Mime};
 use crate::http::form::{self, FormData, Error as FormError};
@@ -46,7 +46,7 @@ pub struct Request {
     cookies: CookieJar,
 
     // accept: Option<Vec<Mime>>,
-    queries: DoubleCheckedCell<HashMap<String, String>>,
+    queries: DoubleCheckedCell<MultiMap<String, String>>,
     form_data: DoubleCheckedCell<Result<FormData, FormError>>,
     body_data: DoubleCheckedCell<Result<Vec<u8>, Error>>,
 
@@ -181,7 +181,7 @@ impl Request {
         self.body.replace(None)
     }
 
-    pub fn queries(&self) -> &HashMap<String, String>{
+    pub fn queries(&self) -> &MultiMap<String, String>{
         self.queries.get_or_init(||self.url.query_pairs().into_owned().collect())
     }
     pub fn form_data(&self) -> &Result<FormData, FormError>{

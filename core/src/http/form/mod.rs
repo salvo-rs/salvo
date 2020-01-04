@@ -33,7 +33,7 @@ fn fill_form_data(form_data: &mut FormData, nodes: Vec<Node>) -> Result<(), Erro
                 let cd_name: Option<String> = part.headers.get(CONTENT_DISPOSITION).and_then(|hv|get_content_disposition_name(&hv));
                 let key = cd_name.ok_or(Error::NoName)?;
                 let val = String::from_utf8(part.body)?;
-                form_data.fields.push((key, val));
+                form_data.fields.insert(key, val);
             },
             Node::File(part) => {
                 /*let cd_name: Option<String> = {
@@ -46,7 +46,7 @@ fn fill_form_data(form_data: &mut FormData, nodes: Vec<Node>) -> Result<(), Erro
                 
                 let cd_name: Option<String> = part.headers.get(CONTENT_DISPOSITION).and_then(|hv|get_content_disposition_name(&hv));
                 let key = cd_name.ok_or(Error::NoName)?;
-                form_data.files.push((key, part));
+                form_data.files.insert(key, part);
             }
             Node::Multipart((headers, nodes)) => {
                 /*let cd_name: Option<String> = {
@@ -63,10 +63,10 @@ fn fill_form_data(form_data: &mut FormData, nodes: Vec<Node>) -> Result<(), Erro
                     match node {
                         Node::Part(part) => {
                             let val = String::from_utf8(part.body)?;
-                            form_data.fields.push((key.clone(), val));
+                            form_data.fields.insert(key.clone(), val);
                         },
                         Node::File(part) => {
-                            form_data.files.push((key.clone(), part));
+                            form_data.files.insert(key.clone(), part);
                         },
                         _ => { } // don't recurse deeper
                     }

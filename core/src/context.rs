@@ -18,6 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::io::prelude::*;
 use mime::Mime;
+use multimap::MultiMap;
 use super::server::ServerConfig;
 use super::Content;
 use crate::logging;
@@ -90,28 +91,31 @@ impl Context{
         &self.params
     }
     #[inline]
-    pub fn get_param<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
-        self.params().get(key).and_then(|v|v.parse::<F>().ok())
+    pub fn get_param<'a, F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+        self.params().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
     
     #[inline]
-    pub fn queries(&self)->&HashMap<String, String>{
+    pub fn queries(&self)->&MultiMap<String, String>{
         self.request.queries()
     }
     #[inline]
-    pub fn get_query<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
-        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
+    pub fn get_query<'a, F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+        self.queries().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
-    pub fn posts(&self) -> &Result<FormData, FormError> {
+    pub fn form_data(&self) -> &Result<FormData, FormError> {
         self.request.form_data()
     }
     #[inline]
-    pub fn get_post<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
-        self.request.form_data().as_ref().ok().and_then(|ps|ps.get_one_field(key).map(|s|s.clone())).and_then(|v|v.parse::<F>().ok())
+    pub fn get_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
+        self.request.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key.as_ref())).and_then(|v|v.parse::<T>().ok())
     }
-    pub fn get_form<'a, F: FromStr>(&self, key: &'a str) -> Option<F> {
-        self.get_post::<F>(key.as_ref()).or(self.get_query::<F>(key))
+    pub fn get_form_or_query<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
+        self.get_form(key.as_ref()).or(self.get_query(key.as_ref()))
+    }
+    pub fn get_query_or_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
+        self.get_query(key.as_ref()).or(self.get_form(key.as_ref()))
     }
     pub fn get_payload(&self) -> Result<String, Error> {
         if let Ok(data) = self.request.body_data().as_ref(){

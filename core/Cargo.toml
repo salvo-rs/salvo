@@ -57,6 +57,7 @@ percent-encoding = "2.1"
 double-checked-cell = "2.0"
 atty = "0.2"
 rand = "0.7"
+multimap = "0.3"
 
 [build-dependencies]
 yansi = "0.5"
