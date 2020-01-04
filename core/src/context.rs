@@ -23,6 +23,7 @@ use super::server::ServerConfig;
 use super::Content;
 use crate::logging;
 use crate::http::errors::HttpError;
+use crate::http::form::FilePart;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ErrorInfo {
@@ -111,9 +112,15 @@ impl Context{
     pub fn get_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
         self.request.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key.as_ref())).and_then(|v|v.parse::<T>().ok())
     }
+    #[inline]
+    pub fn get_file(&self, key: impl AsRef<str>) -> Option<&FilePart> {
+        self.request.form_data().as_ref().ok().and_then(|ps|ps.files.get(key.as_ref()))
+    }
+    #[inline]
     pub fn get_form_or_query<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
         self.get_form(key.as_ref()).or(self.get_query(key.as_ref()))
     }
+    #[inline]
     pub fn get_query_or_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
         self.get_query(key.as_ref()).or(self.get_form(key.as_ref()))
     }
