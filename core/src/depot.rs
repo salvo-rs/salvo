@@ -26,9 +26,8 @@ impl Depot {
         self.data.get(&key.into()).is_some()
     }
 
-    pub fn try_borrow<K, V>(&self, key: K) -> Option<&V>
+    pub fn try_borrow<V>(&self, key: impl Into<String>) -> Option<&V>
     where
-        K: Into<String>,
         V: Any + Send,
     {
         self.data.get(&key.into()).and_then(|b| {
