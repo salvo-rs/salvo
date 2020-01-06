@@ -8,7 +8,7 @@ my web framework.
 """
 homepage = "https://github.com/kenorld/novel"
 repository = "https://github.com/kenorld/novel"
-readme = "../../README.md"
+readme = "../README.md"
 keywords = ["novel", "web", "framework", "server"]
 license = "MIT/Apache-2.0"
 categories = ["web-programming::http-server"]
