@@ -1,13 +1,7 @@
-// #[macro_use]
-// extern crate lazy_static;
-
 use std::collections::HashMap;
 use std::borrow::Cow;
-use crate::error::Error;
-use crate::http::form::Error as FormError;
 use std::str::FromStr;
-use crate::depot::Depot;
-use crate::http::{headers, Request, form::FormData, Response, BodyWriter, StatusCode};
+
 use cookie::{Cookie, CookieJar};
 use serde::{Serialize, Deserialize};
 use serde_json;
@@ -19,11 +13,16 @@ use std::sync::Arc;
 use std::io::prelude::*;
 use mime::Mime;
 use multimap::MultiMap;
-use super::server::ServerConfig;
-use super::Content;
+
+use crate::error::Error;
+use crate::http::form::Error as FormError;
+use crate::depot::Depot;
+use crate::http::{headers::{self, HeaderMap, AsHeaderName, HeaderValue}, Request, form::FormData, Response, BodyWriter, StatusCode};
 use crate::logging;
 use crate::http::errors::HttpError;
 use crate::http::form::FilePart;
+use super::server::ServerConfig;
+use super::Content;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ErrorInfo {
@@ -94,6 +93,15 @@ impl Context{
     #[inline]
     pub fn get_param<F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
         self.params().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
+    }
+
+    #[inline]
+    pub fn headers(&self)->&HeaderMap{
+        &self.request().headers()
+    }
+    #[inline]
+    pub fn get_header<K: AsHeaderName>(&self, key: K) -> Option<&HeaderValue> {
+        self.headers().get(key)
     }
     
     #[inline]
