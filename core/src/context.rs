@@ -92,7 +92,7 @@ impl Context{
         &self.params
     }
     #[inline]
-    pub fn get_param<'a, F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+    pub fn get_param<F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
         self.params().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
     
@@ -101,7 +101,7 @@ impl Context{
         self.request.queries()
     }
     #[inline]
-    pub fn get_query<'a, F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+    pub fn get_query<F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
         self.queries().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
