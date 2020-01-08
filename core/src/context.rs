@@ -91,7 +91,7 @@ impl Context{
         &self.params
     }
     #[inline]
-    pub fn get_param<F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+    pub fn get_param<K, F>(&self, key: K) -> Option<F> where K: AsRef<str>, F: FromStr {
         self.params().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
 
@@ -109,7 +109,7 @@ impl Context{
         self.request.queries()
     }
     #[inline]
-    pub fn get_query<F: FromStr>(&self, key: impl AsRef<str>) -> Option<F> {
+    pub fn get_query<K, F>(&self, key: K) -> Option<F> where K: AsRef<str>, F: FromStr {
         self.queries().get(key.as_ref()).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
@@ -117,19 +117,19 @@ impl Context{
         self.request.form_data()
     }
     #[inline]
-    pub fn get_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
-        self.request.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key.as_ref())).and_then(|v|v.parse::<T>().ok())
+    pub fn get_form<K, F>(&self, key: K) -> Option<F> where K: AsRef<str>, F: FromStr {
+        self.request.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key.as_ref())).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
     pub fn get_file(&self, key: impl AsRef<str>) -> Option<&FilePart> {
         self.request.form_data().as_ref().ok().and_then(|ps|ps.files.get(key.as_ref()))
     }
     #[inline]
-    pub fn get_form_or_query<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
+    pub fn get_form_or_query<K, F>(&self, key: K) -> Option<F> where K: AsRef<str>, F: FromStr {
         self.get_form(key.as_ref()).or(self.get_query(key.as_ref()))
     }
     #[inline]
-    pub fn get_query_or_form<T: FromStr>(&self, key: impl AsRef<str>) -> Option<T> {
+    pub fn get_query_or_form<K, F>(&self, key: K) -> Option<F> where K: AsRef<str>, F: FromStr {
         self.get_query(key.as_ref()).or(self.get_form(key.as_ref()))
     }
     pub fn get_payload(&self) -> Result<String, Error> {
@@ -145,8 +145,7 @@ impl Context{
     }
 
     #[inline]
-    pub fn get_cookie<T>(&self, name:T) -> Option<&Cookie<'static>>
-        where T: AsRef<str> {
+    pub fn get_cookie<T>(&self, name:T) -> Option<&Cookie<'static>> where T: AsRef<str> {
          self.request.cookies().get(name.as_ref())
     }
     #[inline]
