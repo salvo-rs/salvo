@@ -4,10 +4,10 @@ mod handler;
 mod content;
 mod catcher;
 mod pick_port;
+pub mod error;
 pub mod http;
 pub mod routing;
 pub mod depot;
-pub mod error;
 pub mod logging;
 
 // #[macro_use]
@@ -32,6 +32,7 @@ pub use handler::Handler;
 pub use routing::Router;
 pub use catcher::{Catcher, CatcherImpl};
 pub use cookie;
+pub use error::Error;
 
 use std::ops::{Bound, RangeBounds};
 
