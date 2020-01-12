@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 mod form_data;
 mod multipart;
 #[cfg(test)]

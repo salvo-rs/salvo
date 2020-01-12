@@ -58,7 +58,7 @@ pub struct Context{
 }
 
 impl Context{
-    pub fn new(server_config: Arc<ServerConfig>, request:Request, response: Response)->Context{
+    pub fn new(server_config: Arc<ServerConfig>, request: Request, response: Response)->Context{
         Context{
             params: HashMap::new(),
             server_config,
