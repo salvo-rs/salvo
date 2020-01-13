@@ -302,15 +302,15 @@ impl Request {
     }
     
     #[inline]
-    pub fn read_from_json<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned {
+    pub fn read_from_json<T>(&self) -> Result<T, Error> where T: DeserializeOwned {
         self.get_payload().and_then(|body|serde_json::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
     }
     #[inline]
-    pub fn read_from_form<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned {
+    pub fn read_from_form<T>(&self) -> Result<T, Error> where T: DeserializeOwned {
         self.get_payload().and_then(|body|serde_urlencoded::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
     }
     #[inline]
-    pub fn read<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned  {
+    pub fn read<T>(&self) -> Result<T, Error> where T: DeserializeOwned  {
         match self.headers().get(headers::CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_json(),
             Some(ctype) if ctype == "application/json" => self.read_from_form(),
