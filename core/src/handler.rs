@@ -1,15 +1,19 @@
-use crate::Context;
+
+use std::sync::Arc;
+
+use crate::{ServerConfig, Depot};
+use crate::http::{Request, Response};
 
 pub trait Handler: Send + Sync + 'static {
-    fn handle(&self, ctx: &mut Context);
+    fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response);
 }
 
 impl<F> Handler for F
 where
-    F: Send + Sync + 'static + Fn(&mut Context),
+    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &Request, &mut Depot, &mut Response)
 {
-    fn handle(&self, ctx: &mut Context) {
-        (*self)(ctx);
+    fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
+        (*self)(sconf, req, depot, resp);
     }
 }
 //https://github.com/rust-lang/rust/issues/60074
@@ -37,10 +41,10 @@ macro_rules! handler_tuple_impls {
     )+) => {$(
         impl<$($T,)+> Handler for ($($T,)+) where $($T: Handler,)+
         {
-            fn handle(&self, ctx: &mut Context) {
+            fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
                 $(
-                    if !ctx.is_commited() {
-                        self.$idx.handle(ctx);
+                    if !resp.is_commited() {
+                        self.$idx.handle(sconf, req, depot, resp);
                     } else {
                         return;
                     }

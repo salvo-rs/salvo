@@ -44,7 +44,7 @@ impl CatcherImpl{
 }
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, resp: &mut Response)->bool {
-        let status = resp.status.unwrap_or(StatusCode::NOT_FOUND);
+        let status = resp.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if status != self.0.code() {
             return false;
         }
@@ -54,7 +54,7 @@ impl Catcher for CatcherImpl {
         if format.type_() != "text" {
             format = &dmime;
         }
-        resp.headers.insert(headers::CONTENT_TYPE, format.to_string().parse().unwrap());
+        resp.headers_mut().insert(headers::CONTENT_TYPE, format.to_string().parse().unwrap());
         let content = match format.subtype().as_ref(){
             "text"=> error_text(&self.0),
             "json"=> error_json(&self.0),

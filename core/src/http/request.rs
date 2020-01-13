@@ -1,27 +1,29 @@
-//! Iron's HTTP Request representation and associated methods.
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
 use std::cell::{RefCell, Ref};
-use url::{Url};
 use std::borrow::Cow::Borrowed;
+use std::str::FromStr;
+use std::collections::HashMap;
+use url::{Url};
 use multimap::MultiMap;
 use double_checked_cell::DoubleCheckedCell;
-
+use serde::de::DeserializeOwned;
 use http;
 use http::version::Version as HttpVersion;
-
 use http::method::Method;
 use futures::{Future, Stream};
+use cookie::{Cookie, CookieJar};
 
 #[cfg(test)]
 use std::net::ToSocketAddrs;
 
+use crate::Protocol;
 use crate::http::headers::{self, HeaderMap};
 use crate::http::{Body, Mime};
+use crate::http::form::FilePart;
 use crate::http::form::{self, FormData, Error as FormError};
+use crate::http::headers::{AsHeaderName, HeaderValue};
 use crate::error::Error;
-use crate::{Protocol};
-use cookie::{Cookie, CookieJar};
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -44,6 +46,8 @@ pub struct Request {
     method: Method,
 
     cookies: CookieJar,
+
+    pub(crate) params: HashMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
     queries: DoubleCheckedCell<MultiMap<String, String>>,
@@ -144,6 +148,7 @@ impl Request {
             method,
             cookies,
             // accept: None,
+            params: HashMap::new(),
             form_data: DoubleCheckedCell::new(),
             body_data: DoubleCheckedCell::new(),
             version,
@@ -181,9 +186,6 @@ impl Request {
         self.body.replace(None)
     }
 
-    pub fn queries(&self) -> &MultiMap<String, String>{
-        self.queries.get_or_init(||self.url.query_pairs().into_owned().collect())
-    }
     pub fn form_data(&self) -> &Result<FormData, FormError>{
         self.form_data.get_or_init(||{
             let bdata = self.body_data().as_ref();
@@ -239,14 +241,80 @@ impl Request {
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
+    #[inline]
+    pub fn get_cookie<T>(&self, name:T) -> Option<&Cookie<'static>> where T: AsRef<str> {
+         self.cookies.get(name.as_ref())
+    }
 
 
     #[inline(always)]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
+    #[inline]
+    pub fn get_header<K: AsHeaderName>(&self, key: K) -> Option<&HeaderValue> {
+        self.headers.get(key)
+    }
+    
+    #[inline]
+    pub fn get_param<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.params.get(key).and_then(|v|v.parse::<F>().ok())
+    }
 
+    pub fn queries(&self) -> &MultiMap<String, String>{
+        self.queries.get_or_init(||self.url.query_pairs().into_owned().collect())
+    }
+    #[inline]
+    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
+    }
+    
+    #[inline]
+    pub fn get_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key)).and_then(|v|v.parse::<F>().ok())
+    }
+    #[inline]
+    pub fn get_file<'a>(&self, key: &'a str) -> Option<&FilePart> {
+        self.form_data().as_ref().ok().and_then(|ps|ps.files.get(key))
+    }
+    #[inline]
+    pub fn get_form_or_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.get_form(key.as_ref()).or(self.get_query(key))
+    }
+    #[inline]
+    pub fn get_query_or_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.get_query(key.as_ref()).or(self.get_form(key))
+    }
+    pub fn get_payload(&self) -> Result<String, Error> {
+        if let Ok(data) = self.body_data().as_ref(){
+            match String::from_utf8(data.to_vec()){
+                Ok(payload) => {
+                    Ok(payload)},
+                Err(err) => Err(Error::Utf8(err)),
+            }
+        } else {
+            Err(Error::General("utf8 encode error".to_owned()))
+        }
+    }
+    
+    #[inline]
+    pub fn read_from_json<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned {
+        self.get_payload().and_then(|body|serde_json::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
+    }
+    #[inline]
+    pub fn read_from_form<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned {
+        self.get_payload().and_then(|body|serde_urlencoded::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
+    }
+    #[inline]
+    pub fn read<T>(&mut self) -> Result<T, Error> where T: DeserializeOwned  {
+        match self.headers().get(headers::CONTENT_TYPE) {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_json(),
+            Some(ctype) if ctype == "application/json" => self.read_from_form(),
+            _=> Err(Error::General(String::from("failed to read data")))
+        }
+    }
 }
 
 pub trait BodyReader: Send {
 }
+

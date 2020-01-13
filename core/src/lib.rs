@@ -1,5 +1,4 @@
 pub mod server;
-mod context;
 mod handler;
 mod content;
 mod catcher;
@@ -26,13 +25,13 @@ extern crate bitflags;
 extern crate lazy_static;
 
 pub use content::Content;
-pub use context::Context;
-pub use server::{Server};
+pub use server::{Server, ServerConfig};
 pub use handler::Handler;
 pub use routing::Router;
 pub use catcher::{Catcher, CatcherImpl};
 pub use cookie;
 pub use error::Error;
+pub use depot::Depot;
 
 use std::ops::{Bound, RangeBounds};
 

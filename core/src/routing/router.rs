@@ -1,9 +1,9 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use http::{StatusCode, Method as HttpMethod};
+use http::Method as HttpMethod;
 use std::fmt::{self, Debug};
-use crate::{Handler, Context};
+use crate::Handler;
 use super::method::Method as RouteMethod;
 
 pub struct Router {
@@ -480,26 +480,4 @@ impl Router {
     pub fn options<H: Handler>(&mut self, handler: H) -> &mut Router {
         self.route(RouteMethod::OPTIONS, handler)
     }
-}
-
-impl Handler for Router{
-	fn handle(&self, ctx: &mut Context){
-		let mut segments = ctx.request().url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
-		segments.retain(|x| *x!="");
-		let (ok, handlers, params) = self.detect(ctx.request().method().clone(), segments);
-		if !ok {
-			let mut resp = &mut ctx.response_mut();
-			resp.status = Some(StatusCode::NOT_FOUND);
-		}
-		ctx.params = params;
-		for handler in handlers{
-			handler.handle(ctx);
-			if ctx.is_commited() {
-				break;
-			}
-		}
-		if !ctx.is_commited() {
-			ctx.commit();
-		}
-	}
 }
