@@ -1,12 +1,11 @@
 use hyper;
-use novel::{Server, Context};
-use novel::routing::{Router};
+use novel::prelude::*;
 
-fn hello_world(ctx: &mut Context) {
-    ctx.render_plain_text("Hello World");
+fn hello_world(_sconf: Arc<ServerConfig>, _req: &Request, _depot: &mut Depot, resp: &mut Response) {
+    resp.render_plain_text("Hello World");
 }
-fn hello_world2(ctx: &mut Context) {
-    ctx.render_plain_text("Hello World2");
+fn hello_world2(_sconf: Arc<ServerConfig>, _req: &Request, _depot: &mut Depot, resp: &mut Response) {
+    resp.render_plain_text("Hello World2");
 }
 fn main() {
     let mut router = Router::new("/");

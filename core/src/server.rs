@@ -6,7 +6,7 @@ use futures_cpupool::CpuPool;
 
 use crate::{Protocol, Catcher, Depot};
 use crate::http::{StatusCode, Request, Response, Mime};
-use crate::http::headers::{CONTENT_TYPE, SET_COOKIE};
+use crate::http::headers::CONTENT_TYPE;
 use crate::routing::Router;
 use crate::catcher;
 use crate::logging;
@@ -181,19 +181,19 @@ impl hyper::service::Service for HyperHandler {
         let allowed_media_types = sconfig.allowed_media_types.clone();
         Box::new(pool.spawn_fn(move || {
             let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
-            let mut response = Response::new(sconfig);
+            let mut response = Response::new(sconfig.clone());
             let mut depot = Depot::new();
 
             let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
             segments.retain(|x| *x!="");
-            let (ok, handlers, params) = self.handler.detect(request.method().clone(), segments);
+            let (ok, handlers, params) = handler.detect(request.method().clone(), segments);
             if !ok {
                 response.set_status_code(StatusCode::NOT_FOUND);
             }
             request.params = params;
             response.cookies = request.cookies().clone();
             for handler in handlers{
-                handler.handle(sconfig, &request, &mut depot, &mut response);
+                handler.handle(sconfig.clone(), &request, &mut depot, &mut response);
                 if response.is_commited() {
                     break;
                 }
@@ -240,11 +240,6 @@ impl hyper::service::Service for HyperHandler {
                     if catcher.catch(&request, &mut response){
                         break;
                     }
-                }
-            }
-            for cookie in response.cookies.delta() {
-                if let Ok(hv) = cookie.encoded().to_string().parse(){
-                    response.headers_mut().append(SET_COOKIE, hv);
                 }
             }
             response.write_back(&mut hyper_response, request.method().clone());

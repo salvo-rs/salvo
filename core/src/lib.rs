@@ -35,6 +35,15 @@ pub use depot::Depot;
 
 use std::ops::{Bound, RangeBounds};
 
+pub mod prelude {
+    pub use crate::server::{Server, ServerConfig};
+    pub use crate::routing::Router;
+    pub use crate::depot::Depot;
+    pub use crate::http::{Request, Response};
+    pub use crate::Handler;
+    pub use std::sync::Arc;
+}
+
 trait StringUtils {
     fn substring(&self, start: usize, len: usize) -> &str;
     fn slice(&self, range: impl RangeBounds<usize>) -> &str;

@@ -44,7 +44,7 @@ macro_rules! handler_tuple_impls {
             fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
                 $(
                     if !resp.is_commited() {
-                        self.$idx.handle(sconf, req, depot, resp);
+                        self.$idx.handle(sconf.clone(), req, depot, resp);
                     } else {
                         return;
                     }

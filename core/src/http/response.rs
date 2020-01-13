@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Content, ServerConfig};
 use crate::http::errors::HttpError;
+use crate::http::headers::SET_COOKIE;
 use crate::logging;
 use crate::http::headers::{self, HeaderMap};
 
@@ -104,6 +105,9 @@ impl Response {
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
+    // pub fn insert_header<K>(&mut self, key: K, val: T) -> Option<T> where K: IntoHeaderName,
+    //     self.headers.insert(key, val)
+    // }
     
     // `write_back` is used to put all the data added to `self`
     // back onto an `hyper::Response` so that it is sent back to the
@@ -298,6 +302,11 @@ impl Response {
     }
     #[inline]
     pub fn commit(&mut self) {
+        for cookie in self.cookies.delta() {
+            if let Ok(hv) = cookie.encoded().to_string().parse(){
+                self.headers.append(SET_COOKIE, hv);
+            }
+        }
         self.is_commited = true;
     }
     #[inline]

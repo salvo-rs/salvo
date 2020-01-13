@@ -1,7 +1,7 @@
 
 use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
-use novel::{Context, Handler};
+use novel::prelude::*;
 use novel::error::Error;
 
 pub struct BasicAuthHandler{
@@ -33,10 +33,9 @@ impl BasicAuthHandler {
     }
 }
 impl BasicAuthHandler{
-    fn ask_credentials(&self, ctx: &mut Context){
-        let mut respone = ctx.response_mut();
-        respone.headers.insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
-        respone.status = Some(StatusCode::UNAUTHORIZED);
+    fn ask_credentials(&self, resp: &mut Response){
+        resp.headers_mut().insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
+        resp.set_status_code(StatusCode::UNAUTHORIZED);
     }
     fn parse_authorization<S:AsRef<str>>(&self, authorization:S)->Result<(String, String), Error> {
         if let Ok(auth) = base64::decode(authorization.as_ref()){
@@ -53,15 +52,15 @@ impl BasicAuthHandler{
     }
 }
 impl Handler for BasicAuthHandler{
-    fn handle(&self, ctx: &mut Context){
-        if let Some(auth) = ctx.request().headers().get(AUTHORIZATION){
+    fn handle(&self, _sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response){
+        if let Some(auth) = req.headers().get(AUTHORIZATION){
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
                     if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
                         if let Ok((user_name, password)) = self.parse_authorization(auth){
                             if self.config.validator.validate(user_name.clone(), password) {
                                 if let Some(key) = &self.config.context_key {
-                                    ctx.depot_mut().insert(key.clone(), user_name);
+                                    depot.insert(key.clone(), user_name);
                                 }
                                 return
                             }
@@ -70,6 +69,6 @@ impl Handler for BasicAuthHandler{
                 }
             }
         }
-        self.ask_credentials(ctx);
+        self.ask_credentials(resp);
     }
 }

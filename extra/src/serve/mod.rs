@@ -6,7 +6,7 @@ use chrono::prelude::*;
 use serde_json::json;
 use mime;
 
-use novel::{Context, Handler};
+use novel::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -162,12 +162,12 @@ impl DirInfo{
 }
 
 impl Handler for Static {
-    fn handle(&self, ctx: &mut Context) {
-        let param = ctx.params().iter().find(|(key, _)|key.starts_with('*'));
+    fn handle(&self, _sconf: Arc<ServerConfig>, req: &Request, _depot: &mut Depot, resp: &mut Response) {
+        let param = req.params().iter().find(|(key, _)|key.starts_with('*'));
         let base_path = if let Some((_, value)) = param {
             value
         } else{
-            ctx.request().url().path()
+            req.url().path()
         };
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
@@ -176,14 +176,14 @@ impl Handler for Static {
             let path = root.join(&base_path);
             if path.is_dir() && self.options.listing{
                 path_exist = true;
-                if !ctx.request().url().path().ends_with('/') {
-                    ctx.redirect_found(format!("{}/", ctx.request().url().path()));
+                if !req.url().path().ends_with('/') {
+                    resp.redirect_found(format!("{}/", req.url().path()));
                     return
                 }
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        ctx.render_file_from_path(ipath).ok();
+                        resp.render_file_from_path(ipath).ok();
                         return;
                     }
                 }
@@ -202,15 +202,15 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                ctx.render_file_from_path(path).ok();
+                resp.render_file_from_path(path).ok();
                 return
             }
         }
         if !path_exist || !self.options.listing{
-            ctx.not_found();
+            resp.not_found();
             return;
         }
-        let mut format = ctx.request().frist_accept().unwrap_or(mime::TEXT_HTML);
+        let mut format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
         if format.type_() != "text" {
             format = mime::TEXT_HTML;
         }
@@ -218,12 +218,12 @@ impl Handler for Static {
         files.sort_by(|a,b|a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)|DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a,b|a.name.cmp(&b.name));
-        let root = BaseInfo::new(ctx.request().url().path().to_owned(), files, dirs);
+        let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
         match format.subtype().as_ref(){
-            "text"=> ctx.render_plain_text(list_text(&root)),
-            "json"=> ctx.render_json_text(list_json(&root)),
-            "xml"=> ctx.render_xml_text(list_xml(&root)),
-            _ => ctx.render_html_text(list_html(&root)),
+            "text"=> resp.render_plain_text(list_text(&root)),
+            "json"=> resp.render_json_text(list_json(&root)),
+            "xml"=> resp.render_xml_text(list_xml(&root)),
+            _ => resp.render_html_text(list_html(&root)),
         }
     }
 }

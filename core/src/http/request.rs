@@ -255,6 +255,10 @@ impl Request {
     pub fn get_header<K: AsHeaderName>(&self, key: K) -> Option<&HeaderValue> {
         self.headers.get(key)
     }
+    #[inline(always)]
+    pub fn params(&self) -> &HashMap<String, String> {
+        &self.params
+    }
     
     #[inline]
     pub fn get_param<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
