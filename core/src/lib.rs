@@ -29,7 +29,6 @@ pub use server::{Server, ServerConfig};
 pub use handler::Handler;
 pub use routing::Router;
 pub use catcher::{Catcher, CatcherImpl};
-pub use cookie;
 pub use error::Error;
 pub use depot::Depot;
 

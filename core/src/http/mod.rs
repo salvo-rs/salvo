@@ -12,9 +12,6 @@
 //!
 //! [#17]: https://github.com/SergioBenitez/Novel/issues/17
 
-extern crate cookie;
-extern crate time;
-extern crate state;
 mod request;
 mod response;
 pub mod form;
@@ -26,3 +23,4 @@ pub use response::{Response, BodyWriter};
 pub use http::{method::Method, StatusCode};
 pub use mime::Mime;
 pub use hyper::Body;
+pub use cookie;
