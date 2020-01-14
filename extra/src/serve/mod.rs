@@ -183,7 +183,7 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        resp.render_file_from_path(ipath).ok();
+                        resp.render_file_from_path(ipath);
                         return;
                     }
                 }
@@ -202,7 +202,7 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                resp.render_file_from_path(path).ok();
+                resp.render_file_from_path(path);
                 return
             }
         }

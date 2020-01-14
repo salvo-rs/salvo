@@ -238,21 +238,27 @@ impl Response {
         self.render(content_type, data);
     }
     #[inline]
-    pub fn render_file<T>(&mut self, content_type:T, file: &mut File) -> std::io::Result<()> where T: AsRef<str> {
+    pub fn render_file<T>(&mut self, content_type:T, file: &mut File)  where T: AsRef<str> {
         let mut data = Vec::new();  
-        file.read_to_end(&mut data)?;
+        if file.read_to_end(&mut data).is_err() {
+            return self.not_found();
+        }
         self.render_binary(content_type, data);
-        Ok(())
     }
     #[inline]
-    pub fn render_file_from_path<T>(&mut self, path: T) -> std::io::Result<()> where T: AsRef<Path> {
-        let mut file = File::open(path.as_ref())?;
-        if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-            self.render_file(mime.to_string(), &mut file)
-        }else{
-            self.unsupported_media_type();
-            error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
-            Ok(())
+    pub fn render_file_from_path<T>(&mut self, path: T) where T: AsRef<Path> {
+        match File::open(path.as_ref()) {
+            Ok(mut file) => {
+                if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
+                    self.render_file(mime.to_string(), &mut file);
+                }else{
+                    self.unsupported_media_type();
+                    error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+                }
+            },
+            Err(_) => {
+                self.not_found();
+            },
         }
     }
     #[inline]
