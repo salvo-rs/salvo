@@ -4,7 +4,7 @@ use std::cell::{RefCell, Ref};
 use std::borrow::Cow::Borrowed;
 use std::str::FromStr;
 use std::collections::HashMap;
-use url::{Url};
+use url::Url;
 use multimap::MultiMap;
 use double_checked_cell::DoubleCheckedCell;
 use serde::de::DeserializeOwned;

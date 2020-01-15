@@ -24,13 +24,14 @@ extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 
-pub use content::Content;
-pub use server::{Server, ServerConfig};
-pub use handler::Handler;
-pub use routing::Router;
-pub use catcher::{Catcher, CatcherImpl};
-pub use error::Error;
-pub use depot::Depot;
+pub use crate::content::Content;
+pub use crate::http::{Request, Response};
+pub use crate::server::{Server, ServerConfig};
+pub use crate::handler::Handler;
+pub use crate::routing::Router;
+pub use crate::catcher::{Catcher, CatcherImpl};
+pub use crate::error::Error;
+pub use crate::depot::Depot;
 
 use std::ops::{Bound, RangeBounds};
 
