@@ -7,7 +7,7 @@ use crate::Handler;
 use super::method::Method as RouteMethod;
 
 pub struct Router {
-	name: String,
+	name: Option<String>,
 	raw_path: String,
 	path_segments: Vec<Box<dyn Segment>>,
 	minions: Vec<Router>,
@@ -18,7 +18,7 @@ pub struct Router {
 
 impl Debug for Router{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{{ name: '{}', path: '{}', handlers: '{}', minions: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.minions)
+        write!(f, "{{ name: {:?}, path: '{}', handlers: '{}', minions: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.minions)
     }
 }
 
@@ -301,7 +301,7 @@ impl PathParser{
 impl Router {
 	pub fn new(path: &str) -> Router {
 		let mut router = Router {
-			name: String::from(""),
+			name: None,
 			// method: String::from("*"),
 			raw_path: String::from(""),
 			path_segments: Vec::new(),
@@ -321,7 +321,7 @@ impl Router {
 	}
 	
 	pub fn set_name(&mut self, name: &str) -> &mut Router {
-		self.name = name.to_string();
+		self.name = Some(name.to_string());
 		self
 	}
 	fn set_path(&mut self, path: &str) -> &mut Router {
@@ -389,7 +389,7 @@ impl Router {
 				}
 				i += 1;
 			}
-		}else {
+		} else {
 			for b in self.befores.get(&method).unwrap_or(&vec![]) {
 				befores.push(b.clone());
 			}
@@ -401,9 +401,11 @@ impl Router {
 		if rest.is_empty() {
 			let mut allh = vec![];
 			allh.extend(befores);
-			for h in self.handlers.get(&method).unwrap_or(&vec![]) {
-				allh.push(h.clone());
+			let hs = self.handlers.get(&method).map(|hs|hs.iter().map(|h|h.clone()).collect::<Vec<Arc<dyn Handler>>>()).unwrap_or(vec![]);
+			if hs.is_empty() {
+				return (false, vec![], params)
 			}
+			allh.extend(hs);
 			allh.extend(afters);
 			return (true, allh, params);
 		}
