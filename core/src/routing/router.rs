@@ -16,9 +16,17 @@ pub struct Router {
 	afters: HashMap<HttpMethod, Vec<Arc<dyn Handler>>>,
 }
 
+impl Debug for Router{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{ name: '{}', path: '{}', handlers: '{}', minions: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.minions)
+    }
+}
+
 trait Segment: Send + Sync + Debug{
 	fn detect<'a>(&self, segments:Vec<&'a str>)->(bool, Vec<&'a str>, Option<HashMap<String, String>>);
 }
+
+#[derive(Debug)]
 struct RegexSegment{
 	regex: Regex,
 	names: Vec<String>,
@@ -48,11 +56,8 @@ impl Segment for RegexSegment {
 		}
 	}
 }
-impl Debug for RegexSegment{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "regex segment {{ regex: {} }}", self.regex)
-    }
-}
+
+#[derive(Debug)]
 struct RestSegment(String);
 impl RestSegment{
 	fn new(name: String)->RestSegment{
@@ -69,12 +74,8 @@ impl Segment for RestSegment {
 		(true, Vec::new(), Some(kv))
 	}
 }
-impl Debug for RestSegment{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "rest segment {{ name: {} }}", self.0)
-    }
-}
 
+#[derive(Debug)]
 struct ConstSegment(String);
 impl ConstSegment {
 	fn new(segment: String)->ConstSegment{
@@ -93,11 +94,6 @@ impl Segment for ConstSegment {
 			(matched, segments, None)
 		}
 	}
-}
-impl Debug for ConstSegment{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "const segment {{ value: {} }}", self.0)
-    }
 }
 
 struct PathParser{
@@ -479,5 +475,5 @@ impl Router {
     /// Like route, but specialized to the `Options` method.
     pub fn options<H: Handler>(&mut self, handler: H) -> &mut Router {
         self.route(RouteMethod::OPTIONS, handler)
-    }
+	}
 }
