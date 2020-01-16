@@ -312,8 +312,8 @@ impl Request {
     #[inline]
     pub fn read<T>(&self) -> Result<T, Error> where T: DeserializeOwned  {
         match self.headers().get(headers::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_json(),
-            Some(ctype) if ctype == "application/json" => self.read_from_form(),
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_form(),
+            Some(ctype) if ctype == "application/json" => self.read_from_json(),
             _=> Err(Error::General(String::from("failed to read data")))
         }
     }
