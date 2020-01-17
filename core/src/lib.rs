@@ -41,6 +41,7 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};
     pub use crate::Handler;
+    pub use crate::logging;
     pub use std::sync::Arc;
 }
 
