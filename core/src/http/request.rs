@@ -14,6 +14,7 @@ use http::method::Method;
 use http::header::{self, HeaderMap};
 use futures::{Future, Stream};
 use cookie::{Cookie, CookieJar};
+use futures::stream::TryStreamExt;
 
 #[cfg(test)]
 use std::net::ToSocketAddrs;
@@ -199,10 +200,8 @@ impl Request {
     }
     pub fn body_data(&self) -> &Result<Vec<u8>, Error> {
         self.body_data.get_or_init(||{
-            let body = self.body.replace(None);
-            body.ok_or(Error::General("empty body".to_owned()))
-            .and_then(|body|body.concat2().wait().map_err(|_|Error::General("parse body error".to_owned())))
-            .map(|body|body.to_vec()).map_err(|_|Error::General("parse body error".to_owned()))
+            let body = self.body.replace(None)?;
+            body.try_concat().wait?.to_vec()
         })
     }
     pub fn accept(&self) -> Vec<Mime> {

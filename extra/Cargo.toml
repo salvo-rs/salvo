@@ -17,8 +17,7 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-futures = "0.1"
-futures-cpupool = "0.1"
+futures = "0.3"
 smallvec = "0.6"
 http = "0.1.15"
 yansi = "0.5"
