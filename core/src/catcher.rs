@@ -1,6 +1,6 @@
 use http::status::StatusCode;
 use mime::Mime;
-use crate::http::{headers, Response, Request};
+use crate::http::{header, Response, Request};
 use crate::http::errors::*;
 
 pub trait Catcher: Send + Sync + 'static {
@@ -54,7 +54,7 @@ impl Catcher for CatcherImpl {
         if format.type_() != "text" {
             format = &dmime;
         }
-        resp.headers_mut().insert(headers::CONTENT_TYPE, format.to_string().parse().unwrap());
+        resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         let content = match format.subtype().as_ref(){
             "text"=> error_text(&self.0),
             "json"=> error_json(&self.0),

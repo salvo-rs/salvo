@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Content, ServerConfig};
 use crate::http::errors::HttpError;
-use crate::http::headers::SET_COOKIE;
+use crate::http::header::SET_COOKIE;
 use crate::logging;
-use crate::http::headers::{self, HeaderMap};
+use crate::http::header::{self, HeaderMap};
 
 
 /// A trait which writes the body of an HTTP response.
@@ -126,8 +126,8 @@ impl Response {
         }else{
             if self.body_writers.is_empty() {
                 http_res.headers_mut().insert(
-                    headers::CONTENT_LENGTH,
-                    headers::HeaderValue::from_static("0"),
+                    header::CONTENT_LENGTH,
+                    header::HeaderValue::from_static("0"),
                 );
             }else{
                 for writer in self.body_writers {
@@ -143,7 +143,7 @@ impl Response {
     }
     pub fn header_cookies(&self) -> Vec<Cookie<'_>> {
         let mut cookies = vec![];
-        for header in self.headers().get_all(headers::SET_COOKIE).iter() {
+        for header in self.headers().get_all(header::SET_COOKIE).iter() {
             if let Ok(header) = header.to_str() {
                 if let Ok(cookie) = Cookie::parse_encoded(header) {
                     cookies.push(cookie);
@@ -263,7 +263,7 @@ impl Response {
     }
     #[inline]
     pub fn render<T>(&mut self, content_type:T, writer: impl BodyWriter+'static) where T: AsRef<str> {
-        self.headers.insert(headers::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
+        self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
         self.write_body(writer);
     }
     
@@ -271,7 +271,7 @@ impl Response {
     pub fn send_binary<T>(&mut self, data: Vec<u8>, file_name: T) where T: AsRef<str> {
         let file_name = Path::new(file_name.as_ref()).file_name().and_then(|s|s.to_str()).unwrap_or("file.dat");
         if let Some(mime) = self.get_mime_by_path(file_name) {
-            self.headers.insert(headers::CONTENT_DISPOSITION, format!("attachment; filename={}", &file_name).parse().unwrap());
+            self.headers.insert(header::CONTENT_DISPOSITION, format!("attachment; filename={}", &file_name).parse().unwrap());
             self.render(mime.to_string(), data);
         }else{
             self.unsupported_media_type();
@@ -294,17 +294,17 @@ impl Response {
     #[inline]
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
-        self.headers.insert(headers::LOCATION, url.as_ref().parse().unwrap());
+        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::FOUND);
-        self.headers.insert(headers::LOCATION, url.as_ref().parse().unwrap());
+        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::SEE_OTHER);
-        self.headers.insert(headers::LOCATION, url.as_ref().parse().unwrap());
+        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
     pub fn commit(&mut self) {
@@ -357,11 +357,11 @@ impl Response {
 }
 
 fn write_with_body(res: &mut hyper::Response<Body>, mut body: Box<dyn BodyWriter>) -> std::io::Result<()> {
-    let content_type = res.headers().get(headers::CONTENT_TYPE).map_or_else(
-        || headers::HeaderValue::from_static("text/plain"),
+    let content_type = res.headers().get(header::CONTENT_TYPE).map_or_else(
+        || header::HeaderValue::from_static("text/plain"),
         |cx| cx.clone(),
     );
-    res.headers_mut().insert(headers::CONTENT_TYPE, content_type);
+    res.headers_mut().insert(header::CONTENT_TYPE, content_type);
 
     let mut body_contents: Vec<u8> = vec![];
     body.write_body(&mut body_contents)?;

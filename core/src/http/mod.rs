@@ -15,12 +15,14 @@
 mod request;
 mod response;
 pub mod form;
-pub mod headers;
 pub mod errors;
 
 pub use request::Request;
 pub use response::{Response, BodyWriter};
-pub use http::{method::Method, StatusCode};
+pub use http::{method::Method, StatusCode, HeaderMap, HeaderValue};
 pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
+pub mod header {
+    pub use http::header::*;
+}

@@ -17,9 +17,9 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-futures = "0.1"
+futures = "0.3"
 futures-cpupool = "0.1"
-http = "0.1.19"
+http = "0.2"
 yansi = "0.5"
 toml = "0.4.7"
 num_cpus = "1.0"
@@ -30,7 +30,7 @@ base64 = "0.10"
 isatty = "0.1"
 url = "2.1.0"
 cookie = { version = "0.12.0", features = ["percent-encode"] }
-hyper = "0.12"
+hyper = "0.13"
 regex = "1.1.6"
 lazy_static = "1.4"
 config = "0.9.3"
@@ -52,7 +52,6 @@ bytes = "0.4"
 sha-1 = "0.8"
 language-tags = "0.2.2"
 unicase = "2.5.1"
-headers = "0.2.3"
 percent-encoding = "2.1"
 double-checked-cell = "2.0"
 atty = "0.2"

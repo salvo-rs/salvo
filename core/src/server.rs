@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
+use std::pin::Pin;
 
 use hyper::Server as HyperServer;
 use futures_cpupool::CpuPool;
 
 use crate::{Protocol, Catcher, Depot};
 use crate::http::{StatusCode, Request, Response, Mime};
-use crate::http::headers::CONTENT_TYPE;
+use crate::http::header::CONTENT_TYPE;
 use crate::routing::Router;
 use crate::catcher;
 use crate::logging;
@@ -130,7 +131,7 @@ impl Server {
         }
     }
 
-    pub fn serve(self) -> impl Future<Item=(), Error=()> + Send + 'static {
+    pub fn serve(self) -> impl Future<Output=()> + Send + 'static {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
@@ -144,106 +145,89 @@ impl Server {
             .serve(self).map_err(|e| eprintln!("server error: {}", e))
     }
 }
-impl hyper::service::NewService for Server {
-    type ReqBody = hyper::body::Body;
-    type ResBody = hyper::body::Body;
-    type Error = hyper::Error;
-    type Service = HyperHandler;
-    type InitError = hyper::Error;
-    type Future = future::FutureResult<Self::Service, Self::InitError>;
 
-    fn new_service(&self) -> Self::Future {
-        future::ok(HyperHandler {
-            handler: self.router.clone(),
-            server_config: self.config.clone(),
-         })
+impl hyper::service::Service<hyper::Request<hyper::body::Body>> for Server {
+    type Response = hyper::Response<hyper::body::Body>;
+    type Error = hyper::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
     }
-}
-pub struct HyperHandler {
-    handler: Arc<Router>,
-    server_config: Arc<ServerConfig>,
-}
-
-impl hyper::service::Service for HyperHandler {
-    type ReqBody = hyper::body::Body;
-    type ResBody = hyper::body::Body;
-    type Error = hyper::Error;
-    type Future = Box<dyn Future<Item = hyper::Response<Self::ResBody>, Error = Self::Error> + Send>;
-    
-    fn call(&mut self, req: hyper::Request<Self::ReqBody>) -> Self::Future {
-        let handler = self.handler.clone();
-        let sconfig = self.server_config.clone();
+    fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
+        let router = self.router.clone();
+        let sconfig = self.config.clone();
 
         let pool = sconfig.pool.clone();
         let local_addr = sconfig.local_addr.clone();
         let protocol = sconfig.protocol.clone();
         let catchers = sconfig.catchers.clone();
         let allowed_media_types = sconfig.allowed_media_types.clone();
-        Box::new(pool.spawn_fn(move || {
-            let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
-            let mut response = Response::new(sconfig.clone());
-            let mut depot = Depot::new();
+        let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
+        let mut response = Response::new(sconfig.clone());
+        let mut depot = Depot::new();
 
-            let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
-            segments.retain(|x| *x!="");
-            let (ok, handlers, params) = handler.detect(request.method().clone(), segments);
-            if !ok {
+        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
+        segments.retain(|x| *x!="");
+        let (ok, handlers, params) = self.router.detect(request.method().clone(), segments);
+        if !ok {
+            response.set_status_code(StatusCode::NOT_FOUND);
+        }
+        request.params = params;
+        response.cookies = request.cookies().clone();
+        for handler in handlers{
+            handler.handle(sconfig.clone(), &request, &mut depot, &mut response);
+            if response.is_commited() {
+                break;
+            }
+        }
+        if !response.is_commited() {
+            response.commit();
+        }
+
+        let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
+
+        if response.status_code().is_none(){
+            if response.body_writers.len() == 0 {
                 response.set_status_code(StatusCode::NOT_FOUND);
+            }else {
+                response.set_status_code(StatusCode::OK);
             }
-            request.params = params;
-            response.cookies = request.cookies().clone();
-            for handler in handlers{
-                handler.handle(sconfig.clone(), &request, &mut depot, &mut response);
-                if response.is_commited() {
-                    break;
-                }
-            }
-            if !response.is_commited() {
-                response.commit();
-            }
-
-            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
-
-           if response.status_code().is_none(){
-                if response.body_writers.len() == 0 {
-                    response.set_status_code(StatusCode::NOT_FOUND);
-                }else {
-                    response.set_status_code(StatusCode::OK);
-                }
-            }
-            let status = response.status_code().unwrap();
-            let has_error = status.as_str().starts_with('4') || status.as_str().starts_with('5');
-            if let Some(value) =  response.headers().get(CONTENT_TYPE) {
-                let mut is_allowed = false;
-                if let Ok(value) = value.to_str() {
-                    let ctype: Result<Mime, _> = value.parse();
-                    if let Ok(ctype) = ctype {
-                        for mime in &*allowed_media_types {
-                            if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
-                                is_allowed = true;
-                                break;
-                            }
+        }
+        let status = response.status_code().unwrap();
+        let has_error = status.as_str().starts_with('4') || status.as_str().starts_with('5');
+        if let Some(value) =  response.headers().get(CONTENT_TYPE) {
+            let mut is_allowed = false;
+            if let Ok(value) = value.to_str() {
+                let ctype: Result<Mime, _> = value.parse();
+                if let Ok(ctype) = ctype {
+                    for mime in &*allowed_media_types {
+                        if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
+                            is_allowed = true;
+                            break;
                         }
                     }
                 }
-                if !is_allowed {
-                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-                }
-            } else {
-                warn!(logging::logger(), "Http response content type header is not set"; "url" => request.url().as_str(), "method" => request.method().as_str());
-                if !has_error {
-                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            }
+            if !is_allowed {
+                response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            }
+        } else {
+            warn!(logging::logger(), "Http response content type header is not set"; "url" => request.url().as_str(), "method" => request.method().as_str());
+            if !has_error {
+                response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+            }
+        }
+        if response.body_writers.len() == 0 &&  has_error{
+            for catcher in &*catchers {
+                if catcher.catch(&request, &mut response){
+                    break;
                 }
             }
-            if response.body_writers.len() == 0 &&  has_error{
-                for catcher in &*catchers {
-                    if catcher.catch(&request, &mut response){
-                        break;
-                    }
-                }
-            }
-            response.write_back(&mut hyper_response, request.method().clone());
-            future::ok(hyper_response)
-        }))
+        }
+        response.write_back(&mut hyper_response, request.method().clone());
+        Box::pin(async {
+            Ok(hyper_response)
+        })
     }
 }

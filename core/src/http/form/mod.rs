@@ -8,7 +8,7 @@ pub use error::Error;
 pub use form_data::FormData;
 
 use std::io::{Read, Write};
-use crate::http::headers::{HeaderValue, HeaderMap, CONTENT_DISPOSITION};
+use crate::http::header::{HeaderValue, HeaderMap, CONTENT_DISPOSITION};
 use multipart::Node;
 pub use multipart::FilePart;
 pub use multipart::{read_multipart, generate_boundary};

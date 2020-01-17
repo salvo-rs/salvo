@@ -11,6 +11,7 @@ use serde::de::DeserializeOwned;
 use http;
 use http::version::Version as HttpVersion;
 use http::method::Method;
+use http::header::{self, HeaderMap};
 use futures::{Future, Stream};
 use cookie::{Cookie, CookieJar};
 
@@ -18,11 +19,10 @@ use cookie::{Cookie, CookieJar};
 use std::net::ToSocketAddrs;
 
 use crate::Protocol;
-use crate::http::headers::{self, HeaderMap};
 use crate::http::{Body, Mime};
 use crate::http::form::FilePart;
 use crate::http::form::{self, FormData, Error as FormError};
-use crate::http::headers::{AsHeaderName, HeaderValue};
+use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::error::Error;
 
 /// The `Request` given to all `Middleware`.
@@ -92,8 +92,8 @@ impl Request {
 
             let mut socket_ip = String::new();
             let (host, port) = if let Some(host) = uri.host() {
-                (host, uri.port_part().map(|p| p.as_u16()))
-            } else if let Some(host) = headers.get(headers::HOST).and_then(|h| h.to_str().ok()) {
+                (host, uri.port().map(|p| p.as_u16()))
+            } else if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
                 let mut parts = host.split(':');
                 let hostname = parts.next().unwrap();
                 let port = parts.next().and_then(|p| p.parse::<u16>().ok());
@@ -311,7 +311,7 @@ impl Request {
     }
     #[inline]
     pub fn read<T>(&self) -> Result<T, Error> where T: DeserializeOwned  {
-        match self.headers().get(headers::CONTENT_TYPE) {
+        match self.headers().get(header::CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_form(),
             Some(ctype) if ctype == "application/json" => self.read_from_json(),
             _=> Err(Error::General(String::from("failed to read data")))

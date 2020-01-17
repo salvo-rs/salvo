@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::ops::Drop;
 use http::header::{CONTENT_TYPE, CONTENT_DISPOSITION};
-use crate::http::headers::{HeaderMap, HeaderName, HeaderValue};
+use crate::http::header::{HeaderMap, HeaderName, HeaderValue};
 use tempdir::TempDir;
 use textnonce::TextNonce;
 use mime::{self, Mime};
