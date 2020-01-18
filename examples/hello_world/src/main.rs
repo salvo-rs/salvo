@@ -1,6 +1,4 @@
-use hyper;
 use novel::prelude::*;
-use tokio::prelude::*;
 
 fn hello_world(_sconf: Arc<ServerConfig>, _req: &Request, _depot: &mut Depot, resp: &mut Response) {
     resp.render_plain_text("Hello World");

@@ -1,7 +1,6 @@
 use novel::{Server};
 use novel::routing::{Router};
 use novel_extra::serve::{Static};
-use tokio::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

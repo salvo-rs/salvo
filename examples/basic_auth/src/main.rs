@@ -3,8 +3,6 @@ use novel::routing::{Router};
 use novel_extra::serve::Static;
 use novel_extra::auth::basic::{BasicAuthHandler, BasicAuthConfig};
 use novel::routing::Method;
-use hyper;
-use tokio::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

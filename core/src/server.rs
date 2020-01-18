@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use std::time::Duration;
-use std::pin::Pin;
 
 use hyper::Server as HyperServer;
 use futures_cpupool::CpuPool;
@@ -174,7 +173,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let pool = self.config.pool.clone();
         let local_addr = self.config.local_addr.clone();
         let protocol = self.config.protocol.clone();
         let catchers = self.config.catchers.clone();

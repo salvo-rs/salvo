@@ -12,7 +12,6 @@ use http;
 use http::version::Version as HttpVersion;
 use http::method::Method;
 use http::header::{self, HeaderMap};
-use futures::{Future, Stream};
 use cookie::{Cookie, CookieJar};
 use futures::stream::TryStreamExt;
 
