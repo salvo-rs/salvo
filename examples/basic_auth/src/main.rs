@@ -4,8 +4,10 @@ use novel_extra::serve::Static;
 use novel_extra::auth::basic::{BasicAuthHandler, BasicAuthConfig};
 use novel::routing::Method;
 use hyper;
+use tokio::prelude::*;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let baconfig = BasicAuthConfig{
         realm: "realm".to_owned(),
         context_key: Some("user_name".to_owned()),
@@ -20,5 +22,6 @@ fn main() {
     router.before(Method::ALL, auth_handler);
     router.get(Static::from("./static/root1"));
     let server = Server::new(router);
-    hyper::rt::run(server.serve());
+    server.serve().await?;
+    Ok(())
 }

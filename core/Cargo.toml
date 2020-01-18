@@ -30,7 +30,7 @@ base64 = "0.10"
 isatty = "0.1"
 url = "2.1.0"
 cookie = { version = "0.12", features = ["percent-encode"] }
-hyper = { version = "0.13", features = ["stream"] }
+hyper = { version = "0.13", features = ["stream", "tcp"] }
 regex = "1.1.6"
 lazy_static = "1.4"
 config = "0.9.3"

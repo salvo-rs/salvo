@@ -10,3 +10,4 @@ hyper = "0.12"
 slog = { version = "2.5.2", features = ["max_level_trace", "release_max_level_warn"] }
 novel = { path = "../../core" }
 novel_extra = { path = "../../extra" }
+tokio = { version = "0.2", features = ["full"] }

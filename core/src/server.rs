@@ -131,7 +131,7 @@ impl Server {
         }
     }
 
-    pub fn serve(self) -> impl Future<Output=()> + Send + 'static {
+    pub fn serve(self) -> impl Future<Output=hyper::Result<()>> + Send + 'static{
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
@@ -139,32 +139,48 @@ impl Server {
             addr
         });
         info!(logging::logger(), "Server will be served"; "address" => addr);
-        // Arc::get_mut(&mut self.config).unwrap().local_addr = Some(addr);
         HyperServer::bind(&addr)
             .tcp_keepalive(self.config.timeouts.keep_alive)
-            .serve(self).map_err(|e| eprintln!("server error: {}", e))
+            .serve(self)
     }
 }
+impl<T>  hyper::service::Service<T> for Server {
+    type Response = HyperHandler;
+    type Error = std::io::Error;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-impl hyper::service::Service<hyper::Request<hyper::body::Body>> for Server {
+    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        Ok(()).into()
+    }
+
+    fn call(&mut self, _: T) -> Self::Future {
+        future::ok(HyperHandler{
+            router: self.router.clone(),
+            config: self.config.clone(),
+        })
+    }
+}
+pub struct HyperHandler {
+    router: Arc<Router>,
+    config: Arc<ServerConfig>,
+}
+impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
     type Response = hyper::Response<hyper::body::Body>;
     type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    // type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let router = self.router.clone();
-        let sconfig = self.config.clone();
-
-        let pool = sconfig.pool.clone();
-        let local_addr = sconfig.local_addr.clone();
-        let protocol = sconfig.protocol.clone();
-        let catchers = sconfig.catchers.clone();
-        let allowed_media_types = sconfig.allowed_media_types.clone();
+        let pool = self.config.pool.clone();
+        let local_addr = self.config.local_addr.clone();
+        let protocol = self.config.protocol.clone();
+        let catchers = self.config.catchers.clone();
+        let allowed_media_types = self.config.allowed_media_types.clone();
         let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
-        let mut response = Response::new(sconfig.clone());
+        let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
 
         let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
@@ -176,7 +192,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for Server {
         request.params = params;
         response.cookies = request.cookies().clone();
         for handler in handlers{
-            handler.handle(sconfig.clone(), &request, &mut depot, &mut response);
+            handler.handle(self.config.clone(), &request, &mut depot, &mut response);
             if response.is_commited() {
                 break;
             }
@@ -226,8 +242,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for Server {
             }
         }
         response.write_back(&mut hyper_response, request.method().clone());
-        Box::pin(async {
-            Ok(hyper_response)
-        })
+        future::ok(hyper_response)
     }
 }

@@ -200,8 +200,9 @@ impl Request {
     }
     pub fn body_data(&self) -> &Result<Vec<u8>, Error> {
         self.body_data.get_or_init(||{
-            let body = self.body.replace(None)?;
-            body.try_concat().wait?.to_vec()
+            let body = self.body.replace(None).unwrap();
+            // body.try_concat().await.unwrap().to_vec()
+            Ok(vec![])
         })
     }
     pub fn accept(&self) -> Vec<Mime> {

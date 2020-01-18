@@ -26,7 +26,7 @@ pub enum Error {
     Decoding(Cow<'static, str>),
     /// A MIME multipart error
     Http(http::Error),
-    NoneError(std::option::NoneError),
+    // NoneError(std::option::NoneError),
 }
 
 impl From<io::Error> for Error {
@@ -52,11 +52,11 @@ impl From<http::Error> for Error {
         Error::Http(err)
     }
 }
-impl From<std::option::NoneError> for Error {
-    fn from(err: std::option::NoneError) -> Error {
-        Error::NoneError(err)
-    }
-}
+// impl From<std::option::NoneError> for Error {
+//     fn from(err: std::option::NoneError) -> Error {
+//         Error::NoneError(err)
+//     }
+// }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -73,8 +73,8 @@ impl Display for Error {
                 format!("{}: {}", self.description(), e).fmt(f),
             Error::Http(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
-            Error::NoneError(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+            // Error::NoneError(ref e) =>
+            //     format!("{}: {}", self.description(), e).fmt(f),
             _ => self.description().to_string().fmt(f),
         }
     }
@@ -100,7 +100,7 @@ impl StdError for Error {
             Error::Utf8(_) => "A UTF-8 error occurred.",
             Error::Decoding(_) => "A decoding error occurred.",
             Error::Http(_) => "A http error occurred.",
-            Error::NoneError(_) => "None error occurred.",
+            // Error::NoneError(_) => "None error occurred.",
         }
     }
 }
