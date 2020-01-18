@@ -78,7 +78,7 @@ macro_rules! default_catchers {
 
 pub mod defaults {
     use super::{Catcher, CatcherImpl};
-    use crate::http::errors::*;
+    use crate::http::errors::http_error::*;
 
     pub fn get() -> Vec<Box<dyn Catcher>> {
         default_catchers! {

@@ -11,7 +11,7 @@ use hyper;
 use httparse;
 
 /// An error type for the `form_data` crate.
-pub enum Error {
+pub enum ReadError {
     /// The Hyper request did not have a Content-Type header.
     NoRequestContentType,
     /// The Hyper request Content-Type top-level Mime was not `Multipart`.
@@ -48,55 +48,61 @@ pub enum Error {
     Utf8(FromUtf8Error),
     /// An error occurred during character decoding
     Decoding(Cow<'static, str>),
+    SerdeJson(serde_json::error::Error),
     General(String),
 
     /// Filepart is not a file
     NotAFile,
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
+impl From<serde_json::error::Error> for ReadError {
+    fn from(err: serde_json::error::Error) -> ReadError {
+        ReadError::SerdeJson(err)
+    }
+}
+impl From<io::Error> for ReadError {
+    fn from(err: io::Error) -> ReadError {
+        ReadError::Io(err)
     }
 }
 
-impl From<httparse::Error> for Error {
-    fn from(err: httparse::Error) -> Error {
-        Error::Httparse(err)
+impl From<httparse::Error> for ReadError {
+    fn from(err: httparse::Error) -> ReadError {
+        ReadError::Httparse(err)
     }
 }
 
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Error {
-        Error::Hyper(err)
+impl From<hyper::Error> for ReadError {
+    fn from(err: hyper::Error) -> ReadError {
+        ReadError::Hyper(err)
     }
 }
 
-impl From<FromUtf8Error> for Error {
-    fn from(err: FromUtf8Error) -> Error {
-        Error::Utf8(err)
+impl From<FromUtf8Error> for ReadError {
+    fn from(err: FromUtf8Error) -> ReadError {
+        ReadError::Utf8(err)
     }
 }
 
-impl Display for Error {
+impl Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Httparse(ref e) =>
+            ReadError::Httparse(ref e) =>
                 format!("{}: {:?}", self.description(), e).fmt(f),
-            Error::Io(ref e) =>
+            ReadError::Io(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
-            Error::Hyper(ref e) =>
+            ReadError::Hyper(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
-            Error::Utf8(ref e) =>
+            ReadError::Utf8(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
-            Error::Decoding(ref e) =>
+            ReadError::Decoding(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
             _ => format!("{}", self.description()).fmt(f),
         }
     }
 }
 
-impl fmt::Debug for Error {
+impl fmt::Debug for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&*self.description()).ok();
         if self.source().is_some() {
@@ -106,45 +112,46 @@ impl fmt::Debug for Error {
     }
 }
 
-impl StdError for Error {
+impl StdError for ReadError {
     fn description(&self) -> &str{
         match *self {
-            Error::NoRequestContentType => "The Hyper request did not have a Content-Type header.",
-            Error::NotMultipart =>
+            ReadError::NoRequestContentType => "The Hyper request did not have a Content-Type header.",
+            ReadError::NotMultipart =>
                 "The Hyper request Content-Type top-level Mime was not multipart.",
-            Error::NotFormData =>
+            ReadError::NotFormData =>
                 "The Hyper request Content-Type sub-level Mime was not form-data.",
-            Error::BoundaryNotSpecified =>
+            ReadError::BoundaryNotSpecified =>
                 "The Content-Type header failed to specify a boundary token.",
-            Error::PartialHeaders => "A multipart section contained only partial headers.",
-            Error::MissingDisposition =>
+            ReadError::PartialHeaders => "A multipart section contained only partial headers.",
+            ReadError::MissingDisposition =>
                 "A multipart section did not have the required Content-Disposition header.",
-            Error::InvalidDisposition =>
+            ReadError::InvalidDisposition =>
                 "A multipart section did not have a valid corresponding Content-Disposition.",
-            Error::NoName =>
+            ReadError::NoName =>
                 "A multipart section Content-Disposition header failed to specify a name.",
-            Error::Eof =>
+            ReadError::Eof =>
                 "The request body ended prior to reaching the expected terminating boundary.",
-            Error::EofInMainHeaders =>
+            ReadError::EofInMainHeaders =>
                 "The request headers ended pre-maturely.",
-            Error::EofBeforeFirstBoundary =>
+            ReadError::EofBeforeFirstBoundary =>
                 "The request body ended prior to reaching the expected starting boundary.",
-            Error::NoCrLfAfterBoundary =>
+            ReadError::NoCrLfAfterBoundary =>
                 "Missing CRLF after boundary.",
-            Error::EofInPartHeaders =>
+            ReadError::EofInPartHeaders =>
                 "The request body ended prematurely while parsing headers of a multipart part.",
-            Error::EofInFile =>
+            ReadError::EofInFile =>
                 "The request body ended prematurely while streaming a file part.",
-            Error::EofInPart =>
+            ReadError::EofInPart =>
                 "The request body ended prematurely while reading a multipart part.",
-            Error::Httparse(_) =>
+            ReadError::Httparse(_) =>
                 "A parse error occurred while parsing the headers of a multipart section.",
-            Error::Io(_) => "An I/O error occurred.",
-            Error::Hyper(_) => "A Hyper error occurred.",
-            Error::Utf8(_) => "A UTF-8 error occurred.",
-            Error::Decoding(_) => "A decoding error occurred.",
-            Error::General(ref msg) => &msg,
-            Error::NotAFile => "FilePart is not a file.",
+            ReadError::Io(_) => "An I/O error occurred.",
+            ReadError::Hyper(_) => "A Hyper error occurred.",
+            ReadError::Utf8(_) => "A UTF-8 error occurred.",
+            ReadError::Decoding(_) => "A decoding error occurred.",
+            ReadError::General(ref msg) => &msg,
+            ReadError::NotAFile => "FilePart is not a file.",
+            ReadError::SerdeJson(_) => "A serde json error occurred.",
         }
     }
 }

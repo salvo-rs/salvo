@@ -1,7 +1,7 @@
 use multimap::MultiMap;
 use super::multipart::{Node, Part, FilePart};
 use http::header::{HeaderMap, HeaderValue, CONTENT_DISPOSITION, CONTENT_TYPE};
-use super::error::Error;
+use crate::http::errors::ReadError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 ///
@@ -22,7 +22,7 @@ impl FormData {
     }
 
     /// Create a mime-multipart Vec<Node> from this FormData
-    pub fn to_multipart(&self) -> Result<Vec<Node>, Error> {
+    pub fn to_multipart(&self) -> Result<Vec<Node>, ReadError> {
         // Translate to Nodes
         let mut nodes: Vec<Node> = Vec::with_capacity(self.fields.len() + self.files.len());
 
@@ -46,7 +46,7 @@ impl FormData {
                 filepart.headers.remove(CONTENT_DISPOSITION);
                 let filename = match filepart.path.file_name() {
                     Some(fname) => fname.to_string_lossy().into_owned(),
-                    None => return Err(Error::NotAFile),
+                    None => return Err(ReadError::NotAFile),
                 };
                 filepart.headers.append(CONTENT_DISPOSITION, HeaderValue::from_str(&format!("form-data; name={}; filename={}", key, filename)).unwrap());
                 nodes.push( Node::File( filepart ) );

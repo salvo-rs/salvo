@@ -26,6 +26,7 @@ pub enum Error {
     Decoding(Cow<'static, str>),
     /// A MIME multipart error
     Http(http::Error),
+    SerdeJson(serde_json::error::Error),
     // NoneError(std::option::NoneError),
 }
 
@@ -52,6 +53,11 @@ impl From<http::Error> for Error {
         Error::Http(err)
     }
 }
+impl From<serde_json::error::Error> for Error {
+    fn from(err: serde_json::error::Error) -> Error {
+        Error::SerdeJson(err)
+    }
+}
 // impl From<std::option::NoneError> for Error {
 //     fn from(err: std::option::NoneError) -> Error {
 //         Error::NoneError(err)
@@ -72,6 +78,8 @@ impl Display for Error {
             Error::Decoding(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
             Error::Http(ref e) =>
+                format!("{}: {}", self.description(), e).fmt(f),
+            Error::SerdeJson(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
             // Error::NoneError(ref e) =>
             //     format!("{}: {}", self.description(), e).fmt(f),
@@ -100,6 +108,7 @@ impl StdError for Error {
             Error::Utf8(_) => "A UTF-8 error occurred.",
             Error::Decoding(_) => "A decoding error occurred.",
             Error::Http(_) => "A http error occurred.",
+            Error::SerdeJson(_) => "A serde json error occurred.",
             // Error::NoneError(_) => "None error occurred.",
         }
     }

@@ -14,6 +14,7 @@ use http::method::Method;
 use http::header::{self, HeaderMap};
 use cookie::{Cookie, CookieJar};
 use futures::stream::TryStreamExt;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(test)]
 use std::net::ToSocketAddrs;
@@ -21,9 +22,9 @@ use std::net::ToSocketAddrs;
 use crate::Protocol;
 use crate::http::{Body, Mime};
 use crate::http::form::FilePart;
-use crate::http::form::{self, FormData, Error as FormError};
+use crate::http::form::{self, FormData};
 use crate::http::header::{AsHeaderName, HeaderValue};
-use crate::error::Error;
+use crate::http::errors::ReadError;
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -51,8 +52,8 @@ pub struct Request {
 
     // accept: Option<Vec<Mime>>,
     queries: DoubleCheckedCell<MultiMap<String, String>>,
-    form_data: DoubleCheckedCell<Result<FormData, FormError>>,
-    body_data: DoubleCheckedCell<Result<Vec<u8>, Error>>,
+    form_data: DoubleCheckedCell<Result<FormData, ReadError>>,
+    payload: DoubleCheckedCell<Result<Vec<u8>, ReadError>>,
 
     /// The version of the HTTP protocol used.
     version: HttpVersion,
@@ -150,7 +151,7 @@ impl Request {
             // accept: None,
             params: HashMap::new(),
             form_data: DoubleCheckedCell::new(),
-            body_data: DoubleCheckedCell::new(),
+            payload: DoubleCheckedCell::new(),
             version,
         })
     }
@@ -186,24 +187,6 @@ impl Request {
         self.body.replace(None)
     }
 
-    pub fn form_data(&self) -> &Result<FormData, FormError>{
-        self.form_data.get_or_init(||{
-            let bdata = self.body_data().as_ref();
-            if let Ok(bdata) = bdata {
-                let mut reader = bdata.as_slice();
-                form::read_form_data(&mut reader, &self.headers)
-            } else {
-                Err(FormError::Decoding(Borrowed("get body data error")))
-            }
-        })
-    }
-    pub fn body_data(&self) -> &Result<Vec<u8>, Error> {
-        self.body_data.get_or_init(||{
-            let body = self.body.replace(None).unwrap();
-            // body.try_concat().await.unwrap().to_vec()
-            Ok(vec![])
-        })
-    }
     pub fn accept(&self) -> Vec<Mime> {
         let mut list: Vec<Mime> = vec![];
         if let Some(accept) = self.headers.get("accept").and_then(|h| h.to_str().ok()) {
@@ -288,32 +271,57 @@ impl Request {
     pub fn get_query_or_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
         self.get_query(key.as_ref()).or(self.get_form(key))
     }
-    pub fn get_payload(&self) -> Result<String, Error> {
-        if let Ok(data) = self.body_data().as_ref(){
-            match String::from_utf8(data.to_vec()){
-                Ok(payload) => {
-                    Ok(payload)},
-                Err(err) => Err(Error::Utf8(err)),
+
+    pub fn payload(&self) -> &Result<Vec<u8>, ReadError> {
+        self.payload.get_or_init(||{
+            match self.headers().get(header::CONTENT_TYPE) {
+                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
+                    Err(ReadError::General(String::from("failed to read data")))
+                },
+                Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
+                    match self.take_body() {
+                        Some(body) => {
+                            Ok(hyper::body::to_bytes(body).wait()?)
+                        },
+                        None => Err(ReadError::General(String::from("failed to read data"))),
+                    }
+                },
+                _=> Err(ReadError::General(String::from("failed to read data"))),
             }
-        } else {
-            Err(Error::General("utf8 encode error".to_owned()))
-        }
+        })
+    }
+    
+    pub fn form_data(&self) -> &Result<FormData, ReadError>{
+        self.form_data.get_or_init(||{
+            match self.headers().get(header::CONTENT_TYPE) {
+                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
+                    match self.take_body() {
+                        Some(body) => form::read_form_data(&mut body, &self.headers),
+                        None => Err(ReadError::General("empty body".into())),
+                    }
+                },
+                _=> Err(ReadError::General(String::from("failed to read data"))),
+            }
+        })
     }
     
     #[inline]
-    pub fn read_from_json<T>(&self) -> Result<T, Error> where T: DeserializeOwned {
-        self.get_payload().and_then(|body|serde_json::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
+    pub fn read_from_json<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
+        self.payload().and_then(|body|Ok(serde_json::from_slice::<T>(&body)?))
     }
     #[inline]
-    pub fn read_from_form<T>(&self) -> Result<T, Error> where T: DeserializeOwned {
-        self.get_payload().and_then(|body|serde_urlencoded::from_str::<T>(&body).map_err(|_|Error::General(String::from("parse body error"))))
+    pub fn read_from_form<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
+        self.form_data().and_then(|form_data|{
+            let data = serde_json::to_value(&form_data.fields)?;
+            Ok(serde_json::from_value::<T>(data)?)
+        })
     }
     #[inline]
-    pub fn read<T>(&self) -> Result<T, Error> where T: DeserializeOwned  {
+    pub fn read<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned  {
         match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" => self.read_from_form(),
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => self.read_from_form(),
             Some(ctype) if ctype == "application/json" => self.read_from_json(),
-            _=> Err(Error::General(String::from("failed to read data")))
+            _=> Err(ReadError::General(String::from("failed to read data")))
         }
     }
 }
