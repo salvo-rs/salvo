@@ -17,7 +17,7 @@ use url::form_urlencoded;
 use crate::http::errors::ReadError;
 
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
-pub fn read_form_data<S: HttpBody>(body: &mut S, headers: &HeaderMap) -> Result<FormData, ReadError> {
+pub fn read_form_data<S: HttpBody>(body: S, headers: &HeaderMap) -> Result<FormData, ReadError> {
     match headers.get(header::CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
             let data = hyper::body::to_bytes(body).wait()?;

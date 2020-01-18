@@ -165,24 +165,17 @@ pub fn read_multipart<S: Read>(stream: &mut S, always_use_files: bool) -> Result
 ///
 /// It is presumed that you have the `Headers` already and the stream starts at the body.
 /// If the headers are still in the stream, use `read_multipart()` instead.
-pub fn read_multipart_body<S: HttpBody>(body: &mut S, headers: &HeaderMap, always_use_files: bool)
+pub fn read_multipart_body<S: HttpBody>(body: S, headers: &HeaderMap, always_use_files: bool)
     -> Result<Vec<Node>, ReadError>
 {
-    let mut reader = BufReader::with_capacity(4096, body);
     let mut nodes: Vec<Node> = Vec::new();
-    inner(&mut reader, headers, &mut nodes, always_use_files)?;
-    Ok(nodes)
-}
-
-fn inner<R: BufRead>(reader: &mut R, headers: &HeaderMap, nodes: &mut Vec<Node>, always_use_files: bool)
-    -> Result<(), ReadError>
-{
-    let mut buf: Vec<u8> = Vec::new();
+    
+    let mut buf = hyper::body::aggregate(body).wait();
 
     let boundary = get_multipart_boundary(headers)?;
 
     // Read past the initial boundary
-    let (_, found) = reader.stream_until_token(&boundary, &mut buf)?;
+    let (_, found) = buf.stream_until_token(&boundary, &mut buf)?;
     if ! found { return Err(ReadError::EofBeforeFirstBoundary); }
 
     // Define the boundary, including the line terminator preceding it.
@@ -292,6 +285,7 @@ fn inner<R: BufRead>(reader: &mut R, headers: &HeaderMap, nodes: &mut Vec<Node>,
             }));
         }
     }
+    Ok(nodes)
 }
 
 /// Get the `multipart/*` boundary string from `hyper::Headers`

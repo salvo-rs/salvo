@@ -296,7 +296,7 @@ impl Request {
             match self.headers().get(header::CONTENT_TYPE) {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
                     match self.take_body() {
-                        Some(body) => form::read_form_data(&mut body, &self.headers),
+                        Some(body) => form::read_form_data(body, &self.headers),
                         None => Err(ReadError::General("empty body".into())),
                     }
                 },
