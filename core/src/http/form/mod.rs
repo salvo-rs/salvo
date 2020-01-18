@@ -15,6 +15,11 @@ use http::header;
 use hyper::body::HttpBody;
 use url::form_urlencoded;
 use crate::http::errors::ReadError;
+use std::io::Cursor;
+
+pub fn create_read_cursor<S: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
+    Ok(Cursor::new(hyper::body::to_bytes(body)?.to_vec()))
+}
 
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
 pub fn read_form_data<S: HttpBody>(body: S, headers: &HeaderMap) -> Result<FormData, ReadError> {
@@ -26,7 +31,7 @@ pub fn read_form_data<S: HttpBody>(body: S, headers: &HeaderMap) -> Result<FormD
             Ok(form_data)
         },
         Some(ctype) if ctype == "multipart/form-data" => {
-            let nodes = multipart::read_multipart_body(body, headers, false)?;
+            let nodes = multipart::read_multipart_body(create_read_cursor(body)?, headers, false)?;
         
             let mut form_data = FormData::new();
             fill_form_data(&mut form_data, nodes)?;
