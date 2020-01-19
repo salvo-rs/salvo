@@ -278,7 +278,7 @@ impl Request {
                     Err(ReadError::General(String::from("failed to read data")))
                 },
                 Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
-                    match self.take_body() {
+                    match self.body.replace(None) {
                         Some(body) => {
                             read_body_bytes(body)
                         },
@@ -294,7 +294,7 @@ impl Request {
         self.form_data.get_or_init(||{
             match self.headers().get(header::CONTENT_TYPE) {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
-                    match self.take_body() {
+                    match self.body.replace(None) {
                         Some(body) => form::read_form_data(body, &self.headers),
                         None => Err(ReadError::General("empty body".into())),
                     }
@@ -306,14 +306,20 @@ impl Request {
     
     #[inline]
     pub fn read_from_json<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
-        self.payload().and_then(|body|Ok(serde_json::from_slice::<T>(&body)?))
+        match self.payload() {
+            Ok(body) => Ok(serde_json::from_slice::<T>(&body)?),
+            Err(_) => Err(ReadError::General("ddd".into())),
+        }
     }
     #[inline]
     pub fn read_from_form<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
-        self.form_data().and_then(|form_data|{
-            let data = serde_json::to_value(&form_data.fields)?;
-            Ok(serde_json::from_value::<T>(data)?)
-        })
+        match self.form_data() {
+            Ok(form_data) => {
+                let data = serde_json::to_value(&form_data.fields)?;
+                Ok(serde_json::from_value::<T>(data)?)
+            },
+            Err(_) => Err(ReadError::General("ddd".into())),
+        }
     }
     #[inline]
     pub fn read<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned  {
@@ -332,5 +338,5 @@ pub(crate) fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, 
 }
 pub(crate) fn read_body_bytes<B: HttpBody>(body: B) -> Result<Vec<u8>, ReadError> {
     let mut rt = Runtime::new().unwrap();
-    Ok(rt.block_on(hyper::body::to_bytes(body))?.to_vec())
+    rt.block_on(hyper::body::to_bytes(body)).map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
 }

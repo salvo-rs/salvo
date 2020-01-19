@@ -20,7 +20,7 @@ pub fn read_form_data<S: HttpBody>(body: S, headers: &HeaderMap) -> Result<FormD
     match headers.get(header::CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
             let data = request::read_body_bytes(body)?;
-            let form_data = FormData::new();
+            let mut form_data = FormData::new();
             form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
             Ok(form_data)
         },

@@ -39,7 +39,7 @@ pub enum ReadError {
     EofInPart,
 
     /// An HTTP parsing error from a multipart section.
-    Httparse(httparse::Error),
+    HttParse(httparse::Error),
     /// An I/O error.
     Io(io::Error),
     /// An error was returned from Hyper.
@@ -68,7 +68,7 @@ impl From<io::Error> for ReadError {
 
 impl From<httparse::Error> for ReadError {
     fn from(err: httparse::Error) -> ReadError {
-        ReadError::Httparse(err)
+        ReadError::HttParse(err)
     }
 }
 
@@ -87,7 +87,7 @@ impl From<FromUtf8Error> for ReadError {
 impl Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ReadError::Httparse(ref e) =>
+            ReadError::HttParse(ref e) =>
                 format!("{}: {:?}", self.description(), e).fmt(f),
             ReadError::Io(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
@@ -143,7 +143,7 @@ impl StdError for ReadError {
                 "The request body ended prematurely while streaming a file part.",
             ReadError::EofInPart =>
                 "The request body ended prematurely while reading a multipart part.",
-            ReadError::Httparse(_) =>
+            ReadError::HttParse(_) =>
                 "A parse error occurred while parsing the headers of a multipart section.",
             ReadError::Io(_) => "An I/O error occurred.",
             ReadError::Hyper(_) => "A Hyper error occurred.",
