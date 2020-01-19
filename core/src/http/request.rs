@@ -1,7 +1,6 @@
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
 use std::cell::{RefCell, Ref};
-use std::borrow::Cow::Borrowed;
 use std::str::FromStr;
 use std::collections::HashMap;
 use url::Url;
@@ -13,8 +12,9 @@ use http::version::Version as HttpVersion;
 use http::method::Method;
 use http::header::{self, HeaderMap};
 use cookie::{Cookie, CookieJar};
-use futures::stream::TryStreamExt;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::io::Cursor;
+use hyper::body::HttpBody;
+use tokio::runtime::Runtime;
 
 #[cfg(test)]
 use std::net::ToSocketAddrs;
@@ -271,7 +271,6 @@ impl Request {
     pub fn get_query_or_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
         self.get_query(key.as_ref()).or(self.get_form(key))
     }
-
     pub fn payload(&self) -> &Result<Vec<u8>, ReadError> {
         self.payload.get_or_init(||{
             match self.headers().get(header::CONTENT_TYPE) {
@@ -281,7 +280,7 @@ impl Request {
                 Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
                     match self.take_body() {
                         Some(body) => {
-                            Ok(hyper::body::to_bytes(body).wait()?)
+                            read_body_bytes(body)
                         },
                         None => Err(ReadError::General(String::from("failed to read data"))),
                     }
@@ -328,4 +327,10 @@ impl Request {
 
 pub trait BodyReader: Send {
 }
-
+pub(crate) fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
+    Ok(Cursor::new(read_body_bytes(body)?))
+}
+pub(crate) fn read_body_bytes<B: HttpBody>(body: B) -> Result<Vec<u8>, ReadError> {
+    let mut rt = Runtime::new().unwrap();
+    Ok(rt.block_on(hyper::body::to_bytes(body))?.to_vec())
+}

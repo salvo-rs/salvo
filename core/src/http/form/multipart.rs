@@ -1,8 +1,3 @@
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
-
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -14,7 +9,6 @@ use textnonce::TextNonce;
 use mime::{self, Mime};
 use buf_read_ext::BufReadExt;
 use crate::http::errors::ReadError;
-use hyper::body::HttpBody;
 
 /// A multipart part which is not a file (stored in memory)
 #[derive(Clone, Debug, PartialEq)]
