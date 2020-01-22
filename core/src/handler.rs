@@ -18,7 +18,7 @@ pub trait Handler: Send + Sync + 'static {
 impl<F, R> Handler for F
 where
     R: Send + 'static + Future<Output=()>,
-    F: Send + Sync + 'static + FnMut(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R
+    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R
 {
     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         (*self)(sconf, req, depot, resp).await;

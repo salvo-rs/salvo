@@ -124,7 +124,7 @@ impl Server {
         }
     }
 
-    pub fn serve(self) -> impl Future<Output=hyper::Result<()>> {
+    pub fn serve(self) -> impl Future<Output=Result<(), hyper::error::Error>> + Send + 'static {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
@@ -140,8 +140,8 @@ impl Server {
 impl<T>  hyper::service::Service<T> for Server {
     type Response = HyperHandler;
     type Error = std::io::Error;
-    type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
-    // type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         Ok(()).into()
@@ -161,7 +161,7 @@ pub struct HyperHandler {
 impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
     type Response = hyper::Response<hyper::body::Body>;
     type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
     // type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
@@ -188,7 +188,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 
         let fut = async move {
             for handler in handlers{
-                handler.handle(config, &mut request, &mut depot, &mut response).await;
+                handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
                 if response.is_commited() {
                     break;
                 }
