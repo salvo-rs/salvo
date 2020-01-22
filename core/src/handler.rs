@@ -1,19 +1,27 @@
 
 use std::sync::Arc;
+use std::task::{Context, Poll};
+use std::pin::Pin;
+use std::future::Future;
+use futures_util::future;
+use async_trait::async_trait;
 
 use crate::{ServerConfig, Depot};
 use crate::http::{Request, Response};
 
+#[async_trait]
 pub trait Handler: Send + Sync + 'static {
-    fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response);
+    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response);
 }
 
-impl<F> Handler for F
+#[async_trait]
+impl<F, R> Handler for F
 where
-    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &Request, &mut Depot, &mut Response)
+    R: Send + 'static + Future<Output=()>,
+    F: Send + Sync + 'static + FnMut(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R
 {
-    fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
-        (*self)(sconf, req, depot, resp);
+    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+        (*self)(sconf, req, depot, resp).await;
     }
 }
 //https://github.com/rust-lang/rust/issues/60074
@@ -33,26 +41,24 @@ where
 //     }
 // }
 
-macro_rules! handler_tuple_impls {
-    ($(
-        $Tuple:tt {
-            $(($idx:tt) -> $T:ident,)+
-        }
-    )+) => {$(
-        impl<$($T,)+> Handler for ($($T,)+) where $($T: Handler,)+
-        {
-            fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
-                $(
-                    if !resp.is_commited() {
-                        self.$idx.handle(sconf.clone(), req, depot, resp);
-                    } else {
-                        return;
-                    }
-                )+
-            }
-        })+
-    }
-}
+// macro_rules! handler_tuple_impls {
+//     ($(
+//         $Tuple:tt {
+//             $(($idx:tt) -> $T:ident,)+
+//         }
+//     )+) => {$(
+//         impl<$($T,)+> Handler for ($($T,)+) where $($T: Handler,)+
+//         {
+//             async fn handle(&self, sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response) {
+//                 $(
+//                     if !resp.is_commited() {
+//                         self.$idx.handle(sconf.clone(), req, depot, resp).await;
+//                     }
+//                 )+
+//             }
+//         })+
+//     }
+// }
 #[doc(hidden)]
 macro_rules! __for_each_handler_tuple {
     ($callback:ident) => {
@@ -229,4 +235,4 @@ macro_rules! __for_each_handler_tuple {
     };
 }
 
-__for_each_handler_tuple!(handler_tuple_impls);
+// __for_each_handler_tuple!(handler_tuple_impls);

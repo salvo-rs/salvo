@@ -3,6 +3,7 @@ use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
 use novel::prelude::*;
 use novel::error::Error;
+use async_trait::async_trait;
 
 pub struct BasicAuthHandler{
     config: BasicAuthConfig,
@@ -51,8 +52,9 @@ impl BasicAuthHandler{
         }
     }
 }
+#[async_trait]
 impl Handler for BasicAuthHandler{
-    fn handle(&self, _sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response){
+    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response){
         if let Some(auth) = req.headers().get(AUTHORIZATION){
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {

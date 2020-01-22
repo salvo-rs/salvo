@@ -2,6 +2,7 @@ use hyper::header::AUTHORIZATION;
 use serde::de::{DeserializeOwned};
 use std::{marker::PhantomData};
 use novel::prelude::*;
+use async_trait::async_trait;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Validation, Algorithm, TokenData};
 
@@ -17,9 +18,9 @@ pub struct JwtConfig<C> where C: DeserializeOwned + Sync + Send + 'static{
     pub validation: Validation,
     pub extractors: Vec<Box<dyn JwtExtractor>>,
 }
-
-pub trait JwtExtractor: Send+Sync{
-    fn get_token(&self, req: &Request) -> Option<String>;
+#[async_trait]
+pub trait JwtExtractor: Send + Sync{
+    async fn get_token(&self, req: &mut Request) -> Option<String>;
 }
 
 #[derive(Default)]
@@ -29,8 +30,9 @@ impl HeaderExtractor{
         HeaderExtractor{}
     }
 }
+#[async_trait]
 impl JwtExtractor for HeaderExtractor{
-    fn get_token(&self, req: &Request) -> Option<String>{
+    async fn get_token(&self, req: &mut Request) -> Option<String>{
         if let Some(auth) = req.headers().get(AUTHORIZATION){
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Bearer") {
@@ -48,9 +50,10 @@ impl FormExtractor{
         FormExtractor(name.into())
     }
 }
+#[async_trait]
 impl JwtExtractor for FormExtractor{
-    fn get_token(&self, req: &Request) -> Option<String>{
-        req.get_form(&self.0)
+    async fn get_token(&self, req: &mut Request) -> Option<String>{
+        req.get_form(&self.0).await
     }
 }
 
@@ -60,9 +63,11 @@ impl QueryExtractor{
         QueryExtractor(name.into())
     }
 }
+
+#[async_trait]
 impl JwtExtractor for QueryExtractor{
-    fn get_token(&self, req: &Request) -> Option<String>{
-        req.get_query(&self.0)
+    async fn get_token(&self, req: &mut Request) -> Option<String>{
+        req.get_query(&self.0).await
     }
 }
 
@@ -72,8 +77,9 @@ impl CookieExtractor{
         CookieExtractor(name.into())
     }
 }
+#[async_trait]
 impl JwtExtractor for CookieExtractor{
-    fn get_token(&self, req: &Request) -> Option<String>{
+    async fn get_token(&self, req: &mut Request) -> Option<String>{
         req.get_cookie(&self.0).map(|c|c.value().to_owned())
     }
 }
@@ -88,10 +94,12 @@ impl<C> JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
         decode::<C>(&token, &self.config.secret.as_bytes(), &self.config.validation)
     }
 }
+
+#[async_trait]
 impl<C> Handler for JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
-    fn handle(&self, _sconf: Arc<ServerConfig>, req: &Request, depot: &mut Depot, resp: &mut Response){
+    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response){
         for extractor in &self.config.extractors {
-           if let Some(token) = extractor.get_token(req) {
+           if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token){
                     if let Some(key) = &self.config.context_data_key {
                         depot.insert(key.clone(), data);

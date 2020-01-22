@@ -11,21 +11,22 @@ pub use multipart::{read_multipart, generate_boundary};
 
 use http::header;
 use hyper::body::HttpBody;
+use hyper::body::Body;
 use url::form_urlencoded;
 use crate::http::errors::ReadError;
 use crate::http::request;
 
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
-pub fn read_form_data<S: HttpBody>(body: S, headers: &HeaderMap) -> Result<FormData, ReadError> {
+pub async fn read_form_data(body: Body, headers: &HeaderMap) -> Result<FormData, ReadError> {
     match headers.get(header::CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-            let data = request::read_body_bytes(body)?;
+            let data = request::read_body_bytes(body).await?;
             let mut form_data = FormData::new();
             form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
             Ok(form_data)
         },
         Some(ctype) if ctype == "multipart/form-data" => {
-            let nodes = multipart::read_multipart_body(request::read_body_cursor(body)?, headers, false)?;
+            let nodes = multipart::read_multipart_body(request::read_body_cursor(body).await?, headers, false)?;
         
             let mut form_data = FormData::new();
             fill_form_data(&mut form_data, nodes)?;

@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use url::Url;
 use multimap::MultiMap;
-use double_checked_cell::DoubleCheckedCell;
+use async_double_checked_cell::DoubleCheckedCell;
 use serde::de::DeserializeOwned;
 use http;
 use http::version::Version as HttpVersion;
@@ -25,6 +25,7 @@ use crate::http::form::FilePart;
 use crate::http::form::{self, FormData};
 use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::errors::ReadError;
+use atomic_refcell::{AtomicRefCell, AtomicRef};
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -41,7 +42,7 @@ pub struct Request {
     headers: HeaderMap,
 
     /// The request body as a reader.
-    body: RefCell<Option<Body>>,
+    body: Option<Body>,
 
     /// The request method.
     method: Method,
@@ -145,7 +146,7 @@ impl Request {
             url,
             local_addr,
             headers,
-            body: RefCell::new(Some(body)),
+            body: Some(body),
             method,
             cookies,
             // accept: None,
@@ -172,8 +173,8 @@ impl Request {
     }
 
     #[inline(always)]
-    pub fn body(&self) -> Ref<Option<Body>> {
-        self.body.borrow()
+    pub fn body(&self) -> Option<&Body> {
+        self.body.as_ref()
     }
 
     // #[inline(always)]
@@ -184,7 +185,7 @@ impl Request {
 
     #[inline(always)]
     pub fn take_body(&mut self) -> Option<Body> {
-        self.body.replace(None)
+        self.body.take()
     }
 
     pub fn accept(&self) -> Vec<Mime> {
@@ -247,73 +248,77 @@ impl Request {
         self.params.get(key).and_then(|v|v.parse::<F>().ok())
     }
 
-    pub fn queries(&self) -> &MultiMap<String, String>{
-        self.queries.get_or_init(||self.url.query_pairs().into_owned().collect())
+    pub async fn queries(&self) -> &MultiMap<String, String>{
+        self.queries.get_or_init(async{self.url.query_pairs().into_owned().collect()}).await
     }
     #[inline]
-    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
+    pub  async fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.queries().await.get(key).and_then(|v|v.parse::<F>().ok())
     }
     
     #[inline]
-    pub fn get_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.form_data().as_ref().ok().and_then(|ps|ps.fields.get(key)).and_then(|v|v.parse::<F>().ok())
+    pub async fn get_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+        self.form_data().await.as_ref().ok().and_then(|ps|ps.fields.get(key)).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
-    pub fn get_file<'a>(&self, key: &'a str) -> Option<&FilePart> {
-        self.form_data().as_ref().ok().and_then(|ps|ps.files.get(key))
+    pub async fn get_file<'a>(&mut self, key: &'a str) -> Option<&FilePart> {
+        self.form_data().await.as_ref().ok().and_then(|ps|ps.files.get(key))
     }
     #[inline]
-    pub fn get_form_or_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.get_form(key.as_ref()).or(self.get_query(key))
+    pub async fn get_form_or_query<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+        self.get_form(key.as_ref()).await.or(self.get_query(key).await)
     }
     #[inline]
-    pub fn get_query_or_form<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.get_query(key.as_ref()).or(self.get_form(key))
+    pub async fn get_query_or_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+        self.get_query(key.as_ref()).await.or(self.get_form(key).await)
     }
-    pub fn payload(&self) -> &Result<Vec<u8>, ReadError> {
-        self.payload.get_or_init(||{
-            match self.headers().get(header::CONTENT_TYPE) {
+    pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
+        let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
+        let body = self.body.take();
+        self.payload.get_or_init(async {
+            match ctype {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
                     Err(ReadError::General(String::from("failed to read data")))
                 },
                 Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
-                    match self.body.replace(None) {
+                    match body {
                         Some(body) => {
-                            read_body_bytes(body)
+                            read_body_bytes(body).await
                         },
                         None => Err(ReadError::General(String::from("failed to read data"))),
                     }
                 },
                 _=> Err(ReadError::General(String::from("failed to read data"))),
             }
-        })
+        }).await
     }
     
-    pub fn form_data(&self) -> &Result<FormData, ReadError>{
-        self.form_data.get_or_init(||{
-            match self.headers().get(header::CONTENT_TYPE) {
+    pub async fn form_data(&mut self) -> &Result<FormData, ReadError>{
+        let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
+        let body = self.body.take();
+        self.form_data.get_or_init(async {
+            match ctype {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
-                    match self.body.replace(None) {
-                        Some(body) => form::read_form_data(body, &self.headers),
+                    match body {
+                        Some(body) => form::read_form_data(body, &self.headers).await,
                         None => Err(ReadError::General("empty body".into())),
                     }
                 },
                 _=> Err(ReadError::General(String::from("failed to read data"))),
             }
-        })
+        }).await
     }
     
     #[inline]
-    pub fn read_from_json<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
-        match self.payload() {
+    pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned {
+        match self.payload().await {
             Ok(body) => Ok(serde_json::from_slice::<T>(&body)?),
             Err(_) => Err(ReadError::General("ddd".into())),
         }
     }
     #[inline]
-    pub fn read_from_form<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned {
-        match self.form_data() {
+    pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned {
+        match self.form_data().await {
             Ok(form_data) => {
                 let data = serde_json::to_value(&form_data.fields)?;
                 Ok(serde_json::from_value::<T>(data)?)
@@ -322,10 +327,10 @@ impl Request {
         }
     }
     #[inline]
-    pub fn read<T>(&self) -> Result<T, ReadError> where T: DeserializeOwned  {
+    pub async fn read<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned  {
         match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => self.read_from_form(),
-            Some(ctype) if ctype == "application/json" => self.read_from_json(),
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => self.read_from_form().await,
+            Some(ctype) if ctype == "application/json" => self.read_from_json().await,
             _=> Err(ReadError::General(String::from("failed to read data")))
         }
     }
@@ -333,10 +338,9 @@ impl Request {
 
 pub trait BodyReader: Send {
 }
-pub(crate) fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
-    Ok(Cursor::new(read_body_bytes(body)?))
+pub(crate) async fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
+    Ok(Cursor::new(read_body_bytes(body).await?))
 }
-pub(crate) fn read_body_bytes<B: HttpBody>(body: B) -> Result<Vec<u8>, ReadError> {
-    let mut rt = Runtime::new().unwrap();
-    rt.block_on(hyper::body::to_bytes(body)).map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
+pub(crate) async fn read_body_bytes<B: HttpBody>(body: B) -> Result<Vec<u8>, ReadError> {
+    hyper::body::to_bytes(body).await.map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
 }

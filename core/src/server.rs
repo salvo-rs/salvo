@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
+use std::pin::Pin;
+use futures::future::FutureExt;
 
 use hyper::Server as HyperServer;
-use futures_cpupool::CpuPool;
 
 use crate::{Protocol, Catcher, Depot};
 use crate::http::{StatusCode, Request, Response, Mime};
@@ -41,12 +42,6 @@ pub struct Server {
 }
 pub struct ServerConfig{
     pub timeouts: Timeouts,
-
-    /// Cpu pool to run synchronus requests on.
-    ///
-    /// Defaults to `num_cpus`.  Note that reading/writing to the client is
-    /// handled asyncronusly in a single thread.
-    pub pool: CpuPool,
 
     /// Protocol of the incoming requests
     ///
@@ -92,7 +87,6 @@ impl ServerConfig {
             protocol: Protocol::http(),
             local_addr: None,
             timeouts: Timeouts::default(),
-            pool: CpuPool::new_num_cpus(),
             catchers: Arc::new(catcher::defaults::get()),
             allowed_media_types: Arc::new(mimes),
         }
@@ -130,7 +124,7 @@ impl Server {
         }
     }
 
-    pub fn serve(self) -> impl Future<Output=hyper::Result<()>> + Send + 'static{
+    pub fn serve(self) -> impl Future<Output=hyper::Result<()>> {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
@@ -146,7 +140,8 @@ impl Server {
 impl<T>  hyper::service::Service<T> for Server {
     type Response = HyperHandler;
     type Error = std::io::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
+    // type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         Ok(()).into()
@@ -166,8 +161,8 @@ pub struct HyperHandler {
 impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
     type Response = hyper::Response<hyper::body::Body>;
     type Error = hyper::Error;
-    // type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    // type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
@@ -189,57 +184,62 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         }
         request.params = params;
         response.cookies = request.cookies().clone();
-        for handler in handlers{
-            handler.handle(self.config.clone(), &request, &mut depot, &mut response);
-            if response.is_commited() {
-                break;
-            }
-        }
-        if !response.is_commited() {
-            response.commit();
-        }
+        let config = self.config.clone();
 
-        let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
-
-        if response.status_code().is_none(){
-            if response.body_writers.len() == 0 {
-                response.set_status_code(StatusCode::NOT_FOUND);
-            }else {
-                response.set_status_code(StatusCode::OK);
-            }
-        }
-        let status = response.status_code().unwrap();
-        let has_error = status.as_str().starts_with('4') || status.as_str().starts_with('5');
-        if let Some(value) =  response.headers().get(CONTENT_TYPE) {
-            let mut is_allowed = false;
-            if let Ok(value) = value.to_str() {
-                let ctype: Result<Mime, _> = value.parse();
-                if let Ok(ctype) = ctype {
-                    for mime in &*allowed_media_types {
-                        if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
-                            is_allowed = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if !is_allowed {
-                response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-            }
-        } else {
-            warn!(logging::logger(), "Http response content type header is not set"; "url" => request.url().as_str(), "method" => request.method().as_str());
-            if !has_error {
-                response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-            }
-        }
-        if response.body_writers.len() == 0 &&  has_error{
-            for catcher in &*catchers {
-                if catcher.catch(&request, &mut response){
+        let fut = async move {
+            for handler in handlers{
+                handler.handle(config, &mut request, &mut depot, &mut response).await;
+                if response.is_commited() {
                     break;
                 }
             }
-        }
-        response.write_back(&mut hyper_response, request.method().clone());
-        future::ok(hyper_response)
+            if !response.is_commited() {
+                response.commit();
+            }
+    
+            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
+    
+            if response.status_code().is_none(){
+                if response.body_writers.len() == 0 {
+                    response.set_status_code(StatusCode::NOT_FOUND);
+                }else {
+                    response.set_status_code(StatusCode::OK);
+                }
+            }
+            let status = response.status_code().unwrap();
+            let has_error = status.as_str().starts_with('4') || status.as_str().starts_with('5');
+            if let Some(value) =  response.headers().get(CONTENT_TYPE) {
+                let mut is_allowed = false;
+                if let Ok(value) = value.to_str() {
+                    let ctype: Result<Mime, _> = value.parse();
+                    if let Ok(ctype) = ctype {
+                        for mime in &*allowed_media_types {
+                            if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
+                                is_allowed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if !is_allowed {
+                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                }
+            } else {
+                warn!(logging::logger(), "Http response content type header is not set"; "url" => request.url().as_str(), "method" => request.method().as_str());
+                if !has_error {
+                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                }
+            }
+            if response.body_writers.len() == 0 &&  has_error{
+                for catcher in &*catchers {
+                    if catcher.catch(&request, &mut response){
+                        break;
+                    }
+                }
+            }
+            response.write_back(&mut hyper_response, request.method().clone());
+            Ok(hyper_response)
+        };
+        Box::pin(fut)
     }
 }

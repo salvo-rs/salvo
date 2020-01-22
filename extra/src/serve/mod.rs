@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use chrono::prelude::*;
 use serde_json::json;
 use mime;
+use async_trait::async_trait;
 
 use novel::prelude::*;
 
@@ -161,8 +162,9 @@ impl DirInfo{
     }
 }
 
+#[async_trait]
 impl Handler for Static {
-    fn handle(&self, _sconf: Arc<ServerConfig>, req: &Request, _depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         let param = req.params().iter().find(|(key, _)|key.starts_with('*'));
         let base_path = if let Some((_, value)) = param {
             value

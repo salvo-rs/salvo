@@ -17,8 +17,11 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
+async-double-checked-cell = {git="https://github.com/cere42/async-double-checked-cell.git"}
 futures = { version = "0.3", features = ["std"] }
-futures-cpupool = "0.1"
+futures-util = "0.3"
+atomic_refcell="0.1"
+async-trait = "0.1.22"
 http = "0.2"
 yansi = "0.5"
 toml = "0.4.7"
