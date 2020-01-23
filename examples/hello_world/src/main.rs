@@ -1,9 +1,9 @@
 use novel::prelude::*;
 
-fn hello_world(_sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+async fn hello_world(_sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
     resp.render_plain_text("Hello World");
 }
-fn hello_world2(_sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+async fn hello_world2(_sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
     resp.render_plain_text("Hello World2");
 }
 
