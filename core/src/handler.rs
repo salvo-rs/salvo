@@ -19,11 +19,11 @@ pub trait Handler: Send + Sync + 'static {
 #[async_trait]
 impl<F, R> Handler for F
 where
+    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R,
     R: Send + 'static + Future<Output=()>,
-    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R
 {
     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
-        (*self)(sconf, req, depot, resp).await;
+        (*self)(sconf, req, depot, resp).await
     }
 }
 //https://github.com/rust-lang/rust/issues/60074

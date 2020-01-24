@@ -165,6 +165,7 @@ impl DirInfo{
 #[async_trait]
 impl Handler for Static {
     async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+        println!("<<<<<<<<<<<<<<<<<<<<<<0");
         let param = req.params().iter().find(|(key, _)|key.starts_with('*'));
         let base_path = if let Some((_, value)) = param {
             value
@@ -174,18 +175,24 @@ impl Handler for Static {
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
+        println!("<<<<<<<<<<<<<<<<<<<<<<1{:#?}", &self.roots);
         for root in &self.roots {
             let path = root.join(&base_path);
+            println!("<<<<<<<<<<<<<<<<<<<<<<-0 {:#?}", path);
             if path.is_dir() && self.options.listing{
                 path_exist = true;
+                println!("<<<<<<<<<<<<<<<<<<<<<<-1");
                 if !req.url().path().ends_with('/') {
                     resp.redirect_found(format!("{}/", req.url().path()));
+                    println!("<<<<<<<<<<<<<<<<<<<<<<-2");
                     return
                 }
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
+                    println!("<<<<<<<<<<<<<<<<<<<<<<-3");
                     if ipath.exists() {
                         resp.render_file_from_path(ipath);
+                        println!("<<<<<<<<<<<<<<<<<<<<<<-4");
                         return;
                     }
                 }
@@ -205,10 +212,12 @@ impl Handler for Static {
                 }
             } else if path.is_file() {
                 resp.render_file_from_path(path);
+                println!("<<<<<<<<<<<<<<<<<<<<<<-5");
                 return
             }
         }
         if !path_exist || !self.options.listing{
+            println!("<<<<<<<<<<<<<<<<<<<<<<2, {:?} {:?}", path_exist, self.options.listing);
             resp.not_found();
             return;
         }
@@ -216,11 +225,13 @@ impl Handler for Static {
         if format.type_() != "text" {
             format = mime::TEXT_HTML;
         }
+        println!("<<<<<<<<<<<<<<<<<<<<<<3");
         let mut files: Vec<FileInfo> = files.into_iter().map(|(name, metadata)|FileInfo::new(name, metadata)).collect();
         files.sort_by(|a,b|a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)|DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a,b|a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
+        println!("<<<<<<<<<<<<<<<<<<<<<<4");
         match format.subtype().as_ref(){
             "text"=> resp.render_plain_text(list_text(&root)),
             "json"=> resp.render_json_text(list_json(&root)),

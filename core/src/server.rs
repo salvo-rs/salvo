@@ -188,6 +188,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 
         let fut = async move {
             for handler in handlers{
+                println!(">>>>>>>>>>>>>>>>>0");
                 handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
                 if response.is_commited() {
                     break;

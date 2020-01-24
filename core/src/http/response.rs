@@ -294,16 +294,25 @@ impl Response {
     #[inline]
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::FOUND);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::SEE_OTHER);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }
     #[inline]
@@ -323,18 +332,27 @@ impl Response {
     #[inline]
     pub fn not_found(&mut self) {
         self.status_code = Some(StatusCode::NOT_FOUND);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.commit();
     }
 
     #[inline]
     pub fn unauthorized(&mut self) {
         self.status_code = Some(StatusCode::UNAUTHORIZED);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.commit();
     }
 
     #[inline]
     pub fn forbidden(&mut self) {
         self.status_code = Some(StatusCode::FORBIDDEN);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
         self.commit();
     }
     #[inline]

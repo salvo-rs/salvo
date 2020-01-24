@@ -97,7 +97,7 @@ impl<C> JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
 
 #[async_trait]
 impl<C> Handler for JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static {
-    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response){
+    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         for extractor in &self.config.extractors {
            if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token){
