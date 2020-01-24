@@ -407,7 +407,6 @@ impl Router {
 			}
 			allh.extend(hs);
 			allh.extend(afters);
-			println!("==========8");
 			return (true, allh, params);
 		}
 		if !rest.is_empty() && !self.minions.is_empty() {
@@ -421,12 +420,10 @@ impl Router {
 					allh.extend(befores);
 					allh.extend(handlers);
 					allh.extend(afters);
-					println!("==========9");
 					return (true, allh, params);
 				}
 			}
 		}
-		println!("==========10");
 		return (false, vec![], params)
 	}
 	// pub fn reverse(name: &str, args: Option<HashMap<&str, &str>>) -> ReverseResult {
