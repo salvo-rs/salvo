@@ -54,7 +54,7 @@ impl BasicAuthHandler{
 }
 #[async_trait]
 impl Handler for BasicAuthHandler{
-    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response){
+    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         if let Some(auth) = req.headers().get(AUTHORIZATION){
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {

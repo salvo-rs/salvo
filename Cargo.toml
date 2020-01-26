@@ -5,7 +5,7 @@ codegen-units = 4
 members = [
   "core",
   "extra",
-  # "examples/hello_world",
+  "examples/hello_world",
   "examples/file_list",
   "examples/basic_auth",
 ]
