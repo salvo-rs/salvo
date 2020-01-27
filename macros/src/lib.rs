@@ -18,15 +18,20 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     //         .into();
     // }
 
-    sig.asyncness = None;
+    // sig.asyncness = None;
 
     (quote! {
         #vis struct #name;
+        impl #name {
+            #(#attrs)*
+            #sig {
+                #body
+            }
+        }
         #[async_trait]
         impl novel::Handler for #name {
-            #(#attrs)*
             async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
-                #body
+                Self::#name(sconf, req, depot, resp).await
             }
         }
     }).into()
