@@ -1,0 +1,23 @@
+[package]
+name = "novel-macros"
+version = "0.1.0"
+description = "novel proc macros"
+readme = "README.md"
+authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+workspace = ".."
+
+[lib]
+name = "novel_macros"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+quote = "^1"
+syn = { version = "^1", features = ["full", "parsing"] }
+proc-macro2 = "^1"
+
+[dev-dependencies]
+novel = { version = "0.5", path="../core"}
+futures = { version = "0.3.1" }

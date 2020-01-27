@@ -16,19 +16,19 @@ pub trait Handler: Send + Sync + 'static {
     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response);
 }
 
-#[async_trait]
-impl<F, R> Handler for F
-where
-    F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &mut Request, &mut Depot, &mut Response) -> R,
-    R: Send + 'static + Future<Output=()>,
-{
-    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
-        (*self)(sconf, req, depot, resp).await
-    }
-    // fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) -> Pin<Box<dyn Future<Output = User> + Send + '_>>  {
-    //     Box::pin(async move {(*self)(sconf, req, depot, resp).await})
-    // }
-}
+// #[async_trait]
+// impl<'a, F, R> Handler for F
+// where
+//     F: Send + Sync + 'static + Fn(Arc<ServerConfig>, &'a mut Request, &'a mut Depot, &'a mut Response) -> R,
+//     R: Send + 'static + Future<Output=()> + 'a
+// {
+//     async fn handle(&self, sconf: Arc<ServerConfig>, req: &'a mut Request, depot: &'a mut Depot, resp: &'a mut Response) {
+//         (*self)(sconf, req, depot, resp).await
+//     }
+//     // fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) -> Pin<Box<dyn Future<Output = User> + Send + '_>>  {
+//     //     Box::pin(async move {(*self)(sconf, req, depot, resp).await})
+//     // }
+// }
 // macro_rules! handler_tuple_impls {
 //     ($(
 //         $Tuple:tt {

@@ -61,6 +61,7 @@ atty = "0.2"
 rand = "0.7"
 multimap = { version = "0.8", features = ["serde"] }
 tokio = { version = "0.2", features = ["full"] }
+novel-macros = {version="0.1", path="../macros"}
 
 [build-dependencies]
 yansi = "0.5"
