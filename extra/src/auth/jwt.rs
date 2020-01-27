@@ -67,7 +67,7 @@ impl QueryExtractor{
 #[async_trait]
 impl JwtExtractor for QueryExtractor{
     async fn get_token(&self, req: &mut Request) -> Option<String>{
-        req.get_query(&self.0).await
+        req.get_query(&self.0)
     }
 }
 

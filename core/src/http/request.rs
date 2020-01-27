@@ -5,7 +5,8 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use url::Url;
 use multimap::MultiMap;
-use async_double_checked_cell::DoubleCheckedCell;
+use async_double_checked_cell::DoubleCheckedCell as ADoubleCheckedCell;
+use double_checked_cell::DoubleCheckedCell;
 use serde::de::DeserializeOwned;
 use http;
 use http::version::Version as HttpVersion;
@@ -53,8 +54,8 @@ pub struct Request {
 
     // accept: Option<Vec<Mime>>,
     queries: DoubleCheckedCell<MultiMap<String, String>>,
-    form_data: DoubleCheckedCell<Result<FormData, ReadError>>,
-    payload: DoubleCheckedCell<Result<Vec<u8>, ReadError>>,
+    form_data: ADoubleCheckedCell<Result<FormData, ReadError>>,
+    payload: ADoubleCheckedCell<Result<Vec<u8>, ReadError>>,
 
     /// The version of the HTTP protocol used.
     version: HttpVersion,
@@ -151,8 +152,8 @@ impl Request {
             cookies,
             // accept: None,
             params: HashMap::new(),
-            form_data: DoubleCheckedCell::new(),
-            payload: DoubleCheckedCell::new(),
+            form_data: ADoubleCheckedCell::new(),
+            payload: ADoubleCheckedCell::new(),
             version,
         })
     }
@@ -248,12 +249,12 @@ impl Request {
         self.params.get(key).and_then(|v|v.parse::<F>().ok())
     }
 
-    pub async fn queries(&self) -> &MultiMap<String, String>{
-        self.queries.get_or_init(async{self.url.query_pairs().into_owned().collect()}).await
+    pub fn queries(&self) -> &MultiMap<String, String>{
+        self.queries.get_or_init(||{self.url.query_pairs().into_owned().collect()})
     }
     #[inline]
-    pub  async fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.queries().await.get(key).and_then(|v|v.parse::<F>().ok())
+    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
+        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
     }
     
     #[inline]
@@ -266,11 +267,11 @@ impl Request {
     }
     #[inline]
     pub async fn get_form_or_query<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
-        self.get_form(key.as_ref()).await.or(self.get_query(key).await)
+        self.get_form(key.as_ref()).await.or(self.get_query(key))
     }
     #[inline]
     pub async fn get_query_or_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
-        self.get_query(key.as_ref()).await.or(self.get_form(key).await)
+        self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
     pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
         let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
