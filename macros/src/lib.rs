@@ -31,7 +31,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         #[async_trait]
         impl novel::Handler for #name {
             async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
-                Self::#name(sconf, req, depot, resp).await
+                async move {Self::#name(sconf, req, depot, resp).await};
             }
         }
     }).into()
