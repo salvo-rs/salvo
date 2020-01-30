@@ -5,9 +5,8 @@ use std::str::Utf8Error;
 use display_bytes;
 
 pub use futures::*;
-use std::task::Poll::{self, *};
+use std::task::Poll;
 
-use crate::http::errors::ReadError;
 use std::convert::Infallible;
 
 pub fn ready_ok<R, T, E>(val: T) -> Poll<R>

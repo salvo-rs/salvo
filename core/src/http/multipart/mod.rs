@@ -23,11 +23,11 @@ use http::header::{self, HeaderMap};
 use mime::Mime;
 
 use self::helpers::*;
-use crate::http::{PushChunk, BodyChunk};
-use crate::http::errors::ReadError;
+use crate::http::BodyChunk;
 use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
 use crate::http::Request;
+use crate::http::errors::ReadError;
 
 mod helpers;
 pub use self::field::{Field, FieldData, FieldHeaders, NextField, ReadToString};
@@ -43,7 +43,7 @@ macro_rules! try_opt (
 
 macro_rules! ret_err (
     ($($args:tt)+) => (
-        return fmt_err!($($args)+).into();
+        return fmt_err!($($args)+);
     )
 );
 
@@ -103,6 +103,7 @@ impl<S> Multipart<S>
 where
     S: TryStream,
     S::Ok: BodyChunk,
+    // S::Error: Into<ReadError>,
 {
     unsafe_pinned!(inner: PushChunk<BoundaryFinder<S>, S::Ok>);
     unsafe_unpinned!(read_hdr: ReadHeaders);
@@ -126,7 +127,7 @@ where
 
     /// If `req` is a `POST multipart/form-data` request, take the body and
     /// return the wrapped stream. Else, return the request.
-    pub fn try_from_request(req: &mut Request) -> std::result::Result<Self, ReadError> {
+    pub fn try_from(headers: &HeaderMap, body: S) -> Result<Self, ReadError> {
         fn get_boundary(headers: &HeaderMap) -> Option<String> {
             Some(
                headers.get(http::header::CONTENT_TYPE)?
@@ -139,14 +140,8 @@ where
             )
         }
 
-        if req.method() != &Method::POST {
-            return Err(ReadError::Parsing("failed parse multipart".into()));
-        }
-
-        if let Some(boundary) = get_boundary(req.headers()) {
-            if let Some(body) = req.take_body() {
-                return Ok(Self::with_body(body, boundary));
-            }
+        if let Some(boundary) = get_boundary(headers) {
+            return Ok(Self::with_body(body, boundary));
         }
 
         Err(ReadError::Parsing("parse multiprart failed".into()))
@@ -280,6 +275,55 @@ where
         } else {
             Poll::Ready(None)
         }
+    }
+}
+
+/// Struct wrapping a stream which allows a chunk to be pushed back to it to be yielded next.
+pub(crate) struct PushChunk<S, T> {
+    stream: S,
+    pushed: Option<T>,
+}
+
+impl<S, T> PushChunk<S, T> {
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(pushed: Option<T>);
+
+    pub(crate) fn new(stream: S) -> Self {
+        PushChunk {
+            stream,
+            pushed: None,
+        }
+    }
+}
+
+impl<S: TryStream> PushChunk<S, S::Ok>
+where
+    S::Ok: BodyChunk,
+{
+    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
+        // if let Some(pushed) = self.as_mut().pushed() {
+        //     debug_panic!(
+        //         "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
+        //         show_bytes(chunk.as_slice()),
+        //         show_bytes(pushed.as_slice())
+        //     );
+        // }
+
+        debug_assert!(!chunk.is_empty(), "pushing empty chunk");
+
+        *self.as_mut().pushed() = Some(chunk);
+    }
+}
+
+impl<S: TryStream> Stream for PushChunk<S, S::Ok> {
+    type Item = std::result::Result<S::Ok, S::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        if let Some(pushed) = self.as_mut().pushed().take() {
+            return Poll::Ready(Some(Ok(pushed)));
+        }
+
+        self.stream().try_poll_next(cx)
     }
 }
 

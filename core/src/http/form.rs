@@ -14,29 +14,30 @@ use crate::http::request::{self, Request};
 use crate::http::errors::ReadError;
 use crate::http::multipart::Multipart;
 use crate::http::header::{HeaderValue, HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE};
-use crate::http::Body;
+use crate::http::{Body, BodyChunk};
+use bytes::Bytes;
 
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
-pub async fn read_form_data(req: &mut Request) -> Result<FormData, ReadError> {
-    match req.headers().get(header::CONTENT_TYPE) {
+pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
+    match headers.get(header::CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-            let data = req.read_body_bytes().await?;
+            let data = request::read_body_bytes(body).await?;
             let mut form_data = FormData::new();
             form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
             Ok(form_data)
         },
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-            let multipart: Multipart<Body> = Multipart::try_from_request(req)?;
+            // let multipart = Multipart::try_from(headers, body)?;
             let mut form_data = FormData::new();
-            while let Some(mut field) = multipart.next_field().await? {
-                if field.headers.is_text() {
-                    form_data.fields.insert(field.headers.name, field.data.read_to_string().await?);
-                } else {
-                    while let Some(chunk) = field.data.try_next().await? {
-                        //println!("got field chunk, len: {:?}", chunk.len());
-                    }
-                }
-            }
+            // while let Some(mut field) = multipart.next_field().await? {
+            //     if field.headers.is_text() {
+            //         form_data.fields.insert(field.headers.name, field.data.read_to_string().await?);
+            //     } else {
+            //         while let Some(chunk) = field.data.try_next().await? {
+            //             //println!("got field chunk, len: {:?}", chunk.len());
+            //         }
+            //     }
+            // }
             Ok(form_data)
         },
         _ => Err(ReadError::Parsing("parse form data failed".into())),

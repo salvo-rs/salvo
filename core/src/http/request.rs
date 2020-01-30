@@ -284,7 +284,7 @@ impl Request {
                 Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
                     match body {
                         Some(body) => {
-                            self.read_body_bytes().await
+                            read_body_bytes(body).await
                         },
                         None => Err(ReadError::General(String::from("failed to read data2"))),
                     }
@@ -301,7 +301,7 @@ impl Request {
             match ctype {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                     match body {
-                        Some(body) => form::read_form_data(self).await,
+                        Some(body) => form::read_form_data(self.headers(), body).await,
                         None => Err(ReadError::General("empty body".into())),
                     }
                 },
@@ -335,10 +335,6 @@ impl Request {
             _=> Err(ReadError::General(String::from("failed to read data5")))
         }
     }
-    pub(crate) async fn read_body_bytes(&mut self) -> Result<Vec<u8>, ReadError> {
-        let body = self.body.take().unwrap();
-        hyper::body::to_bytes(body).await.map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
-    }
 }
 
 pub trait BodyReader: Send {
@@ -346,3 +342,6 @@ pub trait BodyReader: Send {
 // pub(crate) async fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
 //     Ok(Cursor::new(read_body_bytes(body).await?))
 // }
+pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
+    hyper::body::to_bytes(body).await.map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
+}

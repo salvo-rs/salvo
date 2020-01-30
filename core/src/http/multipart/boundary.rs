@@ -2,7 +2,7 @@ use futures::Stream;
 
 use std::{fmt, mem};
 
-use crate::http::{BodyChunk, PushChunk};
+use crate::http::BodyChunk;
 
 use self::State::*;
 use futures::stream::TryStream;
@@ -41,6 +41,7 @@ impl<S> BoundaryFinder<S>
 where
     S: TryStream,
     S::Ok: BodyChunk,
+    ReadError: From<S::Error>,
 {
     unsafe_pinned!(stream: S);
     unsafe_unpinned!(state: State<S::Ok>);
@@ -111,15 +112,15 @@ where
                         Poll::Ready(Some(chunk)) => chunk,
                         Poll::Ready(None) => {
                             set_state!(self = End);
-                            return Poll::Ready(fmt_err!(
+                            return Poll::Ready(Some(fmt_err!(
                                 "unable to verify multipart boundary; expected: \"{}\" found: \"{}\"",
                                 show_bytes(&self.boundary),
                                 show_bytes(partial.as_slice())
-                            ).into());
+                            )));
                         }
-                        Pending => {
+                        Poll::Pending => {
                             set_state!(self = Partial(partial, res));
-                            return Pending;
+                            return Poll::Pending;
                         }
                     };
 
@@ -137,12 +138,11 @@ where
                     if needed_len > chunk.len() {
                         // hopefully rare; must be dealing with a poorly behaved stream impl
                         return Poll::Ready(
-                            fmt_err!(
+                            Some(fmt_err!(
                                 "needed {} more bytes to verify boundary, got {}",
                                 needed_len,
                                 chunk.len()
-                            )
-                            .into(),
+                            )),
                         );
                     }
 
@@ -426,7 +426,7 @@ where
     S: TryStream,
     S::Ok: BodyChunk,
 {
-    type Item = Result<S::Ok, ReadError>;
+    type Item = Result<S::Ok, S::Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.body_chunk(cx)

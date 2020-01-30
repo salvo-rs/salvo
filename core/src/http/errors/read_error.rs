@@ -6,6 +6,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display};
 use std::io;
 use std::string::FromUtf8Error;
+use std::str::Utf8Error;
 
 use hyper;
 use httparse;
@@ -45,7 +46,7 @@ pub enum ReadError {
     /// An error was returned from Hyper.
     Hyper(hyper::Error),
     /// An error occurred during UTF-8 processing.
-    Utf8(FromUtf8Error),
+    Utf8(Utf8Error),
     /// An error occurred during character decoding
     Decoding(Cow<'static, str>),
     SerdeJson(serde_json::error::Error),
@@ -79,8 +80,8 @@ impl From<hyper::Error> for ReadError {
     }
 }
 
-impl From<FromUtf8Error> for ReadError {
-    fn from(err: FromUtf8Error) -> ReadError {
+impl From<Utf8Error> for ReadError {
+    fn from(err: Utf8Error) -> ReadError {
         ReadError::Utf8(err)
     }
 }

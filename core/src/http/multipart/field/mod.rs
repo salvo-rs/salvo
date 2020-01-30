@@ -16,7 +16,7 @@ use futures::{Future, Stream, TryStream};
 use futures::task::Context;
 
 use crate::http::errors::ReadError;
-use crate::http::{PushChunk, BodyChunk};
+use crate::http::BodyChunk;
 
 use super::boundary::BoundaryFinder;
 use super::Multipart;
@@ -54,6 +54,7 @@ impl<'a, S: 'a> Future for NextField<'a, S>
 where
     S: TryStream,
     S::Ok: BodyChunk,
+    ReadError: From<S::Error>,
 {
     type Output = Result<Option<Field<'a, S>>, S::Error>;
 
@@ -126,6 +127,7 @@ pub struct FieldData<'a, S: TryStream + 'a> {
 impl<S: TryStream> FieldData<'_, S>
 where
     S::Ok: BodyChunk,
+    ReadError: From<S::Error>,
 {
     /// Return a `Future` which yields the result of reading this field's data to a `String`.
     ///
@@ -147,6 +149,7 @@ where
 impl<S: TryStream> Stream for FieldData<'_, S>
 where
     S::Ok: BodyChunk,
+    ReadError: From<S::Error>,
 {
     type Item = Result<S::Ok, S::Error>;
 

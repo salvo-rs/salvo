@@ -16,8 +16,9 @@ use httparse::{Status, EMPTY_HEADER};
 use mime::{self, Mime, Name};
 
 use crate::http::multipart::helpers::*;
-use crate::http::{PushChunk, BodyChunk};
+use crate::http::BodyChunk;
 use crate::http::errors::ReadError;
+use crate::http::multipart::PushChunk;
 
 const MAX_BUF_LEN: usize = 1024;
 const MAX_HEADERS: usize = 4;
@@ -85,7 +86,7 @@ impl ReadHeaders {
         !self.accumulator.is_empty()
     }
 
-    pub fn read_headers<S: TryStream>(
+    pub fn read_headers<S: TryStream<Error = ReadError>>(
         &mut self,
         mut stream: Pin<&mut PushChunk<S, S::Ok>>,
         cx: &mut Context,
@@ -125,7 +126,7 @@ impl ReadHeaders {
 
                     return ready_ok(headers);
                 } else {
-                    return ready_ok(parse_headers(headers.as_slice()));
+                    return Poll::Ready(parse_headers(headers.as_slice()));
                 }
             } else if let Some(split_idx) = header_end_split(&self.accumulator, chunk.as_slice()) {
                 let (head, tail) = chunk.split_into(split_idx);
@@ -207,16 +208,16 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
     for header in headers {
         if "Content-Disposition".eq_ignore_ascii_case(header.name) {
             if !out_headers.name.is_empty() {
-                return Err(format!(
+                return Err(ReadError::Parsing(format!(
                     "duplicate `Content-Disposition` header on field: {}",
                     out_headers.name
-                ));
+                )));
             }
 
             let str_val = str::from_utf8(header.value)
                 .map_err(|_| {
-                    "multipart `Content-Disposition` header values \
-                     must be UTF-8 encoded"
+                    ReadError::Parsing("multipart `Content-Disposition` header values \
+                     must be UTF-8 encoded".into())
                 })?
                 .trim();
 
@@ -231,23 +232,23 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
 
             let str_val = str::from_utf8(header.value)
                 .map_err(|_| {
-                    "multipart `Content-Type` header values \
-                     must be UTF-8 encoded"
+                    ReadError::Parsing("multipart `Content-Type` header values \
+                     must be UTF-8 encoded".into())
                 })?
                 .trim();
 
             out_headers.content_type = Some(
                 str_val
                     .parse::<Mime>()
-                    .map_err(|_| format!("could not parse MIME type from {:?}", str_val))?,
+                    .map_err(|_| ReadError::Parsing(format!("could not parse MIME type from {:?}", str_val)))?,
             );
         } else {
             let hdr_name = HeaderName::from_bytes(header.name.as_bytes()).map_err(|e| {
-                format!("error on multipart field header \"{}\": {}", header.name, e)
+                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
             })?;
 
             let hdr_val = HeaderValue::from_bytes(bytes).map_err(|e| {
-                format!("error on multipart field header \"{}\": {}", header.name, e)
+                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
             })?;
 
             out_headers.ext_headers.append(hdr_name, hdr_val);
@@ -257,11 +258,11 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
     if out_headers.name.is_empty() {
         // missing `name` parameter in a provided `Content-Disposition` is covered separately
         if let Some(filename) = out_headers.filename {
-            return Err(format!(
+            return Err(ReadError::Parsing(format!(
                 "missing `Content-Disposition` header on a field \
                  (filename: {}) in this multipart request",
                 filename
-            ));
+            )));
         }
 
         if let Some(content_type) = out_headers.content_type {
@@ -287,7 +288,7 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
     Ok(out_headers)
 }
 
-fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), String> {
+fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), ReadError> {
     // debug!("parse_cont_disp_val({:?})", val);
 
     // Only take the first section, the rest can be in quoted strings that we want to handle
@@ -298,12 +299,12 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), String> 
         .unwrap_or("")
         .eq_ignore_ascii_case("form-data")
     {
-        return Err(format!(
+        return Err(ReadError::Parsing(format!(
             "unexpected/unsupported field header `Content-Disposition: {}` \
              in this multipart request; each field must have exactly one \
              `Content-Disposition: form-data` header with a `name` parameter",
             val
-        ));
+        )));
     }
 
     let mut rem = sections.next().unwrap_or("");
@@ -323,10 +324,10 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), String> 
     }
 
     if out.name.is_empty() {
-        return Err(format!(
+        return Err(ReadError::Parsing(format!(
             "expected 'name' parameter in `Content-Disposition: {}`",
             val
-        ));
+        )));
     }
 
     Ok(())
