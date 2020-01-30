@@ -8,14 +8,13 @@
 use std::fmt;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::task::Poll::*;
+use std::task::Poll;
 use std::{mem, str};
 
-use futures::{Future, Poll, Stream, TryStream};
+use futures::{Future, Stream, TryStream};
 //pub use self::collect::{ReadTextField, TextField};
 use futures::task::Context;
 
-use crate::http::multipart::Error::{self, Utf8};
 use crate::http::errors::ReadError;
 use crate::http::{PushChunk, BodyChunk};
 
@@ -55,9 +54,8 @@ impl<'a, S: 'a> Future for NextField<'a, S>
 where
     S: TryStream,
     S::Ok: BodyChunk,
-    Error<S::Error>: From<S::Error>,
 {
-    type Output = super::Result<Option<Field<'a, S>>, S::Error>;
+    type Output = Result<Option<Field<'a, S>>, S::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // since we can't use `?` with `Option<...>` in this context
@@ -87,7 +85,7 @@ where
             self.multipart = None;
         }
 
-        Ready(Ok(Some(Field {
+        Poll::Ready(Ok(Some(Field {
             headers: ready!(multipart!(get).poll_field_headers(cx)?),
             data: FieldData {
                 multipart: multipart!(take),
@@ -128,7 +126,6 @@ pub struct FieldData<'a, S: TryStream + 'a> {
 impl<S: TryStream> FieldData<'_, S>
 where
     S::Ok: BodyChunk,
-    Error<S::Error>: From<S::Error>,
 {
     /// Return a `Future` which yields the result of reading this field's data to a `String`.
     ///
@@ -150,9 +147,8 @@ where
 impl<S: TryStream> Stream for FieldData<'_, S>
 where
     S::Ok: BodyChunk,
-    Error<S::Error>: From<S::Error>,
 {
-    type Item = super::Result<S::Ok, S::Error>;
+    type Item = Result<S::Ok, S::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.multipart.as_mut().poll_field_chunk(cx)
@@ -176,12 +172,11 @@ impl<S: TryStream + Unpin> ReadToString<S> {
     }
 }
 
-impl<S: TryStream + Unpin> Future for ReadToString<S>
+impl<S: TryStream<Error = ReadError> + Unpin> Future for ReadToString<S>
 where
     S::Ok: BodyChunk,
-    Error<S::Error>: From<S::Error>,
 {
-    type Output = super::Result<String, S::Error>;
+    type Output = Result<String, S::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         while let Some(mut data) = ready!(Pin::new(&mut self.stream).try_poll_next(cx)?) {
@@ -216,10 +211,10 @@ where
                 surrogate[..start_len].copy_from_slice(&start[..start_len]);
                 surrogate[start_len..width].copy_from_slice(data.slice(..needed));
 
-                trace!("decoding surrogate: {:?}", &surrogate[..width]);
+                // trace!("decoding surrogate: {:?}", &surrogate[..width]);
 
                 self.string
-                    .push_str(str::from_utf8(&surrogate[..width]).map_err(Utf8)?);
+                    .push_str(str::from_utf8(&surrogate[..width]).map_err(ReadError::Utf8)?);
 
                 let (_, rem) = data.split_into(needed);
                 data = rem;
@@ -230,10 +225,10 @@ where
                 Ok(s) => self.string.push_str(s),
                 Err(e) => {
                     if e.error_len().is_some() {
-                        trace!("ReadToString failed to decode; string: {:?}, surrogate: {:?}, data: {:?}",
-                           self.string, self.surrogate, data.as_slice());
+                        // trace!("ReadToString failed to decode; string: {:?}, surrogate: {:?}, data: {:?}",
+                        //    self.string, self.surrogate, data.as_slice());
                         // we encountered an invalid surrogate
-                        return Poll::Ready(Err(Utf8(e)));
+                        return Poll::Ready(Err(ReadError::Utf8(e)));
                     } else {
                         self.string.push_str(unsafe {
                             // Utf8Error specifies that `..e.valid_up_to()` is valid UTF-8
@@ -255,7 +250,7 @@ where
             ret_err!("incomplete UTF-8 surrogate: {:?}", start);
         }
 
-        Ready(Ok(mem::replace(&mut self.string, String::new())))
+        Poll::Ready(Ok(mem::replace(&mut self.string, String::new())))
     }
 }
 

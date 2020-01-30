@@ -1,6 +1,8 @@
 use std::pin::Pin;
-use futures::TryStream;
+use futures::{Stream, TryStream};
 use std::task::{Poll, Context};
+
+use crate::http::BodyChunk;
 
 /// Struct wrapping a stream which allows a chunk to be pushed back to it to be yielded next.
 pub(crate) struct PushChunk<S, T> {
@@ -25,13 +27,13 @@ where
     S::Ok: BodyChunk,
 {
     fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
-        if let Some(pushed) = self.as_mut().pushed() {
-            debug_panic!(
-                "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
-                show_bytes(chunk.as_slice()),
-                show_bytes(pushed.as_slice())
-            );
-        }
+        // if let Some(pushed) = self.as_mut().pushed() {
+        //     debug_panic!(
+        //         "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
+        //         show_bytes(chunk.as_slice()),
+        //         show_bytes(pushed.as_slice())
+        //     );
+        // }
 
         debug_assert!(!chunk.is_empty(), "pushing empty chunk");
 

@@ -1,11 +1,4 @@
-// Copyright 2017-2019 `multipart-async` Crate Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-
-use futures::{Poll, Stream};
+use futures::Stream;
 
 use std::{fmt, mem};
 
@@ -17,6 +10,7 @@ use futures::stream::TryStream;
 use super::helpers::*;
 use std::task::{Poll, Context};
 use std::pin::Pin;
+use crate::http::errors::ReadError;
 
 pub type PollOpt<T, E> = Poll<Option<Result<T, E>>>;
 
@@ -47,7 +41,6 @@ impl<S> BoundaryFinder<S>
 where
     S: TryStream,
     S::Ok: BodyChunk,
-    Error<S::Error>: From<S::Error>,
 {
     unsafe_pinned!(stream: S);
     unsafe_unpinned!(state: State<S::Ok>);
@@ -55,7 +48,7 @@ where
     pub fn body_chunk(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Option<super::Result<S::Ok, S::Error>>> {
+    ) -> Poll<Option<Result<S::Ok, S::Error>>> {
         macro_rules! try_ready_opt (
             ($try:expr) => (
                 match $try {
@@ -214,7 +207,7 @@ where
             if chunk.len() < res.idx + len {
                 // Either partial boundary, or boundary but not the two bytes after it
                 set_state!(self = Partial(chunk, res));
-                trace!("partial boundary: {:?}", self.state);
+                // trace!("partial boundary: {:?}", self.state);
                 None
             } else {
                 let (ret, bnd) = chunk.split_into(res.idx);
@@ -309,14 +302,14 @@ where
     pub fn consume_boundary(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<super::Result<bool, S::Error>> {
+    ) -> Poll<Result<bool, S::Error>> {
         // debug!("consuming boundary");
 
         while ready!(self.as_mut().body_chunk(cx)?).is_some() {
             // trace!("body chunk loop!");
         }
 
-        trace!("consume_boundary() after-loop state: {:?}", self.state,);
+        // trace!("consume_boundary() after-loop state: {:?}", self.state,);
 
         match mem::replace(self.as_mut().state(), Watching) {
             Found(bnd) => self.confirm_boundary(bnd),
@@ -332,7 +325,7 @@ where
     fn confirm_boundary(
         mut self: Pin<&mut Self>,
         boundary: S::Ok,
-    ) -> Poll<super::Result<bool, S::Error>> {
+    ) -> Poll<Result<bool, S::Error>> {
         if boundary.len() < self.boundary_size(false) {
             ret_err!(
                 "boundary sequence too short: {}",
@@ -382,7 +375,7 @@ where
         mut self: Pin<&mut Self>,
         first: S::Ok,
         second: S::Ok,
-    ) -> Poll<super::Result<bool, S::Error>> {
+    ) -> Poll<Result<bool, S::Error>> {
         let first = first.as_slice();
         let check_len = self.boundary_size(false) - first.len();
 
@@ -433,7 +426,7 @@ where
     S: TryStream,
     S::Ok: BodyChunk,
 {
-    type Item = Result<S::Ok, Error<S::Error>>;
+    type Item = Result<S::Ok, ReadError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.body_chunk(cx)
@@ -523,14 +516,14 @@ fn check_last_two(boundary: &[u8]) -> bool {
 
     let is_end = boundary.ends_with(b"--");
 
-    if !is_end && !boundary.ends_with(b"\r\n") && boundary.len() > 2 {
-        warn!(
-            "unexpected bytes after boundary: {:?} ('--': {:?}, '\\r\\n': {:?})",
-            &boundary[len - 2..],
-            b"--",
-            b"\r\n"
-        );
-    }
+    // if !is_end && !boundary.ends_with(b"\r\n") && boundary.len() > 2 {
+        // warn!(
+        //     "unexpected bytes after boundary: {:?} ('--': {:?}, '\\r\\n': {:?})",
+        //     &boundary[len - 2..],
+        //     b"--",
+        //     b"\r\n"
+        // );
+    // }
 
     is_end
 }

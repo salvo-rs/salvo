@@ -7,18 +7,17 @@
 use std::ascii::AsciiExt;
 use std::pin::Pin;
 use std::str;
-use std::task::Poll::{self, *};
-
+use std::task::Poll;
+use http::Response;
 use futures::stream::{Stream, TryStream};
 use futures::task::Context;
-
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use httparse::{Status, EMPTY_HEADER};
 use mime::{self, Mime, Name};
 
 use crate::http::multipart::helpers::*;
 use crate::http::{PushChunk, BodyChunk};
-use http::Response;
+use crate::http::errors::ReadError;
 
 const MAX_BUF_LEN: usize = 1024;
 const MAX_HEADERS: usize = 4;
@@ -90,17 +89,15 @@ impl ReadHeaders {
         &mut self,
         mut stream: Pin<&mut PushChunk<S, S::Ok>>,
         cx: &mut Context,
-    ) -> Poll<crate::http::multipart::Result<FieldHeaders, S::Error>>
+    ) -> Poll<Result<FieldHeaders, S::Error>>
     where
         S::Ok: BodyChunk,
     {
-        let map_err = Error::<S::Error>::parsing;
-
         loop {
-            trace!(
-                "read_headers state: accumulator: {}",
-                show_bytes(&self.accumulator)
-            );
+            // trace!(
+            //     "read_headers state: accumulator: {}",
+            //     show_bytes(&self.accumulator)
+            // );
 
             let chunk = match ready!(stream.as_mut().poll_next(cx)?) {
                 Some(chunk) => chunk,
@@ -110,7 +107,7 @@ impl ReadHeaders {
                 ),
             };
 
-            trace!("got chunk for headers: {}", show_bytes(chunk.as_slice()));
+            // trace!("got chunk for headers: {}", show_bytes(chunk.as_slice()));
 
             // End of the headers section is signalled by a double-CRLF
             if let Some(header_end) = twoway::find_bytes(chunk.as_slice(), b"\r\n\r\n") {
@@ -123,12 +120,12 @@ impl ReadHeaders {
 
                 if !self.accumulator.is_empty() {
                     self.accumulator.extend_from_slice(headers.as_slice());
-                    let headers = parse_headers(&self.accumulator).map_err(map_err)?;
+                    let headers = parse_headers(&self.accumulator)?;
                     self.accumulator.clear();
 
                     return ready_ok(headers);
                 } else {
-                    return ready_ok(parse_headers(headers.as_slice()).map_err(map_err)?);
+                    return ready_ok(parse_headers(headers.as_slice()));
                 }
             } else if let Some(split_idx) = header_end_split(&self.accumulator, chunk.as_slice()) {
                 let (head, tail) = chunk.split_into(split_idx);
@@ -138,7 +135,7 @@ impl ReadHeaders {
                     stream.as_mut().push_chunk(tail);
                 }
 
-                let headers = parse_headers(&self.accumulator).map_err(map_err)?;
+                let headers = parse_headers(&self.accumulator)?;
                 self.accumulator.clear();
 
                 return ready_ok(headers);
@@ -178,7 +175,7 @@ fn header_end_split(first: &[u8], second: &[u8]) -> Option<usize> {
     }
 }
 
-fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, String> {
+fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
     debug_assert!(
         bytes.ends_with(b"\r\n\r\n"),
         "header byte sequence does not end with `\\r\\n\\r\\n`: {}",
@@ -190,14 +187,14 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, String> {
     let headers = match httparse::parse_headers(bytes, &mut header_buf) {
         Ok(Status::Complete((_, headers))) => headers,
         Ok(Status::Partial) => {
-            return Err(format!("field headers incomplete: {}", show_bytes(bytes)))
+            return Err(ReadError::Parsing(format!("field headers incomplete: {}", show_bytes(bytes))))
         }
         Err(e) => {
-            return Err(format!(
+            return Err(ReadError::Parsing(format!(
                 "error parsing headers: {}; from buffer: {}",
                 e,
                 show_bytes(bytes)
-            ))
+            )))
         }
     };
 
@@ -268,30 +265,30 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, String> {
         }
 
         if let Some(content_type) = out_headers.content_type {
-            return Err(format!(
+            return Err(ReadError::Parsing(format!(
                 "missing `Content-Disposition` header on a field \
                  (Content-Type: {}) in this multipart request",
                 content_type
-            ));
+            )));
         }
 
-        return Err(format!(
+        return Err(ReadError::Parsing(format!(
             "missing `Content-Disposition` header on a field in this multipart request"
-        ));
+        )));
     }
 
     if dupe_cont_type {
-        return Err(format!(
+        return Err(ReadError::Parsing(format!(
             "duplicate `Content-Type` header in field: {}",
             out_headers.name
-        ));
+        )));
     }
 
     Ok(out_headers)
 }
 
 fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), String> {
-    debug!("parse_cont_disp_val({:?})", val);
+    // debug!("parse_cont_disp_val({:?})", val);
 
     // Only take the first section, the rest can be in quoted strings that we want to handle
     let mut sections = val.splitn(2, ';').map(str::trim);
@@ -317,10 +314,11 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), String> 
         match key {
             "name" => out.name = val.to_string(),
             "filename" => out.filename = Some(val.to_string()),
-            _ => debug!(
-                "unknown key-value pair in Content-Disposition: {:?} = {:?}",
-                key, val
-            ),
+            _ => {},
+            // debug!(
+            //     format!("unknown key-value pair in Content-Disposition: {:?} = {:?}",
+            //     key, val);
+            // ),
         }
     }
 

@@ -13,24 +13,24 @@
 //! See the `Multipart` struct for more info.
 use std::fmt;
 use std::pin::Pin;
-
+use std::borrow::Cow;
+use std::convert::Infallible;
+use std::str::Utf8Error;
 use std::task::{self, Poll, Context};
 use futures::{Future, Stream};
-use http::{Method, Request};
+use http::Method;
+use http::header::{self, HeaderMap};
 use mime::Mime;
 
 use self::helpers::*;
 use crate::http::{PushChunk, BodyChunk};
 use crate::http::errors::ReadError;
-
 use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
-pub use self::field::{Field, FieldData, FieldHeaders, NextField, ReadToString};
-use std::borrow::Cow;
-use std::convert::Infallible;
-use std::str::Utf8Error;
+use crate::http::Request;
 
 mod helpers;
+pub use self::field::{Field, FieldData, FieldHeaders, NextField, ReadToString};
 
 macro_rules! try_opt (
     ($expr:expr) => (
@@ -53,21 +53,11 @@ macro_rules! ret_ok(
 
 macro_rules! fmt_err (
     ($string:expr) => (
-        Err(ReadError::Parsing($string.into()))
+        Err($crate::http::errors::ReadError::Parsing($string.into()))
     );
     ($string:expr, $($args:tt)*) => (
-        Err(ReadError::Parsing(format!($string, $($args)*).into()))
+        Err($crate::http::errors::ReadError::Parsing(format!($string, $($args)*).into()))
     );
-);
-
-macro_rules! debug_panic(
-    ($($args:tt)*) => {
-        if cfg!(debug_assertions) {
-            panic!($($args)*)
-        } else {
-            warn!($($args)*)
-        }
-    }
 );
 
 mod boundary;
@@ -136,12 +126,10 @@ where
 
     /// If `req` is a `POST multipart/form-data` request, take the body and
     /// return the wrapped stream. Else, return the request.
-    pub fn try_from_request(req: Request<S>) -> std::result::Result<Self, Request<S>> {
-        fn get_boundary(parts: &http::request::Parts) -> Option<String> {
+    pub fn try_from_request(req: &mut Request) -> std::result::Result<Self, ReadError> {
+        fn get_boundary(headers: &HeaderMap) -> Option<String> {
             Some(
-                parts
-                    .headers
-                    .get(http::header::CONTENT_TYPE)?
+               headers.get(http::header::CONTENT_TYPE)?
                     .to_str()
                     .ok()?
                     .parse::<Mime>()
@@ -152,16 +140,16 @@ where
         }
 
         if req.method() != &Method::POST {
-            return Err(req);
+            return Err(ReadError::Parsing("failed parse multipart".into()));
         }
 
-        let (parts, body) = req.into_parts();
-
-        if let Some(boundary) = get_boundary(&parts) {
-            return Ok(Self::with_body(body, boundary));
+        if let Some(boundary) = get_boundary(req.headers()) {
+            if let Some(body) = req.take_body() {
+                return Ok(Self::with_body(body, boundary));
+            }
         }
 
-        Err(Request::from_parts(parts, body))
+        Err(ReadError::Parsing("parse multiprart failed".into()))
     }
 
     /// Get a future yielding the next field in the stream, if the stream is not at an end.
@@ -286,7 +274,7 @@ where
     pub fn poll_field_chunk(
         self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Option<self::Result<S::Ok, S::Error>>> {
+    ) -> Poll<Option<Result<S::Ok, S::Error>>> {
         if !self.read_hdr.is_reading_headers() {
             self.inner().poll_next(cx)
         } else {

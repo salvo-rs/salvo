@@ -41,7 +41,7 @@ pub use novel_macros::fn_handler;
 use std::ops::{Bound, RangeBounds};
 
 pub mod prelude {
-    pub use crate::http::multipart::{Server, ServerConfig};
+    pub use crate::server::{Server, ServerConfig};
     pub use crate::routing::Router;
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};
