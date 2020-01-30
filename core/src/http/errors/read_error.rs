@@ -50,6 +50,7 @@ pub enum ReadError {
     Decoding(Cow<'static, str>),
     SerdeJson(serde_json::error::Error),
     General(String),
+    Parsing(String),
 
     /// Filepart is not a file
     NotAFile,
@@ -88,6 +89,8 @@ impl Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ReadError::HttParse(ref e) =>
+                format!("{}: {:?}", self.description(), e).fmt(f),
+            ReadError::Parsing(ref e) =>
                 format!("{}: {:?}", self.description(), e).fmt(f),
             ReadError::Io(ref e) =>
                 format!("{}: {}", self.description(), e).fmt(f),
@@ -150,6 +153,7 @@ impl StdError for ReadError {
             ReadError::Utf8(_) => "A UTF-8 error occurred.",
             ReadError::Decoding(_) => "A decoding error occurred.",
             ReadError::General(ref msg) => &msg,
+            ReadError::Parsing(ref msg) => &msg,
             ReadError::NotAFile => "FilePart is not a file.",
             ReadError::SerdeJson(_) => "A serde json error occurred.",
         }

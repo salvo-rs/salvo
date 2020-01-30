@@ -19,6 +19,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     (quote! {
+        #[allow(non_camel_case_types)]
         #vis struct #name;
         impl #name {
             #(#attrs)*

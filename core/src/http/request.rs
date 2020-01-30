@@ -22,7 +22,7 @@ use std::net::ToSocketAddrs;
 
 use crate::Protocol;
 use crate::http::{Body, Mime};
-use crate::http::form::FilePart;
+use crate::http::multipart::FilePart;
 use crate::http::form::{self, FormData};
 use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::errors::ReadError;
@@ -278,18 +278,18 @@ impl Request {
         let body = self.body.take();
         self.payload.get_or_init(async {
             match ctype {
-                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
-                    Err(ReadError::General(String::from("failed to read data")))
+                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
+                    Err(ReadError::General(String::from("failed to read data1")))
                 },
                 Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
                     match body {
                         Some(body) => {
                             read_body_bytes(body).await
                         },
-                        None => Err(ReadError::General(String::from("failed to read data"))),
+                        None => Err(ReadError::General(String::from("failed to read data2"))),
                     }
                 },
-                _=> Err(ReadError::General(String::from("failed to read data"))),
+                _=> Err(ReadError::General(String::from("failed to read data3"))),
             }
         }).await
     }
@@ -299,13 +299,13 @@ impl Request {
         let body = self.body.take();
         self.form_data.get_or_init(async {
             match ctype {
-                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => {
+                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                     match body {
                         Some(body) => form::read_form_data(body, &self.headers).await,
                         None => Err(ReadError::General("empty body".into())),
                     }
                 },
-                _=> Err(ReadError::General(String::from("failed to read data"))),
+                _=> Err(ReadError::General(String::from("failed to read data4"))),
             }
         }).await
     }
@@ -330,9 +330,9 @@ impl Request {
     #[inline]
     pub async fn read<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned  {
         match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype == "multipart/form-data" => self.read_from_form().await,
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => self.read_from_form().await,
             Some(ctype) if ctype == "application/json" => self.read_from_json().await,
-            _=> Err(ReadError::General(String::from("failed to read data")))
+            _=> Err(ReadError::General(String::from("failed to read data5")))
         }
     }
 }

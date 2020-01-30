@@ -20,6 +20,10 @@ extern crate serde;
 #[macro_use]
 extern crate slog;
 #[macro_use]
+extern crate pin_utils;
+#[macro_use]
+extern crate futures_util;
+#[macro_use]
 extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
@@ -37,7 +41,7 @@ pub use novel_macros::fn_handler;
 use std::ops::{Bound, RangeBounds};
 
 pub mod prelude {
-    pub use crate::server::{Server, ServerConfig};
+    pub use crate::http::multipart::{Server, ServerConfig};
     pub use crate::routing::Router;
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};

@@ -62,6 +62,8 @@ rand = "0.7"
 multimap = { version = "0.8", features = ["serde"] }
 tokio = { version = "0.2", features = ["full"] }
 novel-macros = {version="0.1", path="../macros"}
+twoway = "0.2"
+pin-utils="0.1.0-alpha.4"
 
 [build-dependencies]
 yansi = "0.5"

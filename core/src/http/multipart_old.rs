@@ -299,8 +299,6 @@ pub fn get_multipart_boundary(headers: &HeaderMap) -> Result<Vec<u8>, ReadError>
         }
     }
 
-//TODO
-/*
     for &(ref attr, ref val) in ct.0.params().iter() {
         // if let (&Attr::Boundary, &Value::Ext(ref val)) = (attr, val) {
         if attr == mime::BOUNDARY {//???
@@ -310,7 +308,6 @@ pub fn get_multipart_boundary(headers: &HeaderMap) -> Result<Vec<u8>, ReadError>
             return Ok(boundary);
         }
     }
-    */
     Err(ReadError::BoundaryNotSpecified)
 }
 

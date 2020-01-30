@@ -14,12 +14,17 @@
 
 mod request;
 mod response;
+pub mod body_chunk;
+pub mod push_chunk;
 pub mod form;
+pub mod multipart;
 pub mod errors;
 
 pub use request::Request;
 pub use response::{Response, BodyWriter};
 pub use http::{method::Method, StatusCode, HeaderMap, HeaderValue};
+pub use body_chunk::BodyChunk;
+pub use push_chunk::PushChunk;
 pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
