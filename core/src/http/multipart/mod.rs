@@ -255,11 +255,13 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<Option<Result<S::Item, ReadError>>> {
-        if !self.read_hdr.is_reading_headers() {
-            self.inner().poll_next(cx)
-        } else {
-            Poll::Ready(None)
-        }
+        // if !self.read_hdr.is_reading_headers() {
+        //     self.inner().poll_next(cx)
+        // } else {
+        //     Poll::Ready(None)
+        // }
+        //TODO
+        Poll::Ready(None)
     }
 }
 
@@ -301,11 +303,11 @@ where
 }
 
 impl<S: Stream> Stream for PushChunk<S, S::Item> {
-    type Item = std::result::Result<S::Item, ReadError>;
+    type Item = S::Item;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if let Some(pushed) = self.as_mut().pushed().take() {
-            return Poll::Ready(Some(Ok(pushed)));
+            return Poll::Ready(Some(pushed));
         }
 
         self.stream().poll_next(cx)

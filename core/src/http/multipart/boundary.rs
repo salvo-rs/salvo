@@ -52,8 +52,8 @@ where
         macro_rules! try_ready_opt (
             ($try:expr) => (
                 match $try {
-                    Poll::Ready(Some(Ok(val))) => val,
-                    Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e.into()))),
+                    Poll::Ready(Some(val)) => val,
+                    // Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e.into()))),
                     Poll::Ready(None) => {
                         set_state!(self = End);
                         return Poll::Ready(None);
@@ -107,7 +107,7 @@ where
                     }
                 }
                 Partial(partial, res) => {
-                    let chunk = match self.as_mut().stream().poll_next(cx)? {
+                    let chunk = match self.as_mut().stream().poll_next(cx) {
                         Poll::Ready(Some(chunk)) => chunk,
                         Poll::Ready(None) => {
                             set_state!(self = End);

@@ -92,7 +92,7 @@ impl ReadHeaders {
             //     show_bytes(&self.accumulator)
             // );
 
-            let chunk = match ready!(stream.as_mut().poll_next(cx)?) {
+            let chunk = match ready!(stream.as_mut().poll_next(cx)) {
                 Some(chunk) => chunk,
                 None => ret_err!(
                     "unexpected end of stream while reading headers: \"{}\"",
