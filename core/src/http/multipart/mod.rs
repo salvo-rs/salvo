@@ -1,32 +1,16 @@
-// Copyright 2017-2019 `multipart-async` Crate Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-//! The server-side abstraction for multipart requests. Enabled with the `server` feature (on by
-//! default).
-//!
-//! Use this when you are implementing an HTTP server and want to
-//! to accept, parse, and serve HTTP `multipart/form-data` requests (file uploads).
-//!
-//! See the `Multipart` struct for more info.
 use std::fmt;
 use std::pin::Pin;
-use std::borrow::Cow;
-use std::convert::Infallible;
 use std::str::Utf8Error;
 use std::task::{self, Poll, Context};
 use futures::{Future, Stream};
 use http::Method;
-use http::header::{self, HeaderMap};
+use http::header::HeaderMap;
 use mime::Mime;
 
 use self::helpers::*;
 use crate::http::BodyChunk;
 use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
-use crate::http::Request;
 use crate::http::errors::ReadError;
 
 mod helpers;
@@ -43,7 +27,7 @@ macro_rules! try_opt (
 
 macro_rules! ret_err (
     ($($args:tt)+) => (
-        return fmt_err!($($args)+);
+        return fmt_err!($($args)+).into();
     )
 );
 
@@ -91,8 +75,8 @@ mod field;
 /// Any data before the first boundary and past the end of the terminating boundary is ignored
 /// as it is out-of-spec and should not be expected to be left in the underlying stream intact.
 /// Please open an issue if you have a legitimate use-case for extraneous data in a multipart request.
-pub struct Multipart<S: TryStream> {
-    inner: PushChunk<BoundaryFinder<S>, S::Ok>,
+pub struct Multipart<S: Stream> {
+    inner: PushChunk<BoundaryFinder<S>, S::Item>,
     read_hdr: ReadHeaders,
 }
 
@@ -101,11 +85,11 @@ pub struct Multipart<S: TryStream> {
 // (The workaround mentioned in a later comment doesn't seem to be worth the added complexity)
 impl<S> Multipart<S>
 where
-    S: TryStream,
-    S::Ok: BodyChunk,
-    // S::Error: Into<ReadError>,
+    S: Stream,
+    S::Item: BodyChunk,
+    // ReadError: Into<ReadError>,
 {
-    unsafe_pinned!(inner: PushChunk<BoundaryFinder<S>, S::Ok>);
+    unsafe_pinned!(inner: PushChunk<BoundaryFinder<S>, S::Item>);
     unsafe_unpinned!(read_hdr: ReadHeaders);
 
     /// Construct a new `Multipart` with the given body reader and boundary.
@@ -161,7 +145,7 @@ where
     /// use std::error::Error;
     ///
     /// async fn example<S>(stream: S) -> Result<(), Box<dyn Error>>
-    ///         where S: TryStream<Ok = &'static [u8]> + Unpin, S::Error: Error + 'static
+    ///         where S: Stream<Ok = &'static [u8]> + Unpin, ReadError: Error + 'static
     /// {
     ///     let mut multipart = Multipart::with_body(stream, "boundary");
     ///     while let Some(mut field) = multipart.next_field().await? {
@@ -210,7 +194,7 @@ where
     pub fn poll_has_next_field(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Result<bool, S::Error>> {
+    ) -> Poll<Result<bool, ReadError>> {
         self.as_mut().inner().stream().consume_boundary(cx)
     }
 
@@ -239,11 +223,12 @@ where
     pub fn poll_field_headers(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Result<FieldHeaders, S::Error>> {
+    ) -> Poll<Result<FieldHeaders, ReadError>> {
         unsafe {
             let this = self.as_mut().get_unchecked_mut();
+            let p = Pin::new_unchecked(&mut this.inner);
             this.read_hdr
-                .read_headers(Pin::new_unchecked(&mut this.inner), cx)?
+                .read_headers(p, cx)?
                 .map(Ok)
         }
     }
@@ -269,7 +254,7 @@ where
     pub fn poll_field_chunk(
         self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Option<Result<S::Ok, S::Error>>> {
+    ) -> Poll<Option<Result<S::Item, ReadError>>> {
         if !self.read_hdr.is_reading_headers() {
             self.inner().poll_next(cx)
         } else {
@@ -296,11 +281,11 @@ impl<S, T> PushChunk<S, T> {
     }
 }
 
-impl<S: TryStream> PushChunk<S, S::Ok>
+impl<S: Stream> PushChunk<S, S::Item>
 where
-    S::Ok: BodyChunk,
+    S::Item: BodyChunk,
 {
-    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
+    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Item) {
         // if let Some(pushed) = self.as_mut().pushed() {
         //     debug_panic!(
         //         "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
@@ -315,15 +300,15 @@ where
     }
 }
 
-impl<S: TryStream> Stream for PushChunk<S, S::Ok> {
-    type Item = std::result::Result<S::Ok, S::Error>;
+impl<S: Stream> Stream for PushChunk<S, S::Item> {
+    type Item = std::result::Result<S::Item, ReadError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if let Some(pushed) = self.as_mut().pushed().take() {
             return Poll::Ready(Some(Ok(pushed)));
         }
 
-        self.stream().try_poll_next(cx)
+        self.stream().poll_next(cx)
     }
 }
 

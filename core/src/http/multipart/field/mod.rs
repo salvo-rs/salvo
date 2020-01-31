@@ -7,18 +7,16 @@
 
 use std::fmt;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::task::Poll;
 use std::{mem, str};
 
-use futures::{Future, Stream, TryStream};
+use futures::{Future, Stream};
 //pub use self::collect::{ReadTextField, TextField};
 use futures::task::Context;
 
 use crate::http::errors::ReadError;
 use crate::http::BodyChunk;
 
-use super::boundary::BoundaryFinder;
 use super::Multipart;
 
 pub use self::headers::FieldHeaders;
@@ -32,12 +30,12 @@ mod headers;
 /// If there are no more fields in the stream, `Ok(None)` is returned.
 ///
 /// See [`Multipart::next_field()`](../struct.Multipart.html#method.next_field) for usage.
-pub struct NextField<'a, S: TryStream + 'a> {
+pub struct NextField<'a, S: Stream + 'a> {
     multipart: Option<Pin<&'a mut Multipart<S>>>,
     has_next_field: bool,
 }
 
-impl<'a, S: TryStream + 'a> NextField<'a, S> {
+impl<'a, S: Stream + 'a> NextField<'a, S> {
     pub(crate) fn new(multipart: Pin<&'a mut Multipart<S>>) -> Self {
         NextField {
             multipart: Some(multipart),
@@ -52,11 +50,11 @@ impl<'a, S: TryStream + 'a> NextField<'a, S> {
 
 impl<'a, S: 'a> Future for NextField<'a, S>
 where
-    S: TryStream,
-    S::Ok: BodyChunk,
-    ReadError: From<S::Error>,
+    S: Stream,
+    S::Item: BodyChunk,
+    ReadError: From<ReadError>,
 {
-    type Output = Result<Option<Field<'a, S>>, S::Error>;
+    type Output = Result<Option<Field<'a, S>>, ReadError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // since we can't use `?` with `Option<...>` in this context
@@ -99,7 +97,7 @@ where
 /// A single field in a multipart stream.
 ///
 /// The data of the field is provided as a `Stream` impl in the `data` field.
-pub struct Field<'a, S: TryStream + 'a> {
+pub struct Field<'a, S: Stream + 'a> {
     /// The headers of this field, including the name, filename, and `Content-Type`, if provided.
     pub headers: FieldHeaders,
     /// The data of this field in the request, represented as a stream of chunks.
@@ -107,7 +105,7 @@ pub struct Field<'a, S: TryStream + 'a> {
     _priv: (),
 }
 
-impl<S: TryStream> fmt::Debug for Field<'_, S> {
+impl<S: Stream> fmt::Debug for Field<'_, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Field")
             .field("headers", &self.headers)
@@ -120,14 +118,14 @@ impl<S: TryStream> fmt::Debug for Field<'_, S> {
 ///
 /// It may be read to completion via the `Stream` impl, or collected to a string with
 /// `.read_to_string()`.
-pub struct FieldData<'a, S: TryStream + 'a> {
+pub struct FieldData<'a, S: Stream + 'a> {
     multipart: Pin<&'a mut Multipart<S>>,
 }
 
-impl<S: TryStream> FieldData<'_, S>
+impl<S: Stream> FieldData<'_, S>
 where
-    S::Ok: BodyChunk,
-    ReadError: From<S::Error>,
+    S::Item: BodyChunk,
+    ReadError: From<ReadError>,
 {
     /// Return a `Future` which yields the result of reading this field's data to a `String`.
     ///
@@ -146,12 +144,12 @@ where
     }
 }
 
-impl<S: TryStream> Stream for FieldData<'_, S>
+impl<S: Stream> Stream for FieldData<'_, S>
 where
-    S::Ok: BodyChunk,
-    ReadError: From<S::Error>,
+    S::Item: BodyChunk,
+    ReadError: From<ReadError>,
 {
-    type Item = Result<S::Ok, S::Error>;
+    type Item = Result<S::Item, ReadError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.multipart.as_mut().poll_field_chunk(cx)
@@ -159,13 +157,13 @@ where
 }
 
 /// A `Future` that yields the body of a field read to a `String`.
-pub struct ReadToString<S: TryStream + Unpin> {
+pub struct ReadToString<S: Stream + Unpin> {
     stream: S,
     string: String,
     surrogate: Option<([u8; 3], u8)>,
 }
 
-impl<S: TryStream + Unpin> ReadToString<S> {
+impl<S: Stream + Unpin> ReadToString<S> {
     pub(crate) fn new(stream: S) -> Self {
         ReadToString {
             stream,
@@ -175,14 +173,14 @@ impl<S: TryStream + Unpin> ReadToString<S> {
     }
 }
 
-impl<S: TryStream<Error = ReadError> + Unpin> Future for ReadToString<S>
+impl<S: Stream + Unpin> Future for ReadToString<S>
 where
-    S::Ok: BodyChunk,
+    S::Item: BodyChunk,
 {
-    type Output = Result<String, S::Error>;
+    type Output = Result<String, ReadError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        while let Some(mut data) = ready!(Pin::new(&mut self.stream).try_poll_next(cx)?) {
+        while let Some(mut data) = ready!(Pin::new(&mut self.stream).poll_next(cx)) {
             if let Some((mut start, start_len)) = self.surrogate {
                 assert!(
                     start_len > 0 && start_len < 4,
@@ -274,7 +272,7 @@ fn utf8_char_width(first: u8) -> Option<usize> {
 fn assert_types_unpin() {
     use crate::test_util::assert_unpin;
 
-    fn inner<'a, S: TryStream + 'a>() {
+    fn inner<'a, S: Stream + 'a>() {
         assert_unpin::<FieldData<'a, S>>();
     }
 

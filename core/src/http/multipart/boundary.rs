@@ -5,7 +5,6 @@ use std::{fmt, mem};
 use crate::http::BodyChunk;
 
 use self::State::*;
-use futures::stream::TryStream;
 
 use super::helpers::*;
 use std::task::{Poll, Context};
@@ -15,13 +14,13 @@ use crate::http::errors::ReadError;
 pub type PollOpt<T, E> = Poll<Option<Result<T, E>>>;
 
 /// A struct implementing `Read` and `BufRead` that will yield bytes until it sees a given sequence.
-pub struct BoundaryFinder<S: TryStream> {
+pub struct BoundaryFinder<S: Stream> {
     stream: S,
-    state: State<S::Ok>,
+    state: State<S::Item>,
     boundary: Box<[u8]>,
 }
 
-impl<S: TryStream> BoundaryFinder<S> {
+impl<S: Stream> BoundaryFinder<S> {
     pub fn new<B: Into<Vec<u8>>>(stream: S, boundary: B) -> Self {
         BoundaryFinder {
             stream,
@@ -39,17 +38,17 @@ macro_rules! set_state {
 
 impl<S> BoundaryFinder<S>
 where
-    S: TryStream,
-    S::Ok: BodyChunk,
-    ReadError: From<S::Error>,
+    S: Stream,
+    S::Item: BodyChunk,
+    ReadError: From<ReadError>,
 {
     unsafe_pinned!(stream: S);
-    unsafe_unpinned!(state: State<S::Ok>);
+    unsafe_unpinned!(state: State<S::Item>);
 
     pub fn body_chunk(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Option<Result<S::Ok, S::Error>>> {
+    ) -> Poll<Option<Result<S::Item, ReadError>>> {
         macro_rules! try_ready_opt (
             ($try:expr) => (
                 match $try {
@@ -59,7 +58,7 @@ where
                         set_state!(self = End);
                         return Poll::Ready(None);
                     }
-                    Pending => return Pending,
+                    Poll::Pending => return Poll::Pending,
                 }
             );
             ($try:expr; $restore:expr) => (
@@ -73,9 +72,9 @@ where
                         set_state!(self = End);
                         return Poll::Ready(None);
                     },
-                    Pending => {
+                    Poll::Pending => {
                         set_state!(self = $restore);
-                        return Pending;
+                        return Poll::Pending;
                     }
                 }
             )
@@ -91,7 +90,7 @@ where
 
             match mem::replace(self.as_mut().state(), Watching) {
                 Watching => {
-                    let chunk = try_ready_opt!(self.as_mut().stream().try_poll_next(cx));
+                    let chunk = try_ready_opt!(self.as_mut().stream().poll_next(cx));
 
                     // For sanity
                     if chunk.is_empty() {
@@ -108,7 +107,7 @@ where
                     }
                 }
                 Partial(partial, res) => {
-                    let chunk = match self.as_mut().stream().try_poll_next(cx)? {
+                    let chunk = match self.as_mut().stream().poll_next(cx)? {
                         Poll::Ready(Some(chunk)) => chunk,
                         Poll::Ready(None) => {
                             set_state!(self = End);
@@ -192,7 +191,7 @@ where
         }
     }
 
-    fn check_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) -> Option<S::Ok> {
+    fn check_chunk(mut self: Pin<&mut Self>, chunk: S::Item) -> Option<S::Item> {
         // trace!("check chunk: '{}'", show_bytes(chunk.as_slice()));
 
         if chunk.is_empty() {
@@ -238,7 +237,7 @@ where
         }
     }
 
-    fn find_boundary(&self, chunk: &S::Ok) -> Option<SearchResult> {
+    fn find_boundary(&self, chunk: &S::Item) -> Option<SearchResult> {
         twoway::find_bytes(chunk.as_slice(), &self.boundary)
             .map(|idx| check_crlf(chunk.as_slice(), idx))
             .or_else(|| self.partial_find_boundary(chunk))
@@ -256,7 +255,7 @@ where
         }
     }
 
-    fn partial_find_boundary(&self, chunk: &S::Ok) -> Option<SearchResult> {
+    fn partial_find_boundary(&self, chunk: &S::Item) -> Option<SearchResult> {
         let chunk = chunk.as_slice();
         let len = chunk.len();
 
@@ -302,7 +301,7 @@ where
     pub fn consume_boundary(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Result<bool, S::Error>> {
+    ) -> Poll<Result<bool, ReadError>> {
         // debug!("consuming boundary");
 
         while ready!(self.as_mut().body_chunk(cx)?).is_some() {
@@ -324,8 +323,8 @@ where
 
     fn confirm_boundary(
         mut self: Pin<&mut Self>,
-        boundary: S::Ok,
-    ) -> Poll<Result<bool, S::Error>> {
+        boundary: S::Item,
+    ) -> Poll<Result<bool, ReadError>> {
         if boundary.len() < self.boundary_size(false) {
             ret_err!(
                 "boundary sequence too short: {}",
@@ -373,9 +372,9 @@ where
 
     fn confirm_boundary_split(
         mut self: Pin<&mut Self>,
-        first: S::Ok,
-        second: S::Ok,
-    ) -> Poll<Result<bool, S::Error>> {
+        first: S::Item,
+        second: S::Item,
+    ) -> Poll<Result<bool, ReadError>> {
         let first = first.as_slice();
         let check_len = self.boundary_size(false) - first.len();
 
@@ -423,19 +422,19 @@ where
 
 impl<S> Stream for BoundaryFinder<S>
 where
-    S: TryStream,
-    S::Ok: BodyChunk,
+    S: Stream,
+    S::Item: BodyChunk,
 {
-    type Item = Result<S::Ok, S::Error>;
+    type Item = Result<S::Item, ReadError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.body_chunk(cx)
     }
 }
 
-impl<S: TryStream + fmt::Debug> fmt::Debug for BoundaryFinder<S>
+impl<S: Stream + fmt::Debug> fmt::Debug for BoundaryFinder<S>
 where
-    S::Ok: BodyChunk + fmt::Debug,
+    S::Item: BodyChunk + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("BoundaryFinder")

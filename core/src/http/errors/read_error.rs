@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Display};
 use std::io;
-use std::string::FromUtf8Error;
 use std::str::Utf8Error;
 
 use hyper;

@@ -1,15 +1,7 @@
-// Copyright 2017-2019 `multipart-async` Crate Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-use std::ascii::AsciiExt;
 use std::pin::Pin;
 use std::str;
 use std::task::Poll;
-use http::Response;
-use futures::stream::{Stream, TryStream};
+use futures::stream::Stream;
 use futures::task::Context;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use httparse::{Status, EMPTY_HEADER};
@@ -86,13 +78,13 @@ impl ReadHeaders {
         !self.accumulator.is_empty()
     }
 
-    pub fn read_headers<S: TryStream<Error = ReadError>>(
+    pub fn read_headers<S: Stream>(
         &mut self,
-        mut stream: Pin<&mut PushChunk<S, S::Ok>>,
+        mut stream: Pin<&mut PushChunk<S, S::Item>>,
         cx: &mut Context,
-    ) -> Poll<Result<FieldHeaders, S::Error>>
+    ) -> Poll<Result<FieldHeaders, ReadError>>
     where
-        S::Ok: BodyChunk,
+        S::Item: BodyChunk,
     {
         loop {
             // trace!(
@@ -345,7 +337,7 @@ fn parse_keyval(input: &str) -> Option<(&str, &str, &str)> {
 }
 
 fn param_name(input: &str) -> Option<(&str, &str)> {
-    let mut splits = input.trim_left_matches(&[' ', ';'][..]).splitn(2, '=');
+    let mut splits = input.trim_start_matches(&[' ', ';'][..]).splitn(2, '=');
 
     let name = try_opt!(splits.next()).trim();
     let rem = splits.next().unwrap_or("");
