@@ -78,8 +78,8 @@ impl FilePart {
         })
     }
 
-    pub fn filename(&self) -> Option<&String> {
-        self.headers.filename.as_ref()
+    pub fn filename(&self) -> Option<&str> {
+        self.headers.filename.as_deref()
     }
 
     /// Mime content-type specified in the header
