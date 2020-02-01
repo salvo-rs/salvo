@@ -1,7 +1,7 @@
 use std::pin::Pin;
 use std::str;
 use std::task::Poll;
-use futures::stream::Stream;
+use futures::{Stream, TryStream};
 use futures::task::Context;
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use httparse::{Status, EMPTY_HEADER};
@@ -78,13 +78,13 @@ impl ReadHeaders {
         !self.accumulator.is_empty()
     }
 
-    pub fn read_headers<S: Stream>(
+    pub fn read_headers<S: TryStream<Error = ReadError>>(
         &mut self,
-        mut stream: Pin<&mut PushChunk<S, S::Item>>,
+        mut stream: Pin<&mut PushChunk<S, S::Ok>>,
         cx: &mut Context,
     ) -> Poll<Result<FieldHeaders, ReadError>>
     where
-        S::Item: BodyChunk,
+        S::Ok: BodyChunk,
     {
         loop {
             // trace!(
@@ -92,7 +92,7 @@ impl ReadHeaders {
             //     show_bytes(&self.accumulator)
             // );
 
-            let chunk = match ready!(stream.as_mut().poll_next(cx)) {
+            let chunk = match ready!(stream.as_mut().poll_next(cx)?) {
                 Some(chunk) => chunk,
                 None => ret_err!(
                     "unexpected end of stream while reading headers: \"{}\"",

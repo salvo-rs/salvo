@@ -9,13 +9,14 @@ use url::form_urlencoded;
 use multimap::MultiMap;
 use tempdir::TempDir;
 use futures::stream::TryStreamExt;
+use futures::{Stream, TryStream};
+use hyper::body::Bytes;
 
 use crate::http::request::{self, Request};
 use crate::http::errors::ReadError;
 use crate::http::multipart::Multipart;
 use crate::http::header::{HeaderValue, HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE};
 use crate::http::{Body, BodyChunk};
-use bytes::Bytes;
 
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
 pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
@@ -27,17 +28,17 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             Ok(form_data)
         },
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-            // let multipart = Multipart::try_from(headers, body)?;
+            let mut multipart = Multipart::try_from_body_headers(body, headers)?;
             let mut form_data = FormData::new();
-            // while let Some(mut field) = multipart.next_field().await? {
-            //     if field.headers.is_text() {
-            //         form_data.fields.insert(field.headers.name, field.data.read_to_string().await?);
-            //     } else {
-            //         while let Some(chunk) = field.data.try_next().await? {
-            //             //println!("got field chunk, len: {:?}", chunk.len());
-            //         }
-            //     }
-            // }
+            while let Some(mut field) = multipart.next_field().await? {
+                if field.headers.is_text() {
+                    form_data.fields.insert(field.headers.name, field.data.read_to_string().await?);
+                } else {
+                    while let Some(chunk) = field.data.try_next().await? {
+                        //println!("got field chunk, len: {:?}", chunk.len());
+                    }
+                }
+            }
             Ok(form_data)
         },
         _ => Err(ReadError::Parsing("parse form data failed".into())),

@@ -14,26 +14,17 @@
 //!
 //! * `server` (default): Enable the server-side abstractions for multipart requests. If the
 //! `hyper` feature is also set, enables integration with the Hyper HTTP server API.
-#![allow(unused_imports, deprecated)]
 // FIXME: hiding irrelevant warnings during prototyping
 // #![deny(missing_docs)]
 
-use bytes::Bytes;
-use futures::{Future, Stream};
+use hyper::body::Bytes;
+use futures::Future;
 use std::borrow::Cow;
 use std::process::Output;
 use std::slice::SliceIndex;
 use std::str::Utf8Error;
 use std::{fmt, io, ops};
 
-/*#[cfg(all(test, feature = "client", feature = "server"))]
-mod local_test;
-*/
-/*fn random_alphanumeric(len: usize) -> String {
-    rand::thread_rng().gen_ascii_chars().take(len).collect()
-}*/
-
-/// The operations required from a body stream's `Item` type.
 pub trait BodyChunk: Sized {
     /// Split the chunk at `idx`, returning `(self[..idx], self[idx..])`.
     fn split_into(self, idx: usize) -> (Self, Self);
@@ -130,7 +121,7 @@ impl BodyChunk for Bytes {
     }
 }
 
-// impl BodyChunk for hyper::Chunk {
+// impl BodyChunk for hyper::Body {
 //     fn split_into(self, idx: usize) -> (Self, Self) {
 //         let (left, right) = self.into_bytes().split_into(idx);
 //         (left.into(), right.into())

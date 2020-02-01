@@ -10,7 +10,7 @@ use std::pin::Pin;
 use std::task::Poll;
 use std::{mem, str};
 
-use futures::{Future, Stream};
+use futures::{Future, Stream, TryStream};
 //pub use self::collect::{ReadTextField, TextField};
 use futures::task::Context;
 
@@ -30,12 +30,12 @@ mod headers;
 /// If there are no more fields in the stream, `Ok(None)` is returned.
 ///
 /// See [`Multipart::next_field()`](../struct.Multipart.html#method.next_field) for usage.
-pub struct NextField<'a, S: Stream + 'a> {
+pub struct NextField<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
     multipart: Option<Pin<&'a mut Multipart<S>>>,
     has_next_field: bool,
 }
 
-impl<'a, S: Stream + 'a> NextField<'a, S> {
+impl<'a, S: TryStream + 'a> NextField<'a, S> where S::Error: Into<ReadError> {
     pub(crate) fn new(multipart: Pin<&'a mut Multipart<S>>) -> Self {
         NextField {
             multipart: Some(multipart),
@@ -50,9 +50,9 @@ impl<'a, S: Stream + 'a> NextField<'a, S> {
 
 impl<'a, S: 'a> Future for NextField<'a, S>
 where
-    S: Stream,
-    S::Item: BodyChunk,
-    ReadError: From<ReadError>,
+    S: TryStream,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
     type Output = Result<Option<Field<'a, S>>, ReadError>;
 
@@ -97,7 +97,7 @@ where
 /// A single field in a multipart stream.
 ///
 /// The data of the field is provided as a `Stream` impl in the `data` field.
-pub struct Field<'a, S: Stream + 'a> {
+pub struct Field<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
     /// The headers of this field, including the name, filename, and `Content-Type`, if provided.
     pub headers: FieldHeaders,
     /// The data of this field in the request, represented as a stream of chunks.
@@ -105,7 +105,7 @@ pub struct Field<'a, S: Stream + 'a> {
     _priv: (),
 }
 
-impl<S: Stream> fmt::Debug for Field<'_, S> {
+impl<S: TryStream> fmt::Debug for Field<'_, S> where S::Error: Into<ReadError> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Field")
             .field("headers", &self.headers)
@@ -118,14 +118,14 @@ impl<S: Stream> fmt::Debug for Field<'_, S> {
 ///
 /// It may be read to completion via the `Stream` impl, or collected to a string with
 /// `.read_to_string()`.
-pub struct FieldData<'a, S: Stream + 'a> {
+pub struct FieldData<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
     multipart: Pin<&'a mut Multipart<S>>,
 }
 
-impl<S: Stream> FieldData<'_, S>
+impl<S: TryStream> FieldData<'_, S>
 where
-    S::Item: BodyChunk,
-    ReadError: From<ReadError>,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
     /// Return a `Future` which yields the result of reading this field's data to a `String`.
     ///
@@ -144,12 +144,12 @@ where
     }
 }
 
-impl<S: Stream> Stream for FieldData<'_, S>
+impl<S: TryStream> Stream for FieldData<'_, S>
 where
-    S::Item: BodyChunk,
-    ReadError: From<ReadError>,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
-    type Item = Result<S::Item, ReadError>;
+    type Item = Result<S::Ok, ReadError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         self.multipart.as_mut().poll_field_chunk(cx)
@@ -163,7 +163,7 @@ pub struct ReadToString<S: Stream + Unpin> {
     surrogate: Option<([u8; 3], u8)>,
 }
 
-impl<S: Stream + Unpin> ReadToString<S> {
+impl<S: TryStream + Unpin> ReadToString<S> where S::Error: Into<ReadError> {
     pub(crate) fn new(stream: S) -> Self {
         ReadToString {
             stream,
@@ -173,14 +173,22 @@ impl<S: Stream + Unpin> ReadToString<S> {
     }
 }
 
-impl<S: Stream + Unpin> Future for ReadToString<S>
+impl<S: TryStream+ Unpin> Future for ReadToString<S>
 where
-    S::Item: BodyChunk,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
     type Output = Result<String, ReadError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        while let Some(mut data) = ready!(Pin::new(&mut self.stream).poll_next(cx)) {
+        while let Some(mut data) = match Pin::new(&mut self.stream).try_poll_next(cx) {
+            Poll::Ready(t) => match t {
+                Some(Ok(val)) => Some(val),
+                Some(Err(e)) => return Poll::Ready(Err(e.into())),
+                None => None,
+            },
+            Poll::Pending => return Poll::Pending,
+        } {
             if let Some((mut start, start_len)) = self.surrogate {
                 assert!(
                     start_len > 0 && start_len < 4,

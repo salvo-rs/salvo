@@ -2,7 +2,7 @@ use std::fmt;
 use std::pin::Pin;
 use std::str::Utf8Error;
 use std::task::{self, Poll, Context};
-use futures::{Future, Stream};
+use futures::{Future, Stream, TryStream};
 use http::Method;
 use http::header::HeaderMap;
 use mime::Mime;
@@ -75,8 +75,8 @@ mod field;
 /// Any data before the first boundary and past the end of the terminating boundary is ignored
 /// as it is out-of-spec and should not be expected to be left in the underlying stream intact.
 /// Please open an issue if you have a legitimate use-case for extraneous data in a multipart request.
-pub struct Multipart<S: Stream> {
-    inner: PushChunk<BoundaryFinder<S>, S::Item>,
+pub struct Multipart<S: TryStream> where S::Error: Into<ReadError> {
+    inner: PushChunk<BoundaryFinder<S>, S::Ok>,
     read_hdr: ReadHeaders,
 }
 
@@ -85,11 +85,11 @@ pub struct Multipart<S: Stream> {
 // (The workaround mentioned in a later comment doesn't seem to be worth the added complexity)
 impl<S> Multipart<S>
 where
-    S: Stream,
-    S::Item: BodyChunk,
-    // ReadError: Into<ReadError>,
+    S: TryStream,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
-    unsafe_pinned!(inner: PushChunk<BoundaryFinder<S>, S::Item>);
+    unsafe_pinned!(inner: PushChunk<BoundaryFinder<S>, S::Ok>);
     unsafe_unpinned!(read_hdr: ReadHeaders);
 
     /// Construct a new `Multipart` with the given body reader and boundary.
@@ -109,9 +109,7 @@ where
         }
     }
 
-    /// If `req` is a `POST multipart/form-data` request, take the body and
-    /// return the wrapped stream. Else, return the request.
-    pub fn try_from(headers: &HeaderMap, body: S) -> Result<Self, ReadError> {
+    pub fn try_from_body_headers(body: S, headers: &HeaderMap) -> Result<Self, ReadError> {
         fn get_boundary(headers: &HeaderMap) -> Option<String> {
             Some(
                headers.get(http::header::CONTENT_TYPE)?
@@ -254,7 +252,7 @@ where
     pub fn poll_field_chunk(
         self: Pin<&mut Self>,
         cx: &mut Context,
-    ) -> Poll<Option<Result<S::Item, ReadError>>> {
+    ) -> Poll<Option<Result<S::Ok, ReadError>>> {
         // if !self.read_hdr.is_reading_headers() {
         //     self.inner().poll_next(cx)
         // } else {
@@ -283,11 +281,12 @@ impl<S, T> PushChunk<S, T> {
     }
 }
 
-impl<S: Stream> PushChunk<S, S::Item>
+impl<S: TryStream> PushChunk<S, S::Ok>
 where
-    S::Item: BodyChunk,
+    S::Ok: BodyChunk,
+    S::Error: Into<ReadError>,
 {
-    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Item) {
+    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
         // if let Some(pushed) = self.as_mut().pushed() {
         //     debug_panic!(
         //         "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
@@ -302,15 +301,17 @@ where
     }
 }
 
-impl<S: Stream> Stream for PushChunk<S, S::Item> {
-    type Item = S::Item;
+impl<S: TryStream> Stream for PushChunk<S, S::Ok>
+    where S::Error: Into<ReadError>, 
+{
+    type Item = Result<S::Ok, S::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if let Some(pushed) = self.as_mut().pushed().take() {
-            return Poll::Ready(Some(pushed));
+            return Poll::Ready(Some(Ok(pushed)));
         }
 
-        self.stream().poll_next(cx)
+        self.stream().try_poll_next(cx)
     }
 }
 
