@@ -1,4 +1,5 @@
-use std::io::Write;
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::{PathBuf, Path};
 use std::ops::Drop;
 use textnonce::TextNonce;
@@ -65,8 +66,9 @@ impl FilePart {
         let mut path = TempDir::new("novel_http_multipart")?.into_path();
         let temp_dir = Some(path.clone());
         path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
+        let mut file = File::create(&path)?;
         while let Some(chunk) = field.data.try_next().await? {
-            //println!("got field chunk, len: {:?}", chunk.len());
+            file.write_all(chunk.as_slice());
         }
         Ok(FilePart {
             headers: field.headers.clone(),

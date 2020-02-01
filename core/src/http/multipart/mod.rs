@@ -286,7 +286,7 @@ where
     S::Ok: BodyChunk,
     S::Error: Into<ReadError>,
 {
-    pub(crate) fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
+    fn push_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) {
         // if let Some(pushed) = self.as_mut().pushed() {
         //     debug_panic!(
         //         "pushing excess chunk: \"{}\" already pushed chunk: \"{}\"",
