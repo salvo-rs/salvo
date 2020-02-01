@@ -18,6 +18,25 @@ use crate::http::multipart::Multipart;
 use crate::http::header::{HeaderValue, HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE};
 use crate::http::{Body, BodyChunk};
 
+/// The extracted text fields and uploaded files from a `multipart/form-data` request.
+///
+/// Use `parse_multipart` to devise this object from a request.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FormData {
+    /// Name-value pairs for plain text fields. Technically, these are form data parts with no
+    /// filename specified in the part's `Content-Disposition`.
+    pub fields: MultiMap<String, String>,
+    /// Name-value pairs for temporary files. Technically, these are form data parts with a filename
+    /// specified in the part's `Content-Disposition`.
+    pub files: MultiMap<String, FilePart>,
+}
+
+impl FormData {
+    pub fn new() -> FormData {
+        FormData { fields: MultiMap::new(), files: MultiMap::new() }
+    }
+}
+
 /// Parse MIME `multipart/form-data` information from a stream as a `FormData`.
 pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
     match headers.get(header::CONTENT_TYPE) {
@@ -115,23 +134,5 @@ impl Drop for FilePart {
             let _ = ::std::fs::remove_file(&self.path);
             let _ = ::std::fs::remove_dir(&self.temp_dir.as_ref().unwrap());
         }
-    }
-}
-/// The extracted text fields and uploaded files from a `multipart/form-data` request.
-///
-/// Use `parse_multipart` to devise this object from a request.
-#[derive(Clone, Debug, PartialEq)]
-pub struct FormData {
-    /// Name-value pairs for plain text fields. Technically, these are form data parts with no
-    /// filename specified in the part's `Content-Disposition`.
-    pub fields: MultiMap<String, String>,
-    /// Name-value pairs for temporary files. Technically, these are form data parts with a filename
-    /// specified in the part's `Content-Disposition`.
-    pub files: MultiMap<String, FilePart>,
-}
-
-impl FormData {
-    pub fn new() -> FormData {
-        FormData { fields: MultiMap::new(), files: MultiMap::new() }
     }
 }
