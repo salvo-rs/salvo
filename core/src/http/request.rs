@@ -22,8 +22,8 @@ use std::net::ToSocketAddrs;
 
 use crate::Protocol;
 use crate::http::{Body, Mime};
-use crate::http::form::FilePart;
-use crate::http::form::{self, FormData};
+use crate::http::form::{self, FormData, FilePart};
+use crate::http::multipart::Multipart;
 use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::errors::ReadError;
 use atomic_refcell::{AtomicRefCell, AtomicRef};
@@ -55,6 +55,7 @@ pub struct Request {
     // accept: Option<Vec<Mime>>,
     queries: DoubleCheckedCell<MultiMap<String, String>>,
     form_data: ADoubleCheckedCell<Result<FormData, ReadError>>,
+    // multipart: DoubleCheckedCell<Result<Multipart, ReadError>>,
     payload: ADoubleCheckedCell<Result<Vec<u8>, ReadError>>,
 
     /// The version of the HTTP protocol used.
@@ -154,6 +155,7 @@ impl Request {
             params: HashMap::new(),
             form_data: ADoubleCheckedCell::new(),
             payload: ADoubleCheckedCell::new(),
+            // multipart: DoubleCheckedCell::new(),
             version,
         })
     }
@@ -294,18 +296,43 @@ impl Request {
         }).await
     }
     
+    // pub async fn multipart(&mut self) -> &Result<Multipart, ReadError> {
+    //     let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
+    //     let body = self.body.take();
+    //     self.multipart.get_or_init(|| {
+    //         match ctype {
+    //             Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
+    //                 Multipart::try_from_body_headers(body, self.headers())
+    //             },
+    //             _=> {
+    //                 self.body = body;
+    //                 Err(ReadError::General(String::from("failed to read data3")))
+    //             },
+    //         }
+    //     })
+    // }
+    
     pub async fn form_data(&mut self) -> &Result<FormData, ReadError>{
         let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
         let body = self.body.take();
+        let headers = self.headers();
         self.form_data.get_or_init(async {
             match ctype {
                 Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                     match body {
-                        Some(body) => form::read_form_data(self.headers(), body).await,
-                        None => Err(ReadError::General("empty body".into())),
+                        Some(body) => {
+                            form::read_form_data(headers, body).await
+                        },
+                        None => {
+                            // self.body = body;
+                            Err(ReadError::General("empty body".into()))
+                        },
                     }
                 },
-                _=> Err(ReadError::General(String::from("failed to read data4"))),
+                _=> {
+                    // self.body = body;
+                    Err(ReadError::General(String::from("failed to read data4")))
+                },
             }
         }).await
     }
