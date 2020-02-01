@@ -222,13 +222,11 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<Result<FieldHeaders, ReadError>> {
-        // unsafe {
-        //     let this = self.as_mut().get_unchecked_mut();
-        //     this.read_hdr
-        //         .read_headers(Pin::new_unchecked(&mut this.inner), cx)
-        // }
-        //TODO
-        Poll::Pending
+        unsafe {
+            let this = self.as_mut().get_unchecked_mut();
+            this.read_hdr
+                .read_headers(Pin::new_unchecked(&mut this.inner), cx)
+        }
     }
 
     /// Poll for the next chunk of the current field.
@@ -253,13 +251,11 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context,
     ) -> Poll<Option<Result<S::Ok, ReadError>>> {
-        // if !self.read_hdr.is_reading_headers() {
-        //     self.inner().poll_next(cx)
-        // } else {
-        //     Poll::Ready(None)
-        // }
-        //TODO
-        Poll::Ready(None)
+        if !self.read_hdr.is_reading_headers() {
+            self.inner().poll_next(cx)
+        } else {
+            Poll::Ready(None)
+        }
     }
 }
 
