@@ -23,4 +23,4 @@ proc-macro2 = "^1"
 
 [dev-dependencies]
 # novel = { version = "0.5", path="../core"}
-futures = { version = "0.3.1" }
+# futures = { version = "0.3.1" }
