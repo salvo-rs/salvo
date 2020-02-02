@@ -71,7 +71,7 @@ impl FilePart {
         let mut path = TempDir::new("novel_http_multipart")?.into_path();
         let temp_dir = Some(path.clone());
         path.push(format!("{}.{}", TextNonce::sized_urlsafe(32).unwrap().into_string(), 
-            get_extension_from_filename(&field.headers.filename).unwrap_or("unknown")));
+            field.headers.filename.as_ref().and_then(|f|get_extension_from_filename(&f)).unwrap_or("unknown")));
         let mut file = File::create(&path)?;
         while let Some(chunk) = field.data.try_next().await? {
             file.write_all(chunk.as_slice());
