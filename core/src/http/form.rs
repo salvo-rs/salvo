@@ -12,6 +12,7 @@ use tempdir::TempDir;
 use futures::stream::TryStreamExt;
 use futures::{Stream, TryStream};
 use hyper::body::Bytes;
+use std::ffi::OsStr;
 
 use crate::http::request::{self, Request};
 use crate::http::errors::ReadError;
@@ -37,7 +38,11 @@ impl FormData {
         FormData { fields: MultiMap::new(), files: MultiMap::new(), multipart: None }
     }
 }
-
+fn get_extension_from_filename(filename: &str) -> Option<&str> {
+    Path::new(filename)
+        .extension()
+        .and_then(OsStr::to_str)
+}
 /// A file that is to be inserted into a `multipart/*` or alternatively an uploaded file that
 /// was received as part of `multipart/*` parsing.
 #[derive(Debug)]
@@ -65,7 +70,7 @@ impl FilePart {
         // Setup a file to capture the contents.
         let mut path = TempDir::new("novel_http_multipart")?.into_path();
         let temp_dir = Some(path.clone());
-        path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
+        path.push(format!("{}.{}", TextNonce::sized_urlsafe(32).unwrap().into_string(), get_extension_from_filename(&field.headers.name).unwrap_or("unknown")));
         let mut file = File::create(&path)?;
         while let Some(chunk) = field.data.try_next().await? {
             file.write_all(chunk.as_slice());
