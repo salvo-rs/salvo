@@ -1,12 +1,15 @@
 [package]
 name = "novel-macros"
 version = "0.1.0"
-description = "novel proc macros"
-readme = "README.md"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
-license = "MIT/Apache-2.0"
 edition = "2018"
-workspace = ".."
+description = "novel proc macros"
+homepage = "https://github.com/kenorld/novel"
+repository = "https://github.com/kenorld/novel"
+readme = "../README.md"
+keywords = ["novel", "web", "framework", "server"]
+license = "MIT/Apache-2.0"
+categories = ["web-programming::http-server"]
 
 [lib]
 name = "novel_macros"
@@ -19,5 +22,5 @@ syn = { version = "^1", features = ["full", "parsing"] }
 proc-macro2 = "^1"
 
 [dev-dependencies]
-novel = { version = "0.5", path="../core"}
+# novel = { version = "0.5", path="../core"}
 futures = { version = "0.3.1" }
