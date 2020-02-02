@@ -60,7 +60,7 @@ atty = "0.2"
 rand = "0.7"
 multimap = { version = "0.8", features = ["serde"] }
 tokio = { version = "0.2", features = ["full"] }
-novel-macros = {version="0.1", path="../macros"}
+novel_macros = {version="0.1"}
 twoway = "0.2"
 pin-utils="0.1.0-alpha.4"
 display_bytes="0.2"
