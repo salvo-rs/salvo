@@ -277,23 +277,23 @@ impl Request {
     }
     pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
         let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
-        let body = self.body.take();
-        self.payload.get_or_init(async {
-            match ctype {
-                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-                    Err(ReadError::General(String::from("failed to read data1")))
-                },
-                Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
+        match ctype {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
+                self.payload.get_or_init(async {Err(ReadError::General(String::from("failed to read data1")))}).await
+            },
+            Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
+                let body = self.body.take();
+                self.payload.get_or_init(async {
                     match body {
                         Some(body) => {
                             read_body_bytes(body).await
                         },
                         None => Err(ReadError::General(String::from("failed to read data2"))),
                     }
-                },
-                _=> Err(ReadError::General(String::from("failed to read data3"))),
-            }
-        }).await
+                }).await
+            },
+            _=> self.payload.get_or_init(async {Err(ReadError::General(String::from("failed to read data3")))}).await,
+        }
     }
     
     // pub async fn multipart(&mut self) -> &Result<Multipart, ReadError> {
@@ -314,11 +314,11 @@ impl Request {
     
     pub async fn form_data(&mut self) -> &Result<FormData, ReadError>{
         let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
-        let body = self.body.take();
-        let headers = self.headers();
-        self.form_data.get_or_init(async {
-            match ctype {
-                Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
+        match ctype {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => { 
+                let body = self.body.take();
+                let headers = self.headers();
+                self.form_data.get_or_init(async {
                     match body {
                         Some(body) => {
                             form::read_form_data(headers, body).await
@@ -328,13 +328,12 @@ impl Request {
                             Err(ReadError::General("empty body".into()))
                         },
                     }
-                },
-                _=> {
-                    // self.body = body;
-                    Err(ReadError::General(String::from("failed to read data4")))
-                },
-            }
-        }).await
+                }).await
+            },
+            _=> {
+                self.form_data.get_or_init(async {Err(ReadError::General(String::from("failed to read data4")))}).await
+            },
+        }
     }
     
     #[inline]
