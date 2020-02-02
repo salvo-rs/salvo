@@ -18,7 +18,7 @@ all-features = true
 
 [dependencies]
 double-checked-cell = "2.0.2"
-async-double-checked-cell = {git="https://github.com/cere42/async-double-checked-cell.git"}
+double-checked-cell-async = "2.0.2"
 futures = { version = "0.3", features = ["std"] }
 futures-util = "0.3"
 atomic_refcell="0.1"
@@ -60,7 +60,7 @@ atty = "0.2"
 rand = "0.7"
 multimap = { version = "0.8", features = ["serde"] }
 tokio = { version = "0.2", features = ["full"] }
-novel_macros = {version="0.1"}
+novel-macros = {version="0.1"}
 twoway = "0.2"
 pin-utils="0.1.0-alpha.4"
 display_bytes="0.2"

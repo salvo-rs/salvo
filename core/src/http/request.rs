@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use url::Url;
 use multimap::MultiMap;
-use async_double_checked_cell::DoubleCheckedCell as ADoubleCheckedCell;
+use double_checked_cell_async::DoubleCheckedCell as ADoubleCheckedCell;
 use double_checked_cell::DoubleCheckedCell;
 use serde::de::DeserializeOwned;
 use http;
