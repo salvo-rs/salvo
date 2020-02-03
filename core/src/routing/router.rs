@@ -10,7 +10,7 @@ pub struct Router {
 	name: Option<String>,
 	raw_path: String,
 	path_segments: Vec<Box<dyn Segment>>,
-	minions: Vec<Router>,
+	scopes: Vec<Router>,
 	handlers: HashMap<HttpMethod, Vec<Arc<dyn Handler>>>,
 	befores: HashMap<HttpMethod, Vec<Arc<dyn Handler>>>,
 	afters: HashMap<HttpMethod, Vec<Arc<dyn Handler>>>,
@@ -18,7 +18,7 @@ pub struct Router {
 
 impl Debug for Router{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{{ name: {:?}, path: '{}', handlers: '{}', minions: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.minions)
+        write!(f, "{{ name: {:?}, path: '{}', handlers: '{}', scopes: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.scopes)
     }
 }
 
@@ -306,7 +306,7 @@ impl Router {
 			raw_path: String::from(""),
 			path_segments: Vec::new(),
 			// parent: None,
-			minions: Vec::new(),
+			scopes: Vec::new(),
 			handlers: HashMap::<HttpMethod, Vec<Arc<dyn Handler>>>::new(),
 			befores: HashMap::<HttpMethod, Vec<Arc<dyn Handler>>>::new(),
 			afters: HashMap::<HttpMethod, Vec<Arc<dyn Handler>>>::new(),
@@ -315,9 +315,9 @@ impl Router {
 		router
 	}
 
-	pub fn minion(&mut self, path: &str)->&mut Router{
-		self.minions.push(Router::new(path));
-		self.minions.last_mut().unwrap()
+	pub fn scope(&mut self, path: &str)->&mut Router{
+		self.scopes.push(Router::new(path));
+		self.scopes.last_mut().unwrap()
 	}
 	
 	pub fn set_name(&mut self, name: &str) -> &mut Router {
@@ -409,9 +409,9 @@ impl Router {
 			allh.extend(afters);
 			return (true, allh, params);
 		}
-		if !rest.is_empty() && !self.minions.is_empty() {
-			for minion in &self.minions {
-				let (matched, handlers, kv) = minion.detect(method.clone(), segments[i..].to_vec());
+		if !rest.is_empty() && !self.scopes.is_empty() {
+			for scope in &self.scopes {
+				let (matched, handlers, kv) = scope.detect(method.clone(), segments[i..].to_vec());
 				if matched{
 					if !kv.is_empty() {
 						params.extend(kv);
