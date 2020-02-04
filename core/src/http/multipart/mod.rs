@@ -139,8 +139,9 @@ where
     /// # use std::iter;
     /// # use futures_test::task::noop_context;
     /// # use std::convert::Infallible;
-    /// use multipart_async::server::Multipart;
     /// use std::error::Error;
+    /// use salvo::http::errors::ReadError;
+    /// use salvo::http::multipart::Multipart;
     ///
     /// async fn example<S>(stream: S) -> Result<(), Box<dyn Error>>
     ///         where S: Stream<Ok = &'static [u8]> + Unpin, ReadError: Error + 'static
@@ -165,7 +166,7 @@ where
     /// # let ref mut cx = noop_context();
     /// # let future = example(stream);
     /// # pin_mut!(future);
-    /// # while let futures::Poll::Pending = future.as_mut().poll(cx) {}
+    /// # while let std::task::Poll::Pending = future.as_mut().poll(cx) {}
     /// ```
     pub fn next_field(&mut self) -> NextField<S>
     where
@@ -317,7 +318,7 @@ mod test {
     use crate::http::multipart::test_util::mock_stream;
 
     use super::Multipart;
-    use std::convert::Infallible;
+    // use std::convert::Infallible;
 
     const BOUNDARY: &str = "boundary";
 

@@ -516,7 +516,7 @@ fn check_crlf(chunk: &[u8], mut idx: usize) -> SearchResult {
 }
 
 fn check_last_two(boundary: &[u8]) -> bool {
-    let len = boundary.len();
+    // let len = boundary.len();
 
     let is_end = boundary.ends_with(b"--");
 
@@ -557,7 +557,7 @@ fn partial_rmatch(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 mod test {
     use super::BoundaryFinder;
 
-    use crate::http::errors::ReadError;
+    // use crate::http::errors::ReadError;
 
     use crate::http::multipart::test_util::*;
 
