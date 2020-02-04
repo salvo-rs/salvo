@@ -68,7 +68,7 @@ impl FilePart {
     /// deleted once the FilePart object goes out of scope).
     pub async fn create(field: &mut Field<'_, Body>) -> Result<FilePart, ReadError> {
         // Setup a file to capture the contents.
-        let mut path = TempDir::new("novel_http_multipart")?.into_path();
+        let mut path = TempDir::new("salvo_http_multipart")?.into_path();
         let temp_dir = Some(path.clone());
         path.push(format!("{}.{}", TextNonce::sized_urlsafe(32).unwrap().into_string(), 
             field.headers.filename.as_ref().and_then(|f|get_extension_from_filename(&f)).unwrap_or("unknown")));

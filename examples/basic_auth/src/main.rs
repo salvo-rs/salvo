@@ -1,8 +1,8 @@
-use novel::{Server};
-use novel::routing::{Router};
-use novel_extra::serve::Static;
-use novel_extra::auth::basic::{BasicAuthHandler, BasicAuthConfig};
-use novel::routing::Method;
+use salvo::{Server};
+use salvo::routing::{Router};
+use salvo_extra::serve::Static;
+use salvo_extra::auth::basic::{BasicAuthHandler, BasicAuthConfig};
+use salvo::routing::Method;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

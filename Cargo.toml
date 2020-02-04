@@ -12,6 +12,6 @@ members = [
 ]
 
 [patch.crates-io]
-novel = { path = "core" }
-# novel_macros = { path = "macros" }
-novel_extra = { path = "extra" }
+salvo = { path = "core" }
+# salvo_macros = { path = "macros" }
+salvo_extra = { path = "extra" }

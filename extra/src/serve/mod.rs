@@ -7,7 +7,7 @@ use serde_json::json;
 use mime;
 use async_trait::async_trait;
 
-use novel::prelude::*;
+use salvo::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -112,7 +112,7 @@ fn list_html(root: &BaseInfo)->String{
         }
         ftxt.push_str("</table>");
     }
-    ftxt.push_str("<hr/><div style=\"text-align:center;\"><small>novel</small></div></body>");
+    ftxt.push_str("<hr/><div style=\"text-align:center;\"><small>salvo</small></div></body>");
     ftxt
 }
 fn list_text(root: &BaseInfo)->String{

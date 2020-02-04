@@ -1,8 +1,8 @@
 
 use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
-use novel::prelude::*;
-use novel::error::Error;
+use salvo::prelude::*;
+use salvo::error::Error;
 use async_trait::async_trait;
 
 pub struct BasicAuthHandler{

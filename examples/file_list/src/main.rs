@@ -1,6 +1,6 @@
-use novel::{Server};
-use novel::routing::{Router};
-use novel_extra::serve::{Static};
+use salvo::{Server};
+use salvo::routing::{Router};
+use salvo_extra::serve::{Static};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

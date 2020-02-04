@@ -20,7 +20,7 @@ fn error_html(e: &Box<dyn HttpError>)->String {
             <h3>{2}</h3>
             <p>{3}</p>
             <hr />
-            <small>novel</small>
+            <small>salvo</small>
         </div>
     </body>
 </html>", e.code(), e.name(), e.summary(), e.detail())

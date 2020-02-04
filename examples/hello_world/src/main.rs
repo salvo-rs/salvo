@@ -1,4 +1,4 @@
-use novel::prelude::*;
+use salvo::prelude::*;
 
 #[fn_handler]
 async fn hello_world(_sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {

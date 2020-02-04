@@ -1,8 +1,8 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-#[macro_use] extern crate novel;
+#[macro_use] extern crate salvo;
 
-use novel::{http::Status, response::content};
+use salvo::{http::Status, response::content};
 
 fn index() -> &'static str {
     "Hello, world!"
@@ -13,10 +13,10 @@ mod hello_world_tests {
 
     use std::io::Read;
 
-    use novel::Route;
-    use novel::local::Client;
-    use novel::http::{Status, ContentType};
-    use novel::response::Body;
+    use salvo::Route;
+    use salvo::local::Client;
+    use salvo::http::{Status, ContentType};
+    use salvo::response::Body;
 
     fn routes() -> Vec<Route> {
         routes![index, empty, other]
@@ -24,7 +24,7 @@ mod hello_world_tests {
 
     #[test]
     fn user_head() {
-        let client = Client::new(novel::ignite().mount("/", routes())).unwrap();
+        let client = Client::new(salvo::ignite().mount("/", routes())).unwrap();
         let mut response = client.head("/other").dispatch();
         assert_eq!(response.status(), Status::Ok);
         assert_empty_sized_body(response.body().unwrap(), 17);

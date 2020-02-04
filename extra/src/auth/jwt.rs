@@ -1,7 +1,7 @@
 use hyper::header::AUTHORIZATION;
 use serde::de::{DeserializeOwned};
 use std::{marker::PhantomData};
-use novel::prelude::*;
+use salvo::prelude::*;
 use async_trait::async_trait;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Validation, Algorithm, TokenData};
