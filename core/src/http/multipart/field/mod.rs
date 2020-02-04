@@ -43,9 +43,9 @@ impl<'a, S: TryStream + 'a> NextField<'a, S> where S::Error: Into<ReadError> {
         }
     }
 
-    fn multipart(&mut self) -> Option<Pin<&mut Multipart<S>>> {
-        Some(self.multipart.as_mut()?.as_mut())
-    }
+    // fn multipart(&mut self) -> Option<Pin<&mut Multipart<S>>> {
+    //     Some(self.multipart.as_mut()?.as_mut())
+    // }
 }
 
 impl<'a, S: 'a> Future for NextField<'a, S>

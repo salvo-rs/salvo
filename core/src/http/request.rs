@@ -1,6 +1,5 @@
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
-use std::cell::{RefCell, Ref};
 use std::str::FromStr;
 use std::collections::HashMap;
 use url::Url;
@@ -13,20 +12,12 @@ use http::version::Version as HttpVersion;
 use http::method::Method;
 use http::header::{self, HeaderMap};
 use cookie::{Cookie, CookieJar};
-use std::io::Cursor;
-use hyper::body::HttpBody;
-use tokio::runtime::Runtime;
-
-#[cfg(test)]
-use std::net::ToSocketAddrs;
 
 use crate::Protocol;
 use crate::http::{Body, Mime};
 use crate::http::form::{self, FormData, FilePart};
-use crate::http::multipart::Multipart;
 use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::errors::ReadError;
-use atomic_refcell::{AtomicRefCell, AtomicRef};
 
 /// The `Request` given to all `Middleware`.
 ///

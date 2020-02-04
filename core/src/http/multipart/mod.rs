@@ -1,13 +1,9 @@
-use std::fmt;
 use std::pin::Pin;
-use std::str::Utf8Error;
-use std::task::{self, Poll, Context};
-use futures::{Future, Stream, TryStream};
-use http::Method;
+use std::task::{Poll, Context};
+use futures::{Stream, TryStream};
 use http::header::HeaderMap;
 use mime::Mime;
 
-use self::helpers::*;
 use crate::http::BodyChunk;
 use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
@@ -31,9 +27,9 @@ macro_rules! ret_err (
     )
 );
 
-macro_rules! ret_ok(
-    ($expr:expr) => (return Ok($expr).into());
-);
+// macro_rules! ret_ok(
+//     ($expr:expr) => (return Ok($expr).into());
+// );
 
 macro_rules! fmt_err (
     ($string:expr) => (

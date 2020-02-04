@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 use std::pin::Pin;
-use futures::future::FutureExt;
 
 use hyper::Server as HyperServer;
 

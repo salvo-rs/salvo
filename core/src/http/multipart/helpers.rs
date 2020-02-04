@@ -1,6 +1,5 @@
-use std::borrow::Cow;
 use std::fmt;
-use std::mem;
+// use std::mem;
 use display_bytes;
 
 pub use futures::*;
@@ -12,9 +11,9 @@ where
 {
     Poll::Ready(Ok(val).into())
 }
-pub fn replace_default<T: Default>(dest: &mut T) -> T {
-    mem::replace(dest, T::default())
-}
+// pub fn replace_default<T: Default>(dest: &mut T) -> T {
+//     mem::replace(dest, T::default())
+// }
 
 pub fn show_bytes(bytes: &[u8]) -> impl fmt::Display + '_ {
     display_bytes::HEX_UTF8

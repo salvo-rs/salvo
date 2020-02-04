@@ -11,8 +11,6 @@ use std::task::{Poll, Context};
 use std::pin::Pin;
 use crate::http::errors::ReadError;
 
-pub type PollOpt<T, E> = Poll<Option<Result<T, E>>>;
-
 /// A struct implementing `Read` and `BufRead` that will yield bytes until it sees a given sequence.
 pub struct BoundaryFinder<S: TryStream> where S::Error: Into<ReadError> {
     stream: S,

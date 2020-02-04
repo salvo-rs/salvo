@@ -18,12 +18,8 @@
 // #![deny(missing_docs)]
 
 use hyper::body::Bytes;
-use futures::Future;
 use std::borrow::Cow;
-use std::process::Output;
 use std::slice::SliceIndex;
-use std::str::Utf8Error;
-use std::{fmt, io, ops};
 
 pub trait BodyChunk: Sized {
     /// Split the chunk at `idx`, returning `(self[..idx], self[idx..])`.

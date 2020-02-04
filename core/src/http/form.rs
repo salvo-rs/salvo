@@ -5,19 +5,16 @@ use std::ops::Drop;
 use textnonce::TextNonce;
 use mime::Mime;
 use http::header;
-use hyper::body::HttpBody;
 use url::form_urlencoded;
 use multimap::MultiMap;
 use tempdir::TempDir;
 use futures::stream::TryStreamExt;
-use futures::{Stream, TryStream};
-use hyper::body::Bytes;
 use std::ffi::OsStr;
 
-use crate::http::request::{self, Request};
+use crate::http::request;
 use crate::http::errors::ReadError;
 use crate::http::multipart::{Multipart, Field, FieldHeaders};
-use crate::http::header::{HeaderValue, HeaderMap, CONTENT_DISPOSITION, CONTENT_TYPE};
+use crate::http::header::HeaderMap;
 use crate::http::{Body, BodyChunk};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -74,7 +71,7 @@ impl FilePart {
             field.headers.filename.as_ref().and_then(|f|get_extension_from_filename(&f)).unwrap_or("unknown")));
         let mut file = File::create(&path)?;
         while let Some(chunk) = field.data.try_next().await? {
-            file.write_all(chunk.as_slice());
+            file.write_all(chunk.as_slice())?;
         }
         Ok(FilePart {
             headers: field.headers.clone(),

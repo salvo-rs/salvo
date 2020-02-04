@@ -1,11 +1,6 @@
 
 use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::future::Future;
-use futures_util::future;
 use async_trait::async_trait;
-
-use futures::future::FutureExt;
 
 use crate::{ServerConfig, Depot};
 use crate::http::{Request, Response};
