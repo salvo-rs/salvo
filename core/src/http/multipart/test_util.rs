@@ -19,6 +19,8 @@ use futures_test::task::noop_context;
 use futures_util::stream::{self, StreamExt};
 use std::convert::Infallible;
 
+use crate::http::errors::ReadError;
+
 pub const BOUNDARY: &str = "--boundary";
 
 pub const TEST_SINGLE_FIELD: &[&[u8]] = &[
@@ -35,7 +37,7 @@ pub const TEST_SINGLE_FIELD: &[&[u8]] = &[
 
 pub fn mock_stream<'d>(
     test_data: &'d [&'d [u8]],
-) -> impl Stream<Item = Result<&'d [u8], Infallible>> + 'd {
+) -> impl Stream<Item = Result<&'d [u8], ReadError>> + 'd {
     stream::iter(test_data.iter().cloned())
         .map(Ok)
         .interleave_pending()
@@ -62,6 +64,52 @@ macro_rules! ready_assert_eq(
             match $expr {
                 Ready(val) => {
                     assert_eq!(val, $eq);
+                    break;
+                },
+                Pending => (),
+            }
+        }
+    }}
+);
+macro_rules! ready_assert_eq_none(
+    (|$cx:ident| $expr:expr) => {{
+        use std::task::Poll::*;
+        let ref mut $cx = futures_test::task::noop_context();
+        loop {
+            match $expr {
+                Ready(val) => {
+                    assert_eq!(val.is_none(), true);
+                    break;
+                },
+                Pending => (),
+            }
+        }
+    }}
+);
+
+macro_rules! ready_assert_ok_eq(
+    (|$cx:ident| $expr:expr, $eq:expr) => {{
+        use std::task::Poll::*;
+        let ref mut $cx = futures_test::task::noop_context();
+        loop {
+            match $expr {
+                Ready(val) => {
+                    assert_eq!(val.unwrap(), $eq);
+                    break;
+                },
+                Pending => (),
+            }
+        }
+    }}
+);
+macro_rules! ready_assert_some_ok_eq(
+    (|$cx:ident| $expr:expr, $eq:expr) => {{
+        use std::task::Poll::*;
+        let ref mut $cx = futures_test::task::noop_context();
+        loop {
+            match $expr {
+                Ready(val) => {
+                    assert_eq!(val.unwrap().unwrap(), $eq);
                     break;
                 },
                 Pending => (),

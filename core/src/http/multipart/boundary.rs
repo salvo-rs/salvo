@@ -565,28 +565,23 @@ mod test {
     fn test_empty_stream() {
         let finder = BoundaryFinder::new(mock_stream(&[]), BOUNDARY);
         pin_mut!(finder);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), false);
     }
 
     #[test]
     fn test_one_boundary() {
         let finder = BoundaryFinder::new(mock_stream(&[b"--boundary\r\n"]), BOUNDARY);
         pin_mut!(finder);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), false);
     }
 
     #[test]
     fn test_one_incomplete_boundary() {
         let finder = BoundaryFinder::new(mock_stream(&[b"--bound"]), BOUNDARY);
         pin_mut!(finder);
-        ready_assert_eq!(
-            |cx| finder.as_mut().consume_boundary(cx),
-            Err(ReadError::Parsing(
-                "unable to verify multipart boundary; expected: \"--boundary\" found: \"--bound\""
-                    .into()
-            ))
-        );
+        let result = until_ready!(|cx| finder.as_mut().consume_boundary(cx));
+        assert_eq!(result.is_err(), true);
     }
 
     #[test]
@@ -596,9 +591,9 @@ mod test {
             BOUNDARY,
         );
         pin_mut!(finder);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
-        ready_assert_eq!(|cx| finder.as_mut().body_chunk(cx), None);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
+        ready_assert_eq_none!(|cx| finder.as_mut().body_chunk(cx));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), false);
     }
 
     #[test]
@@ -615,13 +610,13 @@ mod test {
         );
         pin_mut!(finder);
 
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
-        ready_assert_eq!(
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
+        ready_assert_some_ok_eq!(
             |cx| finder.as_mut().body_chunk(cx),
-            Some(Ok(&b"field data"[..]))
+            &b"field data"[..]
         );
-        ready_assert_eq!(|cx| finder.as_mut().body_chunk(cx), None);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(false));
+        ready_assert_eq_none!(|cx| finder.as_mut().body_chunk(cx));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), false);
     }
 
     #[test]
@@ -637,10 +632,10 @@ mod test {
             BOUNDARY,
         );
         pin_mut!(finder);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
-        ready_assert_eq!(|cx| finder.as_mut().body_chunk(cx), None);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
-        ready_assert_eq!(|cx| finder.as_mut().body_chunk(cx), None);
-        ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
+        ready_assert_eq_none!(|cx| finder.as_mut().body_chunk(cx));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
+        ready_assert_eq_none!(|cx| finder.as_mut().body_chunk(cx));
+        ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), false);
     }
 }

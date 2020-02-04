@@ -325,7 +325,7 @@ mod test {
     fn test_empty_body() {
         let multipart = Multipart::with_body(mock_stream(&[]), BOUNDARY);
         pin_mut!(multipart);
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
     }
 
     #[test]
@@ -335,9 +335,9 @@ mod test {
             BOUNDARY,
         );
         pin_mut!(multipart);
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(true));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
         until_ready!(|cx| multipart.as_mut().poll_field_headers(cx)).unwrap_err();
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
     }
 
     #[test]
@@ -358,25 +358,25 @@ mod test {
         );
         pin_mut!(multipart);
 
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(true));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
 
-        ready_assert_eq!(
+        ready_assert_ok_eq!(
             |cx| multipart.as_mut().poll_field_headers(cx),
-            Ok(FieldHeaders {
+            FieldHeaders {
                 name: "foo".into(),
                 filename: None,
                 content_type: None,
                 ext_headers: Default::default(),
-            })
+            }
         );
 
-        ready_assert_eq!(
+        ready_assert_some_ok_eq!(
             |cx| multipart.as_mut().poll_field_chunk(cx),
-            Some(Ok(&b"field data"[..]))
+            &b"field data"[..]
         );
 
-        ready_assert_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), None);
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(false));
+        ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
     }
 
     #[test]
@@ -410,42 +410,42 @@ mod test {
         );
         pin_mut!(multipart);
 
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(true));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
 
-        ready_assert_eq!(
+        ready_assert_ok_eq!(
             |cx| multipart.as_mut().poll_field_headers(cx),
-            Ok(FieldHeaders {
+            FieldHeaders {
                 name: "foo".into(),
                 filename: None,
                 content_type: None,
                 ext_headers: Default::default(),
-            })
+            }
         );
 
-        ready_assert_eq!(
+        ready_assert_some_ok_eq!(
             |cx| multipart.as_mut().poll_field_chunk(cx),
-            Some(Ok(&b"field data"[..]))
+            &b"field data"[..]
         );
-        ready_assert_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), None);
+        ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
 
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(true));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
 
-        ready_assert_eq!(
+        ready_assert_ok_eq!(
             |cx| multipart.as_mut().poll_field_headers(cx),
-            Ok(FieldHeaders {
+            FieldHeaders {
                 name: "foo-data".into(),
                 filename: Some("foo.txt".into()),
                 content_type: Some(mime::TEXT_PLAIN_UTF_8),
                 ext_headers: Default::default(),
-            })
+            }
         );
 
-        ready_assert_eq!(
+        ready_assert_some_ok_eq!(
             |cx| multipart.as_mut().poll_field_chunk(cx),
-            Some(Ok(&b"field data--2\r\n--data--field"[..]))
+            &b"field data--2\r\n--data--field"[..]
         );
-        ready_assert_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), None);
+        ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
 
-        ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(false));
+        ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
     }
 }

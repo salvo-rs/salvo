@@ -408,110 +408,110 @@ fn test_parse_keyval() {
 #[test]
 fn test_parse_headers() {
     assert_eq!(
-        parse_headers(b"Content-Disposition: form-data; name = \"field\"\r\n\r\n"),
-        Ok(FieldHeaders {
+        parse_headers(b"Content-Disposition: form-data; name = \"field\"\r\n\r\n").unwrap(),
+        FieldHeaders {
             name: "field".into(),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"Content-Disposition: form-data; name = \"field\"\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"Content-Disposition: form-data; name = \"field\"\r\n\
                         Content-Type: text/plain; charset=\"utf-8\"\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::TEXT_PLAIN_UTF_8),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // lowercase
     assert_eq!(
-        parse_headers(b"content-disposition: form-data; name = \"field\"\r\n\r\n"),
-        Ok(FieldHeaders {
+        parse_headers(b"content-disposition: form-data; name = \"field\"\r\n\r\n").unwrap(),
+        FieldHeaders {
             name: "field".into(),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"content-disposition: form-data; name = \"field\"\r\n\
                         content-type: application/octet-stream\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // mixed case
     assert_eq!(
-        parse_headers(b"cOnTent-dIsPosition: form-data; name = \"field\"\r\n\r\n"),
-        Ok(FieldHeaders {
+        parse_headers(b"cOnTent-dIsPosition: form-data; name = \"field\"\r\n\r\n").unwrap(),
+        FieldHeaders {
             name: "field".into(),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"contEnt-disPosition: form-data; name = \"field\"\r\n\
                         coNtent-tyPe: application/octet-stream\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // omitted quotes
     assert_eq!(
-        parse_headers(b"Content-Disposition: form-data; name = field\r\n\r\n"),
-        Ok(FieldHeaders {
+        parse_headers(b"Content-Disposition: form-data; name = field\r\n\r\n").unwrap(),
+        FieldHeaders {
             name: "field".into(),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     assert_eq!(
         parse_headers(
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Type: text/plain; charset=utf-8\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::TEXT_PLAIN_UTF_8),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // filename without quotes with extension
@@ -519,13 +519,13 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field; filename = file.bin\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // reversed headers (can happen)
@@ -533,13 +533,13 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Type: application/octet-stream\r\n\
                         Content-Disposition: form-data; name = field; filename = file.bin\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
             ..FieldHeaders::default()
-        })
+        }
     );
 
     // quoted parameter with semicolon (allowed by spec)
@@ -547,21 +547,22 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field; x-attr = \"some;value\"; \
                         filename = file.bin\r\n\r\n"
-        ),
-        Ok(FieldHeaders {
+        ).unwrap(),
+        FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
             content_type: None,
             ..FieldHeaders::default()
-        })
+        }
     )
 }
 
 #[test]
 fn test_parse_headers_errors() {
+    use std::error::Error;
     // missing content-disposition
     assert_eq!(
-        parse_headers(b"Content-Type: application/octet-stream\r\n\r\n").unwrap_err(),
+        parse_headers(b"Content-Type: application/octet-stream\r\n\r\n").unwrap_err().description(),
         "missing `Content-Disposition` header on a field \
          (Content-Type: application/octet-stream) in this multipart request"
     );
@@ -572,7 +573,7 @@ fn test_parse_headers_errors() {
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Disposition: form-data; name = field2\r\n\r\n"
         )
-        .unwrap_err(),
+        .unwrap_err().description(),
         "duplicate `Content-Disposition` header on field: field"
     );
 }

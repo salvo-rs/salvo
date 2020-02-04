@@ -277,17 +277,6 @@ fn utf8_char_width(first: u8) -> Option<usize> {
 }
 
 #[test]
-fn assert_types_unpin() {
-    use crate::http::multipart::test_util::assert_unpin;
-
-    fn inner<'a, S: Stream + 'a>() {
-        assert_unpin::<FieldData<'a, S>>();
-    }
-
-    // `Unpin` is checked on `ReadToString` in `test_read_to_string()`.
-}
-
-#[test]
 fn test_read_to_string() {
     use crate::http::multipart::test_util::mock_stream;
     use futures_util::TryFutureExt;
@@ -296,9 +285,9 @@ fn test_read_to_string() {
 
     let mut read_to_string = ReadToString::new(test_data);
 
-    ready_assert_eq!(
+    ready_assert_ok_eq!(
         |cx| read_to_string.try_poll_unpin(cx),
-        Ok("Hello, world!".to_string())
+        "Hello, world!".to_string()
     );
 
     let test_data_unicode = mock_stream(&[
@@ -311,8 +300,8 @@ fn test_read_to_string() {
 
     let mut read_to_string = ReadToString::new(test_data_unicode);
 
-    ready_assert_eq!(
+    ready_assert_ok_eq!(
         |cx| read_to_string.try_poll_unpin(cx),
-        Ok("(╯°□°)╯︵ ┻━┻".to_string())
+        "(╯°□°)╯︵ ┻━┻".to_string()
     );
 }
