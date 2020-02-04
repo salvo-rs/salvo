@@ -7,7 +7,6 @@ use crate::Handler;
 use super::method::Method as RouteMethod;
 
 pub struct Router {
-	name: Option<String>,
 	raw_path: String,
 	path_segments: Vec<Box<dyn Segment>>,
 	scopes: Vec<Router>,
@@ -18,7 +17,7 @@ pub struct Router {
 
 impl Debug for Router{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{{ name: {:?}, path: '{}', handlers: '{}', scopes: {:#?} }}", &self.name, &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.scopes)
+        write!(f, "{{ path: '{}', handlers: '{}', scopes: {:#?} }}", &self.raw_path, self.handlers.keys().map(|k|k.to_string()).collect::<Vec<String>>().join(", "), &self.scopes)
     }
 }
 
@@ -301,11 +300,8 @@ impl PathParser{
 impl Router {
 	pub fn new(path: &str) -> Router {
 		let mut router = Router {
-			name: None,
-			// method: String::from("*"),
 			raw_path: String::from(""),
 			path_segments: Vec::new(),
-			// parent: None,
 			scopes: Vec::new(),
 			handlers: HashMap::<HttpMethod, Vec<Arc<dyn Handler>>>::new(),
 			befores: HashMap::<HttpMethod, Vec<Arc<dyn Handler>>>::new(),
@@ -320,10 +316,6 @@ impl Router {
 		self.scopes.last_mut().unwrap()
 	}
 	
-	pub fn set_name(&mut self, name: &str) -> &mut Router {
-		self.name = Some(name.to_string());
-		self
-	}
 	fn set_path(&mut self, path: &str) -> &mut Router {
 		self.raw_path = String::from(path);
 		let mut parser = PathParser::new(path);
