@@ -9,6 +9,10 @@ use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
 use crate::http::errors::ReadError;
 
+#[cfg(test)]
+#[macro_use]
+pub mod test_util;
+
 mod helpers;
 pub use self::field::{Field, FieldData, FieldHeaders, NextField, ReadToString};
 
@@ -310,7 +314,7 @@ impl<S: TryStream> Stream for PushChunk<S, S::Ok>
 #[cfg(test)]
 mod test {
     use crate::http::multipart::FieldHeaders;
-    use crate::test_util::mock_stream;
+    use crate::http::multipart::test_util::mock_stream;
 
     use super::Multipart;
     use std::convert::Infallible;
@@ -319,7 +323,6 @@ mod test {
 
     #[test]
     fn test_empty_body() {
-        let _ = ::env_logger::try_init();
         let multipart = Multipart::with_body(mock_stream(&[]), BOUNDARY);
         pin_mut!(multipart);
         ready_assert_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), Ok(false));
@@ -327,7 +330,6 @@ mod test {
 
     #[test]
     fn test_no_headers() {
-        let _ = ::env_logger::try_init();
         let multipart = Multipart::with_body(
             mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]),
             BOUNDARY,
@@ -340,7 +342,6 @@ mod test {
 
     #[test]
     fn test_single_field() {
-        let _ = ::env_logger::try_init();
         let multipart = Multipart::with_body(
             mock_stream(&[
                 b"--boundary\r",
@@ -380,7 +381,6 @@ mod test {
 
     #[test]
     fn test_two_fields() {
-        let _ = ::env_logger::try_init();
         let multipart = Multipart::with_body(
             mock_stream(&[
                 b"--boundary\r",

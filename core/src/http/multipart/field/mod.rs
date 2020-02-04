@@ -278,7 +278,7 @@ fn utf8_char_width(first: u8) -> Option<usize> {
 
 #[test]
 fn assert_types_unpin() {
-    use crate::test_util::assert_unpin;
+    use crate::http::multipart::test_util::assert_unpin;
 
     fn inner<'a, S: Stream + 'a>() {
         assert_unpin::<FieldData<'a, S>>();
@@ -289,10 +289,8 @@ fn assert_types_unpin() {
 
 #[test]
 fn test_read_to_string() {
-    use crate::test_util::mock_stream;
+    use crate::http::multipart::test_util::mock_stream;
     use futures_util::TryFutureExt;
-
-    let _ = ::env_logger::try_init();
 
     let test_data = mock_stream(&[b"Hello", b",", b" ", b"world!"]);
 

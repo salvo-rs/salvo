@@ -579,7 +579,7 @@ fn test_parse_headers_errors() {
 
 #[test]
 fn test_read_headers() {
-    use crate::test_util::mock_stream;
+    use crate::http::multipart::test_util::mock_stream;
     let stream = PushChunk::new(mock_stream(&[
         b"Content-Disposition",
         b": ",

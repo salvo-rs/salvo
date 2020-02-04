@@ -557,9 +557,9 @@ fn partial_rmatch(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 mod test {
     use super::BoundaryFinder;
 
-    use crate::http::multipart::Error;
+    use crate::http::errors::ReadError;
 
-    use crate::test_util::*;
+    use crate::http::multipart::test_util::*;
 
     #[test]
     fn test_empty_stream() {
@@ -570,7 +570,6 @@ mod test {
 
     #[test]
     fn test_one_boundary() {
-        let _ = ::env_logger::try_init();
         let finder = BoundaryFinder::new(mock_stream(&[b"--boundary\r\n"]), BOUNDARY);
         pin_mut!(finder);
         ready_assert_eq!(|cx| finder.as_mut().consume_boundary(cx), Ok(true));
@@ -579,12 +578,11 @@ mod test {
 
     #[test]
     fn test_one_incomplete_boundary() {
-        let _ = ::env_logger::try_init();
         let finder = BoundaryFinder::new(mock_stream(&[b"--bound"]), BOUNDARY);
         pin_mut!(finder);
         ready_assert_eq!(
             |cx| finder.as_mut().consume_boundary(cx),
-            Err(Error::Parsing(
+            Err(ReadError::Parsing(
                 "unable to verify multipart boundary; expected: \"--boundary\" found: \"--bound\""
                     .into()
             ))
@@ -593,7 +591,6 @@ mod test {
 
     #[test]
     fn test_one_empty_field() {
-        let _ = ::env_logger::try_init();
         let finder = BoundaryFinder::new(
             mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]),
             BOUNDARY,
@@ -606,7 +603,6 @@ mod test {
 
     #[test]
     fn test_one_nonempty_field() {
-        let _ = ::env_logger::try_init();
         let finder = BoundaryFinder::new(
             mock_stream(&[
                 b"--boundary",
@@ -630,7 +626,6 @@ mod test {
 
     #[test]
     fn test_two_empty_fields() {
-        let _ = ::env_logger::try_init();
         let finder = BoundaryFinder::new(
             mock_stream(&[
                 b"--boundary",
