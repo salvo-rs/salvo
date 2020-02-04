@@ -22,5 +22,5 @@ syn = { version = "^1", features = ["full", "parsing"] }
 proc-macro2 = "^1"
 
 [dev-dependencies]
-# salvo = { version = "0.5", path="../core"}
+# salvo = { version = "0.1", path="../core"}
 # futures = { version = "0.3.1" }

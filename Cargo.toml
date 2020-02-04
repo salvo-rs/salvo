@@ -13,5 +13,5 @@ members = [
 
 [patch.crates-io]
 salvo = { path = "core" }
-# salvo_macros = { path = "macros" }
+salvo_macros = { path = "macros" }
 salvo_extra = { path = "extra" }
