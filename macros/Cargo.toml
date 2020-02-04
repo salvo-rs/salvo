@@ -1,5 +1,5 @@
 [package]
-name = "novel_macros"
+name = "novel-macros"
 version = "0.1.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
