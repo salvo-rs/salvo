@@ -27,7 +27,7 @@ fn error_html(e: &Box<dyn HttpError>)->String {
 }
 fn error_json(e: &Box<dyn HttpError>)->String {
     format!("{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
-        e.code(), e.name(), e.summary(), e.detail())
+        e.code().as_u16(), e.name(), e.summary(), e.detail())
 }
 fn error_text(e: &Box<dyn HttpError>)->String {
    format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", e.code(), e.name(), e.summary(), e.detail())
