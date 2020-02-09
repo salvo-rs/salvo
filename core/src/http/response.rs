@@ -374,16 +374,16 @@ impl Response {
     }
 }
 
-fn write_with_body(res: &mut hyper::Response<Body>, mut body: Box<dyn BodyWriter>) -> std::io::Result<()> {
-    let content_type = res.headers().get(header::CONTENT_TYPE).map_or_else(
-        || header::HeaderValue::from_static("text/plain"),
+fn write_with_body(resp: &mut hyper::Response<Body>, mut body: Box<dyn BodyWriter>) -> std::io::Result<()> {
+    let content_type = resp.headers().get(header::CONTENT_TYPE).map_or_else(
+        || header::HeaderValue::from_static("text/html"),
         |cx| cx.clone(),
     );
-    res.headers_mut().insert(header::CONTENT_TYPE, content_type);
+    resp.headers_mut().insert(header::CONTENT_TYPE, content_type);
 
     let mut body_contents: Vec<u8> = vec![];
     body.write_body(&mut body_contents)?;
-    *res.body_mut() = Body::from(body_contents);
+    *resp.body_mut() = Body::from(body_contents);
     Ok(())
 }
 

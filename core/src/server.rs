@@ -229,9 +229,9 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             }
-            if response.body_writers.len() == 0 &&  has_error{
+            if response.body_writers.len() == 0 &&  has_error {
                 for catcher in &*catchers {
-                    if catcher.catch(&request, &mut response){
+                    if catcher.catch(&request, &mut response) {
                         break;
                     }
                 }

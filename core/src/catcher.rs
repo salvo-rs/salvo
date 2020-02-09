@@ -51,7 +51,7 @@ impl Catcher for CatcherImpl {
         let dmime: Mime = "text/html".parse().unwrap();
         let accept = req.accept();
         let mut format = accept.first().unwrap_or(&dmime);
-        if format.type_() != "text" {
+        if format.subtype() != mime::JSON && format.subtype() != mime::HTML {
             format = &dmime;
         }
         resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
