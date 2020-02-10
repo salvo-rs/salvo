@@ -65,6 +65,7 @@ impl BodyWriter for Box<dyn std::io::Read + Send> {
 pub struct Response {
     /// The response status-code.
     status_code: Option<StatusCode>,
+    pub(crate) http_error: Option<Box<dyn HttpError>>,
 
     /// The headers of the response.
     headers: HeaderMap,
@@ -89,6 +90,7 @@ impl Response {
     pub fn new(sconf: Arc<ServerConfig>) -> Response {
         Response {
             status_code: None, // Start with no response code.
+            http_error: None,
             body_writers: Vec::new(),   // Start with no body_writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
@@ -174,7 +176,6 @@ impl Response {
     pub fn set_status_code(&mut self, code: StatusCode) {
         self.status_code = Some(code);
     }
-
     // #[inline(always)]
     // pub fn content_type(&self) -> Option<Mime> {
     //     self.headers.get_one("Content-Type").and_then(|v| v.parse().ok())
@@ -183,6 +184,7 @@ impl Response {
     #[inline]
     pub fn write_error(&mut self, err: impl HttpError){
         self.status_code = Some(err.code());
+        self.http_error = Some(Box::new(err));
         self.commit();
     }
     #[inline]

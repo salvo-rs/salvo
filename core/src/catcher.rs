@@ -55,11 +55,16 @@ impl Catcher for CatcherImpl {
             format = &dmime;
         }
         resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        let err = if resp.http_error.is_some() {
+            resp.http_error.as_ref().unwrap()
+        } else {
+            &self.0
+        };
         let content = match format.subtype().as_ref(){
-            "text"=> error_text(&self.0),
-            "json"=> error_json(&self.0),
-            "xml"=> error_xml(&self.0),
-            _ => error_html(&self.0),
+            "text"=> error_text(err),
+            "json"=> error_json(err),
+            "xml"=> error_xml(err),
+            _ => error_html(err),
         };
         resp.body_writers.push(Box::new(content));
         true
