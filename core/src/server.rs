@@ -206,7 +206,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 }
             }
             let status = response.status_code().unwrap();
-            let has_error = status.as_str().starts_with('4') || status.as_str().starts_with('5');
+            let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) =  response.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
