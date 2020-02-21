@@ -3,6 +3,7 @@ codegen-units = 4
 
 [workspace]
 members = [
+  "salvo",
   "core",
   "extra",
   "macros",
@@ -12,6 +13,6 @@ members = [
 ]
 
 [patch.crates-io]
-salvo = { path = "core" }
+salvo_core = { path = "core" }
 salvo_macros = { path = "macros" }
 salvo_extra = { path = "extra" }
