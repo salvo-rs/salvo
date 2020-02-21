@@ -6,7 +6,7 @@ members = [
   "salvo",
   "core",
   "extra",
-  "macros",
+  "macro",
   "examples/hello_world",
   "examples/file_list",
   "examples/basic_auth",
@@ -15,5 +15,5 @@ members = [
 [patch.crates-io]
 salvo = { path = "salvo" }
 salvo_core = { path = "core" }
-salvo_macros = { path = "macros" }
+salvo_macro = { path = "macro" }
 salvo_extra = { path = "extra" }
