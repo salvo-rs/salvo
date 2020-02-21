@@ -51,6 +51,7 @@ tokio = { version = "0.2", features = ["full"] }
 twoway = "0.2"
 pin-utils="0.1.0-alpha.4"
 display_bytes="0.2"
+salvo_macros="0.1"
 
 [dev-dependencies]
 futures-test = "0.3"

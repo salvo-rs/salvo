@@ -36,7 +36,7 @@ pub use crate::routing::Router;
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::error::Error;
 pub use crate::depot::Depot;
-pub use salvo::macros::fn_handler;
+pub use salvo_macros::fn_handler;
 
 use std::ops::{Bound, RangeBounds};
 
@@ -48,7 +48,7 @@ pub mod prelude {
     pub use crate::Handler;
     pub use crate::logging::{self, logger};
     pub use std::sync::Arc;
-    pub use salvo::macros::fn_handler;
+    pub use salvo_macros::fn_handler;
     pub use async_trait::async_trait;
 }
 
