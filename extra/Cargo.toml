@@ -37,7 +37,7 @@ serde_derive = "1.0.101"
 serde_json = "1.0.41"
 jsonwebtoken = "6"
 chrono = { version = "0.4", features = ["serde"] }
-salvo_core = {version = "0.1", default-features = false}
+salvo_core = {version = "0.1.4", path="../core", default-features = false}
 
 [build-dependencies]
 yansi = "0.5"
