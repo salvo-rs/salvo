@@ -1,5 +1,5 @@
 [package]
-name = "salvo_macros"
+name = "salvo_macro"
 version = "0.1.4"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
@@ -12,7 +12,7 @@ license = "MIT/Apache-2.0"
 categories = ["web-programming::http-server"]
 
 [lib]
-name = "salvo_macros"
+name = "salvo_macro"
 path = "src/lib.rs"
 proc-macro = true
 
