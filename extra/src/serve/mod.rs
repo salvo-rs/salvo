@@ -7,7 +7,13 @@ use serde_json::json;
 use mime;
 use async_trait::async_trait;
 
-use salvo::prelude::*;
+use salvo_core::server::{Server, ServerConfig};
+use salvo_core::routing::Router;
+use salvo_core::depot::Depot;
+use salvo_core::http::{Request, Response};
+use salvo_core::Handler;
+use salvo_core::logging::{self, logger};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Options {

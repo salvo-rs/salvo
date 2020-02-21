@@ -18,10 +18,10 @@ all-features = true
 
 [dependencies]
 salvo_core = { path = "../core", version = "0.1.4", default-features = false }
-salvo_extra = { path = "../extra", version = "0.1.4", default-features = false, optional = true }
-salvo_macros = { path = "../macros", version="0.1", optional = true}
+salvo_extra = { path = "../extra", version = "0.1.4", default-features = false }
+# salvo_macros = { path = "../macros", version="0.1", optional = true}
 
 [features]
-default = ["macros"]
+default = []
 extra = []
-macros = []
+# macros = []
