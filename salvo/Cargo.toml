@@ -19,9 +19,9 @@ all-features = true
 [dependencies]
 salvo_core = { path = "../core", version = "0.1.4", default-features = false }
 salvo_extra = { path = "../extra", version = "0.1", default-features = false }
-salvo_macros = { path = "../macros", version="0.1", optional = true}
+# salvo_macros = {version="0.1"}
+async-trait = "0.1.22"
 
 [features]
-default = ["macros"]
+default = []
 extra = []
-macros = []
