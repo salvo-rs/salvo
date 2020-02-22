@@ -5,12 +5,10 @@ use async_trait::async_trait;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Validation, Algorithm, TokenData};
 
-use salvo_core::server::{Server, ServerConfig};
-use salvo_core::routing::Router;
+use salvo_core::server::ServerConfig;
 use salvo_core::depot::Depot;
 use salvo_core::http::{Request, Response};
 use salvo_core::Handler;
-use salvo_core::logging::{self, logger};
 use std::sync::Arc;
 
 pub struct JwtHandler<C> where C: DeserializeOwned + Sync + Send + 'static{

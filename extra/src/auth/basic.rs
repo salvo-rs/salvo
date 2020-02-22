@@ -3,12 +3,10 @@ use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
 use async_trait::async_trait;
 
-use salvo_core::server::{Server, ServerConfig};
-use salvo_core::routing::Router;
+use salvo_core::server::ServerConfig;
 use salvo_core::depot::Depot;
 use salvo_core::http::{Request, Response};
 use salvo_core::Handler;
-use salvo_core::logging::{self, logger};
 use salvo_core::error::Error;
 use std::sync::Arc;
 
