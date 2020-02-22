@@ -31,12 +31,11 @@ extern crate lazy_static;
 pub use crate::content::Content;
 pub use crate::http::{Request, Response};
 pub use crate::server::{Server, ServerConfig};
-pub use crate::handler::Handler;
+pub use crate::handler::{Handler, HandleError};
 pub use crate::routing::Router;
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::error::Error;
 pub use crate::depot::Depot;
-// pub use salvo_macros::fn_handler;
 
 use std::ops::{Bound, RangeBounds};
 

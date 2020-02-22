@@ -1,41 +1,11 @@
 use http::status::StatusCode;
-use mime::Mime;
-use crate::http::{header, Response, Request};
+use crate::http::{header, Response, Request, guess_accept_mime};
 use crate::http::errors::*;
 
 pub trait Catcher: Send + Sync + 'static {
     fn catch(&self, req: &Request, resp: &mut Response)->bool;
 }
 
-fn error_html(e: &Box<dyn HttpError>)->String {
-    format!("<!DOCTYPE html>
-<html>
-<head>
-    <meta charset=\"utf-8\">
-    <title>{0}: {1}</title>
-    </head>
-    <body align=\"center\">
-        <div align=\"center\">
-            <h1>{0}: {1}</h1>
-            <h3>{2}</h3>
-            <p>{3}</p>
-            <hr />
-            <small>salvo</small>
-        </div>
-    </body>
-</html>", e.code(), e.name(), e.summary(), e.detail())
-}
-fn error_json(e: &Box<dyn HttpError>)->String {
-    format!("{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
-        e.code().as_u16(), e.name(), e.summary(), e.detail())
-}
-fn error_text(e: &Box<dyn HttpError>)->String {
-   format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", e.code(), e.name(), e.summary(), e.detail())
-}
-fn error_xml(e: &Box<dyn HttpError>)->String {
-    format!("<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>", 
-        e.code(), e.name(), e.summary(), e.detail())
-}
 pub struct CatcherImpl(Box<dyn HttpError>);
 impl CatcherImpl{
     pub fn new(e: Box<dyn HttpError>) -> CatcherImpl{
@@ -48,25 +18,15 @@ impl Catcher for CatcherImpl {
         if status != self.0.code() {
             return false;
         }
-        let dmime: Mime = "text/html".parse().unwrap();
-        let accept = req.accept();
-        let mut format = accept.first().unwrap_or(&dmime);
-        if format.subtype() != mime::JSON && format.subtype() != mime::HTML {
-            format = &dmime;
-        }
-        resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        let format = guess_accept_mime(req, None);
         let err = if resp.http_error.is_some() {
             resp.http_error.as_ref().unwrap()
         } else {
             &self.0
         };
-        let content = match format.subtype().as_ref(){
-            "text"=> error_text(err),
-            "json"=> error_json(err),
-            "xml"=> error_xml(err),
-            _ => error_html(err),
-        };
-        resp.body_writers.push(Box::new(content));
+        let (format, data) = err.as_bytes(&format);
+        resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        resp.body_writers.push(Box::new(data));
         true
     }
 }

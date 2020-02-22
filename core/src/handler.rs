@@ -1,13 +1,21 @@
 use std::sync::Arc;
 use async_trait::async_trait;
+use mime::Mime;
 
 use crate::{ServerConfig, Depot};
-use crate::http::{Request, Response};
+use crate::http::{Request, Response, StatusCode};
 
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response);
 }
+pub trait HandleError: Send + Sync + 'static {
+    fn http_code(&self) -> StatusCode;
+    fn http_body(&self, prefer_mime: &Mime) -> (Mime, Vec<u8>);
+}
+// impl std::error::Error for HandleError {
+// }
+
 
 macro_rules! handler_tuple_impls {
     ($(

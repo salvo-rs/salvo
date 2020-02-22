@@ -1,4 +1,4 @@
-use crate::http::{Response};
+use crate::http::Response;
 
 pub trait Content {
     fn apply(self, resp: &mut Response);
@@ -29,5 +29,10 @@ pub struct XmlTextContent<T>(T) where T: Into<String>;
 impl<T> Content for XmlTextContent<T> where T: Into<String> {
     fn apply(self, resp: &mut Response) {
         resp.render("text/xml", self.0.into());
+    }
+}
+
+impl Content for () {
+    fn apply(self, _resp: &mut Response) {
     }
 }

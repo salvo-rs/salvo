@@ -1,7 +1,7 @@
 extern crate proc_macro;
-
 use proc_macro::TokenStream;
 use quote::quote;
+use syn::ReturnType;
 
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
@@ -18,20 +18,51 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
-    (quote! {
-        #[allow(non_camel_case_types)]
-        #vis struct #name;
-        impl #name {
-            #(#attrs)*
-            #sig {
-                #body
-            }
+    match sig.output {
+        ReturnType::Default => {
+            (quote! {
+                #[allow(non_camel_case_types)]
+                #vis struct #name;
+                impl #name {
+                    #(#attrs)*
+                    #sig {
+                        #body
+                    }
+                }
+                #[async_trait]
+                impl salvo::Handler for #name {
+                    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+                        Self::#name(sconf, req, depot, resp).await
+                    }
+                }
+            }).into()
+        },
+        ReturnType::Type(_, _) => {
+            (quote! {
+                #[allow(non_camel_case_types)]
+                #vis struct #name;
+                impl #name {
+                    #(#attrs)*
+                    #sig {
+                        #body
+                    }
+                }
+                #[async_trait]
+                impl salvo::Handler for #name {
+                    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+                        match Self::#name(sconf, req, depot, resp).await {
+                            Ok(content) => ::salvo::Content::apply(content, resp),
+                            Err(err) => {
+                                resp.set_status_code(::salvo::HandleError::http_code(&err));
+                                let format = ::salvo::http::guess_accept_mime(req, None);
+                                let (format, data) = ::salvo::HandleError::http_body(&err, &format);
+                                resp.headers_mut().insert(::salvo::http::header::CONTENT_TYPE, format.to_string().parse().unwrap());
+                                resp.write_body(data);
+                            },
+                        }
+                    }
+                }
+            }).into()
         }
-        #[async_trait]
-        impl salvo::Handler for #name {
-            async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
-                Self::#name(sconf, req, depot, resp).await
-            }
-        }
-    }).into()
+    }
 }

@@ -2,6 +2,39 @@ use std::any::{Any, TypeId};
 use std::error::Error as StdError;
 use std::fmt;
 use http::StatusCode;
+use mime::Mime;
+
+use crate::HandleError;
+
+fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
+    format!("<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=\"utf-8\">
+    <title>{0}: {1}</title>
+    </head>
+    <body align=\"center\">
+        <div align=\"center\">
+            <h1>{0}: {1}</h1>
+            <h3>{2}</h3>
+            <p>{3}</p>
+            <hr />
+            <small>salvo</small>
+        </div>
+    </body>
+</html>", code, name, summary, detail)
+}
+fn error_json(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
+    format!("{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
+        code.as_u16(), name, summary, detail)
+}
+fn error_text(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
+   format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", code, name, summary, detail)
+}
+fn error_xml(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
+    format!("<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>", 
+    code, name, summary, detail)
+}
 
 pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
     fn code(&self) -> StatusCode;
@@ -10,6 +43,20 @@ pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
     fn detail(&self) -> &str;
     fn get_type_id(&self) -> TypeId {
         TypeId::of::<Self>()
+    }
+    fn as_bytes(&self, prefer_format: &Mime) -> (Mime, Vec<u8>) {
+        let format = if prefer_format.subtype() != mime::JSON && prefer_format.subtype() != mime::HTML {
+            "text/html".parse().unwrap()
+        } else {
+            prefer_format.clone()
+        };
+        let content = match format.subtype().as_ref(){
+            "text"=> error_text(self.code(), self.name(), self.summary(), self.detail()),
+            "json"=> error_json(self.code(), self.name(), self.summary(), self.detail()),
+            "xml"=> error_xml(self.code(), self.name(), self.summary(), self.detail()),
+            _ => error_html(self.code(), self.name(), self.summary(), self.detail()),
+        };
+        (format, content.as_bytes().to_owned())
     }
 }
 
@@ -82,6 +129,15 @@ impl fmt::Display for ConcreteError {
     }
 }
 
+impl HandleError for ConcreteError {
+    fn http_code(&self) -> StatusCode {
+        self.code()
+    }
+    fn http_body(&self, prefer_format: &Mime) ->  (Mime, Vec<u8>) {
+        self.as_bytes(prefer_format)
+    }
+}
+
 impl HttpError for ConcreteError {
     fn code(&self) -> StatusCode {
         self.code
@@ -139,10 +195,17 @@ macro_rules! default_errors {
                     $name.fmt(f)
                 }
             }
+            impl $crate::HandleError for $sname {
+                fn http_code(&self) -> StatusCode {
+                    self.code()
+                }
+                fn http_body(&self, prefer_format: &Mime) ->  (Mime, Vec<u8>) {
+                    self.as_bytes(prefer_format)
+                }
+            }
         )+
     }
 }
-
 default_errors! {
     BadRequestError,            StatusCode::BAD_REQUEST,            "BAD_REQUEST", "Bad Request", "The request could not be understood by the server due to malformed syntax.", 
     UnauthorizedError,          StatusCode::UNAUTHORIZED,           "UNAUTHORIZED", "Unauthorized", "The request requires user authentication.",

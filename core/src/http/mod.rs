@@ -29,3 +29,9 @@ pub use cookie;
 pub mod header {
     pub use http::header::*;
 }
+
+pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
+    let dmime: Mime = default_type.unwrap_or("text/html".parse().unwrap());
+    let accept = req.accept();
+    accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
+}
