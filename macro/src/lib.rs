@@ -2,10 +2,6 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_quote::quote;
 use syn::ReturnType;
-use syn::punctuated::Punctuated;
-use syn::{FnArg, Token};
-use syn::parse::Parse;
-use syn::parse::ParseStream;
 
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
