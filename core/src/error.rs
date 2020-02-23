@@ -2,7 +2,6 @@
 // This code is licensed under the MIT license (see LICENSE-MIT for details)
 
 use std::borrow::Cow;
-use std::error::Error as StdError;
 use std::fmt::{self, Display};
 use std::io;
 use std::string::FromUtf8Error;
@@ -27,7 +26,6 @@ pub enum Error {
     /// A MIME multipart error
     Http(http::Error),
     SerdeJson(serde_json::error::Error),
-    // NoneError(std::option::NoneError),
 }
 
 impl From<io::Error> for Error {
@@ -58,58 +56,39 @@ impl From<serde_json::error::Error> for Error {
         Error::SerdeJson(err)
     }
 }
-// impl From<std::option::NoneError> for Error {
-//     fn from(err: std::option::NoneError) -> Error {
-//         Error::NoneError(err)
-//     }
-// }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::General(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}",  e).fmt(f),
             Error::Io(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}", e.to_string()).fmt(f),
             Error::Hyper(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}", e.to_string()).fmt(f),
             Error::Utf8(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}", e.to_string()).fmt(f),
             Error::Decoding(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}", e.to_string()).fmt(f),
             Error::Http(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}", e.to_string()).fmt(f),
             Error::SerdeJson(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
-            // Error::NoneError(ref e) =>
-            //     format!("{}: {}", self.description(), e).fmt(f),
-            _ => self.description().to_string().fmt(f),
+                format!("{}", e.to_string()).fmt(f),
+            _ => self.to_string().fmt(f),
         }
     }
+}
+
+impl std::error::Error for Error {
+
 }
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&*self.description()).ok();
-        if self.source().is_some() {
-            write!(f, ": {:?}", self.source().unwrap()).ok(); // recurse
-        }
+        f.write_str(&*self.to_string()).ok();
+        // if self.source().is_some() {
+        //     write!(f, ": {:?}", self.source().unwrap()).ok(); // recurse
+        // }
         Ok(())
-    }
-}
-
-impl StdError for Error {
-    fn description(&self) -> &str{
-        match *self {
-            Error::NoRequestContentType => "The Hyper request did not have a Content-Type header.",
-            Error::General(ref msg) => &msg,
-            Error::Io(_) => "An I/O error occurred.",
-            Error::Hyper(_) => "A Hyper error occurred.",
-            Error::Utf8(_) => "A UTF-8 error occurred.",
-            Error::Decoding(_) => "A decoding error occurred.",
-            Error::Http(_) => "A http error occurred.",
-            Error::SerdeJson(_) => "A serde json error occurred.",
-            // Error::NoneError(_) => "None error occurred.",
-        }
     }
 }
