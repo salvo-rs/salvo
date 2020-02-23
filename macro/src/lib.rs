@@ -24,9 +24,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
         },
         4 => {},
-        _ => return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports")
-        .to_compile_error()
-        .into(),
+        _ => return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports").to_compile_error().into(),
     }
 
     let sdef = quote! {
