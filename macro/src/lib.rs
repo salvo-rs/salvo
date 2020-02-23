@@ -9,10 +9,10 @@ use syn::parse::ParseStream;
 
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::ItemFn);
+    let mut input = syn::parse_macro_input!(input as syn::ItemFn);
     let attrs = &input.attrs;
     let vis = &input.vis;
-    let mut sig = &input.sig;
+    let sig = &mut input.sig;
     let body = &input.block;
     let name = &sig.ident;
 
@@ -22,17 +22,16 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
-    // let parser = Punctuated::<FnArg, Token![,]>::parse_terminated;
-    // match sig.inputs.len() {
-    //     3 => {
-    //         let mut tokens = parser(quote!{_sconf: Arc<ServerConfig}.into());
-    //         // sig.inputs.insert(0, tokens.parse()?);
-    //     },
-    //     4 => {},
-    //     _ => return syn::Error::new_spanned(sig.inputs, "numbers of fn is not supports")
-    //     .to_compile_error()
-    //     .into(),
-    // }
+    match sig.inputs.len() {
+        3 => {
+            let ts: TokenStream = quote!{_sconf: ::std::sync::Arc<::salvo::ServerConfig>}.into();
+            sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+        },
+        4 => {},
+        _ => return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports")
+        .to_compile_error()
+        .into(),
+    }
 
     let sdef = quote! {
         #[allow(non_camel_case_types)]
@@ -51,7 +50,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+                    async fn handle(&self, sconf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
                         Self::#name(sconf, req, depot, resp).await
                     }
                 }
@@ -62,7 +61,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+                    async fn handle(&self, sconf: ::std::sync::Arc<salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
                         match Self::#name(sconf, req, depot, resp).await {
                             Ok(content) => ::salvo::Content::apply(content, resp),
                             Err(err) => {
