@@ -1,14 +1,18 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use quote::quote;
+use proc_quote::quote;
 use syn::ReturnType;
+use syn::punctuated::Punctuated;
+use syn::{FnArg, Token};
+use syn::parse::Parse;
+use syn::parse::ParseStream;
 
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::ItemFn);
     let attrs = &input.attrs;
     let vis = &input.vis;
-    let sig = &input.sig;
+    let mut sig = &input.sig;
     let body = &input.block;
     let name = &sig.ident;
 
@@ -18,17 +22,33 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
+    // let parser = Punctuated::<FnArg, Token![,]>::parse_terminated;
+    // match sig.inputs.len() {
+    //     3 => {
+    //         let mut tokens = parser(quote!{_sconf: Arc<ServerConfig}.into());
+    //         // sig.inputs.insert(0, tokens.parse()?);
+    //     },
+    //     4 => {},
+    //     _ => return syn::Error::new_spanned(sig.inputs, "numbers of fn is not supports")
+    //     .to_compile_error()
+    //     .into(),
+    // }
+
+    let sdef = quote! {
+        #[allow(non_camel_case_types)]
+        #vis struct #name;
+        impl #name {
+            #(#attrs)*
+            #sig {
+                #body
+            }
+        }
+    };
+
     match sig.output {
         ReturnType::Default => {
             (quote! {
-                #[allow(non_camel_case_types)]
-                #vis struct #name;
-                impl #name {
-                    #(#attrs)*
-                    #sig {
-                        #body
-                    }
-                }
+                #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
                     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
@@ -39,14 +59,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         },
         ReturnType::Type(_, _) => {
             (quote! {
-                #[allow(non_camel_case_types)]
-                #vis struct #name;
-                impl #name {
-                    #(#attrs)*
-                    #sig {
-                        #body
-                    }
-                }
+                #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
                     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
