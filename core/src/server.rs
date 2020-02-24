@@ -60,34 +60,35 @@ pub struct ServerConfig{
 }
 impl ServerConfig {
     pub fn new()->ServerConfig{
-        let mimes = vec![
-            mime::TEXT_PLAIN,
-            mime::TEXT_HTML,
-            mime::TEXT_CSS,
-            mime::TEXT_JAVASCRIPT,
-            mime::TEXT_XML,
-            mime::TEXT_EVENT_STREAM,
-            mime::TEXT_CSV,
-            mime::TEXT_VCARD,
-            mime::IMAGE_JPEG,
-            mime::IMAGE_GIF,
-            mime::IMAGE_PNG,
-            mime::IMAGE_BMP,
-            mime::IMAGE_SVG,
-            mime::FONT_WOFF,
-            mime::FONT_WOFF2,
-            mime::APPLICATION_JSON,
-            mime::APPLICATION_JAVASCRIPT,
-            mime::APPLICATION_OCTET_STREAM,
-            mime::APPLICATION_MSGPACK,
-            mime::APPLICATION_PDF,
-        ];
+        // let mimes = vec![
+        //     mime::APPLICATION_JSON,
+        //     mime::APPLICATION_JAVASCRIPT,
+        //     mime::APPLICATION_OCTET_STREAM,
+        //     mime::APPLICATION_MSGPACK,
+        //     mime::APPLICATION_OCTET_STREAM,
+        //     mime::APPLICATION_PDF,
+        //     mime::TEXT_PLAIN,
+        //     mime::TEXT_HTML,
+        //     mime::TEXT_CSS,
+        //     mime::TEXT_JAVASCRIPT,
+        //     mime::TEXT_XML,
+        //     mime::TEXT_EVENT_STREAM,
+        //     mime::TEXT_CSV,
+        //     mime::TEXT_VCARD,
+        //     mime::IMAGE_JPEG,
+        //     mime::IMAGE_GIF,
+        //     mime::IMAGE_PNG,
+        //     mime::IMAGE_BMP,
+        //     mime::IMAGE_SVG,
+        //     mime::FONT_WOFF,
+        //     mime::FONT_WOFF2,
+        // ];
         ServerConfig{
             protocol: Protocol::http(),
             local_addr: None,
             timeouts: Timeouts::default(),
             catchers: Arc::new(catcher::defaults::get()),
-            allowed_media_types: Arc::new(mimes),
+            allowed_media_types: Arc::new(vec![]),
         }
     }
 }
@@ -210,12 +211,16 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             if let Some(value) =  response.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
-                    let ctype: Result<Mime, _> = value.parse();
-                    if let Ok(ctype) = ctype {
-                        for mime in &*allowed_media_types {
-                            if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
-                                is_allowed = true;
-                                break;
+                    if allowed_media_types.len() == 0 {
+                        is_allowed = true;
+                    } else {
+                        let ctype: Result<Mime, _> = value.parse();
+                        if let Ok(ctype) = ctype {
+                            for mime in &*allowed_media_types {
+                                if mime.type_() == ctype.type_() && mime.subtype() == ctype.subtype() {
+                                    is_allowed = true;
+                                    break;
+                                }
                             }
                         }
                     }

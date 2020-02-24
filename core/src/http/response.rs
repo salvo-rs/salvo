@@ -366,10 +366,14 @@ impl Response {
     fn get_mime_by_path<T>(&self, path:T) -> Option<Mime> where T:AsRef<str> {
         let guess = mime_guess::from_path(path.as_ref());
         if let Some(mime) = guess.first() {
-            for m in &*self.server_config.allowed_media_types {
-                if m.type_() == mime.type_() && m.subtype() == mime.subtype() {
-                    return Some(mime);
+            if self.server_config.allowed_media_types.len() > 0 {
+                for m in &*self.server_config.allowed_media_types {
+                    if m.type_() == mime.type_() && m.subtype() == mime.subtype() {
+                        return Some(mime);
+                    }
                 }
+            } else {
+                return Some(mime);
             }
         }
         None
