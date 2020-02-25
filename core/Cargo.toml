@@ -41,6 +41,7 @@ mime = "0.3.14"
 mime_guess = "2.0.1"
 slog = { version = "2.5.2", features = ["max_level_trace", "release_max_level_warn"] }
 slog-term = "2.4.2"
+slog-async = "2.4"
 httparse = "1.2"
 tempdir = "0.3"
 textnonce = "0.6"
