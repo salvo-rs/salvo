@@ -16,7 +16,7 @@ use crate::{Content, ServerConfig};
 use crate::http::errors::HttpError;
 use crate::http::header::SET_COOKIE;
 use crate::logging;
-use crate::http::header::{self, HeaderMap};
+use crate::http::header::{self, HeaderMap, CONTENT_DISPOSITION};
 
 
 /// A trait which writes the body of an HTTP response.
@@ -248,11 +248,33 @@ impl Response {
         self.render_binary(content_type, data);
     }
     #[inline]
+    pub fn render_file_with_name<T>(&mut self, content_type:T, file: &mut File, name: &str)  where T: AsRef<str> {
+        self.headers_mut().append(CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", name).parse().unwrap());
+        self.render_file(content_type, file);
+    }
+    #[inline]
     pub fn render_file_from_path<T>(&mut self, path: T) where T: AsRef<Path> {
         match File::open(path.as_ref()) {
             Ok(mut file) => {
                 if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
                     self.render_file(mime.to_string(), &mut file);
+                }else{
+                    self.unsupported_media_type();
+                    error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+                }
+            },
+            Err(_) => {
+                self.not_found();
+            },
+        }
+    }
+    
+    #[inline]
+    pub fn render_file_from_path_with_name<T>(&mut self, path: T, name: &str) where T: AsRef<Path> {
+        match File::open(path.as_ref()) {
+            Ok(mut file) => {
+                if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
+                    self.render_file_with_name(mime.to_string(), &mut file, name);
                 }else{
                     self.unsupported_media_type();
                     error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
