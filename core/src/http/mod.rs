@@ -19,6 +19,7 @@ pub mod form;
 pub mod multipart;
 pub mod errors;
 pub mod range;
+pub mod file;
 
 pub use request::Request;
 pub use response::{Response, BodyWriter};
