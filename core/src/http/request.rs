@@ -124,7 +124,7 @@ impl Request {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
                 for cookie_str in header.split(';').map(|s| s.trim()) {
-                    if let Some(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()).ok() {
+                    if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
                         cookie_jar.add_original(cookie);
                     }
                 }
@@ -251,23 +251,23 @@ impl Request {
     }
     
     #[inline]
-    pub async fn get_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+    pub async fn get_form<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
         self.form_data().await.as_ref().ok().and_then(|ps|ps.fields.get(key)).and_then(|v|v.parse::<F>().ok())
     }
     #[inline]
-    pub async fn get_file<'a>(&mut self, key: &'a str) -> Option<&FilePart> {
+    pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
         self.form_data().await.as_ref().ok().and_then(|ps|ps.files.get(key))
     }
     #[inline]
-    pub async fn get_form_or_query<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+    pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
         self.get_form(key.as_ref()).await.or_else(||self.get_query(key))
     }
     #[inline]
-    pub async fn get_query_or_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
+    pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
         self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
     pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
-        let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
+        let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
         match ctype {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                 self.payload.get_or_init(async {Err(ReadError::General(String::from("failed to read data1")))}).await
@@ -304,7 +304,7 @@ impl Request {
     // }
     
     pub async fn form_data(&mut self) -> &Result<FormData, ReadError>{
-        let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
+        let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
         match ctype {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => { 
                 let body = self.body.take();

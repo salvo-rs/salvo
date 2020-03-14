@@ -200,7 +200,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
     
             if response.status_code().is_none(){
-                if response.body_writers.len() == 0 {
+                if response.body_writers.is_empty() {
                     response.set_status_code(StatusCode::NOT_FOUND);
                 }else {
                     response.set_status_code(StatusCode::OK);
@@ -211,7 +211,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             if let Some(value) =  response.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
-                    if allowed_media_types.len() == 0 {
+                    if allowed_media_types.is_empty() {
                         is_allowed = true;
                     } else {
                         let ctype: Result<Mime, _> = value.parse();
@@ -234,7 +234,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             }
-            if response.body_writers.len() == 0 &&  has_error {
+            if response.body_writers.is_empty() && has_error {
                 for catcher in &*catchers {
                     if catcher.catch(&request, &mut response) {
                         break;

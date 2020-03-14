@@ -35,6 +35,11 @@ impl FormData {
         FormData { fields: MultiMap::new(), files: MultiMap::new(), multipart: None }
     }
 }
+impl Default for FormData {
+    fn default() -> Self {
+        FormData { fields: MultiMap::new(), files: MultiMap::new(), multipart: None }
+    }
+}
 fn get_extension_from_filename(filename: &str) -> Option<&str> {
     Path::new(filename)
         .extension()

@@ -393,7 +393,7 @@ impl Router {
 		if rest.is_empty() {
 			let mut allh = vec![];
 			allh.extend(befores);
-			let hs = self.handlers.get(&method).map(|hs|hs.iter().map(|h|h.clone()).collect::<Vec<Arc<dyn Handler>>>()).unwrap_or(vec![]);
+			let hs = self.handlers.get(&method).map(|hs|hs.to_vec()).unwrap_or_default();
 			if hs.is_empty() {
 				return (false, vec![], params)
 			}
