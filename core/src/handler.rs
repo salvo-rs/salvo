@@ -30,8 +30,6 @@ macro_rules! handler_tuple_impls {
                 $(
                     if !resp.is_commited() {
                         self.$idx.handle(sconf.clone(), req, depot, resp).await;
-                    } else {
-                        return;
                     }
                 )+
             }

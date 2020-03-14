@@ -416,7 +416,7 @@ impl Router {
 				}
 			}
 		}
-		return (false, vec![], params)
+		(false, vec![], params)
 	}
 	// pub fn reverse(name: &str, args: Option<HashMap<&str, &str>>) -> ReverseResult {
 	// 	Ok("unimplement".to_string())

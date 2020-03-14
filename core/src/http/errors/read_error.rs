@@ -2,7 +2,6 @@
 // This code is licensed under the MIT license (see LICENSE-MIT for details)
 
 use std::borrow::Cow;
-use std::error::Error;
 use std::fmt::{self, Display};
 use std::io;
 use std::str::Utf8Error;
