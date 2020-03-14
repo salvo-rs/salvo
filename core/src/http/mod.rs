@@ -18,6 +18,7 @@ pub mod body_chunk;
 pub mod form;
 pub mod multipart;
 pub mod errors;
+pub mod range;
 
 pub use request::Request;
 pub use response::{Response, BodyWriter};
@@ -26,6 +27,8 @@ pub use body_chunk::BodyChunk;
 pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
+pub use range::HttpRange;
+
 pub mod header {
     pub use http::header::*;
 }

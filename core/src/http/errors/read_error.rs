@@ -2,7 +2,7 @@
 // This code is licensed under the MIT license (see LICENSE-MIT for details)
 
 use std::borrow::Cow;
-use std::error::Error as StdError;
+use std::error::Error;
 use std::fmt::{self, Display};
 use std::io;
 use std::str::Utf8Error;
@@ -26,6 +26,7 @@ pub enum ReadError {
     MissingDisposition,
     /// A multipart section did not have a valid corresponding Content-Disposition.
     InvalidDisposition,
+    InvalidRange,
     /// A multipart section Content-Disposition header failed to specify a name.
     NoName,
     /// The request body ended prior to reaching the expected terminating boundary.
@@ -89,73 +90,28 @@ impl Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ReadError::HttParse(ref e) =>
-                format!("{}: {:?}", self.description(), e).fmt(f),
+                format!("{}: {:?}", self.to_string(), e).fmt(f),
             ReadError::Parsing(ref e) =>
-                format!("{}: {:?}", self.description(), e).fmt(f),
+                format!("{}: {:?}", self.to_string(), e).fmt(f),
             ReadError::Io(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}: {}", self.to_string(), e).fmt(f),
             ReadError::Hyper(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}: {}", self.to_string(), e).fmt(f),
             ReadError::Utf8(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
+                format!("{}: {}", self.to_string(), e).fmt(f),
             ReadError::Decoding(ref e) =>
-                format!("{}: {}", self.description(), e).fmt(f),
-            _ => format!("{}", self.description()).fmt(f),
+                format!("{}: {}", self.to_string(), e).fmt(f),
+            _ => format!("{}", self.to_string()).fmt(f),
         }
     }
 }
 
 impl fmt::Debug for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&*self.description()).ok();
-        if self.source().is_some() {
-            write!(f, ": {:?}", self.source().unwrap()).ok(); // recurse
-        }
+        f.write_str(&*self.to_string()).ok();
+        // if self.source().is_some() {
+        //     write!(f, ": {:?}", self.source().unwrap()).ok(); // recurse
+        // }
         Ok(())
-    }
-}
-
-impl StdError for ReadError {
-    fn description(&self) -> &str{
-        match *self {
-            ReadError::NoRequestContentType => "The Hyper request did not have a Content-Type header.",
-            ReadError::NotMultipart =>
-                "The Hyper request Content-Type top-level Mime was not multipart.",
-            ReadError::NotFormData =>
-                "The Hyper request Content-Type sub-level Mime was not form-data.",
-            ReadError::BoundaryNotSpecified =>
-                "The Content-Type header failed to specify a boundary token.",
-            ReadError::PartialHeaders => "A multipart section contained only partial headers.",
-            ReadError::MissingDisposition =>
-                "A multipart section did not have the required Content-Disposition header.",
-            ReadError::InvalidDisposition =>
-                "A multipart section did not have a valid corresponding Content-Disposition.",
-            ReadError::NoName =>
-                "A multipart section Content-Disposition header failed to specify a name.",
-            ReadError::Eof =>
-                "The request body ended prior to reaching the expected terminating boundary.",
-            ReadError::EofInMainHeaders =>
-                "The request headers ended pre-maturely.",
-            ReadError::EofBeforeFirstBoundary =>
-                "The request body ended prior to reaching the expected starting boundary.",
-            ReadError::NoCrLfAfterBoundary =>
-                "Missing CRLF after boundary.",
-            ReadError::EofInPartHeaders =>
-                "The request body ended prematurely while parsing headers of a multipart part.",
-            ReadError::EofInFile =>
-                "The request body ended prematurely while streaming a file part.",
-            ReadError::EofInPart =>
-                "The request body ended prematurely while reading a multipart part.",
-            ReadError::HttParse(_) =>
-                "A parse error occurred while parsing the headers of a multipart section.",
-            ReadError::Io(_) => "An I/O error occurred.",
-            ReadError::Hyper(_) => "A Hyper error occurred.",
-            ReadError::Utf8(_) => "A UTF-8 error occurred.",
-            ReadError::Decoding(_) => "A decoding error occurred.",
-            ReadError::General(ref msg) => &msg,
-            ReadError::Parsing(ref msg) => &msg,
-            ReadError::NotAFile => "FilePart is not a file.",
-            ReadError::SerdeJson(_) => "A serde json error occurred.",
-        }
     }
 }
