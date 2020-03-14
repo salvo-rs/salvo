@@ -61,19 +61,19 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::General(ref e) =>
-                format!("{}",  e).fmt(f),
+                e.fmt(f),
             Error::Io(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             Error::Hyper(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             Error::Utf8(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             Error::Decoding(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             Error::Http(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             Error::SerdeJson(ref e) =>
-                format!("{}", e.to_string()).fmt(f),
+                e.to_string().fmt(f),
             _ => self.to_string().fmt(f),
         }
     }

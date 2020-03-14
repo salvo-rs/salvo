@@ -260,7 +260,7 @@ impl Request {
     }
     #[inline]
     pub async fn get_form_or_query<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {
-        self.get_form(key.as_ref()).await.or(self.get_query(key))
+        self.get_form(key.as_ref()).await.or_else(||self.get_query(key))
     }
     #[inline]
     pub async fn get_query_or_form<'a, F>(&mut self, key: &'a str) -> Option<F> where F: FromStr {

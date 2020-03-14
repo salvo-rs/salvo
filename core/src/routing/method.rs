@@ -31,7 +31,7 @@ impl Method {
 			_ => None,
 		}
 	}
-    pub fn to_http_methods(&self) -> Vec<HttpMethod> {
+    pub fn to_http_methods(self) -> Vec<HttpMethod> {
         let mut list = vec![];
         if self.contains(Method::GET) {
             list.push(HttpMethod::GET);

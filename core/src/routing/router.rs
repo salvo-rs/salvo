@@ -362,7 +362,7 @@ impl Router {
 		let mut afters = vec![];
 		let mut i = 0;
 		let mut rest = segments.clone();
-		if self.path_segments.len() > 0 {
+		if !self.path_segments.is_empty() {
 			for ps in &self.path_segments {
 				let (matched, nrest, kv) = ps.detect(rest);
 				if !matched {

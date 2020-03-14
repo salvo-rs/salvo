@@ -100,7 +100,7 @@ impl Display for ReadError {
                 format!("{}: {}", self.to_string(), e).fmt(f),
             ReadError::Decoding(ref e) =>
                 format!("{}: {}", self.to_string(), e).fmt(f),
-            _ => format!("{}", self.to_string()).fmt(f),
+            _ => self.to_string().fmt(f),
         }
     }
 }
