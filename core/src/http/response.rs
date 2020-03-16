@@ -12,54 +12,12 @@ use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 
-use crate::{Content, ServerConfig};
-use crate::http::errors::HttpError;
-use crate::http::header::SET_COOKIE;
+use crate::ServerConfig;
 use crate::logging;
-use crate::http::header::{self, HeaderMap, CONTENT_DISPOSITION};
-
-
-/// A trait which writes the body of an HTTP response.
-pub trait BodyWriter: Send {
-    /// Writes the body to the provided `Write`.
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()>;
-}
-
-impl BodyWriter for String {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        self.as_bytes().write_body(res)
-    }
-}
-
-impl<'a> BodyWriter for &'a str {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        self.as_bytes().write_body(res)
-    }
-}
-
-impl BodyWriter for Vec<u8> {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        res.write_all(self)
-    }
-}
-
-impl<'a> BodyWriter for &'a [u8] {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        res.write_all(self)
-    }
-}
-
-impl BodyWriter for File {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        std::io::copy(self, res).map(|_| ())
-    }
-}
-
-impl BodyWriter for Box<dyn std::io::Read + Send> {
-    fn write_body(&mut self, res: &mut dyn Write) -> std::io::Result<()> {
-        std::io::copy(self, res).map(|_| ())
-    }
-}
+use super::Writer;
+use super::errors::HttpError;
+use super::header::SET_COOKIE;
+use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
 
 /// The response representation given to `Middleware`
 pub struct Response {
@@ -72,8 +30,8 @@ pub struct Response {
 
     pub(crate) cookies: CookieJar,
 
-    /// The body_writers of the response.
-    pub(crate) body_writers: Vec<Box<dyn BodyWriter>>,
+    /// The writers of the response.
+    pub(crate) writers: Vec<Box<dyn Writer>>,
     pub(crate) server_config: Arc<ServerConfig>,
 
     is_commited: bool,
@@ -91,7 +49,7 @@ impl Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
-            body_writers: Vec::new(),   // Start with no body_writers.
+            writers: Vec::new(),   // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             server_config: sconf,
@@ -117,26 +75,33 @@ impl Response {
     //
     // `write_back` consumes the `Response`.
     #[doc(hidden)]
-    pub fn write_back(self, http_res: &mut hyper::Response<Body>, req_method: Method) {
-        *http_res.headers_mut() = self.headers;
+    pub fn write_back(self, res: &mut hyper::Response<Body>, req_method: Method) {
+        *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
-        *http_res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         if let Method::HEAD = req_method {
             return 
         }else{
-            if self.body_writers.is_empty() {
-                http_res.headers_mut().insert(
+            if self.writers.is_empty() {
+                res.headers_mut().insert(
                     header::CONTENT_LENGTH,
                     header::HeaderValue::from_static("0"),
                 );
             }else{
-                for writer in self.body_writers {
-                    write_with_body(http_res, writer).ok();
+                let (mut tx, rx) = Body::channel();
+                *res.body_mut() = rx;
+                for mut writer in self.writers {
+                    writer.write(res, &mut tx);
                 } 
             }
         }
+        // let content_type = resp.headers().get(header::CONTENT_TYPE).map_or_else(
+        //     || header::HeaderValue::from_static("text/html"),
+        //     |cx| cx.clone(),
+        // );
+        // resp.headers_mut().insert(header::CONTENT_TYPE, content_type);
     }
 
     #[inline(always)]
@@ -182,18 +147,14 @@ impl Response {
     // }
     
     #[inline]
-    pub fn write_error(&mut self, err: impl HttpError){
+    pub fn set_http_error(&mut self, err: impl HttpError){
         self.status_code = Some(err.code());
         self.http_error = Some(Box::new(err));
         self.commit();
     }
     #[inline]
-    pub fn write_content(&mut self, content: impl Content){
-        content.apply(self);
-    }
-    #[inline]
-    pub fn write_body(&mut self, writer: impl BodyWriter+'static) {
-        self.body_writers.push(Box::new(writer))
+    pub fn push_writer(&mut self, writer: impl Writer+'static) {
+        self.writers.push(Box::new(writer))
     }
     #[inline]
     pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
@@ -286,9 +247,9 @@ impl Response {
         }
     }
     #[inline]
-    pub fn render<T>(&mut self, content_type:T, writer: impl BodyWriter+'static) where T: AsRef<str> {
+    pub fn render<T>(&mut self, content_type:T, writer: impl Writer+'static) where T: AsRef<str> {
         self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
-        self.write_body(writer);
+        self.push_writer(writer);
     }
     
     #[inline]
@@ -400,19 +361,6 @@ impl Response {
         }
         None
     }
-}
-
-fn write_with_body(resp: &mut hyper::Response<Body>, mut body: Box<dyn BodyWriter>) -> std::io::Result<()> {
-    let content_type = resp.headers().get(header::CONTENT_TYPE).map_or_else(
-        || header::HeaderValue::from_static("text/html"),
-        |cx| cx.clone(),
-    );
-    resp.headers_mut().insert(header::CONTENT_TYPE, content_type);
-
-    let mut body_contents: Vec<u8> = vec![];
-    body.write_body(&mut body_contents)?;
-    *resp.body_mut() = Body::from(body_contents);
-    Ok(())
 }
 
 impl Debug for Response {

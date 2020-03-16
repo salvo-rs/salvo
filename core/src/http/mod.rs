@@ -19,16 +19,20 @@ pub mod form;
 pub mod multipart;
 pub mod errors;
 pub mod range;
-pub mod file;
+// pub mod file;
+pub mod writer;
+pub mod content;
 
 pub use request::Request;
-pub use response::{Response, BodyWriter};
+pub use response::Response;
 pub use http::{method::Method, StatusCode, HeaderMap, HeaderValue};
 pub use body_chunk::BodyChunk;
 pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
 pub use range::HttpRange;
+pub use writer::Writer;
+pub use content::Content;
 
 pub mod header {
     pub use http::header::*;

@@ -1,6 +1,6 @@
 pub mod server;
 mod handler;
-mod content;
+// mod content;
 mod catcher;
 mod pick_port;
 pub mod error;
@@ -28,8 +28,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 
-pub use crate::content::Content;
-pub use crate::http::{Request, Response};
+pub use crate::http::{Request, Response, Content, Writer};
 pub use crate::server::{Server, ServerConfig};
 pub use crate::handler::{Handler, HandleError};
 pub use crate::routing::Router;
