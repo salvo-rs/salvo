@@ -9,40 +9,40 @@ use super::Body;
 
 /// A trait which writes to an HTTP response.
 #[async_trait]
-pub trait Writer: Send {
+pub trait BodyWriter: Send {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender);
 }
 
 #[async_trait]
-impl Writer for String {
+impl BodyWriter for String {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
         sender.send_data(Bytes::from(BytesMut::from(&**self))).await.ok();
     }
 }
 
 // #[async_trait]
-// impl Writer for &'static str {
+// impl BodyWriter for &'static str {
 //     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
 //         sender.send_data(Bytes::from(self));
 //     }
 // }
 
 #[async_trait]
-impl Writer for Vec<u8> {
+impl BodyWriter for Vec<u8> {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
         sender.send_data(Bytes::from(BytesMut::from(&**self))).await.ok();
     }
 }
 
 // #[async_trait]
-// impl Writer for &'static [u8] {
+// impl BodyWriter for &'static [u8] {
 //     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
 //         sender.send_data(Bytes::from(self));
 //     }
 // }
 
 // #[async_trait]
-// impl Writer for File {
+// impl BodyWriter for File {
 //     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
 //         let mut data = Vec::new();
 //         self.read_to_end(&mut data).ok();
@@ -51,7 +51,7 @@ impl Writer for Vec<u8> {
 // }
 
 // #[async_trait]
-// impl Writer for Box<dyn std::io::Read + Send> {
+// impl BodyWriter for Box<dyn std::io::Read + Send> {
 //     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
 //         let mut data = Vec::new();
 //         self.read_to_end(&mut data).ok();
@@ -60,7 +60,7 @@ impl Writer for Vec<u8> {
 // }
 
 #[async_trait]
-impl Writer for () {
+impl BodyWriter for () {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
     }
 }

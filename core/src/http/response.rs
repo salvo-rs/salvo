@@ -153,7 +153,7 @@ impl Response {
         self.commit();
     }
     #[inline]
-    pub fn push_writer(&mut self, writer: impl Writer+'static) {
+    pub fn push_body_writer(&mut self, writer: impl BodyWriter+'static) {
         self.writers.push(Box::new(writer))
     }
     #[inline]
@@ -247,9 +247,9 @@ impl Response {
         }
     }
     #[inline]
-    pub fn render<T>(&mut self, content_type:T, writer: impl Writer+'static) where T: AsRef<str> {
+    pub fn render<T>(&mut self, content_type:T, writer: impl BodyWriter+'static) where T: AsRef<str> {
         self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
-        self.push_writer(writer);
+        self.push_body_writer(writer);
     }
     
     #[inline]
