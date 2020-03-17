@@ -16,7 +16,7 @@ pub trait Writer: Send {
 #[async_trait]
 impl Writer for String {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
-        sender.send_data(Bytes::from(BytesMut::from(&**self)));
+        sender.send_data(Bytes::from(BytesMut::from(&**self))).await.ok();
     }
 }
 
@@ -30,7 +30,7 @@ impl Writer for String {
 #[async_trait]
 impl Writer for Vec<u8> {
     async fn write(&mut self, res: &mut Response<Body>, sender: &mut Sender) {
-        sender.send_data(Bytes::from(BytesMut::from(&**self)));
+        sender.send_data(Bytes::from(BytesMut::from(&**self))).await.ok();
     }
 }
 

@@ -72,10 +72,10 @@ impl Static {
     }
 }
 
-fn list_json(root: &BaseInfo)->String{
+fn list_json(root: &BaseInfo) -> String{
     json!(root).to_string()
 }
-fn list_xml(root: &BaseInfo)->String{
+fn list_xml(root: &BaseInfo) -> String{
     let mut ftxt = "<list>".to_owned();
     if root.dirs.is_empty() && root.files.is_empty() {
         ftxt.push_str("No files");
@@ -92,7 +92,7 @@ fn list_xml(root: &BaseInfo)->String{
     ftxt.push_str("</list>");
     ftxt
 }
-fn list_html(root: &BaseInfo)->String{
+fn list_html(root: &BaseInfo) -> String{
     let mut ftxt = format!("<!DOCTYPE html>
 <html>
     <head>
@@ -119,7 +119,7 @@ fn list_html(root: &BaseInfo)->String{
     ftxt.push_str("<hr/><div style=\"text-align:center;\"><small>salvo</small></div></body>");
     ftxt
 }
-fn list_text(root: &BaseInfo)->String{
+fn list_text(root: &BaseInfo) -> String{
    json!(root).to_string()
 }
 #[derive(Serialize, Deserialize)]
