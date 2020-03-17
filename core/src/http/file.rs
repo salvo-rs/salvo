@@ -456,8 +456,7 @@ pub struct ChunkedReadFile {
     size: u64,
     offset: u64,
     file: Option<File>,
-    fut:
-        Option<LocalBoxFuture<'static, Result<(File, Bytes), BlockingError<io::Error>>>>,
+    fut: Option<LocalBoxFuture<'static, Result<(File, Bytes), BlockingError<io::Error>>>>,
     counter: u64,
 }
 

@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use async_trait::async_trait;
 
-/// A trait which writes to an HTTP response.
 #[async_trait]
 pub trait BodyWriter: Send {
     async fn write(&mut self, dest: &mut (dyn Write + Send)) -> std::io::Result<()>;
@@ -52,7 +51,7 @@ impl BodyWriter for Box<dyn std::io::Read + Send> {
 
 #[async_trait]
 impl BodyWriter for () {
-    async fn write(&mut self, dest: &mut (dyn Write + Send)) -> std::io::Result<()> {
+    async fn write(&mut self, _dest: &mut (dyn Write + Send)) -> std::io::Result<()> {
         Ok(())
     }
 }
