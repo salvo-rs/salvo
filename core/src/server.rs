@@ -200,7 +200,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
     
             if response.status_code().is_none(){
-                if response.writers.is_empty() {
+                if response.body_writers.is_empty() {
                     response.set_status_code(StatusCode::NOT_FOUND);
                 }else {
                     response.set_status_code(StatusCode::OK);
@@ -234,7 +234,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             }
-            if response.writers.is_empty() && has_error {
+            if response.body_writers.is_empty() && has_error {
                 for catcher in &*catchers {
                     if catcher.catch(&request, &mut response) {
                         break;

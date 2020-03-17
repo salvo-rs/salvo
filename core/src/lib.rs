@@ -28,7 +28,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 
-pub use crate::http::{Request, Response, Content, Writer};
+pub use crate::http::{Request, Response, BodyWriter};
 pub use crate::server::{Server, ServerConfig};
 pub use crate::handler::{Handler, HandleError};
 pub use crate::routing::Router;

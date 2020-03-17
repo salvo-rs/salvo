@@ -175,13 +175,10 @@ impl Handler for Static {
         } else{
             req.url().path()
         };
-        println!("============base_path: {:#?}", &base_path);
-        println!("============roots: {:#?}", &self.roots);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
         for root in &self.roots {
-            println!("============1");
             let path = root.join(&base_path);
             if path.is_dir() && self.options.listing{
                 path_exist = true;

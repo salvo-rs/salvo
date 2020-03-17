@@ -26,7 +26,7 @@ impl Catcher for CatcherImpl {
         };
         let (format, data) = err.as_bytes(&format);
         resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
-        resp.writers.push(Box::new(data));
+        resp.body_writers.push(Box::new(data));
         true
     }
 }

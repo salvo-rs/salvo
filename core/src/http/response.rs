@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ServerConfig;
 use crate::logging;
-use super::Writer;
+use super::BodyWriter;
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
@@ -31,7 +31,7 @@ pub struct Response {
     pub(crate) cookies: CookieJar,
 
     /// The writers of the response.
-    pub(crate) writers: Vec<Box<dyn Writer>>,
+    pub(crate) body_writers: Vec<Box<dyn BodyWriter>>,
     pub(crate) server_config: Arc<ServerConfig>,
 
     is_commited: bool,
@@ -49,7 +49,7 @@ impl Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
-            writers: Vec::new(),   // Start with no writers.
+            body_writers: Vec::new(),   // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             server_config: sconf,
@@ -83,18 +83,17 @@ impl Response {
 
         if let Method::HEAD = req_method {
         }else{
-            if self.writers.is_empty() {
+            if self.body_writers.is_empty() {
                 res.headers_mut().insert(
                     header::CONTENT_LENGTH,
                     header::HeaderValue::from_static("0"),
                 );
             }else{
-                let (mut tx, rx) = Body::channel();
-                *res.body_mut() = rx;
-                for mut writer in self.writers {
-                    println!("========>>>");
-                    writer.write(res, &mut tx).await;
-                } 
+                let mut body: Vec<u8> = vec![];
+                for mut writer in self.body_writers {
+                    writer.write(&mut body).await.ok();
+                }
+                *res.body_mut() = Body::from(body);
             }
         }
         // let content_type = resp.headers().get(header::CONTENT_TYPE).map_or_else(
@@ -154,7 +153,7 @@ impl Response {
     }
     #[inline]
     pub fn push_body_writer(&mut self, writer: impl BodyWriter+'static) {
-        self.writers.push(Box::new(writer))
+        self.body_writers.push(Box::new(writer))
     }
     #[inline]
     pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
