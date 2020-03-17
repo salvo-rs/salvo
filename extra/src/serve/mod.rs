@@ -122,7 +122,7 @@ fn list_html(root: &BaseInfo) -> String{
 fn list_text(root: &BaseInfo) -> String{
    json!(root).to_string()
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct BaseInfo{
     path: String,
     files: Vec<FileInfo>,
@@ -137,7 +137,7 @@ impl BaseInfo{
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct FileInfo {
     name: String,
     size: u64,
@@ -152,7 +152,7 @@ impl FileInfo {
         }
     }
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct DirInfo{
     name: String,
     modified: DateTime<Local>,
@@ -175,10 +175,13 @@ impl Handler for Static {
         } else{
             req.url().path()
         };
+        println!("============base_path: {:#?}", &base_path);
+        println!("============roots: {:#?}", &self.roots);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
         for root in &self.roots {
+            println!("============1");
             let path = root.join(&base_path);
             if path.is_dir() && self.options.listing{
                 path_exist = true;
@@ -225,6 +228,7 @@ impl Handler for Static {
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)|DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a,b|a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
+        println!("============root: {:#?}", &root);
         match format.subtype().as_ref(){
             "text"=> resp.render_plain_text(list_text(&root)),
             "json"=> resp.render_json_text(list_json(&root)),

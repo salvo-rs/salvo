@@ -75,7 +75,7 @@ impl Response {
     //
     // `write_back` consumes the `Response`.
     #[doc(hidden)]
-    pub fn write_back(self, res: &mut hyper::Response<Body>, req_method: Method) {
+    pub async fn write_back(self, res: &mut hyper::Response<Body>, req_method: Method) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
@@ -92,7 +92,8 @@ impl Response {
                 let (mut tx, rx) = Body::channel();
                 *res.body_mut() = rx;
                 for mut writer in self.writers {
-                    writer.write(res, &mut tx);
+                    println!("========>>>");
+                    writer.write(res, &mut tx).await;
                 } 
             }
         }
