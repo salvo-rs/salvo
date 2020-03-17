@@ -82,7 +82,6 @@ impl Response {
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         if let Method::HEAD = req_method {
-            return 
         }else{
             if self.writers.is_empty() {
                 res.headers_mut().insert(

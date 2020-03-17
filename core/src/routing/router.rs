@@ -362,7 +362,7 @@ impl Router {
 		let mut afters = vec![];
 		let mut i = 0;
 		let mut rest = segments.clone();
-		if self.path_segments.len() > 0 {
+		if !self.path_segments.is_empty() {
 			for ps in &self.path_segments {
 				let (matched, nrest, kv) = ps.detect(rest);
 				if !matched {
@@ -393,7 +393,7 @@ impl Router {
 		if rest.is_empty() {
 			let mut allh = vec![];
 			allh.extend(befores);
-			let hs = self.handlers.get(&method).map(|hs|hs.iter().map(|h|h.clone()).collect::<Vec<Arc<dyn Handler>>>()).unwrap_or(vec![]);
+			let hs = self.handlers.get(&method).map(|hs|hs.to_vec()).unwrap_or_default();
 			if hs.is_empty() {
 				return (false, vec![], params)
 			}
@@ -416,7 +416,7 @@ impl Router {
 				}
 			}
 		}
-		return (false, vec![], params)
+		(false, vec![], params)
 	}
 	// pub fn reverse(name: &str, args: Option<HashMap<&str, &str>>) -> ReverseResult {
 	// 	Ok("unimplement".to_string())

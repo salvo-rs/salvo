@@ -265,9 +265,7 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
             )));
         }
 
-        return Err(ReadError::Parsing(format!(
-            "missing `Content-Disposition` header on a field in this multipart request"
-        )));
+        return Err(ReadError::Parsing("missing `Content-Disposition` header on a field in this multipart request".to_string()));
     }
 
     if dupe_cont_type {

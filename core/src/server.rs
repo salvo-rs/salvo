@@ -168,7 +168,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let local_addr = self.config.local_addr.clone();
+        let local_addr = self.config.local_addr;
         let protocol = self.config.protocol.clone();
         let catchers = self.config.catchers.clone();
         let allowed_media_types = self.config.allowed_media_types.clone();
@@ -176,7 +176,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
 
-        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or(Vec::new());
+        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or_default();
         segments.retain(|x| *x!="");
         let (ok, handlers, params) = self.router.detect(request.method().clone(), segments);
         if !ok {
@@ -200,7 +200,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
     
             if response.status_code().is_none(){
-                if response.writers.len() == 0 {
+                if response.body_writers.is_empty() {
                     response.set_status_code(StatusCode::NOT_FOUND);
                 }else {
                     response.set_status_code(StatusCode::OK);
@@ -211,7 +211,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             if let Some(value) =  response.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
-                    if allowed_media_types.len() == 0 {
+                    if allowed_media_types.is_empty() {
                         is_allowed = true;
                     } else {
                         let ctype: Result<Mime, _> = value.parse();
@@ -234,7 +234,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             }
-            if response.writers.len() == 0 &&  has_error {
+            if response.body_writers.is_empty() && has_error {
                 for catcher in &*catchers {
                     if catcher.catch(&request, &mut response) {
                         break;
