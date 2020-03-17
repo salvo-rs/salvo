@@ -20,7 +20,7 @@ pub mod multipart;
 pub mod errors;
 pub mod range;
 // pub mod file;
-pub mod body_writer;
+pub mod writer;
 
 pub use request::Request;
 pub use response::Response;
@@ -30,7 +30,7 @@ pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
 pub use range::HttpRange;
-pub use body_writer::BodyWriter;
+pub use writer::Writer;
 
 pub mod header {
     pub use http::header::*;

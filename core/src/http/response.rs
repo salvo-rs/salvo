@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ServerConfig;
 use crate::logging;
-use super::BodyWriter;
+use super::Writer;
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
@@ -31,17 +31,11 @@ pub struct Response {
     pub(crate) cookies: CookieJar,
 
     /// The writers of the response.
-    pub(crate) body_writers: Vec<Box<dyn BodyWriter>>,
+    pub(crate) writers: Vec<Box<dyn Writer>>,
     pub(crate) server_config: Arc<ServerConfig>,
 
     is_commited: bool,
 }
-
-// impl Default for Response {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
 
 impl Response {
     /// Construct a blank Response
@@ -49,7 +43,7 @@ impl Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
-            body_writers: Vec::new(),   // Start with no writers.
+            writers: Vec::new(),   // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             server_config: sconf,
@@ -83,24 +77,19 @@ impl Response {
 
         if let Method::HEAD = req_method {
         }else{
-            if self.body_writers.is_empty() {
+            if self.writers.is_empty() {
                 res.headers_mut().insert(
                     header::CONTENT_LENGTH,
                     header::HeaderValue::from_static("0"),
                 );
             }else{
-                let mut body: Vec<u8> = vec![];
-                for mut writer in self.body_writers {
-                    writer.write(&mut body).await.ok();
+                let (mut sender, body) = Body::channel();
+                for mut writer in self.writers {
+                    writer.write(res, &mut sender).await;
                 }
-                *res.body_mut() = Body::from(body);
+                *res.body_mut() = body;
             }
         }
-        // let content_type = resp.headers().get(header::CONTENT_TYPE).map_or_else(
-        //     || header::HeaderValue::from_static("text/html"),
-        //     |cx| cx.clone(),
-        // );
-        // resp.headers_mut().insert(header::CONTENT_TYPE, content_type);
     }
 
     #[inline(always)]
@@ -152,8 +141,8 @@ impl Response {
         self.commit();
     }
     #[inline]
-    pub fn push_body_writer(&mut self, writer: impl BodyWriter+'static) {
-        self.body_writers.push(Box::new(writer))
+    pub fn push_writer(&mut self, writer: impl Writer + 'static) {
+        self.writers.push(Box::new(writer))
     }
     #[inline]
     pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
@@ -246,16 +235,16 @@ impl Response {
         }
     }
     #[inline]
-    pub fn render<T>(&mut self, content_type:T, writer: impl BodyWriter+'static) where T: AsRef<str> {
+    pub fn render<T>(&mut self, content_type:T, writer: impl Writer+'static) where T: AsRef<str> {
         self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
-        self.push_body_writer(writer);
+        self.push_writer(writer);
     }
     
     #[inline]
     pub fn send_binary<T>(&mut self, data: Vec<u8>, file_name: T) where T: AsRef<str> {
         let file_name = Path::new(file_name.as_ref()).file_name().and_then(|s|s.to_str()).unwrap_or("file.dat");
         if let Some(mime) = self.get_mime_by_path(file_name) {
-            self.headers.insert(header::CONTENT_DISPOSITION, format!("attachment; filename={}", &file_name).parse().unwrap());
+            self.headers.insert(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", &file_name).parse().unwrap());
             self.render(mime.to_string(), data);
         }else{
             self.unsupported_media_type();

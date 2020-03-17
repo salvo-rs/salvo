@@ -42,7 +42,7 @@ pub struct NamedFile {
     path: PathBuf,
     file: File,
     modified: Option<SystemTime>,
-    pub(crate) md: Metadata,
+    pub(crate) metadata: Metadata,
     pub(crate) flags: Flags,
     pub(crate) status_code: StatusCode,
     pub(crate) content_type: mime::Mime,
@@ -109,15 +109,15 @@ impl NamedFile {
             (ct, cd)
         };
 
-        let md = file.metadata()?;
-        let modified = md.modified().ok();
+        let metadata = file.metadata()?;
+        let modified = metadata.modified().ok();
         let encoding = None;
         Ok(NamedFile {
             path,
             file,
             content_type,
             content_disposition,
-            md,
+            metadata,
             modified,
             encoding,
             status_code: StatusCode::OK,
@@ -231,7 +231,7 @@ impl NamedFile {
             let ino = {
                 #[cfg(unix)]
                 {
-                    self.md.ino()
+                    self.metadata.ino()
                 }
                 #[cfg(not(unix))]
                 {
@@ -245,7 +245,7 @@ impl NamedFile {
             header::EntityTag::strong(format!(
                 "{:x}:{:x}:{:x}:{:x}",
                 ino,
-                self.md.len(),
+                self.metadata.len(),
                 dur.as_secs(),
                 dur.subsec_nanos()
             ))
@@ -270,7 +270,7 @@ impl NamedFile {
                 resp.encoding(current_encoding);
             }
             let reader = ChunkedReadFile {
-                size: self.md.len(),
+                size: self.metadata.len(),
                 offset: 0,
                 file: Some(self.file),
                 fut: None,
@@ -346,7 +346,7 @@ impl NamedFile {
 
         resp.header(header::ACCEPT_RANGES, "bytes");
 
-        let mut length = self.md.len();
+        let mut length = self.metadata.len();
         let mut offset = 0;
 
         // check for range header
@@ -362,7 +362,7 @@ impl NamedFile {
                             "bytes {}-{}/{}",
                             offset,
                             offset + length - 1,
-                            self.md.len()
+                            self.metadata.len()
                         ),
                     );
                 } else {
@@ -387,7 +387,7 @@ impl NamedFile {
             fut: None,
             counter: 0,
         };
-        if offset != 0 || length != self.md.len() {
+        if offset != 0 || length != self.metadata.len() {
             Ok(resp.status(StatusCode::PARTIAL_CONTENT).streaming(reader))
         } else {
             Ok(resp.body(SizedStream::new(length, reader)))
