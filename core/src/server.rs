@@ -241,7 +241,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     }
                 }
             }
-            response.write_back(&mut hyper_response, request.method().clone()).await;
+            response.write_back(&mut request, &mut hyper_response).await;
             Ok(hyper_response)
         };
         Box::pin(fut)

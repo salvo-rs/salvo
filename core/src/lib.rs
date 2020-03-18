@@ -8,6 +8,7 @@ pub mod http;
 pub mod routing;
 pub mod depot;
 pub mod logging;
+pub mod content;
 
 // #[macro_use]
 extern crate serde;
@@ -37,7 +38,6 @@ pub use crate::error::Error;
 pub use crate::depot::Depot;
 
 use std::ops::{Bound, RangeBounds};
-
 
 trait StringUtils {
     fn substring(&self, start: usize, len: usize) -> &str;

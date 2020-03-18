@@ -13,9 +13,6 @@ pub trait HandleError: Send + Sync + 'static {
     fn http_code(&self) -> StatusCode;
     fn http_body(&self, prefer_mime: &Mime) -> (Mime, Vec<u8>);
 }
-// impl std::error::Error for HandleError {
-// }
-
 
 macro_rules! handler_tuple_impls {
     ($(

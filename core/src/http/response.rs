@@ -6,14 +6,17 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use http::StatusCode;
+use hyper::header::*;
 use cookie::{Cookie, CookieJar};
 use hyper::Body;
 use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
+use httpdate::HttpDate;
 
 use crate::ServerConfig;
 use crate::logging;
+use crate::http::Request;
 use super::Writer;
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
@@ -69,13 +72,13 @@ impl Response {
     //
     // `write_back` consumes the `Response`.
     #[doc(hidden)]
-    pub async fn write_back(self, res: &mut hyper::Response<Body>, req_method: Method) {
+    pub async fn write_back(self, req: &mut Request, res: &mut hyper::Response<Body>) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
-        if let Method::HEAD = req_method {
+        if let &Method::HEAD = req.method() {
         }else{
             if self.writers.is_empty() {
                 res.headers_mut().insert(
@@ -85,7 +88,7 @@ impl Response {
             }else{
                 let (mut sender, body) = Body::channel();
                 for mut writer in self.writers {
-                    writer.write(res, &mut sender).await;
+                    writer.write(req, res, &mut sender).await;
                 }
                 *res.body_mut() = body;
             }
@@ -144,16 +147,16 @@ impl Response {
     pub fn push_writer(&mut self, writer: impl Writer + 'static) {
         self.writers.push(Box::new(writer))
     }
-    #[inline]
-    pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
-        if let Ok(data) = serde_cbor::to_vec(writer) {
-            self.render("application/cbor", data);
-        } else {
-            self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to cbor");
-            self.render("application/cbor", serde_cbor::to_vec(&emsg).unwrap());
-        }
-    }
+    // #[inline]
+    // pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
+    //     if let Ok(data) = serde_cbor::to_vec(writer) {
+    //         self.render("application/cbor", data);
+    //     } else {
+    //         self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+    //         let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to cbor");
+    //         self.render("application/cbor", serde_cbor::to_vec(&emsg).unwrap());
+    //     }
+    // }
     #[inline]
     pub fn render_json<'a, T: Serialize>(&mut self, writer: &'a T) {
         if let Ok(data) = serde_json::to_string(writer) {
@@ -287,6 +290,27 @@ impl Response {
             self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+    }
+    pub fn set_content_disposition(&mut self, value: &str) {
+        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse().unwrap());
+    }
+    pub fn set_content_encoding(&mut self, value: &str) {
+        self.headers_mut().insert(CONTENT_ENCODING, value.parse().unwrap());
+    }
+    pub fn set_content_range(&mut self, value: &str) {
+        self.headers_mut().insert(CONTENT_RANGE, value.parse().unwrap());
+    }
+    pub fn set_content_type(&mut self, value: &str) {
+        self.headers_mut().insert(CONTENT_TYPE, value.parse().unwrap());
+    }
+    pub fn set_accept_range(&mut self, value: &str) {
+        self.headers_mut().insert(ACCEPT_RANGES, value.parse().unwrap());
+    }
+    pub fn set_last_modified(&mut self, value: HttpDate) {
+        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse().unwrap());
+    }
+    pub fn set_etag(&mut self, value: &str) {
+        self.headers_mut().insert(ETAG, value.parse().unwrap());
     }
     #[inline]
     pub fn commit(&mut self) {

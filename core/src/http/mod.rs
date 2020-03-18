@@ -19,7 +19,6 @@ pub mod form;
 pub mod multipart;
 pub mod errors;
 pub mod range;
-// pub mod file;
 pub mod writer;
 
 pub use request::Request;
@@ -30,11 +29,9 @@ pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
 pub use range::HttpRange;
-pub use writer::Writer;
+pub use writer::*;
 
-pub mod header {
-    pub use http::header::*;
-}
+pub mod header;
 
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let dmime: Mime = default_type.unwrap_or_else(||"text/html".parse().unwrap());
