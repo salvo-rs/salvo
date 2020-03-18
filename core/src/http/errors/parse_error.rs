@@ -1,10 +1,8 @@
 
-use derive_more::{Display, From};
-use std::cell::RefCell;
-use std::io::Write;
+use derive_more::Display;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
-use std::{fmt, io, result};
+use std::io;
 use http::uri::InvalidUri;
 
 #[derive(Debug, Display)]

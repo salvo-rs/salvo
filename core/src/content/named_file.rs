@@ -255,8 +255,8 @@ impl Content for NamedFile {
                 Ok(data) => {
                     resp.render(self.content_type.to_string(), data);
                 },
-                Err(e) => {
-
+                Err(_) => {
+                    resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                 },
             }
             return
@@ -368,7 +368,7 @@ impl Content for NamedFile {
             resp.set_status_code(StatusCode::PARTIAL_CONTENT);
             match read_file_bytes(&mut self.file, length, offset, 0) {
                 Ok(data) => resp.render(self.content_type.to_string(), data),
-                Err(e) => {
+                Err(_) => {
                     resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                 },
             }
@@ -377,7 +377,7 @@ impl Content for NamedFile {
             let mut data = Vec::with_capacity(length as usize);
             match self.file.read_to_end(&mut data) {
                 Ok(_) => resp.render(self.content_type.to_string(), data),
-                Err(e) => {
+                Err(_) => {
                     resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                 },
             }
@@ -423,6 +423,7 @@ fn any_match(etag: Option<&str>, req: &Request) -> bool {
 fn none_match(etag: Option<&str>, req: &Request) -> bool {
     match req.get_header(header::IF_MATCH).and_then(|v|v.to_str().ok()) {
         Some("any") => false,
+        None => true,
         _ => {
             if let Some(some_etag) = etag {
                 for item in req.headers().get_all(header::IF_MATCH) {
@@ -435,7 +436,6 @@ fn none_match(etag: Option<&str>, req: &Request) -> bool {
             }
             true
         }
-        None => true,
     }
 }
 

@@ -1,8 +1,6 @@
 use bytes::BytesMut;
 use hyper::body::{Bytes, Sender};
 use hyper::{Response, Body};
-use hyper::header::*;
-use mime::*;
 use async_trait::async_trait;
 
 use crate::http::Request;
