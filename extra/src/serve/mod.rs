@@ -11,7 +11,7 @@ use salvo_core::server::ServerConfig;
 use salvo_core::depot::Depot;
 use salvo_core::http::{Request, Response};
 use salvo_core::http::errors::*;
-use salvo_core::content::{Content, NamedFile};
+use salvo_core::writer::{Writer, NamedFile};
 use salvo_core::Handler;
 use std::sync::Arc;
 
@@ -191,8 +191,8 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::from_path(ipath) {
-                            named_file.apply(req, resp).await;
+                        if let Ok(named_file) = NamedFile::open(path, None) {
+                            named_file.write(req, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                         }
@@ -214,8 +214,8 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                if let Ok(named_file) = NamedFile::from_path(path) {
-                    named_file.apply(req, resp).await;
+                if let Ok(named_file) = NamedFile::open(path, None) {
+                    named_file.write(req, resp).await;
                 } else {
                     resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                 }

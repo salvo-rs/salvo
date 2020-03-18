@@ -1,6 +1,5 @@
 pub mod server;
 mod handler;
-// mod content;
 mod catcher;
 mod pick_port;
 pub mod error;
@@ -8,7 +7,7 @@ pub mod http;
 pub mod routing;
 pub mod depot;
 pub mod logging;
-pub mod content;
+pub mod writer;
 
 // #[macro_use]
 extern crate serde;

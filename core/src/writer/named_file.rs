@@ -19,7 +19,7 @@ use crate::http::header;
 use crate::http::{StatusCode, Request, Response};
 use crate::http::errors::*;
 use crate::logging::logger;
-use super::Content;
+use super::Writer;
 
 bitflags! {
     pub(crate) struct Flags: u8 {
@@ -41,6 +41,7 @@ pub struct NamedFile {
     path: PathBuf,
     file: File,
     modified: Option<SystemTime>,
+    pub chunk_size: u64,
     pub(crate) metadata: Metadata,
     pub(crate) flags: Flags,
     pub(crate) status_code: StatusCode,
@@ -50,11 +51,7 @@ pub struct NamedFile {
 }
 
 impl NamedFile {
-    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<NamedFile> {
-        let file = File::open(path.as_ref())?;
-        Self::from_file(file, path)
-    }
-    pub fn from_file<P: AsRef<Path>>(file: File, path: P) -> io::Result<NamedFile> {
+    pub fn from_file<P: AsRef<Path>>(file: File, path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
         let path = path.as_ref().to_path_buf();
 
         // Get the name of the file and use it to construct default Content-Type
@@ -81,6 +78,7 @@ impl NamedFile {
         let metadata = file.metadata()?;
         let modified = metadata.modified().ok();
         let encoding = None;
+        let chunk_size = chunk_size.unwrap_or(8_388_608);
         Ok(NamedFile {
             path,
             file,
@@ -89,6 +87,7 @@ impl NamedFile {
             metadata,
             modified,
             encoding,
+            chunk_size,
             status_code: StatusCode::OK,
             flags: Flags::default(),
         })
@@ -103,8 +102,8 @@ impl NamedFile {
     ///
     /// let file = NamedFile::open("foo.txt");
     /// ```
-    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<NamedFile> {
-        Self::from_file(File::open(&path)?, path)
+    pub fn open<P: AsRef<Path>>(path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
+        Self::from_file(File::open(&path)?, path, chunk_size)
     }
 
     /// Returns reference to the underlying `File` object.
@@ -227,8 +226,8 @@ impl NamedFile {
 }
 
 #[async_trait]
-impl Content for NamedFile {
-    async fn apply(mut self, req: &mut Request, resp: &mut Response) {
+impl Writer for NamedFile {
+    async fn write(mut self, req: &mut Request, resp: &mut Response) {
         if self.status_code != StatusCode::OK {
             resp.set_status_code(self.status_code);
             resp.set_content_disposition(&self.content_disposition);
@@ -300,12 +299,7 @@ impl Content for NamedFile {
         };
 
         resp.set_content_disposition(&self.content_disposition);
-        // default compressing
-        if let Some(current_encoding) = &self.encoding {
-            resp.set_content_encoding(current_encoding);
-        }// else {
-            // resp.set_content_length(self.metadata.len());
-        // }
+        resp.set_content_type(&self.content_type.to_string());
 
         if let Some(lm) = last_modified {
             resp.set_last_modified(lm);
@@ -349,7 +343,7 @@ impl Content for NamedFile {
             return
         }
 
-        match read_file_bytes(&mut self.file, length, offset, 0) {
+        match read_file_bytes(&mut self.file, length, offset, self.chunk_size) {
             Ok(data) => {
                 resp.render(&self.content_type.to_string(), &data)
             },
@@ -362,7 +356,12 @@ impl Content for NamedFile {
             resp.set_status_code(StatusCode::PARTIAL_CONTENT);
         } else {
             resp.set_status_code(StatusCode::OK);
-            resp.set_content_length(self.metadata.len());
+        }
+        // default compressing
+        if let Some(current_encoding) = &self.encoding {
+            resp.set_content_encoding(current_encoding);
+        } else {
+            resp.set_content_length(length);
         }
     }
 }
@@ -420,9 +419,10 @@ fn none_match(etag: Option<&str>, req: &Request) -> bool {
     }
 }
 
-fn read_file_bytes(file: &mut File, size: u64, offset: u64, counter: u64) -> Result<Vec<u8>, io::Error> {
+fn read_file_bytes(file: &mut File, range_size: u64, offset: u64, chunk_size: u64) -> Result<Vec<u8>, io::Error> {
     let max_bytes: usize;
-    max_bytes = cmp::min(size.saturating_sub(counter), 1048_576) as usize;
+    max_bytes = cmp::min(range_size, chunk_size) as usize;
+    println!("=========size: {}, offset: {}, chunk_size:{} max_bytes:{}", range_size,offset, chunk_size, max_bytes);
     let mut buf = Vec::with_capacity(max_bytes);
     file.seek(io::SeekFrom::Start(offset))?;
     let nbytes =
