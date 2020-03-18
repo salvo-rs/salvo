@@ -228,6 +228,7 @@ impl NamedFile {
 #[async_trait]
 impl Content for NamedFile {
     async fn apply(mut self, req: &mut Request, resp: &mut Response) {
+        println!("======================0");
         if self.status_code != StatusCode::OK {
             println!("======================1");
             resp.set_status_code(self.status_code);

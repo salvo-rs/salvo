@@ -22,18 +22,18 @@ fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str)->String
             <small>salvo</small>
         </div>
     </body>
-</html>", code, name, summary, detail)
+</html>", code.as_u16(), name, summary, detail)
 }
 fn error_json(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
     format!("{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
         code.as_u16(), name, summary, detail)
 }
 fn error_text(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
-   format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", code, name, summary, detail)
+   format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", code.as_u16(), name, summary, detail)
 }
 fn error_xml(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
     format!("<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>", 
-    code, name, summary, detail)
+    code.as_u16(), name, summary, detail)
 }
 
 pub trait HttpError: Send + Sync + fmt::Display + fmt::Debug + 'static {
