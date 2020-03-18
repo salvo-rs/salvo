@@ -82,6 +82,7 @@ impl Response {
                     header::CONTENT_LENGTH,
                     header::HeaderValue::from_static("0"),
                 );
+            } else {
                 *res.body_mut() = Body::from(Bytes::from(self.body));
             }
         }
