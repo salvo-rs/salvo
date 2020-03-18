@@ -19,7 +19,6 @@ pub mod form;
 pub mod multipart;
 pub mod errors;
 pub mod range;
-pub mod writer;
 
 pub use request::Request;
 pub use response::Response;
@@ -29,7 +28,6 @@ pub use mime::Mime;
 pub use hyper::Body;
 pub use cookie;
 pub use range::HttpRange;
-pub use writer::*;
 
 pub mod header;
 

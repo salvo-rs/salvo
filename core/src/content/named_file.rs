@@ -18,6 +18,7 @@ use crate::http::range::HttpRange;
 use crate::http::header;
 use crate::http::{StatusCode, Request, Response};
 use crate::http::errors::*;
+use crate::logging::logger;
 use super::Content;
 
 bitflags! {
@@ -228,19 +229,15 @@ impl NamedFile {
 #[async_trait]
 impl Content for NamedFile {
     async fn apply(mut self, req: &mut Request, resp: &mut Response) {
-        println!("======================0");
         if self.status_code != StatusCode::OK {
-            println!("======================1");
             resp.set_status_code(self.status_code);
             resp.set_content_disposition(&self.content_disposition);
             if let Some(current_encoding) = &self.encoding {
                 resp.set_content_encoding(current_encoding);
             }
-            println!("======================2");
             match read_file_bytes(&mut self.file, self.metadata.len(), 0, 0) {
                 Ok(data) => {
-                    println!("======================3");
-                    resp.render(self.content_type.to_string(), data);
+                    resp.render(&self.content_type.to_string(), &data);
                 },
                 Err(_) => {
                     resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
@@ -248,7 +245,6 @@ impl Content for NamedFile {
             }
             return
         }
-        println!("======================5");
 
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
@@ -281,7 +277,6 @@ impl Content for NamedFile {
             false
         };
 
-        println!("======================6");
         // check last modified
         let not_modified = if !none_match(etag.as_deref(), req) {
             true
@@ -308,7 +303,9 @@ impl Content for NamedFile {
         // default compressing
         if let Some(current_encoding) = &self.encoding {
             resp.set_content_encoding(current_encoding);
-        }
+        }// else {
+            // resp.set_content_length(self.metadata.len());
+        // }
 
         if let Some(lm) = last_modified {
             resp.set_last_modified(lm);
@@ -321,14 +318,12 @@ impl Content for NamedFile {
         let mut length = self.metadata.len();
         let mut offset = 0;
 
-        println!("======================7");
         // check for range header
         if let Some(ranges) = req.headers().get(&header::RANGE) {
             if let Ok(rangesheader) = ranges.to_str() {
                 if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
-                    resp.set_content_encoding("identity".into());
                     resp.set_content_range(&format!(
                             "bytes {}-{}/{}",
                             offset,
@@ -346,37 +341,28 @@ impl Content for NamedFile {
             };
         };
 
-        println!("======================8");
         if precondition_failed {
             resp.set_status_code(StatusCode::PRECONDITION_FAILED);
-            println!("======================9");
             return
         } else if not_modified {
             resp.set_status_code(StatusCode::NOT_MODIFIED);
-            println!("======================10");
             return
         }
 
+        match read_file_bytes(&mut self.file, length, offset, 0) {
+            Ok(data) => {
+                resp.render(&self.content_type.to_string(), &data)
+            },
+            Err(e) => {
+                error!(logger(), "read file error"; "error" => e.to_string());
+                resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
+            },
+        }
         if offset != 0 || length != self.metadata.len() {
-            println!("======================11");
             resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-            match read_file_bytes(&mut self.file, length, offset, 0) {
-                Ok(data) => resp.render(self.content_type.to_string(), data),
-                Err(_) => {
-                    resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
-                },
-            }
         } else {
             resp.set_status_code(StatusCode::OK);
-            println!("======================12");
-            let mut data = Vec::with_capacity(length as usize);
-            match self.file.read_to_end(&mut data) {
-                Ok(_) => resp.render(self.content_type.to_string(), data),
-                Err(_) => {
-                    resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
-                },
-            }
-            
+            resp.set_content_length(self.metadata.len());
         }
     }
 }
@@ -436,7 +422,7 @@ fn none_match(etag: Option<&str>, req: &Request) -> bool {
 
 fn read_file_bytes(file: &mut File, size: u64, offset: u64, counter: u64) -> Result<Vec<u8>, io::Error> {
     let max_bytes: usize;
-    max_bytes = cmp::min(size.saturating_sub(counter), 65_536) as usize;
+    max_bytes = cmp::min(size.saturating_sub(counter), 1048_576) as usize;
     let mut buf = Vec::with_capacity(max_bytes);
     file.seek(io::SeekFrom::Start(offset))?;
     let nbytes =

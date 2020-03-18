@@ -191,10 +191,8 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        println!(">>>>>>>>>>>>>>>>....0");
                         if let Ok(named_file) = NamedFile::from_path(ipath) {
-                            println!(">>>>>>>>>>>>>>>>....1");
-                            named_file.apply(req, resp);
+                            named_file.apply(req, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                         }
@@ -216,10 +214,8 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                println!(">>>>>>>>>>>>>>>>....2");
                 if let Ok(named_file) = NamedFile::from_path(path) {
-                    println!(">>>>>>>>>>>>>>>>....3");
-                    named_file.apply(req, resp);
+                    named_file.apply(req, resp).await;
                 } else {
                     resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
                 }

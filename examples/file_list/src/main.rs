@@ -1,5 +1,5 @@
-use salvo::{Server};
-use salvo::routing::{Router};
+use salvo_core::{Server};
+use salvo_core::routing::{Router};
 use salvo_extra::serve::{Static};
 
 #[tokio::main]

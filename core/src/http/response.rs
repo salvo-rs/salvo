@@ -11,11 +11,11 @@ use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use httpdate::HttpDate;
+use bytes::{Bytes, BytesMut};
 
 use crate::ServerConfig;
 use crate::logging;
 use crate::http::Request;
-use super::Writer;
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
@@ -31,8 +31,7 @@ pub struct Response {
 
     pub(crate) cookies: CookieJar,
 
-    /// The writers of the response.
-    pub(crate) writers: Vec<Box<dyn Writer>>,
+    pub(crate) body: BytesMut,
     pub(crate) server_config: Arc<ServerConfig>,
 
     is_commited: bool,
@@ -44,7 +43,7 @@ impl Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
-            writers: Vec::new(),   // Start with no writers.
+            body: BytesMut::new(),   // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             server_config: sconf,
@@ -78,17 +77,12 @@ impl Response {
 
         if let &Method::HEAD = req.method() {
         }else{
-            if self.writers.is_empty() {
+            if self.body.is_empty() {
                 res.headers_mut().insert(
                     header::CONTENT_LENGTH,
                     header::HeaderValue::from_static("0"),
                 );
-            }else{
-                let (mut sender, body) = Body::channel();
-                for mut writer in self.writers {
-                    writer.write(req, res, &mut sender).await;
-                }
-                *res.body_mut() = body;
+                *res.body_mut() = Body::from(Bytes::from(self.body));
             }
         }
     }
@@ -141,10 +135,6 @@ impl Response {
         self.http_error = Some(Box::new(err));
         self.commit();
     }
-    #[inline]
-    pub fn push_writer(&mut self, writer: impl Writer + 'static) {
-        self.writers.push(Box::new(writer))
-    }
     // #[inline]
     // pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
     //     if let Ok(data) = serde_cbor::to_vec(writer) {
@@ -156,29 +146,29 @@ impl Response {
     //     }
     // }
     #[inline]
-    pub fn render_json<'a, T: Serialize>(&mut self, writer: &'a T) {
-        if let Ok(data) = serde_json::to_string(writer) {
-            self.render("application/json", data);
+    pub fn render_json<'a, T: Serialize>(&mut self, data: &'a T) {
+        if let Ok(data) = serde_json::to_string(data) {
+            self.render("application/json", data.as_bytes());
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
-            self.render("application/json", serde_json::to_string(&emsg).unwrap());
+            self.render("application/json", serde_json::to_string(&emsg).unwrap().as_bytes());
         }
     }
-    pub fn render_json_text<T: Into<String>>(&mut self, writer: T) {
-        self.render("application/json", writer.into());
+    pub fn render_json_text<T: Into<String>>(&mut self, data: &str) {
+        self.render("application/json", data.as_bytes());
     }
     #[inline]
-    pub fn render_html_text<T: Into<String>>(&mut self, writer: T) {
-        self.render("text/html", writer.into());
+    pub fn render_html_text<T: Into<String>>(&mut self, data: &str) {
+        self.render("text/html", data.as_bytes());
     }
     #[inline]
-    pub fn render_plain_text<T: Into<String>>(&mut self, writer: T) {
-        self.render("text/plain", writer.into());
+    pub fn render_plain_text<T: Into<String>>(&mut self, data: &str) {
+        self.render("text/plain", data.as_bytes());
     }
     #[inline]
-    pub fn render_xml_text<T: Into<String>>(&mut self, writer: T) {
-        self.render("text/xml", writer.into());
+    pub fn render_xml_text<T: Into<String>>(&mut self, data: &str) {
+        self.render("text/xml", data.as_bytes());
     }
     // RenderBinary is like RenderFile() except that it instead of a file on disk,
     // it renders store from memory (which could be a file that has not been written,
@@ -186,11 +176,11 @@ impl Response {
     // it implements io.Reader).  When called directly on something generated or
     // streamed, modtime should mostly likely be time.Now().
     #[inline]
-    pub fn render_binary<T>(&mut self, content_type:T, data: Vec<u8>) where T: AsRef<str> {
+    pub fn render_binary(&mut self, content_type: &str, data: &[u8]) {
         self.render(content_type, data);
     }
     // #[inline]
-    // pub fn render_file<T>(&mut self, content_type:T, file: &mut File)  where T: AsRef<str> {
+    // pub fn render_file<T>(&mut self, content_type: &str, file: &mut File)  where T: AsRef<str> {
     //     let mut data = Vec::new();  
     //     if file.read_to_end(&mut data).is_err() {
     //         return self.not_found();
@@ -198,7 +188,7 @@ impl Response {
     //     self.render_binary(content_type, data);
     // }
     // #[inline]
-    // pub fn render_file_with_name<T>(&mut self, content_type:T, file: &mut File, name: &str)  where T: AsRef<str> {
+    // pub fn render_file_with_name<T>(&mut self, content_type: &str, file: &mut File, name: &str)  where T: AsRef<str> {
     //     self.headers_mut().append(CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", name).parse().unwrap());
     //     self.render_file(content_type, file);
     // }
@@ -236,17 +226,22 @@ impl Response {
     //     }
     // }
     #[inline]
-    pub fn render<T>(&mut self, content_type:T, writer: impl Writer+'static) where T: AsRef<str> {
-        self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
-        self.push_writer(writer);
+    pub fn render(&mut self, content_type: &str, data: &[u8]) {
+        self.headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
+        self.body.extend_from_slice(data);
     }
     
     #[inline]
-    pub fn send_binary<T>(&mut self, data: Vec<u8>, file_name: T) where T: AsRef<str> {
-        let file_name = Path::new(file_name.as_ref()).file_name().and_then(|s|s.to_str()).unwrap_or("file.dat");
+    pub fn write_body(&mut self, content_type: &str, data: &[u8]) {
+        self.body.extend_from_slice(data);
+    }
+    
+    #[inline]
+    pub fn send_binary(&mut self, data: &[u8], file_name: &str) {
+        let file_name = Path::new(file_name).file_name().and_then(|s|s.to_str()).unwrap_or("file.dat");
         if let Some(mime) = self.get_mime_by_path(file_name) {
             self.headers.insert(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", &file_name).parse().unwrap());
-            self.render(mime.to_string(), data);
+            self.render(&mime.to_string(), data);
         }else{
             self.unsupported_media_type();
             error!(logging::logger(), "error on send binary"; "file_name" => AsRef::<str>::as_ref(&file_name));
@@ -294,6 +289,9 @@ impl Response {
     }
     pub fn set_content_encoding(&mut self, value: &str) {
         self.headers_mut().insert(CONTENT_ENCODING, value.parse().unwrap());
+    }
+    pub fn set_content_length(&mut self, value: u64) {
+        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse().unwrap());
     }
     pub fn set_content_range(&mut self, value: &str) {
         self.headers_mut().insert(CONTENT_RANGE, value.parse().unwrap());
