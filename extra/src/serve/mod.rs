@@ -236,10 +236,10 @@ impl Handler for Static {
         dirs.sort_by(|a,b|a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
         match format.subtype().as_ref(){
-            "text"=> resp.render_plain_text(list_text(&root)),
-            "json"=> resp.render_json_text(list_json(&root)),
-            "xml"=> resp.render_xml_text(list_xml(&root)),
-            _ => resp.render_html_text(list_html(&root)),
+            "text"=> resp.render_plain_text(&list_text(&root)),
+            "json"=> resp.render_json_text(&list_json(&root)),
+            "xml"=> resp.render_xml_text(&list_xml(&root)),
+            _ => resp.render_html_text(&list_html(&root)),
         }
     }
 }

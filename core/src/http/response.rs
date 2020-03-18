@@ -155,19 +155,19 @@ impl Response {
             self.render("application/json", serde_json::to_string(&emsg).unwrap().as_bytes());
         }
     }
-    pub fn render_json_text<T: Into<String>>(&mut self, data: &str) {
+    pub fn render_json_text(&mut self, data: &str) {
         self.render("application/json", data.as_bytes());
     }
     #[inline]
-    pub fn render_html_text<T: Into<String>>(&mut self, data: &str) {
+    pub fn render_html_text(&mut self, data: &str) {
         self.render("text/html", data.as_bytes());
     }
     #[inline]
-    pub fn render_plain_text<T: Into<String>>(&mut self, data: &str) {
+    pub fn render_plain_text(&mut self, data: &str) {
         self.render("text/plain", data.as_bytes());
     }
     #[inline]
-    pub fn render_xml_text<T: Into<String>>(&mut self, data: &str) {
+    pub fn render_xml_text(&mut self, data: &str) {
         self.render("text/xml", data.as_bytes());
     }
     // RenderBinary is like RenderFile() except that it instead of a file on disk,
@@ -232,7 +232,7 @@ impl Response {
     }
     
     #[inline]
-    pub fn write_body(&mut self, content_type: &str, data: &[u8]) {
+    pub fn write_body(&mut self, data: &[u8]) {
         self.body.extend_from_slice(data);
     }
     
