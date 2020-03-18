@@ -229,13 +229,16 @@ impl NamedFile {
 impl Content for NamedFile {
     async fn apply(mut self, req: &mut Request, resp: &mut Response) {
         if self.status_code != StatusCode::OK {
+            println!("======================1");
             resp.set_status_code(self.status_code);
             resp.set_content_disposition(&self.content_disposition);
             if let Some(current_encoding) = &self.encoding {
                 resp.set_content_encoding(current_encoding);
             }
+            println!("======================2");
             match read_file_bytes(&mut self.file, self.metadata.len(), 0, 0) {
                 Ok(data) => {
+                    println!("======================3");
                     resp.render(self.content_type.to_string(), data);
                 },
                 Err(_) => {
@@ -244,6 +247,7 @@ impl Content for NamedFile {
             }
             return
         }
+        println!("======================5");
 
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
@@ -276,6 +280,7 @@ impl Content for NamedFile {
             false
         };
 
+        println!("======================6");
         // check last modified
         let not_modified = if !none_match(etag.as_deref(), req) {
             true
@@ -315,6 +320,7 @@ impl Content for NamedFile {
         let mut length = self.metadata.len();
         let mut offset = 0;
 
+        println!("======================7");
         // check for range header
         if let Some(ranges) = req.headers().get(&header::RANGE) {
             if let Ok(rangesheader) = ranges.to_str() {
@@ -339,15 +345,19 @@ impl Content for NamedFile {
             };
         };
 
+        println!("======================8");
         if precondition_failed {
             resp.set_status_code(StatusCode::PRECONDITION_FAILED);
+            println!("======================9");
             return
         } else if not_modified {
             resp.set_status_code(StatusCode::NOT_MODIFIED);
+            println!("======================10");
             return
         }
 
         if offset != 0 || length != self.metadata.len() {
+            println!("======================11");
             resp.set_status_code(StatusCode::PARTIAL_CONTENT);
             match read_file_bytes(&mut self.file, length, offset, 0) {
                 Ok(data) => resp.render(self.content_type.to_string(), data),
@@ -357,6 +367,7 @@ impl Content for NamedFile {
             }
         } else {
             resp.set_status_code(StatusCode::OK);
+            println!("======================12");
             let mut data = Vec::with_capacity(length as usize);
             match self.file.read_to_end(&mut data) {
                 Ok(_) => resp.render(self.content_type.to_string(), data),
