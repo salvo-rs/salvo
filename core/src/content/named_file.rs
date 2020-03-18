@@ -49,27 +49,10 @@ pub struct NamedFile {
 }
 
 impl NamedFile {
-    /// Creates an instance from a previously opened file.
-    ///
-    /// The given `path` need not exist and is only used to determine the `ContentType` and
-    /// `ContentDisposition` headers.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use actix_files::NamedFile;
-    /// use std::io::{self, Write};
-    /// use std::env;
-    /// use std::fs::File;
-    ///
-    /// fn main() -> io::Result<()> {
-    ///     let mut file = File::create("foo.txt")?;
-    ///     file.write_all(b"Hello, world!")?;
-    ///     let named_file = NamedFile::from_file(file, "bar.txt")?;
-    ///     # std::fs::remove_file("foo.txt");
-    ///     Ok(())
-    /// }
-    /// ```
+    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<NamedFile> {
+        let file = File::open(path.as_ref())?;
+        Self::from_file(file, path)
+    }
     pub fn from_file<P: AsRef<Path>>(file: File, path: P) -> io::Result<NamedFile> {
         let path = path.as_ref().to_path_buf();
 

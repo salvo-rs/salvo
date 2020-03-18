@@ -1,6 +1,4 @@
 use std::fmt::{self, Debug};
-use std::fs::File;
-use std::io::prelude::*;
 use std::path::Path;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -191,52 +189,52 @@ impl Response {
     pub fn render_binary<T>(&mut self, content_type:T, data: Vec<u8>) where T: AsRef<str> {
         self.render(content_type, data);
     }
-    #[inline]
-    pub fn render_file<T>(&mut self, content_type:T, file: &mut File)  where T: AsRef<str> {
-        let mut data = Vec::new();  
-        if file.read_to_end(&mut data).is_err() {
-            return self.not_found();
-        }
-        self.render_binary(content_type, data);
-    }
-    #[inline]
-    pub fn render_file_with_name<T>(&mut self, content_type:T, file: &mut File, name: &str)  where T: AsRef<str> {
-        self.headers_mut().append(CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", name).parse().unwrap());
-        self.render_file(content_type, file);
-    }
-    #[inline]
-    pub fn render_file_from_path<T>(&mut self, path: T) where T: AsRef<Path> {
-        match File::open(path.as_ref()) {
-            Ok(mut file) => {
-                if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-                    self.render_file(mime.to_string(), &mut file);
-                }else{
-                    self.unsupported_media_type();
-                    error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
-                }
-            },
-            Err(_) => {
-                self.not_found();
-            },
-        }
-    }
+    // #[inline]
+    // pub fn render_file<T>(&mut self, content_type:T, file: &mut File)  where T: AsRef<str> {
+    //     let mut data = Vec::new();  
+    //     if file.read_to_end(&mut data).is_err() {
+    //         return self.not_found();
+    //     }
+    //     self.render_binary(content_type, data);
+    // }
+    // #[inline]
+    // pub fn render_file_with_name<T>(&mut self, content_type:T, file: &mut File, name: &str)  where T: AsRef<str> {
+    //     self.headers_mut().append(CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", name).parse().unwrap());
+    //     self.render_file(content_type, file);
+    // }
+    // #[inline]
+    // pub fn render_file_from_path<T>(&mut self, path: T) where T: AsRef<Path> {
+    //     match File::open(path.as_ref()) {
+    //         Ok(mut file) => {
+    //             if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
+    //                 self.render_file(mime.to_string(), &mut file);
+    //             }else{
+    //                 self.unsupported_media_type();
+    //                 error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+    //             }
+    //         },
+    //         Err(_) => {
+    //             self.not_found();
+    //         },
+    //     }
+    // }
     
-    #[inline]
-    pub fn render_file_from_path_with_name<T>(&mut self, path: T, name: &str) where T: AsRef<Path> {
-        match File::open(path.as_ref()) {
-            Ok(mut file) => {
-                if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-                    self.render_file_with_name(mime.to_string(), &mut file, name);
-                }else{
-                    self.unsupported_media_type();
-                    error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
-                }
-            },
-            Err(_) => {
-                self.not_found();
-            },
-        }
-    }
+    // #[inline]
+    // pub fn render_file_from_path_with_name<T>(&mut self, path: T, name: &str) where T: AsRef<Path> {
+    //     match File::open(path.as_ref()) {
+    //         Ok(mut file) => {
+    //             if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
+    //                 self.render_file_with_name(mime.to_string(), &mut file, name);
+    //             }else{
+    //                 self.unsupported_media_type();
+    //                 error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+    //             }
+    //         },
+    //         Err(_) => {
+    //             self.not_found();
+    //         },
+    //     }
+    // }
     #[inline]
     pub fn render<T>(&mut self, content_type:T, writer: impl Writer+'static) where T: AsRef<str> {
         self.headers.insert(header::CONTENT_TYPE, content_type.as_ref().parse().unwrap());
@@ -254,19 +252,19 @@ impl Response {
             error!(logging::logger(), "error on send binary"; "file_name" => AsRef::<str>::as_ref(&file_name));
         }
     }
-    #[inline]
-    pub fn send_file<T>(&mut self, file: &mut File, file_name: T) -> std::io::Result<()> where T: AsRef<str> {
-        let mut data = Vec::new();  
-        file.read_to_end(&mut data)?;
-        self.send_binary(data, file_name.as_ref());
-        Ok(())
-    }
-    #[inline]
-    pub fn send_file_from_path<T>(&mut self, path: T, file_name: Option<T>) -> std::io::Result<()> where T: AsRef<str> {
-        let mut file = File::open(path.as_ref())?;
-        self.send_file(&mut file, file_name.unwrap_or(path))
-    }
-    
+    // #[inline]
+    // pub fn send_file<T>(&mut self, file: &mut File, file_name: T) -> std::io::Result<()> where T: AsRef<str> {
+    //     let mut data = Vec::new();  
+    //     file.read_to_end(&mut data)?;
+    //     self.send_binary(data, file_name.as_ref());
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn send_file_from_path<T>(&mut self, path: T, file_name: Option<T>) -> std::io::Result<()> where T: AsRef<str> {
+    //     let mut file = File::open(path.as_ref())?;
+    //     self.send_file(&mut file, file_name.unwrap_or(path))
+    // }
+
     #[inline]
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
