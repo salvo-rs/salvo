@@ -1,25 +1,24 @@
+use async_trait::async_trait;
+use bitflags::bitflags;
+use httpdate::{self, HttpDate};
+use mime_guess::from_path;
 use std::fs::{File, Metadata};
-use std::{cmp, io};
+use std::io::Read;
+use std::io::Seek;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::io::Read;
-use async_trait::async_trait;
-use httpdate::{self, HttpDate};
-use std::io::Seek;
+use std::{cmp, io};
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 
-use bitflags::bitflags;
-use mime_guess::from_path;
-
-use crate::http::range::HttpRange;
-use crate::http::header;
-use crate::http::{StatusCode, Request, Response};
-use crate::http::errors::*;
-use crate::logging::logger;
 use super::Writer;
+use crate::http::errors::*;
+use crate::http::header;
+use crate::http::range::HttpRange;
+use crate::http::{Request, Response, StatusCode};
+use crate::logging::logger;
 
 bitflags! {
     pub(crate) struct Flags: u8 {
@@ -51,7 +50,11 @@ pub struct NamedFile {
 }
 
 impl NamedFile {
-    pub fn from_file<P: AsRef<Path>>(file: File, path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
+    pub fn from_file<P: AsRef<Path>>(
+        file: File,
+        path: P,
+        chunk_size: Option<u64>,
+    ) -> io::Result<NamedFile> {
         let path = path.as_ref().to_path_buf();
 
         // Get the name of the file and use it to construct default Content-Type
@@ -72,7 +75,10 @@ impl NamedFile {
                 mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
                 _ => "attachment",
             };
-            (ct, format!("{};filename=\"{}\"", disposition_type, filename.as_ref()))
+            (
+                ct,
+                format!("{};filename=\"{}\"", disposition_type, filename.as_ref()),
+            )
         };
 
         let metadata = file.metadata()?;
@@ -290,7 +296,7 @@ impl Writer for NamedFile {
         // default compressing
         if let Some(current_encoding) = &self.encoding {
             resp.set_content_encoding(current_encoding);
-        } 
+        }
         // else {
         //     resp.set_content_length(length);
         // }
@@ -303,7 +309,6 @@ impl Writer for NamedFile {
                 if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
-                    // range = Some(rangesvec.pop());
                 } else {
                     resp.set_content_range(&format!("bytes */{}", length));
                     resp.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
@@ -317,33 +322,34 @@ impl Writer for NamedFile {
 
         if precondition_failed {
             resp.set_status_code(StatusCode::PRECONDITION_FAILED);
-            return
+            return;
         } else if not_modified {
             resp.set_status_code(StatusCode::NOT_MODIFIED);
-            return
+            return;
         }
 
         match read_file_bytes(&mut self.file, length, offset, self.chunk_size) {
             Ok(data) => {
                 if data.len() as u64 != self.metadata.len() {
                     resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-                    // if range.is_some() {
-                        resp.set_content_range(&format!(
-                            "bytes {}-{}/{}",
-                            offset,
-                            offset + length - 1,
-                            self.metadata.len()
-                        ));
-                    // }
+                    resp.set_content_range(&format!(
+                        "bytes {}-{}/{}",
+                        offset,
+                        offset + length - 1,
+                        self.metadata.len()
+                    ));
                 } else {
                     resp.set_status_code(StatusCode::OK);
                 }
                 resp.render(&self.content_type.to_string(), &data)
-            },
+            }
             Err(e) => {
                 error!(logger(), "read file error"; "error" => e.to_string());
-                resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
-            },
+                resp.set_http_error(InternalServerError::new(
+                    "file read error",
+                    "can not read this file",
+                ));
+            }
         }
     }
 }
@@ -381,6 +387,8 @@ fn any_match(etag: Option<&str>, req: &Request) -> bool {
     }
 }
 
+
+
 /// Returns true if `req` doesn't have an `If-None-Match` header matching `req`.
 fn none_match(etag: Option<&str>, req: &Request) -> bool {
     match req.get_header(header::IF_MATCH).and_then(|v|v.to_str().ok()) {
@@ -404,7 +412,7 @@ fn none_match(etag: Option<&str>, req: &Request) -> bool {
 fn read_file_bytes(file: &mut File, range_size: u64, offset: u64, chunk_size: u64) -> Result<Vec<u8>, io::Error> {
     let max_bytes: usize;
     max_bytes = cmp::min(range_size, chunk_size) as usize;
-    println!("=========size: {}, offset: {}, chunk_size:{} max_bytes:{}", range_size,offset, chunk_size, max_bytes);
+    // println!("=========size: {}, offset: {}, chunk_size:{} max_bytes:{}", range_size,offset, chunk_size, max_bytes);
     let mut buf = Vec::with_capacity(max_bytes);
     file.seek(io::SeekFrom::Start(offset))?;
     let nbytes =
