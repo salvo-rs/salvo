@@ -20,11 +20,15 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
 
     match sig.inputs.len() {
         3 => {
-            let ts: TokenStream = quote!{_sconf: ::std::sync::Arc<::salvo::ServerConfig>}.into();
+            let ts: TokenStream = quote! {_sconf: ::std::sync::Arc<::salvo::ServerConfig>}.into();
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
-        },
-        4 => {},
-        _ => return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports").to_compile_error().into(),
+        }
+        4 => {}
+        _ => {
+            return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports")
+                .to_compile_error()
+                .into()
+        }
     }
 
     let sdef = quote! {

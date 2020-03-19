@@ -1,19 +1,19 @@
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use std::pin::Pin;
 
 use hyper::Server as HyperServer;
 
-use crate::{Protocol, Catcher, Depot};
-use crate::http::{StatusCode, Request, Response, Mime};
-use crate::http::header::CONTENT_TYPE;
-use crate::routing::Router;
-use crate::catcher;
-use crate::logging;
 use super::pick_port;
+use crate::catcher;
+use crate::http::header::CONTENT_TYPE;
+use crate::http::{Mime, Request, Response, StatusCode};
+use crate::logging;
+use crate::routing::Router;
+use crate::{Catcher, Depot, Protocol};
 
-use std::net::{SocketAddr, ToSocketAddrs};
 use futures::{future, Future};
+use std::net::{SocketAddr, ToSocketAddrs};
 /// A settings struct containing a set of timeouts which can be applied to a server.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Timeouts {
@@ -37,9 +37,9 @@ impl Default for Timeouts {
 /// application.
 pub struct Server {
     pub router: Arc<Router>,
-    pub config: Arc<ServerConfig>
+    pub config: Arc<ServerConfig>,
 }
-pub struct ServerConfig{
+pub struct ServerConfig {
     pub timeouts: Timeouts,
 
     /// Protocol of the incoming requests
@@ -59,7 +59,7 @@ pub struct ServerConfig{
     pub allowed_media_types: Arc<Vec<Mime>>,
 }
 impl ServerConfig {
-    pub fn new()->ServerConfig{
+    pub fn new() -> ServerConfig {
         // let mimes = vec![
         //     mime::APPLICATION_JSON,
         //     mime::APPLICATION_JAVASCRIPT,
@@ -83,7 +83,7 @@ impl ServerConfig {
         //     mime::FONT_WOFF,
         //     mime::FONT_WOFF2,
         // ];
-        ServerConfig{
+        ServerConfig {
             protocol: Protocol::http(),
             local_addr: None,
             timeouts: Timeouts::default(),
@@ -100,31 +100,34 @@ impl Default for ServerConfig {
 }
 
 impl Server {
-    pub fn new(router: Router) -> Server{
+    pub fn new(router: Router) -> Server {
         let config = ServerConfig::default();
-        Server{
+        Server {
             router: Arc::new(router),
             config: Arc::new(config),
         }
     }
 
     pub fn with_config(router: Router, config: ServerConfig) -> Server {
-        Server{
+        Server {
             router: Arc::new(router),
             config: Arc::new(config),
         }
     }
 
-    pub fn with_addr<T>(router: Router, addr: T) -> Server where T: ToSocketAddrs {
+    pub fn with_addr<T>(router: Router, addr: T) -> Server
+    where
+        T: ToSocketAddrs,
+    {
         let mut config = ServerConfig::default();
         config.local_addr = addr.to_socket_addrs().unwrap().next();
-        Server{
+        Server {
             router: Arc::new(router),
             config: Arc::new(config),
         }
     }
 
-    pub fn serve(self) -> impl Future<Output=Result<(), hyper::error::Error>> + Send + 'static {
+    pub fn serve(self) -> impl Future<Output = Result<(), hyper::error::Error>> + Send + 'static {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
@@ -137,7 +140,7 @@ impl Server {
             .serve(self)
     }
 }
-impl<T>  hyper::service::Service<T> for Server {
+impl<T> hyper::service::Service<T> for Server {
     type Response = HyperHandler;
     type Error = std::io::Error;
     // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
@@ -148,7 +151,7 @@ impl<T>  hyper::service::Service<T> for Server {
     }
 
     fn call(&mut self, _: T) -> Self::Future {
-        future::ok(HyperHandler{
+        future::ok(HyperHandler {
             router: self.router.clone(),
             config: self.config.clone(),
         })
@@ -176,8 +179,12 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
 
-        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or_default();
-        segments.retain(|x| *x!="");
+        let mut segments = request
+            .url()
+            .path_segments()
+            .map(|c| c.collect::<Vec<_>>())
+            .unwrap_or_default();
+        segments.retain(|x| *x != "");
         let (ok, handlers, params) = self.router.detect(request.method().clone(), segments);
         if !ok {
             response.set_status_code(StatusCode::NOT_FOUND);
@@ -187,7 +194,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let config = self.config.clone();
 
         let fut = async move {
-            for handler in handlers{
+            for handler in handlers {
                 handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
                 if response.is_commited() {
                     break;
@@ -196,19 +203,19 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             if !response.is_commited() {
                 response.commit();
             }
-    
+
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
-    
-            if response.status_code().is_none(){
+
+            if response.status_code().is_none() {
                 if response.body.is_empty() {
                     response.set_status_code(StatusCode::NOT_FOUND);
-                }else {
+                } else {
                     response.set_status_code(StatusCode::OK);
                 }
             }
             let status = response.status_code().unwrap();
             let has_error = status.is_client_error() || status.is_server_error();
-            if let Some(value) =  response.headers().get(CONTENT_TYPE) {
+            if let Some(value) = response.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
                     if allowed_media_types.is_empty() {

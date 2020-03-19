@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::{ServerConfig, Depot};
 use crate::http::{Request, Response};
+use crate::{Depot, ServerConfig};
 
 mod named_file;
 pub use named_file::NamedFile;
@@ -14,7 +14,10 @@ pub trait Writer: Send {
 
 pub struct HtmlTextContent<T>(T);
 #[async_trait]
-impl<T> Writer for HtmlTextContent<T> where T: AsRef<str> + Send {
+impl<T> Writer for HtmlTextContent<T>
+where
+    T: AsRef<str> + Send,
+{
     async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         resp.render("text/html", self.0.as_ref().as_bytes());
     }
@@ -22,7 +25,10 @@ impl<T> Writer for HtmlTextContent<T> where T: AsRef<str> + Send {
 
 pub struct JsonTextContent<T>(T);
 #[async_trait]
-impl<T> Writer for JsonTextContent<T> where T: AsRef<str> + Send {
+impl<T> Writer for JsonTextContent<T>
+where
+    T: AsRef<str> + Send,
+{
     async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         resp.render("application/json", self.0.as_ref().as_bytes());
     }
@@ -30,7 +36,10 @@ impl<T> Writer for JsonTextContent<T> where T: AsRef<str> + Send {
 
 pub struct PlainTextContent<T>(T);
 #[async_trait]
-impl<T> Writer for PlainTextContent<T> where T: AsRef<str> + Send {
+impl<T> Writer for PlainTextContent<T>
+where
+    T: AsRef<str> + Send,
+{
     async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         resp.render("text/plain", self.0.as_ref().as_bytes());
     }
@@ -38,7 +47,10 @@ impl<T> Writer for PlainTextContent<T> where T: AsRef<str> + Send {
 
 pub struct XmlTextContent<T>(T);
 #[async_trait]
-impl<T> Writer for XmlTextContent<T> where T: AsRef<str> + Send {
+impl<T> Writer for XmlTextContent<T>
+where
+    T: AsRef<str> + Send,
+{
     async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         resp.render("text/xml", self.0.as_ref().as_bytes());
     }
@@ -46,6 +58,5 @@ impl<T> Writer for XmlTextContent<T> where T: AsRef<str> + Send {
 
 #[async_trait]
 impl Writer for () {
-    async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {
-    }
+    async fn write(mut self, _sconf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {}
 }

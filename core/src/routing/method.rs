@@ -1,8 +1,8 @@
 use http::Method as HttpMethod;
 
 bitflags! {
-	pub struct Method: u16 {
-		const GET = 	0b0000_0000_0000_0001;
+    pub struct Method: u16 {
+        const GET = 	0b0000_0000_0000_0001;
         const POST = 	0b0000_0000_0000_0010;
         const PUT = 	0b0000_0000_0000_0100;
         const DELETE = 	0b0000_0000_0000_1000;
@@ -11,26 +11,26 @@ bitflags! {
         const CONNECT = 0b0000_0000_0100_0000;
         const PATCH = 	0b0000_0000_1000_0000;
         const TRACE = 	0b0000_0001_0000_0000;
-        const ALL = Self::GET.bits | Self::POST.bits | Self::PUT.bits | 
-			Self::DELETE.bits | Self::HEAD.bits | Self::OPTIONS.bits | 
-			Self::CONNECT.bits | Self::PATCH.bits | Self::TRACE.bits;
-	}
+        const ALL = Self::GET.bits | Self::POST.bits | Self::PUT.bits |
+            Self::DELETE.bits | Self::HEAD.bits | Self::OPTIONS.bits |
+            Self::CONNECT.bits | Self::PATCH.bits | Self::TRACE.bits;
+    }
 }
 impl Method {
-	pub fn from_http_method(m: &HttpMethod) -> Option<Method> {
-		match *m {
-			HttpMethod::GET => 		Some(Method::GET),
-			HttpMethod::POST => 		Some(Method::POST),
-			HttpMethod::PUT => 		Some(Method::PUT),
-			HttpMethod::DELETE => 	Some(Method::DELETE),
-			HttpMethod::HEAD => 		Some(Method::HEAD),
-			HttpMethod::OPTIONS => 	Some(Method::OPTIONS),
-			HttpMethod::CONNECT => 	Some(Method::CONNECT),
-			HttpMethod::PATCH => 	Some(Method::PATCH),
-			HttpMethod::TRACE => 	Some(Method::TRACE),
-			_ => None,
-		}
-	}
+    pub fn from_http_method(m: &HttpMethod) -> Option<Method> {
+        match *m {
+            HttpMethod::GET => Some(Method::GET),
+            HttpMethod::POST => Some(Method::POST),
+            HttpMethod::PUT => Some(Method::PUT),
+            HttpMethod::DELETE => Some(Method::DELETE),
+            HttpMethod::HEAD => Some(Method::HEAD),
+            HttpMethod::OPTIONS => Some(Method::OPTIONS),
+            HttpMethod::CONNECT => Some(Method::CONNECT),
+            HttpMethod::PATCH => Some(Method::PATCH),
+            HttpMethod::TRACE => Some(Method::TRACE),
+            _ => None,
+        }
+    }
     pub fn to_http_methods(self) -> Vec<HttpMethod> {
         let mut list = vec![];
         if self.contains(Method::GET) {

@@ -1,6 +1,5 @@
 use crate::http::errors::*;
-use crate::http::{guess_accept_mime, header, Request, Response};
-use http::status::StatusCode;
+use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 
 pub trait Catcher: Send + Sync + 'static {
     fn catch(&self, req: &Request, resp: &mut Response) -> bool;
@@ -19,9 +18,14 @@ impl Catcher for CatcherImpl {
             return false;
         }
         let format = guess_accept_mime(req, None);
-        let err = if resp.http_error.is_some() { resp.http_error.as_ref().unwrap() } else { &self.0 };
+        let err = if resp.http_error.is_some() {
+            resp.http_error.as_ref().unwrap()
+        } else {
+            &self.0
+        };
         let (format, data) = err.as_bytes(&format);
-        resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        resp.headers_mut()
+            .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         resp.write_body(&data);
         true
     }

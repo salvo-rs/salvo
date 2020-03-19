@@ -7,9 +7,9 @@ use std::io::Read;
 use std::io::Seek;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, io};
-use std::sync::Arc;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -20,7 +20,7 @@ use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
 use crate::logging::logger;
-use crate::{ServerConfig, Depot};
+use crate::{Depot, ServerConfig};
 
 bitflags! {
     pub(crate) struct Flags: u8 {

@@ -12,27 +12,27 @@
 //!
 //! [#17]: https://github.com/SergioBenitez/Novel/issues/17
 
-mod request;
-mod response;
 pub mod body_chunk;
+pub mod errors;
 pub mod form;
 pub mod multipart;
-pub mod errors;
 pub mod range;
+mod request;
+mod response;
 
+pub use body_chunk::BodyChunk;
+pub use cookie;
+pub use http::{method::Method, HeaderMap, HeaderValue, StatusCode};
+pub use hyper::Body;
+pub use mime::Mime;
+pub use range::HttpRange;
 pub use request::Request;
 pub use response::Response;
-pub use http::{method::Method, StatusCode, HeaderMap, HeaderValue};
-pub use body_chunk::BodyChunk;
-pub use mime::Mime;
-pub use hyper::Body;
-pub use cookie;
-pub use range::HttpRange;
 
 pub mod header;
 
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
-    let dmime: Mime = default_type.unwrap_or_else(||"text/html".parse().unwrap());
+    let dmime: Mime = default_type.unwrap_or_else(|| "text/html".parse().unwrap());
     let accept = req.accept();
     accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
 }

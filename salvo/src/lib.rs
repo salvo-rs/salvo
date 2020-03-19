@@ -8,14 +8,14 @@ pub use salvo_macro;
 pub use salvo_extra as extra;
 
 pub mod prelude {
-    pub use crate::server::{Server, ServerConfig};
-    pub use crate::routing::Router;
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};
-    pub use crate::Handler;
     pub use crate::logging::{self, logger};
-    pub use std::sync::Arc;
+    pub use crate::routing::Router;
+    pub use crate::server::{Server, ServerConfig};
+    pub use crate::Handler;
+    pub use async_trait::async_trait;
     #[cfg(feature = "macro")]
     pub use salvo_macro::fn_handler;
-    pub use async_trait::async_trait;
+    pub use std::sync::Arc;
 }

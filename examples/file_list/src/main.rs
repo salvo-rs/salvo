@@ -1,6 +1,6 @@
-use salvo_core::{Server};
-use salvo_core::routing::{Router};
-use salvo_extra::serve::{Static};
+use salvo_core::routing::Router;
+use salvo_core::Server;
+use salvo_extra::serve::Static;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

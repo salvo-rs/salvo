@@ -85,9 +85,7 @@ impl<'a> BodyChunk for &'a [u8] {
 
 impl<'a> BodyChunk for Cow<'a, [u8]> {
     fn split_into(self, idx: usize) -> (Self, Self) {
-        fn cow_tup<'a, T: Into<Cow<'a, [u8]>>>(
-            (left, right): (T, T),
-        ) -> (Cow<'a, [u8]>, Cow<'a, [u8]>) {
+        fn cow_tup<'a, T: Into<Cow<'a, [u8]>>>((left, right): (T, T)) -> (Cow<'a, [u8]>, Cow<'a, [u8]>) {
             (left.into(), right.into())
         }
 

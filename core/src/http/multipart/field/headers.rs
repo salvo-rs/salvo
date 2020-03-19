@@ -1,16 +1,16 @@
-use std::pin::Pin;
-use std::str;
-use std::task::Poll;
-use futures::{Stream, TryStream};
 use futures::task::Context;
+use futures::{Stream, TryStream};
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use httparse::{Status, EMPTY_HEADER};
 use mime::{self, Mime, Name};
+use std::pin::Pin;
+use std::str;
+use std::task::Poll;
 
-use crate::http::multipart::helpers::*;
-use crate::http::BodyChunk;
 use crate::http::errors::ReadError;
+use crate::http::multipart::helpers::*;
 use crate::http::multipart::PushChunk;
+use crate::http::BodyChunk;
 
 const MAX_BUF_LEN: usize = 1024;
 const MAX_HEADERS: usize = 4;
@@ -55,16 +55,12 @@ impl FieldHeaders {
     /// `FieldData::read_text()`; supporting more encodings than ASCII/UTF-8 is (currently)
     /// beyond the scope of this crate.
     pub fn is_text(&self) -> bool {
-        self.content_type
-            .as_ref()
-            .map_or(true, |ct| ct.type_() == mime::TEXT)
+        self.content_type.as_ref().map_or(true, |ct| ct.type_() == mime::TEXT)
     }
 
     /// The character set of this field, if provided.
     pub fn charset(&self) -> Option<Name> {
-        self.content_type
-            .as_ref()
-            .and_then(|ct| ct.get_param(mime::CHARSET))
+        self.content_type.as_ref().and_then(|ct| ct.get_param(mime::CHARSET))
     }
 }
 
@@ -149,12 +145,7 @@ const CRLF2: &[u8] = b"\r\n\r\n";
 /// the second boundary
 fn header_end_split(first: &[u8], second: &[u8]) -> Option<usize> {
     fn split_subcheck(start: usize, first: &[u8], second: &[u8]) -> bool {
-        first.len() >= start
-            && first[first.len() - start..]
-                .iter()
-                .chain(second)
-                .take(4)
-                .eq(CRLF2)
+        first.len() >= start && first[first.len() - start..].iter().chain(second).take(4).eq(CRLF2)
     }
 
     if split_subcheck(3, first, second) {
@@ -179,9 +170,7 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
 
     let headers = match httparse::parse_headers(bytes, &mut header_buf) {
         Ok(Status::Complete((_, headers))) => headers,
-        Ok(Status::Partial) => {
-            return Err(ReadError::Parsing(format!("field headers incomplete: {}", show_bytes(bytes))))
-        }
+        Ok(Status::Partial) => return Err(ReadError::Parsing(format!("field headers incomplete: {}", show_bytes(bytes)))),
         Err(e) => {
             return Err(ReadError::Parsing(format!(
                 "error parsing headers: {}; from buffer: {}",
@@ -208,8 +197,11 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
 
             let str_val = str::from_utf8(header.value)
                 .map_err(|_| {
-                    ReadError::Parsing("multipart `Content-Disposition` header values \
-                     must be UTF-8 encoded".into())
+                    ReadError::Parsing(
+                        "multipart `Content-Disposition` header values \
+                     must be UTF-8 encoded"
+                            .into(),
+                    )
                 })?
                 .trim();
 
@@ -224,8 +216,11 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
 
             let str_val = str::from_utf8(header.value)
                 .map_err(|_| {
-                    ReadError::Parsing("multipart `Content-Type` header values \
-                     must be UTF-8 encoded".into())
+                    ReadError::Parsing(
+                        "multipart `Content-Type` header values \
+                     must be UTF-8 encoded"
+                            .into(),
+                    )
                 })?
                 .trim();
 
@@ -235,13 +230,11 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
                     .map_err(|_| ReadError::Parsing(format!("could not parse MIME type from {:?}", str_val)))?,
             );
         } else {
-            let hdr_name = HeaderName::from_bytes(header.name.as_bytes()).map_err(|e| {
-                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
-            })?;
+            let hdr_name = HeaderName::from_bytes(header.name.as_bytes())
+                .map_err(|e| ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e)))?;
 
-            let hdr_val = HeaderValue::from_bytes(bytes).map_err(|e| {
-                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
-            })?;
+            let hdr_val = HeaderValue::from_bytes(bytes)
+                .map_err(|e| ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e)))?;
 
             out_headers.ext_headers.append(hdr_name, hdr_val);
         }
@@ -265,7 +258,9 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
             )));
         }
 
-        return Err(ReadError::Parsing("missing `Content-Disposition` header on a field in this multipart request".to_string()));
+        return Err(ReadError::Parsing(
+            "missing `Content-Disposition` header on a field in this multipart request".to_string(),
+        ));
     }
 
     if dupe_cont_type {
@@ -284,11 +279,7 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), ReadErro
     // Only take the first section, the rest can be in quoted strings that we want to handle
     let mut sections = val.splitn(2, ';').map(str::trim);
 
-    if !sections
-        .next()
-        .unwrap_or("")
-        .eq_ignore_ascii_case("form-data")
-    {
+    if !sections.next().unwrap_or("").eq_ignore_ascii_case("form-data") {
         return Err(ReadError::Parsing(format!(
             "unexpected/unsupported field header `Content-Disposition: {}` \
              in this multipart request; each field must have exactly one \
@@ -305,7 +296,7 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), ReadErro
         match key {
             "name" => out.name = val.to_string(),
             "filename" => out.filename = Some(val.to_string()),
-            _ => {},
+            _ => {}
             // debug!(
             //     format!("unknown key-value pair in Content-Disposition: {:?} = {:?}",
             //     key, val);
@@ -383,11 +374,7 @@ fn test_header_end_split() {
 fn test_parse_keyval() {
     assert_eq!(
         parse_keyval("name = field; x-attr = \"some;value\"; filename = file.bin"),
-        Some((
-            "name",
-            "field",
-            "x-attr = \"some;value\"; filename = file.bin"
-        ))
+        Some(("name", "field", "x-attr = \"some;value\"; filename = file.bin"))
     );
 
     assert_eq!(
@@ -395,10 +382,7 @@ fn test_parse_keyval() {
         Some(("x-attr", "some;value", "filename = file.bin"))
     );
 
-    assert_eq!(
-        parse_keyval("filename = file.bin"),
-        Some(("filename", "file.bin", ""))
-    );
+    assert_eq!(parse_keyval("filename = file.bin"), Some(("filename", "file.bin", "")));
 
     assert_eq!(parse_keyval(""), None);
 }
@@ -417,7 +401,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = \"field\"\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
@@ -429,7 +414,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = \"field\"\r\n\
                         Content-Type: text/plain; charset=\"utf-8\"\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::TEXT_PLAIN_UTF_8),
@@ -450,7 +436,8 @@ fn test_parse_headers() {
         parse_headers(
             b"content-disposition: form-data; name = \"field\"\r\n\
                         content-type: application/octet-stream\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
@@ -471,7 +458,8 @@ fn test_parse_headers() {
         parse_headers(
             b"contEnt-disPosition: form-data; name = \"field\"\r\n\
                         coNtent-tyPe: application/octet-stream\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
@@ -492,7 +480,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::APPLICATION_OCTET_STREAM),
@@ -504,7 +493,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Type: text/plain; charset=utf-8\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             content_type: Some(mime::TEXT_PLAIN_UTF_8),
@@ -517,7 +507,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field; filename = file.bin\r\n\
                         Content-Type: application/octet-stream\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
@@ -531,7 +522,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Type: application/octet-stream\r\n\
                         Content-Disposition: form-data; name = field; filename = file.bin\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
@@ -545,7 +537,8 @@ fn test_parse_headers() {
         parse_headers(
             b"Content-Disposition: form-data; name = field; x-attr = \"some;value\"; \
                         filename = file.bin\r\n\r\n"
-        ).unwrap(),
+        )
+        .unwrap(),
         FieldHeaders {
             name: "field".into(),
             filename: Some("file.bin".into()),
@@ -559,7 +552,9 @@ fn test_parse_headers() {
 fn test_parse_headers_errors() {
     // missing content-disposition
     assert_eq!(
-        parse_headers(b"Content-Type: application/octet-stream\r\n\r\n").unwrap_err().to_string(),
+        parse_headers(b"Content-Type: application/octet-stream\r\n\r\n")
+            .unwrap_err()
+            .to_string(),
         "missing `Content-Disposition` header on a field \
          (Content-Type: application/octet-stream) in this multipart request"
     );
@@ -570,7 +565,8 @@ fn test_parse_headers_errors() {
             b"Content-Disposition: form-data; name = field\r\n\
                         Content-Disposition: form-data; name = field2\r\n\r\n"
         )
-        .unwrap_err().to_string(),
+        .unwrap_err()
+        .to_string(),
         "duplicate `Content-Disposition` header on field: field"
     );
 }
@@ -591,8 +587,7 @@ fn test_read_headers() {
 
     let mut read_headers = ReadHeaders::default();
 
-    let headers: FieldHeaders =
-        until_ready!(|cx| read_headers.read_headers(stream.as_mut(), cx)).unwrap();
+    let headers: FieldHeaders = until_ready!(|cx| read_headers.read_headers(stream.as_mut(), cx)).unwrap();
 
     assert_eq!(headers.name, "foo");
     assert_eq!(headers.content_type, None);

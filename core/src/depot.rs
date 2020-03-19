@@ -7,9 +7,7 @@ pub struct Depot {
 
 impl Depot {
     pub(crate) fn new() -> Depot {
-        Depot {
-            data: HashMap::new(),
-        }
+        Depot { data: HashMap::new() }
     }
 
     pub fn insert<K, V>(&mut self, key: K, value: V)
@@ -21,7 +19,8 @@ impl Depot {
     }
 
     pub fn has<K>(&self, key: K) -> bool
-    where K: Into<String>,
+    where
+        K: Into<String>,
     {
         self.data.get(&key.into()).is_some()
     }
@@ -31,8 +30,7 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.data.get(&key.into()).and_then(|b| {
-            b.downcast_ref::<V>()})
+        self.data.get(&key.into()).and_then(|b| b.downcast_ref::<V>())
     }
 
     pub fn borrow<K, V>(&self, key: K) -> &V
@@ -40,17 +38,14 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.try_borrow(key)
-            .expect("required type is not present in depot container")
+        self.try_borrow(key).expect("required type is not present in depot container")
     }
     pub fn try_borrow_mut<K, V>(&mut self, key: K) -> Option<&mut V>
     where
         K: Into<String>,
         V: Any + Send,
     {
-        self.data
-            .get_mut(&key.into())
-            .and_then(|b| b.downcast_mut::<V>())
+        self.data.get_mut(&key.into()).and_then(|b| b.downcast_mut::<V>())
     }
 
     pub fn borrow_mut<K, V>(&mut self, key: K) -> &mut V
@@ -67,10 +62,7 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.data
-            .remove(&key.into())
-            .and_then(|b| b.downcast::<V>().ok())
-            .map(|b| *b)
+        self.data.remove(&key.into()).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
     }
 
     pub fn take<K, V>(&mut self, key: K) -> V
@@ -78,7 +70,6 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.try_take(key)
-            .expect("required type is not present in depot container")
+        self.try_take(key).expect("required type is not present in depot container")
     }
 }

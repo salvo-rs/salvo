@@ -1,8 +1,6 @@
 //copy from https://github.com/Dentosal/portpicker-rs
-use std::net::{
-    Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6, TcpListener, ToSocketAddrs, UdpSocket,
-};
 use rand::prelude::*;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6, TcpListener, ToSocketAddrs, UdpSocket};
 
 pub type Port = u16;
 

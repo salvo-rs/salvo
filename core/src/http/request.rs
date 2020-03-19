@@ -1,23 +1,23 @@
+use cookie::{Cookie, CookieJar};
+use double_checked_cell::DoubleCheckedCell;
+use double_checked_cell_async::DoubleCheckedCell as ADoubleCheckedCell;
+use http;
+use http::header::{self, HeaderMap};
+use http::method::Method;
+use http::version::Version as HttpVersion;
+use multimap::MultiMap;
+use serde::de::DeserializeOwned;
+use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::collections::HashMap;
 use url::Url;
-use multimap::MultiMap;
-use double_checked_cell_async::DoubleCheckedCell as ADoubleCheckedCell;
-use double_checked_cell::DoubleCheckedCell;
-use serde::de::DeserializeOwned;
-use http;
-use http::version::Version as HttpVersion;
-use http::method::Method;
-use http::header::{self, HeaderMap};
-use cookie::{Cookie, CookieJar};
 
-use crate::Protocol;
-use crate::http::{Body, Mime};
-use crate::http::form::{self, FormData, FilePart};
-use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::errors::ReadError;
+use crate::http::form::{self, FilePart, FormData};
+use crate::http::header::{AsHeaderName, HeaderValue};
+use crate::http::{Body, Mime};
+use crate::Protocol;
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -70,7 +70,11 @@ impl Request {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Request<Body>, local_addr: Option<SocketAddr>, protocol: &Protocol) -> Result<Request, String> {
+    pub fn from_hyper(
+        req: hyper::Request<Body>,
+        local_addr: Option<SocketAddr>,
+        protocol: &Protocol,
+    ) -> Result<Request, String> {
         let (
             http::request::Parts {
                 method,
@@ -83,7 +87,7 @@ impl Request {
         ) = req.into_parts();
 
         let url = {
-            let path_and_query = uri.path_and_query().map(|pq|pq.as_str()).unwrap_or("");
+            let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
 
             let mut socket_ip = String::new();
             let (host, port) = if let Some(host) = uri.host() {
@@ -175,7 +179,6 @@ impl Request {
     // pub fn body_mut(&mut self) -> Option<&mut Body> {
     //     self.body.borrow().as_mut()
     // }
-    
 
     #[inline(always)]
     pub fn take_body(&mut self) -> Option<Body> {
@@ -194,13 +197,13 @@ impl Request {
         }
         list
     }
-    
+
     #[inline(always)]
     pub fn frist_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
         if !accept.is_empty() {
             Some(accept.remove(0))
-        }else{
+        } else {
             None
         }
     }
@@ -209,20 +212,22 @@ impl Request {
     pub fn content_type(&self) -> Option<Mime> {
         if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
             ctype.parse().ok()
-        } else{
+        } else {
             None
         }
     }
-    
+
     #[inline(always)]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
     #[inline]
-    pub fn get_cookie<T>(&self, name:T) -> Option<&Cookie<'static>> where T: AsRef<str> {
-         self.cookies.get(name.as_ref())
+    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    where
+        T: AsRef<str>,
+    {
+        self.cookies.get(name.as_ref())
     }
-
 
     #[inline(always)]
     pub fn headers(&self) -> &HeaderMap {
@@ -236,57 +241,86 @@ impl Request {
     pub fn params(&self) -> &HashMap<String, String> {
         &self.params
     }
-    
+
     #[inline]
-    pub fn get_param<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.params.get(key).and_then(|v|v.parse::<F>().ok())
+    pub fn get_param<'a, F>(&self, key: &'a str) -> Option<F>
+    where
+        F: FromStr,
+    {
+        self.params.get(key).and_then(|v| v.parse::<F>().ok())
     }
 
-    pub fn queries(&self) -> &MultiMap<String, String>{
-        self.queries.get_or_init(||{self.url.query_pairs().into_owned().collect()})
+    pub fn queries(&self) -> &MultiMap<String, String> {
+        self.queries.get_or_init(|| self.url.query_pairs().into_owned().collect())
     }
     #[inline]
-    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F> where F: FromStr {
-        self.queries().get(key).and_then(|v|v.parse::<F>().ok())
+    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F>
+    where
+        F: FromStr,
+    {
+        self.queries().get(key).and_then(|v| v.parse::<F>().ok())
     }
-    
+
     #[inline]
-    pub async fn get_form<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
-        self.form_data().await.as_ref().ok().and_then(|ps|ps.fields.get(key)).and_then(|v|v.parse::<F>().ok())
+    pub async fn get_form<F>(&mut self, key: &str) -> Option<F>
+    where
+        F: FromStr,
+    {
+        self.form_data()
+            .await
+            .as_ref()
+            .ok()
+            .and_then(|ps| ps.fields.get(key))
+            .and_then(|v| v.parse::<F>().ok())
     }
     #[inline]
     pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
-        self.form_data().await.as_ref().ok().and_then(|ps|ps.files.get(key))
+        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
     }
     #[inline]
-    pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
-        self.get_form(key.as_ref()).await.or_else(||self.get_query(key))
+    pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
+    where
+        F: FromStr,
+    {
+        self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
     }
     #[inline]
-    pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F> where F: FromStr {
+    pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
+    where
+        F: FromStr,
+    {
         self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
     pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
         let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
         match ctype {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-                self.payload.get_or_init(async {Err(ReadError::General(String::from("failed to read data1")))}).await
-            },
+            Some(ctype)
+                if ctype == "application/x-www-form-urlencoded"
+                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
+            {
+                self.payload
+                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data1"))) })
+                    .await
+            }
             Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
                 let body = self.body.take();
-                self.payload.get_or_init(async {
-                    match body {
-                        Some(body) => {
-                            read_body_bytes(body).await
-                        },
-                        None => Err(ReadError::General(String::from("failed to read data2"))),
-                    }
-                }).await
-            },
-            _=> self.payload.get_or_init(async {Err(ReadError::General(String::from("failed to read data3")))}).await,
+                self.payload
+                    .get_or_init(async {
+                        match body {
+                            Some(body) => read_body_bytes(body).await,
+                            None => Err(ReadError::General(String::from("failed to read data2"))),
+                        }
+                    })
+                    .await
+            }
+            _ => {
+                self.payload
+                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data3"))) })
+                    .await
+            }
         }
     }
-    
+
     // pub async fn multipart(&mut self) -> &Result<Multipart, ReadError> {
     //     let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
     //     let body = self.body.take();
@@ -302,63 +336,84 @@ impl Request {
     //         }
     //     })
     // }
-    
-    pub async fn form_data(&mut self) -> &Result<FormData, ReadError>{
+
+    pub async fn form_data(&mut self) -> &Result<FormData, ReadError> {
         let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
         match ctype {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => { 
+            Some(ctype)
+                if ctype == "application/x-www-form-urlencoded"
+                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
+            {
                 let body = self.body.take();
                 let headers = self.headers();
-                self.form_data.get_or_init(async {
-                    match body {
-                        Some(body) => {
-                            form::read_form_data(headers, body).await
-                        },
-                        None => {
-                            // self.body = body;
-                            Err(ReadError::General("empty body".into()))
-                        },
-                    }
-                }).await
-            },
-            _=> {
-                self.form_data.get_or_init(async {Err(ReadError::General(String::from("failed to read data4")))}).await
-            },
+                self.form_data
+                    .get_or_init(async {
+                        match body {
+                            Some(body) => form::read_form_data(headers, body).await,
+                            None => {
+                                // self.body = body;
+                                Err(ReadError::General("empty body".into()))
+                            }
+                        }
+                    })
+                    .await
+            }
+            _ => {
+                self.form_data
+                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data4"))) })
+                    .await
+            }
         }
     }
-    
+
     #[inline]
-    pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned {
+    pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
+    where
+        T: DeserializeOwned,
+    {
         match self.payload().await {
             Ok(body) => Ok(serde_json::from_slice::<T>(&body)?),
             Err(_) => Err(ReadError::General("ddd".into())),
         }
     }
     #[inline]
-    pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned {
+    pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError>
+    where
+        T: DeserializeOwned,
+    {
         match self.form_data().await {
             Ok(form_data) => {
                 let data = serde_json::to_value(&form_data.fields)?;
                 Ok(serde_json::from_value::<T>(data)?)
-            },
+            }
             Err(_) => Err(ReadError::General("ddd".into())),
         }
     }
     #[inline]
-    pub async fn read<T>(&mut self) -> Result<T, ReadError> where T: DeserializeOwned  {
+    pub async fn read<T>(&mut self) -> Result<T, ReadError>
+    where
+        T: DeserializeOwned,
+    {
         match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => self.read_from_form().await,
+            Some(ctype)
+                if ctype == "application/x-www-form-urlencoded"
+                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
+            {
+                self.read_from_form().await
+            }
             Some(ctype) if ctype == "application/json" => self.read_from_json().await,
-            _=> Err(ReadError::General(String::from("failed to read data5")))
+            _ => Err(ReadError::General(String::from("failed to read data5"))),
         }
     }
 }
 
-pub trait BodyReader: Send {
-}
+pub trait BodyReader: Send {}
 // pub(crate) async fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
 //     Ok(Cursor::new(read_body_bytes(body).await?))
 // }
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
-    hyper::body::to_bytes(body).await.map_err(|_|ReadError::General("ddd".into())).map(|d|d.to_vec())
+    hyper::body::to_bytes(body)
+        .await
+        .map_err(|_| ReadError::General("ddd".into()))
+        .map(|d| d.to_vec())
 }

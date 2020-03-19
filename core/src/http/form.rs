@@ -1,20 +1,20 @@
+use futures::stream::TryStreamExt;
+use http::header;
+use mime::Mime;
+use multimap::MultiMap;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::{PathBuf, Path};
 use std::ops::Drop;
-use textnonce::TextNonce;
-use mime::Mime;
-use http::header;
-use url::form_urlencoded;
-use multimap::MultiMap;
+use std::path::{Path, PathBuf};
 use tempdir::TempDir;
-use futures::stream::TryStreamExt;
-use std::ffi::OsStr;
+use textnonce::TextNonce;
+use url::form_urlencoded;
 
-use crate::http::request;
 use crate::http::errors::ReadError;
-use crate::http::multipart::{Multipart, Field, FieldHeaders};
 use crate::http::header::HeaderMap;
+use crate::http::multipart::{Field, FieldHeaders, Multipart};
+use crate::http::request;
 use crate::http::{Body, BodyChunk};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -32,18 +32,24 @@ pub struct FormData {
 
 impl FormData {
     pub fn new() -> FormData {
-        FormData { fields: MultiMap::new(), files: MultiMap::new(), multipart: None }
+        FormData {
+            fields: MultiMap::new(),
+            files: MultiMap::new(),
+            multipart: None,
+        }
     }
 }
 impl Default for FormData {
     fn default() -> Self {
-        FormData { fields: MultiMap::new(), files: MultiMap::new(), multipart: None }
+        FormData {
+            fields: MultiMap::new(),
+            files: MultiMap::new(),
+            multipart: None,
+        }
     }
 }
 fn get_extension_from_filename(filename: &str) -> Option<&str> {
-    Path::new(filename)
-        .extension()
-        .and_then(OsStr::to_str)
+    Path::new(filename).extension().and_then(OsStr::to_str)
 }
 /// A file that is to be inserted into a `multipart/*` or alternatively an uploaded file that
 /// was received as part of `multipart/*` parsing.
@@ -72,8 +78,16 @@ impl FilePart {
         // Setup a file to capture the contents.
         let mut path = TempDir::new("salvo_http_multipart")?.into_path();
         let temp_dir = Some(path.clone());
-        path.push(format!("{}.{}", TextNonce::sized_urlsafe(32).unwrap().into_string(), 
-            field.headers.filename.as_ref().and_then(|f|get_extension_from_filename(&f)).unwrap_or("unknown")));
+        path.push(format!(
+            "{}.{}",
+            TextNonce::sized_urlsafe(32).unwrap().into_string(),
+            field
+                .headers
+                .filename
+                .as_ref()
+                .and_then(|f| get_extension_from_filename(&f))
+                .unwrap_or("unknown")
+        ));
         let mut file = File::create(&path)?;
         while let Some(chunk) = field.data.try_next().await? {
             file.write_all(chunk.as_slice())?;
@@ -112,19 +126,23 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             let mut form_data = FormData::new();
             form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
             Ok(form_data)
-        },
+        }
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
             let mut form_data = FormData::new();
             let mut multipart = Multipart::try_from_body_headers(body, headers)?;
             while let Some(mut field) = multipart.next_field().await? {
                 if field.headers.is_text() {
-                    form_data.fields.insert(field.headers.name.clone(), field.data.read_to_string().await?);
+                    form_data
+                        .fields
+                        .insert(field.headers.name.clone(), field.data.read_to_string().await?);
                 } else {
-                    form_data.files.insert(field.headers.name.clone(), FilePart::create(&mut field).await?);
+                    form_data
+                        .files
+                        .insert(field.headers.name.clone(), FilePart::create(&mut field).await?);
                 }
             }
             Ok(form_data)
-        },
+        }
         _ => Err(ReadError::Parsing("parse form data failed".into())),
     }
 }

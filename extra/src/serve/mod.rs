@@ -5,6 +5,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use salvo_core::depot::Depot;
@@ -13,7 +14,6 @@ use salvo_core::http::{Request, Response};
 use salvo_core::server::ServerConfig;
 use salvo_core::writer::{NamedFile, Writer};
 use salvo_core::Handler;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Options {

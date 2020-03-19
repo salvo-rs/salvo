@@ -60,28 +60,19 @@ impl From<serde_json::error::Error> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::General(ref e) =>
-                e.fmt(f),
-            Error::Io(ref e) =>
-                e.to_string().fmt(f),
-            Error::Hyper(ref e) =>
-                e.to_string().fmt(f),
-            Error::Utf8(ref e) =>
-                e.to_string().fmt(f),
-            Error::Decoding(ref e) =>
-                e.to_string().fmt(f),
-            Error::Http(ref e) =>
-                e.to_string().fmt(f),
-            Error::SerdeJson(ref e) =>
-                e.to_string().fmt(f),
+            Error::General(ref e) => e.fmt(f),
+            Error::Io(ref e) => e.to_string().fmt(f),
+            Error::Hyper(ref e) => e.to_string().fmt(f),
+            Error::Utf8(ref e) => e.to_string().fmt(f),
+            Error::Decoding(ref e) => e.to_string().fmt(f),
+            Error::Http(ref e) => e.to_string().fmt(f),
+            Error::SerdeJson(ref e) => e.to_string().fmt(f),
             _ => self.to_string().fmt(f),
         }
     }
 }
 
-impl std::error::Error for Error {
-
-}
+impl std::error::Error for Error {}
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -1,12 +1,12 @@
-pub mod server;
-mod handler;
 mod catcher;
-mod pick_port;
-pub mod error;
-pub mod http;
-pub mod routing;
 pub mod depot;
+pub mod error;
+mod handler;
+pub mod http;
 pub mod logging;
+mod pick_port;
+pub mod routing;
+pub mod server;
 pub mod writer;
 
 // #[macro_use]
@@ -28,13 +28,13 @@ extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 
-pub use crate::http::{Request, Response};
-pub use crate::server::{Server, ServerConfig};
-pub use crate::handler::Handler;
-pub use crate::routing::Router;
 pub use crate::catcher::{Catcher, CatcherImpl};
-pub use crate::error::Error;
 pub use crate::depot::Depot;
+pub use crate::error::Error;
+pub use crate::handler::Handler;
+pub use crate::http::{Request, Response};
+pub use crate::routing::Router;
+pub use crate::server::{Server, ServerConfig};
 pub use crate::writer::Writer;
 
 use std::ops::{Bound, RangeBounds};
@@ -50,22 +50,28 @@ impl StringUtils for str {
         let mut byte_start = 0;
         let mut it = self.chars();
         loop {
-            if char_pos == start { break; }
+            if char_pos == start {
+                break;
+            }
             if let Some(c) = it.next() {
                 char_pos += 1;
                 byte_start += c.len_utf8();
+            } else {
+                break;
             }
-            else { break; }
         }
         char_pos = 0;
         let mut byte_end = byte_start;
         loop {
-            if char_pos == len { break; }
+            if char_pos == len {
+                break;
+            }
             if let Some(c) = it.next() {
                 char_pos += 1;
                 byte_end += c.len_utf8();
+            } else {
+                break;
             }
-            else { break; }
         }
         &self[byte_start..byte_end]
     }
