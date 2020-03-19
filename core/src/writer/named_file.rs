@@ -9,6 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, io};
+use std::sync::Arc;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -19,6 +20,7 @@ use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
 use crate::logging::logger;
+use crate::{ServerConfig, Depot};
 
 bitflags! {
     pub(crate) struct Flags: u8 {
@@ -217,7 +219,7 @@ impl NamedFile {
 
 #[async_trait]
 impl Writer for NamedFile {
-    async fn write(mut self, req: &mut Request, resp: &mut Response) {
+    async fn write(mut self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()

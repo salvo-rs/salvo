@@ -3,7 +3,9 @@ use http::StatusCode;
 use mime::Mime;
 use std::error::Error as StdError;
 use std::fmt;
+use std::sync::Arc;
 
+use crate::{ServerConfig, Depot};
 use crate::http::{Request, Response};
 use crate::Writer;
 
@@ -89,7 +91,7 @@ impl HttpError {
 }
 #[async_trait]
 impl Writer for HttpError {
-    async fn write(mut self, req: &mut Request, resp: &mut Response) {
+    async fn write(mut self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         resp.set_status_code(self.code);
         let format = crate::http::guess_accept_mime(req, None);
         let (format, data) = self.as_bytes(&format);

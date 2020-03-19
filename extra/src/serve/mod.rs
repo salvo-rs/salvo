@@ -192,7 +192,7 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for Static {
-    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let base_path = if let Some((_, value)) = param {
             value
@@ -214,7 +214,7 @@ impl Handler for Static {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
                         if let Ok(named_file) = NamedFile::open(path, None) {
-                            named_file.write(req, resp).await;
+                            named_file.write(sconf, req, depot, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError("file read error"));
                         }
@@ -240,7 +240,7 @@ impl Handler for Static {
                 }
             } else if path.is_file() {
                 if let Ok(named_file) = NamedFile::open(path, None) {
-                    named_file.write(req, resp).await;
+                    named_file.write(sconf, req, depot, resp).await;
                 } else {
                     resp.set_http_error(InternalServerError("file read error"));
                 }

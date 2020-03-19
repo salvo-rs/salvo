@@ -57,9 +57,9 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 impl salvo::Handler for #name {
                     async fn handle(&self, sconf: ::std::sync::Arc<salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
                         match Self::#name(sconf, req, depot, resp).await {
-                            Ok(writer) => ::salvo::http::Writer::write(writer, req, resp).await,
+                            Ok(writer) => ::salvo::http::Writer::write(writer, sconf, req, depot, resp).await,
                             Err(err) => {
-                                ::salvo::http::Writer::write(err, req, resp).await,
+                                ::salvo::http::Writer::write(err, sconf, req, depot, resp).await,
                             },
                         }
                     }
