@@ -57,7 +57,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 impl salvo::Handler for #name {
                     async fn handle(&self, sconf: ::std::sync::Arc<salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
                         match Self::#name(sconf, req, depot, resp).await {
-                            Ok(content) => ::salvo::Content::apply(content, resp),
+                            Ok(writer) => ::salvo::http::Writer::write(writer, req, resp),
                             Err(err) => {
                                 resp.set_status_code(::salvo::HandleError::http_code(&err));
                                 let format = ::salvo::http::guess_accept_mime(req, None);
