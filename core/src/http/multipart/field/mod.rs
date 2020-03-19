@@ -30,12 +30,18 @@ mod headers;
 /// If there are no more fields in the stream, `Ok(None)` is returned.
 ///
 /// See [`Multipart::next_field()`](../struct.Multipart.html#method.next_field) for usage.
-pub struct NextField<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
+pub struct NextField<'a, S: TryStream + 'a>
+where
+    S::Error: Into<ReadError>,
+{
     multipart: Option<Pin<&'a mut Multipart<S>>>,
     has_next_field: bool,
 }
 
-impl<'a, S: TryStream + 'a> NextField<'a, S> where S::Error: Into<ReadError> {
+impl<'a, S: TryStream + 'a> NextField<'a, S>
+where
+    S::Error: Into<ReadError>,
+{
     pub(crate) fn new(multipart: Pin<&'a mut Multipart<S>>) -> Self {
         NextField {
             multipart: Some(multipart),
@@ -76,8 +82,7 @@ where
         }
 
         // `false` and `multipart = Some` means we haven't polled for next field yet
-        self.has_next_field =
-            self.has_next_field || ready!(multipart!(get).poll_has_next_field(cx)?);
+        self.has_next_field = self.has_next_field || ready!(multipart!(get).poll_has_next_field(cx)?);
 
         if !self.has_next_field {
             // end of stream, next `?` will return
@@ -97,7 +102,10 @@ where
 /// A single field in a multipart stream.
 ///
 /// The data of the field is provided as a `Stream` impl in the `data` field.
-pub struct Field<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
+pub struct Field<'a, S: TryStream + 'a>
+where
+    S::Error: Into<ReadError>,
+{
     /// The headers of this field, including the name, filename, and `Content-Type`, if provided.
     pub headers: FieldHeaders,
     /// The data of this field in the request, represented as a stream of chunks.
@@ -105,7 +113,10 @@ pub struct Field<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
     _priv: (),
 }
 
-impl<S: TryStream> fmt::Debug for Field<'_, S> where S::Error: Into<ReadError> {
+impl<S: TryStream> fmt::Debug for Field<'_, S>
+where
+    S::Error: Into<ReadError>,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Field")
             .field("headers", &self.headers)
@@ -118,7 +129,10 @@ impl<S: TryStream> fmt::Debug for Field<'_, S> where S::Error: Into<ReadError> {
 ///
 /// It may be read to completion via the `Stream` impl, or collected to a string with
 /// `.read_to_string()`.
-pub struct FieldData<'a, S: TryStream + 'a> where S::Error: Into<ReadError> {
+pub struct FieldData<'a, S: TryStream + 'a>
+where
+    S::Error: Into<ReadError>,
+{
     multipart: Pin<&'a mut Multipart<S>>,
 }
 
@@ -163,7 +177,10 @@ pub struct ReadToString<S: Stream + Unpin> {
     surrogate: Option<([u8; 3], u8)>,
 }
 
-impl<S: TryStream + Unpin> ReadToString<S> where S::Error: Into<ReadError> {
+impl<S: TryStream + Unpin> ReadToString<S>
+where
+    S::Error: Into<ReadError>,
+{
     pub(crate) fn new(stream: S) -> Self {
         ReadToString {
             stream,
@@ -173,7 +190,7 @@ impl<S: TryStream + Unpin> ReadToString<S> where S::Error: Into<ReadError> {
     }
 }
 
-impl<S: TryStream+ Unpin> Future for ReadToString<S>
+impl<S: TryStream + Unpin> Future for ReadToString<S>
 where
     S::Ok: BodyChunk,
     S::Error: Into<ReadError>,
@@ -190,24 +207,14 @@ where
             Poll::Pending => return Poll::Pending,
         } {
             if let Some((mut start, start_len)) = self.surrogate {
-                assert!(
-                    start_len > 0 && start_len < 4,
-                    "start_len out of range: {:?}",
-                    start_len
-                );
+                assert!(start_len > 0 && start_len < 4, "start_len out of range: {:?}", start_len);
 
                 let start_len = start_len as usize;
 
                 let (width, needed) = if let Some(width) = utf8_char_width(start[0]) {
-                    (
-                        width,
-                        width.checked_sub(start_len).expect("start_len >= width"),
-                    )
+                    (width, width.checked_sub(start_len).expect("start_len >= width"))
                 } else {
-                    return Poll::Ready(fmt_err!(
-                        "unexpected start of UTF-8 surrogate: {:X}",
-                        start[0]
-                    ));
+                    return Poll::Ready(fmt_err!("unexpected start of UTF-8 surrogate: {:X}", start[0]));
                 };
 
                 if data.len() < needed {
@@ -285,10 +292,7 @@ fn test_read_to_string() {
 
     let mut read_to_string = ReadToString::new(test_data);
 
-    ready_assert_ok_eq!(
-        |cx| read_to_string.try_poll_unpin(cx),
-        "Hello, world!".to_string()
-    );
+    ready_assert_ok_eq!(|cx| read_to_string.try_poll_unpin(cx), "Hello, world!".to_string());
 
     let test_data_unicode = mock_stream(&[
         &[40, 226, 149],
@@ -300,8 +304,5 @@ fn test_read_to_string() {
 
     let mut read_to_string = ReadToString::new(test_data_unicode);
 
-    ready_assert_ok_eq!(
-        |cx| read_to_string.try_poll_unpin(cx),
-        "(╯°□°)╯︵ ┻━┻".to_string()
-    );
+    ready_assert_ok_eq!(|cx| read_to_string.try_poll_unpin(cx), "(╯°□°)╯︵ ┻━┻".to_string());
 }

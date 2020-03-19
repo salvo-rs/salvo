@@ -1,29 +1,25 @@
-use http::status::StatusCode;
-use crate::http::{header, Response, Request, guess_accept_mime};
 use crate::http::errors::*;
+use crate::http::{guess_accept_mime, header, Request, Response};
+use http::status::StatusCode;
 
 pub trait Catcher: Send + Sync + 'static {
-    fn catch(&self, req: &Request, resp: &mut Response)->bool;
+    fn catch(&self, req: &Request, resp: &mut Response) -> bool;
 }
 
-pub struct CatcherImpl(Box<dyn HttpError>);
-impl CatcherImpl{
-    pub fn new(e: Box<dyn HttpError>) -> CatcherImpl{
+pub struct CatcherImpl(HttpError);
+impl CatcherImpl {
+    pub fn new(e: HttpError) -> CatcherImpl {
         CatcherImpl(e)
     }
 }
 impl Catcher for CatcherImpl {
-    fn catch(&self, req: &Request, resp: &mut Response)->bool {
+    fn catch(&self, req: &Request, resp: &mut Response) -> bool {
         let status = resp.status_code().unwrap_or(StatusCode::NOT_FOUND);
-        if status != self.0.code() {
+        if status != self.0.code {
             return false;
         }
         let format = guess_accept_mime(req, None);
-        let err = if resp.http_error.is_some() {
-            resp.http_error.as_ref().unwrap()
-        } else {
-            &self.0
-        };
+        let err = if resp.http_error.is_some() { resp.http_error.as_ref().unwrap() } else { &self.0 };
         let (format, data) = err.as_bytes(&format);
         resp.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         resp.write_body(&data);
@@ -32,10 +28,10 @@ impl Catcher for CatcherImpl {
 }
 
 macro_rules! default_catchers {
-    ($($name:ty),+) => (
+    ($($code:expr),+) => (
         let mut list: Vec<Box<dyn Catcher>> = vec![];
         $(
-            list.push(Box::new(CatcherImpl::new(Box::new(<$name>::with_default()))));
+            list.push(Box::new(CatcherImpl::new($crate::http::errors::http_error::from_code($code).unwrap())));
         )+
         list
     )
@@ -43,50 +39,49 @@ macro_rules! default_catchers {
 
 pub mod defaults {
     use super::{Catcher, CatcherImpl};
-    use crate::http::errors::http_error::*;
+    use http::status::StatusCode;
 
     pub fn get() -> Vec<Box<dyn Catcher>> {
         default_catchers! {
-            BadRequestError,       
-            UnauthorizedError,     
-            PaymentRequiredError,  
-            ForbiddenError,        
-            NotFoundError,         
-            MethodNotAllowedError, 
-            NotAcceptableError,    
-            ProxyAuthenticationRequiredError,
-            RequestTimeoutError,       
-            ConflictError,             
-            GoneError,                 
-            LengthRequiredError,       
-            PreconditionFailedError,   
-            PayloadTooLargeError,      
-            UriTooLongError,           
-            UnsupportedMediaTypeError, 
-            RangeNotSatisfiableError,  
-            ExpectationFailedError,    
-            ImATeapotError,            
-            MisdirectedRequestError,   
-            UnprocessableEntityError,  
-            LockedError,               
-            FailedDependencyError,     
-            UpgradeRequiredError,      
-            PreconditionRequiredError, 
-            TooManyRequestsError,      
-            RequestHeaderFieldsTooLargeError,
-            UnavailableForLegalReasonsError, 
-            InternalServerError,    
-            NotImplementedError,    
-            BadGatewayError,        
-            ServiceUnavailableError,
-            GatewayTimeoutError,    
-            HttpVersionNotSupportedError,
-            VariantAlsoNegotiatesError,
-            InsufficientStorageError,  
-            LoopDetectedError,         
-            NotExtendedError,          
-            NetworkAuthenticationRequiredError
+            StatusCode::BAD_REQUEST,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::PAYMENT_REQUIRED,
+            StatusCode::FORBIDDEN,
+            StatusCode::NOT_FOUND,
+            StatusCode::METHOD_NOT_ALLOWED,
+            StatusCode::NOT_ACCEPTABLE,
+            StatusCode::PROXY_AUTHENTICATION_REQUIRED,
+            StatusCode::REQUEST_TIMEOUT,
+            StatusCode::CONFLICT,
+            StatusCode::GONE,
+            StatusCode::LENGTH_REQUIRED,
+            StatusCode::PRECONDITION_FAILED,
+            StatusCode::PAYLOAD_TOO_LARGE,
+            StatusCode::URI_TOO_LONG,
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            StatusCode::RANGE_NOT_SATISFIABLE,
+            StatusCode::EXPECTATION_FAILED,
+            StatusCode::IM_A_TEAPOT,
+            StatusCode::MISDIRECTED_REQUEST,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            StatusCode::LOCKED,
+            StatusCode::FAILED_DEPENDENCY,
+            StatusCode::UPGRADE_REQUIRED,
+            StatusCode::PRECONDITION_REQUIRED,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::NOT_IMPLEMENTED,
+            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::GATEWAY_TIMEOUT,
+            StatusCode::HTTP_VERSION_NOT_SUPPORTED,
+            StatusCode::VARIANT_ALSO_NEGOTIATES,
+            StatusCode::INSUFFICIENT_STORAGE,
+            StatusCode::LOOP_DETECTED,
+            StatusCode::NOT_EXTENDED,
+            StatusCode::NETWORK_AUTHENTICATION_REQUIRED
         }
     }
 }
-

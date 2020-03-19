@@ -1,13 +1,13 @@
-use std::pin::Pin;
-use std::task::{Poll, Context};
 use futures::{Stream, TryStream};
 use http::header::HeaderMap;
 use mime::Mime;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use crate::http::BodyChunk;
 use self::boundary::BoundaryFinder;
 use self::field::ReadHeaders;
 use crate::http::errors::ReadError;
+use crate::http::BodyChunk;
 
 #[cfg(test)]
 #[macro_use]
@@ -47,7 +47,6 @@ macro_rules! fmt_err (
 mod boundary;
 mod field;
 
-
 /// The server-side implementation of `multipart/form-data` requests.
 ///
 /// After constructing with either the [`::with_body()`](#method.with_body) or
@@ -75,7 +74,10 @@ mod field;
 /// Any data before the first boundary and past the end of the terminating boundary is ignored
 /// as it is out-of-spec and should not be expected to be left in the underlying stream intact.
 /// Please open an issue if you have a legitimate use-case for extraneous data in a multipart request.
-pub struct Multipart<S: TryStream> where S::Error: Into<ReadError> {
+pub struct Multipart<S: TryStream>
+where
+    S::Error: Into<ReadError>,
+{
     inner: PushChunk<BoundaryFinder<S>, S::Ok>,
     read_hdr: ReadHeaders,
 }
@@ -112,7 +114,8 @@ where
     pub fn try_from_body_headers(body: S, headers: &HeaderMap) -> Result<Self, ReadError> {
         fn get_boundary(headers: &HeaderMap) -> Option<String> {
             Some(
-               headers.get(http::header::CONTENT_TYPE)?
+                headers
+                    .get(http::header::CONTENT_TYPE)?
                     .to_str()
                     .ok()?
                     .parse::<Mime>()
@@ -190,10 +193,7 @@ where
     ///
     /// This is a low-level call and is expected to be supplemented/replaced by a more ergonomic
     /// API once more design work has taken place.
-    pub fn poll_has_next_field(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context,
-    ) -> Poll<Result<bool, ReadError>> {
+    pub fn poll_has_next_field(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<bool, ReadError>> {
         self.as_mut().inner().stream().consume_boundary(cx)
     }
 
@@ -219,14 +219,10 @@ where
     ///
     /// If you do want to inspect the raw field headers, they are separated by one CRLF (`\r\n`) and
     /// terminated by two CRLFs (`\r\n\r\n`) after which the field chunks follow.
-    pub fn poll_field_headers(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context,
-    ) -> Poll<Result<FieldHeaders, ReadError>> {
+    pub fn poll_field_headers(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<FieldHeaders, ReadError>> {
         unsafe {
             let this = self.as_mut().get_unchecked_mut();
-            this.read_hdr
-                .read_headers(Pin::new_unchecked(&mut this.inner), cx)
+            this.read_hdr.read_headers(Pin::new_unchecked(&mut this.inner), cx)
         }
     }
 
@@ -248,10 +244,7 @@ where
     ///
     /// If you do want to inspect the raw field headers, they are separated by one CRLF (`\r\n`) and
     /// terminated by two CRLFs (`\r\n\r\n`) after which the field chunks follow.
-    pub fn poll_field_chunk(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-    ) -> Poll<Option<Result<S::Ok, ReadError>>> {
+    pub fn poll_field_chunk(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Result<S::Ok, ReadError>>> {
         if !self.read_hdr.is_reading_headers() {
             self.inner().poll_next(cx)
         } else {
@@ -271,10 +264,7 @@ impl<S, T> PushChunk<S, T> {
     unsafe_unpinned!(pushed: Option<T>);
 
     pub(crate) fn new(stream: S) -> Self {
-        PushChunk {
-            stream,
-            pushed: None,
-        }
+        PushChunk { stream, pushed: None }
     }
 }
 
@@ -299,7 +289,8 @@ where
 }
 
 impl<S: TryStream> Stream for PushChunk<S, S::Ok>
-    where S::Error: Into<ReadError>, 
+where
+    S::Error: Into<ReadError>,
 {
     type Item = Result<S::Ok, S::Error>;
 
@@ -314,8 +305,8 @@ impl<S: TryStream> Stream for PushChunk<S, S::Ok>
 
 #[cfg(test)]
 mod test {
-    use crate::http::multipart::FieldHeaders;
     use crate::http::multipart::test_util::mock_stream;
+    use crate::http::multipart::FieldHeaders;
 
     use super::Multipart;
     // use std::convert::Infallible;
@@ -331,10 +322,7 @@ mod test {
 
     #[test]
     fn test_no_headers() {
-        let multipart = Multipart::with_body(
-            mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]),
-            BOUNDARY,
-        );
+        let multipart = Multipart::with_body(mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]), BOUNDARY);
         pin_mut!(multipart);
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
         until_ready!(|cx| multipart.as_mut().poll_field_headers(cx)).unwrap_err();
@@ -371,10 +359,7 @@ mod test {
             }
         );
 
-        ready_assert_some_ok_eq!(
-            |cx| multipart.as_mut().poll_field_chunk(cx),
-            &b"field data"[..]
-        );
+        ready_assert_some_ok_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), &b"field data"[..]);
 
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
@@ -423,10 +408,7 @@ mod test {
             }
         );
 
-        ready_assert_some_ok_eq!(
-            |cx| multipart.as_mut().poll_field_chunk(cx),
-            &b"field data"[..]
-        );
+        ready_assert_some_ok_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), &b"field data"[..]);
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
 
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);

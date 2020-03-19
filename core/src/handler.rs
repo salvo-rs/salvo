@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use async_trait::async_trait;
-use mime::Mime;
 
 use crate::{ServerConfig, Depot};
-use crate::http::{Request, Response, StatusCode};
+use crate::http::{Request, Response};
 
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {

@@ -14,7 +14,7 @@ use std::{cmp, io};
 use std::os::unix::fs::MetadataExt;
 
 use super::Writer;
-use crate::http::errors::*;
+use crate::http::errors::http_error::*;
 use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
@@ -50,11 +50,7 @@ pub struct NamedFile {
 }
 
 impl NamedFile {
-    pub fn from_file<P: AsRef<Path>>(
-        file: File,
-        path: P,
-        chunk_size: Option<u64>,
-    ) -> io::Result<NamedFile> {
+    pub fn from_file<P: AsRef<Path>>(file: File, path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
         let path = path.as_ref().to_path_buf();
 
         // Get the name of the file and use it to construct default Content-Type
@@ -63,10 +59,7 @@ impl NamedFile {
             let filename = match path.file_name() {
                 Some(name) => name.to_string_lossy(),
                 None => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "Provided path has no filename",
-                    ));
+                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "Provided path has no filename"));
                 }
             };
 
@@ -75,10 +68,7 @@ impl NamedFile {
                 mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
                 _ => "attachment",
             };
-            (
-                ct,
-                format!("{};filename=\"{}\"", disposition_type, filename.as_ref()),
-            )
+            (ct, format!("{};filename=\"{}\"", disposition_type, filename.as_ref()))
         };
 
         let metadata = file.metadata()?;
@@ -228,11 +218,7 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, resp: &mut Response) {
-        let etag = if self.flags.contains(Flags::ETAG) {
-            self.etag()
-        } else {
-            None
-        };
+        let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()
         } else {
@@ -242,12 +228,10 @@ impl Writer for NamedFile {
         // check preconditions
         let precondition_failed = if !any_match(etag.as_deref(), req) {
             true
-        } else if let (Some(ref m), Some(since)) =
-            (last_modified, req.get_header(header::IF_UNMODIFIED_SINCE))
-        {
+        } else if let (Some(ref m), Some(since)) = (last_modified, req.get_header(header::IF_UNMODIFIED_SINCE)) {
             let t1: SystemTime = m.clone().into();
             if let Ok(since) = since.to_str() {
-                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or(SystemTime::now());
+                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or_else(|_| SystemTime::now());
                 match (t1.duration_since(UNIX_EPOCH), t2.duration_since(UNIX_EPOCH)) {
                     (Ok(t1), Ok(t2)) => t1 > t2,
                     _ => false,
@@ -262,14 +246,12 @@ impl Writer for NamedFile {
         // check last modified
         let not_modified = if !none_match(etag.as_deref(), req) {
             true
-        } else if req.headers().contains_key(&header::IF_NONE_MATCH) {
+        } else if req.headers().contains_key(header::IF_NONE_MATCH) {
             false
-        } else if let (Some(ref m), Some(since)) =
-            (last_modified, req.get_header(header::IF_MODIFIED_SINCE))
-        {
+        } else if let (Some(ref m), Some(since)) = (last_modified, req.get_header(header::IF_MODIFIED_SINCE)) {
             let t1: SystemTime = m.clone().into();
             if let Ok(since) = since.to_str() {
-                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or(SystemTime::now());
+                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or_else(|_| SystemTime::now());
                 match (t1.duration_since(UNIX_EPOCH), t2.duration_since(UNIX_EPOCH)) {
                     (Ok(t1), Ok(t2)) => t1 <= t2,
                     _ => false,
@@ -290,7 +272,7 @@ impl Writer for NamedFile {
         if let Some(etag) = &etag {
             resp.set_etag(&etag);
         }
-        resp.set_accept_range("bytes".into());
+        resp.set_accept_range("bytes");
 
         let mut length = self.metadata.len();
         // default compressing
@@ -304,7 +286,7 @@ impl Writer for NamedFile {
 
         // check for range header
         // let mut range = None;
-        if let Some(ranges) = req.headers().get(&header::RANGE) {
+        if let Some(ranges) = req.headers().get(header::RANGE) {
             if let Ok(rangesheader) = ranges.to_str() {
                 if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
                     length = rangesvec[0].length;
@@ -332,12 +314,7 @@ impl Writer for NamedFile {
             Ok(data) => {
                 if data.len() as u64 != self.metadata.len() {
                     resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-                    resp.set_content_range(&format!(
-                        "bytes {}-{}/{}",
-                        offset,
-                        offset + length - 1,
-                        self.metadata.len()
-                    ));
+                    resp.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
                 } else {
                     resp.set_status_code(StatusCode::OK);
                 }
@@ -345,10 +322,7 @@ impl Writer for NamedFile {
             }
             Err(e) => {
                 error!(logger(), "read file error"; "error" => e.to_string());
-                resp.set_http_error(InternalServerError::new(
-                    "file read error",
-                    "can not read this file",
-                ));
+                resp.set_http_error(InternalServerError(e));
             }
         }
     }
@@ -370,7 +344,7 @@ impl DerefMut for NamedFile {
 
 /// Returns true if `req` has no `If-Match` header or one which matches `etag`.
 fn any_match(etag: Option<&str>, req: &Request) -> bool {
-    match req.get_header(header::IF_MATCH).and_then(|v|v.to_str().ok()) {
+    match req.get_header(header::IF_MATCH).and_then(|v| v.to_str().ok()) {
         None | Some("any") => true,
         _ => {
             if let Some(some_etag) = etag {
@@ -387,11 +361,9 @@ fn any_match(etag: Option<&str>, req: &Request) -> bool {
     }
 }
 
-
-
 /// Returns true if `req` doesn't have an `If-None-Match` header matching `req`.
 fn none_match(etag: Option<&str>, req: &Request) -> bool {
-    match req.get_header(header::IF_MATCH).and_then(|v|v.to_str().ok()) {
+    match req.get_header(header::IF_MATCH).and_then(|v| v.to_str().ok()) {
         Some("any") => false,
         None => true,
         _ => {
@@ -415,8 +387,7 @@ fn read_file_bytes(file: &mut File, range_size: u64, offset: u64, chunk_size: u6
     // println!("=========size: {}, offset: {}, chunk_size:{} max_bytes:{}", range_size,offset, chunk_size, max_bytes);
     let mut buf = Vec::with_capacity(max_bytes);
     file.seek(io::SeekFrom::Start(offset))?;
-    let nbytes =
-        file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
+    let nbytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
     if nbytes == 0 {
         return Err(std::io::ErrorKind::UnexpectedEof.into());
     }

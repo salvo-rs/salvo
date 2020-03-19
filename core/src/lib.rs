@@ -35,6 +35,7 @@ pub use crate::routing::Router;
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::error::Error;
 pub use crate::depot::Depot;
+pub use crate::writer::Writer;
 
 use std::ops::{Bound, RangeBounds};
 

@@ -1,6 +1,5 @@
-use std::fmt;
-// use std::mem;
 use display_bytes;
+use std::fmt;
 
 pub use futures::*;
 use std::task::Poll;

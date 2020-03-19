@@ -35,12 +35,8 @@ pub const TEST_SINGLE_FIELD: &[&[u8]] = &[
     b"\n--boundary--",
 ];
 
-pub fn mock_stream<'d>(
-    test_data: &'d [&'d [u8]],
-) -> impl Stream<Item = Result<&'d [u8], ReadError>> + 'd {
-    stream::iter(test_data.iter().cloned())
-        .map(Ok)
-        .interleave_pending()
+pub fn mock_stream<'d>(test_data: &'d [&'d [u8]]) -> impl Stream<Item = Result<&'d [u8], ReadError>> + 'd {
+    stream::iter(test_data.iter().cloned()).map(Ok).interleave_pending()
 }
 
 macro_rules! until_ready(
@@ -56,21 +52,21 @@ macro_rules! until_ready(
     }}
 );
 
-macro_rules! ready_assert_eq(
-    (|$cx:ident| $expr:expr, $eq:expr) => {{
-        use std::task::Poll::*;
-        let ref mut $cx = futures_test::task::noop_context();
-        loop {
-            match $expr {
-                Ready(val) => {
-                    assert_eq!(val, $eq);
-                    break;
-                },
-                Pending => (),
-            }
-        }
-    }}
-);
+// macro_rules! ready_assert_eq(
+//     (|$cx:ident| $expr:expr, $eq:expr) => {{
+//         use std::task::Poll::*;
+//         let ref mut $cx = futures_test::task::noop_context();
+//         loop {
+//             match $expr {
+//                 Ready(val) => {
+//                     assert_eq!(val, $eq);
+//                     break;
+//                 },
+//                 Pending => (),
+//             }
+//         }
+//     }}
+// );
 macro_rules! ready_assert_eq_none(
     (|$cx:ident| $expr:expr) => {{
         use std::task::Poll::*;
