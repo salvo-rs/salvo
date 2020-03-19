@@ -6,8 +6,8 @@ use std::fmt::{self, Display};
 use std::io;
 use std::str::Utf8Error;
 
-use hyper;
 use httparse;
+use hyper;
 
 /// An error type for the `form_data` crate.
 pub enum ReadError {
@@ -30,7 +30,7 @@ pub enum ReadError {
     NoName,
     /// The request body ended prior to reaching the expected terminating boundary.
     Eof,
-    
+
     EofInMainHeaders,
     EofBeforeFirstBoundary,
     NoCrLfAfterBoundary,
@@ -88,18 +88,12 @@ impl From<Utf8Error> for ReadError {
 impl Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ReadError::HttParse(ref e) =>
-                format!("{}: {:?}", self.to_string(), e).fmt(f),
-            ReadError::Parsing(ref e) =>
-                format!("{}: {:?}", self.to_string(), e).fmt(f),
-            ReadError::Io(ref e) =>
-                format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Hyper(ref e) =>
-                format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Utf8(ref e) =>
-                format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Decoding(ref e) =>
-                format!("{}: {}", self.to_string(), e).fmt(f),
+            ReadError::HttParse(ref e) => format!("{}: {:?}", self.to_string(), e).fmt(f),
+            ReadError::Parsing(ref e) => format!("{}: {:?}", self.to_string(), e).fmt(f),
+            ReadError::Io(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
+            ReadError::Hyper(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
+            ReadError::Utf8(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
+            ReadError::Decoding(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
             _ => self.to_string().fmt(f),
         }
     }

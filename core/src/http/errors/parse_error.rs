@@ -1,9 +1,8 @@
-
 use derive_more::Display;
+use http::uri::InvalidUri;
+use std::io;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
-use std::io;
-use http::uri::InvalidUri;
 
 #[derive(Debug, Display)]
 pub enum ParseError {
