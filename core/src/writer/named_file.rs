@@ -131,12 +131,6 @@ impl NamedFile {
         self.path.as_path()
     }
 
-    /// Set response **Status Code**
-    pub fn set_status_code(mut self, status: StatusCode) -> Self {
-        self.status_code = status;
-        self
-    }
-
     /// Set the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
@@ -228,23 +222,6 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, resp: &mut Response) {
-        if self.status_code != StatusCode::OK {
-            resp.set_status_code(self.status_code);
-            resp.set_content_disposition(&self.content_disposition);
-            if let Some(current_encoding) = &self.encoding {
-                resp.set_content_encoding(current_encoding);
-            }
-            match read_file_bytes(&mut self.file, self.metadata.len(), 0, 0) {
-                Ok(data) => {
-                    resp.render(&self.content_type.to_string(), &data);
-                },
-                Err(_) => {
-                    resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
-                },
-            }
-            return
-        }
-
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
         } else {
@@ -310,20 +287,23 @@ impl Writer for NamedFile {
         resp.set_accept_range("bytes".into());
 
         let mut length = self.metadata.len();
+        // default compressing
+        if let Some(current_encoding) = &self.encoding {
+            resp.set_content_encoding(current_encoding);
+        } 
+        // else {
+        //     resp.set_content_length(length);
+        // }
         let mut offset = 0;
 
         // check for range header
+        // let mut range = None;
         if let Some(ranges) = req.headers().get(&header::RANGE) {
             if let Ok(rangesheader) = ranges.to_str() {
                 if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
-                    resp.set_content_range(&format!(
-                            "bytes {}-{}/{}",
-                            offset,
-                            offset + length - 1,
-                            self.metadata.len()
-                        ));
+                    // range = Some(rangesvec.pop());
                 } else {
                     resp.set_content_range(&format!("bytes */{}", length));
                     resp.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
@@ -333,7 +313,7 @@ impl Writer for NamedFile {
                 resp.set_status_code(StatusCode::BAD_REQUEST);
                 return;
             };
-        };
+        }
 
         if precondition_failed {
             resp.set_status_code(StatusCode::PRECONDITION_FAILED);
@@ -345,23 +325,25 @@ impl Writer for NamedFile {
 
         match read_file_bytes(&mut self.file, length, offset, self.chunk_size) {
             Ok(data) => {
+                if data.len() as u64 != self.metadata.len() {
+                    resp.set_status_code(StatusCode::PARTIAL_CONTENT);
+                    // if range.is_some() {
+                        resp.set_content_range(&format!(
+                            "bytes {}-{}/{}",
+                            offset,
+                            offset + length - 1,
+                            self.metadata.len()
+                        ));
+                    // }
+                } else {
+                    resp.set_status_code(StatusCode::OK);
+                }
                 resp.render(&self.content_type.to_string(), &data)
             },
             Err(e) => {
                 error!(logger(), "read file error"; "error" => e.to_string());
                 resp.set_http_error(InternalServerError::new("file read error", "can not read this file"));
             },
-        }
-        if offset != 0 || length != self.metadata.len() {
-            resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-        } else {
-            resp.set_status_code(StatusCode::OK);
-        }
-        // default compressing
-        if let Some(current_encoding) = &self.encoding {
-            resp.set_content_encoding(current_encoding);
-        } else {
-            resp.set_content_length(length);
         }
     }
 }
