@@ -216,7 +216,7 @@ impl Handler for Static {
                         if let Ok(named_file) = NamedFile::open(path, None) {
                             named_file.write(sconf, req, depot, resp).await;
                         } else {
-                            resp.set_http_error(InternalServerError("file read error"));
+                            resp.set_http_error(InternalServerError(Some("file read error".into()), None));
                         }
                         return;
                     }
@@ -242,7 +242,7 @@ impl Handler for Static {
                 if let Ok(named_file) = NamedFile::open(path, None) {
                     named_file.write(sconf, req, depot, resp).await;
                 } else {
-                    resp.set_http_error(InternalServerError("file read error"));
+                    resp.set_http_error(InternalServerError(Some("file read error".into()), None));
                 }
                 return;
             }

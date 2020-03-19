@@ -324,7 +324,7 @@ impl Writer for NamedFile {
             }
             Err(e) => {
                 error!(logger(), "read file error"; "error" => e.to_string());
-                resp.set_http_error(InternalServerError(e));
+                resp.set_http_error(InternalServerError(Some("read file error".into()), Some(e.to_string())));
             }
         }
     }
