@@ -30,7 +30,7 @@ extern crate lazy_static;
 
 pub use crate::http::{Request, Response};
 pub use crate::server::{Server, ServerConfig};
-pub use crate::handler::{Handler, HandleError};
+pub use crate::handler::Handler;
 pub use crate::routing::Router;
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::error::Error;

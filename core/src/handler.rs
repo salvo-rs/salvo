@@ -9,10 +9,6 @@ use crate::http::{Request, Response, StatusCode};
 pub trait Handler: Send + Sync + 'static {
     async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response);
 }
-pub trait HandleError: Send + Sync + 'static {
-    fn http_code(&self) -> StatusCode;
-    fn http_body(&self, prefer_mime: &Mime) -> (Mime, Vec<u8>);
-}
 
 macro_rules! handler_tuple_impls {
     ($(

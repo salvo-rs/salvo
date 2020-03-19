@@ -3,8 +3,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use http::StatusCode;
 use mime::Mime;
-
-use crate::HandleError;
+use async_trait::async_trait;
 
 fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str)->String {
     format!("<!DOCTYPE html>
@@ -129,12 +128,10 @@ impl fmt::Display for ConcreteError {
     }
 }
 
-impl HandleError for ConcreteError {
-    fn http_code(&self) -> StatusCode {
-        self.code()
-    }
-    fn http_body(&self, prefer_format: &Mime) ->  (Mime, Vec<u8>) {
-        self.as_bytes(prefer_format)
+impl Writer for ConcreteError {
+    async fn write(mut self, _req: &mut Request, resp: &mut Response) {
+        resp.set_status_code(self.code());
+        resp.render("application/json", &self.as_bytes(prefer_format));
     }
 }
 
@@ -195,12 +192,11 @@ macro_rules! default_errors {
                     $name.fmt(f)
                 }
             }
-            impl $crate::HandleError for $sname {
-                fn http_code(&self) -> StatusCode {
-                    self.code()
-                }
-                fn http_body(&self, prefer_format: &Mime) ->  (Mime, Vec<u8>) {
-                    self.as_bytes(prefer_format)
+            [async_trait]
+            impl $crate::http::Writer for $sname {
+                async fn write(mut self, _req: &mut Request, resp: &mut Response) {
+                    resp.set_status_code(self.code());
+                    resp.render("application/json", &self.as_bytes(prefer_format));
                 }
             }
         )+
