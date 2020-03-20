@@ -192,13 +192,9 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for Static {
-    async fn handle(&self, sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let base_path = if let Some((_, value)) = param {
-            value
-        } else {
-            req.url().path()
-        };
+        let base_path = if let Some((_, value)) = param { value } else { req.url().path() };
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -213,8 +209,8 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(path, None) {
-                            named_file.write(sconf, req, depot, resp).await;
+                        if let Ok(named_file) = NamedFile::open(path, None, None) {
+                            named_file.write(conf, req, depot, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError(Some("file read error".into()), None));
                         }
@@ -239,8 +235,8 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                if let Ok(named_file) = NamedFile::open(path, None) {
-                    named_file.write(sconf, req, depot, resp).await;
+                if let Ok(named_file) = NamedFile::open(path, None, None) {
+                    named_file.write(conf, req, depot, resp).await;
                 } else {
                     resp.set_http_error(InternalServerError(Some("file read error".into()), None));
                 }
@@ -255,15 +251,9 @@ impl Handler for Static {
         if format.type_() != "text" {
             format = mime::TEXT_HTML;
         }
-        let mut files: Vec<FileInfo> = files
-            .into_iter()
-            .map(|(name, metadata)| FileInfo::new(name, metadata))
-            .collect();
+        let mut files: Vec<FileInfo> = files.into_iter().map(|(name, metadata)| FileInfo::new(name, metadata)).collect();
         files.sort_by(|a, b| a.name.cmp(&b.name));
-        let mut dirs: Vec<DirInfo> = dirs
-            .into_iter()
-            .map(|(name, metadata)| DirInfo::new(name, metadata))
-            .collect();
+        let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
         match format.subtype().as_ref() {

@@ -13,6 +13,7 @@ pub mod prelude {
     pub use crate::logging::{self, logger};
     pub use crate::routing::Router;
     pub use crate::server::{Server, ServerConfig};
+    pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;
     #[cfg(feature = "macro")]

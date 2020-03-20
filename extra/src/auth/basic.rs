@@ -39,10 +39,8 @@ impl BasicAuthHandler {
 }
 impl BasicAuthHandler {
     fn ask_credentials(&self, resp: &mut Response) {
-        resp.headers_mut().insert(
-            "WWW-Authenticate",
-            format!("Basic realm={:?}", self.config.realm).parse().unwrap(),
-        );
+        resp.headers_mut()
+            .insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
         resp.set_status_code(StatusCode::UNAUTHORIZED);
     }
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
@@ -61,7 +59,7 @@ impl BasicAuthHandler {
 }
 #[async_trait]
 impl Handler for BasicAuthHandler {
-    async fn handle(&self, _sconf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {

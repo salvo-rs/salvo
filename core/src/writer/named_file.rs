@@ -52,7 +52,7 @@ pub struct NamedFile {
 }
 
 impl NamedFile {
-    pub fn from_file<P: AsRef<Path>>(file: File, path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
+    pub fn from_file<P: AsRef<Path>>(file: File, path: P, attached_name: Option<&str>, chunk_size: Option<u64>) -> io::Result<NamedFile> {
         let path = path.as_ref().to_path_buf();
 
         // Get the name of the file and use it to construct default Content-Type
@@ -66,11 +66,20 @@ impl NamedFile {
             };
 
             let ct = from_path(&path).first_or_octet_stream();
-            let disposition_type = match ct.type_() {
-                mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
-                _ => "attachment",
+            let disposition_type = if attached_name.is_some() {
+                "attachment"
+            } else {
+                match ct.type_() {
+                    mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
+                    _ => "attachment",
+                }
             };
-            (ct, format!("{};filename=\"{}\"", disposition_type, filename.as_ref()))
+            let attached_name = attached_name.unwrap_or("");
+            if attached_name.is_empty() {
+                (ct, format!("{};filename=\"{}\"", disposition_type, filename.as_ref()))
+            } else {
+                (ct, format!("{};filename=\"{}\"", disposition_type, attached_name))
+            }
         };
 
         let metadata = file.metadata()?;
@@ -100,8 +109,8 @@ impl NamedFile {
     ///
     /// let file = NamedFile::open("foo.txt");
     /// ```
-    pub fn open<P: AsRef<Path>>(path: P, chunk_size: Option<u64>) -> io::Result<NamedFile> {
-        Self::from_file(File::open(&path)?, path, chunk_size)
+    pub fn open<P: AsRef<Path>>(path: P, attached_name: Option<&str>, chunk_size: Option<u64>) -> io::Result<NamedFile> {
+        Self::from_file(File::open(&path)?, path, attached_name, chunk_size)
     }
 
     /// Returns reference to the underlying `File` object.
@@ -199,16 +208,8 @@ impl NamedFile {
                 }
             };
 
-            let dur = mtime
-                .duration_since(UNIX_EPOCH)
-                .expect("modification time must be after epoch");
-            format!(
-                "{:x}:{:x}:{:x}:{:x}",
-                ino,
-                self.metadata.len(),
-                dur.as_secs(),
-                dur.subsec_nanos()
-            )
+            let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
+            format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
         })
     }
 
@@ -219,7 +220,7 @@ impl NamedFile {
 
 #[async_trait]
 impl Writer for NamedFile {
-    async fn write(mut self, _sconf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()

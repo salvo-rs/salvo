@@ -20,7 +20,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
 
     match sig.inputs.len() {
         3 => {
-            let ts: TokenStream = quote! {_sconf: ::std::sync::Arc<::salvo::ServerConfig>}.into();
+            let ts: TokenStream = quote! {_conf: ::std::sync::Arc<::salvo::ServerConfig>}.into();
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
         }
         4 => {}
@@ -48,8 +48,8 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, sconf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
-                        Self::#name(sconf, req, depot, resp).await
+                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
+                        Self::#name(conf, req, depot, resp).await
                     }
                 }
             }).into()
@@ -59,10 +59,10 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, sconf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
-                        match Self::#name(sconf, req, depot, resp).await {
-                            Ok(writer) => ::salvo::Writer::write(writer, sconf, req, depot, resp).await,
-                            Err(err) => ::salvo::Writer::write(err, sconf, req, depot, resp).await,
+                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
+                        match Self::#name(conf, req, depot, resp).await {
+                            Ok(writer) => ::salvo::Writer::write(writer, conf, req, depot, resp).await,
+                            Err(err) => ::salvo::Writer::write(err, conf, req, depot, resp).await,
                         }
                     }
                 }

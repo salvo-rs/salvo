@@ -39,14 +39,14 @@ pub struct Response {
 
 impl Response {
     /// Construct a blank Response
-    pub fn new(sconf: Arc<ServerConfig>) -> Response {
+    pub fn new(conf: Arc<ServerConfig>) -> Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
             body: BytesMut::new(), // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            server_config: sconf,
+            server_config: conf,
             is_commited: false,
         }
     }
@@ -77,8 +77,7 @@ impl Response {
 
         if let Method::HEAD = *req.method() {
         } else if self.body.is_empty() {
-            res.headers_mut()
-                .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
         } else {
             *res.body_mut() = Body::from(Bytes::from(self.body));
         }
@@ -241,10 +240,7 @@ impl Response {
 
     #[inline]
     pub fn send_binary(&mut self, data: &[u8], file_name: &str) {
-        let file_name = Path::new(file_name)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("file.dat");
+        let file_name = Path::new(file_name).file_name().and_then(|s| s.to_str()).unwrap_or("file.dat");
         if let Some(mime) = self.get_mime_by_path(file_name) {
             self.headers.insert(
                 header::CONTENT_DISPOSITION,
@@ -312,8 +308,7 @@ impl Response {
         self.headers_mut().insert(ACCEPT_RANGES, value.parse().unwrap());
     }
     pub fn set_last_modified(&mut self, value: HttpDate) {
-        self.headers_mut()
-            .insert(LAST_MODIFIED, format!("{}", value).parse().unwrap());
+        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse().unwrap());
     }
     pub fn set_etag(&mut self, value: &str) {
         self.headers_mut().insert(ETAG, value.parse().unwrap());
@@ -386,12 +381,7 @@ impl Response {
 
 impl Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "HTTP/1.1 {}\n{:?}",
-            self.status_code.unwrap_or(StatusCode::NOT_FOUND),
-            self.headers
-        )
+        writeln!(f, "HTTP/1.1 {}\n{:?}", self.status_code.unwrap_or(StatusCode::NOT_FOUND), self.headers)
     }
 }
 
