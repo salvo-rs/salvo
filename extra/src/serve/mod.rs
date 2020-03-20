@@ -209,7 +209,7 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(path, None, None) {
+                        if let Ok(named_file) = NamedFile::open(path) {
                             named_file.write(conf, req, depot, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError(Some("file read error".into()), None));
@@ -235,7 +235,7 @@ impl Handler for Static {
                     }
                 }
             } else if path.is_file() {
-                if let Ok(named_file) = NamedFile::open(path, None, None) {
+                if let Ok(named_file) = NamedFile::open(path) {
                     named_file.write(conf, req, depot, resp).await;
                 } else {
                     resp.set_http_error(InternalServerError(Some("file read error".into()), None));

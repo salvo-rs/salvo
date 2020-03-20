@@ -9,6 +9,7 @@ pub use named_file::NamedFile;
 
 #[async_trait]
 pub trait Writer: Send {
+    #[must_use = "future must be used"]
     async fn write(mut self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response);
 }
 

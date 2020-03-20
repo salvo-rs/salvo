@@ -48,56 +48,118 @@ pub struct NamedFile {
     pub(crate) status_code: StatusCode,
     pub(crate) content_type: mime::Mime,
     pub(crate) content_disposition: String,
-    pub(crate) encoding: Option<String>,
+    pub(crate) content_encoding: Option<String>,
 }
 
-impl NamedFile {
-    pub fn from_file<P: AsRef<Path>>(file: File, path: P, attached_name: Option<&str>, chunk_size: Option<u64>) -> io::Result<NamedFile> {
-        let path = path.as_ref().to_path_buf();
-
-        // Get the name of the file and use it to construct default Content-Type
-        // and Content-Disposition values
-        let (content_type, content_disposition) = {
-            let filename = match path.file_name() {
-                Some(name) => name.to_string_lossy(),
-                None => {
-                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "Provided path has no filename"));
-                }
-            };
-
-            let ct = from_path(&path).first_or_octet_stream();
-            let disposition_type = if attached_name.is_some() {
+pub struct NamedFileBuilder {
+    path: PathBuf,
+    file: Option<File>,
+    attached_filename: Option<String>,
+    disposition_type: Option<String>,
+    content_type: Option<mime::Mime>,
+    content_encoding: Option<String>,
+    content_disposition: Option<String>,
+    chunk_size: Option<u64>,
+}
+impl NamedFileBuilder {
+    pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> NamedFileBuilder {
+        self.attached_filename = Some(attached_filename.into());
+        self
+    }
+    pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> NamedFileBuilder {
+        self.disposition_type = Some(disposition_type.into());
+        self
+    }
+    pub fn with_content_type(mut self, content_type: mime::Mime) -> NamedFileBuilder {
+        self.content_type = Some(content_type);
+        self
+    }
+    pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> NamedFileBuilder {
+        self.content_encoding = Some(content_encoding.into());
+        self
+    }
+    pub fn with_chunk_size(mut self, chunk_size: u64) -> NamedFileBuilder {
+        self.chunk_size = Some(chunk_size);
+        self
+    }
+    pub fn build(mut self) -> io::Result<NamedFile> {
+        if self.file.is_none() {
+            self.file = Some(File::open(&self.path)?);
+        }
+        let ct = from_path(&self.path).first_or_octet_stream();
+        if self.content_type.is_some() {
+            self.content_type = Some(ct);
+        }
+        if self.disposition_type.is_none() {
+            let disposition_type = if self.attached_filename.is_some() {
                 "attachment"
             } else {
-                match ct.type_() {
+                match self.content_type.as_ref().unwrap().type_() {
                     mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
                     _ => "attachment",
                 }
             };
-            let attached_name = attached_name.unwrap_or("");
-            if attached_name.is_empty() {
-                (ct, format!("{};filename=\"{}\"", disposition_type, filename.as_ref()))
-            } else {
-                (ct, format!("{};filename=\"{}\"", disposition_type, attached_name))
+            if disposition_type == "attachment" && self.attached_filename.is_none() {
+                let filename = match self.path.file_name() {
+                    Some(name) => name.to_string_lossy(),
+                    None => {
+                        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Provided path has no filename"));
+                    }
+                };
+                self.attached_filename = Some(filename.into());
             }
-        };
+            self.disposition_type = Some(disposition_type.into());
+        }
+        if let Some("attachment") = self.disposition_type.as_deref() {
+            self.content_disposition = Some(format!(
+                "{};filename=\"{}\"",
+                self.disposition_type.as_ref().unwrap(),
+                self.attached_filename.as_ref().unwrap()
+            ));
+        } else {
+            self.content_disposition = Some("inline".into());
+        }
 
-        let metadata = file.metadata()?;
+        let metadata = self.file.as_ref().unwrap().metadata()?;
         let modified = metadata.modified().ok();
-        let encoding = None;
-        let chunk_size = chunk_size.unwrap_or(8_388_608);
-        Ok(NamedFile {
+
+        let NamedFileBuilder {
             path,
             file,
             content_type,
+            content_encoding,
             content_disposition,
+            chunk_size,
+            ..
+        } = self;
+
+        Ok(NamedFile {
+            path,
+            file: file.unwrap(),
+            content_type: content_type.unwrap(),
+            content_disposition: content_disposition.unwrap(),
             metadata,
             modified,
-            encoding,
-            chunk_size,
+            content_encoding,
+            chunk_size: chunk_size.unwrap_or(8_388_608),
             status_code: StatusCode::OK,
             flags: Flags::default(),
         })
+    }
+}
+
+impl NamedFile {
+    pub fn builder(path: PathBuf) -> NamedFileBuilder {
+        NamedFileBuilder {
+            path,
+            file: None,
+            attached_filename: None,
+            disposition_type: None,
+            content_type: None,
+            content_encoding: None,
+            content_disposition: None,
+            chunk_size: None,
+        }
     }
 
     /// Attempts to open a file in read-only mode.
@@ -109,8 +171,8 @@ impl NamedFile {
     ///
     /// let file = NamedFile::open("foo.txt");
     /// ```
-    pub fn open<P: AsRef<Path>>(path: P, attached_name: Option<&str>, chunk_size: Option<u64>) -> io::Result<NamedFile> {
-        Self::from_file(File::open(&path)?, path, attached_name, chunk_size)
+    pub fn open(path: PathBuf) -> io::Result<NamedFile> {
+        Self::builder(path).build()
     }
 
     /// Returns reference to the underlying `File` object.
@@ -172,7 +234,7 @@ impl NamedFile {
     /// Set content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(mut self, enc: String) -> Self {
-        self.encoding = Some(enc);
+        self.content_encoding = Some(enc);
         self
     }
 
@@ -279,7 +341,7 @@ impl Writer for NamedFile {
 
         let mut length = self.metadata.len();
         // default compressing
-        if let Some(current_encoding) = &self.encoding {
+        if let Some(current_encoding) = &self.content_encoding {
             resp.set_content_encoding(current_encoding);
         }
         // else {
