@@ -87,7 +87,7 @@ impl NamedFileBuilder {
             self.file = Some(File::open(&self.path)?);
         }
         let ct = from_path(&self.path).first_or_octet_stream();
-        if self.content_type.is_some() {
+        if self.content_type.is_none() {
             self.content_type = Some(ct);
         }
         if self.disposition_type.is_none() {
