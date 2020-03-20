@@ -60,9 +60,9 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #[async_trait]
                 impl salvo::Handler for #name {
                     async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
-                        match Self::#name(conf, req, depot, resp).await {
-                            Ok(writer) => ::salvo::Writer::write(writer, conf, req, depot, resp).await,
-                            Err(err) => ::salvo::Writer::write(err, conf, req, depot, resp).await,
+                        match Self::#name(conf.clone(), req, depot, resp).await {
+                            Ok(writer) => ::salvo::Writer::write(writer, conf.clone(), req, depot, resp).await,
+                            Err(err) => ::salvo::Writer::write(err, conf.clone(), req, depot, resp).await,
                         }
                     }
                 }
