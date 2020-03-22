@@ -132,13 +132,9 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             let mut multipart = Multipart::try_from_body_headers(body, headers)?;
             while let Some(mut field) = multipart.next_field().await? {
                 if field.headers.is_text() {
-                    form_data
-                        .fields
-                        .insert(field.headers.name.clone(), field.data.read_to_string().await?);
+                    form_data.fields.insert(field.headers.name.clone(), field.data.read_to_string().await?);
                 } else {
-                    form_data
-                        .files
-                        .insert(field.headers.name.clone(), FilePart::create(&mut field).await?);
+                    form_data.files.insert(field.headers.name.clone(), FilePart::create(&mut field).await?);
                 }
             }
             Ok(form_data)

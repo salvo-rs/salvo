@@ -1,15 +1,17 @@
 use cookie::{Cookie, CookieJar};
-use double_checked_cell::DoubleCheckedCell;
-use double_checked_cell_async::DoubleCheckedCell as ADoubleCheckedCell;
+use double_checked_cell_async::DoubleCheckedCell;
+use futures::FutureExt;
 use http;
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
 use multimap::MultiMap;
+use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::str::FromStr;
 use url::Url;
 
@@ -44,10 +46,10 @@ pub struct Request {
     pub(crate) params: HashMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
-    queries: DoubleCheckedCell<MultiMap<String, String>>,
-    form_data: ADoubleCheckedCell<Result<FormData, ReadError>>,
+    queries: OnceCell<MultiMap<String, String>>,
+    form_data: DoubleCheckedCell<FormData>,
     // multipart: DoubleCheckedCell<Result<Multipart, ReadError>>,
-    payload: ADoubleCheckedCell<Result<Vec<u8>, ReadError>>,
+    payload: DoubleCheckedCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
     version: HttpVersion,
@@ -70,11 +72,7 @@ impl Request {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(
-        req: hyper::Request<Body>,
-        local_addr: Option<SocketAddr>,
-        protocol: &Protocol,
-    ) -> Result<Request, String> {
+    pub fn from_hyper(req: hyper::Request<Body>, local_addr: Option<SocketAddr>, protocol: &Protocol) -> Result<Request, String> {
         let (
             http::request::Parts {
                 method,
@@ -139,7 +137,7 @@ impl Request {
         };
 
         Ok(Request {
-            queries: DoubleCheckedCell::new(),
+            queries: OnceCell::new(),
             url,
             local_addr,
             headers,
@@ -148,9 +146,9 @@ impl Request {
             cookies,
             // accept: None,
             params: HashMap::new(),
-            form_data: ADoubleCheckedCell::new(),
-            payload: ADoubleCheckedCell::new(),
-            // multipart: DoubleCheckedCell::new(),
+            form_data: DoubleCheckedCell::new(),
+            payload: DoubleCheckedCell::new(),
+            // multipart: OnceCell::new(),
             version,
         })
     }
@@ -291,78 +289,41 @@ impl Request {
     {
         self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
-    pub async fn payload(&mut self) -> &Result<Vec<u8>, ReadError> {
-        let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
-        match ctype {
-            Some(ctype)
-                if ctype == "application/x-www-form-urlencoded"
-                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
-            {
-                self.payload
-                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data1"))) })
-                    .await
-            }
-            Some(ctype) if ctype == "application/json" || ctype.to_str().unwrap_or("").starts_with("text/") => {
-                let body = self.body.take();
-                self.payload
-                    .get_or_init(async {
-                        match body {
-                            Some(body) => read_body_bytes(body).await,
-                            None => Err(ReadError::General(String::from("failed to read data2"))),
-                        }
-                    })
-                    .await
-            }
-            _ => {
-                self.payload
-                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data3"))) })
-                    .await
-            }
+    pub async fn payload(&mut self) -> Result<&Vec<u8>, ReadError> {
+        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+            Err(ReadError::General(String::from("failed to read data1")))
+        } else if ctype == "application/json" || ctype.starts_with("text/") {
+            let body = self.body.take();
+            self.payload
+                .get_or_try_init(async {
+                    match body {
+                        Some(body) => read_body_bytes(body).await,
+                        None => Err(ReadError::General(String::from("failed to read data2"))),
+                    }
+                })
+                .await
+        } else {
+            Err(ReadError::General(String::from("failed to read data3")))
         }
     }
 
-    // pub async fn multipart(&mut self) -> &Result<Multipart, ReadError> {
-    //     let ctype = self.headers().get(header::CONTENT_TYPE).map(|t|t.clone());
-    //     let body = self.body.take();
-    //     self.multipart.get_or_init(|| {
-    //         match ctype {
-    //             Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-    //                 Multipart::try_from_body_headers(body, self.headers())
-    //             },
-    //             _=> {
-    //                 self.body = body;
-    //                 Err(ReadError::General(String::from("failed to read data3")))
-    //             },
-    //         }
-    //     })
-    // }
-
-    pub async fn form_data(&mut self) -> &Result<FormData, ReadError> {
+    pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
         let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
         match ctype {
-            Some(ctype)
-                if ctype == "application/x-www-form-urlencoded"
-                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
-            {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                 let body = self.body.take();
                 let headers = self.headers();
                 self.form_data
-                    .get_or_init(async {
+                    .get_or_try_init(async {
                         match body {
                             Some(body) => form::read_form_data(headers, body).await,
-                            None => {
-                                // self.body = body;
-                                Err(ReadError::General("empty body".into()))
-                            }
+                            None => Err(ReadError::General("empty body".into())),
                         }
                     })
                     .await
             }
-            _ => {
-                self.form_data
-                    .get_or_init(async { Err(ReadError::General(String::from("failed to read data4"))) })
-                    .await
-            }
+            _ => Err(ReadError::General(String::from("failed to read data4"))),
         }
     }
 
@@ -395,10 +356,7 @@ impl Request {
         T: DeserializeOwned,
     {
         match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype)
-                if ctype == "application/x-www-form-urlencoded"
-                    || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") =>
-            {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
                 self.read_from_form().await
             }
             Some(ctype) if ctype == "application/json" => self.read_from_json().await,
@@ -414,6 +372,6 @@ pub trait BodyReader: Send {}
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
     hyper::body::to_bytes(body)
         .await
-        .map_err(|_| ReadError::General("ddd".into()))
+        .map_err(|_| ReadError::General("read body bytes error".into()))
         .map(|d| d.to_vec())
 }

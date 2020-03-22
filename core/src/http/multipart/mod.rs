@@ -124,11 +124,9 @@ where
                     .to_string(),
             )
         }
-
         if let Some(boundary) = get_boundary(headers) {
             return Ok(Self::with_body(body, boundary));
         }
-
         Err(ReadError::Parsing("parse multiprart failed".into()))
     }
 
@@ -423,10 +421,7 @@ mod test {
             }
         );
 
-        ready_assert_some_ok_eq!(
-            |cx| multipart.as_mut().poll_field_chunk(cx),
-            &b"field data--2\r\n--data--field"[..]
-        );
+        ready_assert_some_ok_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), &b"field data--2\r\n--data--field"[..]);
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
 
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
