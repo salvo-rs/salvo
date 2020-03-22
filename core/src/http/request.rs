@@ -293,7 +293,7 @@ impl Request {
         let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
         if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
             Err(ReadError::General(String::from("failed to read data1")))
-        } else if ctype == "application/json" || ctype.starts_with("text/") {
+        } else if ctype.starts_with("application/json") || ctype.starts_with("text/") {
             let body = self.body.take();
             self.payload
                 .get_or_try_init(async {
@@ -309,21 +309,20 @@ impl Request {
     }
 
     pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
-        let ctype = self.headers().get(header::CONTENT_TYPE).cloned();
-        match ctype {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-                let body = self.body.take();
-                let headers = self.headers();
-                self.form_data
-                    .get_or_try_init(async {
-                        match body {
-                            Some(body) => form::read_form_data(headers, body).await,
-                            None => Err(ReadError::General("empty body".into())),
-                        }
-                    })
-                    .await
-            }
-            _ => Err(ReadError::General(String::from("failed to read data4"))),
+        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+            let body = self.body.take();
+            let headers = self.headers();
+            self.form_data
+                .get_or_try_init(async {
+                    match body {
+                        Some(body) => form::read_form_data(headers, body).await,
+                        None => Err(ReadError::General("empty body".into())),
+                    }
+                })
+                .await
+        } else {
+            Err(ReadError::General(String::from("failed to read data4")))
         }
     }
 
@@ -355,12 +354,13 @@ impl Request {
     where
         T: DeserializeOwned,
     {
-        match self.headers().get(header::CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" || ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-                self.read_from_form().await
-            }
-            Some(ctype) if ctype == "application/json" => self.read_from_json().await,
-            _ => Err(ReadError::General(String::from("failed to read data5"))),
+        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+            self.read_from_form().await
+        } else if ctype.starts_with("application/json") {
+            self.read_from_json().await
+        } else {
+            Err(ReadError::General(String::from("failed to read data5")))
         }
     }
 }
