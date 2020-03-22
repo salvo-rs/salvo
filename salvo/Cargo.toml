@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
 description = """
@@ -17,7 +17,7 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-salvo_core = { path = "../core", version = "0.2.0", default-features = false }
+salvo_core = { path = "../core", version = "0.2.1", default-features = false }
 salvo_extra = { path = "../extra", version = "0.2.0", default-features = false }
 salvo_macro = {path = "../macro", version="0.2.0"}
 async-trait = "0.1.22"
