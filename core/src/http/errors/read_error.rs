@@ -1,6 +1,4 @@
-// Copyright © 2015 by Michael Dilger (of New Zealand)
-// This code is licensed under the MIT license (see LICENSE-MIT for details)
-
+use derive_more::Display;
 use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::io;
@@ -9,50 +7,81 @@ use std::str::Utf8Error;
 use httparse;
 use hyper;
 
-/// An error type for the `form_data` crate.
+#[derive(Debug, Display)]
 pub enum ReadError {
-    /// The Hyper request did not have a Content-Type header.
+    #[display(fmt = "The Hyper request did not have a Content-Type header")]
     NoRequestContentType,
-    /// The Hyper request Content-Type top-level Mime was not `Multipart`.
+
+    #[display(fmt = "The Hyper request Content-Type top-level Mime was not `Multipart`.")]
     NotMultipart,
-    /// The Hyper request Content-Type sub-level Mime was not `FormData`.
+
+    #[display(fmt = "The Hyper request Content-Type sub-level Mime was not `FormData`.")]
     NotFormData,
-    /// The Content-Type header failed to specify boundary token.
+
+    #[display(fmt = "The Content-Type header failed to specify boundary token.")]
     BoundaryNotSpecified,
-    /// A multipart section contained only partial headers.
+
+    #[display(fmt = "A multipart section contained only partial headers.")]
     PartialHeaders,
-    /// A multipart section did not have the required Content-Disposition header.
+
+    #[display(fmt = "A multipart section did not have the required Content-Disposition header.")]
     MissingDisposition,
-    /// A multipart section did not have a valid corresponding Content-Disposition.
+
+    #[display(fmt = "A multipart section did not have a valid corresponding Content-Disposition.")]
     InvalidDisposition,
+
+    #[display(fmt = "InvalidRange")]
     InvalidRange,
-    /// A multipart section Content-Disposition header failed to specify a name.
+
+    #[display(fmt = "A multipart section Content-Disposition header failed to specify a name.")]
     NoName,
-    /// The request body ended prior to reaching the expected terminating boundary.
+    
+    #[display(fmt = "The request body ended prior to reaching the expected terminating boundary.")]
     Eof,
 
+    #[display(fmt = "EofInMainHeaders")]
     EofInMainHeaders,
+
+    #[display(fmt = "EofBeforeFirstBoundary")]
     EofBeforeFirstBoundary,
+
+    #[display(fmt = "NoCrLfAfterBoundary")]
     NoCrLfAfterBoundary,
+
+    #[display(fmt = "EofInPartHeaders")]
     EofInPartHeaders,
+
+    #[display(fmt = "EofInFile")]
     EofInFile,
+    
+    #[display(fmt = "EofInPart")]
     EofInPart,
 
-    /// An HTTP parsing error from a multipart section.
+    #[display(fmt = "An HTTP parsing error from a multipart section: {}", _0)]
     HttParse(httparse::Error),
-    /// An I/O error.
+
+    #[display(fmt = "An I/O error: {}", _0)]
     Io(io::Error),
-    /// An error was returned from Hyper.
+    
+    #[display(fmt = "An error was returned from Hyper: {}", _0)]
     Hyper(hyper::Error),
-    /// An error occurred during UTF-8 processing.
+
+    #[display(fmt = "An error occurred during UTF-8 processing: {}", _0)]
     Utf8(Utf8Error),
-    /// An error occurred during character decoding
+    
+    #[display(fmt = "An error occurred during character decoding: {}", _0)]
     Decoding(Cow<'static, str>),
+
+    #[display(fmt = "serde json error: {}", _0)]
     SerdeJson(serde_json::error::Error),
+
+    #[display(fmt = "general error: {}", _0)]
     General(String),
+
+    #[display(fmt = "Parse data error: {}", _0)]
     Parsing(String),
 
-    /// Filepart is not a file
+    #[display(fmt = "Filepart is not a file")]
     NotAFile,
 }
 
@@ -82,29 +111,5 @@ impl From<hyper::Error> for ReadError {
 impl From<Utf8Error> for ReadError {
     fn from(err: Utf8Error) -> ReadError {
         ReadError::Utf8(err)
-    }
-}
-
-impl Display for ReadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ReadError::HttParse(ref e) => format!("{}: {:?}", self.to_string(), e).fmt(f),
-            ReadError::Parsing(ref e) => format!("{}: {:?}", self.to_string(), e).fmt(f),
-            ReadError::Io(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Hyper(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Utf8(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
-            ReadError::Decoding(ref e) => format!("{}: {}", self.to_string(), e).fmt(f),
-            _ => self.to_string().fmt(f),
-        }
-    }
-}
-
-impl fmt::Debug for ReadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&*self.to_string()).ok();
-        // if self.source().is_some() {
-        //     write!(f, ": {:?}", self.source().unwrap()).ok(); // recurse
-        // }
-        Ok(())
     }
 }
