@@ -1,6 +1,5 @@
 mod catcher;
 pub mod depot;
-pub mod error;
 mod handler;
 pub mod http;
 pub mod logging;
@@ -30,12 +29,12 @@ extern crate lazy_static;
 
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::depot::Depot;
-pub use crate::error::Error;
 pub use crate::handler::Handler;
 pub use crate::http::{Request, Response};
 pub use crate::routing::Router;
 pub use crate::server::{Server, ServerConfig};
 pub use crate::writer::Writer;
+pub use anyhow::Error;
 
 use std::ops::{Bound, RangeBounds};
 

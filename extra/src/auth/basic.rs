@@ -1,12 +1,13 @@
+use anyhow;
 use async_trait::async_trait;
 use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
 use std::sync::Arc;
 
 use salvo_core::depot::Depot;
-use salvo_core::error::Error;
 use salvo_core::http::{Request, Response};
 use salvo_core::server::ServerConfig;
+use salvo_core::Error;
 use salvo_core::Handler;
 
 pub struct BasicAuthHandler {
@@ -50,10 +51,10 @@ impl BasicAuthHandler {
             if parts.len() == 2 {
                 Ok((parts[0].to_owned(), parts[1].to_owned()))
             } else {
-                Err(Error::General("error parse auth".to_owned()))
+                Err(anyhow!("error parse auth"))
             }
         } else {
-            Err(Error::General("base64 decode error".to_owned()))
+            Err(anyhow!("base64 decode error"))
         }
     }
 }

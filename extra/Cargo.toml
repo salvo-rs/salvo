@@ -17,6 +17,7 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
+anyhow = "1.0.27"
 futures = "0.3"
 async-trait = "0.1.22"
 http = "0.2"
