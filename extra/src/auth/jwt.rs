@@ -119,20 +119,25 @@ where
                     if let Some(key) = &self.config.context_data_key {
                         depot.insert(key.clone(), data);
                     }
+                    if let Some(key) = &self.config.context_state_key {
+                        depot.insert(key.clone(), "authorized");
+                    }
                 } else {
+                    if let Some(key) = &self.config.context_state_key {
+                        depot.insert(key.clone(), "forbidden");
+                    }
                     if self.config.response_error {
                         resp.forbidden();
-                    } else if let Some(key) = &self.config.context_state_key {
-                        depot.insert(key.clone(), "forbidden");
                     }
                 }
                 return;
             }
         }
+        if let Some(key) = &self.config.context_state_key {
+            depot.insert(key.clone(), "unauthorized");
+        }
         if self.config.response_error {
             resp.unauthorized();
-        } else if let Some(key) = &self.config.context_state_key {
-            depot.insert(key.clone(), "unauthorized");
         }
     }
 }
