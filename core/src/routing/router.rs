@@ -22,11 +22,7 @@ impl Debug for Router {
             f,
             "{{ path: '{}', handlers: '{}', scopes: {:#?} }}",
             &self.raw_path,
-            self.handlers
-                .keys()
-                .map(|k| k.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
+            self.handlers.keys().map(|k| k.to_string()).collect::<Vec<String>>().join(", "),
             &self.scopes
         )
     }
@@ -317,6 +313,11 @@ impl Router {
         };
         router.set_path(path);
         router
+    }
+
+    pub fn push(&mut self, router: Router) -> &mut Router {
+        self.scopes.push(router);
+        self
     }
 
     pub fn scope(&mut self, path: &str) -> &mut Router {
