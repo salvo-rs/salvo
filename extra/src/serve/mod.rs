@@ -12,7 +12,8 @@ use salvo_core::depot::Depot;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
 use salvo_core::server::ServerConfig;
-use salvo_core::writer::{NamedFile, Writer};
+use salvo_core::writer::file::NamedFile;
+use salvo_core::writer::Writer;
 use salvo_core::Handler;
 
 #[derive(Debug, Clone)]

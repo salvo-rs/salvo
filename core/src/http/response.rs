@@ -1,14 +1,19 @@
 use std::borrow::Cow;
+use std::error::Error as StdError;
 use std::fmt::{self, Debug};
+use std::marker::Unpin;
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::Arc;
 
+use anyhow::Result;
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
+use futures::Stream;
+use futures::TryStreamExt;
 use http::StatusCode;
 use httpdate::HttpDate;
 use hyper::header::*;
-use hyper::Body;
 use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
@@ -18,8 +23,15 @@ use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
 use crate::http::Request;
 use crate::logging;
+use crate::logging::logger;
 use crate::ServerConfig;
 
+pub enum ResponseBody {
+    None,
+    Empty,
+    Bytes(BytesMut),
+    Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send + Sync>>),
+}
 /// The response representation given to `Middleware`
 pub struct Response {
     /// The response status-code.
@@ -31,7 +43,7 @@ pub struct Response {
 
     pub(crate) cookies: CookieJar,
 
-    pub(crate) body: BytesMut,
+    pub(crate) body: ResponseBody,
     pub(crate) server_config: Arc<ServerConfig>,
 
     is_commited: bool,
@@ -43,7 +55,7 @@ impl Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
-            body: BytesMut::new(), // Start with no writers.
+            body: ResponseBody::None, // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             server_config: conf,
@@ -69,17 +81,26 @@ impl Response {
     //
     // `write_back` consumes the `Response`.
     #[doc(hidden)]
-    pub async fn write_back(self, req: &mut Request, res: &mut hyper::Response<Body>) {
+    pub async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         if let Method::HEAD = *req.method() {
-        } else if self.body.is_empty() {
-            res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
         } else {
-            *res.body_mut() = Body::from(Bytes::from(self.body));
+            match self.body {
+                ResponseBody::Bytes(bytes) => {
+                    *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
+                }
+                ResponseBody::Stream(stream) => {
+                    *res.body_mut() = hyper::Body::wrap_stream(stream);
+                }
+                _ => {
+                    println!(">>>>>>>>>>>????????/");
+                    res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                }
+            }
         }
     }
 
@@ -230,12 +251,42 @@ impl Response {
     #[inline]
     pub fn render(&mut self, content_type: &str, data: &[u8]) {
         self.headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
-        self.body.extend_from_slice(data);
+        self.write_body_bytes(data);
     }
 
     #[inline]
-    pub fn write_body(&mut self, data: &[u8]) {
-        self.body.extend_from_slice(data);
+    pub fn write_body_bytes(&mut self, data: &[u8]) {
+        match &mut self.body {
+            ResponseBody::Bytes(bytes) => {
+                bytes.extend_from_slice(data);
+            }
+            ResponseBody::Stream(_) => {
+                warn!(logger(), "Current body kind is stream, try to write bytes to it");
+                self.body = ResponseBody::Bytes(BytesMut::from(data));
+            }
+            _ => {
+                self.body = ResponseBody::Bytes(BytesMut::from(data));
+            }
+        }
+    }
+    #[inline]
+    pub fn streaming<S, O, E>(&mut self, stream: S)
+    where
+        S: Stream<Item = Result<O, E>> + Send + Sync + 'static,
+        O: Into<Bytes> + 'static,
+        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
+    {
+        match self.body {
+            ResponseBody::Bytes(_) => {
+                warn!(logger(), "Current body kind is bytes already");
+            }
+            ResponseBody::Stream(_) => {
+                warn!(logger(), "Current body kind is stream already");
+            }
+            _ => {}
+        }
+        let mapped = stream.map_ok(Into::into).map_err(Into::into);
+        self.body = ResponseBody::Stream(Box::pin(mapped));
     }
 
     #[inline]

@@ -7,7 +7,7 @@ use hyper::Server as HyperServer;
 use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::{Mime, Request, Response, StatusCode};
+use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::logging;
 use crate::routing::Router;
 use crate::{Catcher, Depot, Protocol};
@@ -135,9 +135,7 @@ impl Server {
             addr
         });
         info!(logging::logger(), "Server will be served"; "address" => addr);
-        HyperServer::bind(&addr)
-            .tcp_keepalive(self.config.timeouts.keep_alive)
-            .serve(self)
+        HyperServer::bind(&addr).tcp_keepalive(self.config.timeouts.keep_alive).serve(self)
     }
 }
 impl<T> hyper::service::Service<T> for Server {
@@ -179,11 +177,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
 
-        let mut segments = request
-            .url()
-            .path_segments()
-            .map(|c| c.collect::<Vec<_>>())
-            .unwrap_or_default();
+        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or_default();
         segments.retain(|x| *x != "");
         let (ok, handlers, params) = self.router.detect(request.method().clone(), segments);
         if !ok {
@@ -207,7 +201,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
 
             if response.status_code().is_none() {
-                if response.body.is_empty() {
+                if let ResponseBody::None = response.body {
                     response.set_status_code(StatusCode::NOT_FOUND);
                 } else {
                     response.set_status_code(StatusCode::OK);
@@ -241,10 +235,12 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             }
-            if response.body.is_empty() && has_error {
-                for catcher in &*catchers {
-                    if catcher.catch(&request, &mut response) {
-                        break;
+            if let ResponseBody::None = response.body {
+                if has_error {
+                    for catcher in &*catchers {
+                        if catcher.catch(&request, &mut response) {
+                            break;
+                        }
                     }
                 }
             }
