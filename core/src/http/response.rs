@@ -1,9 +1,7 @@
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
-use std::marker::Unpin;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -17,6 +15,7 @@ use hyper::header::*;
 use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;

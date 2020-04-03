@@ -3,8 +3,6 @@ use bitflags::bitflags;
 use httpdate::{self, HttpDate};
 use mime_guess::from_path;
 use std::fs::{File, Metadata};
-use std::io::Read;
-use std::io::Seek;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -15,11 +13,9 @@ use std::{cmp, io};
 use std::os::unix::fs::MetadataExt;
 
 use super::FileChunk;
-use crate::http::errors::http_error::*;
 use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
-use crate::logging::logger;
 use crate::Writer;
 use crate::{Depot, ServerConfig};
 

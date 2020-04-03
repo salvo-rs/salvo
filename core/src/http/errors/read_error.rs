@@ -1,6 +1,5 @@
 use derive_more::Display;
 use std::borrow::Cow;
-use std::fmt::{self, Display};
 use std::io;
 use std::str::Utf8Error;
 
@@ -35,7 +34,7 @@ pub enum ReadError {
 
     #[display(fmt = "A multipart section Content-Disposition header failed to specify a name.")]
     NoName,
-    
+
     #[display(fmt = "The request body ended prior to reaching the expected terminating boundary.")]
     Eof,
 
@@ -53,7 +52,7 @@ pub enum ReadError {
 
     #[display(fmt = "EofInFile")]
     EofInFile,
-    
+
     #[display(fmt = "EofInPart")]
     EofInPart,
 
@@ -62,13 +61,13 @@ pub enum ReadError {
 
     #[display(fmt = "An I/O error: {}", _0)]
     Io(io::Error),
-    
+
     #[display(fmt = "An error was returned from Hyper: {}", _0)]
     Hyper(hyper::Error),
 
     #[display(fmt = "An error occurred during UTF-8 processing: {}", _0)]
     Utf8(Utf8Error),
-    
+
     #[display(fmt = "An error occurred during character decoding: {}", _0)]
     Decoding(Cow<'static, str>),
 

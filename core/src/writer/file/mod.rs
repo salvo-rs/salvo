@@ -2,21 +2,13 @@ mod named_file;
 pub use named_file::*;
 
 use anyhow::Result;
-use futures::future::LocalBoxFuture;
-use futures::FutureExt;
 use futures::Stream;
 use hyper::body::Bytes;
-use std::cell::RefCell;
-use std::fmt::Write;
-use std::fs::{DirEntry, File};
-use std::future::Future;
+use std::fs::File;
 use std::io::{Read, Seek};
-use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::rc::Rc;
 use std::task::{Context, Poll};
 use std::{cmp, io};
-use tokio::task;
 
 pub struct FileChunk {
     chunk_size: u64,
@@ -28,7 +20,7 @@ pub struct FileChunk {
 impl Stream for FileChunk {
     type Item = Result<Bytes, io::Error>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Option<Self::Item>> {
         let Self {
             chunk_size,
             ref mut read_size,
