@@ -1,11 +1,11 @@
+pub mod file;
+pub use file::*;
+
 use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::http::{Request, Response};
 use crate::{Depot, ServerConfig};
-
-mod named_file;
-pub use named_file::NamedFile;
 
 #[async_trait]
 pub trait Writer: Send {
