@@ -375,6 +375,17 @@ impl Writer for NamedFile {
             return;
         }
 
+        let reader = ChunkedReadFile {
+            offset,
+            length,
+            file: Some(self.file),
+            future: None,
+        }; 
+        if offset != 0 || length != self.md.len() {
+            Ok(resp.status(StatusCode::PARTIAL_CONTENT).streaming(reader))
+        } else {
+            Ok(resp.body(SizedStream::new(length, reader)))
+        }
         match read_file_bytes(&mut self.file, length, offset, self.chunk_size) {
             Ok(data) => {
                 if data.len() as u64 != self.metadata.len() {
