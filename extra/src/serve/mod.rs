@@ -56,7 +56,7 @@ impl<'a> StaticRoots for &'a str {
 }
 impl<'a> StaticRoots for Vec<&'a str> {
     fn collect(&self) -> Vec<PathBuf> {
-        self.iter().map(|i| PathBuf::from(i)).collect()
+        self.iter().map(PathBuf::from).collect()
     }
 }
 impl StaticRoots for Path {

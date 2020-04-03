@@ -57,7 +57,7 @@ where
     }
 }
 
-#[async_trait]
-impl Writer for () {
-    async fn write(mut self, _conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {}
-}
+// #[async_trait]
+// impl Writer for () {
+//     async fn write(mut self, _conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {}
+// }

@@ -25,6 +25,7 @@ use crate::logging;
 use crate::logging::logger;
 use crate::ServerConfig;
 
+#[allow(clippy::type_complexity)]
 pub enum ResponseBody {
     None,
     Empty,

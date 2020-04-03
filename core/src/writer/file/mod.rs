@@ -38,7 +38,7 @@ impl Stream for FileChunk {
             file.seek(io::SeekFrom::Start(*offset))?;
             let nbytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
             if nbytes == 0 {
-                return Poll::Ready(Some(Err(std::io::ErrorKind::UnexpectedEof.into())));
+                Poll::Ready(Some(Err(std::io::ErrorKind::UnexpectedEof.into())))
             } else {
                 *offset += nbytes as u64;
                 *read_size += nbytes as u64;

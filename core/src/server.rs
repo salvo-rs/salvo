@@ -159,11 +159,11 @@ pub struct HyperHandler {
     router: Arc<Router>,
     config: Arc<ServerConfig>,
 }
+#[allow(clippy::type_complexity)]
 impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
     type Response = hyper::Response<hyper::body::Body>;
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-    // type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
