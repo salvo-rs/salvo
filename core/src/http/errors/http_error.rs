@@ -65,6 +65,8 @@ pub struct HttpError {
     pub detail: String,
 }
 
+impl StdError for HttpError {}
+
 impl fmt::Display for HttpError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "name: {}", &self.name)?;
@@ -199,10 +201,4 @@ default_errors! {
     LoopDetected,          StatusCode::LOOP_DETECTED,           "Loop Detected", "the server terminated an operation because it encountered an infinite loop while processing a request with \"Depth: infinity\".";
     NotExtended,           StatusCode::NOT_EXTENDED,            "Not Extended", "Further extensions to the request are required for the server to fulfill it.";
     NetworkAuthenticationRequired, StatusCode::NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required", "the client needs to authenticate to gain network access."
-}
-
-impl<E: StdError + Send + Sync + 'static> From<E> for HttpError {
-    fn from(err: E) -> HttpError {
-        InternalServerError(None, Some(err.to_string()))
-    }
 }
