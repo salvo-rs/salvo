@@ -138,7 +138,7 @@ impl NamedFileBuilder {
             metadata,
             modified,
             content_encoding,
-            buffer_size: buffer_size.unwrap_or(8_388_608),
+            buffer_size: buffer_size.unwrap_or(65_536),
             status_code: StatusCode::OK,
             flags: Flags::default(),
         })
