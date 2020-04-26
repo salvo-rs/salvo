@@ -1,11 +1,11 @@
-# Salvo [![Build Status](https://dev.azure.com/kenorld/salvo/_apis/build/status/kenorld.salvo?branchName=master)](https://dev.azure.com/kenorld/salvo/_build/latest?definitionId=1&branchName=master)[![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo) [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
+# Salvo [![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo) [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 
 Salvo is a simple web framework written by rust. It is simple to use it to build website, REST API.
 
 | Platform | Build Status |
 | -------- | ------------ |
-| Linux | [![build status](https://github.com/kenorld/salvo/workflows/ci_inux/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions) |
-| macOS | [![build status](https://github.com/kenorld/salvo/ci_macos/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions) |
+| Linux | [![build status](https://github.com/kenorld/salvo/workflows/ci_linux/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions) |
+| macOS | [![build status](https://github.com/kenorld/salvo//workflows/ci_macos/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions) |
 | Windows | [![build status](https://github.com/kenorld/salvo/workflows/ci_windows/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions) |
 
 ---
