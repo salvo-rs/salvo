@@ -164,9 +164,8 @@ impl NamedFile {
     /// # Examples
     ///
     /// ```rust
-    /// use actix_files::NamedFile;
-    ///
-    /// let file = NamedFile::open("foo.txt");
+    /// use salvo_core::writer::file::NamedFile;
+    /// let file = NamedFile::open("foo.txt".into());
     /// ```
     pub fn open(path: PathBuf) -> io::Result<NamedFile> {
         Self::builder(path).build()
@@ -184,10 +183,9 @@ impl NamedFile {
     ///
     /// ```rust
     /// # use std::io;
-    /// use actix_files::NamedFile;
-    ///
+    /// # use salvo_core::writer::file::NamedFile;
     /// # fn path() -> io::Result<()> {
-    /// let file = NamedFile::open("test.txt")?;
+    /// let file = NamedFile::open("test.txt".into())?;
     /// assert_eq!(file.path().as_os_str(), "foo.txt");
     /// # Ok(())
     /// # }
