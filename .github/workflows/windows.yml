@@ -1,4 +1,4 @@
-name: ci_windows
+name: windows
 
 on: [push, pull_request]
 
