@@ -2,10 +2,37 @@
 
 Salvo is a simple web framework written by rust. It is simple to use it to build website, REST API.
 
+## Features
+  * Base on hyper, futures 0.3.
+  * Easy to write router.
+
 ## Quick start
 You can view samples [here](https://github.com/kenorld/salvo/tree/master/examples) or read docs [here](https://docs.rs/salvo/0.1.6/salvo/).
 
-Here's an example of a Salvo application:
+Create a new rust project:
+```bash
+cargo new salvo_taste --bin
+```
+
+Add this to `Cargo.toml`
+```toml
+[dependencies]
+salvo = "0.4"
+tokio = { version = "0.2", features = ["full"] }
+```
+
+Create a simple function handler in the main.rs file, we call it hello world, this function just render plain text "Hello World".
+
+```rust
+use salvo::prelude::*;
+
+#[fn_handler]
+async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+    resp.render_plain_text("Hello World");
+}
+```
+
+In the main function, we need to create a root Router first, and then create a server and call it's serve function:
 
 ```rust
 use salvo::prelude::*;
