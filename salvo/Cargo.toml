@@ -16,6 +16,9 @@ categories = ["web-programming::http-server"]
 [package.metadata.docs.rs]
 all-features = true
 
+[badges]
+codecov = { repository = "kenorld/salvo", branch = "master", service = "github" }
+
 [dependencies]
 salvo_core = { path = "../core", version = "0.2.4", default-features = false }
 salvo_extra = { path = "../extra", version = "0.2.0", default-features = false }
