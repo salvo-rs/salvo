@@ -28,7 +28,7 @@ async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut 
 }
 ```
 
-在 main 函数中, 我们需要首先创建一个跟路由, 然后创建一个 Server 并且调用它的 server 函数:
+在 main 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 server 函数:
 
 ```rust
 use salvo::prelude::*;
