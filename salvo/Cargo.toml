@@ -11,7 +11,7 @@ repository = "https://github.com/kenorld/salvo"
 documentation = "https://docs.rs/salvo/"
 readme = "../README.md"
 keywords = ["salvo", "web", "framework", "server"]
-license = "MIT/Apache-2.0"
+license = "MIT"
 categories = ["web-programming::http-server"]
 
 [package.metadata.docs.rs]
