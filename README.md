@@ -21,7 +21,7 @@ salvo = "0.4"
 tokio = { version = "0.2", features = ["full"] }
 ```
 
-Create a simple function handler in the main.rs file, we call it hello world, this function just render plain text "Hello World".
+Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text "Hello World".
 
 ```rust
 use salvo::prelude::*;
