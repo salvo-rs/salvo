@@ -1,8 +1,6 @@
 [profile.dev]
 codegen-units = 4
 
-[badges]
-codecov = { repository = "kenorld/salvo", branch = "master", service = "github" }
 
 [workspace]
 members = [
