@@ -4,7 +4,7 @@
 {% block extra_content_class %}content--reversed{% endblock extra_content_class %}
 
 {% block content %}
-{% set section = get_section(path="documentation/_index.md") %}
+{% set section = get_section(path="guide/_index.md") %}
 <div class="guide">
     <aside class="guide__sidebar">
         <ul>
@@ -23,9 +23,9 @@
             {% endfor %}
         </ul>
     </aside>
-    <div class="documentation__content">
-        {% block doc_content %}
-        {% endblock doc_content %}
+    <div class="guide__content">
+        {% block guide_content %}
+        {% endblock guide_content %}
     </div>
 </div>
 {% endblock content %}
