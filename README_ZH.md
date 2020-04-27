@@ -13,7 +13,7 @@ cargo new salvo_taste --bin
 添加依赖项到 `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.4"
+salvo = "0.2"
 tokio = { version = "0.2", features = ["full"] }
 ```
 
