@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{% block description %}{{ config.description }}{% endblock description %}">
+    <meta name="author" content="{{ config.extra.author }}">
+    <title>{% block title %}{{ config.title }}{% endblock title %}</title>
+    <link rel="stylesheet" href="{{ get_url(path="site.css") }}" />
+    <link rel="icon" href="{{ get_url(path="favicon.ico") }}">
+</head>
+
+<body>
+
+    <header>
+        <nav class="{% block extra_nav_class %}container{% endblock extra_nav_class %}">
+            <a class="header__logo white" href="{{ config.base_url }}">Savlo</a>
+            <a class="white" href="{{ get_url(path="@/guide/_index.md") }}" class="nav-link">Guide</a>
+            <a class="white" href="https://github.com/kenorld/salvo" class="nav-link">GitHub</a>
+
+            <div class="search-container">
+                <input id="search" type="search" placeholder="🔎 Search the docs">
+
+                <div class="search-results">
+                    <div class="search-results__items"></div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="content {% block extra_content_class %}{% endblock extra_content_class %}">
+        {% block content %}
+        <div class="hero">
+            <h1></h1>
+            <p class="hero__tagline">
+
+            </p>
+            <a href="{{ get_url(path="@/guide/_index.md") }}" class="button">Get started</a>
+        </div>
+
+        <div class="inverted-colours selling-points">
+            <div class="selling-points__content container">
+                <div class="selling-point">
+                    <h2></h2>
+                    <p>
+                    </p>
+                </div>
+
+                <div class="selling-point">
+                    <h2>Blazing fast</h2>
+                    <p>
+                    </p>
+                </div>
+
+                <div class="selling-point">
+                    <h2>Scalable</h2>
+                    <p>
+                    </p>
+                </div>
+
+                <div class="selling-point">
+                    <h2>Easy to use</h2>
+                    <p>
+                    </p>
+                </div>
+
+                <div class="selling-point">
+                    <h2>Flexible</h2>
+                    <p>
+                    </p>
+                </div>
+
+                <div class="selling-point">
+                    <h2></h2>
+                    <p>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {% endblock content %}
+    </div>
+    <footer>
+        ©2019-2020 — <a class="white" href="http://www.chrislearn.im">Chrislearn Young</a> and <a class="white"
+            href="https://github.com/kenorld/salvo/graphs/contributors">contributors</a>
+    </footer>
+
+    <script type="text/javascript" src="{{ get_url(path="elasticlunr.min.js") }}"></script>
+    <script type="text/javascript" src="{{ get_url(path="search_index.en.js") }}"></script>
+    <script type="text/javascript" src="{{ get_url(path="search.js") }}"></script>
+</body>
+
+</html>
