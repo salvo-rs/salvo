@@ -215,7 +215,10 @@ impl DirInfo {
 impl Handler for Static {
     async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let base_path = if let Some((_, value)) = param { value } else { req.url().path() };
+        let mut base_path = if let Some((_, value)) = param { value } else { req.url().path() }.to_owned();
+        if base_path.starts_with('/') || base_path.starts_with('\\') {
+            base_path = format!(".{}", base_path);
+        }
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -230,7 +233,7 @@ impl Handler for Static {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(path) {
+                        if let Ok(named_file) = NamedFile::open(ipath) {
                             named_file.write(conf, req, depot, resp).await;
                         } else {
                             resp.set_http_error(InternalServerError(Some("file read error".into()), None));

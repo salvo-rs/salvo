@@ -97,7 +97,6 @@ impl Response {
                     *res.body_mut() = hyper::Body::wrap_stream(stream);
                 }
                 _ => {
-                    println!(">>>>>>>>>>>????????/");
                     res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
                 }
             }
