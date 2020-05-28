@@ -323,6 +323,7 @@ impl Response {
             self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+        self.commit();
     }
     #[inline]
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
@@ -331,6 +332,7 @@ impl Response {
             self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+        self.commit();
     }
     #[inline]
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
@@ -339,6 +341,7 @@ impl Response {
             self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+        self.commit();
     }
     pub fn set_content_disposition(&mut self, value: &str) {
         self.headers_mut().insert(CONTENT_DISPOSITION, value.parse().unwrap());
