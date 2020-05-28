@@ -59,6 +59,26 @@ impl<'a> StaticRoots for Vec<&'a str> {
         self.iter().map(PathBuf::from).collect()
     }
 }
+impl<'a> StaticRoots for &'a String {
+    fn collect(&self) -> Vec<PathBuf> {
+        vec![PathBuf::from(self)]
+    }
+}
+impl<'a> StaticRoots for Vec<&'a String> {
+    fn collect(&self) -> Vec<PathBuf> {
+        self.iter().map(PathBuf::from).collect()
+    }
+}
+impl<'a> StaticRoots for String {
+    fn collect(&self) -> Vec<PathBuf> {
+        vec![PathBuf::from(self)]
+    }
+}
+impl<'a> StaticRoots for Vec<String> {
+    fn collect(&self) -> Vec<PathBuf> {
+        self.iter().map(PathBuf::from).collect()
+    }
+}
 impl StaticRoots for Path {
     fn collect(&self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
