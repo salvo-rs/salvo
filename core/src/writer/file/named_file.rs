@@ -375,7 +375,7 @@ impl Writer for NamedFile {
             resp.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
             let reader = FileChunk {
                 offset,
-                chunk_size: cmp::min(length, offset + self.buffer_size),
+                chunk_size: cmp::min(length, self.metadata.len()),
                 read_size: 0,
                 file: self.file,
                 buffer_size: self.buffer_size,
