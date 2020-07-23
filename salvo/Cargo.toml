@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
 description = """
@@ -21,8 +21,8 @@ all-features = true
 codecov = { repository = "kenorld/salvo", branch = "master", service = "github" }
 
 [dependencies]
-salvo_core = { path = "../core", version = "0.2.7", default-features = false }
-salvo_extra = { path = "../extra", version = "0.2.6", default-features = false }
+salvo_core = { path = "../core", version = "0.2.8", default-features = false }
+salvo_extra = { path = "../extra", version = "0.2.8", default-features = false }
 salvo_macro = {path = "../macro", version="0.2.0"}
 async-trait = "0.1.22"
 

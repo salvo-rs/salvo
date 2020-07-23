@@ -177,9 +177,17 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
 
-        let mut segments = request.url().path_segments().map(|c| c.collect::<Vec<_>>()).unwrap_or_default();
-        segments.retain(|x| *x != "");
-        let (ok, handlers, params) = self.router.detect(request.method().clone(), segments);
+        let segments = request
+            .url()
+            .path_segments()
+            .map(|segments| {
+                segments
+                    .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
+                    .filter(|s| !s.contains('/') && *s != "")
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let (ok, handlers, params) = self.router.detect(request.method().clone(), segments.iter().map(AsRef::as_ref).collect());
         if !ok {
             response.set_status_code(StatusCode::NOT_FOUND);
         }

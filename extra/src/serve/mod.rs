@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::prelude::*;
 use mime;
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
@@ -109,17 +110,19 @@ fn list_xml(root: &BaseInfo) -> String {
         ftxt.push_str("<table>");
         for dir in &root.dirs {
             ftxt.push_str(&format!(
-                "<dir><name>{}</name><modified>{}</modified></dir>",
+                "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S")
+                dir.modified.format("%Y-%m-%d %H:%M:%S"),
+                encode_url_path(&dir.name),
             ));
         }
         for file in &root.files {
             ftxt.push_str(&format!(
-                "<file><name>{}</name><modified>{}</modified><size>{}</size></file>",
+                "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
-                file.size
+                file.size,
+                encode_url_path(&file.name),
             ));
         }
         ftxt.push_str("</table>");
@@ -149,7 +152,7 @@ fn list_html(root: &BaseInfo) -> String {
         for dir in &root.dirs {
             ftxt.push_str(&format!(
                 "<tr><td><a href=\"./{}/\">{}/</a></td><td>{}</td><td></td></tr>",
-                dir.name,
+                encode_url_path(&dir.name),
                 dir.name,
                 dir.modified.format("%Y-%m-%d %H:%M:%S")
             ));
@@ -157,7 +160,7 @@ fn list_html(root: &BaseInfo) -> String {
         for file in &root.files {
             ftxt.push_str(&format!(
                 "<tr><td><a href=\"./{}\">{}</a></td><td>{}</td><td>{}</td></tr>",
-                file.name,
+                encode_url_path(&file.name),
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
                 file.size
@@ -219,6 +222,7 @@ impl Handler for Static {
         if base_path.starts_with('/') || base_path.starts_with('\\') {
             base_path = format!(".{}", base_path);
         }
+        let base_path = decode_url_path_safely(&base_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -287,4 +291,19 @@ impl Handler for Static {
             _ => resp.render_html_text(&list_html(&root)),
         }
     }
+}
+
+fn decode_url_path_safely(raw: &str) -> String {
+    raw.split('/')
+        .map(|s| percent_decode_str(s).decode_utf8_lossy())
+        .filter(|s| !s.contains('/'))
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
