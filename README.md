@@ -27,8 +27,8 @@ Create a simple function handler in the main.rs file, we call it `hello_world`, 
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-    resp.render_plain_text("Hello World");
+async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    res.render_plain_text("Hello World");
 }
 ```
 
@@ -38,8 +38,8 @@ In the main function, we need to create a root Router first, and then create a s
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-    resp.render_plain_text("Hello World");
+async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    res.render_plain_text("Hello World");
 }
 
 #[tokio::main]

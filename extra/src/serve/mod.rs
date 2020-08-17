@@ -216,7 +216,7 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for Static {
-    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let mut base_path = if let Some((_, value)) = param { value } else { req.url().path() }.to_owned();
         if base_path.starts_with('/') || base_path.starts_with('\\') {
@@ -231,16 +231,16 @@ impl Handler for Static {
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req.url().path().ends_with('/') {
-                    resp.redirect_found(format!("{}/", req.url().path()));
+                    res.redirect_found(format!("{}/", req.url().path()));
                     return;
                 }
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
                         if let Ok(named_file) = NamedFile::open(ipath) {
-                            named_file.write(conf, req, depot, resp).await;
+                            named_file.write(conf, req, depot, res).await;
                         } else {
-                            resp.set_http_error(InternalServerError(Some("file read error".into()), None));
+                            res.set_http_error(InternalServerError(Some("file read error".into()), None));
                         }
                         return;
                     }
@@ -264,15 +264,15 @@ impl Handler for Static {
                 }
             } else if path.is_file() {
                 if let Ok(named_file) = NamedFile::open(path) {
-                    named_file.write(conf, req, depot, resp).await;
+                    named_file.write(conf, req, depot, res).await;
                 } else {
-                    resp.set_http_error(InternalServerError(Some("file read error".into()), None));
+                    res.set_http_error(InternalServerError(Some("file read error".into()), None));
                 }
                 return;
             }
         }
         if !path_exist || !self.options.listing {
-            resp.not_found();
+            res.not_found();
             return;
         }
         let mut format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
@@ -285,10 +285,10 @@ impl Handler for Static {
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
         match format.subtype().as_ref() {
-            "text" => resp.render_plain_text(&list_text(&root)),
-            "json" => resp.render_json_text(&list_json(&root)),
-            "xml" => resp.render_xml_text(&list_xml(&root)),
-            _ => resp.render_html_text(&list_html(&root)),
+            "text" => res.render_plain_text(&list_text(&root)),
+            "json" => res.render_json_text(&list_json(&root)),
+            "xml" => res.render_xml_text(&list_xml(&root)),
+            _ => res.render_html_text(&list_html(&root)),
         }
     }
 }

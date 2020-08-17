@@ -23,8 +23,8 @@ tokio = { version = "0.2", features = ["full"] }
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-    resp.render_plain_text("Hello World");
+async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    res.render_plain_text("Hello World");
 }
 ```
 
@@ -34,8 +34,8 @@ async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut 
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-    resp.render_plain_text("Hello World");
+async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    res.render_plain_text("Hello World");
 }
 
 #[tokio::main]

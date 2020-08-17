@@ -277,7 +277,7 @@ impl NamedFile {
 
 #[async_trait]
 impl Writer for NamedFile {
-    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()
@@ -323,24 +323,24 @@ impl Writer for NamedFile {
             false
         };
 
-        resp.set_content_disposition(&self.content_disposition);
-        resp.set_content_type(&self.content_type.to_string());
+        res.set_content_disposition(&self.content_disposition);
+        res.set_content_type(&self.content_type.to_string());
 
         if let Some(lm) = last_modified {
-            resp.set_last_modified(lm);
+            res.set_last_modified(lm);
         }
         if let Some(etag) = &etag {
-            resp.set_etag(&etag);
+            res.set_etag(&etag);
         }
-        resp.set_accept_range("bytes");
+        res.set_accept_range("bytes");
 
         let mut length = self.metadata.len();
         // default compressing
         if let Some(current_encoding) = &self.content_encoding {
-            resp.set_content_encoding(current_encoding);
+            res.set_content_encoding(current_encoding);
         }
         // else {
-        //     resp.set_content_length(length);
+        //     res.set_content_length(length);
         // }
         let mut offset = 0;
 
@@ -352,27 +352,27 @@ impl Writer for NamedFile {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
                 } else {
-                    resp.set_content_range(&format!("bytes */{}", length));
-                    resp.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
+                    res.set_content_range(&format!("bytes */{}", length));
+                    res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
             } else {
-                resp.set_status_code(StatusCode::BAD_REQUEST);
+                res.set_status_code(StatusCode::BAD_REQUEST);
                 return;
             };
         }
 
         if precondition_failed {
-            resp.set_status_code(StatusCode::PRECONDITION_FAILED);
+            res.set_status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
-            resp.set_status_code(StatusCode::NOT_MODIFIED);
+            res.set_status_code(StatusCode::NOT_MODIFIED);
             return;
         }
 
         if offset != 0 || length != self.metadata.len() {
-            resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-            resp.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
+            res.set_status_code(StatusCode::PARTIAL_CONTENT);
+            res.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
             let reader = FileChunk {
                 offset,
                 chunk_size: cmp::min(length, self.metadata.len()),
@@ -380,10 +380,10 @@ impl Writer for NamedFile {
                 file: self.file,
                 buffer_size: self.buffer_size,
             };
-            resp.set_content_length(reader.chunk_size);
-            resp.streaming(reader)
+            res.set_content_length(reader.chunk_size);
+            res.streaming(reader)
         } else {
-            resp.set_status_code(StatusCode::OK);
+            res.set_status_code(StatusCode::OK);
             let reader = FileChunk {
                 offset,
                 file: self.file,
@@ -391,8 +391,8 @@ impl Writer for NamedFile {
                 read_size: 0,
                 buffer_size: self.buffer_size,
             };
-            resp.set_content_length(length - offset);
-            resp.streaming(reader)
+            res.set_content_length(length - offset);
+            res.streaming(reader)
         }
     }
 }

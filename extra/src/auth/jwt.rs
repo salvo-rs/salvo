@@ -112,7 +112,7 @@ impl<C> Handler for JwtHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
-    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         for extractor in &self.config.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
@@ -127,7 +127,7 @@ where
                         depot.insert(key.clone(), "forbidden");
                     }
                     if self.config.response_error {
-                        resp.forbidden();
+                        res.forbidden();
                     }
                 }
                 return;
@@ -137,7 +137,7 @@ where
             depot.insert(key.clone(), "unauthorized");
         }
         if self.config.response_error {
-            resp.unauthorized();
+            res.unauthorized();
         }
     }
 }

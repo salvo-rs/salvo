@@ -93,11 +93,11 @@ impl HttpError {
 }
 #[async_trait]
 impl Writer for HttpError {
-    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-        resp.set_status_code(self.code);
+    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_status_code(self.code);
         let format = crate::http::guess_accept_mime(req, None);
         let (format, data) = self.as_bytes(&format);
-        resp.render(&format.to_string(), &data);
+        res.render(&format.to_string(), &data);
     }
 }
 
