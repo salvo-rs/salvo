@@ -22,6 +22,7 @@ where
     C: DeserializeOwned + Sync + Send + 'static,
 {
     pub secret: String,
+    pub context_token_key: Option<String>,
     pub context_data_key: Option<String>,
     pub context_state_key: Option<String>,
     pub response_error: bool,
@@ -129,6 +130,9 @@ where
                     if self.config.response_error {
                         res.forbidden();
                     }
+                }
+                if let Some(key) = &self.config.context_token_key {
+                    depot.insert(key.clone(), token);
                 }
                 return;
             }
