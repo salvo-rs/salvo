@@ -7,4 +7,4 @@ publish = false
 
 [dependencies]
 salvo = { path = "../../salvo" }
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.3.0", features = ["full"] }

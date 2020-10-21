@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use hyper::header::AUTHORIZATION;
 pub use jsonwebtoken::errors::Error as JwtError;
-pub use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
+pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
@@ -104,7 +104,7 @@ where
         JwtHandler { config }
     }
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
-        decode::<C>(&token, &self.config.secret.as_bytes(), &self.config.validation)
+        decode::<C>(&token, &DecodingKey::from_secret(&*self.config.secret.as_ref()), &self.config.validation)
     }
 }
 

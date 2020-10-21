@@ -21,10 +21,10 @@ all-features = true
 codecov = { repository = "kenorld/salvo", branch = "master", service = "github" }
 
 [dependencies]
-salvo_core = { path = "../core", version = "0.2.8", default-features = false }
-salvo_extra = { path = "../extra", version = "0.2.9", default-features = false }
-salvo_macro = {path = "../macro", version="0.2.0"}
-async-trait = "0.1.22"
+salvo_core = { path = "../core", version = "0.2.10", default-features = false }
+salvo_extra = { path = "../extra", version = "0.2.10", default-features = false }
+salvo_macro = {path = "../macro", version="0.2.10"}
+async-trait = "0.1.41"
 
 [features]
 default = ["macro"]
