@@ -1,8 +1,11 @@
-use hyper::Server as HyperServer;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{info, warn};
+
+use futures::{future, Future};
+use hyper::Server as HyperServer;
+use tracing_futures::Instrument;
 
 use super::pick_port;
 use crate::catcher;
@@ -10,9 +13,6 @@ use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::routing::Router;
 use crate::{Catcher, Depot, Protocol};
-
-use futures::{future, Future};
-use std::net::{SocketAddr, ToSocketAddrs};
 /// A settings struct containing a set of timeouts which can be applied to a server.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Timeouts {
@@ -59,29 +59,6 @@ pub struct ServerConfig {
 }
 impl ServerConfig {
     pub fn new() -> ServerConfig {
-        // let mimes = vec![
-        //     mime::APPLICATION_JSON,
-        //     mime::APPLICATION_JAVASCRIPT,
-        //     mime::APPLICATION_OCTET_STREAM,
-        //     mime::APPLICATION_MSGPACK,
-        //     mime::APPLICATION_OCTET_STREAM,
-        //     mime::APPLICATION_PDF,
-        //     mime::TEXT_PLAIN,
-        //     mime::TEXT_HTML,
-        //     mime::TEXT_CSS,
-        //     mime::TEXT_JAVASCRIPT,
-        //     mime::TEXT_XML,
-        //     mime::TEXT_EVENT_STREAM,
-        //     mime::TEXT_CSV,
-        //     mime::TEXT_VCARD,
-        //     mime::IMAGE_JPEG,
-        //     mime::IMAGE_GIF,
-        //     mime::IMAGE_PNG,
-        //     mime::IMAGE_BMP,
-        //     mime::IMAGE_SVG,
-        //     mime::FONT_WOFF,
-        //     mime::FONT_WOFF2,
-        // ];
         ServerConfig {
             protocol: Protocol::http(),
             local_addr: None,
