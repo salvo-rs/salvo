@@ -1,19 +1,18 @@
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::{future, Future};
 use hyper::Server as HyperServer;
+use tracing_futures::Instrument;
 
 use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
-use crate::logging;
 use crate::routing::Router;
 use crate::{Catcher, Depot, Protocol};
-
-use futures::{future, Future};
-use std::net::{SocketAddr, ToSocketAddrs};
 /// A settings struct containing a set of timeouts which can be applied to a server.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Timeouts {
@@ -60,29 +59,6 @@ pub struct ServerConfig {
 }
 impl ServerConfig {
     pub fn new() -> ServerConfig {
-        // let mimes = vec![
-        //     mime::APPLICATION_JSON,
-        //     mime::APPLICATION_JAVASCRIPT,
-        //     mime::APPLICATION_OCTET_STREAM,
-        //     mime::APPLICATION_MSGPACK,
-        //     mime::APPLICATION_OCTET_STREAM,
-        //     mime::APPLICATION_PDF,
-        //     mime::TEXT_PLAIN,
-        //     mime::TEXT_HTML,
-        //     mime::TEXT_CSS,
-        //     mime::TEXT_JAVASCRIPT,
-        //     mime::TEXT_XML,
-        //     mime::TEXT_EVENT_STREAM,
-        //     mime::TEXT_CSV,
-        //     mime::TEXT_VCARD,
-        //     mime::IMAGE_JPEG,
-        //     mime::IMAGE_GIF,
-        //     mime::IMAGE_PNG,
-        //     mime::IMAGE_BMP,
-        //     mime::IMAGE_SVG,
-        //     mime::FONT_WOFF,
-        //     mime::FONT_WOFF2,
-        // ];
         ServerConfig {
             protocol: Protocol::http(),
             local_addr: None,
@@ -131,10 +107,10 @@ impl Server {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
-            warn!(logging::logger(), "Local address is not set, randrom address used.");
+            // warn!("Local address is not set, randrom address used.");
             addr
         });
-        info!(logging::logger(), "Server will be served"; "address" => addr);
+        // info!(address = &*addr.to_string(), "Server will be served");
         HyperServer::bind(&addr).tcp_keepalive(self.config.timeouts.keep_alive).serve(self)
     }
 }
@@ -238,7 +214,11 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else {
-                warn!(logging::logger(), "Http response content type header is not set"; "url" => request.url().as_str(), "method" => request.method().as_str());
+                // warn!(
+                //     url = request.url().as_str(),
+                //     method = request.method().as_str(),
+                //     "Http response content type header is not set"
+                // );
                 if !has_error {
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
