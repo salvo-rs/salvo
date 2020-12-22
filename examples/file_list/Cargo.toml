@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-hyper = {git="https://github.com/hyperium/hyper.git"}
+hyper = {git="https://github.com/hyperium/hyper.git", rev = "6c593c29"}
 tracing = "0.1"
 tracing-subscriber = "0.2"
 salvo_core = { path = "../../core" }

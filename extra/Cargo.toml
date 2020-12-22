@@ -30,7 +30,7 @@ base64 = "0.13.0"
 url = "2.1.1"
 percent-encoding= "2.1.0"
 cookie = { version = "0.14.2", features = ["percent-encode"] }
-hyper = { git="https://github.com/hyperium/hyper.git", features = ["stream", "tcp"] }
+hyper = { git="https://github.com/hyperium/hyper.git", rev = "6c593c29", features = ["stream", "tcp"] }
 regex = "1.4.1"
 config = "0.10.1"
 serde = "1.0.117"
