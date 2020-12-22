@@ -1,6 +1,7 @@
 [profile.dev]
 codegen-units = 4
 
+
 [workspace]
 members = [
   "salvo",

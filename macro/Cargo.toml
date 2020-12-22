@@ -1,6 +1,6 @@
 [package]
 name = "salvo_macro"
-version = "0.2.0"
+version = "0.2.10"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
 description = "salvo proc macros"
@@ -8,7 +8,7 @@ homepage = "https://github.com/kenorld/salvo"
 repository = "https://github.com/kenorld/salvo/macros"
 readme = "../README.md"
 keywords = ["salvo", "web", "framework", "server"]
-license = "MIT/Apache-2.0"
+license = "MIT"
 categories = ["web-programming::http-server"]
 
 [lib]
@@ -17,9 +17,9 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-proc-quote = "0.3.0"
-syn = { version = "^1", features = ["full", "parsing"] }
-proc-macro2 = "^1"
+proc-quote = "0.3.2"
+syn = { version = "1.0.45", features = ["full", "parsing"] }
+proc-macro2 = "1.0.24"
 
 # [dev-dependencies]
 # salvo = { version = "0.1", path="../core"}

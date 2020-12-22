@@ -2,7 +2,7 @@ use crate::http::errors::*;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 
 pub trait Catcher: Send + Sync + 'static {
-    fn catch(&self, req: &Request, resp: &mut Response) -> bool;
+    fn catch(&self, req: &Request, res: &mut Response) -> bool;
 }
 
 pub struct CatcherImpl(HttpError);
@@ -12,21 +12,20 @@ impl CatcherImpl {
     }
 }
 impl Catcher for CatcherImpl {
-    fn catch(&self, req: &Request, resp: &mut Response) -> bool {
-        let status = resp.status_code().unwrap_or(StatusCode::NOT_FOUND);
+    fn catch(&self, req: &Request, res: &mut Response) -> bool {
+        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if status != self.0.code {
             return false;
         }
         let format = guess_accept_mime(req, None);
-        let err = if resp.http_error.is_some() {
-            resp.http_error.as_ref().unwrap()
+        let err = if res.http_error.is_some() {
+            res.http_error.as_ref().unwrap()
         } else {
             &self.0
         };
         let (format, data) = err.as_bytes(&format);
-        resp.headers_mut()
-            .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
-        resp.write_body(&data);
+        res.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        res.write_body_bytes(&data);
         true
     }
 }

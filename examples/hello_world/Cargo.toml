@@ -6,7 +6,5 @@ edition = "2018"
 publish = false
 
 [dependencies]
-hyper = "0.13"
-slog = { version = "2.5.2", features = ["max_level_trace", "release_max_level_warn"] }
 salvo = { path = "../../salvo" }
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.3.0", features = ["full"] }

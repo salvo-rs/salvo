@@ -3,8 +3,6 @@ use bitflags::bitflags;
 use httpdate::{self, HttpDate};
 use mime_guess::from_path;
 use std::fs::{File, Metadata};
-use std::io::Read;
-use std::io::Seek;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -14,12 +12,11 @@ use std::{cmp, io};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 
-use super::Writer;
-use crate::http::errors::http_error::*;
+use super::FileChunk;
 use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
-use crate::logging::logger;
+use crate::Writer;
 use crate::{Depot, ServerConfig};
 
 bitflags! {
@@ -42,7 +39,7 @@ pub struct NamedFile {
     path: PathBuf,
     file: File,
     modified: Option<SystemTime>,
-    pub chunk_size: u64,
+    pub buffer_size: u64,
     pub(crate) metadata: Metadata,
     pub(crate) flags: Flags,
     pub(crate) status_code: StatusCode,
@@ -59,7 +56,7 @@ pub struct NamedFileBuilder {
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
     content_disposition: Option<String>,
-    chunk_size: Option<u64>,
+    buffer_size: Option<u64>,
 }
 impl NamedFileBuilder {
     pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> NamedFileBuilder {
@@ -78,8 +75,8 @@ impl NamedFileBuilder {
         self.content_encoding = Some(content_encoding.into());
         self
     }
-    pub fn with_chunk_size(mut self, chunk_size: u64) -> NamedFileBuilder {
-        self.chunk_size = Some(chunk_size);
+    pub fn with_buffer_size(mut self, buffer_size: u64) -> NamedFileBuilder {
+        self.buffer_size = Some(buffer_size);
         self
     }
     pub fn build(mut self) -> io::Result<NamedFile> {
@@ -129,7 +126,7 @@ impl NamedFileBuilder {
             content_type,
             content_encoding,
             content_disposition,
-            chunk_size,
+            buffer_size,
             ..
         } = self;
 
@@ -141,7 +138,7 @@ impl NamedFileBuilder {
             metadata,
             modified,
             content_encoding,
-            chunk_size: chunk_size.unwrap_or(8_388_608),
+            buffer_size: buffer_size.unwrap_or(65_536),
             status_code: StatusCode::OK,
             flags: Flags::default(),
         })
@@ -158,7 +155,7 @@ impl NamedFile {
             content_type: None,
             content_encoding: None,
             content_disposition: None,
-            chunk_size: None,
+            buffer_size: None,
         }
     }
 
@@ -167,9 +164,8 @@ impl NamedFile {
     /// # Examples
     ///
     /// ```rust
-    /// use actix_files::NamedFile;
-    ///
-    /// let file = NamedFile::open("foo.txt");
+    /// use salvo_core::writer::file::NamedFile;
+    /// let file = NamedFile::open("foo.txt".into());
     /// ```
     pub fn open(path: PathBuf) -> io::Result<NamedFile> {
         Self::builder(path).build()
@@ -187,10 +183,9 @@ impl NamedFile {
     ///
     /// ```rust
     /// # use std::io;
-    /// use actix_files::NamedFile;
-    ///
+    /// # use salvo_core::writer::file::NamedFile;
     /// # fn path() -> io::Result<()> {
-    /// let file = NamedFile::open("test.txt")?;
+    /// let file = NamedFile::open("test.txt".into())?;
     /// assert_eq!(file.path().as_os_str(), "foo.txt");
     /// # Ok(())
     /// # }
@@ -282,7 +277,7 @@ impl NamedFile {
 
 #[async_trait]
 impl Writer for NamedFile {
-    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
+    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()
@@ -328,24 +323,24 @@ impl Writer for NamedFile {
             false
         };
 
-        resp.set_content_disposition(&self.content_disposition);
-        resp.set_content_type(&self.content_type.to_string());
+        res.set_content_disposition(&self.content_disposition);
+        res.set_content_type(&self.content_type.to_string());
 
         if let Some(lm) = last_modified {
-            resp.set_last_modified(lm);
+            res.set_last_modified(lm);
         }
         if let Some(etag) = &etag {
-            resp.set_etag(&etag);
+            res.set_etag(&etag);
         }
-        resp.set_accept_range("bytes");
+        res.set_accept_range("bytes");
 
         let mut length = self.metadata.len();
         // default compressing
         if let Some(current_encoding) = &self.content_encoding {
-            resp.set_content_encoding(current_encoding);
+            res.set_content_encoding(current_encoding);
         }
         // else {
-        //     resp.set_content_length(length);
+        //     res.set_content_length(length);
         // }
         let mut offset = 0;
 
@@ -357,38 +352,47 @@ impl Writer for NamedFile {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
                 } else {
-                    resp.set_content_range(&format!("bytes */{}", length));
-                    resp.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
+                    res.set_content_range(&format!("bytes */{}", length));
+                    res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
             } else {
-                resp.set_status_code(StatusCode::BAD_REQUEST);
+                res.set_status_code(StatusCode::BAD_REQUEST);
                 return;
             };
         }
 
         if precondition_failed {
-            resp.set_status_code(StatusCode::PRECONDITION_FAILED);
+            res.set_status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
-            resp.set_status_code(StatusCode::NOT_MODIFIED);
+            res.set_status_code(StatusCode::NOT_MODIFIED);
             return;
         }
 
-        match read_file_bytes(&mut self.file, length, offset, self.chunk_size) {
-            Ok(data) => {
-                if data.len() as u64 != self.metadata.len() {
-                    resp.set_status_code(StatusCode::PARTIAL_CONTENT);
-                    resp.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
-                } else {
-                    resp.set_status_code(StatusCode::OK);
-                }
-                resp.render(&self.content_type.to_string(), &data)
-            }
-            Err(e) => {
-                error!(logger(), "read file error"; "error" => e.to_string());
-                resp.set_http_error(InternalServerError(Some("read file error".into()), Some(e.to_string())));
-            }
+        if offset != 0 || length != self.metadata.len() {
+            res.set_status_code(StatusCode::PARTIAL_CONTENT);
+            res.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
+            let reader = FileChunk {
+                offset,
+                chunk_size: cmp::min(length, self.metadata.len()),
+                read_size: 0,
+                file: self.file,
+                buffer_size: self.buffer_size,
+            };
+            res.set_content_length(reader.chunk_size);
+            res.streaming(reader)
+        } else {
+            res.set_status_code(StatusCode::OK);
+            let reader = FileChunk {
+                offset,
+                file: self.file,
+                chunk_size: length,
+                read_size: 0,
+                buffer_size: self.buffer_size,
+            };
+            res.set_content_length(length - offset);
+            res.streaming(reader)
         }
     }
 }
@@ -444,17 +448,4 @@ fn none_match(etag: Option<&str>, req: &Request) -> bool {
             true
         }
     }
-}
-
-fn read_file_bytes(file: &mut File, range_size: u64, offset: u64, chunk_size: u64) -> Result<Vec<u8>, io::Error> {
-    let max_bytes: usize;
-    max_bytes = cmp::min(range_size, chunk_size) as usize;
-    // println!("=========size: {}, offset: {}, chunk_size:{} max_bytes:{}", range_size,offset, chunk_size, max_bytes);
-    let mut buf = Vec::with_capacity(max_bytes);
-    file.seek(io::SeekFrom::Start(offset))?;
-    let nbytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
-    if nbytes == 0 {
-        return Err(std::io::ErrorKind::UnexpectedEof.into());
-    }
-    Ok(buf)
 }

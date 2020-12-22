@@ -65,6 +65,8 @@ pub struct HttpError {
     pub detail: String,
 }
 
+impl StdError for HttpError {}
+
 impl fmt::Display for HttpError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "name: {}", &self.name)?;
@@ -91,11 +93,11 @@ impl HttpError {
 }
 #[async_trait]
 impl Writer for HttpError {
-    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, resp: &mut Response) {
-        resp.set_status_code(self.code);
+    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_status_code(self.code);
         let format = crate::http::guess_accept_mime(req, None);
         let (format, data) = self.as_bytes(&format);
-        resp.render(&format.to_string(), &data);
+        res.render(&format.to_string(), &data);
     }
 }
 
@@ -199,10 +201,4 @@ default_errors! {
     LoopDetected,          StatusCode::LOOP_DETECTED,           "Loop Detected", "the server terminated an operation because it encountered an infinite loop while processing a request with \"Depth: infinity\".";
     NotExtended,           StatusCode::NOT_EXTENDED,            "Not Extended", "Further extensions to the request are required for the server to fulfill it.";
     NetworkAuthenticationRequired, StatusCode::NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required", "the client needs to authenticate to gain network access."
-}
-
-impl<E: StdError + Send + Sync + 'static> From<E> for HttpError {
-    fn from(err: E) -> HttpError {
-        InternalServerError(None, Some(err.to_string()))
-    }
 }

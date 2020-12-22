@@ -305,10 +305,7 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), ReadErro
     }
 
     if out.name.is_empty() {
-        return Err(ReadError::Parsing(format!(
-            "expected 'name' parameter in `Content-Disposition: {}`",
-            val
-        )));
+        return Err(ReadError::Parsing(format!("expected 'name' parameter in `Content-Disposition: {}`", val)));
     }
 
     Ok(())
@@ -548,28 +545,26 @@ fn test_parse_headers() {
     )
 }
 
-#[test]
-fn test_parse_headers_errors() {
-    // missing content-disposition
-    assert_eq!(
-        parse_headers(b"Content-Type: application/octet-stream\r\n\r\n")
-            .unwrap_err()
-            .to_string(),
-        "missing `Content-Disposition` header on a field \
-         (Content-Type: application/octet-stream) in this multipart request"
-    );
+// #[test]
+// fn test_parse_headers_errors() {
+//     // missing content-disposition
+//     assert_eq!(
+//         parse_headers(b"Content-Type: application/octet-stream\r\n\r\n").unwrap_err().to_string(),
+//         "missing `Content-Disposition` header on a field \
+//          (Content-Type: application/octet-stream) in this multipart request"
+//     );
 
-    // duplicate content-disposition
-    assert_eq!(
-        parse_headers(
-            b"Content-Disposition: form-data; name = field\r\n\
-                        Content-Disposition: form-data; name = field2\r\n\r\n"
-        )
-        .unwrap_err()
-        .to_string(),
-        "duplicate `Content-Disposition` header on field: field"
-    );
-}
+//     // duplicate content-disposition
+//     assert_eq!(
+//         parse_headers(
+//             b"Content-Disposition: form-data; name = field\r\n\
+//                         Content-Disposition: form-data; name = field2\r\n\r\n"
+//         )
+//         .unwrap_err()
+//         .to_string(),
+//         "duplicate `Content-Disposition` header on field: field"
+//     );
+// }
 
 #[test]
 fn test_read_headers() {

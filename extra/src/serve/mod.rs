@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::prelude::*;
 use mime;
+use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
@@ -12,7 +13,8 @@ use salvo_core::depot::Depot;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
 use salvo_core::server::ServerConfig;
-use salvo_core::writer::{NamedFile, Writer};
+use salvo_core::writer::file::NamedFile;
+use salvo_core::writer::Writer;
 use salvo_core::Handler;
 
 #[derive(Debug, Clone)]
@@ -55,7 +57,27 @@ impl<'a> StaticRoots for &'a str {
 }
 impl<'a> StaticRoots for Vec<&'a str> {
     fn collect(&self) -> Vec<PathBuf> {
-        self.iter().map(|i| PathBuf::from(i)).collect()
+        self.iter().map(PathBuf::from).collect()
+    }
+}
+impl<'a> StaticRoots for &'a String {
+    fn collect(&self) -> Vec<PathBuf> {
+        vec![PathBuf::from(self)]
+    }
+}
+impl<'a> StaticRoots for Vec<&'a String> {
+    fn collect(&self) -> Vec<PathBuf> {
+        self.iter().map(PathBuf::from).collect()
+    }
+}
+impl<'a> StaticRoots for String {
+    fn collect(&self) -> Vec<PathBuf> {
+        vec![PathBuf::from(self)]
+    }
+}
+impl<'a> StaticRoots for Vec<String> {
+    fn collect(&self) -> Vec<PathBuf> {
+        self.iter().map(PathBuf::from).collect()
     }
 }
 impl StaticRoots for Path {
@@ -88,17 +110,19 @@ fn list_xml(root: &BaseInfo) -> String {
         ftxt.push_str("<table>");
         for dir in &root.dirs {
             ftxt.push_str(&format!(
-                "<dir><name>{}</name><modified>{}</modified></dir>",
+                "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S")
+                dir.modified.format("%Y-%m-%d %H:%M:%S"),
+                encode_url_path(&dir.name),
             ));
         }
         for file in &root.files {
             ftxt.push_str(&format!(
-                "<file><name>{}</name><modified>{}</modified><size>{}</size></file>",
+                "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
-                file.size
+                file.size,
+                encode_url_path(&file.name),
             ));
         }
         ftxt.push_str("</table>");
@@ -128,7 +152,7 @@ fn list_html(root: &BaseInfo) -> String {
         for dir in &root.dirs {
             ftxt.push_str(&format!(
                 "<tr><td><a href=\"./{}/\">{}/</a></td><td>{}</td><td></td></tr>",
-                dir.name,
+                encode_url_path(&dir.name),
                 dir.name,
                 dir.modified.format("%Y-%m-%d %H:%M:%S")
             ));
@@ -136,7 +160,7 @@ fn list_html(root: &BaseInfo) -> String {
         for file in &root.files {
             ftxt.push_str(&format!(
                 "<tr><td><a href=\"./{}\">{}</a></td><td>{}</td><td>{}</td></tr>",
-                file.name,
+                encode_url_path(&file.name),
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
                 file.size
@@ -192,9 +216,13 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for Static {
-    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let base_path = if let Some((_, value)) = param { value } else { req.url().path() };
+        let mut base_path = if let Some((_, value)) = param { value } else { req.url().path() }.to_owned();
+        if base_path.starts_with('/') || base_path.starts_with('\\') {
+            base_path = format!(".{}", base_path);
+        }
+        let base_path = decode_url_path_safely(&base_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -203,16 +231,16 @@ impl Handler for Static {
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req.url().path().ends_with('/') {
-                    resp.redirect_found(format!("{}/", req.url().path()));
+                    res.redirect_found(format!("{}/", req.url().path()));
                     return;
                 }
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(path) {
-                            named_file.write(conf, req, depot, resp).await;
+                        if let Ok(named_file) = NamedFile::open(ipath) {
+                            named_file.write(conf, req, depot, res).await;
                         } else {
-                            resp.set_http_error(InternalServerError(Some("file read error".into()), None));
+                            res.set_http_error(InternalServerError(Some("file read error".into()), None));
                         }
                         return;
                     }
@@ -236,15 +264,15 @@ impl Handler for Static {
                 }
             } else if path.is_file() {
                 if let Ok(named_file) = NamedFile::open(path) {
-                    named_file.write(conf, req, depot, resp).await;
+                    named_file.write(conf, req, depot, res).await;
                 } else {
-                    resp.set_http_error(InternalServerError(Some("file read error".into()), None));
+                    res.set_http_error(InternalServerError(Some("file read error".into()), None));
                 }
                 return;
             }
         }
         if !path_exist || !self.options.listing {
-            resp.not_found();
+            res.not_found();
             return;
         }
         let mut format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
@@ -257,10 +285,25 @@ impl Handler for Static {
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
         let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
         match format.subtype().as_ref() {
-            "text" => resp.render_plain_text(&list_text(&root)),
-            "json" => resp.render_json_text(&list_json(&root)),
-            "xml" => resp.render_xml_text(&list_xml(&root)),
-            _ => resp.render_html_text(&list_html(&root)),
+            "text" => res.render_plain_text(&list_text(&root)),
+            "json" => res.render_json_text(&list_json(&root)),
+            "xml" => res.render_xml_text(&list_xml(&root)),
+            _ => res.render_html_text(&list_html(&root)),
         }
     }
+}
+
+fn decode_url_path_safely(raw: &str) -> String {
+    raw.split('/')
+        .map(|s| percent_decode_str(s).decode_utf8_lossy())
+        .filter(|s| !s.contains('/'))
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }

@@ -1,6 +1,5 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use futures::FutureExt;
 use http;
 use http::header::{self, HeaderMap};
 use http::method::Method;
@@ -11,7 +10,6 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::str::FromStr;
 use url::Url;
 

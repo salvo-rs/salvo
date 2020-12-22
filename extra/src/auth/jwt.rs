@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use hyper::header::AUTHORIZATION;
 pub use jsonwebtoken::errors::Error as JwtError;
-pub use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
+pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
@@ -22,6 +22,7 @@ where
     C: DeserializeOwned + Sync + Send + 'static,
 {
     pub secret: String,
+    pub context_token_key: Option<String>,
     pub context_data_key: Option<String>,
     pub context_state_key: Option<String>,
     pub response_error: bool,
@@ -103,7 +104,7 @@ where
         JwtHandler { config }
     }
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
-        decode::<C>(&token, &self.config.secret.as_bytes(), &self.config.validation)
+        decode::<C>(&token, &DecodingKey::from_secret(&*self.config.secret.as_ref()), &self.config.validation)
     }
 }
 
@@ -112,7 +113,7 @@ impl<C> Handler for JwtHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
-    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, resp: &mut Response) {
+    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         for extractor in &self.config.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
@@ -127,8 +128,11 @@ where
                         depot.insert(key.clone(), "forbidden");
                     }
                     if self.config.response_error {
-                        resp.forbidden();
+                        res.forbidden();
                     }
+                }
+                if let Some(key) = &self.config.context_token_key {
+                    depot.insert(key.clone(), token);
                 }
                 return;
             }
@@ -137,7 +141,7 @@ where
             depot.insert(key.clone(), "unauthorized");
         }
         if self.config.response_error {
-            resp.unauthorized();
+            res.unauthorized();
         }
     }
 }

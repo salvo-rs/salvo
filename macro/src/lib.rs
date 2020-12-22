@@ -48,8 +48,8 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
-                        Self::#name(conf, req, depot, resp).await
+                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, res: &mut ::salvo::Response) {
+                        Self::#name(conf, req, depot, res).await
                     }
                 }
             }).into()
@@ -59,10 +59,10 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl salvo::Handler for #name {
-                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, resp: &mut ::salvo::Response) {
-                        match Self::#name(conf.clone(), req, depot, resp).await {
-                            Ok(writer) => ::salvo::Writer::write(writer, conf.clone(), req, depot, resp).await,
-                            Err(err) => ::salvo::Writer::write(err, conf.clone(), req, depot, resp).await,
+                    async fn handle(&self, conf: ::std::sync::Arc<::salvo::ServerConfig>, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, res: &mut ::salvo::Response) {
+                        match Self::#name(conf.clone(), req, depot, res).await {
+                            Ok(writer) => ::salvo::Writer::write(writer, conf.clone(), req, depot, res).await,
+                            Err(err) => ::salvo::Writer::write(err, conf.clone(), req, depot, res).await,
                         }
                     }
                 }

@@ -28,7 +28,7 @@ pub use hyper::Body;
 pub use mime::Mime;
 pub use range::HttpRange;
 pub use request::Request;
-pub use response::Response;
+pub use response::{Response, ResponseBody};
 
 pub mod header;
 

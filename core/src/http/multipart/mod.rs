@@ -130,45 +130,6 @@ where
         Err(ReadError::Parsing("parse multiprart failed".into()))
     }
 
-    /// Get a future yielding the next field in the stream, if the stream is not at an end.
-    ///
-    /// If a field was previously being read, its contents will be discarded.
-    ///
-    /// ```rust
-    /// # #[macro_use] extern crate futures;
-    /// use futures::prelude::*;
-    /// # use std::iter;
-    /// # use futures_test::task::noop_context;
-    /// # use std::convert::Infallible;
-    /// use std::error::Error;
-    /// use salvo::http::errors::ReadError;
-    /// use salvo::http::multipart::Multipart;
-    ///
-    /// async fn example<S>(stream: S) -> Result<(), Box<dyn Error>>
-    ///         where S: Stream<Ok = &'static [u8]> + Unpin, ReadError: Error + 'static
-    /// {
-    ///     let mut multipart = Multipart::with_body(stream, "boundary");
-    ///     while let Some(mut field) = multipart.next_field().await? {
-    ///         println!("field: {:?}", field.headers);
-    ///
-    ///         if field.headers.is_text() {
-    ///             println!("field text: {:?}", field.data.read_to_string().await?);
-    ///         } else {
-    ///             // this gives us `Result<Option<&'static [u8]>>` so `?` works in this function
-    ///             while let Some(chunk) = field.data.try_next().await? {
-    ///                 println!("field data chunk: {:?}", chunk);
-    ///             }
-    ///         }
-    ///     }
-    ///
-    ///     Ok(())
-    /// }
-    /// # let stream = stream::empty().map(Result::<&'static [u8], Infallible>::Ok);
-    /// # let ref mut cx = noop_context();
-    /// # let future = example(stream);
-    /// # pin_mut!(future);
-    /// # while let std::task::Poll::Pending = future.as_mut().poll(cx) {}
-    /// ```
     pub fn next_field(&mut self) -> NextField<S>
     where
         Self: Unpin,

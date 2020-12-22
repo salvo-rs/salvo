@@ -22,11 +22,7 @@ impl Debug for Router {
             f,
             "{{ path: '{}', handlers: '{}', scopes: {:#?} }}",
             &self.raw_path,
-            self.handlers
-                .keys()
-                .map(|k| k.to_string())
-                .collect::<Vec<String>>()
-                .join(", "),
+            self.handlers.keys().map(|k| k.to_string()).collect::<Vec<String>>().join(", "),
             &self.scopes
         )
     }
@@ -306,7 +302,7 @@ impl PathParser {
 }
 
 impl Router {
-    pub fn new(path: &str) -> Router {
+    pub fn new(path: impl Into<String>) -> Router {
         let mut router = Router {
             raw_path: String::from(""),
             path_segments: Vec::new(),
@@ -319,14 +315,19 @@ impl Router {
         router
     }
 
-    pub fn scope(&mut self, path: &str) -> &mut Router {
+    pub fn push(&mut self, router: Router) -> &mut Router {
+        self.scopes.push(router);
+        self
+    }
+
+    pub fn scope(&mut self, path: impl Into<String>) -> &mut Router {
         self.scopes.push(Router::new(path));
         self.scopes.last_mut().unwrap()
     }
 
-    fn set_path(&mut self, path: &str) -> &mut Router {
-        self.raw_path = String::from(path);
-        let mut parser = PathParser::new(path);
+    fn set_path(&mut self, path: impl Into<String>) -> &mut Router {
+        self.raw_path = path.into();
+        let mut parser = PathParser::new(&self.raw_path);
         self.path_segments.clear();
         match parser.parse() {
             Ok(segs) => {

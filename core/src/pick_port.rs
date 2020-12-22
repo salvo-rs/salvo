@@ -43,11 +43,6 @@ fn ask_free_tcp_port() -> Option<Port> {
     test_bind_tcp(ipv6).or_else(|| test_bind_tcp(ipv4))
 }
 
-/// Picks an available port that is available on both TCP and UDP
-/// ```rust
-/// use portpicker::pick_unused_port;
-/// let port: u16 = pick_unused_port().expect("No ports free");
-/// ```
 pub fn pick_unused_port() -> Option<Port> {
     let mut rng = rand::thread_rng();
 

@@ -1,0 +1,31 @@
+{% extends "index.html" %}
+
+{% block extra_nav_class %}{% endblock extra_nav_class %}
+{% block extra_content_class %}content--reversed{% endblock extra_content_class %}
+
+{% block content %}
+{% set section = get_section(path="guide/_index.md") %}
+<div class="guide">
+    <aside class="guide__sidebar">
+        <ul>
+            {% for p in section.subsections %}
+            {% set subsection = get_section(path=p) %}
+            <li>
+                <span class="guide__sidebar__title">{{ subsection.title }}</span>
+                <ul>
+                    {% for page in subsection.pages %}
+                    <li class="{% if current_path == page.path %}active{% endif %}">
+                        <a href="{{page.permalink}}">{{page.title}}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </aside>
+    <div class="guide__content">
+        {% block guide_content %}
+        {% endblock guide_content %}
+    </div>
+</div>
+{% endblock content %}
