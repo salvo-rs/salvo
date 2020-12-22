@@ -10,7 +10,6 @@ pub use salvo_extra as extra;
 pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};
-    pub use crate::logging::{self, logger};
     pub use crate::routing::Router;
     pub use crate::server::{Server, ServerConfig};
     pub use crate::writer::*;
