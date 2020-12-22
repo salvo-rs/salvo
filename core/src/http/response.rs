@@ -259,7 +259,7 @@ impl Response {
                 bytes.extend_from_slice(data);
             }
             ResponseBody::Stream(_) => {
-                warn!("current body kind is stream, try to write bytes to it");
+                // warn!("current body kind is stream, try to write bytes to it");
                 self.body = ResponseBody::Bytes(BytesMut::from(data));
             }
             _ => {
@@ -276,10 +276,10 @@ impl Response {
     {
         match self.body {
             ResponseBody::Bytes(_) => {
-                warn!("Current body kind is bytes already");
+                // warn!("Current body kind is bytes already");
             }
             ResponseBody::Stream(_) => {
-                warn!("Current body kind is stream already");
+                // warn!("Current body kind is stream already");
             }
             _ => {}
         }

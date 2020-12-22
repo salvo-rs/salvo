@@ -12,8 +12,8 @@ cargo new salvo_taste --bin
 Add this to `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.2"
-tokio = { version = "0.2", features = ["full"] }
+salvo = "0.3"
+tokio = { version = "0.3", features = ["full"] }
 ```
 
 Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text "Hello World".

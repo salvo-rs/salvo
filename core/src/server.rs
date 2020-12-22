@@ -130,10 +130,10 @@ impl Server {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
-            warn!("Local address is not set, randrom address used.");
+            // warn!("Local address is not set, randrom address used.");
             addr
         });
-        info!(address = &*addr.to_string(), "Server will be served");
+        // info!(address = &*addr.to_string(), "Server will be served");
         HyperServer::bind(&addr).tcp_keepalive(self.config.timeouts.keep_alive).serve(self)
     }
 }
@@ -237,11 +237,11 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else {
-                warn!(
-                    url = request.url().as_str(),
-                    method = request.method().as_str(),
-                    "Http response content type header is not set"
-                );
+                // warn!(
+                //     url = request.url().as_str(),
+                //     method = request.method().as_str(),
+                //     "Http response content type header is not set"
+                // );
                 if !has_error {
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
