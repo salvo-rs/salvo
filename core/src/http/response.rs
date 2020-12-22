@@ -16,7 +16,7 @@ use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
-use tracing::{error, warn};
+use tracing;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
@@ -259,7 +259,7 @@ impl Response {
                 bytes.extend_from_slice(data);
             }
             ResponseBody::Stream(_) => {
-                // warn!("current body kind is stream, try to write bytes to it");
+                tracing::warn!("current body kind is stream, try to write bytes to it");
                 self.body = ResponseBody::Bytes(BytesMut::from(data));
             }
             _ => {
@@ -276,10 +276,10 @@ impl Response {
     {
         match self.body {
             ResponseBody::Bytes(_) => {
-                // warn!("Current body kind is bytes already");
+                tracing::warn!("Current body kind is bytes already");
             }
             ResponseBody::Stream(_) => {
-                // warn!("Current body kind is stream already");
+                tracing::warn!("Current body kind is stream already");
             }
             _ => {}
         }
@@ -298,7 +298,7 @@ impl Response {
             self.render(&mime.to_string(), data);
         } else {
             self.unsupported_media_type();
-            error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
+            tracing::error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
         }
     }
     // #[inline]

@@ -2,7 +2,7 @@ use futures::{Stream, TryStream};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{fmt, mem};
-use tracing::warn;
+use tracing;
 
 use self::State::*;
 use super::helpers::*;
@@ -475,7 +475,7 @@ fn check_last_two(boundary: &[u8]) -> bool {
     let is_end = boundary.ends_with(b"--");
 
     if !is_end && !boundary.ends_with(b"\r\n") && boundary.len() > 2 {
-        warn!("unexpected bytes after boundary");
+        tracing::warn!("unexpected bytes after boundary");
     }
 
     is_end

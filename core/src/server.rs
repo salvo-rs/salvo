@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use futures::{future, Future};
 use hyper::Server as HyperServer;
-use tracing_futures::Instrument;
+use tracing;
 
 use super::pick_port;
 use crate::catcher;
@@ -13,6 +13,7 @@ use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::routing::Router;
 use crate::{Catcher, Depot, Protocol};
+
 /// A settings struct containing a set of timeouts which can be applied to a server.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Timeouts {
@@ -103,14 +104,14 @@ impl Server {
         }
     }
 
-    pub fn serve(self) -> impl Future<Output = Result<(), hyper::error::Error>> + Send + 'static {
+    pub fn serve(self) -> impl Future<Output = Result<(), hyper::Error>> + Send + 'static {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
             let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
-            // warn!("Local address is not set, randrom address used.");
+            tracing::warn!("Local address is not set, randrom address used.");
             addr
         });
-        // info!(address = &*addr.to_string(), "Server will be served");
+        tracing::info!("Server listening on {:?}", &addr);
         HyperServer::bind(&addr).tcp_keepalive(self.config.timeouts.keep_alive).serve(self)
     }
 }
@@ -214,11 +215,11 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else {
-                // warn!(
-                //     url = request.url().as_str(),
-                //     method = request.method().as_str(),
-                //     "Http response content type header is not set"
-                // );
+                tracing::warn!(
+                    url = request.url().as_str(),
+                    method = request.method().as_str(),
+                    "Http response content type header is not set"
+                );
                 if !has_error {
                     response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }

@@ -23,7 +23,7 @@ double-checked-cell-async = "2.0.2"
 futures = { version = "0.3.6", features = ["std"] }
 futures-util = "0.3.6"
 async-trait = "0.1.41"
-bytes = "0.5"
+bytes = "0.6"
 http = "0.2.1"
 yansi = "0.5.0"
 toml = "0.5.7"
@@ -33,7 +33,7 @@ base64 = "0.13.0"
 url = "2.1.1"
 percent-encoding= "2.1.0"
 cookie = { version = "0.14.2", features = ["percent-encode"] }
-hyper = { git="https://github.com/hyperium/hyper.git", features = ["stream", "tcp"] }
+hyper = { git="https://github.com/hyperium/hyper.git", features = ["full"] }
 regex = "1.4.1"
 config = "0.10.1"
 serde = { version = "1.0.117", features = ["derive"] }
