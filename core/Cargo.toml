@@ -22,7 +22,7 @@ double-checked-cell-async = "2.0.2"
 futures = { version = "0.3.6", features = ["std"] }
 futures-util = "0.3.6"
 async-trait = "0.1.41"
-bytes = "0.6"
+bytes = "1.0"
 http = "0.2.1"
 yansi = "0.5.0"
 toml = "0.5.7"
