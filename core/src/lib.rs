@@ -29,7 +29,6 @@ pub use crate::http::{Request, Response};
 pub use crate::routing::Router;
 pub use crate::server::{Server, ServerConfig};
 pub use crate::writer::Writer;
-pub use anyhow::Error;
 
 use std::ops::{Bound, RangeBounds};
 

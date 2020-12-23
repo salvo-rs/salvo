@@ -1,7 +1,6 @@
 mod named_file;
 pub use named_file::*;
 
-use anyhow::Result;
 use futures::Stream;
 use hyper::body::Bytes;
 use std::fs::File;

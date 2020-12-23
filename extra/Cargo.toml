@@ -17,7 +17,6 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-anyhow = "1.0.33"
 futures = "0.3.6"
 async-trait = "0.1.41"
 http = "0.2.1"
@@ -36,6 +35,7 @@ config = "0.10.1"
 serde = "1.0.117"
 serde_derive = "1.0.117"
 serde_json = "1.0.59"
+thiserror = "1.0.21"
 jsonwebtoken = "7.2.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 salvo_core = {version = "0.3.0", path="../core", default-features = false}

@@ -8,7 +8,7 @@ use hyper;
 
 #[derive(Error, Debug)]
 pub enum ReadError {
-    #[error("The Hyper request did not have a Content-Type header")]
+    #[error("The Hyper request did not have a Content-Type header.")]
     NoRequestContentType,
 
     #[error("The Hyper request Content-Type top-level Mime was not `Multipart`.")]

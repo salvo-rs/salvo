@@ -4,7 +4,6 @@ use std::fmt::{self, Debug};
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::Stream;
