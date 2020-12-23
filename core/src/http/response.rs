@@ -4,7 +4,6 @@ use std::fmt::{self, Debug};
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::Stream;
@@ -16,13 +15,12 @@ use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
+use tracing;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
 use crate::http::Request;
-use crate::logging;
-use crate::logging::logger;
 use crate::ServerConfig;
 
 #[allow(clippy::type_complexity)]
@@ -222,7 +220,7 @@ impl Response {
     //                 self.render_file(mime.to_string(), &mut file);
     //             }else{
     //                 self.unsupported_media_type();
-    //                 error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+    //                 error!("path" = path.as_ref().to_str(), "error on render file from path");
     //             }
     //         },
     //         Err(_) => {
@@ -239,7 +237,7 @@ impl Response {
     //                 self.render_file_with_name(mime.to_string(), &mut file, name);
     //             }else{
     //                 self.unsupported_media_type();
-    //                 error!(logging::logger(), "error on render file from path"; "path" => path.as_ref().to_str());
+    //                 error!("path" = path.as_ref().to_str(), "error on render file from path");
     //             }
     //         },
     //         Err(_) => {
@@ -260,7 +258,7 @@ impl Response {
                 bytes.extend_from_slice(data);
             }
             ResponseBody::Stream(_) => {
-                warn!(logger(), "Current body kind is stream, try to write bytes to it");
+                tracing::warn!("current body kind is stream, try to write bytes to it");
                 self.body = ResponseBody::Bytes(BytesMut::from(data));
             }
             _ => {
@@ -277,10 +275,10 @@ impl Response {
     {
         match self.body {
             ResponseBody::Bytes(_) => {
-                warn!(logger(), "Current body kind is bytes already");
+                tracing::warn!("Current body kind is bytes already");
             }
             ResponseBody::Stream(_) => {
-                warn!(logger(), "Current body kind is stream already");
+                tracing::warn!("Current body kind is stream already");
             }
             _ => {}
         }
@@ -299,7 +297,7 @@ impl Response {
             self.render(&mime.to_string(), data);
         } else {
             self.unsupported_media_type();
-            error!(logging::logger(), "error on send binary"; "file_name" => AsRef::<str>::as_ref(&file_name));
+            tracing::error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
         }
     }
     // #[inline]

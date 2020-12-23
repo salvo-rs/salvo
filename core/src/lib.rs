@@ -2,7 +2,6 @@ mod catcher;
 pub mod depot;
 mod handler;
 pub mod http;
-pub mod logging;
 mod pick_port;
 pub mod routing;
 pub mod server;
@@ -17,15 +16,11 @@ extern crate serde;
 // #[macro_use]
 // extern crate mime;
 #[macro_use]
-extern crate slog;
-#[macro_use]
 extern crate pin_utils;
 #[macro_use]
 extern crate futures_util;
 #[macro_use]
 extern crate bitflags;
-#[macro_use]
-extern crate lazy_static;
 
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::depot::Depot;
@@ -34,7 +29,6 @@ pub use crate::http::{Request, Response};
 pub use crate::routing::Router;
 pub use crate::server::{Server, ServerConfig};
 pub use crate::writer::Writer;
-pub use anyhow::Error;
 
 use std::ops::{Bound, RangeBounds};
 

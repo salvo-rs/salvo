@@ -2,12 +2,12 @@ use futures::{Stream, TryStream};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{fmt, mem};
+use tracing;
 
 use self::State::*;
 use super::helpers::*;
 use crate::http::errors::ReadError;
 use crate::http::BodyChunk;
-use crate::logging::logger;
 
 /// A struct implementing `Read` and `BufRead` that will yield bytes until it sees a given sequence.
 pub struct BoundaryFinder<S: TryStream>
@@ -137,11 +137,7 @@ where
 
                     if needed_len > chunk.len() {
                         // hopefully rare; must be dealing with a poorly behaved stream impl
-                        return Poll::Ready(Some(fmt_err!(
-                            "needed {} more bytes to verify boundary, got {}",
-                            needed_len,
-                            chunk.len()
-                        )));
+                        return Poll::Ready(Some(fmt_err!("needed {} more bytes to verify boundary, got {}", needed_len, chunk.len())));
                     }
 
                     let bnd_start = res.boundary_start();
@@ -280,12 +276,7 @@ where
     fn check_boundary_split(&self, first: &[u8], second: &[u8]) -> bool {
         let check_len = self.boundary.len().saturating_sub(first.len());
 
-        second.len() >= check_len
-            && first
-                .iter()
-                .chain(&second[..check_len])
-                .zip(self.boundary.iter())
-                .all(|(l, r)| l == r)
+        second.len() >= check_len && first.iter().chain(&second[..check_len]).zip(self.boundary.iter()).all(|(l, r)| l == r)
     }
 
     /// Returns `true` if another field should follow this boundary, `false` if the stream
@@ -484,7 +475,7 @@ fn check_last_two(boundary: &[u8]) -> bool {
     let is_end = boundary.ends_with(b"--");
 
     if !is_end && !boundary.ends_with(b"\r\n") && boundary.len() > 2 {
-        warn!(logger(), "unexpected bytes after boundary");
+        tracing::warn!("unexpected bytes after boundary");
     }
 
     is_end
@@ -553,10 +544,7 @@ mod test {
 
     #[test]
     fn test_one_nonempty_field() {
-        let finder = BoundaryFinder::new(
-            mock_stream(&[b"--boundary", b"\r\n", b"field data", b"\r\n", b"--boundary--"]),
-            BOUNDARY,
-        );
+        let finder = BoundaryFinder::new(mock_stream(&[b"--boundary", b"\r\n", b"field data", b"\r\n", b"--boundary--"]), BOUNDARY);
         pin_mut!(finder);
 
         ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);

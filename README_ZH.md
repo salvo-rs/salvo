@@ -14,7 +14,7 @@ cargo new salvo_taste --bin
 ```toml
 [dependencies]
 salvo = "0.2"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.3", features = ["full"] }
 ```
 
 在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello_world`, 这个函数只是简单地打印文本 "Hello World".

@@ -1,4 +1,3 @@
-use anyhow;
 use async_trait::async_trait;
 use hyper::header::AUTHORIZATION;
 use hyper::StatusCode;
@@ -7,7 +6,6 @@ use std::sync::Arc;
 use salvo_core::depot::Depot;
 use salvo_core::http::{Request, Response};
 use salvo_core::server::ServerConfig;
-use salvo_core::Error;
 use salvo_core::Handler;
 
 pub struct BasicAuthHandler {
@@ -44,17 +42,14 @@ impl BasicAuthHandler {
             .insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
-    fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
-        if let Ok(auth) = base64::decode(authorization.as_ref()) {
-            let auth = auth.iter().map(|&c| c as char).collect::<String>();
-            let parts: Vec<&str> = auth.splitn(2, ':').collect();
-            if parts.len() == 2 {
-                Ok((parts[0].to_owned(), parts[1].to_owned()))
-            } else {
-                Err(anyhow!("error parse auth"))
-            }
+    fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), super::Error> {
+        let auth = base64::decode(authorization.as_ref())?;
+        let auth = auth.iter().map(|&c| c as char).collect::<String>();
+        let parts: Vec<&str> = auth.splitn(2, ':').collect();
+        if parts.len() == 2 {
+            Ok((parts[0].to_owned(), parts[1].to_owned()))
         } else {
-            Err(anyhow!("base64 decode error"))
+            Err(super::Error::ParseHttpHeader)
         }
     }
 }

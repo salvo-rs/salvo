@@ -20,7 +20,6 @@ pub mod range;
 mod request;
 mod response;
 
-pub use anyhow::Error;
 pub use body_chunk::BodyChunk;
 pub use cookie;
 pub use http::{method::Method, HeaderMap, HeaderValue, StatusCode};

@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.2.10"
+version = "0.3.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
 description = """
@@ -17,7 +17,6 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-anyhow = "1.0.33"
 futures = "0.3.6"
 async-trait = "0.1.41"
 http = "0.2.1"
@@ -30,16 +29,16 @@ base64 = "0.13.0"
 url = "2.1.1"
 percent-encoding= "2.1.0"
 cookie = { version = "0.14.2", features = ["percent-encode"] }
-hyper = { version = "0.13.8", features = ["stream", "tcp"] }
+hyper = { git="https://github.com/hyperium/hyper.git", rev = "6c593c29", features = ["stream", "tcp"] }
 regex = "1.4.1"
-lazy_static = "1.4.0"
 config = "0.10.1"
 serde = "1.0.117"
 serde_derive = "1.0.117"
 serde_json = "1.0.59"
+thiserror = "1.0.21"
 jsonwebtoken = "7.2.0"
 chrono = { version = "0.4.19", features = ["serde"] }
-salvo_core = {version = "0.2.0", path="../core", default-features = false}
+salvo_core = {version = "0.3.0", path="../core", default-features = false}
 
 [build-dependencies]
 yansi = "0.5.0"

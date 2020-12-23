@@ -350,7 +350,7 @@ fn param_val(input: &str) -> Option<(&str, &str)> {
     let rem = qt_splits
         .next()
         .unwrap_or_else(|| {
-            // warn!("unterminated quote: {:?}", qstr);
+            tracing::warn!("unterminated quote: {:?}", qstr);
             ""
         })
         .trim_matches(&[' ', ';'][..]);
