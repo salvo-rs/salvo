@@ -18,9 +18,9 @@ proc-macro = true
 
 [dependencies]
 proc-quote = "0.3.2"
-syn = { version = "1.0.45", features = ["full", "parsing"] }
+syn = { version = "1.0.55", features = ["full", "parsing"] }
 proc-macro2 = "1.0.24"
 
 # [dev-dependencies]
 # salvo = { version = "0.1", path="../core"}
-# futures = { version = "0.3.1" }
+# futures = { version = "0.3.8" }

@@ -24,7 +24,7 @@ codecov = { repository = "kenorld/salvo", branch = "master", service = "github" 
 salvo_core = { path = "../core", version = "0.3.0", default-features = false }
 salvo_extra = { path = "../extra", version = "0.3.0", default-features = false }
 salvo_macro = {path = "../macro", version="0.3.0"}
-async-trait = "0.1.41"
+async-trait = "0.1.42"
 
 [features]
 default = ["macro"]

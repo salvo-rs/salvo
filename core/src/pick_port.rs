@@ -48,7 +48,7 @@ pub fn pick_unused_port() -> Option<Port> {
 
     // Try random port first
     for _ in 0..10 {
-        let port = rng.gen_range(15000, 25000);
+        let port = rng.gen_range(15000..25000);
         if is_free(port) {
             return Some(port);
         }

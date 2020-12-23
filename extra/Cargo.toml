@@ -17,25 +17,25 @@ categories = ["web-programming::http-server"]
 all-features = true
 
 [dependencies]
-futures = "0.3.6"
-async-trait = "0.1.41"
-http = "0.2.1"
+futures = "0.3.8"
+async-trait = "0.1.42"
+http = "0.2.2"
 yansi = "0.5.0"
-toml = "0.5.7"
-state = "0.4.1"
-time = "0.2.22"
+toml = "0.5.8"
+state = "0.4.2"
+time = "0.2.23"
 mime = "0.3.16"
 base64 = "0.13.0"
-url = "2.1.1"
+url = "2.2.0"
 percent-encoding= "2.1.0"
-cookie = { version = "0.14.2", features = ["percent-encode"] }
+cookie = { version = "0.14.3", features = ["percent-encode"] }
 hyper = { version = "0.14.1", features = ["stream", "tcp"] }
-regex = "1.4.1"
+regex = "1.4.2"
 config = "0.10.1"
-serde = "1.0.117"
-serde_derive = "1.0.117"
-serde_json = "1.0.59"
-thiserror = "1.0.21"
+serde = "1.0.118"
+serde_derive = "1.0.118"
+serde_json = "1.0.60"
+thiserror = "1.0.22"
 jsonwebtoken = "7.2.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 salvo_core = {version = "0.3.0", path="../core", default-features = false}
