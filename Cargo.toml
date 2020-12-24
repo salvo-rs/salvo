@@ -1,16 +1,13 @@
 [profile.dev]
 codegen-units = 4
 
-
 [workspace]
-members = [
-  "salvo",
-  "core",
+members = [ "core",
+  "examples/basic_auth", "examples/file_list",
+  "examples/hello_world",
   "extra",
   "macro",
-  "examples/hello_world",
-  "examples/file_list",
-  "examples/basic_auth",
+  "salvo",
 ]
 
 [patch.crates-io]

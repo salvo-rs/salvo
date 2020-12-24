@@ -1,7 +1,7 @@
 [package]
 name = "salvo_extra"
 version = "0.3.0"
-authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
+authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
 A simple web framework
@@ -9,37 +9,38 @@ A simple web framework
 homepage = "https://github.com/kenorld/salvo"
 repository = "https://github.com/kenorld/salvo"
 readme = "../README.md"
-keywords = ["salvo", "web", "framework", "server"]
+keywords = [ "salvo", "web", "framework", "server" ]
 license = "MIT"
-categories = ["web-programming::http-server"]
+categories = [ "web-programming::http-server" ]
 
 [package.metadata.docs.rs]
 all-features = true
 
 [dependencies]
-futures = "0.3.8"
 async-trait = "0.1.42"
-http = "0.2.2"
-yansi = "0.5.0"
-toml = "0.5.8"
-state = "0.4.2"
-time = "0.2.23"
-mime = "0.3.16"
 base64 = "0.13.0"
-url = "2.2.0"
-percent-encoding= "2.1.0"
-cookie = { version = "0.14.3", features = ["percent-encode"] }
-hyper = { version = "0.14.1", features = ["stream", "tcp"] }
-regex = "1.4.2"
+chrono = { version = "0.4.19", features = [ "serde" ] }
 config = "0.10.1"
+cookie = { version = "0.14.3", features = [ "percent-encode" ] }
+futures = "0.3.8"
+http = "0.2.2"
+hyper = { version = "0.14.1", features = [ "stream", "tcp" ] }
+jsonwebtoken = "7.2.0"
+mime = "0.3.16"
+percent-encoding = "2.1.0"
+regex = "1.4.2"
+salvo_core = { version = "0.3.0", path = "../core", default-features = false }
+
 serde = "1.0.118"
 serde_derive = "1.0.118"
 serde_json = "1.0.60"
+state = "0.4.2"
 thiserror = "1.0.22"
-jsonwebtoken = "7.2.0"
-chrono = { version = "0.4.19", features = ["serde"] }
-salvo_core = {version = "0.3.0", path="../core", default-features = false}
+time = "0.2.23"
+toml = "0.5.8"
+url = "2.2.0"
+yansi = "0.5.0"
 
 [build-dependencies]
-yansi = "0.5.0"
 version_check = "0.9.2"
+yansi = "0.5.0"
