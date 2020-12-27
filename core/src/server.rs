@@ -220,9 +220,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     method = request.method().as_str(),
                     "Http response content type header is not set"
                 );
-                if !has_error {
-                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-                }
             }
             if let ResponseBody::None = response.body {
                 if has_error {
