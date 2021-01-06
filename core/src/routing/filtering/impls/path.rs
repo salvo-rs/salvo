@@ -298,17 +298,21 @@ impl Filter for PathFilter {
         let mut match_cursor = path.match_cursor;
         if !self.segements.is_empty() {
             for ps in &self.segements {
-                let (matched, segs, kv) = ps.detect(Vec::from(&path.segements[path.match_cursor..]));
+                let (matched, segs, kv) = ps.detect(path.segements[path.match_cursor..].iter().map(AsRef::as_ref).collect());
                 if !matched {
                     return false;
                 } else {
                     if let Some(kv) = kv {
-                        path.params.extend(kv);
+                        params.extend(kv);
                     }
                     match_cursor += segs.len();
                 }
             }
+            if !params.is_empty() {
+                path.params.extend(params);
+            }
             path.match_cursor = match_cursor;
+            true
         } else {
             false
         }

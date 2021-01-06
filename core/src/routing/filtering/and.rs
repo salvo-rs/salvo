@@ -17,8 +17,8 @@ pub struct And<T, U> {
 #[async_trait]
 impl<T, U> Filter for And<T, U>
 where
-    T: Filter,
-    U: Filter + Clone + Send,
+    T: Filter + Send,
+    U: Filter + Send,
 {
     #[inline]
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {

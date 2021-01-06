@@ -17,7 +17,7 @@ pub struct Or<T, U> {
 #[async_trait]
 impl<T, U> Filter for Or<T, U>
 where
-    T: Filter,
+    T: Filter + Send,
     U: Filter + Send,
 {
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {

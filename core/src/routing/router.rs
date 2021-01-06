@@ -1,9 +1,7 @@
-use http::Method as HttpMethod;
-use regex::Regex;
+use futures::future::{BoxFuture, FutureExt};
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::future::Future;
-use std::ops::Range;
 use std::sync::Arc;
 
 use super::{AnyFilter, Filter, PathState};
@@ -55,34 +53,37 @@ impl Router {
         self.afters.push(handler.clone());
         self
     }
-    pub async fn detect(&mut self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
-        let match_cursor = path.match_cursor;
-        if self.filter.execute(request, path).await {
-            if let Some(handler) = self.handler {
-                if !self.children.is_empty() {
-                    for child in &self.children {
-                        if let Some(dm) = child.detect(request, path).await {
-                            return Some(DetectMatched {
-                                befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
-                                afters: Vec::from([&self.afters[..], &dm.befores[..]].concat()),
-                                handler: dm.handler.clone(),
-                            });
+    pub fn detect(&self, request: &mut Request, path: &mut PathState) -> BoxFuture<Option<DetectMatched>> {
+        async move {
+            let match_cursor = path.match_cursor;
+            if self.filter.execute(request, path).await {
+                if let Some(handler) = self.handler.clone() {
+                    if !self.children.is_empty() {
+                        for child in &self.children {
+                            if let Some(dm) = child.detect(request, path).await {
+                                return Some(DetectMatched {
+                                    befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
+                                    afters: Vec::from([&self.afters[..], &dm.befores[..]].concat()),
+                                    handler: dm.handler.clone(),
+                                });
+                            }
                         }
                     }
+                    Some(DetectMatched {
+                        befores: self.befores.clone(),
+                        afters: self.afters.clone(),
+                        handler: handler.clone(),
+                    })
+                } else {
+                    path.match_cursor = match_cursor;
+                    None
                 }
-                Some(DetectMatched {
-                    befores: self.befores.clone(),
-                    afters: self.afters.clone(),
-                    handler: self.handler.clone(),
-                })
             } else {
                 path.match_cursor = match_cursor;
                 None
             }
-        } else {
-            path.match_cursor = match_cursor;
-            None
         }
+        .boxed()
     }
 
     pub fn handle<H: Handler>(&mut self, handler: H) -> &mut Router {
