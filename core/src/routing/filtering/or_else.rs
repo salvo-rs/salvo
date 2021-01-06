@@ -17,7 +17,7 @@ pub struct OrElse<T, F> {
 impl<T, F> Filter for OrElse<T, F>
 where
     T: Filter,
-    F: Fn() -> Filter,
+    F: Fn() -> Box<dyn Filter>,
 {
     #[inline]
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {

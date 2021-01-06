@@ -25,16 +25,20 @@ impl RegexSegement {
     }
 }
 impl Segement for RegexSegement {
-    fn detect<'a>(&self, segement: &'a str) -> (bool, Option<HashMap<String, String>>) {
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
+        if segements.is_empty() {
+            return (false, Vec::new(), None);
+        }
+        let segement = segements[0];
         let caps = self.regex.captures(segement);
         if let Some(caps) = caps {
             let mut kv = HashMap::<String, String>::new();
             for name in &self.names {
                 kv.insert(name.clone(), caps[&name[..]].to_owned());
             }
-            (true, Some(kv))
+            (true, vec![segement], Some(kv))
         } else {
-            (false, None)
+            (false, Vec::new(), None)
         }
     }
 }
@@ -71,6 +75,8 @@ impl Segement for ConstSegement {
         }
         if self.0 == segements[0] {
             (true, vec![segements[0]], None)
+        } else {
+            (false, Vec::new(), None)
         }
     }
 }
@@ -287,19 +293,19 @@ impl Debug for PathFilter {
 }
 #[async_trait]
 impl Filter for PathFilter {
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
+    async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
         let mut params = HashMap::<String, String>::new();
         let mut match_cursor = path.match_cursor;
         if !self.segements.is_empty() {
             for ps in &self.segements {
-                let (matched, kv) = ps.detect(path.segements[path.match_cursor..]);
+                let (matched, segs, kv) = ps.detect(Vec::from(&path.segements[path.match_cursor..]));
                 if !matched {
                     return false;
                 } else {
                     if let Some(kv) = kv {
                         path.params.extend(kv);
                     }
-                    match_cursor += 1;
+                    match_cursor += segs.len();
                 }
             }
             path.match_cursor = match_cursor;

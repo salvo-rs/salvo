@@ -63,8 +63,8 @@ impl Router {
                     for child in &self.children {
                         if let Some(dm) = child.detect(request, path).await {
                             return Some(DetectMatched {
-                                befores: Vec::from([self.befores.., dm.befores..]),
-                                afters: Vec::from([self.afters.., dm.befores..]),
+                                befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
+                                afters: Vec::from([&self.afters[..], &dm.befores[..]].concat()),
                                 handler: dm.handler.clone(),
                             });
                         }

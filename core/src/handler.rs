@@ -7,7 +7,7 @@ use crate::{Depot, ServerConfig};
 
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
-    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response);
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
 macro_rules! handler_tuple_impls {
@@ -19,10 +19,10 @@ macro_rules! handler_tuple_impls {
         #[async_trait]
         impl<$($T,)+> Handler for ($($T,)+) where $($T: Handler,)+
         {
-            async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+            async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 $(
                     if !res.is_commited() {
-                        self.$idx.handle(conf.clone(), req, depot, res).await;
+                        self.$idx.handle(req, depot, res).await;
                     }
                 )+
             }
