@@ -46,7 +46,6 @@ pub struct Request {
     // accept: Option<Vec<Mime>>,
     queries: OnceCell<MultiMap<String, String>>,
     form_data: DoubleCheckedCell<FormData>,
-    // multipart: DoubleCheckedCell<Result<Multipart, ReadError>>,
     payload: DoubleCheckedCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
