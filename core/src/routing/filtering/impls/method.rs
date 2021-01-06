@@ -1,14 +1,17 @@
 use std::future::{ready, Ready};
 
+use async_trait::async_trait;
+
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
 pub struct MethodFilter(Method);
+
+#[async_trait]
 impl Filter for MethodFilter {
-    type Future = Ready<bool>;
     #[inline]
-    fn execute(&self, req: &mut Request, _path: PathState) -> Self::Future {
-        ready(req.method() == self.0)
+    async fn execute(&self, req: &mut Request, _path: PathState) -> bool {
+        req.method() == self.0
     }
 }
 

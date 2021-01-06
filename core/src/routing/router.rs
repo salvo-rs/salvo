@@ -12,7 +12,7 @@ use crate::Handler;
 
 pub struct Router {
     pub children: Vec<Router>,
-    pub filter: Box<Filter<Future = Future<Output = bool>>>,
+    pub filter: Box<dyn Filter>,
     pub handler: Option<Arc<dyn Handler>>,
     pub befores: Vec<Arc<dyn Handler>>,
     pub afters: Vec<Arc<dyn Handler>>,
@@ -35,7 +35,7 @@ impl Router {
             children: Vec::new(),
             befores: Vec::new(),
             afters: Vec::new(),
-            filter: Box::new(AnyFilter::new()),
+            filter: Box::new(AnyFilter),
             handler: None,
         }
     }
