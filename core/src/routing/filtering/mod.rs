@@ -122,7 +122,7 @@ pub trait Filter {
     /// same item and error types.
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
-        Self: Filter + Sized,
+        Self: Filter<Future = Future<Output = bool>> + Sized,
         F: Fn() -> Filter<Future = Future<Output = bool>> + Send,
     {
         OrElse { filter: self, callback: fun }
@@ -134,21 +134,9 @@ pub trait Filter {
 // ===== FilterFn =====
 pub(crate) fn filter_fn<F, U>(func: F) -> FilterFn<F>
 where
-    F: Fn(&mut Request, &mut PathState) -> bool,
+    F: Fn(&mut Request, &mut PathState) -> Future<Output = bool>,
 {
     FilterFn { func }
-}
-
-pub(crate) fn filter_fn_one<F, U>(func: F) -> FilterFn<impl Fn(&mut Request, &mut PathState) -> U>
-where
-    F: Fn(&mut Request, &mut PathState) -> U + Copy,
-    U: Future<Output = bool>,
-{
-    filter_fn(move |req, path| func(req, path))
-}
-
-fn tup_one<T>(item: T) -> (T,) {
-    (item,)
 }
 
 #[derive(Copy, Clone)]
@@ -162,8 +150,27 @@ where
     F: Fn(&mut Request, &mut PathState) -> U,
     U: Future<Output = bool>,
 {
+    type Future = Future<Output = bool>;
     #[inline]
     fn execute(&self, req: &mut Request, path: &mut PathState) -> Self::Future {
         self.func(req, path).into_future()
+    }
+}
+
+pub trait Func<Args> {
+    type Output;
+
+    fn call(&self, args: Args) -> Self::Output;
+}
+
+impl<F, R> Func<()> for F
+where
+    F: Fn() -> R,
+{
+    type Output = R;
+
+    #[inline]
+    fn call(&self, _args: ()) -> Self::Output {
+        (*self)()
     }
 }

@@ -1,10 +1,11 @@
-use std::future::ready;
+use std::future::{ready, Ready};
 
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
 pub struct MethodFilter(Method);
 impl Filter for MethodFilter {
+    type Future = Ready<bool>;
     #[inline]
     fn execute(&self, req: &mut Request, _path: PathState) -> Self::Future {
         ready(req.method() == self.0)

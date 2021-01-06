@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::future::ready;
+use std::future::{ready, Ready};
 use std::sync::Arc;
 
 use crate::http::Request;
@@ -23,19 +23,16 @@ impl RegexSegement {
     }
 }
 impl Segement for RegexSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
-        if segements.is_empty() {
-            return (false, segements, None);
-        }
-        let caps = self.regex.captures(segements[0]);
+    fn detect<'a>(&self, segement: &'a str) -> (bool, Option<HashMap<String, String>>) {
+        let caps = self.regex.captures(segement);
         if let Some(caps) = caps {
             let mut kv = HashMap::<String, String>::new();
             for name in &self.names {
                 kv.insert(name.clone(), caps[&name[..]].to_owned());
             }
-            (true, segements[1..].to_vec(), Some(kv))
+            (true, Some(kv))
         } else {
-            (false, segements, None)
+            (false, None)
         }
     }
 }
@@ -50,7 +47,7 @@ impl RestSegement {
 impl Segement for RestSegement {
     fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
         if segements.is_empty() {
-            return (false, segements, None);
+            return (false, Vec::new(), None);
         }
         let mut kv = HashMap::new();
         kv.insert(self.0.clone(), segements.join("/"));
@@ -66,15 +63,12 @@ impl ConstSegement {
     }
 }
 impl Segement for ConstSegement {
-    fn detect<'a>(&self, segement: &'str) -> (bool, Option<HashMap<String, String>>) {
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
         if segements.is_empty() {
-            return (false, None);
+            return (false, Vec::new(), None);
         }
-        let matched = self.0 == segement;
-        if matched {
-            (matched, None)
-        } else {
-            (matched, None)
+        if self.0 == segements[0] {
+            (true, vec![segements[0]], None)
         }
     }
 }
@@ -290,6 +284,7 @@ impl Debug for PathFilter {
     }
 }
 impl Filter for PathFilter {
+    type Future = Ready<bool>;
     fn execute(&self, req: &mut Request, path: &mut PathState) -> Self::Future {
         let mut params = HashMap::<String, String>::new();
         let mut match_cursor = path.match_cursor;
@@ -298,7 +293,7 @@ impl Filter for PathFilter {
                 let (matched, kv) = ps.detect(path.segements[path.match_cursor..]);
                 if !matched {
                     return false;
-                } if {
+                } else {
                     if let Some(kv) = kv {
                         path.params.extend(kv);
                     }

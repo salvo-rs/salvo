@@ -8,9 +8,9 @@ use std::collections::HashMap;
 pub type Params = HashMap<String, String>;
 
 pub struct PathState {
-    segements: Vec<String>,
-    match_cursor: usize,
-    params: Params,
+    pub segements: Vec<String>,
+    pub match_cursor: usize,
+    pub params: Params,
 }
 impl PathState {
     pub fn new(segements: Vec<String>) -> Self {

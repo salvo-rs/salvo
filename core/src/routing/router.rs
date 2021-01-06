@@ -11,16 +11,16 @@ use crate::http::Request;
 use crate::Handler;
 
 pub struct Router {
-    children: Vec<Router>,
-    filter: Box<Filter<Future = Future<Output = bool>>>,
-    handler: Option<Arc<dyn Handler>>,
-    befores: Vec<Arc<dyn Handler>>,
-    afters: Vec<Arc<dyn Handler>>,
+    pub children: Vec<Router>,
+    pub filter: Box<Filter<Future = Future<Output = bool>>>,
+    pub handler: Option<Arc<dyn Handler>>,
+    pub befores: Vec<Arc<dyn Handler>>,
+    pub afters: Vec<Arc<dyn Handler>>,
 }
 pub struct DetectMatched {
-    handler: Arc<dyn Handler>,
-    befores: Vec<Arc<dyn Handler>>,
-    afters: Vec<Arc<dyn Handler>>,
+    pub handler: Arc<dyn Handler>,
+    pub befores: Vec<Arc<dyn Handler>>,
+    pub afters: Vec<Arc<dyn Handler>>,
 }
 
 // impl Debug for Router {
