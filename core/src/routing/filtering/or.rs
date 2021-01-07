@@ -21,13 +21,10 @@ where
     U: Filter + Send,
 {
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        async move {
-            if self.first.execute(req, path).await {
-                true
-            } else {
-                self.second.execute(req, path).await
-            }
+        if self.first.execute(req, path).await {
+            true
+        } else {
+            self.second.execute(req, path).await
         }
-        .await
     }
 }

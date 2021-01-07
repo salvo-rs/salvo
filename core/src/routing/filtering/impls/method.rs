@@ -10,7 +10,7 @@ pub struct MethodFilter(Method);
 #[async_trait]
 impl Filter for MethodFilter {
     #[inline]
-    async fn execute(&self, req: &mut Request, _path: PathState) -> bool {
+    async fn execute(&self, req: &mut Request, _path: &mut PathState) -> bool {
         req.method() == self.0
     }
 }

@@ -18,7 +18,7 @@ use crate::http::Request;
 use crate::routing::{PathState, Router};
 
 #[async_trait]
-pub trait Filter {
+pub trait Filter: Send + Sync + 'static {
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,

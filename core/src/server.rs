@@ -167,11 +167,12 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut path_state = PathState::new(segments);
         response.cookies = request.cookies().clone();
 
+        let config = self.config.clone();
         let fut = async move {
             if let Some(dm) = self.router.detect(&mut request, &mut path_state).await {
                 request.params = path_state.params;
                 for handler in [&dm.befores[..], &[dm.handler], &dm.afters[..]].concat() {
-                    handler.handle(&mut request, &mut depot, &mut response).await;
+                    handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
                     if response.is_commited() {
                         break;
                     }

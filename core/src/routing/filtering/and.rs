@@ -22,13 +22,10 @@ where
 {
     #[inline]
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        async move {
-            if !self.first.execute(req, path).await {
-                false
-            } else {
-                self.second.execute(req, path).await
-            }
+        if !self.first.execute(req, path).await {
+            false
+        } else {
+            self.second.execute(req, path).await
         }
-        .await
     }
 }

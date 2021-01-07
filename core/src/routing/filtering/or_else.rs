@@ -21,13 +21,10 @@ where
 {
     #[inline]
     async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        async move {
-            if self.filter.execute(req, path).await {
-                true
-            } else {
-                self.callback.call().execute(req, path).await
-            }
+        if self.filter.execute(req, path).await {
+            true
+        } else {
+            self.callback.call().execute(req, path).await
         }
-        .await
     }
 }
