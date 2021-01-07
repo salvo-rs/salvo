@@ -1,0 +1,11 @@
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\thiserror_impl-926166655dc6660d.dll: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs
+
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\thiserror_impl-926166655dc6660d.d: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs
+
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs:

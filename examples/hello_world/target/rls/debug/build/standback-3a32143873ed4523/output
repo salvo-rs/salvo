@@ -1,0 +1,17 @@
+cargo:rustc-cfg=__standback_since_1_32
+cargo:rustc-cfg=__standback_since_1_33
+cargo:rustc-cfg=__standback_since_1_34
+cargo:rustc-cfg=__standback_since_1_35
+cargo:rustc-cfg=__standback_since_1_36
+cargo:rustc-cfg=__standback_since_1_37
+cargo:rustc-cfg=__standback_since_1_38
+cargo:rustc-cfg=__standback_since_1_39
+cargo:rustc-cfg=__standback_since_1_40
+cargo:rustc-cfg=__standback_since_1_41
+cargo:rustc-cfg=__standback_since_1_42
+cargo:rustc-cfg=__standback_since_1_43
+cargo:rustc-cfg=__standback_since_1_44
+cargo:rustc-cfg=__standback_since_1_45
+cargo:rustc-cfg=__standback_since_1_46
+cargo:rustc-cfg=__standback_since_1_47
+cargo:rustc-cfg=__standback_since_1_48

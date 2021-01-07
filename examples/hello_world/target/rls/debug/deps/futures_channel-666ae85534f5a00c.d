@@ -1,0 +1,10 @@
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\futures_channel-666ae85534f5a00c.rmeta: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lock.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\mod.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\queue.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\sink_impl.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\oneshot.rs
+
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\futures_channel-666ae85534f5a00c.d: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lock.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\mod.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\queue.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\sink_impl.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\oneshot.rs
+
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lib.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\lock.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\mod.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\queue.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\mpsc\sink_impl.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\futures-channel-0.3.8\src\oneshot.rs:

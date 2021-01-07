@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -12,7 +11,7 @@ use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
-use crate::routing::{DetectMatched, PathState, Router};
+use crate::routing::{PathState, Router};
 use crate::{Catcher, Depot, Protocol};
 
 /// A settings struct containing a set of timeouts which can be applied to a server.

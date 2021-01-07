@@ -1,0 +1,13 @@
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\ansi_term-9541ef3ceefd8d16.rmeta: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\ansi.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\style.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\difference.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\display.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\write.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\windows.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\util.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\debug.rs
+
+d:\Kenorld\salvo\examples\hello_world\target\rls\debug\deps\ansi_term-9541ef3ceefd8d16.d: C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\lib.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\ansi.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\style.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\difference.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\display.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\write.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\windows.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\util.rs C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\debug.rs
+
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\lib.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\ansi.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\style.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\difference.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\display.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\write.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\windows.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\util.rs:
+C:\Users\chris\.cargo\registry\src\github.com-1ecc6299db9ec823\ansi_term-0.12.1\src\debug.rs:

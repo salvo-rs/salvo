@@ -19,8 +19,6 @@ extern crate serde;
 extern crate pin_utils;
 #[macro_use]
 extern crate futures_util;
-#[macro_use]
-extern crate bitflags;
 
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::depot::Depot;
