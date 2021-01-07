@@ -1,7 +1,6 @@
-mod filtering;
+pub mod filter;
 mod router;
-pub use filtering::impls::*;
-pub use filtering::*;
+pub use filter::*;
 pub use router::{DetectMatched, Router};
 
 use std::collections::HashMap;

@@ -9,8 +9,8 @@ pub struct And<T, U> {
 
 impl<T, U> Filter for And<T, U>
 where
-    T: Filter + Send,
-    U: Filter + Send,
+    T: Filter,
+    U: Filter,
 {
     #[inline]
     fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {

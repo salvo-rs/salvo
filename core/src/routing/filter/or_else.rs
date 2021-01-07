@@ -1,25 +1,22 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 #[derive(Clone, Copy, Debug)]
-pub struct AndThen<T, F> {
+pub struct OrElse<T, F> {
     pub(super) filter: T,
     pub(super) callback: F,
 }
 
-impl<T, F> Filter for AndThen<T, F>
+impl<T, F, U> Filter for OrElse<T, F>
 where
     T: Filter,
-    F: Fn() -> Filter,
+    U: Filter,
+    F: Fn() -> U,
 {
     #[inline]
     fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        if !self.filter.execute(req, path) {
-            false
+        if self.filter.execute(req, path) {
+            true
         } else {
             self.callback.call().execute(req, path)
         }

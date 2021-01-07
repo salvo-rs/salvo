@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::sync::Arc;
 
 use regex::Regex;
 
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
-use crate::Handler;
 
 trait Segement: Send + Sync + Debug {
     fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>);

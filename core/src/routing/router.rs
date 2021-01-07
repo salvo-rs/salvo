@@ -1,10 +1,8 @@
-use futures::future::{BoxFuture, FutureExt};
-use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::future::Future;
 use std::sync::Arc;
 
-use super::{AnyFilter, Filter, PathState};
+use super::filter;
+use super::{AnyFilter, Filter, PathFilter, PathState};
 use crate::http::Request;
 use crate::Handler;
 
@@ -82,9 +80,54 @@ impl Router {
             None
         }
     }
+    pub fn path(&mut self, path: impl Into<String>) -> &mut Router {
+        self.filter(PathFilter::new(path))
+    }
+    pub fn filter(&mut self, filter: impl Filter) -> &mut Router {
+        if self.filter == AnyFilter {
+            self.filter = filter;
+        } else {
+            self.filter = self.filter.and(filter);
+        }
+        self
+    }
 
     pub fn handle<H: Handler>(&mut self, handler: H) -> &mut Router {
         self.handler = Some(Arc::new(handler));
         self
+    }
+    /// Like route, but specialized to the `Get` method.
+    pub fn get<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::get()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Post` method.
+    pub fn post<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::post()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Put` method.
+    pub fn put<H: Handler, I: AsRef<str>>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::put()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Delete` method.
+    pub fn delete<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::delete()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Head` method.
+    pub fn head<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::head()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Patch` method.
+    pub fn patch<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::patch()).handle(handler))
+    }
+
+    /// Like route, but specialized to the `Options` method.
+    pub fn options<H: Handler>(&mut self, handler: H) -> &mut Router {
+        self.push(Router::new().filter(filter::options()).handle(handler))
     }
 }
