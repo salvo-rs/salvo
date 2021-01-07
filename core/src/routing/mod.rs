@@ -2,7 +2,7 @@ mod filtering;
 mod router;
 pub use filtering::impls::*;
 pub use filtering::*;
-pub use router::Router;
+pub use router::{DetectMatched, Router};
 
 use std::collections::HashMap;
 pub type Params = HashMap<String, String>;

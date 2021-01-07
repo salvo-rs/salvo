@@ -12,7 +12,7 @@ use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
-use crate::routing::{PathState, Router};
+use crate::routing::{DetectMatched, PathState, Router};
 use crate::{Catcher, Depot, Protocol};
 
 /// A settings struct containing a set of timeouts which can be applied to a server.
@@ -168,8 +168,9 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         response.cookies = request.cookies().clone();
 
         let config = self.config.clone();
+        let router = self.router.clone();
         let fut = async move {
-            if let Some(dm) = self.router.detect(&mut request, &mut path_state).await {
+            if let Some(dm) = router.detect(&mut request, &mut path_state) {
                 request.params = path_state.params;
                 for handler in [&dm.befores[..], &[dm.handler], &dm.afters[..]].concat() {
                     handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;

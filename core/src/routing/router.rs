@@ -53,21 +53,21 @@ impl Router {
         self.afters.push(handler.clone());
         self
     }
-    pub async fn detect(&self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
+    pub fn detect(&self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
         let match_cursor = path.match_cursor;
-        if self.filter.execute(request, path).await {
+        if self.filter.execute(request, path) {
             if let Some(handler) = self.handler.clone() {
-                // if !self.children.is_empty() {
-                //     for child in &self.children {
-                //         if let Some(dm) = child.detect(request, path).await {
-                //             return Some(DetectMatched {
-                //                 befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
-                //                 afters: Vec::from([&self.afters[..], &dm.befores[..]].concat()),
-                //                 handler: dm.handler.clone(),
-                //             });
-                //         }
-                //     }
-                // }
+                if !self.children.is_empty() {
+                    for child in &self.children {
+                        if let Some(dm) = child.detect(request, path) {
+                            return Some(DetectMatched {
+                                befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
+                                afters: Vec::from([&self.afters[..], &dm.befores[..]].concat()),
+                                handler: dm.handler.clone(),
+                            });
+                        }
+                    }
+                }
                 Some(DetectMatched {
                     befores: self.befores.clone(),
                     afters: self.afters.clone(),

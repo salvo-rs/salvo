@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::future::{ready, Ready};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use regex::Regex;
 
 use crate::http::Request;
@@ -291,9 +289,8 @@ impl Debug for PathFilter {
         write!(f, "{{ raw_value: '{}'}}", &self.raw_value)
     }
 }
-#[async_trait]
 impl Filter for PathFilter {
-    async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
+    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
         let mut params = HashMap::<String, String>::new();
         let mut match_cursor = path.match_cursor;
         if !self.segements.is_empty() {

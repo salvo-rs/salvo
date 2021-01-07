@@ -1,10 +1,3 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
-use async_trait::async_trait;
-use futures::{ready, TryFuture};
-
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
@@ -14,17 +7,17 @@ pub struct Or<T, U> {
     pub(super) second: U,
 }
 
-#[async_trait]
 impl<T, U> Filter for Or<T, U>
 where
     T: Filter + Send,
     U: Filter + Send,
 {
-    async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        if self.first.execute(req, path).await {
+    #[inline]
+    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
+        if self.first.execute(req, path) {
             true
         } else {
-            self.second.execute(req, path).await
+            self.second.execute(req, path)
         }
     }
 }

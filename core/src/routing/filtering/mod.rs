@@ -51,7 +51,7 @@ pub trait Filter: Send + Sync + 'static {
     //     OrElse { filter: self, callback: fun }
     // }
 
-    async fn execute(&self, req: &mut Request, path: &mut PathState) -> bool;
+    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
 // ===== FilterFn =====
