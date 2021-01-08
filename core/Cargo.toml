@@ -52,11 +52,3 @@ toml = "0.5.8"
 tracing = "0.1.22"
 twoway = "0.2.1"
 url = "2.2.0"
-yansi = "0.5.0"
-
-[dev-dependencies]
-futures-test = "0.3.8"
-
-[build-dependencies]
-version_check = "0.9.2"
-yansi = "0.5.0"

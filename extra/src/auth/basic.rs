@@ -1,10 +1,11 @@
-use async_trait::async_trait;
-use hyper::header::AUTHORIZATION;
-use hyper::StatusCode;
+
 use std::sync::Arc;
 
+use async_trait::async_trait;
+
 use salvo_core::depot::Depot;
-use salvo_core::http::{Request, Response};
+use salvo_core::http::{Request, Response, StatusCode};
+use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::server::ServerConfig;
 use salvo_core::Handler;
 
