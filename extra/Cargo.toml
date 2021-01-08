@@ -28,7 +28,6 @@ hyper = { version = "0.14.1", features = [ "stream", "tcp" ] }
 jsonwebtoken = "7.2.0"
 mime = "0.3.16"
 percent-encoding = "2.1.0"
-regex = "1.4.2"
 salvo_core = { version = "0.4.0", path = "../core", default-features = false }
 
 serde = "1.0.118"
@@ -37,7 +36,6 @@ serde_json = "1.0.60"
 state = "0.4.2"
 thiserror = "1.0.22"
 time = "0.2.23"
-toml = "0.5.8"
 url = "2.2.0"
 yansi = "0.5.0"
 
