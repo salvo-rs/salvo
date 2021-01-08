@@ -11,6 +11,7 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response};
     pub use crate::routing::Router;
+    pub use crate::routing::filter;
     pub use crate::server::{Server, ServerConfig};
     pub use crate::writer::*;
     pub use crate::Handler;

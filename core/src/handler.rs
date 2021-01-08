@@ -1,5 +1,6 @@
-use async_trait::async_trait;
 use std::sync::Arc;
+
+use async_trait::async_trait;
 
 use crate::http::{Request, Response};
 use crate::{Depot, ServerConfig};
