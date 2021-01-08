@@ -67,11 +67,18 @@ impl Router {
         return None;
     }
 
+    pub fn visit<F>(self, func: F) -> Self
+    where
+        F: Fn(Router) -> Router,
+    {
+        func(self)
+    }
+
     pub fn push(mut self, router: Router) -> Self {
         self.children.push(router);
         self
     }
-    pub fn push_when<F, R>(mut self, func: F) -> Self
+    pub fn push_when<F>(mut self, func: F) -> Self
     where
         F: Fn(&Router) -> Option<Router>,
     {
