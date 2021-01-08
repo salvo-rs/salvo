@@ -1,1 +1,0 @@
-cargo:rustc-cfg=const_fn_has_build_script

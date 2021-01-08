@@ -1,17 +1,64 @@
+[package]
+name = "salvo"
+version = "0.4.0"
+authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
+edition = "2018"
+description = """
+A simple web framework
+"""
+homepage = "https://github.com/kenorld/salvo"
+repository = "https://github.com/kenorld/salvo"
+documentation = "https://docs.rs/salvo/"
+readme = "../README.md"
+keywords = [ "salvo", "web", "framework", "server" ]
+license = "MIT"
+categories = [ "web-programming::http-server" ]
+autoexamples = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[badges]
+codecov = { repository = "kenorld/salvo", branch = "master", service = "github" }
+
+[lib]
+name = "salvo"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait = "0.1.42"
+
+salvo_core = { path = "./core", version = "0.4.0", default-features = false }
+salvo_extra = { path = "./extra", version = "0.4.0", default-features = false }
+salvo_macro = { path = "./macro", version = "0.4.0" }
+
+[features]
+default = [ "macro" ]
+extra = [ ]
+macro = [ ]
+
 [profile.dev]
 codegen-units = 4
 
 [workspace]
-members = [ "core",
-  "examples/basic_auth", "examples/file_list",
-  "examples/hello_world",
+members = [
+  ".",
+  "core",
   "extra",
   "macro",
-  "salvo",
 ]
 
 [patch.crates-io]
-salvo = { path = "salvo" }
+salvo = { path = "." }
 salvo_core = { path = "core" }
 salvo_macro = { path = "macro" }
 salvo_extra = { path = "extra" }
+
+
+
+[dev-dependencies]
+tracing = "0.1.22"
+tracing-subscriber = "0.2.15"
+tracing-log = "0.1.1"
+tracing-futures = "0.2.4"
+tokio = { version = "1.0.1", features = [ "full" ] }

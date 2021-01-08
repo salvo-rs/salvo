@@ -1,2 +1,0 @@
-cargo:rustc-cfg=underscore_consts
-cargo:rustc-cfg=deprecated_proc_macro

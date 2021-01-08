@@ -1,2 +1,0 @@
-cargo:rustc-cfg=integer128
-cargo:rustc-cfg=maybe_uninit

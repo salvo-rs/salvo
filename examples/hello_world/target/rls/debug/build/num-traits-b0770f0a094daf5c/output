@@ -1,3 +1,0 @@
-cargo:rustc-cfg=has_i128
-cargo:rustc-cfg=has_to_int_unchecked
-cargo:rerun-if-changed=build.rs

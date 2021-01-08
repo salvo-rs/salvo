@@ -1,2 +1,0 @@
-cargo:rustc-cfg=httparse_min_2018
-cargo:rustc-cfg=httparse_simd
