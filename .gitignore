@@ -4,3 +4,4 @@
 /.idea
 /site/public
 /.vscode
+**/target

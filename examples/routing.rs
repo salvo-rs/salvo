@@ -20,6 +20,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut router = Router::new("/");
     router.get(hello_world);
     router.scope("hello2").get(hello_world2);
+
+    let r = router
+        .filter(path!("abc"))
+        .filter(path!("yyyyy"))
+        .before(bh)
+        .push(router!().filter(path!("zzz")).handle(ddd))
+        .push(router!().filter(path!("zzz")).handle(ddd));
+
     let server = Server::new(router);
     server.serve().instrument(tracing::info_span!("Server::serve")).await?;
     Ok(())

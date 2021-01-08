@@ -22,7 +22,8 @@ mod response;
 
 pub use body_chunk::BodyChunk;
 pub use cookie;
-pub use http::{method::Method, HeaderMap, HeaderValue, StatusCode};
+pub use http::method::Method;
+pub use http::{HeaderMap, HeaderValue, StatusCode};
 pub use hyper::Body;
 pub use mime::Mime;
 pub use range::HttpRange;

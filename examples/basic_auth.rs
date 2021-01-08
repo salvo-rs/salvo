@@ -1,4 +1,3 @@
-use salvo::routing::Method;
 use salvo::routing::Router;
 use salvo::Server;
 use salvo_extra::auth::basic::{BasicAuthConfig, BasicAuthHandler};
@@ -14,9 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
     let auth_handler = BasicAuthHandler::new(baconfig);
 
-    let mut router = Router::new("/<*path>");
-    router.before(Method::ALL, auth_handler);
-    router.get(Static::from("./static/root1"));
+    let router = Router::new().before(auth_handler).get(Static::from("./static/root1"));
     let server = Server::new(router);
     server.serve().await?;
     Ok(())

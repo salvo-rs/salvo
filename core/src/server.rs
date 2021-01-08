@@ -11,7 +11,7 @@ use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
-use crate::routing::Router;
+use crate::routing::{PathState, Router};
 use crate::{Catcher, Depot, Protocol};
 
 /// A settings struct containing a set of timeouts which can be applied to a server.
@@ -153,7 +153,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
-
         let segments = request
             .url()
             .path_segments()
@@ -164,23 +163,25 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let (ok, handlers, params) = self.router.detect(request.method().clone(), segments.iter().map(AsRef::as_ref).collect());
-        if !ok {
-            response.set_status_code(StatusCode::NOT_FOUND);
-        }
-        request.params = params;
+        let mut path_state = PathState::new(segments);
         response.cookies = request.cookies().clone();
-        let config = self.config.clone();
 
+        let config = self.config.clone();
+        let router = self.router.clone();
         let fut = async move {
-            for handler in handlers {
-                handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
-                if response.is_commited() {
-                    break;
+            if let Some(dm) = router.detect(&mut request, &mut path_state) {
+                request.params = path_state.params;
+                for handler in [&dm.befores[..], &[dm.handler], &dm.afters[..]].concat() {
+                    handler.handle(config.clone(), &mut request, &mut depot, &mut response).await;
+                    if response.is_commited() {
+                        break;
+                    }
                 }
-            }
-            if !response.is_commited() {
-                response.commit();
+                if !response.is_commited() {
+                    response.commit();
+                }
+            } else {
+                response.set_status_code(StatusCode::NOT_FOUND);
             }
 
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
