@@ -288,7 +288,10 @@ impl Debug for PathFilter {
     }
 }
 impl Filter for PathFilter {
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
+    fn filter(&self, _req: &mut Request, path: &mut PathState) -> bool {
+        if path.segements.len() <= path.match_cursor {
+            return false;
+        }
         let mut params = HashMap::<String, String>::new();
         let mut match_cursor = path.match_cursor;
         if !self.segements.is_empty() {

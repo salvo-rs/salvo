@@ -14,19 +14,19 @@ pub(crate) use impls::*;
 
 use crate::http::Method;
 
-pub trait Filter: Send + 'static {
+pub trait Filter: Send + Sync + 'static {
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,
-        F: Filter + Clone,
+        F: Filter + Sync + Send,
     {
         And { first: self, second: other }
     }
 
     fn or<F>(self, other: F) -> Or<Self, F>
     where
-        Self: Filter + Sized,
-        F: Filter,
+        Self: Sized,
+        F: Filter + Sync + Send,
     {
         Or { first: self, second: other }
     }
@@ -34,46 +34,44 @@ pub trait Filter: Send + 'static {
     fn and_then<F, U>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
-        F: Fn() -> U,
-        U: Filter + Send,
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        U: Filter + Sync + Send,
     {
         AndThen { filter: self, callback: fun }
     }
 
     fn or_else<F, U>(self, fun: F) -> OrElse<Self, F>
     where
-        Self: Filter,
-        F: Fn() -> U,
-        U: Filter + Send,
+        Self: Sized,
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+        U: Filter + Sync + Send,
     {
         OrElse { filter: self, callback: fun }
     }
 
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool;
+    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
-// ===== FilterFn =====
+// ===== FnFilter =====
 
-pub(crate) fn filter_fn<F>(func: F) -> FilterFn<F>
+pub fn fn_filter<F>(func: F) -> FnFilter<F>
 where
     F: Fn(&mut Request, &mut PathState) -> bool,
 {
-    FilterFn { func }
+    FnFilter(func)
 }
 
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
-pub(crate) struct FilterFn<F> {
-    func: F,
-}
+pub struct FnFilter<F>(F);
 
-impl<F> Filter for FilterFn<F>
+impl<F> Filter for FnFilter<F>
 where
-    F: Fn(&mut Request, &mut PathState) -> bool,
+    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        self.func(req, path)
+    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
+        self.0(req, path)
     }
 }
 

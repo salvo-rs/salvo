@@ -13,11 +13,11 @@ where
     U: Filter + Send,
 {
     #[inline]
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        if self.first.execute(req, path) {
+    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
+        if self.first.filter(req, path) {
             true
         } else {
-            self.second.execute(req, path)
+            self.second.filter(req, path)
         }
     }
 }
