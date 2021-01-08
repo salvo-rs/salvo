@@ -71,6 +71,15 @@ impl Router {
         self.children.push(router);
         self
     }
+    pub fn push_when<F, R>(mut self, func: F) -> Self
+    where
+        F: Fn(&Router) -> Option<Router>,
+    {
+        if let Some(router) = func(&self) {
+            self.children.push(router);
+        }
+        self
+    }
     pub fn before<H: Handler>(mut self, handler: H) -> Self {
         self.befores.push(Arc::new(handler));
         self
@@ -95,31 +104,118 @@ impl Router {
         self.handler = Some(Arc::new(handler));
         self
     }
+    pub fn handle_when<H, F>(mut self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.handler = Some(Arc::new(handler));
+        }
+        self
+    }
     pub fn get<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::get()).handle(handler))
+    }
+    pub fn get_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::get()).handle(handler))
+        } else {
+            self
+        }
     }
 
     pub fn post<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::post()).handle(handler))
     }
+    pub fn post_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::post()).handle(handler))
+        } else {
+            self
+        }
+    }
 
     pub fn put<H: Handler, I: AsRef<str>>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::put()).handle(handler))
+    }
+    pub fn put_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::put()).handle(handler))
+        } else {
+            self
+        }
     }
 
     pub fn delete<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::delete()).handle(handler))
     }
+    pub fn delete_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::delete()).handle(handler))
+        } else {
+            self
+        }
+    }
 
     pub fn head<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::head()).handle(handler))
+    }
+    pub fn head_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::head()).handle(handler))
+        } else {
+            self
+        }
     }
 
     pub fn patch<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::patch()).handle(handler))
     }
+    pub fn patch_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::patch()).handle(handler))
+        } else {
+            self
+        }
+    }
 
     pub fn options<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::options()).handle(handler))
+    }
+    pub fn options_when<H, F>(self, func: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Router) -> Option<H>,
+    {
+        if let Some(handler) = func(&self) {
+            self.push(Router::new().filter(filter::options()).handle(handler))
+        } else {
+            self
+        }
     }
 }
