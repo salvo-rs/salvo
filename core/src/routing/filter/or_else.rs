@@ -7,18 +7,17 @@ pub struct OrElse<T, F> {
     pub(super) callback: F,
 }
 
-impl<T, F, U> Filter for OrElse<T, F>
+impl<T, F> Filter for OrElse<T, F>
 where
     T: Filter,
-    U: Filter,
-    F: Fn() -> U,
+    F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    fn execute(&self, req: &mut Request, path: &mut PathState) -> bool {
-        if self.filter.execute(req, path) {
+    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
+        if self.filter.filter(req, path) {
             true
         } else {
-            self.callback.call().execute(req, path)
+            (self.callback)(req, path)
         }
     }
 }

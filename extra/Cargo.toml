@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.3.0"
+version = "0.4.0"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -29,7 +29,7 @@ jsonwebtoken = "7.2.0"
 mime = "0.3.16"
 percent-encoding = "2.1.0"
 regex = "1.4.2"
-salvo_core = { version = "0.3.0", path = "../core", default-features = false }
+salvo_core = { version = "0.4.0", path = "../core", default-features = false }
 
 serde = "1.0.118"
 serde_derive = "1.0.118"
