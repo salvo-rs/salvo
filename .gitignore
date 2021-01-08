@@ -3,4 +3,4 @@
 /Cargo.lock
 /.idea
 /site/public
-**/*/target
+**/target
