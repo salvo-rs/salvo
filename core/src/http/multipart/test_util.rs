@@ -8,16 +8,12 @@
 //! The items exported in this module are not considered part of this crate's public API
 //! and may receive breaking changes in semver-compatible versions.
 use std::future::Future;
-use std::task::{Context, Poll};
-use std::thread;
 
-use futures::stream::{Stream, TryStream};
+use futures::stream::Stream;
 
 use futures_test::stream::StreamTestExt;
-use futures_test::task::noop_context;
 
 use futures_util::stream::{self, StreamExt};
-use std::convert::Infallible;
 
 use crate::http::errors::ReadError;
 
@@ -106,22 +102,6 @@ macro_rules! ready_assert_some_ok_eq(
             match $expr {
                 Ready(val) => {
                     assert_eq!(val.unwrap().unwrap(), $eq);
-                    break;
-                },
-                Pending => (),
-            }
-        }
-    }}
-);
-
-macro_rules! ready_assert(
-    (|$cx:ident| $expr:expr) => {{
-        use std::task::Poll::*;
-        let ref mut $cx = futures_test::task::noop_context();
-        loop {
-            match $expr {
-                Ready(val) => {
-                    assert!(val);
                     break;
                 },
                 Pending => (),

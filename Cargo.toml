@@ -54,8 +54,6 @@ salvo_core = { path = "core" }
 salvo_macro = { path = "macro" }
 salvo_extra = { path = "extra" }
 
-
-
 [dev-dependencies]
 tracing = "0.1.22"
 tracing-subscriber = "0.2.15"
