@@ -1,6 +1,11 @@
-name: macos
+name: CI (macOS)
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
 
 jobs:
   build_and_test:
@@ -56,7 +61,7 @@ jobs:
         with:
           command: test
           args: --all --all-features --no-fail-fast -- --nocapture
-                --skip=test_stream_timeout
+            --skip=test_stream_timeout
 
       - name: Clear the cargo caches
         run: |

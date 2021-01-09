@@ -1,6 +1,11 @@
-name: windows
+name: CI (Windows)
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
 
 jobs:
   build_and_test:
@@ -12,8 +17,8 @@ jobs:
           - nightly
         target:
           - x86_64-pc-windows-msvc
-          - x86_64-pc-windows-gnu
-          - i686-pc-windows-msvc
+          # - x86_64-pc-windows-gnu
+          # - i686-pc-windows-msvc
 
     name: ${{ matrix.version }} - ${{ matrix.target }}
     runs-on: windows-latest
@@ -60,7 +65,7 @@ jobs:
         with:
           command: test
           args: --all --all-features --no-fail-fast -- --nocapture
-                --skip=test_start_actor_message
+            --skip=test_start_actor_message
 
       - name: Clear the cargo caches
         run: |
