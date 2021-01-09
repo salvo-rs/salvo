@@ -11,13 +11,13 @@ You can view samples [here](https://github.com/kenorld/salvo/tree/master/example
 
 Create a new rust project:
 ```bash
-cargo new salvo_taste --bin
+cargo new hello_salvo --bin
 ```
 
 Add this to `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.3"
+salvo = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -44,7 +44,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let router = Router::new("/").get(hello_world);
+    let router = Router::new().get(hello_world);
     let server = Server::new(router);
     server.serve().await?;
     Ok(())
