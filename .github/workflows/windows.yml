@@ -24,7 +24,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
 
       - name: Install ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
@@ -65,7 +65,6 @@ jobs:
         with:
           command: test
           args: --all --all-features --no-fail-fast -- --nocapture
-            --skip=test_start_actor_message
 
       - name: Clear the cargo caches
         run: |
