@@ -75,9 +75,6 @@ where
     }
 }
 
-pub fn any() -> AnyFilter {
-    AnyFilter
-}
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)
 }
