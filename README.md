@@ -1,7 +1,7 @@
 # Salvo
-[![build status](https://github.com/kenorld/salvo/workflows/linux/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
-[![build status](https://github.com/kenorld/salvo//workflows/macos/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
-[![build status](https://github.com/kenorld/salvo/workflows/windows/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo//workflows/CI%20(macOS)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Windows)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
 [![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo)
 [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
