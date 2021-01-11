@@ -1,12 +1,8 @@
-
-use std::sync::Arc;
-
 use async_trait::async_trait;
 
 use salvo_core::depot::Depot;
-use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::http::header::AUTHORIZATION;
-use salvo_core::server::ServerConfig;
+use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::Handler;
 
 pub struct BasicAuthHandler {
@@ -56,7 +52,7 @@ impl BasicAuthHandler {
 }
 #[async_trait]
 impl Handler for BasicAuthHandler {
-    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
