@@ -31,7 +31,6 @@ tokio = { version = "1.0", features = ["full"] }
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
@@ -42,7 +41,6 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
