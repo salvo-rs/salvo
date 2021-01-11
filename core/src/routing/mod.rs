@@ -20,29 +20,3 @@ impl PathState {
         }
     }
 }
-
-// #[cfg(test)]
-// mod test {
-
-//     async fn list(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {}
-
-//     async fn read(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {}
-
-//     async fn delete(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {}
-
-//     async fn update(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {}
-//     #[test]
-//     fn test_rest_match() {}
-
-//     #[test]
-//     fn test_param_match() {}
-
-//     #[test]
-//     fn test_method_filter() {}
-//     #[test]
-//     fn test_path_filter() {}
-//     #[test]
-//     fn test_logical_opts() {}
-//     #[test]
-//     fn test_complex() {}
-// }
