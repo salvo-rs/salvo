@@ -1,26 +1,11 @@
-use std::future::Future;
-use std::sync::Arc;
+use async_trait::async_trait;
 
 use crate::http::{Request, Response};
 use crate::Depot;
 
-pub trait Handler<F>: Send + Sync + 'static
-where
-    R: Futrue,
-    R::Output: Writer,
-{
-    fn call(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> R;
-}
-
-impl<F> Handler<(), R> for F
-where
-    F: Fn() -> R + Clone + 'static,
-    R: Future,
-    R::Output: Responder,
-{
-    fn call(&self, _: ()) -> R {
-        (self)()
-    }
+#[async_trait]
+pub trait Handler: Send + Sync + 'static {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
 macro_rules! handler_tuple_impls {
