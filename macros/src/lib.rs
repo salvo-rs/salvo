@@ -19,13 +19,24 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     match sig.inputs.len() {
-        2 => {
+        0 => {
+            return syn::Error::new_spanned(&sig.inputs, "0 args found in handler")
+                .to_compile_error()
+                .into()
+        }
+        1 => {
             let ts: TokenStream = quote! {_depot: &mut ::salvo::Depot}.into();
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+            let ts: TokenStream = quote! {_req: &mut ::salvo::Request}.into();
+            sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+        }
+        2 => {
+            let ts: TokenStream = quote! {_depot: &mut ::salvo::Depot}.into();
+            sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
         }
         3 => {}
         _ => {
-            return syn::Error::new_spanned(&sig.inputs, "numbers of fn is not supports")
+            return syn::Error::new_spanned(&sig.inputs, "too many args in handler")
                 .to_compile_error()
                 .into()
         }
