@@ -22,7 +22,7 @@ extern crate futures_util;
 
 pub use crate::catcher::{Catcher, CatcherImpl};
 pub use crate::depot::Depot;
-pub use crate::handler::Handler;
+pub use crate::handler::{fn_handler, fn_one_handler, FnHandler, Handler};
 pub use crate::http::{Request, Response};
 pub use crate::routing::Router;
 pub use crate::server::{Server, ServerConfig};
