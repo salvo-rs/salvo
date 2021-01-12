@@ -1,9 +1,16 @@
-# Salvo [![build status](https://github.com/kenorld/salvo/workflows/linux/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)[![build status](https://github.com/kenorld/salvo//workflows/macos/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)[![build status](https://github.com/kenorld/salvo/workflows/windows/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)[![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo) [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
+# Salvo
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo//workflows/CI%20(macOS)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Windows)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo)
+[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
+[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
+![License](https://img.shields.io/crates/l/salvo.svg)
 
-Salvo is a simple web framework written by rust. It is simple to use it to build website, REST API.
+Salvo is a simple web framework written by rust.
 
 ## Features
-  * Base on hyper, futures 0.3.
+  * Base on hyper, tokio.
   * Easy to write router.
 
 ## Quick start
@@ -11,13 +18,13 @@ You can view samples [here](https://github.com/kenorld/salvo/tree/master/example
 
 Create a new rust project:
 ```bash
-cargo new salvo_taste --bin
+cargo new hello_salvo --bin
 ```
 
 Add this to `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.3"
+salvo = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -27,7 +34,7 @@ Create a simple function handler in the main.rs file, we call it `hello_world`, 
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 ```
@@ -38,14 +45,13 @@ In the main function, we need to create a root Router first, and then create a s
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut router = Router::new("/");
-    router.get(hello_world);
+    let router = Router::new().get(hello_world);
     let server = Server::new(router);
     server.serve().await?;
     Ok(())

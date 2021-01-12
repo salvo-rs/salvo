@@ -1,3 +1,12 @@
+# Salvo
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo//workflows/CI%20(macOS)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![build status](https://github.com/kenorld/salvo/workflows/CI%20(Windows)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+[![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo)
+[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
+[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
+![License](https://img.shields.io/crates/l/salvo.svg)
+
 Salvo 是一个简单的 Rust Web 框架，用于构建普通的 Web 网站，REST API 等。
 
 
@@ -7,13 +16,13 @@ Salvo 是一个简单的 Rust Web 框架，用于构建普通的 Web 网站，RE
 
 创建一个全新的项目:
 ```bash
-cargo new salvo_taste --bin
+cargo new hello_salvo --bin
 ```
 
 添加依赖项到 `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.2"
+salvo = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -23,7 +32,7 @@ tokio = { version = "1.0", features = ["full"] }
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 ```
@@ -34,14 +43,13 @@ async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut 
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_conf: Arc<ServerConfig>, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut router = Router::new("/");
-    router.get(hello_world);
+    let router = Router::new().get(hello_world);
     let server = Server::new(router);
     server.serve().await?;
     Ok(())

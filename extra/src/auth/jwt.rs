@@ -1,15 +1,13 @@
 use async_trait::async_trait;
-use hyper::header::AUTHORIZATION;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
 use salvo_core::depot::Depot;
+use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response};
-use salvo_core::server::ServerConfig;
 use salvo_core::Handler;
-use std::sync::Arc;
 
 pub struct JwtHandler<C>
 where
@@ -113,7 +111,7 @@ impl<C> Handler for JwtHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
-    async fn handle(&self, _conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         for extractor in &self.config.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {

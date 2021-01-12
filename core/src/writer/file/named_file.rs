@@ -5,7 +5,6 @@ use mime_guess::from_path;
 use std::fs::{File, Metadata};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{cmp, io};
 
@@ -16,8 +15,8 @@ use super::FileChunk;
 use crate::http::header;
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
+use crate::Depot;
 use crate::Writer;
-use crate::{Depot, ServerConfig};
 
 bitflags! {
     pub(crate) struct Flags: u8 {
@@ -277,7 +276,7 @@ impl NamedFile {
 
 #[async_trait]
 impl Writer for NamedFile {
-    async fn write(mut self, _conf: Arc<ServerConfig>, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()

@@ -1,5 +1,5 @@
 [package]
-name = "salvo_macro"
+name = "salvo_macros"
 version = "0.4.0"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
@@ -12,15 +12,14 @@ license = "MIT"
 categories = [ "web-programming::http-server" ]
 
 [lib]
-name = "salvo_macro"
+name = "salvo_macros"
 path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
 proc-macro2 = "1.0.24"
-
 proc-quote = "0.3.2"
-syn = { version = "1.0.55", features = [ "full", "parsing" ] }
+syn = { version = "1.0.58", features = [ "full", "parsing" ] }
 # [dev-dependencies]
-# salvo = { version = "0.1", path="../core"}
+# salvo = { version = "0.4", path="../core"}
 # futures = { version = "0.3.8" }
