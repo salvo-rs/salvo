@@ -6,13 +6,11 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::SystemTime;
 
 use salvo_core::depot::Depot;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
-use salvo_core::server::ServerConfig;
 use salvo_core::writer::file::NamedFile;
 use salvo_core::writer::Writer;
 use salvo_core::Handler;
@@ -216,7 +214,7 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for Static {
-    async fn handle(&self, conf: Arc<ServerConfig>, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let mut base_path = if let Some((_, value)) = param { value } else { req.url().path() }.to_owned();
         if base_path.starts_with('/') || base_path.starts_with('\\') {
@@ -238,7 +236,7 @@ impl Handler for Static {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
                         if let Ok(named_file) = NamedFile::open(ipath) {
-                            named_file.write(conf, req, depot, res).await;
+                            named_file.write(req, depot, res).await;
                         } else {
                             res.set_http_error(InternalServerError(Some("file read error".into()), None));
                         }
@@ -264,7 +262,7 @@ impl Handler for Static {
                 }
             } else if path.is_file() {
                 if let Ok(named_file) = NamedFile::open(path) {
-                    named_file.write(conf, req, depot, res).await;
+                    named_file.write(req, depot, res).await;
                 } else {
                     res.set_http_error(InternalServerError(Some("file read error".into()), None));
                 }

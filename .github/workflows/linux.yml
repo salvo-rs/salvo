@@ -1,6 +1,11 @@
-name: linux
+name: CI (Linux)
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
 
 jobs:
   build_and_test:
@@ -15,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
 
       - name: Install ${{ matrix.version }}
         uses: actions-rs/toolchain@v1
@@ -61,7 +66,7 @@ jobs:
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'pull_request')
         run: |
           cargo install cargo-tarpaulin
-          cargo tarpaulin --out Xml -- --skip=test_stream_timeout --skip=test_message_timeout --skip=test_restart_sync_actor
+          cargo tarpaulin --out Xml
 
       - name: Upload to Codecov
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'pull_request')

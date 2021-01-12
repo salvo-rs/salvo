@@ -7,14 +7,6 @@ pub mod routing;
 pub mod server;
 pub mod writer;
 
-// #[macro_use]
-extern crate serde;
-// #[macro_use]
-// extern crate serde_derive;
-// #[macro_use]
-// extern crate serde_json;
-// #[macro_use]
-// extern crate mime;
 #[macro_use]
 extern crate pin_utils;
 #[macro_use]

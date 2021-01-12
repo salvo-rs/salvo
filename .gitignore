@@ -3,4 +3,5 @@
 /Cargo.lock
 /.idea
 /site/public
+/.vscode
 **/target
