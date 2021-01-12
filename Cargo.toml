@@ -30,10 +30,12 @@ async-trait = "0.1.42"
 
 salvo_core = { path = "./core", version = "0.4.0", default-features = false }
 salvo_extra = { path = "./extra", version = "0.4.0", default-features = false }
+salvo_macros = { path = "./macros", version = "0.4.0" }
 
 [features]
-default = []
+default = [ "macros" ]
 extra = [ ]
+macros = [ ]
 
 [profile.dev]
 codegen-units = 4
@@ -43,11 +45,13 @@ members = [
   ".",
   "core",
   "extra",
+  "macros",
 ]
 
 [patch.crates-io]
 salvo = { path = "." }
 salvo_core = { path = "core" }
+salvo_macros = { path = "macros" }
 salvo_extra = { path = "extra" }
 
 [dev-dependencies]

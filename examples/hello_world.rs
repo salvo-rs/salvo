@@ -4,9 +4,11 @@ use tracing_futures::Instrument;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+#[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
 }
+#[fn_handler]
 async fn hello_world2(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World2");
 }

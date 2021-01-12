@@ -1,6 +1,9 @@
 pub use salvo_core as core;
 pub use salvo_core::*;
 
+#[cfg(feature = "macros")]
+pub use salvo_macros;
+
 #[cfg(feature = "extra")]
 pub use salvo_extra as extra;
 
@@ -13,5 +16,6 @@ pub mod prelude {
     pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;
-    pub use std::sync::Arc;
+    #[cfg(feature = "macros")]
+    pub use salvo_macros::fn_handler;
 }
