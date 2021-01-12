@@ -296,7 +296,7 @@ impl Filter for PathFilter {
         let mut match_cursor = path.match_cursor;
         if !self.segements.is_empty() {
             for ps in &self.segements {
-                let (matched, segs, kv) = ps.detect(path.segements[path.match_cursor..].iter().map(AsRef::as_ref).collect());
+                let (matched, segs, kv) = ps.detect(path.segements[match_cursor..].iter().map(AsRef::as_ref).collect());
                 if !matched {
                     return false;
                 } else {
