@@ -14,7 +14,7 @@ pub mod prelude {
     pub use crate::routing::filter;
     pub use crate::server::{Server, ServerConfig};
     pub use crate::writer::*;
-    pub use crate::Handler;
+    pub use crate::{fn_handler, fn_one_handler, FnHandler, Handler};
     pub use async_trait::async_trait;
     #[cfg(feature = "macro")]
     pub use salvo_macro::fn_handler;
