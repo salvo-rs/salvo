@@ -9,7 +9,7 @@ A simple web framework
 homepage = "https://github.com/kenorld/salvo"
 repository = "https://github.com/kenorld/salvo"
 documentation = "https://docs.rs/salvo/"
-readme = "../README.md"
+readme = "./README.md"
 keywords = [ "salvo", "web", "framework", "server" ]
 license = "MIT"
 categories = [ "web-programming::http-server" ]
