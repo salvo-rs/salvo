@@ -6,6 +6,7 @@ pub use router::{DetectMatched, Router};
 use std::collections::HashMap;
 pub type Params = HashMap<String, String>;
 
+#[derive(Debug)]
 pub struct PathState {
     pub segements: Vec<String>,
     pub match_cursor: usize,
