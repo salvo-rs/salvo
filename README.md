@@ -10,7 +10,6 @@
 [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
 ![License](https://img.shields.io/crates/l/salvo.svg)
-
 </p>
 <h3>Salvo is a simple web framework written by rust.</h3>
 </div>
