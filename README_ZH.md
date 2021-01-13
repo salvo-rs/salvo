@@ -1,13 +1,20 @@
-# Salvo
+<div align="center">
+<h1>Salvo</h1>
+<p>
+
 [![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
 [![build status](https://github.com/kenorld/salvo//workflows/CI%20(macOS)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
 [![build status](https://github.com/kenorld/salvo/workflows/CI%20(Windows)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
+<br>
 [![codecov](https://codecov.io/gh/kenorld/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/kenorld/salvo)
 [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
 ![License](https://img.shields.io/crates/l/salvo.svg)
 
-Salvo 是一个简单的 Rust Web 框架，用于构建普通的 Web 网站，REST API 等。
+</p>
+<h3>Salvo 是一个简单的 Rust Web 框架.</h3>
+</div>
+
 
 
 ## 快速开始
