@@ -53,7 +53,7 @@ impl Segement for RestSegement {
         }
         let mut kv = HashMap::new();
         kv.insert(self.0.clone(), segements.join("/"));
-        (true, Vec::new(), Some(kv))
+        (true, segements, Some(kv))
     }
 }
 
@@ -297,6 +297,9 @@ impl Filter for PathFilter {
         if !self.segements.is_empty() {
             for ps in &self.segements {
                 let (matched, segs, kv) = ps.detect(path.segements[match_cursor..].iter().map(AsRef::as_ref).collect());
+                if self.raw_value.contains("files/") {
+                    println!("{:?}   segs: {:#?}   kv: {:#?}   {}", matched, segs, &kv,  path.match_cursor);
+                }
                 if !matched {
                     return false;
                 } else {

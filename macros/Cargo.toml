@@ -1,6 +1,6 @@
 [package]
 name = "salvo_macros"
-version = "0.4.0"
+version = "0.4.2"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = "salvo proc macros"

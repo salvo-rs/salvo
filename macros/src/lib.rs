@@ -44,6 +44,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
 
     let sdef = quote! {
         #[allow(non_camel_case_types)]
+        #[derive(Debug)]
         #vis struct #name;
         impl #name {
             #(#attrs)*
