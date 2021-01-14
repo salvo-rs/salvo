@@ -43,15 +43,6 @@ impl Router {
                 return None;
             }
         }
-        if let Some(handler) = self.handler.clone() {
-            if path.segements.len() <= path.match_cursor {
-                return Some(DetectMatched {
-                    befores: self.befores.clone(),
-                    afters: self.afters.clone(),
-                    handler: handler.clone(),
-                });
-            }
-        }
         if !self.children.is_empty() {
             for child in &self.children {
                 if let Some(dm) = child.detect(request, path) {
@@ -61,6 +52,15 @@ impl Router {
                         handler: dm.handler.clone(),
                     });
                 }
+            }
+        }
+        if let Some(handler) = self.handler.clone() {
+            if path.segements.len() <= path.match_cursor {
+                return Some(DetectMatched {
+                    befores: self.befores.clone(),
+                    afters: self.afters.clone(),
+                    handler: handler.clone(),
+                });
             }
         }
         path.match_cursor = match_cursor;
