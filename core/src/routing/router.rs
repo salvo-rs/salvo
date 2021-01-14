@@ -8,7 +8,7 @@ use crate::Handler;
 
 pub struct Router {
     pub children: Vec<Router>,
-    pub filter: Option<Box<dyn Filter>>,
+    pub filters: Vec<Box<dyn Filter>>,
     pub handler: Option<Arc<dyn Handler>>,
     pub befores: Vec<Arc<dyn Handler>>,
     pub afters: Vec<Arc<dyn Handler>>,
@@ -31,13 +31,13 @@ impl Router {
             children: Vec::new(),
             befores: Vec::new(),
             afters: Vec::new(),
-            filter: None,
+            filters: Vec::new(),
             handler: None,
         }
     }
     pub fn detect(&self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
         let match_cursor = path.match_cursor;
-        if let Some(filter) = &self.filter {
+        for filter in &self.filters {
             if !filter.filter(request, path) {
                 path.match_cursor = match_cursor;
                 return None;
@@ -98,12 +98,8 @@ impl Router {
     pub fn path(self, path: impl Into<String>) -> Self {
         self.filter(PathFilter::new(path))
     }
-    pub fn filter(mut self, filter: impl Filter) -> Self {
-        // if let Some(exist_filter) = self.filter {
-        //     self.filter = Some(exist_filter.and(filter));
-        // } else {
-            self.filter = Some(Box::new(filter));
-        // }
+    pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
+        self.filters.push(Box::new(filter));
         self
     }
 
