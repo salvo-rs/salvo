@@ -99,11 +99,11 @@ impl Router {
         self.filter(PathFilter::new(path))
     }
     pub fn filter(mut self, filter: impl Filter) -> Self {
-        if let Some(exist_filter) = self.filter {
-            self.filter = Some(exist_filter);
-        } else {
+        // if let Some(exist_filter) = self.filter {
+        //     self.filter = Some(exist_filter.and(filter));
+        // } else {
             self.filter = Some(Box::new(filter));
-        }
+        // }
         self
     }
 
