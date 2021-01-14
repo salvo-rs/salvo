@@ -78,7 +78,6 @@ where
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)
 }
-
 pub fn get() -> MethodFilter {
     MethodFilter(Method::GET)
 }
