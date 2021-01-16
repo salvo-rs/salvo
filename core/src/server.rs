@@ -1,107 +1,289 @@
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::error::Error as StdError;
+use std::future::Future;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Duration;
 
-use futures::{future, Future};
+use futures::{future, FutureExt, TryStream, TryStreamExt};
+use hyper::server::conn::AddrIncoming;
 use hyper::Server as HyperServer;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tracing;
+use tracing_futures::Instrument;
 
-use super::pick_port;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::routing::{PathState, Router};
-use crate::{Catcher, Depot, Protocol};
+use crate::{Catcher, Depot};
 
-/// A settings struct containing a set of timeouts which can be applied to a server.
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Timeouts {
-    /// Controls the timeout for keep alive connections.
-    ///
-    /// The default is `Some(Duration::from_secs(5))`.
-    ///
-    /// NOTE: Setting this to None will have the effect of turning off keep alive.
-    pub keep_alive: Option<Duration>,
+macro_rules! addr_incoming {
+    ($addr:expr) => {{
+        let mut incoming = AddrIncoming::bind($addr)?;
+        incoming.set_nodelay(true);
+        let addr = incoming.local_addr();
+        (addr, incoming)
+    }};
 }
 
-impl Default for Timeouts {
-    fn default() -> Self {
-        Timeouts {
-            keep_alive: Some(Duration::from_secs(5)),
-        }
-    }
+macro_rules! bind_inner {
+    ($this:ident, $addr:expr) => {{
+        let (addr, incoming) = addr_incoming!($addr);
+        let srv = HyperServer::builder(incoming).serve($this);
+        Ok::<_, hyper::Error>((addr, srv))
+    }};
+
+    (tls: $this:ident, $addr:expr) => {{
+        let (addr, incoming) = addr_incoming!($addr);
+        let tls = $this.tls.build()?;
+        let srv = HyperServer::builder(crate::tls::TlsAcceptor::new(tls, incoming)).serve($this);
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((addr, srv))
+    }};
 }
 
-/// The main `Novel` type: used to mount routes and catchers and launch the
-/// application.
+macro_rules! bind {
+    ($this:ident, $addr:expr) => {{
+        let addr = $addr.into();
+        (|addr| bind_inner!($this, addr))(&addr).unwrap_or_else(|e| {
+            panic!("error binding to {}: {}", addr, e);
+        })
+    }};
+
+    (tls: $this:ident, $addr:expr) => {{
+        let addr = $addr.into();
+        (|addr| bind_inner!(tls: $this, addr))(&addr).unwrap_or_else(|e| {
+            panic!("error binding to {}: {}", addr, e);
+        })
+    }};
+}
+
+macro_rules! try_bind {
+    ($this:ident, $addr:expr) => {{
+        (|addr| bind_inner!($this, addr))($addr)
+    }};
+
+    (tls: $this:ident, $addr:expr) => {{
+        (|addr| bind_inner!(tls: $this, addr))($addr)
+    }};
+}
+
 pub struct Server {
     pub router: Arc<Router>,
-    pub config: Arc<ServerConfig>,
-}
-pub struct ServerConfig {
-    pub timeouts: Timeouts,
-
-    /// Protocol of the incoming requests
-    ///
-    /// This is automatically set by the `http` and `https` functions, but
-    /// can be set if you are manually constructing the hyper `http` instance.
-    pub protocol: Protocol,
-
-    /// Default host address to use when none is provided
-    ///
-    /// When set, this provides a default host for any requests that don't
-    /// provide one.  When unset, any request without a host specified
-    /// will fail.
-    pub local_addr: Option<SocketAddr>,
-
     pub catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub allowed_media_types: Arc<Vec<Mime>>,
-}
-impl ServerConfig {
-    pub fn new() -> ServerConfig {
-        ServerConfig {
-            protocol: Protocol::http(),
-            local_addr: None,
-            timeouts: Timeouts::default(),
-            catchers: Arc::new(catcher::defaults::get()),
-            allowed_media_types: Arc::new(vec![]),
-        }
-    }
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        ServerConfig::new()
-    }
 }
 
 impl Server {
     pub fn new(router: Router) -> Server {
-        let config = ServerConfig::default();
         Server {
             router: Arc::new(router),
-            config: Arc::new(config),
+            catchers: Arc::new(catcher::defaults::get()),
+            allowed_media_types: Arc::new(vec![]),
         }
     }
 
-    pub fn with_config(router: Router, config: ServerConfig) -> Server {
-        Server {
-            router: Arc::new(router),
-            config: Arc::new(config),
-        }
+    /// Run this `Server` forever on the current thread.
+    pub async fn run(self, addr: impl Into<SocketAddr>) {
+        let (addr, fut) = self.bind_ephemeral(addr);
+        let span = tracing::info_span!("Server::run", ?addr);
+        tracing::info!(parent: &span, "listening on http://{}", addr);
+
+        fut.instrument(span).await;
     }
 
-    pub fn with_addr<T>(router: Router, addr: T) -> Server
+    /// Run this `Server` forever on the current thread with a specific stream
+    /// of incoming connections.
+    ///
+    /// This can be used for Unix Domain Sockets, or TLS, etc.
+    pub async fn run_incoming<I>(self, incoming: I)
     where
-        T: ToSocketAddrs,
+        I: TryStream + Send,
+        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        let mut config = ServerConfig::default();
-        config.local_addr = addr.to_socket_addrs().unwrap().next();
-        Server {
-            router: Arc::new(router),
-            config: Arc::new(config),
+        let srv = HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream())).serve(self);
+
+        tracing::info!("listening with custom incoming");
+        if let Err(err) = srv.await {
+            tracing::error!("server error: {}", err);
         }
+    }
+
+    /// Bind to a socket address, returning a `Future` that can be
+    /// executed on any runtime.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are unable to bind to the provided address.
+    pub fn bind(self, addr: impl Into<SocketAddr> + 'static) -> impl Future<Output = ()> + 'static {
+        let (_, fut) = self.bind_ephemeral(addr);
+        fut
+    }
+
+    /// Bind to a socket address, returning a `Future` that can be
+    /// executed on any runtime.
+    ///
+    /// In case we are unable to bind to the specified address, resolves to an
+    /// error and logs the reason.
+    pub async fn try_bind(self, addr: impl Into<SocketAddr>) {
+        let addr = addr.into();
+        let srv = match try_bind!(self, &addr) {
+            Ok((_, srv)) => srv,
+            Err(err) => {
+                tracing::error!("error binding to {}: {}", addr, err);
+                return;
+            }
+        };
+
+        srv.map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        })
+        .await;
+    }
+
+    /// Bind to a possibly ephemeral socket address.
+    ///
+    /// Returns the bound address and a `Future` that can be executed on
+    /// any runtime.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are unable to bind to the provided address.
+    pub fn bind_ephemeral(self, addr: impl Into<SocketAddr>) -> (SocketAddr, impl Future<Output = ()> + 'static) {
+        let (addr, srv) = bind!(self, addr);
+        let srv = srv.map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+
+        (addr, srv)
+    }
+
+    /// Tried to bind a possibly ephemeral socket address.
+    ///
+    /// Returns a `Result` which fails in case we are unable to bind with the
+    /// underlying error.
+    ///
+    /// Returns the bound address and a `Future` that can be executed on
+    /// any runtime.
+    pub fn try_bind_ephemeral(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, impl Future<Output = ()> + 'static), crate::Error> {
+        let addr = addr.into();
+        let (addr, srv) = try_bind!(self, &addr).map_err(crate::Error::new)?;
+        let srv = srv.map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+
+        Ok((addr, srv))
+    }
+
+    /// Create a server with graceful shutdown signal.
+    ///
+    /// When the signal completes, the server will start the graceful shutdown
+    /// process.
+    ///
+    /// Returns the bound address and a `Future` that can be executed on
+    /// any runtime.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use salvo::Filter;
+    /// use futures::future::TryFutureExt;
+    /// use tokio::sync::oneshot;
+    ///
+    /// # fn main() {
+    /// let routes = salvo::any()
+    ///     .map(|| "Hello, World!");
+    ///
+    /// let (tx, rx) = oneshot::channel();
+    ///
+    /// let (addr, server) = salvo::serve(routes)
+    ///     .bind_with_graceful_shutdown(([127, 0, 0, 1], 3030), async {
+    ///          rx.await.ok();
+    ///     });
+    ///
+    /// // Spawn the server into a runtime
+    /// tokio::task::spawn(server);
+    ///
+    /// // Later, start the shutdown...
+    /// let _ = tx.send(());
+    /// # }
+    /// ```
+    pub fn bind_with_graceful_shutdown(
+        self,
+        addr: impl Into<SocketAddr> + 'static,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
+        let (addr, srv) = bind!(self, addr);
+        let fut = srv.with_graceful_shutdown(signal).map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+        (addr, fut)
+    }
+
+    /// Create a server with graceful shutdown signal.
+    ///
+    /// When the signal completes, the server will start the graceful shutdown
+    /// process.
+    pub fn try_bind_with_graceful_shutdown(
+        self,
+        addr: impl Into<SocketAddr> + 'static,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) -> Result<(SocketAddr, impl Future<Output = ()> + 'static), crate::Error> {
+        let addr = addr.into();
+        let (addr, srv) = try_bind!(self, &addr).map_err(crate::Error::new)?;
+        let srv = srv.with_graceful_shutdown(signal).map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+
+        Ok((addr, srv))
+    }
+
+    /// Setup this `Server` with a specific stream of incoming connections.
+    ///
+    /// This can be used for Unix Domain Sockets, or TLS, etc.
+    ///
+    /// Returns a `Future` that can be executed on any runtime.
+    pub fn serve_incoming<I>(self, incoming: I) -> impl Future<Output = Result<(), hyper::Error>> + Send
+    where
+        I: TryStream + Send,
+        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream())).serve(self)
+    }
+
+    /// Setup this `Server` with a specific stream of incoming connections and a
+    /// signal to initiate graceful shutdown.
+    ///
+    /// This can be used for Unix Domain Sockets, or TLS, etc.
+    ///
+    /// When the signal completes, the server will start the graceful shutdown
+    /// process.
+    ///
+    /// Returns a `Future` that can be executed on any runtime.
+    pub fn serve_incoming_with_graceful_shutdown<I>(
+        self,
+        incoming: I,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) -> impl Future<Output = Result<(), hyper::Error>> + Send
+    where
+        I: TryStream + Send,
+        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream()))
+            .serve(self)
+            .with_graceful_shutdown(signal)
     }
 
     /// Configure a server to use TLS.
@@ -113,17 +295,6 @@ impl Server {
             server: self,
             tls: TlsConfigBuilder::new(),
         }
-    }
-
-    pub fn serve(self) -> impl Future<Output = Result<(), hyper::Error>> + Send + 'static {
-        let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
-            let port = pick_port::pick_unused_port().expect("Pick unused port failed");
-            let addr = format!("localhost:{}", port).to_socket_addrs().unwrap().next().unwrap();
-            tracing::warn!("Local address is not set, randrom address used.");
-            addr
-        });
-        tracing::info!("Server listening on {:?}", &addr);
-        HyperServer::bind(&addr).tcp_keepalive(self.config.timeouts.keep_alive).serve(self)
     }
 }
 impl<T> hyper::service::Service<T> for Server {
@@ -139,13 +310,15 @@ impl<T> hyper::service::Service<T> for Server {
     fn call(&mut self, _: T) -> Self::Future {
         future::ok(HyperHandler {
             router: self.router.clone(),
-            config: self.config.clone(),
+            catchers: self.catchers.clone(),
+            allowed_media_types: self.allowed_media_types.clone(),
         })
     }
 }
 pub struct HyperHandler {
     router: Arc<Router>,
-    config: Arc<ServerConfig>,
+    catchers: Arc<Vec<Box<dyn Catcher>>>,
+    allowed_media_types: Arc<Vec<Mime>>,
 }
 #[allow(clippy::type_complexity)]
 impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
@@ -157,21 +330,17 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let catchers = self.config.catchers.clone();
-        let allowed_media_types = self.config.allowed_media_types.clone();
+        let catchers = self.catchers.clone();
+        let allowed_media_types = self.allowed_media_types.clone();
         let mut request = Request::from_hyper(req).unwrap();
-        let mut response = Response::new(self.config.clone());
+        let mut response = Response::new(allowed_media_types.clone());
         let mut depot = Depot::new();
-        let segments = request
-            .url()
-            .path_segments()
-            .map(|segments| {
-                segments
-                    .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
-                    .filter(|s| !s.contains('/') && *s != "")
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let path = request.uri().path();
+        let segments = if path.starts_with('/') { path[1..].split('/') } else { path.split('/') };
+        let segments = segments
+            .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
+            .filter(|s| !s.contains('/') && *s != "")
+            .collect::<Vec<_>>();
         let mut path_state = PathState::new(segments);
         response.cookies = request.cookies().clone();
 
@@ -225,7 +394,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 }
             } else {
                 tracing::warn!(
-                    url = request.url().as_str(),
+                    uri = ?request.uri(),
                     method = request.method().as_str(),
                     "Http response content type header is not set"
                 );
@@ -246,7 +415,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
     }
 }
 
-// modified from https://github.com/seanmonstar/warp/blob/master/src/server.rs
+// modified from https://github.com/kenorld/salvo/blob/master/src/server.rs
 #[cfg(feature = "tls")]
 impl<F> TlsServer<F>
 where
@@ -368,10 +537,7 @@ where
     /// any runtime.
     ///
     /// *This function requires the `"tls"` feature.*
-    pub fn bind_ephemeral(
-        self,
-        addr: impl Into<SocketAddr>,
-    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
+    pub fn bind_ephemeral(self, addr: impl Into<SocketAddr>) -> (SocketAddr, impl Future<Output = ()> + 'static) {
         let (addr, srv) = bind!(tls: self, addr);
         let srv = srv.map(|result| {
             if let Err(err) = result {
@@ -410,8 +576,6 @@ where
     F: ::std::fmt::Debug,
 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        f.debug_struct("TlsServer")
-            .field("server", &self.server)
-            .finish()
+        f.debug_struct("TlsServer").field("server", &self.server).finish()
     }
 }
