@@ -25,6 +25,7 @@ config = "0.10.1"
 cookie = { version = "0.14.3", features = [ "percent-encode" ] }
 display_bytes = "0.2.1"
 double-checked-cell-async = "2.0.2"
+form_urlencoded = "1.0.0"
 futures = { version = "0.3.9", features = [ "std" ] }
 futures-util = "0.3.9"
 http = "0.2.3"
@@ -49,8 +50,8 @@ time = "0.2.24"
 tokio = { version = "1.0.1", features = [ "full" ] }
 toml = "0.5.8"
 tracing = "0.1.22"
+tracing-futures="0.2.4"
 twoway = "0.2.1"
-url = "2.2.0"
 
 [dev-dependencies]
 futures-test = "0.3.9"

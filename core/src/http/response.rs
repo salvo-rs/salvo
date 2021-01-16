@@ -21,7 +21,6 @@ use super::errors::HttpError;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
 use crate::http::Request;
-use crate::ServerConfig;
 
 #[allow(clippy::type_complexity)]
 pub enum ResponseBody {
@@ -42,21 +41,21 @@ pub struct Response {
     pub(crate) cookies: CookieJar,
 
     pub(crate) body: ResponseBody,
-    pub(crate) server_config: Arc<ServerConfig>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 
     is_commited: bool,
 }
 
 impl Response {
     /// Construct a blank Response
-    pub fn new(conf: Arc<ServerConfig>) -> Response {
+    pub fn new(allowed_media_types: Arc<Vec<Mime>>) -> Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
             body: ResponseBody::None, // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            server_config: conf,
+            allowed_media_types,
             is_commited: false,
         }
     }
@@ -416,8 +415,8 @@ impl Response {
     {
         let guess = mime_guess::from_path(path.as_ref());
         if let Some(mime) = guess.first() {
-            if self.server_config.allowed_media_types.len() > 0 {
-                for m in &*self.server_config.allowed_media_types {
+            if self.allowed_media_types.len() > 0 {
+                for m in &*self.allowed_media_types {
                     if m.type_() == mime.type_() && m.subtype() == mime.subtype() {
                         return Some(mime);
                     }

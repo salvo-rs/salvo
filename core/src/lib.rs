@@ -2,23 +2,28 @@ mod catcher;
 pub mod depot;
 mod handler;
 pub mod http;
-mod pick_port;
 pub mod routing;
 pub mod server;
 pub mod writer;
+mod error;
+#[cfg(feature = "tls")]
+mod tls;
 
 #[macro_use]
 extern crate pin_utils;
 #[macro_use]
 extern crate futures_util;
 
-pub use crate::catcher::{Catcher, CatcherImpl};
-pub use crate::depot::Depot;
-pub use crate::handler::Handler;
-pub use crate::http::{Request, Response};
-pub use crate::routing::Router;
-pub use crate::server::{Server, ServerConfig};
-pub use crate::writer::Writer;
+pub use self::catcher::{Catcher, CatcherImpl};
+pub use self::depot::Depot;
+pub use self::handler::Handler;
+pub use self::http::{Request, Response};
+pub use self::routing::Router;
+pub use self::server::Server;
+pub use self::writer::Writer;
+pub use self::error::Error;
+#[cfg(feature = "tls")]
+pub use self::server::TlsServer;
 
 use std::ops::{Bound, RangeBounds};
 
@@ -69,35 +74,5 @@ impl StringUtils for str {
             Bound::Unbounded => self.len(),
         } - start;
         self.substring(start, len)
-    }
-}
-
-#[derive(Clone)]
-enum _Protocol {
-    Http,
-    Https,
-}
-
-/// Protocol used to serve content.
-#[derive(Clone)]
-pub struct Protocol(_Protocol);
-
-impl Protocol {
-    /// Plaintext HTTP/1
-    pub fn http() -> Protocol {
-        Protocol(_Protocol::Http)
-    }
-
-    /// HTTP/1 over SSL/TLS
-    pub fn https() -> Protocol {
-        Protocol(_Protocol::Https)
-    }
-
-    /// Returns the name used for this protocol in a URI's scheme part.
-    pub fn name(&self) -> &str {
-        match self.0 {
-            _Protocol::Http => "http",
-            _Protocol::Https => "https",
-        }
     }
 }

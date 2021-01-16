@@ -1,6 +1,6 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use http;
+use http::{self, Uri};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::str::FromStr;
-use url::Url;
+use form_urlencoded;
 
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
@@ -23,7 +23,7 @@ use crate::http::{Body, Mime};
 /// an `TypeMap` for data communication between middleware.
 pub struct Request {
     /// The requested URL.
-    url: Url,
+    uri: Uri,
 
     /// The request headers.
     headers: HeaderMap,
@@ -51,7 +51,7 @@ impl Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Request {{")?;
 
-        writeln!(f, "    url: {:?}", self.url)?;
+        writeln!(f, "    uri: {:?}", self.uri)?;
         writeln!(f, "    method: {:?}", self.method.clone())?;
 
         write!(f, "}}")?;
@@ -75,20 +75,6 @@ impl Request {
             body,
         ) = req.into_parts();
 
-        let url = {
-            let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
-            let url_string = if let (Some(scheme), Some(authority)) = (uri.scheme(), uri.authority()) {
-                format!("{}://{}{}", scheme.as_str(), authority.as_str(), path_and_query)
-            } else {
-                return Err(format!("couldn't parse requested url: {}", uri.to_string()))
-            };
-
-            match Url::parse(&url_string) {
-                Ok(url) => url,
-                Err(e) => return Err(format!("couldn't parse requested url: {}", e)),
-            }
-        };
-
         // Set the request cookies, if they exist.
         let cookies = if let Some(header) = headers.get("Cookie") {
             let mut cookie_jar = CookieJar::new();
@@ -106,7 +92,7 @@ impl Request {
 
         Ok(Request {
             queries: OnceCell::new(),
-            url,
+            uri,
             headers,
             body: Some(body),
             method,
@@ -121,8 +107,8 @@ impl Request {
     }
 
     #[inline(always)]
-    pub fn url(&self) -> &Url {
-        &self.url
+    pub fn uri(&self) -> &Uri {
+        &self.uri
     }
 
     #[inline(always)]
@@ -216,7 +202,7 @@ impl Request {
     }
 
     pub fn queries(&self) -> &MultiMap<String, String> {
-        self.queries.get_or_init(|| self.url.query_pairs().into_owned().collect())
+        self.queries.get_or_init(|| form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes()).into_owned().collect())
     }
     #[inline]
     pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F>

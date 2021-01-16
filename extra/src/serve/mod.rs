@@ -216,7 +216,8 @@ impl DirInfo {
 impl Handler for Static {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let mut base_path = if let Some((_, value)) = param { value } else { req.url().path() }.to_owned();
+        let req_path = req.uri().path();
+        let mut base_path = if let Some((_, value)) = param { value } else { req_path }.to_owned();
         if base_path.starts_with('/') || base_path.starts_with('\\') {
             base_path = format!(".{}", base_path);
         }
@@ -228,8 +229,8 @@ impl Handler for Static {
             let path = root.join(&base_path);
             if path.is_dir() && self.options.listing {
                 path_exist = true;
-                if !req.url().path().ends_with('/') {
-                    res.redirect_found(format!("{}/", req.url().path()));
+                if !req_path.ends_with('/') {
+                    res.redirect_found(format!("{}/", req_path));
                     return;
                 }
                 for ifile in &self.options.defaults {
@@ -281,7 +282,7 @@ impl Handler for Static {
         files.sort_by(|a, b| a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
-        let root = BaseInfo::new(req.url().path().to_owned(), files, dirs);
+        let root = BaseInfo::new(req_path.to_owned(), files, dirs);
         match format.subtype().as_ref() {
             "text" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),
