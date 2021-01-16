@@ -104,6 +104,17 @@ impl Server {
         }
     }
 
+    /// Configure a server to use TLS.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    #[cfg(feature = "tls")]
+    pub fn tls(self) -> TlsServer<F> {
+        TlsServer {
+            server: self,
+            tls: TlsConfigBuilder::new(),
+        }
+    }
+
     pub fn serve(self) -> impl Future<Output = Result<(), hyper::Error>> + Send + 'static {
         let addr: SocketAddr = self.config.local_addr.unwrap_or_else(|| {
             let port = pick_port::pick_unused_port().expect("Pick unused port failed");
@@ -146,11 +157,9 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let local_addr = self.config.local_addr;
-        let protocol = self.config.protocol.clone();
         let catchers = self.config.catchers.clone();
         let allowed_media_types = self.config.allowed_media_types.clone();
-        let mut request = Request::from_hyper(req, local_addr, &protocol).unwrap();
+        let mut request = Request::from_hyper(req).unwrap();
         let mut response = Response::new(self.config.clone());
         let mut depot = Depot::new();
         let segments = request
@@ -234,5 +243,175 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             Ok(hyper_response)
         };
         Box::pin(fut)
+    }
+}
+
+// modified from https://github.com/seanmonstar/warp/blob/master/src/server.rs
+#[cfg(feature = "tls")]
+impl<F> TlsServer<F>
+where
+    F: Filter + Clone + Send + Sync + 'static,
+    <F::Future as TryFuture>::Ok: Reply,
+    <F::Future as TryFuture>::Error: IsReject,
+{
+    // TLS config methods
+
+    /// Specify the file path to read the private key.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn key_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.key_path(path))
+    }
+
+    /// Specify the file path to read the certificate.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn cert_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.cert_path(path))
+    }
+
+    /// Specify the file path to read the trust anchor for optional client authentication.
+    ///
+    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
+    /// of the `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_optional_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.client_auth_optional_path(path))
+    }
+
+    /// Specify the file path to read the trust anchor for required client authentication.
+    ///
+    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
+    /// `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_required_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.client_auth_required_path(path))
+    }
+
+    /// Specify the in-memory contents of the private key.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn key(self, key: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.key(key.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the certificate.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn cert(self, cert: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.cert(cert.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the trust anchor for optional client authentication.
+    ///
+    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
+    /// of the `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_optional(self, trust_anchor: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.client_auth_optional(trust_anchor.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the trust anchor for required client authentication.
+    ///
+    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
+    /// `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_required(self, trust_anchor: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.client_auth_required(trust_anchor.as_ref()))
+    }
+
+    /// Specify the DER-encoded OCSP response.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn ocsp_resp(self, resp: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.ocsp_resp(resp.as_ref()))
+    }
+
+    fn with_tls<Func>(self, func: Func) -> Self
+    where
+        Func: FnOnce(TlsConfigBuilder) -> TlsConfigBuilder,
+    {
+        let TlsServer { server, tls } = self;
+        let tls = func(tls);
+        TlsServer { server, tls }
+    }
+
+    // Server run methods
+
+    /// Run this `TlsServer` forever on the current thread.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub async fn run(self, addr: impl Into<SocketAddr>) {
+        let (addr, fut) = self.bind_ephemeral(addr);
+        let span = tracing::info_span!("TlsServer::run", %addr);
+        tracing::info!(parent: &span, "listening on https://{}", addr);
+
+        fut.instrument(span).await;
+    }
+
+    /// Bind to a socket address, returning a `Future` that can be
+    /// executed on a runtime.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub async fn bind(self, addr: impl Into<SocketAddr>) {
+        let (_, fut) = self.bind_ephemeral(addr);
+        fut.await;
+    }
+
+    /// Bind to a possibly ephemeral socket address.
+    ///
+    /// Returns the bound address and a `Future` that can be executed on
+    /// any runtime.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn bind_ephemeral(
+        self,
+        addr: impl Into<SocketAddr>,
+    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
+        let (addr, srv) = bind!(tls: self, addr);
+        let srv = srv.map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+
+        (addr, srv)
+    }
+
+    /// Create a server with graceful shutdown signal.
+    ///
+    /// When the signal completes, the server will start the graceful shutdown
+    /// process.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn bind_with_graceful_shutdown(
+        self,
+        addr: impl Into<SocketAddr> + 'static,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
+        let (addr, srv) = bind!(tls: self, addr);
+
+        let fut = srv.with_graceful_shutdown(signal).map(|result| {
+            if let Err(err) = result {
+                tracing::error!("server error: {}", err)
+            }
+        });
+        (addr, fut)
+    }
+}
+
+#[cfg(feature = "tls")]
+impl<F> ::std::fmt::Debug for TlsServer<F>
+where
+    F: ::std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        f.debug_struct("TlsServer")
+            .field("server", &self.server)
+            .finish()
     }
 }

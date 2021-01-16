@@ -9,7 +9,6 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::net::SocketAddr;
 use std::str::FromStr;
 use url::Url;
 
@@ -17,7 +16,6 @@ use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::{AsHeaderName, HeaderValue};
 use crate::http::{Body, Mime};
-use crate::Protocol;
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -26,9 +24,6 @@ use crate::Protocol;
 pub struct Request {
     /// The requested URL.
     url: Url,
-
-    /// The local address of the request.
-    local_addr: Option<SocketAddr>,
 
     /// The request headers.
     headers: HeaderMap,
@@ -58,7 +53,6 @@ impl Debug for Request {
 
         writeln!(f, "    url: {:?}", self.url)?;
         writeln!(f, "    method: {:?}", self.method.clone())?;
-        writeln!(f, "    local_addr: {:?}", self.local_addr)?;
 
         write!(f, "}}")?;
         Ok(())
@@ -69,7 +63,7 @@ impl Request {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Request<Body>, local_addr: Option<SocketAddr>, protocol: &Protocol) -> Result<Request, String> {
+    pub fn from_hyper(req: hyper::Request<Body>) -> Result<Request, String> {
         let (
             http::request::Parts {
                 method,
@@ -83,38 +77,15 @@ impl Request {
 
         let url = {
             let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
-
-            let mut socket_ip = String::new();
-            let (host, port) = if let Some(host) = uri.host() {
-                (host, uri.port().map(|p| p.as_u16()))
-            } else if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
-                let mut parts = host.split(':');
-                let hostname = parts.next().unwrap();
-                let port = parts.next().and_then(|p| p.parse::<u16>().ok());
-                (hostname, port)
-            } else if version < HttpVersion::HTTP_11 {
-                if let Some(local_addr) = local_addr {
-                    match local_addr {
-                        SocketAddr::V4(addr4) => socket_ip.push_str(&format!("{}", addr4.ip())),
-                        SocketAddr::V6(addr6) => socket_ip.push_str(&format!("[{}]", addr6.ip())),
-                    }
-                    (socket_ip.as_ref(), Some(local_addr.port()))
-                } else {
-                    return Err("No fallback host specified".into());
-                }
+            let url_string = if let (Some(scheme), Some(authority)) = (uri.scheme(), uri.authority()) {
+                format!("{}://{}{}", scheme.as_str(), authority.as_str(), path_and_query)
             } else {
-                return Err("No host specified in request".into());
-            };
-
-            let url_string = if let Some(port) = port {
-                format!("{}://{}:{}{}", protocol.name(), host, port, path_and_query)
-            } else {
-                format!("{}://{}{}", protocol.name(), host, path_and_query)
+                return Err(format!("couldn't parse requested url: {}", uri.to_string()))
             };
 
             match Url::parse(&url_string) {
                 Ok(url) => url,
-                Err(e) => return Err(format!("Couldn't parse requested URL: {}", e)),
+                Err(e) => return Err(format!("couldn't parse requested url: {}", e)),
             }
         };
 
@@ -136,7 +107,6 @@ impl Request {
         Ok(Request {
             queries: OnceCell::new(),
             url,
-            local_addr,
             headers,
             body: Some(body),
             method,
