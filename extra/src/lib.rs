@@ -4,3 +4,4 @@ extern crate serde;
 
 pub mod auth;
 pub mod serve;
+pub mod cors;
