@@ -33,7 +33,9 @@ salvo_extra = { path = "./extra", version = "0.4.0", default-features = false }
 salvo_macros = { path = "./macros", version = "0.4.2" }
 
 [features]
-default = [ "macros" ]
+default = [ "macros", "tls" ]
+full = [ "macros", "extra", "tls"]
+tls = ["salvo_core/tls"]
 extra = [ ]
 macros = [ ]
 

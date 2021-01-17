@@ -16,6 +16,10 @@ categories = [ "web-programming::http-server" ]
 [package.metadata.docs.rs]
 all-features = true
 
+[features]
+default = []
+tls = ["tokio-rustls"]
+
 [dependencies]
 async-trait = "0.1.42"
 base64 = "0.13.0"
@@ -48,6 +52,7 @@ textnonce = "1.0.0"
 thiserror = "1.0.23"
 time = "0.2.24"
 tokio = { version = "1.0.1", features = [ "full" ] }
+tokio-rustls = { version = "0.22", optional = true }
 toml = "0.5.8"
 tracing = "0.1.22"
 tracing-futures="0.2.4"
