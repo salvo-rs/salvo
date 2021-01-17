@@ -382,8 +382,8 @@ mod tests {
 
     #[test]
     fn bytes_cert_key() {
-        let key = include_str!("../examples/tls/key.rsa");
-        let cert = include_str!("../examples/tls/cert.pem");
+        let key = include_str!("../../examples/tls/key.rsa");
+        let cert = include_str!("../../examples/tls/cert.pem");
 
         TlsConfigBuilder::new()
             .key(key.as_bytes())
