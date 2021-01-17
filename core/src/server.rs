@@ -3,6 +3,8 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
+#[cfg(feature = "tls")]
+use std::path::Path;
 
 use futures::{future, FutureExt, TryStream, TryStreamExt};
 use hyper::server::conn::AddrIncoming;
@@ -16,7 +18,10 @@ use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::routing::{PathState, Router};
 use crate::{Catcher, Depot};
+#[cfg(feature = "tls")]
+use crate::tls::TlsConfigBuilder;
 
+// modified from https://github.com/kenorld/salvo/blob/master/src/server.rs
 macro_rules! addr_incoming {
     ($addr:expr) => {{
         let mut incoming = AddrIncoming::bind($addr)?;
@@ -35,8 +40,9 @@ macro_rules! bind_inner {
 
     (tls: $this:ident, $addr:expr) => {{
         let (addr, incoming) = addr_incoming!($addr);
-        let tls = $this.tls.build()?;
-        let srv = HyperServer::builder(crate::tls::TlsAcceptor::new(tls, incoming)).serve($this);
+        let TlsServer{server, builder} = $this;
+        let tls = builder.build()?;
+        let srv = HyperServer::builder(crate::tls::TlsAcceptor::new(tls, incoming)).serve(server);
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((addr, srv))
     }};
 }
@@ -290,10 +296,10 @@ impl Server {
     ///
     /// *This function requires the `"tls"` feature.*
     #[cfg(feature = "tls")]
-    pub fn tls(self) -> TlsServer<F> {
+    pub fn tls(self) -> TlsServer {
         TlsServer {
             server: self,
-            tls: TlsConfigBuilder::new(),
+            builder: TlsConfigBuilder::new(),
         }
     }
 }
@@ -415,13 +421,13 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
     }
 }
 
-// modified from https://github.com/kenorld/salvo/blob/master/src/server.rs
 #[cfg(feature = "tls")]
-impl<F> TlsServer<F>
-where
-    F: Filter + Clone + Send + Sync + 'static,
-    <F::Future as TryFuture>::Ok: Reply,
-    <F::Future as TryFuture>::Error: IsReject,
+pub struct TlsServer {
+    server: Server,
+    builder: TlsConfigBuilder,
+}
+#[cfg(feature = "tls")]
+impl TlsServer
 {
     // TLS config methods
 
@@ -504,9 +510,9 @@ where
     where
         Func: FnOnce(TlsConfigBuilder) -> TlsConfigBuilder,
     {
-        let TlsServer { server, tls } = self;
-        let tls = func(tls);
-        TlsServer { server, tls }
+        let TlsServer { server, builder } = self;
+        let builder = func(builder);
+        TlsServer { server, builder }
     }
 
     // Server run methods
@@ -567,15 +573,5 @@ where
             }
         });
         (addr, fut)
-    }
-}
-
-#[cfg(feature = "tls")]
-impl<F> ::std::fmt::Debug for TlsServer<F>
-where
-    F: ::std::fmt::Debug,
-{
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        f.debug_struct("TlsServer").field("server", &self.server).finish()
     }
 }

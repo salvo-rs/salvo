@@ -1,5 +1,4 @@
 use salvo::prelude::*;
-use tracing;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -24,7 +23,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router = router
         .push(Router::new().path("hello2").get(hello_world2))
         .push(Router::new().path("hello3").get(hello_world3));
-    let server = Server::new(router);
-    server.run(([127, 0, 0, 1], 7878)).await;
+    Server::new(router).run(([127, 0, 0, 1], 7878)).await;
     Ok(())
 }
