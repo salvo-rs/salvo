@@ -374,8 +374,8 @@ mod tests {
     #[test]
     fn file_cert_key() {
         TlsConfigBuilder::new()
-            .key_path("examples/tls/key.rsa")
-            .cert_path("examples/tls/cert.pem")
+            .key_path("../../examples/tls/key.rsa")
+            .cert_path("../../examples/tls/cert.pem")
             .build()
             .unwrap();
     }

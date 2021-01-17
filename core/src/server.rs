@@ -201,23 +201,23 @@ impl Server {
     /// use salvo::Filter;
     /// use futures::future::TryFutureExt;
     /// use tokio::sync::oneshot;
-    ///
+    /// 
+    /// #[fn_handler]
+    /// async fn hello_world1(res: &mut Response) {
+    ///     res.render_plain_text("Hello World!");
+    /// }
     /// # fn main() {
-    /// let routes = salvo::any()
-    ///     .map(|| "Hello, World!");
-    ///
-    /// let (tx, rx) = oneshot::channel();
-    ///
-    /// let (addr, server) = salvo::serve(routes)
-    ///     .bind_with_graceful_shutdown(([127, 0, 0, 1], 3030), async {
-    ///          rx.await.ok();
+    ///     let (tx, rx) = oneshot::channel();
+    ///     let (addr, server) = Server::new(Router::new().get(hello_world))
+    ///         .bind_with_graceful_shutdown(([127, 0, 0, 1], 3030), async {
+    ///             rx.await.ok();
     ///     });
     ///
-    /// // Spawn the server into a runtime
-    /// tokio::task::spawn(server);
+    ///     // Spawn the server into a runtime
+    ///     tokio::task::spawn(server);
     ///
-    /// // Later, start the shutdown...
-    /// let _ = tx.send(());
+    ///     // Later, start the shutdown...
+    ///     let _ = tx.send(());
     /// # }
     /// ```
     pub fn bind_with_graceful_shutdown(
