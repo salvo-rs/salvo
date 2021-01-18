@@ -1,6 +1,6 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use http::{self, Uri};
+use http::{self, Uri, Extensions};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
@@ -14,7 +14,7 @@ use form_urlencoded;
 
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
-use crate::http::header::{AsHeaderName, HeaderValue};
+use crate::http::header::HeaderValue;
 use crate::http::{Body, Mime};
 
 /// The `Request` given to all `Middleware`.
@@ -30,6 +30,7 @@ pub struct Request {
 
     /// The request body as a reader.
     body: Option<Body>,
+    extensions: Extensions,
 
     /// The request method.
     method: Method,
@@ -70,6 +71,7 @@ impl Request {
                 uri,
                 version,
                 headers,
+                extensions,
                 ..
             },
             body,
@@ -95,6 +97,7 @@ impl Request {
             uri,
             headers,
             body: Some(body),
+            extensions,
             method,
             cookies,
             // accept: None,
@@ -110,20 +113,47 @@ impl Request {
     pub fn uri(&self) -> &Uri {
         &self.uri
     }
+    #[inline(always)]
+    pub fn uri_mut(&mut self) -> &mut Uri {
+        &mut self.uri
+    }
 
     #[inline(always)]
     pub fn method(&self) -> &Method {
         &self.method
+    }
+    #[inline(always)]
+    pub fn method_mut(&mut self) -> &mut Method {
+        &mut self.method
     }
 
     #[inline(always)]
     pub fn version(&self) -> HttpVersion {
         self.version
     }
+    #[inline(always)]
+    pub fn version_mut(&mut self) -> &mut HttpVersion {
+        &mut self.version
+    }
+
+
+    #[inline(always)]
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+    #[inline(always)]
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+        &mut self.headers
+    }
 
     #[inline(always)]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
+    }
+    #[inline(always)]
+    pub fn
+     body_mut(&mut self) -> Option<&mut Body> {
+        self.body.as_mut()
     }
 
     // #[inline(always)]
@@ -134,6 +164,15 @@ impl Request {
     #[inline(always)]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
+    }
+
+    #[inline(always)]
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+    #[inline(always)]
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.extensions
     }
 
     pub fn accept(&self) -> Vec<Mime> {
@@ -178,15 +217,6 @@ impl Request {
         T: AsRef<str>,
     {
         self.cookies.get(name.as_ref())
-    }
-
-    #[inline(always)]
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-    #[inline]
-    pub fn get_header<K: AsHeaderName>(&self, key: K) -> Option<&HeaderValue> {
-        self.headers.get(key)
     }
     #[inline(always)]
     pub fn params(&self) -> &HashMap<String, String> {

@@ -21,15 +21,19 @@ async-trait = "0.1.42"
 base64 = "0.13.0"
 chrono = { version = "0.4.19", features = [ "serde" ] }
 cookie = { version = "0.14.3", features = [ "percent-encode" ] }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
 headers = "0.3.2"
+hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
 jsonwebtoken = "7.2.0"
 mime = "0.3.16"
 percent-encoding = "2.1.0"
-salvo_core = { version = "0.4.0", path = "../core", default-features = false }
+salvo_core = { version = "0.5.0", path = "../core", default-features = false }
 serde = "1.0.118"
 serde_derive = "1.0.118"
 serde_json = "1.0.61"
 thiserror = "1.0.23"
 time = "0.2.24"
+tokio = { version = "1.0", features = ["fs", "sync", "time"] }
+tokio-tungstenite = { version = "0.13", default-features = false }
 tracing = "0.1.22"
 url = "2.2.0"

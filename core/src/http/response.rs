@@ -19,7 +19,7 @@ use tracing;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
-use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
+use super::header::{self, HeaderMap, InvalidHeaderValue, CONTENT_DISPOSITION};
 use crate::http::Request;
 
 #[allow(clippy::type_complexity)]
@@ -77,8 +77,7 @@ impl Response {
     // client.
     //
     // `write_back` consumes the `Response`.
-    #[doc(hidden)]
-    pub async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
+    pub(crate) async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
@@ -331,37 +330,54 @@ impl Response {
         self.commit();
     }
     #[inline]
-    pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
+    pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
         self.status_code = Some(StatusCode::SEE_OTHER);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse()?);
         }
-        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+        self.headers.insert(header::LOCATION, url.as_ref().parse()?);
         self.commit();
+        Ok(())
     }
-    pub fn set_content_disposition(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_disposition(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_encoding(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_ENCODING, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_encoding(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_ENCODING, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_length(&mut self, value: u64) {
-        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse().unwrap());
+    #[inline]
+    pub fn set_content_length(&mut self, value: u64) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse()?);
+        Ok(())
     }
-    pub fn set_content_range(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_RANGE, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_RANGE, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_type(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_TYPE, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_type(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_TYPE, value.parse()?);
+        Ok(())
     }
-    pub fn set_accept_range(&mut self, value: &str) {
-        self.headers_mut().insert(ACCEPT_RANGES, value.parse().unwrap());
+    #[inline]
+    pub fn set_accept_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(ACCEPT_RANGES, value.parse()?);
+        Ok(())
     }
-    pub fn set_last_modified(&mut self, value: HttpDate) {
-        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse().unwrap());
+    #[inline]
+    pub fn set_last_modified(&mut self, value: HttpDate) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse()?);
+        Ok(())
     }
-    pub fn set_etag(&mut self, value: &str) {
-        self.headers_mut().insert(ETAG, value.parse().unwrap());
+    #[inline]
+    pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue>{
+        self.headers_mut().insert(ETAG, value.parse()?);
+        Ok(())
     }
     #[inline]
     pub fn commit(&mut self) {
