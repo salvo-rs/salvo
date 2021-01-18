@@ -4,7 +4,7 @@ use std::fmt;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-/// Errors that can happen inside warp.
+/// Errors that can happen inside salvo.
 pub struct Error {
     inner: BoxError,
 }

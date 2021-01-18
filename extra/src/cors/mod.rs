@@ -1,5 +1,5 @@
 //! CORS Filters
-// modified from https://github.com/seanmonstar/warp/blob/master/src/filters/cors.rs
+// modified from https://github.com/seanmonstar/salvo/blob/master/src/filters/cors.rs
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::error::Error as StdError;

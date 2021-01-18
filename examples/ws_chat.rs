@@ -8,8 +8,8 @@ use std::sync::{
 use futures::{FutureExt, StreamExt};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use warp::ws::{Message, WebSocket};
-use warp::Filter;
+use salvo::ws::{Message, WebSocket};
+use salvo::Filter;
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -17,8 +17,8 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 /// Our state of currently connected users.
 ///
 /// - Key is their id
-/// - Value is a sender of `warp::ws::Message`
-type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, warp::Error>>>>>;
+/// - Value is a sender of `salvo::ws::Message`
+type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>>;
 
 #[tokio::main]
 async fn main() {
@@ -28,24 +28,24 @@ async fn main() {
     // is a websocket sender.
     let users = Users::default();
     // Turn our "state" into a new Filter...
-    let users = warp::any().map(move || users.clone());
+    let users = salvo::any().map(move || users.clone());
 
     // GET /chat -> websocket upgrade
-    let chat = warp::path("chat")
+    let chat = salvo::path("chat")
         // The `ws()` filter will prepare Websocket handshake...
-        .and(warp::ws())
+        .and(salvo::ws())
         .and(users)
-        .map(|ws: warp::ws::Ws, users| {
+        .map(|ws: salvo::ws::Ws, users| {
             // This will call our function if the handshake succeeds.
             ws.on_upgrade(move |socket| user_connected(socket, users))
         });
 
     // GET / -> index html
-    let index = warp::path::end().map(|| warp::reply::html(INDEX_HTML));
+    let index = salvo::path::end().map(|| salvo::reply::html(INDEX_HTML));
 
     let routes = index.or(chat);
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    salvo::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
 
 async fn user_connected(ws: WebSocket, users: Users) {

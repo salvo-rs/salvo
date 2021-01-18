@@ -1,42 +1,38 @@
-#![deny(warnings)]
-
-use warp::Filter;
+use salvo::Filter;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
-
     // We'll start simple, and gradually show how you combine these powers
     // into super powers!
 
     // GET /
-    let hello_world = warp::path::end().map(|| "Hello, World at root!");
+    let hello_world = salvo::path::end().map(|| "Hello, World at root!");
 
     // GET /hi
-    let hi = warp::path("hi").map(|| "Hello, World!");
+    let hi = salvo::path("hi").map(|| "Hello, World!");
 
     // How about multiple segments? First, we could use the `path!` macro:
     //
-    // GET /hello/from/warp
-    let hello_from_warp = warp::path!("hello" / "from" / "warp").map(|| "Hello from warp!");
+    // GET /hello/from/salvo
+    let hello_from_salvo = salvo::path!("hello" / "from" / "salvo").map(|| "Hello from salvo!");
 
     // Fine, but how do I handle parameters in paths?
     //
     // GET /sum/:u32/:u32
-    let sum = warp::path!("sum" / u32 / u32).map(|a, b| format!("{} + {} = {}", a, b, a + b));
+    let sum = salvo::path!("sum" / u32 / u32).map(|a, b| format!("{} + {} = {}", a, b, a + b));
 
     // Any type that implements FromStr can be used, and in any order:
     //
     // GET /:u16/times/:u16
     let times =
-        warp::path!(u16 / "times" / u16).map(|a, b| format!("{} times {} = {}", a, b, a * b));
+        salvo::path!(u16 / "times" / u16).map(|a, b| format!("{} times {} = {}", a, b, a * b));
 
     // Oh shoot, those math routes should be mounted at a different path,
     // is that possible? Yep.
     //
     // GET /math/sum/:u32/:u32
     // GET /math/:u16/times/:u16
-    let math = warp::path("math");
+    let math = salvo::path("math");
     let _sum = math.and(sum);
     let _times = math.and(times);
 
@@ -46,8 +42,8 @@ async fn main() {
     // fact, it's exactly what the `path!` macro has been doing internally.
     //
     // GET /bye/:string
-    let bye = warp::path("bye")
-        .and(warp::path::param())
+    let bye = salvo::path("bye")
+        .and(salvo::path::param())
         .map(|name: String| format!("Good bye, {}!", name));
 
     // Ah, can filters do things besides `and`?
@@ -60,13 +56,13 @@ async fn main() {
     //
     // GET /math/sum/:u32/:u32
     // GET /math/:u16/times/:u16
-    let math = warp::path("math").and(sum.or(times));
+    let math = salvo::path("math").and(sum.or(times));
 
     // We can use the end() filter to match a shorter path
-    let help = warp::path("math")
+    let help = salvo::path("math")
         // Careful! Omitting the following line would make this filter match
         // requests to /math/sum/:u32/:u32 and /math/:u16/times/:u16
-        .and(warp::path::end())
+        .and(salvo::path::end())
         .map(|| "This is the Math API. Try calling /math/sum/:u32/:u32 or /math/:u16/times/:u16");
     let math = help.or(math);
 
@@ -81,15 +77,15 @@ async fn main() {
     //
     // GET /
     // GET /hi
-    // GET /hello/from/warp
+    // GET /hello/from/salvo
     // GET /bye/:string
     // GET /math/sum/:u32/:u32
     // GET /math/:u16/times/:u16
 
-    let routes = warp::get().and(
+    let routes = salvo::get().and(
         hello_world
             .or(hi)
-            .or(hello_from_warp)
+            .or(hello_from_salvo)
             .or(bye)
             .or(math)
             .or(sum)
@@ -100,5 +96,5 @@ async fn main() {
     // If you wish to use dynamic dispatch instead and speed up compile times while
     // making it slightly slower at runtime, you can use Filter::boxed().
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    salvo::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
