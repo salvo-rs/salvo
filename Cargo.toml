@@ -1,6 +1,10 @@
 [package]
 name = "salvo"
+<<<<<<< HEAD
 version = "0.4.4"
+=======
+version = "0.5.0"
+>>>>>>> next
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -28,12 +32,20 @@ path = "src/lib.rs"
 [dependencies]
 async-trait = "0.1.42"
 
+<<<<<<< HEAD
 salvo_core = { path = "./core", version = "0.4.4", default-features = false }
 salvo_extra = { path = "./extra", version = "0.4.0", default-features = false }
 salvo_macros = { path = "./macros", version = "0.4.2" }
+=======
+salvo_core = { path = "./core", version = "0.5.0", default-features = false }
+salvo_extra = { path = "./extra", version = "0.5.0", default-features = false }
+salvo_macros = { path = "./macros", version = "0.5.0" }
+>>>>>>> next
 
 [features]
-default = [ "macros" ]
+default = [ "macros", "tls" ]
+full = [ "macros", "extra", "tls"]
+tls = ["salvo_core/tls"]
 extra = [ ]
 macros = [ ]
 
@@ -59,4 +71,5 @@ tracing = "0.1.22"
 tracing-subscriber = "0.2.15"
 tracing-log = "0.1.1"
 tracing-futures = "0.2.4"
-tokio = { version = "1.0.1", features = [ "full" ] }
+tokio = { version = "1.0.2", features = [ "full" ] }
+tokio-stream = { version = "0.1.1", features = ["net"] }

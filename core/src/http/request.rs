@@ -1,6 +1,6 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use http;
+use http::{self, Uri, Extensions};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
@@ -9,15 +9,13 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::net::SocketAddr;
 use std::str::FromStr;
-use url::Url;
+use form_urlencoded;
 
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
-use crate::http::header::{AsHeaderName, HeaderValue};
+use crate::http::header::HeaderValue;
 use crate::http::{Body, Mime};
-use crate::Protocol;
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -25,16 +23,14 @@ use crate::Protocol;
 /// an `TypeMap` for data communication between middleware.
 pub struct Request {
     /// The requested URL.
-    url: Url,
-
-    /// The local address of the request.
-    local_addr: Option<SocketAddr>,
+    uri: Uri,
 
     /// The request headers.
     headers: HeaderMap,
 
     /// The request body as a reader.
     body: Option<Body>,
+    extensions: Extensions,
 
     /// The request method.
     method: Method,
@@ -56,9 +52,8 @@ impl Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Request {{")?;
 
-        writeln!(f, "    url: {:?}", self.url)?;
+        writeln!(f, "    uri: {:?}", self.uri)?;
         writeln!(f, "    method: {:?}", self.method.clone())?;
-        writeln!(f, "    local_addr: {:?}", self.local_addr)?;
 
         write!(f, "}}")?;
         Ok(())
@@ -69,54 +64,18 @@ impl Request {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Request<Body>, local_addr: Option<SocketAddr>, protocol: &Protocol) -> Result<Request, String> {
+    pub fn from_hyper(req: hyper::Request<Body>) -> Result<Request, String> {
         let (
             http::request::Parts {
                 method,
                 uri,
                 version,
                 headers,
+                extensions,
                 ..
             },
             body,
         ) = req.into_parts();
-
-        let url = {
-            let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
-
-            let mut socket_ip = String::new();
-            let (host, port) = if let Some(host) = uri.host() {
-                (host, uri.port().map(|p| p.as_u16()))
-            } else if let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) {
-                let mut parts = host.split(':');
-                let hostname = parts.next().unwrap();
-                let port = parts.next().and_then(|p| p.parse::<u16>().ok());
-                (hostname, port)
-            } else if version < HttpVersion::HTTP_11 {
-                if let Some(local_addr) = local_addr {
-                    match local_addr {
-                        SocketAddr::V4(addr4) => socket_ip.push_str(&format!("{}", addr4.ip())),
-                        SocketAddr::V6(addr6) => socket_ip.push_str(&format!("[{}]", addr6.ip())),
-                    }
-                    (socket_ip.as_ref(), Some(local_addr.port()))
-                } else {
-                    return Err("No fallback host specified".into());
-                }
-            } else {
-                return Err("No host specified in request".into());
-            };
-
-            let url_string = if let Some(port) = port {
-                format!("{}://{}:{}{}", protocol.name(), host, port, path_and_query)
-            } else {
-                format!("{}://{}{}", protocol.name(), host, path_and_query)
-            };
-
-            match Url::parse(&url_string) {
-                Ok(url) => url,
-                Err(e) => return Err(format!("Couldn't parse requested URL: {}", e)),
-            }
-        };
 
         // Set the request cookies, if they exist.
         let cookies = if let Some(header) = headers.get("Cookie") {
@@ -135,10 +94,10 @@ impl Request {
 
         Ok(Request {
             queries: OnceCell::new(),
-            url,
-            local_addr,
+            uri,
             headers,
             body: Some(body),
+            extensions,
             method,
             cookies,
             // accept: None,
@@ -151,23 +110,50 @@ impl Request {
     }
 
     #[inline(always)]
-    pub fn url(&self) -> &Url {
-        &self.url
+    pub fn uri(&self) -> &Uri {
+        &self.uri
+    }
+    #[inline(always)]
+    pub fn uri_mut(&mut self) -> &mut Uri {
+        &mut self.uri
     }
 
     #[inline(always)]
     pub fn method(&self) -> &Method {
         &self.method
     }
+    #[inline(always)]
+    pub fn method_mut(&mut self) -> &mut Method {
+        &mut self.method
+    }
 
     #[inline(always)]
     pub fn version(&self) -> HttpVersion {
         self.version
     }
+    #[inline(always)]
+    pub fn version_mut(&mut self) -> &mut HttpVersion {
+        &mut self.version
+    }
+
+
+    #[inline(always)]
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+    #[inline(always)]
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+        &mut self.headers
+    }
 
     #[inline(always)]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
+    }
+    #[inline(always)]
+    pub fn
+     body_mut(&mut self) -> Option<&mut Body> {
+        self.body.as_mut()
     }
 
     // #[inline(always)]
@@ -178,6 +164,15 @@ impl Request {
     #[inline(always)]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
+    }
+
+    #[inline(always)]
+    pub fn extensions(&self) -> &Extensions {
+        &self.extensions
+    }
+    #[inline(always)]
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.extensions
     }
 
     pub fn accept(&self) -> Vec<Mime> {
@@ -223,15 +218,6 @@ impl Request {
     {
         self.cookies.get(name.as_ref())
     }
-
-    #[inline(always)]
-    pub fn headers(&self) -> &HeaderMap {
-        &self.headers
-    }
-    #[inline]
-    pub fn get_header<K: AsHeaderName>(&self, key: K) -> Option<&HeaderValue> {
-        self.headers.get(key)
-    }
     #[inline(always)]
     pub fn params(&self) -> &HashMap<String, String> {
         &self.params
@@ -246,7 +232,7 @@ impl Request {
     }
 
     pub fn queries(&self) -> &MultiMap<String, String> {
-        self.queries.get_or_init(|| self.url.query_pairs().into_owned().collect())
+        self.queries.get_or_init(|| form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes()).into_owned().collect())
     }
     #[inline]
     pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F>

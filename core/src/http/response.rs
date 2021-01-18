@@ -19,9 +19,8 @@ use tracing;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
-use super::header::{self, HeaderMap, CONTENT_DISPOSITION};
+use super::header::{self, HeaderMap, InvalidHeaderValue, CONTENT_DISPOSITION};
 use crate::http::Request;
-use crate::ServerConfig;
 
 #[allow(clippy::type_complexity)]
 pub enum ResponseBody {
@@ -42,21 +41,21 @@ pub struct Response {
     pub(crate) cookies: CookieJar,
 
     pub(crate) body: ResponseBody,
-    pub(crate) server_config: Arc<ServerConfig>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 
     is_commited: bool,
 }
 
 impl Response {
     /// Construct a blank Response
-    pub fn new(conf: Arc<ServerConfig>) -> Response {
+    pub fn new(allowed_media_types: Arc<Vec<Mime>>) -> Response {
         Response {
             status_code: None, // Start with no response code.
             http_error: None,
             body: ResponseBody::None, // Start with no writers.
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            server_config: conf,
+            allowed_media_types,
             is_commited: false,
         }
     }
@@ -78,8 +77,7 @@ impl Response {
     // client.
     //
     // `write_back` consumes the `Response`.
-    #[doc(hidden)]
-    pub async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
+    pub(crate) async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
@@ -332,37 +330,54 @@ impl Response {
         self.commit();
     }
     #[inline]
-    pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) {
+    pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
         self.status_code = Some(StatusCode::SEE_OTHER);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse()?);
         }
-        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
+        self.headers.insert(header::LOCATION, url.as_ref().parse()?);
         self.commit();
+        Ok(())
     }
-    pub fn set_content_disposition(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_disposition(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_encoding(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_ENCODING, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_encoding(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_ENCODING, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_length(&mut self, value: u64) {
-        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse().unwrap());
+    #[inline]
+    pub fn set_content_length(&mut self, value: u64) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse()?);
+        Ok(())
     }
-    pub fn set_content_range(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_RANGE, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_RANGE, value.parse()?);
+        Ok(())
     }
-    pub fn set_content_type(&mut self, value: &str) {
-        self.headers_mut().insert(CONTENT_TYPE, value.parse().unwrap());
+    #[inline]
+    pub fn set_content_type(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(CONTENT_TYPE, value.parse()?);
+        Ok(())
     }
-    pub fn set_accept_range(&mut self, value: &str) {
-        self.headers_mut().insert(ACCEPT_RANGES, value.parse().unwrap());
+    #[inline]
+    pub fn set_accept_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(ACCEPT_RANGES, value.parse()?);
+        Ok(())
     }
-    pub fn set_last_modified(&mut self, value: HttpDate) {
-        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse().unwrap());
+    #[inline]
+    pub fn set_last_modified(&mut self, value: HttpDate) -> Result<(), InvalidHeaderValue> {
+        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse()?);
+        Ok(())
     }
-    pub fn set_etag(&mut self, value: &str) {
-        self.headers_mut().insert(ETAG, value.parse().unwrap());
+    #[inline]
+    pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue>{
+        self.headers_mut().insert(ETAG, value.parse()?);
+        Ok(())
     }
     #[inline]
     pub fn commit(&mut self) {
@@ -416,8 +431,8 @@ impl Response {
     {
         let guess = mime_guess::from_path(path.as_ref());
         if let Some(mime) = guess.first() {
-            if self.server_config.allowed_media_types.len() > 0 {
-                for m in &*self.server_config.allowed_media_types {
+            if self.allowed_media_types.len() > 0 {
+                for m in &*self.allowed_media_types {
                     if m.type_() == mime.type_() && m.subtype() == mime.subtype() {
                         return Some(mime);
                     }
