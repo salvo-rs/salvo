@@ -38,7 +38,10 @@ pub struct WsHandler<F> {
 }
 impl<F> WsHandler<F> {
     pub fn new(callback: F) -> Self {
-        WsHandler { config: None, callback }
+        WsHandler { callback, config: None }
+    }
+    pub fn with_config(callback:F, config: WebSocketConfig) -> Self {
+        WsHandler { callback, config: Some(config) }
     }
 
     // config
