@@ -1,10 +1,6 @@
 [package]
 name = "salvo"
-<<<<<<< HEAD
-version = "0.4.4"
-=======
 version = "0.5.0"
->>>>>>> next
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
