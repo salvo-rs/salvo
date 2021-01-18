@@ -32,15 +32,9 @@ path = "src/lib.rs"
 [dependencies]
 async-trait = "0.1.42"
 
-<<<<<<< HEAD
-salvo_core = { path = "./core", version = "0.4.4", default-features = false }
-salvo_extra = { path = "./extra", version = "0.4.0", default-features = false }
-salvo_macros = { path = "./macros", version = "0.4.2" }
-=======
 salvo_core = { path = "./core", version = "0.5.0", default-features = false }
 salvo_extra = { path = "./extra", version = "0.5.0", default-features = false }
 salvo_macros = { path = "./macros", version = "0.5.0" }
->>>>>>> next
 
 [features]
 default = [ "macros", "tls" ]
