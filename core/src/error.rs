@@ -10,7 +10,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) fn new<E: Into<BoxError>>(err: E) -> Error {
+    pub fn new<E: Into<BoxError>>(err: E) -> Error {
         Error { inner: err.into() }
     }
 }

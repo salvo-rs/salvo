@@ -1,7 +1,3 @@
-use async_trait::async_trait;
-use bitflags::bitflags;
-use httpdate::{self, HttpDate};
-use mime_guess::from_path;
 use std::fs::{File, Metadata};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -10,6 +6,11 @@ use std::{cmp, io};
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
+
+use async_trait::async_trait;
+use bitflags::bitflags;
+use headers::{ETag, HeaderMapExt, IfMatch, IfModifiedSince, IfUnmodifiedSince};
+use mime_guess::from_path;
 
 use super::FileChunk;
 use crate::http::header;
@@ -250,26 +251,34 @@ impl NamedFile {
         self
     }
 
-    pub(crate) fn etag(&self) -> Option<String> {
+    pub(crate) fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
-        self.modified.as_ref().map(|mtime| {
-            let ino = {
-                #[cfg(unix)]
-                {
-                    self.metadata.ino()
-                }
-                #[cfg(not(unix))]
-                {
-                    0
-                }
-            };
-
-            let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
-            format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
-        })
+        self.etag_string().and_then(|v| v.parse::<headers::ETag>().ok())
     }
 
-    pub(crate) fn last_modified(&self) -> Option<HttpDate> {
+    pub(crate) fn etag_string(&self) -> Option<String> {
+        // This etag format is similar to Apache's.
+        self.modified
+            .as_ref()
+            .map(|mtime| {
+                let ino = {
+                    #[cfg(unix)]
+                    {
+                        self.metadata.ino()
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        0
+                    }
+                };
+
+                let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
+                format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
+            })
+    }
+
+
+    pub(crate) fn last_modified(&self) -> Option<SystemTime> {
         self.modified.map(|mtime| mtime.into())
     }
 }
@@ -285,58 +294,40 @@ impl Writer for NamedFile {
         };
 
         // check preconditions
-        let precondition_failed = if !any_match(etag.as_deref(), req) {
+        let precondition_failed = if !any_match(etag.as_ref(), req) {
             true
-        } else if let (Some(ref m), Some(since)) = (last_modified, req.get_header(header::IF_UNMODIFIED_SINCE)) {
-            let t1: SystemTime = m.clone().into();
-            if let Ok(since) = since.to_str() {
-                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or_else(|_| SystemTime::now());
-                match (t1.duration_since(UNIX_EPOCH), t2.duration_since(UNIX_EPOCH)) {
-                    (Ok(t1), Ok(t2)) => t1 > t2,
-                    _ => false,
-                }
-            } else {
-                false
-            }
+        } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfUnmodifiedSince>()) {
+            !since.precondition_passes(last_modified.clone().into())
         } else {
             false
         };
 
         // check last modified
-        let not_modified = if !none_match(etag.as_deref(), req) {
+        let not_modified = if !none_match(etag.as_ref(), req) {
             true
         } else if req.headers().contains_key(header::IF_NONE_MATCH) {
             false
-        } else if let (Some(ref m), Some(since)) = (last_modified, req.get_header(header::IF_MODIFIED_SINCE)) {
-            let t1: SystemTime = m.clone().into();
-            if let Ok(since) = since.to_str() {
-                let t2: SystemTime = httpdate::parse_http_date(since).unwrap_or_else(|_| SystemTime::now());
-                match (t1.duration_since(UNIX_EPOCH), t2.duration_since(UNIX_EPOCH)) {
-                    (Ok(t1), Ok(t2)) => t1 <= t2,
-                    _ => false,
-                }
-            } else {
-                false
-            }
+        } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfModifiedSince>()) {
+            !since.is_modified(last_modified.clone())
         } else {
             false
         };
 
-        res.set_content_disposition(&self.content_disposition);
-        res.set_content_type(&self.content_type.to_string());
+        res.set_content_disposition(&self.content_disposition).ok();
+        res.set_content_type(&self.content_type.to_string()).ok();
 
         if let Some(lm) = last_modified {
-            res.set_last_modified(lm);
+            res.set_last_modified(lm.into()).ok();
         }
-        if let Some(etag) = &etag {
-            res.set_etag(&etag);
+        if let Some(etag) = self.etag_string() {
+            res.set_etag(&etag).ok();
         }
-        res.set_accept_range("bytes");
+        res.set_accept_range("bytes").ok();
 
         let mut length = self.metadata.len();
         // default compressing
         if let Some(current_encoding) = &self.content_encoding {
-            res.set_content_encoding(current_encoding);
+            res.set_content_encoding(current_encoding).ok();
         }
         // else {
         //     res.set_content_length(length);
@@ -351,7 +342,7 @@ impl Writer for NamedFile {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
                 } else {
-                    res.set_content_range(&format!("bytes */{}", length));
+                    res.set_content_range(&format!("bytes */{}", length)).ok();
                     res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
@@ -371,7 +362,7 @@ impl Writer for NamedFile {
 
         if offset != 0 || length != self.metadata.len() {
             res.set_status_code(StatusCode::PARTIAL_CONTENT);
-            res.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len()));
+            res.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len())).ok();
             let reader = FileChunk {
                 offset,
                 chunk_size: cmp::min(length, self.metadata.len()),
@@ -379,7 +370,7 @@ impl Writer for NamedFile {
                 file: self.file,
                 buffer_size: self.buffer_size,
             };
-            res.set_content_length(reader.chunk_size);
+            res.set_content_length(reader.chunk_size).ok();
             res.streaming(reader)
         } else {
             res.set_status_code(StatusCode::OK);
@@ -390,7 +381,7 @@ impl Writer for NamedFile {
                 read_size: 0,
                 buffer_size: self.buffer_size,
             };
-            res.set_content_length(length - offset);
+            res.set_content_length(length - offset).ok();
             res.streaming(reader)
         }
     }
@@ -411,40 +402,33 @@ impl DerefMut for NamedFile {
 }
 
 /// Returns true if `req` has no `If-Match` header or one which matches `etag`.
-fn any_match(etag: Option<&str>, req: &Request) -> bool {
-    match req.get_header(header::IF_MATCH).and_then(|v| v.to_str().ok()) {
-        None | Some("any") => true,
-        _ => {
-            if let Some(some_etag) = etag {
-                for item in req.headers().get_all(header::IF_MATCH) {
-                    if let Ok(item) = item.to_str() {
-                        if item == some_etag {
-                            return true;
-                        }
-                    }
-                }
+fn any_match(etag: Option<&ETag>, req: &Request) -> bool {
+    match req.headers().typed_get::<IfMatch>() {
+        None => true,
+        Some(if_match) => {
+            if if_match == IfMatch::any() {
+                true
+            } else if let Some(etag) = etag {
+                if_match.precondition_passes(etag)
+            } else {
+                false
             }
-            false
         }
     }
 }
 
 /// Returns true if `req` doesn't have an `If-None-Match` header matching `req`.
-fn none_match(etag: Option<&str>, req: &Request) -> bool {
-    match req.get_header(header::IF_MATCH).and_then(|v| v.to_str().ok()) {
-        Some("any") => false,
+fn none_match(etag: Option<&ETag>, req: &Request) -> bool {
+    match req.headers().typed_get::<IfMatch>() {
         None => true,
-        _ => {
-            if let Some(some_etag) = etag {
-                for item in req.headers().get_all(header::IF_MATCH) {
-                    if let Ok(item) = item.to_str() {
-                        if item == some_etag {
-                            return false;
-                        }
-                    }
-                }
+        Some(if_match) => {
+            if if_match == IfMatch::any() {
+                false
+            } else if let Some(etag) = etag {
+                !if_match.precondition_passes(etag)
+            } else {
+                true
             }
-            true
         }
     }
 }
