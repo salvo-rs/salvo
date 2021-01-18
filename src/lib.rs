@@ -12,7 +12,7 @@ pub mod prelude {
     pub use crate::http::{Request, Response};
     pub use crate::routing::filter;
     pub use crate::routing::Router;
-    pub use crate::server::{Server, ServerConfig};
+    pub use crate::server::Server;
     pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;

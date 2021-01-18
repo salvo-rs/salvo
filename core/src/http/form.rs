@@ -9,7 +9,7 @@ use std::ops::Drop;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
 use textnonce::TextNonce;
-use url::form_urlencoded;
+use form_urlencoded;
 
 use crate::http::errors::ReadError;
 use crate::http::header::HeaderMap;
