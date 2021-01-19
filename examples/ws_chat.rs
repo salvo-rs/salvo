@@ -1,4 +1,3 @@
-// #![deny(warnings)]
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
