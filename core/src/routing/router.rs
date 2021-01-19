@@ -147,7 +147,7 @@ impl Router {
         }
     }
 
-    pub fn put<H: Handler, I: AsRef<str>>(self, handler: H) -> Self {
+    pub fn put<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::put()).handle(handler))
     }
     pub fn put_when<H, F>(self, func: F) -> Self
