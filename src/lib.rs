@@ -9,7 +9,7 @@ pub use salvo_extra as extra;
 
 pub mod prelude {
     pub use crate::depot::Depot;
-    pub use crate::http::{Request, Response};
+    pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::filter;
     pub use crate::routing::Router;
     pub use crate::server::Server;
