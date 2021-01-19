@@ -63,3 +63,4 @@ tracing-log = "0.1.1"
 tracing-futures = "0.2.4"
 tokio = { version = "1.0.2", features = [ "full" ] }
 tokio-stream = { version = "0.1.1", features = ["net"] }
+futures = { version = "0.3", features = [ "std" ] }
