@@ -1,100 +1,51 @@
-use salvo::Filter;
+use salvo::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    // We'll start simple, and gradually show how you combine these powers
-    // into super powers!
+    let router = Router::new()
+        .get(index)
+        .push(
+            Router::new()
+                .path("users")
+                .before(auth)
+                .post(create_user)
+                .push(Router::new().path(r"<id:/\d+/>").post(update_user).delete(delete_user)),
+        )
+        .push(
+            Router::new()
+                .path("users")
+                .get(list_users)
+                .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
+        );
 
-    // GET /
-    let hello_world = salvo::path::end().map(|| "Hello, World at root!");
+    Server::new(router).run(([127, 0, 0, 1], 7878)).await;
+}
 
-    // GET /hi
-    let hi = salvo::path("hi").map(|| "Hello, World!");
-
-    // How about multiple segments? First, we could use the `path!` macro:
-    //
-    // GET /hello/from/salvo
-    let hello_from_salvo = salvo::path!("hello" / "from" / "salvo").map(|| "Hello from salvo!");
-
-    // Fine, but how do I handle parameters in paths?
-    //
-    // GET /sum/:u32/:u32
-    let sum = salvo::path!("sum" / u32 / u32).map(|a, b| format!("{} + {} = {}", a, b, a + b));
-
-    // Any type that implements FromStr can be used, and in any order:
-    //
-    // GET /:u16/times/:u16
-    let times =
-        salvo::path!(u16 / "times" / u16).map(|a, b| format!("{} times {} = {}", a, b, a * b));
-
-    // Oh shoot, those math routes should be mounted at a different path,
-    // is that possible? Yep.
-    //
-    // GET /math/sum/:u32/:u32
-    // GET /math/:u16/times/:u16
-    let math = salvo::path("math");
-    let _sum = math.and(sum);
-    let _times = math.and(times);
-
-    // What! And? What's that do?
-    //
-    // It combines the filters in a sort of "this and then that" order. In
-    // fact, it's exactly what the `path!` macro has been doing internally.
-    //
-    // GET /bye/:string
-    let bye = salvo::path("bye")
-        .and(salvo::path::param())
-        .map(|name: String| format!("Good bye, {}!", name));
-
-    // Ah, can filters do things besides `and`?
-    //
-    // Why, yes they can! They can also `or`! As you might expect, `or` creates
-    // a "this or else that" chain of filters. If the first doesn't succeed,
-    // then it tries the other.
-    //
-    // So, those `math` routes could have been mounted all as one, with `or`.
-    //
-    // GET /math/sum/:u32/:u32
-    // GET /math/:u16/times/:u16
-    let math = salvo::path("math").and(sum.or(times));
-
-    // We can use the end() filter to match a shorter path
-    let help = salvo::path("math")
-        // Careful! Omitting the following line would make this filter match
-        // requests to /math/sum/:u32/:u32 and /math/:u16/times/:u16
-        .and(salvo::path::end())
-        .map(|| "This is the Math API. Try calling /math/sum/:u32/:u32 or /math/:u16/times/:u16");
-    let math = help.or(math);
-
-    // Let's let people know that the `sum` and `times` routes are under `math`.
-    let sum = sum.map(|output| format!("(This route has moved to /math/sum/:u16/:u16) {}", output));
-    let times =
-        times.map(|output| format!("(This route has moved to /math/:u16/times/:u16) {}", output));
-
-    // It turns out, using `or` is how you combine everything together into
-    // a single API. (We also actually haven't been enforcing that the
-    // method is GET, so we'll do that too!)
-    //
-    // GET /
-    // GET /hi
-    // GET /hello/from/salvo
-    // GET /bye/:string
-    // GET /math/sum/:u32/:u32
-    // GET /math/:u16/times/:u16
-
-    let routes = salvo::get().and(
-        hello_world
-            .or(hi)
-            .or(hello_from_salvo)
-            .or(bye)
-            .or(math)
-            .or(sum)
-            .or(times),
-    );
-
-    // Note that composing filters for many routes may increase compile times (because it uses a lot of generics).
-    // If you wish to use dynamic dispatch instead and speed up compile times while
-    // making it slightly slower at runtime, you can use Filter::boxed().
-
-    salvo::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+#[fn_handler]
+async fn index(res: &mut Response) {
+    res.render_plain_text("Hello world!");
+}
+#[fn_handler]
+async fn auth(res: &mut Response) {
+    res.render_plain_text("user has authed\n\n");
+}
+#[fn_handler]
+async fn list_users(res: &mut Response) {
+    res.render_plain_text("list users");
+}
+#[fn_handler]
+async fn show_user(res: &mut Response) {
+    res.render_plain_text("show user");
+}
+#[fn_handler]
+async fn create_user(res: &mut Response) {
+    res.render_plain_text("user created");
+}
+#[fn_handler]
+async fn update_user(res: &mut Response) {
+    res.render_plain_text("user updated");
+}
+#[fn_handler]
+async fn delete_user(res: &mut Response) {
+    res.render_plain_text("user deleted");
 }
