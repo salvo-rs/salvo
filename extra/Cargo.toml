@@ -23,6 +23,7 @@ chrono = { version = "0.4.19", features = [ "serde" ] }
 cookie = { version = "0.14.3", features = [ "percent-encode" ] }
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 headers = "0.3.2"
+http = "0.2.3"
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
 jsonwebtoken = "7.2.0"
 mime = "0.3.16"

@@ -72,4 +72,15 @@ impl Depot {
     {
         self.try_take(key).expect("required type is not present in depot container")
     }
+
+    pub fn transfer(&mut self) -> Depot
+    {
+        let mut data = HashMap::with_capacity(self.data.len());
+        for (k, v) in self.data.drain() {
+            data.insert(k, v);
+        }
+        Depot {
+            data,
+        }
+    }
 }

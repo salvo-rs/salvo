@@ -38,7 +38,7 @@ async fn main() {
     Server::new(router).run(([127, 0, 0, 1], 3131)).await;
 }
 
-fn user_connected(_req: &mut Request, _depot: &mut Depot, ws: WebSocket) {
+fn user_connected(_req: Request, _depot: Depot, ws: WebSocket) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 

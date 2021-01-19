@@ -166,27 +166,27 @@ impl Response {
     #[inline]
     pub fn render_json<'a, T: Serialize>(&mut self, data: &'a T) {
         if let Ok(data) = serde_json::to_string(data) {
-            self.render("application/json", data.as_bytes());
+            self.render("application/json; charset=utf-8", data.as_bytes());
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
-            self.render("application/json", serde_json::to_string(&emsg).unwrap().as_bytes());
+            self.render("application/json; charset=utf-8", serde_json::to_string(&emsg).unwrap().as_bytes());
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
-        self.render("application/json", data.as_bytes());
+        self.render("application/json; charset=utf-8", data.as_bytes());
     }
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
-        self.render("text/html", data.as_bytes());
+        self.render("text/html; charset=utf-8", data.as_bytes());
     }
     #[inline]
     pub fn render_plain_text(&mut self, data: &str) {
-        self.render("text/plain", data.as_bytes());
+        self.render("text/plain; charset=utf-8", data.as_bytes());
     }
     #[inline]
     pub fn render_xml_text(&mut self, data: &str) {
-        self.render("text/xml", data.as_bytes());
+        self.render("text/xml; charset=utf-8", data.as_bytes());
     }
     // RenderBinary is like RenderFile() except that it instead of a file on disk,
     // it renders store from memory (which could be a file that has not been written,

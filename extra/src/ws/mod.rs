@@ -70,10 +70,18 @@ impl<F> WsHandler<F> {
 #[async_trait]
 impl<F> Handler for WsHandler<F>
 where
-    F: FnOnce(&mut Request, &mut Depot, WebSocket) + Copy + Send + Sync + 'static,
+    F: FnOnce(Request, Depot, WebSocket) + Copy + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+        let new_req = Request::from_hyper({
+            let mut builder = hyper::Request::builder().method(req.method()).uri(req.uri()).version(req.version());
+            for (key, value) in req.headers() {
+                builder = builder.header(key, value);
+            }
+            builder.body(hyper::Body::empty()).unwrap()
+        }).unwrap();
         let req_headers = req.headers();
+        let new_depot = depot.transfer();
         let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
@@ -129,20 +137,24 @@ where
         };
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config.clone();
-            let socket = on_upgrade
-                .and_then(move |upgraded| {
-                    tracing::trace!("websocket upgrade complete");
-                    WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
-                })
-                .await;
-            match socket {
-                Ok(socket) => {
-                    (self.callback)(req, depot, socket);
-                }
-                Err(e) => {
-                    tracing::debug!("ws upgrade error: {}", e);
-                }
+            let callback = self.callback;
+            let fut = async move {
+                let ws = on_upgrade
+                    .and_then(move |upgraded| {
+                        tracing::debug!("websocket upgrade complete");
+                        WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
+                    })
+                    .await;
+                match ws {
+                    Ok(ws) => {
+                        (callback)(new_req, new_depot, ws);
+                    }
+                    Err(e) => {
+                        tracing::debug!("ws upgrade error: {}", e);
+                    }
+                };
             };
+            tokio::task::spawn(fut);
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
         }
