@@ -10,7 +10,8 @@ use futures::{future, ready, FutureExt, Sink, Stream, TryFutureExt};
 use headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::errors::HttpError;
-use salvo_core::http::{header, StatusCode};
+use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
+use salvo_core::http::StatusCode;
 use salvo_core::{Depot, Error, Handler, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
@@ -73,8 +74,9 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let req_headers = req.headers();
-        if let Some("upgrade") = req_headers.get(header::CONNECTION).and_then(|v| v.to_str().ok()) {
-        } else {
+        let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
+        if !matched {
+            tracing::debug!("missing connection upgrade");
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
@@ -83,8 +85,13 @@ where
             });
             return;
         }
-        if let Some("websocket") = req_headers.get(header::UPGRADE).and_then(|v| v.to_str().ok()) {
-        } else {
+        let matched = req_headers
+            .get(UPGRADE)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.to_lowercase() == "websocket")
+            .unwrap_or(false);
+        if !matched {
+            tracing::debug!("missing upgrade header or it is not equal websocket");
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
@@ -93,8 +100,13 @@ where
             });
             return;
         }
-        if let Some("13") = req_headers.get(header::SEC_WEBSOCKET_VERSION).and_then(|v| v.to_str().ok()) {
-        } else {
+        let matched = !req_headers
+            .get(SEC_WEBSOCKET_VERSION)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v == "13")
+            .unwrap_or(false);
+        if matched {
+            tracing::debug!("websocket version is not equal 13");
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
@@ -106,6 +118,7 @@ where
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
+            tracing::debug!("sec_websocket_key is not exist in request headers");
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
