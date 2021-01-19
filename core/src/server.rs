@@ -44,7 +44,7 @@ impl Server {
     }
 
     #[inline]
-    fn create_incoming_hyper_server<S>(self, incoming: S) -> Result<hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Self>, hyper::Error>
+    fn create_bind_incoming_hyper_server<S>(self, incoming: S) -> Result<hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Self>, hyper::Error>
     where
         S: TryStream + Send,
         S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
@@ -141,26 +141,26 @@ impl Server {
     /// # Panics
     ///
     /// Panics if we are unable to bind to the provided address.
-    pub async fn incoming<I>(self, incoming: I)
+    pub async fn bind_incoming<I>(self, incoming: I)
     where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        self.try_incoming(incoming).await.unwrap();
+        self.try_bind_incoming(incoming).await.unwrap();
     }
 
     /// Run this `Server` forever on the current thread with a specific stream
     /// of incoming connections.
     ///
     /// This can be used for Unix Domain Sockets, or TLS, etc.
-    pub async fn try_incoming<I>(self, incoming: I) -> Result<(), hyper::Error>
+    pub async fn try_bind_incoming<I>(self, incoming: I) -> Result<(), hyper::Error>
     where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        let srv = self.create_incoming_hyper_server(incoming)?;
+        let srv = self.create_bind_incoming_hyper_server(incoming)?;
         tracing::info!("listening with custom incoming");
         if let Err(err) = srv.await {
             tracing::error!("server error: {}", err);
@@ -170,13 +170,13 @@ impl Server {
         }
     }
 
-    pub async fn incoming_with_graceful_shutdown<I>(self, incoming: I, signal: impl Future<Output = ()> + Send + 'static)
+    pub async fn bind_incoming_with_graceful_shutdown<I>(self, incoming: I, signal: impl Future<Output = ()> + Send + 'static)
     where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        self.try_incoming_with_graceful_shutdown(incoming, signal).await.unwrap();
+        self.try_bind_incoming_with_graceful_shutdown(incoming, signal).await.unwrap();
     }
     /// Setup this `Server` with a specific stream of incoming connections and a
     /// signal to initiate graceful shutdown.
@@ -187,7 +187,7 @@ impl Server {
     /// process.
     ///
     /// Returns a `Future` that can be executed on any runtime.
-    pub async fn try_incoming_with_graceful_shutdown<I>(
+    pub async fn try_bind_incoming_with_graceful_shutdown<I>(
         self,
         incoming: I,
         signal: impl Future<Output = ()> + Send + 'static,
@@ -197,7 +197,7 @@ impl Server {
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        let srv = self.create_incoming_hyper_server(incoming)?;
+        let srv = self.create_bind_incoming_hyper_server(incoming)?;
         tracing::info!("listening with custom incoming");
         if let Err(err) = srv.with_graceful_shutdown(signal).await {
             tracing::error!("server error: {}", err);
