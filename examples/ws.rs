@@ -4,9 +4,9 @@ use tokio;
 use salvo::prelude::*;
 use salvo_extra::ws::{WebSocket, WsHandler};
 
-fn callback(_req: &mut Request, _depot: &mut Depot, socket: WebSocket) {
+fn callback(_req: &mut Request, _depot: &mut Depot, ws: WebSocket) {
     // Just echo all messages back...
-    let (tx, rx) = socket.split();
+    let (tx, rx) = ws.split();
     let fut = rx.forward(tx).map(|result| {
         if let Err(e) = result {
             eprintln!("websocket error: {:?}", e);

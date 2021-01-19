@@ -6,10 +6,12 @@ use std::sync::{
 };
 
 use futures::{FutureExt, StreamExt};
+use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use salvo::ws::{Message, WebSocket};
-use salvo::Filter;
+
+use salvo::prelude::*;
+use salvo_extra::ws::{Message, WebSocket, WsHandler};
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -20,35 +22,19 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 /// - Value is a sender of `salvo::ws::Message`
 type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>>;
 
+// Keep track of all connected users, key is usize, value
+// is a websocket sender.
+static GLOBAL_USERS: Lazy<Users> = Lazy::new(|| Users::default());
+
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
-
-    // Keep track of all connected users, key is usize, value
-    // is a websocket sender.
-    let users = Users::default();
-    // Turn our "state" into a new Filter...
-    let users = salvo::any().map(move || users.clone());
-
-    // GET /chat -> websocket upgrade
-    let chat = salvo::path("chat")
-        // The `ws()` filter will prepare Websocket handshake...
-        .and(salvo::ws())
-        .and(users)
-        .map(|ws: salvo::ws::Ws, users| {
-            // This will call our function if the handshake succeeds.
-            ws.on_upgrade(move |socket| user_connected(socket, users))
-        });
-
-    // GET / -> index html
-    let index = salvo::path::end().map(|| salvo::reply::html(INDEX_HTML));
-
-    let routes = index.or(chat);
-
-    salvo::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    let router = Router::new()
+        .handle(index)
+        .push(Router::new().path("chat").handle(WsHandler::new(user_connected)));
+    Server::new(router).run(([127, 0, 0, 1], 3131)).await;
 }
 
-async fn user_connected(ws: WebSocket, users: Users) {
+fn user_connected(_req: &mut Request, _depot: &mut Depot, ws: WebSocket) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
@@ -61,40 +47,36 @@ async fn user_connected(ws: WebSocket, users: Users) {
     // to the websocket...
     let (tx, rx) = mpsc::unbounded_channel();
     let rx = UnboundedReceiverStream::new(rx);
-    tokio::task::spawn(rx.forward(user_ws_tx).map(|result| {
+    let fut = rx.forward(user_ws_tx).map(|result| {
         if let Err(e) = result {
             eprintln!("websocket send error: {}", e);
         }
-    }));
+    });
+    tokio::task::spawn(fut);
+    let fut = async move {
+        // Save the sender in our list of connected users.
+        GLOBAL_USERS.write().await.insert(my_id, tx);
 
-    // Save the sender in our list of connected users.
-    users.write().await.insert(my_id, tx);
+        // Every time the user sends a message, broadcast it to
+        // all other users...
+        while let Some(result) = user_ws_rx.next().await {
+            let msg = match result {
+                Ok(msg) => msg,
+                Err(e) => {
+                    eprintln!("websocket error(uid={}): {}", my_id, e);
+                    break;
+                }
+            };
+            user_message(my_id, msg).await;
+        }
 
-    // Return a `Future` that is basically a state machine managing
-    // this specific user's connection.
-
-    // Make an extra clone to give to our disconnection handler...
-    let users2 = users.clone();
-
-    // Every time the user sends a message, broadcast it to
-    // all other users...
-    while let Some(result) = user_ws_rx.next().await {
-        let msg = match result {
-            Ok(msg) => msg,
-            Err(e) => {
-                eprintln!("websocket error(uid={}): {}", my_id, e);
-                break;
-            }
-        };
-        user_message(my_id, msg, &users).await;
-    }
-
-    // user_ws_rx stream will keep processing as long as the user stays
-    // connected. Once they disconnect, then...
-    user_disconnected(my_id, &users2).await;
+        // user_ws_rx stream will keep processing as long as the user stays
+        // connected. Once they disconnect, then...
+        user_disconnected(my_id).await;
+    };
+    tokio::task::spawn(fut);
 }
-
-async fn user_message(my_id: usize, msg: Message, users: &Users) {
+async fn user_message(my_id: usize, msg: Message) {
     // Skip any non-Text messages...
     let msg = if let Ok(s) = msg.to_str() {
         s
@@ -105,7 +87,7 @@ async fn user_message(my_id: usize, msg: Message, users: &Users) {
     let new_msg = format!("<User#{}>: {}", my_id, msg);
 
     // New message from this user, send it to everyone else (except same uid)...
-    for (&uid, tx) in users.read().await.iter() {
+    for (&uid, tx) in GLOBAL_USERS.read().await.iter() {
         if my_id != uid {
             if let Err(_disconnected) = tx.send(Ok(Message::text(new_msg.clone()))) {
                 // The tx is disconnected, our `user_disconnected` code
@@ -116,15 +98,19 @@ async fn user_message(my_id: usize, msg: Message, users: &Users) {
     }
 }
 
-async fn user_disconnected(my_id: usize, users: &Users) {
+async fn user_disconnected(my_id: usize) {
     eprintln!("good bye user: {}", my_id);
-
     // Stream closed up, so remove from the user list
-    users.write().await.remove(&my_id);
+    GLOBAL_USERS.write().await.remove(&my_id);
+}
+
+#[fn_handler]
+async fn index(res: &mut Response) {
+    res.render_html_text(INDEX_HTML);
 }
 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>
-<html lang="en">
+<html>
     <head>
         <title>Warp Chat</title>
     </head>
