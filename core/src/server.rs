@@ -1,77 +1,25 @@
 use std::error::Error as StdError;
 use std::future::Future;
 use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::Arc;
 #[cfg(feature = "tls")]
 use std::path::Path;
+use std::pin::Pin;
+use std::sync::Arc;
 
-use futures::{future, FutureExt, TryStream, TryStreamExt};
+use futures::{future, TryStream, TryStreamExt};
+use hyper::server::accept::{self, Accept};
 use hyper::server::conn::AddrIncoming;
 use hyper::Server as HyperServer;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing;
-use tracing_futures::Instrument;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
 use crate::routing::{PathState, Router};
-use crate::{Catcher, Depot};
 #[cfg(feature = "tls")]
-use crate::tls::TlsConfigBuilder;
-
-// modified from https://github.com/kenorld/salvo/blob/master/src/server.rs
-macro_rules! addr_incoming {
-    ($addr:expr) => {{
-        let mut incoming = AddrIncoming::bind($addr)?;
-        incoming.set_nodelay(true);
-        let addr = incoming.local_addr();
-        (addr, incoming)
-    }};
-}
-
-macro_rules! bind_inner {
-    ($this:ident, $addr:expr) => {{
-        let (addr, incoming) = addr_incoming!($addr);
-        let srv = HyperServer::builder(incoming).serve($this);
-        Ok::<_, hyper::Error>((addr, srv))
-    }};
-
-    (tls: $this:ident, $addr:expr) => {{
-        let (addr, incoming) = addr_incoming!($addr);
-        let TlsServer{server, builder} = $this;
-        let tls = builder.build()?;
-        let srv = HyperServer::builder(crate::tls::TlsAcceptor::new(tls, incoming)).serve(server);
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((addr, srv))
-    }};
-}
-
-macro_rules! bind {
-    ($this:ident, $addr:expr) => {{
-        let addr = $addr.into();
-        (|addr| bind_inner!($this, addr))(&addr).unwrap_or_else(|e| {
-            panic!("error binding to {}: {}", addr, e);
-        })
-    }};
-
-    (tls: $this:ident, $addr:expr) => {{
-        let addr = $addr.into();
-        (|addr| bind_inner!(tls: $this, addr))(&addr).unwrap_or_else(|e| {
-            panic!("error binding to {}: {}", addr, e);
-        })
-    }};
-}
-
-macro_rules! try_bind {
-    ($this:ident, $addr:expr) => {{
-        (|addr| bind_inner!($this, addr))($addr)
-    }};
-
-    (tls: $this:ident, $addr:expr) => {{
-        (|addr| bind_inner!(tls: $this, addr))($addr)
-    }};
-}
+use crate::tls::{TlsAcceptor, TlsConfigBuilder};
+use crate::{Catcher, Depot};
 
 pub struct Server {
     pub router: Arc<Router>,
@@ -87,32 +35,23 @@ impl Server {
             allowed_media_types: Arc::new(vec![]),
         }
     }
-
-    /// Run this `Server` forever on the current thread.
-    pub async fn run(self, addr: impl Into<SocketAddr>) {
-        let (addr, fut) = self.bind_ephemeral(addr);
-        let span = tracing::info_span!("Server::run", ?addr);
-        tracing::info!(parent: &span, "listening on http://{}", addr);
-
-        fut.instrument(span).await;
+    fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<AddrIncoming, Self>), hyper::Error> {
+        let addr = addr.into();
+        let mut incoming = AddrIncoming::bind(&addr)?;
+        incoming.set_nodelay(true);
+        let srv = HyperServer::builder(incoming).serve(self);
+        Ok((addr, srv))
     }
 
-    /// Run this `Server` forever on the current thread with a specific stream
-    /// of incoming connections.
-    ///
-    /// This can be used for Unix Domain Sockets, or TLS, etc.
-    pub async fn run_incoming<I>(self, incoming: I)
+    #[inline]
+    fn create_incoming_hyper_server<S>(self, incoming: S) -> Result<hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Self>, hyper::Error>
     where
-        I: TryStream + Send,
-        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
-        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+        S: TryStream + Send,
+        S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        let srv = HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream())).serve(self);
-
-        tracing::info!("listening with custom incoming");
-        if let Err(err) = srv.await {
-            tracing::error!("server error: {}", err);
-        }
+        let srv = HyperServer::builder(accept::from_stream(incoming.into_stream())).serve(self);
+        Ok(srv)
     }
 
     /// Bind to a socket address, returning a `Future` that can be
@@ -121,9 +60,8 @@ impl Server {
     /// # Panics
     ///
     /// Panics if we are unable to bind to the provided address.
-    pub fn bind(self, addr: impl Into<SocketAddr> + 'static) -> impl Future<Output = ()> + 'static {
-        let (_, fut) = self.bind_ephemeral(addr);
-        fut
+    pub async fn bind(self, addr: impl Into<SocketAddr> + 'static) {
+        self.try_bind(addr).await.unwrap();
     }
 
     /// Bind to a socket address, returning a `Future` that can be
@@ -131,60 +69,15 @@ impl Server {
     ///
     /// In case we are unable to bind to the specified address, resolves to an
     /// error and logs the reason.
-    pub async fn try_bind(self, addr: impl Into<SocketAddr>) {
-        let addr = addr.into();
-        let srv = match try_bind!(self, &addr) {
-            Ok((_, srv)) => srv,
-            Err(err) => {
-                tracing::error!("error binding to {}: {}", addr, err);
-                return;
-            }
-        };
-
-        srv.map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        })
-        .await;
-    }
-
-    /// Bind to a possibly ephemeral socket address.
-    ///
-    /// Returns the bound address and a `Future` that can be executed on
-    /// any runtime.
-    ///
-    /// # Panics
-    ///
-    /// Panics if we are unable to bind to the provided address.
-    pub fn bind_ephemeral(self, addr: impl Into<SocketAddr>) -> (SocketAddr, impl Future<Output = ()> + 'static) {
-        let (addr, srv) = bind!(self, addr);
-        let srv = srv.map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-
-        (addr, srv)
-    }
-
-    /// Tried to bind a possibly ephemeral socket address.
-    ///
-    /// Returns a `Result` which fails in case we are unable to bind with the
-    /// underlying error.
-    ///
-    /// Returns the bound address and a `Future` that can be executed on
-    /// any runtime.
-    pub fn try_bind_ephemeral(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, impl Future<Output = ()> + 'static), crate::Error> {
-        let addr = addr.into();
-        let (addr, srv) = try_bind!(self, &addr).map_err(crate::Error::new)?;
-        let srv = srv.map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-
-        Ok((addr, srv))
+    pub async fn try_bind(self, addr: impl Into<SocketAddr>) -> Result<SocketAddr, hyper::Error> {
+        let (addr, srv) = self.create_bind_hyper_server(addr)?;
+        tracing::info!("listening with socket addr: {}", addr);
+        if let Err(err) = srv.await {
+            tracing::error!("server error: {}", err);
+            Err(err)
+        } else {
+            Ok(addr)
+        }
     }
 
     /// Create a server with graceful shutdown signal.
@@ -201,7 +94,7 @@ impl Server {
     /// use salvo::Filter;
     /// use futures::future::TryFutureExt;
     /// use tokio::sync::oneshot;
-    /// 
+    ///
     /// #[fn_handler]
     /// async fn hello_world1(res: &mut Response) {
     ///     res.render_plain_text("Hello World!");
@@ -220,54 +113,71 @@ impl Server {
     ///     let _ = tx.send(());
     /// # }
     /// ```
-    pub fn bind_with_graceful_shutdown(
-        self,
-        addr: impl Into<SocketAddr> + 'static,
-        signal: impl Future<Output = ()> + Send + 'static,
-    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
-        let (addr, srv) = bind!(self, addr);
-        let fut = srv.with_graceful_shutdown(signal).map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-        (addr, fut)
+    pub async fn bind_with_graceful_shutdown(self, addr: impl Into<SocketAddr> + 'static, signal: impl Future<Output = ()> + Send + 'static) {
+        self.try_bind_with_graceful_shutdown(addr, signal).await.unwrap();
     }
 
     /// Create a server with graceful shutdown signal.
     ///
     /// When the signal completes, the server will start the graceful shutdown
     /// process.
-    pub fn try_bind_with_graceful_shutdown(
+    pub async fn try_bind_with_graceful_shutdown(
         self,
         addr: impl Into<SocketAddr> + 'static,
         signal: impl Future<Output = ()> + Send + 'static,
-    ) -> Result<(SocketAddr, impl Future<Output = ()> + 'static), crate::Error> {
-        let addr = addr.into();
-        let (addr, srv) = try_bind!(self, &addr).map_err(crate::Error::new)?;
-        let srv = srv.with_graceful_shutdown(signal).map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-
-        Ok((addr, srv))
+    ) -> Result<SocketAddr, hyper::Error> {
+        let (addr, srv) = self.create_bind_hyper_server(addr)?;
+        if let Err(err) = srv.with_graceful_shutdown(signal).await {
+            tracing::error!("server error: {}", err);
+            Err(err)
+        } else {
+            Ok(addr)
+        }
     }
 
-    /// Setup this `Server` with a specific stream of incoming connections.
+    /// Bind to a stream, returning a `Future` that can be
+    /// executed on any runtime.
     ///
-    /// This can be used for Unix Domain Sockets, or TLS, etc.
+    /// # Panics
     ///
-    /// Returns a `Future` that can be executed on any runtime.
-    pub fn serve_incoming<I>(self, incoming: I) -> impl Future<Output = Result<(), hyper::Error>> + Send
+    /// Panics if we are unable to bind to the provided address.
+    pub async fn incoming<I>(self, incoming: I)
     where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream())).serve(self)
+        self.try_incoming(incoming).await.unwrap();
     }
 
+    /// Run this `Server` forever on the current thread with a specific stream
+    /// of incoming connections.
+    ///
+    /// This can be used for Unix Domain Sockets, or TLS, etc.
+    pub async fn try_incoming<I>(self, incoming: I) -> Result<(), hyper::Error>
+    where
+        I: TryStream + Send,
+        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        let srv = self.create_incoming_hyper_server(incoming)?;
+        tracing::info!("listening with custom incoming");
+        if let Err(err) = srv.await {
+            tracing::error!("server error: {}", err);
+            Err(err)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub async fn incoming_with_graceful_shutdown<I>(self, incoming: I, signal: impl Future<Output = ()> + Send + 'static)
+    where
+        I: TryStream + Send,
+        I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
+        I::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
+        self.try_incoming_with_graceful_shutdown(incoming, signal).await.unwrap();
+    }
     /// Setup this `Server` with a specific stream of incoming connections and a
     /// signal to initiate graceful shutdown.
     ///
@@ -277,19 +187,24 @@ impl Server {
     /// process.
     ///
     /// Returns a `Future` that can be executed on any runtime.
-    pub fn serve_incoming_with_graceful_shutdown<I>(
+    pub async fn try_incoming_with_graceful_shutdown<I>(
         self,
         incoming: I,
         signal: impl Future<Output = ()> + Send + 'static,
-    ) -> impl Future<Output = Result<(), hyper::Error>> + Send
+    ) -> Result<(), hyper::Error>
     where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        HyperServer::builder(hyper::server::accept::from_stream(incoming.into_stream()))
-            .serve(self)
-            .with_graceful_shutdown(signal)
+        let srv = self.create_incoming_hyper_server(incoming)?;
+        tracing::info!("listening with custom incoming");
+        if let Err(err) = srv.with_graceful_shutdown(signal).await {
+            tracing::error!("server error: {}", err);
+            Err(err)
+        } else {
+            Ok(())
+        }
     }
 
     /// Configure a server to use TLS.
@@ -321,6 +236,156 @@ impl<T> hyper::service::Service<T> for Server {
         })
     }
 }
+
+#[cfg(feature = "tls")]
+pub struct TlsServer {
+    server: Server,
+    builder: TlsConfigBuilder,
+}
+#[cfg(feature = "tls")]
+impl TlsServer {
+    // TLS config methods
+
+    /// Specify the file path to read the private key.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn key_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.key_path(path))
+    }
+
+    /// Specify the file path to read the certificate.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn cert_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.cert_path(path))
+    }
+
+    /// Specify the file path to read the trust anchor for optional client authentication.
+    ///
+    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
+    /// of the `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_optional_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.client_auth_optional_path(path))
+    }
+
+    /// Specify the file path to read the trust anchor for required client authentication.
+    ///
+    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
+    /// `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_required_path(self, path: impl AsRef<Path>) -> Self {
+        self.with_tls(|tls| tls.client_auth_required_path(path))
+    }
+
+    /// Specify the in-memory contents of the private key.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn key(self, key: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.key(key.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the certificate.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn cert(self, cert: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.cert(cert.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the trust anchor for optional client authentication.
+    ///
+    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
+    /// of the `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_optional(self, trust_anchor: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.client_auth_optional(trust_anchor.as_ref()))
+    }
+
+    /// Specify the in-memory contents of the trust anchor for required client authentication.
+    ///
+    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
+    /// `client_auth_` methods, then client authentication is disabled by default.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn client_auth_required(self, trust_anchor: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.client_auth_required(trust_anchor.as_ref()))
+    }
+
+    /// Specify the DER-encoded OCSP response.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub fn ocsp_resp(self, resp: impl AsRef<[u8]>) -> Self {
+        self.with_tls(|tls| tls.ocsp_resp(resp.as_ref()))
+    }
+
+    fn with_tls<Func>(self, func: Func) -> Self
+    where
+        Func: FnOnce(TlsConfigBuilder) -> TlsConfigBuilder,
+    {
+        let TlsServer { server, builder } = self;
+        let builder = func(builder);
+        TlsServer { server, builder }
+    }
+
+    #[inline]
+    fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<TlsAcceptor, Server>), crate::Error> {
+        let addr = addr.into();
+        let TlsServer { server, builder } = self;
+        let tls = builder.build().map_err(|e| crate::Error::new(e))?;
+        let mut incoming = AddrIncoming::bind(&addr).map_err(|e| crate::Error::new(e))?;
+        incoming.set_nodelay(true);
+        let srv = HyperServer::builder(TlsAcceptor::new(tls, incoming)).serve(server);
+        Ok((addr, srv))
+    }
+    /// Bind to a socket address, returning a `Future` that can be
+    /// executed on a runtime.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub async fn bind(self, addr: impl Into<SocketAddr> + 'static) {
+        self.try_bind(addr).await.unwrap();
+    }
+    /// Bind to a socket address, returning a `Future` that can be
+    /// executed on any runtime.
+    ///
+    /// In case we are unable to bind to the specified address, resolves to an
+    /// error and logs the reason.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub async fn try_bind(self, addr: impl Into<SocketAddr>) -> Result<SocketAddr, crate::Error> {
+        let (addr, srv) = self.create_bind_hyper_server(addr)?;
+        tracing::info!("tls listening with socket addr");
+        if let Err(err) = srv.await {
+            tracing::error!("server error: {}", err);
+            Err(crate::Error::new(err))
+        } else {
+            Ok(addr)
+        }
+    }
+    /// Create a server with graceful shutdown signal.
+    ///
+    /// When the signal completes, the server will start the graceful shutdown
+    /// process.
+    ///
+    /// *This function requires the `"tls"` feature.*
+    pub async fn try_bind_with_graceful_shutdown(
+        self,
+        addr: impl Into<SocketAddr> + 'static,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) -> Result<SocketAddr, crate::Error> {
+        let (addr, srv) = self.create_bind_hyper_server(addr)?;
+        tracing::info!("tls listening with socket addr");
+        if let Err(err) = srv.with_graceful_shutdown(signal).await {
+            tracing::error!("server error: {}", err);
+            Err(crate::Error::new(err))
+        } else {
+            Ok(addr)
+        }
+    }
+}
+
 pub struct HyperHandler {
     router: Arc<Router>,
     catchers: Arc<Vec<Box<dyn Catcher>>>,
@@ -418,160 +483,5 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             Ok(hyper_response)
         };
         Box::pin(fut)
-    }
-}
-
-#[cfg(feature = "tls")]
-pub struct TlsServer {
-    server: Server,
-    builder: TlsConfigBuilder,
-}
-#[cfg(feature = "tls")]
-impl TlsServer
-{
-    // TLS config methods
-
-    /// Specify the file path to read the private key.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn key_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.key_path(path))
-    }
-
-    /// Specify the file path to read the certificate.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn cert_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.cert_path(path))
-    }
-
-    /// Specify the file path to read the trust anchor for optional client authentication.
-    ///
-    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
-    /// of the `client_auth_` methods, then client authentication is disabled by default.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn client_auth_optional_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.client_auth_optional_path(path))
-    }
-
-    /// Specify the file path to read the trust anchor for required client authentication.
-    ///
-    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
-    /// `client_auth_` methods, then client authentication is disabled by default.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn client_auth_required_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.client_auth_required_path(path))
-    }
-
-    /// Specify the in-memory contents of the private key.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn key(self, key: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.key(key.as_ref()))
-    }
-
-    /// Specify the in-memory contents of the certificate.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn cert(self, cert: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.cert(cert.as_ref()))
-    }
-
-    /// Specify the in-memory contents of the trust anchor for optional client authentication.
-    ///
-    /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
-    /// of the `client_auth_` methods, then client authentication is disabled by default.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn client_auth_optional(self, trust_anchor: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.client_auth_optional(trust_anchor.as_ref()))
-    }
-
-    /// Specify the in-memory contents of the trust anchor for required client authentication.
-    ///
-    /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
-    /// `client_auth_` methods, then client authentication is disabled by default.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn client_auth_required(self, trust_anchor: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.client_auth_required(trust_anchor.as_ref()))
-    }
-
-    /// Specify the DER-encoded OCSP response.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn ocsp_resp(self, resp: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.ocsp_resp(resp.as_ref()))
-    }
-
-    fn with_tls<Func>(self, func: Func) -> Self
-    where
-        Func: FnOnce(TlsConfigBuilder) -> TlsConfigBuilder,
-    {
-        let TlsServer { server, builder } = self;
-        let builder = func(builder);
-        TlsServer { server, builder }
-    }
-
-    // Server run methods
-
-    /// Run this `TlsServer` forever on the current thread.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub async fn run(self, addr: impl Into<SocketAddr>) {
-        let (addr, fut) = self.bind_ephemeral(addr);
-        let span = tracing::info_span!("TlsServer::run", %addr);
-        tracing::info!(parent: &span, "listening on https://{}", addr);
-
-        fut.instrument(span).await;
-    }
-
-    /// Bind to a socket address, returning a `Future` that can be
-    /// executed on a runtime.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub async fn bind(self, addr: impl Into<SocketAddr>) {
-        let (_, fut) = self.bind_ephemeral(addr);
-        fut.await;
-    }
-
-    /// Bind to a possibly ephemeral socket address.
-    ///
-    /// Returns the bound address and a `Future` that can be executed on
-    /// any runtime.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn bind_ephemeral(self, addr: impl Into<SocketAddr>) -> (SocketAddr, impl Future<Output = ()> + 'static) {
-        let (addr, srv) = bind!(tls: self, addr);
-        let srv = srv.map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-
-        (addr, srv)
-    }
-
-    /// Create a server with graceful shutdown signal.
-    ///
-    /// When the signal completes, the server will start the graceful shutdown
-    /// process.
-    ///
-    /// *This function requires the `"tls"` feature.*
-    pub fn bind_with_graceful_shutdown(
-        self,
-        addr: impl Into<SocketAddr> + 'static,
-        signal: impl Future<Output = ()> + Send + 'static,
-    ) -> (SocketAddr, impl Future<Output = ()> + 'static) {
-        let (addr, srv) = bind!(tls: self, addr);
-
-        let fut = srv.with_graceful_shutdown(signal).map(|result| {
-            if let Err(err) = result {
-                tracing::error!("server error: {}", err)
-            }
-        });
-        (addr, fut)
     }
 }
