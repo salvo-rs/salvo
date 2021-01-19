@@ -14,6 +14,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let auth_handler = BasicAuthHandler::new(baconfig);
 
     let router = Router::new().before(auth_handler).get(Static::from("./static/root1"));
-    Server::new(router).run(([127, 0, 0, 1], 7879)).await;
+    Server::new(router).bind(([127, 0, 0, 1], 7879)).await;
     Ok(())
 }

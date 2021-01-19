@@ -35,7 +35,7 @@ async fn main() {
     let router = Router::new()
         .handle(index)
         .push(Router::new().path("chat").handle(WsHandler::new(user_connected)));
-    Server::new(router).run(([127, 0, 0, 1], 3131)).await;
+    Server::new(router).bind(([127, 0, 0, 1], 3131)).await;
 }
 
 fn user_connected(_req: Request, _depot: Depot, ws: WebSocket) {

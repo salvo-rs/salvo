@@ -18,5 +18,5 @@ fn callback(_req: Request, _depot: Depot, ws: WebSocket) {
 #[tokio::main]
 async fn main() {
     let router = Router::new().handle(WsHandler::new(callback));
-    Server::new(router).run(([127, 0, 0, 1], 7878)).await;
+    Server::new(router).bind(([127, 0, 0, 1], 7878)).await;
 }
