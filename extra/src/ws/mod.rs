@@ -2,17 +2,16 @@
 
 use std::borrow::Cow;
 use std::fmt;
-use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 use futures::{future, ready, FutureExt, Sink, Stream, TryFutureExt};
-use headers::{Connection, HeaderMapExt, SecWebsocketKey, SecWebsocketAccept,  Upgrade};
+use headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::errors::HttpError;
 use salvo_core::http::{header, StatusCode};
-use salvo_core::{Depot, Handler, Error, Request, Response};
+use salvo_core::{Depot, Error, Handler, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
     WebSocketStream,
@@ -40,8 +39,11 @@ impl<F> WsHandler<F> {
     pub fn new(callback: F) -> Self {
         WsHandler { callback, config: None }
     }
-    pub fn with_config(callback:F, config: WebSocketConfig) -> Self {
-        WsHandler { callback, config: Some(config) }
+    pub fn with_config(callback: F, config: WebSocketConfig) -> Self {
+        WsHandler {
+            callback,
+            config: Some(config),
+        }
     }
 
     // config
@@ -65,15 +67,13 @@ impl<F> WsHandler<F> {
 }
 
 #[async_trait]
-impl<F, U, S> Handler for WsHandler<F>
+impl<F> Handler for WsHandler<F>
 where
-    F: FnOnce(&mut Request, &mut Depot) -> U + Copy + Send + Sync + 'static,
-    U: FnOnce(WebSocket) -> S + Send + Sync + 'static,
-    S: Future<Output = ()> + Send + Sync + 'static,
+    F: FnOnce(&mut Request, &mut Depot, WebSocket) + Copy + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let req_headers = req.headers();
-        if let Some("upgrade") = req_headers.get(header::CONNECTION).and_then(|v|v.to_str().ok()) {
+        if let Some("upgrade") = req_headers.get(header::CONNECTION).and_then(|v| v.to_str().ok()) {
         } else {
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
@@ -83,7 +83,7 @@ where
             });
             return;
         }
-        if let Some("websocket") = req_headers.get(header::UPGRADE).and_then(|v|v.to_str().ok()) {
+        if let Some("websocket") = req_headers.get(header::UPGRADE).and_then(|v| v.to_str().ok()) {
         } else {
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
@@ -93,7 +93,7 @@ where
             });
             return;
         }
-        if let Some("13") = req_headers.get(header::SEC_WEBSOCKET_VERSION).and_then(|v|v.to_str().ok()) {
+        if let Some("13") = req_headers.get(header::SEC_WEBSOCKET_VERSION).and_then(|v| v.to_str().ok()) {
         } else {
             res.set_http_error(HttpError {
                 code: StatusCode::BAD_REQUEST,
@@ -115,20 +115,21 @@ where
             return;
         };
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
-            let handle = (self.callback)(req, depot);
             let config = self.config.clone();
-            let fut = on_upgrade
+            let socket = on_upgrade
                 .and_then(move |upgraded| {
                     tracing::trace!("websocket upgrade complete");
                     WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                 })
-                .and_then(move |socket| handle(socket).map(Ok))
-                .map(|result| {
-                    if let Err(err) = result {
-                        tracing::debug!("ws upgrade error: {}", err);
-                    }
-                });
-            ::tokio::task::spawn(fut);
+                .await;
+            match socket {
+                Ok(socket) => {
+                    (self.callback)(req, depot, socket);
+                }
+                Err(e) => {
+                    tracing::debug!("ws upgrade error: {}", e);
+                }
+            };
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
         }

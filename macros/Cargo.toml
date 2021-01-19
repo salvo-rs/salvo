@@ -22,4 +22,4 @@ proc-quote = "0.3.2"
 syn = { version = "1.0.58", features = [ "full", "parsing" ] }
 # [dev-dependencies]
 # salvo = { version = "0.4", path="../core"}
-# futures = { version = "0.3.8" }
+# futures = { version = "0.3" }
