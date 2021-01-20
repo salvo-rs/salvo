@@ -6,7 +6,6 @@
 //!
 //! use std::time::Duration;
 //! use std::convert::Infallible;
-//! use warp::{Filter, sse::Event};
 //! use futures::{stream::iter, Stream};
 //!
 //! fn sse_events() -> impl Stream<Item = Result<Event, Infallible>> {
@@ -24,12 +23,11 @@
 //!         )
 //!     ])
 //! }
-//!
-//! let app = warp::path("push-notifications")
-//!     .and(warp::get())
-//!     .map(|| {
-//!         warp::sse::reply(warp::sse::keep_alive().stream(sse_events()))
-//!     });
+//! #[fn_handler]
+//! async fn handle(res: &mut Response) {
+//!     sse::streaming(res, sse_events());
+//! }
+//! let router = Router::new().path("push-notifications").get(handle);
 //! ```
 //!
 //! Each field already is event which can be sent to client.
@@ -71,7 +69,6 @@ pub struct SseEvent {
     name: Option<String>,
     id: Option<String>,
     data: Option<DataType>,
-    event: Option<String>,
     comment: Option<String>,
     retry: Option<Duration>,
 }
@@ -100,8 +97,8 @@ impl SseEvent {
 
     /// Set Server-sent event event
     /// Event name field ("event:<event-name>")
-    pub fn event<T: Into<String>>(mut self, event: T) -> SseEvent {
-        self.event = Some(event.into());
+    pub fn name<T: Into<String>>(mut self, event: T) -> SseEvent {
+        self.name = Some(event.into());
         self
     }
 
@@ -128,9 +125,9 @@ impl Display for SseEvent {
             f.write_char('\n')?;
         }
 
-        if let Some(ref event) = &self.event {
+        if let Some(ref name) = &self.name {
             "event:".fmt(f)?;
-            event.fmt(f)?;
+            name.fmt(f)?;
             f.write_char('\n')?;
         }
 
