@@ -25,13 +25,13 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 .into()
         }
         1 => {
-            let ts: TokenStream = quote! {_depot: &mut ::salvo::Depot}.into();
+            let ts: TokenStream = quote! {_depot: &mut ::salvo_core::Depot}.into();
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
-            let ts: TokenStream = quote! {_req: &mut ::salvo::Request}.into();
+            let ts: TokenStream = quote! {_req: &mut ::salvo_core::Request}.into();
             sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
         }
         2 => {
-            let ts: TokenStream = quote! {_depot: &mut ::salvo::Depot}.into();
+            let ts: TokenStream = quote! {_depot: &mut ::salvo_core::Depot}.into();
             sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
         }
         3 => {}
@@ -58,8 +58,8 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         ReturnType::Default => (quote! {
             #sdef
             #[async_trait]
-            impl salvo::Handler for #name {
-                async fn handle(&self, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, res: &mut ::salvo::Response) {
+            impl salvo_core::Handler for #name {
+                async fn handle(&self, req: &mut ::salvo_core::Request, depot: &mut ::salvo_core::Depot, res: &mut ::salvo_core::Response) {
                     Self::#name(req, depot, res).await
                 }
             }
@@ -68,11 +68,11 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         ReturnType::Type(_, _) => (quote! {
             #sdef
             #[async_trait]
-            impl salvo::Handler for #name {
-                async fn handle(&self, req: &mut ::salvo::Request, depot: &mut ::salvo::Depot, res: &mut ::salvo::Response) {
+            impl ::salvo_core::Handler for #name {
+                async fn handle(&self, req: &mut ::salvo_core::Request, depot: &mut ::salvo_core::Depot, res: &mut ::salvo_core::Response) {
                     match Self::#name(req, depot, res).await {
-                        Ok(writer) => ::salvo::Writer::write(writer,  req, depot, res).await,
-                        Err(err) => ::salvo::Writer::write(err,  req, depot, res).await,
+                        Ok(writer) => ::salvo_core::Writer::write(writer,  req, depot, res).await,
+                        Err(err) => ::salvo_core::Writer::write(err,  req, depot, res).await,
                     }
                 }
             }

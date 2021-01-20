@@ -2,22 +2,24 @@
 //!
 //! # Example
 //!
-//! ```
-//!
+//! ```no_run
 //! use std::time::Duration;
 //! use std::convert::Infallible;
 //! use futures::{stream::iter, Stream};
+//! 
+//! use salvo_core::prelude::*;
+//! use salvo_extra::sse::{self, SseEvent};
 //!
-//! fn sse_events() -> impl Stream<Item = Result<Event, Infallible>> {
+//! fn sse_events() -> impl Stream<Item = Result<SseEvent, Infallible>> {
 //!     iter(vec![
-//!         Ok(Event::default().data("unnamed event")),
+//!         Ok(SseEvent::default().data("unnamed event")),
 //!         Ok(
-//!             Event::default().event("chat")
+//!             SseEvent::default().name("chat")
 //!             .data("chat message")
 //!         ),
 //!         Ok(
-//!             Event::default().id(13.to_string())
-//!             .event("chat")
+//!             SseEvent::default().id(13.to_string())
+//!             .name("chat")
 //!             .data("other chat message\nwith next line")
 //!             .retry(Duration::from_millis(5000))
 //!         )
@@ -27,7 +29,11 @@
 //! async fn handle(res: &mut Response) {
 //!     sse::streaming(res, sse_events());
 //! }
-//! let router = Router::new().path("push-notifications").get(handle);
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::new().path("push-notifications").get(handle);
+//!     Server::new(router).bind(([0, 0, 0, 0], 3131)).await;
+//! }
 //! ```
 //!
 //! Each field already is event which can be sent to client.
