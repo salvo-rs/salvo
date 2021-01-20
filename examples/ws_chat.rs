@@ -121,10 +121,10 @@ async fn index(res: &mut Response) {
 static INDEX_HTML: &str = r#"<!DOCTYPE html>
 <html>
     <head>
-        <title>Warp Chat</title>
+        <title>WS Chat</title>
     </head>
     <body>
-        <h1>Warp chat</h1>
+        <h1>WS Chat</h1>
         <div id="chat">
             <p><em>Connecting...</em></p>
         </div>
