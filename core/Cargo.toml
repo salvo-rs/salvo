@@ -18,6 +18,7 @@ all-features = true
 
 [features]
 default = ["macros"]
+full = ["macros", "tls"]
 tls = ["tokio-rustls"]
 macros = ["salvo_macros"]
 
