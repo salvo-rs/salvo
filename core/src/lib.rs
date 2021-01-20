@@ -87,6 +87,5 @@ pub mod prelude {
     pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;
-    #[cfg(feature = "macros")]
     pub use salvo_macros::fn_handler;
 }
