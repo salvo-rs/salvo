@@ -6,24 +6,20 @@ use salvo_extra::ws::WsHandler;
 
 #[fn_handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError> {
-    match WsHandler::new().handle(req, res){
-        Ok(fut) => {
-            let fut = async move {
-                if let Some(ws) = fut.await {
-                    let (tx, rx) = ws.split();
-                    let fut = rx.forward(tx).map(|result| {
-                        if let Err(e) = result {
-                            eprintln!("websocket error: {:?}", e);
-                        }
-                    });
-                    tokio::task::spawn(fut);
+    let fut = WsHandler::new().handle(req, res)?;
+    let fut = async move {
+        if let Some(ws) = fut.await {
+            let (tx, rx) = ws.split();
+            let fut = rx.forward(tx).map(|result| {
+                if let Err(e) = result {
+                    eprintln!("websocket error: {:?}", e);
                 }
-            };
+            });
             tokio::task::spawn(fut);
-            Ok(())
         }
-        Err(e) => Err(e)
-    }
+    };
+    tokio::task::spawn(fut);
+    Ok(())
 }
 
 #[tokio::main]
