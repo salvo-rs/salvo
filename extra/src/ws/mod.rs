@@ -3,16 +3,15 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::pin::Pin;
+use std::future::Future;
 use std::task::{Context, Poll};
 
-use async_trait::async_trait;
 use futures::{future, ready, FutureExt, Sink, Stream, TryFutureExt};
 use headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::errors::HttpError;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
-use salvo_core::http::StatusCode;
-use salvo_core::{Depot, Error, Handler, Request, Response};
+use salvo_core::http::{HttpError, StatusCode};
+use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
     WebSocketStream,
@@ -32,17 +31,15 @@ use tokio_tungstenite::{
 /// - Header `upgrade: websocket`
 /// - Header `sec-websocket-accept` with the hash value of the received key.
 #[allow(missing_debug_implementations)]
-pub struct WsHandler<F> {
+pub struct WsHandler {
     config: Option<WebSocketConfig>,
-    callback: F,
 }
-impl<F> WsHandler<F> {
-    pub fn new(callback: F) -> Self {
-        WsHandler { callback, config: None }
+impl WsHandler {
+    pub fn new() -> Self {
+        WsHandler { config: None }
     }
-    pub fn with_config(callback: F, config: WebSocketConfig) -> Self {
+    pub fn with_config(config: WebSocketConfig) -> Self {
         WsHandler {
-            callback,
             config: Some(config),
         }
     }
@@ -65,33 +62,18 @@ impl<F> WsHandler<F> {
         self.config.get_or_insert_with(|| WebSocketConfig::default()).max_frame_size = Some(max);
         self
     }
-}
 
-#[async_trait]
-impl<F> Handler for WsHandler<F>
-where
-    F: FnOnce(Request, Depot, WebSocket) + Copy + Send + Sync + 'static,
-{
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        let new_req = Request::from_hyper({
-            let mut builder = hyper::Request::builder().method(req.method()).uri(req.uri()).version(req.version());
-            for (key, value) in req.headers() {
-                builder = builder.header(key, value);
-            }
-            builder.body(hyper::Body::empty()).unwrap()
-        }).unwrap();
+    pub fn handle(&self, req: &mut Request, res: &mut Response) -> Result<impl Future<Output=Option<WebSocket>>, HttpError> {
         let req_headers = req.headers();
-        let new_depot = depot.transfer();
         let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            res.set_http_error(HttpError {
+            return Err(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
                 summary: "missing connection upgrade".into(),
                 detail: "".into(),
             });
-            return;
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -100,13 +82,12 @@ where
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            res.set_http_error(HttpError {
+            return Err(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
                 summary: "missing upgrade header or it is not equal websocket".into(),
                 detail: "".into(),
             });
-            return;
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -115,56 +96,54 @@ where
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not equal 13");
-            res.set_http_error(HttpError {
+            return Err(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
                 summary: "websocket version is not equal 13".into(),
                 detail: "".into(),
             });
-            return;
         }
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            res.set_http_error(HttpError {
+            return Err(HttpError {
                 code: StatusCode::BAD_REQUEST,
                 name: "Bad Request".into(),
                 summary: "sec_websocket_key is not exist in request headers".into(),
                 detail: "".into(),
             });
-            return;
         };
+    
+        res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
+    
+        res.headers_mut().typed_insert(Connection::upgrade());
+        res.headers_mut().typed_insert(Upgrade::websocket());
+        res.headers_mut().typed_insert(SecWebsocketAccept::from(sec_ws_key));
+        
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config.clone();
-            let callback = self.callback;
             let fut = async move {
                 let ws = on_upgrade
                     .and_then(move |upgraded| {
                         tracing::debug!("websocket upgrade complete");
                         WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                     })
-                    .await;
-                match ws {
-                    Ok(ws) => {
-                        (callback)(new_req, new_depot, ws);
-                    }
-                    Err(e) => {
-                        tracing::debug!("ws upgrade error: {}", e);
-                    }
-                };
+                    .await.ok();
+                    ws
             };
-            tokio::task::spawn(fut);
+            Ok(fut)
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
+            Err(HttpError {
+                code: StatusCode::BAD_REQUEST,
+                name: "Bad Request".into(),
+                summary: "ws couldn't be upgraded since no upgrade state was present".into(),
+                detail: "".into(),
+            })
         }
-
-        res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
-
-        res.headers_mut().typed_insert(Connection::upgrade());
-        res.headers_mut().typed_insert(Upgrade::websocket());
-        res.headers_mut().typed_insert(SecWebsocketAccept::from(sec_ws_key));
     }
+    
 }
 
 /// A websocket `Stream` and `Sink`, provided to `ws` filters.
