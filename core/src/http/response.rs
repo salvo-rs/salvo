@@ -27,7 +27,7 @@ pub enum ResponseBody {
     None,
     Empty,
     Bytes(BytesMut),
-    Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send + Sync>>),
+    Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
 /// The response representation given to `Middleware`
 pub struct Response {
@@ -267,7 +267,7 @@ impl Response {
     #[inline]
     pub fn streaming<S, O, E>(&mut self, stream: S)
     where
-        S: Stream<Item = Result<O, E>> + Send + Sync + 'static,
+        S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
