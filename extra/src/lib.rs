@@ -6,3 +6,4 @@ pub mod auth;
 pub mod serve;
 pub mod cors;
 pub mod ws;
+pub mod sse;
