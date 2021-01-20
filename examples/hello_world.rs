@@ -23,6 +23,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .get(hello_world1)
         .push(Router::new().path("hello2").get(hello_world2))
         .push(Router::new().path("hello3").get(hello_world3));
-    Server::new(router).bind(([127, 0, 0, 1], 7878)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
     Ok(())
 }

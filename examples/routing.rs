@@ -18,7 +18,7 @@ async fn main() {
                 .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
         );
 
-    Server::new(router).bind(([127, 0, 0, 1], 7878)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
 
 #[fn_handler]

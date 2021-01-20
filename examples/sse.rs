@@ -36,5 +36,5 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
 
     let router = Router::new().path("ticks").get(handle_tick);
-    Server::new(router).bind(([127, 0, 0, 1], 3030)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 3030)).await;
 }

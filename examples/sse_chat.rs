@@ -38,7 +38,7 @@ async fn main() {
             .get(user_connected)
             .push(Router::new().path("<id>").post(chat_send)),
     );
-    Server::new(router).bind(([127, 0, 0, 1], 3232)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 3232)).await;
 }
 
 /// Message variants.

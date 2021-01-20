@@ -102,7 +102,7 @@ impl Server {
     /// # fn main() {
     ///     let (tx, rx) = oneshot::channel();
     ///     let (addr, server) = Server::new(Router::new().get(hello_world))
-    ///         .bind_with_graceful_shutdown(([127, 0, 0, 1], 3030), async {
+    ///         .bind_with_graceful_shutdown(([0, 0, 0, 0], 3030), async {
     ///             rx.await.ok();
     ///     });
     ///
