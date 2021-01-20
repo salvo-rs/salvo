@@ -25,7 +25,7 @@ type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, sal
 
 // Keep track of all connected users, key is usize, value
 // is a websocket sender.
-static GLOBAL_USERS: Lazy<Users> = Lazy::new(|| Users::default());
+static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 
 #[tokio::main]
 async fn main() {
@@ -60,7 +60,7 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Htt
             tokio::task::spawn(fut);
             let fut = async move {
                 // Save the sender in our list of connected users.
-                GLOBAL_USERS.write().await.insert(my_id, tx);
+                ONLINE_USERS.write().await.insert(my_id, tx);
 
                 // Every time the user sends a message, broadcast it to
                 // all other users...
@@ -96,7 +96,7 @@ async fn user_message(my_id: usize, msg: Message) {
     let new_msg = format!("<User#{}>: {}", my_id, msg);
 
     // New message from this user, send it to everyone else (except same uid)...
-    for (&uid, tx) in GLOBAL_USERS.read().await.iter() {
+    for (&uid, tx) in ONLINE_USERS.read().await.iter() {
         if my_id != uid {
             if let Err(_disconnected) = tx.send(Ok(Message::text(new_msg.clone()))) {
                 // The tx is disconnected, our `user_disconnected` code
@@ -110,7 +110,7 @@ async fn user_message(my_id: usize, msg: Message) {
 async fn user_disconnected(my_id: usize) {
     eprintln!("good bye user: {}", my_id);
     // Stream closed up, so remove from the user list
-    GLOBAL_USERS.write().await.remove(&my_id);
+    ONLINE_USERS.write().await.remove(&my_id);
 }
 
 #[fn_handler]
