@@ -1,16 +1,16 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use http::{self, Uri, Extensions};
+use form_urlencoded;
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
+use http::{self, Extensions, Uri};
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::str::FromStr;
-use form_urlencoded;
 
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
@@ -136,7 +136,6 @@ impl Request {
         &mut self.version
     }
 
-
     #[inline(always)]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
@@ -151,8 +150,7 @@ impl Request {
         self.body.as_ref()
     }
     #[inline(always)]
-    pub fn
-     body_mut(&mut self) -> Option<&mut Body> {
+    pub fn body_mut(&mut self) -> Option<&mut Body> {
         self.body.as_mut()
     }
 
@@ -232,7 +230,11 @@ impl Request {
     }
 
     pub fn queries(&self) -> &MultiMap<String, String> {
-        self.queries.get_or_init(|| form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes()).into_owned().collect())
+        self.queries.get_or_init(|| {
+            form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes())
+                .into_owned()
+                .collect()
+        })
     }
     #[inline]
     pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F>
@@ -305,18 +307,34 @@ impl Request {
                 })
                 .await
         } else {
-            Err(ReadError::General(String::from("failed to read data4")))
+            Err(ReadError::General("failed to read form data".into()))
         }
     }
 
+    #[inline]
+    pub async fn read_text(&mut self) -> Result<&str, ReadError> {
+        match self.payload().await {
+            Ok(body) => Ok(std::str::from_utf8(&body)?),
+            Err(_) => Err(ReadError::General("read text from body failed".into())),
+        }
+    }
+    #[inline]
+    pub async fn read_from_text<T>(&mut self) -> Result<T, ReadError>
+    where
+        T: FromStr,
+    {
+        self.read_text()
+            .await
+            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
+    }
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
     where
         T: DeserializeOwned,
     {
         match self.payload().await {
-            Ok(body) => Ok(serde_json::from_slice::<T>(&body)?),
-            Err(_) => Err(ReadError::General("ddd".into())),
+            Ok(body) => Ok(serde_json::from_slice::<T>(body)?),
+            Err(_) => Err(ReadError::General("read json from body failed".into())),
         }
     }
     #[inline]
@@ -329,9 +347,10 @@ impl Request {
                 let data = serde_json::to_value(&form_data.fields)?;
                 Ok(serde_json::from_value::<T>(data)?)
             }
-            Err(_) => Err(ReadError::General("ddd".into())),
+            Err(_) => Err(ReadError::General("read data from form failed".into())),
         }
     }
+
     #[inline]
     pub async fn read<T>(&mut self) -> Result<T, ReadError>
     where
@@ -343,7 +362,7 @@ impl Request {
         } else if ctype.starts_with("application/json") {
             self.read_from_json().await
         } else {
-            Err(ReadError::General(String::from("failed to read data5")))
+            Err(ReadError::General(String::from("failed to read data or this type is not supported")))
         }
     }
 }
