@@ -16,7 +16,7 @@ async fn hello_world3(_req: &mut Request, _depot: &mut Depot, res: &mut Response
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "hello_world=debug,salvo=debug".to_owned());
     tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
     let router = Router::new()
@@ -24,5 +24,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .push(Router::new().path("hello2").get(hello_world2))
         .push(Router::new().path("hello3").get(hello_world3));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
-    Ok(())
 }

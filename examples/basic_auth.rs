@@ -4,7 +4,7 @@ use salvo_extra::auth::basic::{BasicAuthConfig, BasicAuthHandler};
 use salvo_extra::serve::Static;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main()  {
     let baconfig = BasicAuthConfig {
         realm: "realm".to_owned(),
         context_key: Some("user_name".to_owned()),
@@ -15,5 +15,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let router = Router::new().before(auth_handler).get(Static::from("./static/root1"));
     Server::new(router).bind(([0, 0, 0, 0], 7879)).await;
-    Ok(())
 }
