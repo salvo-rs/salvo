@@ -27,7 +27,7 @@ async fn main() {
         Router::new().path("<id>").put(update_todo).delete(delete_todo)
     );
     // Start up the server...
-    Server::new(router).bind(([127, 0, 0, 1], 3040)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 3040)).await;
 }
 
 #[fn_handler]

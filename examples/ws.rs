@@ -25,5 +25,5 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError>
 #[tokio::main]
 async fn main() {
     let router = Router::new().handle(connect);
-    Server::new(router).bind(([127, 0, 0, 1], 7878)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

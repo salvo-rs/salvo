@@ -32,7 +32,7 @@ async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "ws_chat=debug,salvo=debug".to_owned());
     tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
     let router = Router::new().handle(index).push(Router::new().path("chat").handle(user_connected));
-    Server::new(router).bind(([127, 0, 0, 1], 3131)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 3131)).await;
 }
 
 #[fn_handler]
