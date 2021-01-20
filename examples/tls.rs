@@ -9,7 +9,6 @@ async fn hello_world(res: &mut Response) {
 
 // Don't copy this `cfg`, it's only needed because this file is within
 // the salvo repository.
-#[cfg(feature = "tls")]
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "hello_world=debug,salvo=debug".to_owned());
@@ -21,9 +20,4 @@ async fn main() {
         .key_path("examples/tls/key.rsa")
         .bind(([0, 0, 0, 0], 3030))
         .await;
-}
-
-#[cfg(not(feature = "tls"))]
-fn main() {
-    eprintln!("Requires the `tls` feature.");
 }
