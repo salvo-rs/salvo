@@ -24,6 +24,7 @@ pub use self::writer::Writer;
 pub use self::error::Error;
 #[cfg(feature = "tls")]
 pub use self::server::TlsServer;
+pub use salvo_macros::fn_handler;
 
 use std::ops::{Bound, RangeBounds};
 
