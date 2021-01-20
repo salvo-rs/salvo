@@ -29,6 +29,7 @@ pub use mime::Mime;
 pub use range::HttpRange;
 pub use request::Request;
 pub use response::{Response, ResponseBody};
+pub use errors::{HttpError, ReadError};
 
 pub mod header;
 
