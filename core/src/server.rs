@@ -91,18 +91,19 @@ impl Server {
     /// # Example
     ///
     /// ```no_run
-    /// use salvo::Filter;
-    /// use futures::future::TryFutureExt;
+    /// use salvo_core::prelude::*;
     /// use tokio::sync::oneshot;
     ///
     /// #[fn_handler]
-    /// async fn hello_world1(res: &mut Response) {
+    /// async fn hello_world(res: &mut Response) {
     ///     res.render_plain_text("Hello World!");
     /// }
-    /// # fn main() {
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
-    ///     let (addr, server) = Server::new(Router::new().get(hello_world))
-    ///         .bind_with_graceful_shutdown(([0, 0, 0, 0], 3030), async {
+    ///     let router = Router::new().get(hello_world);
+    ///     let server = Server::new(router).bind_with_graceful_shutdown(([0, 0, 0, 0], 3131), async {
     ///             rx.await.ok();
     ///     });
     ///
@@ -111,7 +112,7 @@ impl Server {
     ///
     ///     // Later, start the shutdown...
     ///     let _ = tx.send(());
-    /// # }
+    /// }
     /// ```
     pub async fn bind_with_graceful_shutdown(self, addr: impl Into<SocketAddr> + 'static, signal: impl Future<Output = ()> + Send + 'static) {
         self.try_bind_with_graceful_shutdown(addr, signal).await.unwrap();

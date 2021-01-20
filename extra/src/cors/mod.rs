@@ -5,32 +5,36 @@ use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::sync::Arc;
 
-use headers::{
-    AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt,
-};
-use salvo_core::http::header::{self, HeaderName, HeaderValue, HeaderMap};
+use async_trait::async_trait;
+use headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
+use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::Method;
-
-use self::internal::{IntoOrigin, Seconds};
+use salvo_core::http::{Request, Response};
+use salvo_core::{Depot, Handler};
 
 /// [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 ///
 /// # Example
 ///
 /// ```
-/// use salvo::Filter;
+/// use salvo_core::prelude::*;
 ///
-/// let cors = salvo::cors()
+/// let cors = salvo_extra::cors::cors()
 ///     .allow_origin("https://hyper.rs")
-///     .allow_methods(vec!["GET", "POST", "DELETE"]);
-/// let cors = extra::cors::Handler::new().allow_origin("https://hyper.rs")
-///     .allow_methods(vec!["GET", "POST", "DELETE"];
-/// let router = Router::new().before(cors)).post(upload_file);
+///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
+/// let cors = salvo_extra::cors::cors().allow_origin("https://hyper.rs")
+///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
+/// 
+/// let router = Router::new().before(cors).post(upload_file);
+/// #[fn_handler]
+/// async fn upload_file(res: &mut Response) {
+/// }
+/// 
 /// ```
 /// If you want to allow any route:
 /// ```
-/// use salvo::Filter;
-/// let cors = salvo::cors()
+/// use salvo_core::prelude::*;
+/// let cors = salvo_extra::cors::cors()
 ///     .allow_any_origin();
 /// ```
 /// You can find more usage examples [here](https://github.com/kenorld/salvo/blob/examples/cors.rs).
@@ -45,13 +49,7 @@ pub fn cors() -> Builder {
     }
 }
 
-/// A wrapping filter constructed via `salvo::cors()`.
-#[derive(Clone, Debug)]
-pub struct Cors {
-    config: Arc<Configured>,
-}
-
-/// A constructed via `salvo::cors()`.
+/// A constructed via `salvo_extra::cors::cors()`.
 #[derive(Clone, Debug)]
 pub struct Builder {
     credentials: bool,
@@ -211,12 +209,7 @@ impl Builder {
         let iter = origins
             .into_iter()
             .map(IntoOrigin::into_origin)
-            .map(|origin| {
-                origin
-                    .to_string()
-                    .parse()
-                    .expect("Origin is always a valid HeaderValue")
-            });
+            .map(|origin| origin.to_string().parse().expect("Origin is always a valid HeaderValue"));
 
         self.origins.get_or_insert_with(HashSet::new).extend(iter);
 
@@ -230,9 +223,9 @@ impl Builder {
     ///
     /// ```
     /// use std::time::Duration;
-    /// use salvo::Filter;
+    /// use salvo_core::prelude::*;;
     ///
-    /// let cors = salvo::cors()
+    /// let cors = salvo_extra::cors::cors()
     ///     .max_age(30) // 30u32 seconds
     ///     .max_age(Duration::from_secs(30)); // or a Duration
     /// ```
@@ -246,7 +239,7 @@ impl Builder {
     /// This step isn't *required*, as the `Builder` itself can be passed
     /// to `Filter::with`. This just allows constructing once, thus not needing
     /// to pay the cost of "building" every time.
-    pub fn build(self) -> Cors {
+    pub fn build(self) -> CorsHandler {
         let expose_headers_header = if self.exposed_headers.is_empty() {
             None
         } else {
@@ -262,7 +255,7 @@ impl Builder {
             methods_header,
         });
 
-        Cors { config }
+        CorsHandler { config }
     }
 }
 
@@ -306,11 +299,7 @@ enum Validated {
 }
 
 impl Configured {
-    fn check_request(
-        &self,
-        method: &Method,
-        headers: &HeaderMap,
-    ) -> Result<Validated, Forbidden> {
+    fn check_request(&self, method: &Method, headers: &HeaderMap) -> Result<Validated, Forbidden> {
         match (headers.get(header::ORIGIN), method) {
             (Some(origin), &Method::OPTIONS) => {
                 // OPTIONS requests are preflight CORS requests...
@@ -324,16 +313,12 @@ impl Configured {
                         return Err(Forbidden::MethodNotAllowed);
                     }
                 } else {
-                    tracing::trace!(
-                        "preflight request missing access-control-request-method header"
-                    );
+                    tracing::trace!("preflight request missing access-control-request-method header");
                     return Err(Forbidden::MethodNotAllowed);
                 }
 
                 if let Some(req_headers) = headers.get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
-                    let headers = req_headers
-                        .to_str()
-                        .map_err(|_| Forbidden::HeaderNotAllowed)?;
+                    let headers = req_headers.to_str().map_err(|_| Forbidden::HeaderNotAllowed)?;
                     for header in headers.split(',') {
                         if !self.is_header_allowed(header) {
                             return Err(Forbidden::HeaderNotAllowed);
@@ -393,10 +378,7 @@ impl Configured {
 
     fn append_common_headers(&self, headers: &mut HeaderMap) {
         if self.cors.credentials {
-            headers.insert(
-                header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                HeaderValue::from_static("true"),
-            );
+            headers.insert(header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true"));
         }
         if let Some(expose_headers_header) = &self.expose_headers_header {
             headers.typed_insert(expose_headers_header.clone())
@@ -404,73 +386,59 @@ impl Configured {
     }
 }
 
-mod internal {
-    use std::sync::Arc;
+#[derive(Debug)]
+pub struct CorsHandler {
+    config: Arc<Configured>,
+}
 
-    use headers::Origin;
-    use async_trait::async_trait;
-    use salvo_core::http::{header, Request, Response};
-    use salvo_core::{Handler, Depot};
+#[async_trait]
+impl Handler for CorsHandler {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        let validated = self.config.check_request(req.method(), req.headers());
 
-    use super::{Configured, Validated};
-
-    #[derive(Debug)]
-    pub struct CorsHandler {
-        config: Arc<Configured>,
-        origin: header::HeaderValue,
-    }
-
-    #[async_trait]
-    impl Handler for CorsHandler {
-        async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-            let validated = self.config.check_request(req.method(), req.headers());
-
-            match validated {
-                Ok(Validated::Preflight(origin)) => {
-                    self.config.append_preflight_headers(res.headers_mut());
-                    res.headers_mut()
-                        .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                }
-                Ok(Validated::Simple(origin)) => {
-                    self.config.append_common_headers(res.headers_mut());
-                    res.headers_mut()
-                        .insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                }
-                Err(err) => {
-                    tracing::error!(error = %err, "CorsHandler validate error");
-                }
-                _ => {}
+        match validated {
+            Ok(Validated::Preflight(origin)) => {
+                self.config.append_preflight_headers(res.headers_mut());
+                res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
             }
+            Ok(Validated::Simple(origin)) => {
+                self.config.append_common_headers(res.headers_mut());
+                res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+            }
+            Err(err) => {
+                tracing::error!(error = %err, "CorsHandler validate error");
+            }
+            _ => {}
         }
     }
+}
 
-    pub trait Seconds {
-        fn seconds(self) -> u64;
+pub trait Seconds {
+    fn seconds(self) -> u64;
+}
+
+impl Seconds for u32 {
+    fn seconds(self) -> u64 {
+        self.into()
     }
+}
 
-    impl Seconds for u32 {
-        fn seconds(self) -> u64 {
-            self.into()
-        }
+impl Seconds for ::std::time::Duration {
+    fn seconds(self) -> u64 {
+        self.as_secs()
     }
+}
 
-    impl Seconds for ::std::time::Duration {
-        fn seconds(self) -> u64 {
-            self.as_secs()
-        }
-    }
+pub trait IntoOrigin {
+    fn into_origin(self) -> Origin;
+}
 
-    pub trait IntoOrigin {
-        fn into_origin(self) -> Origin;
-    }
+impl<'a> IntoOrigin for &'a str {
+    fn into_origin(self) -> Origin {
+        let mut parts = self.splitn(2, "://");
+        let scheme = parts.next().expect("missing scheme");
+        let rest = parts.next().expect("missing scheme");
 
-    impl<'a> IntoOrigin for &'a str {
-        fn into_origin(self) -> Origin {
-            let mut parts = self.splitn(2, "://");
-            let scheme = parts.next().expect("missing scheme");
-            let rest = parts.next().expect("missing scheme");
-
-            Origin::try_from_parts(scheme, rest, None).expect("invalid Origin")
-        }
+        Origin::try_from_parts(scheme, rest, None).expect("invalid Origin")
     }
 }
