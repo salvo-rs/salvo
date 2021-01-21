@@ -349,8 +349,6 @@ impl Into<Vec<u8>> for Message {
     }
 }
 
-// ===== Rejections =====
-
 /// Connection header did not include 'upgrade'
 #[derive(Debug)]
 pub struct MissingConnectionUpgrade;
