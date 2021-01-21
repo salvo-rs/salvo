@@ -60,7 +60,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router = Router::new().get(hello_world);
     let server = Server::new(router);
-    server.serve().await?;
+    server.bind(([0, 0, 0, 0], 7878)).await?;
     Ok(())
 }
 ```
