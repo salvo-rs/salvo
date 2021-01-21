@@ -26,7 +26,6 @@ async-trait = "0.1"
 base64 = "0.13"
 bitflags = "1.2"
 bytes = "1.0"
-config = "0.10"
 cookie = { version = "0.14", features = [ "percent-encode" ] }
 display_bytes = "0.2"
 double-checked-cell-async = "2.0"
@@ -49,14 +48,12 @@ regex = "1.4"
 salvo_macros = { path = "../macros", version = "0.5.4"}
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-state = "0.4"
 tempdir = "0.3"
 textnonce = "1.0"
 thiserror = "1.0"
 time = "0.2.24"
 tokio = { version = "1.0", features = [ "full" ] }
 tokio-rustls = { version = "0.22", optional = true }
-toml = "0.5"
 tracing = "0.1"
 tracing-futures= "0.2"
 twoway = "0.2"
