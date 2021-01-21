@@ -31,16 +31,15 @@ In the main function, we need to create a root Router first, and then create a s
 ```rust
 use salvo::prelude::*;
 
-async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+#[fn_handler]
+async fn hello_world(res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut router = Router::new("/");
-    router.get(hello_world);
+async fn main() {
+    let router = Router::new().get(hello_world);
     let server = Server::new(router);
-    server.serve().await?;
-    Ok(())
+    server.bind(([0, 0, 0, 0], 7878)).await;
 }
 ```
