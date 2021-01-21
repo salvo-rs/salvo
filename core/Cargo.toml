@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.5.2"
+version = "0.5.3"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -46,7 +46,7 @@ percent-encoding = "2.1.0"
 pin-utils = "0.1.0"
 rand = "0.8.2"
 regex = "1.4.3"
-salvo_macros = { path = "../macros", version = "0.5.2"}
+salvo_macros = { path = "../macros", version = "0.5.3"}
 serde = { version = "1.0.120", features = [ "derive" ] }
 serde_json = "1.0.61"
 state = "0.4.2"
