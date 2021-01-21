@@ -6,3 +6,4 @@
 /.vscode
 **/target
 examples/_tmp.rs
+cobertura.xml
