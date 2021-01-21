@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.5.3"
+version = "0.5.4"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -19,23 +19,23 @@ all-features = true
 [dependencies]
 async-trait = "0.1.42"
 base64 = "0.13.0"
-chrono = { version = "0.4.19", features = [ "serde" ] }
-cookie = { version = "0.14.3", features = [ "percent-encode" ] }
-futures = { version = "0.3.12", default-features = false, features = ["alloc"] }
+chrono = { version = "0.4", features = [ "serde" ] }
+cookie = { version = "0.14", features = [ "percent-encode" ] }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
 headers = "0.3.3"
 http = "0.2.3"
-hyper = { version = "0.14.2", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
-jsonwebtoken = "7.2.0"
-mime = "0.3.16"
-percent-encoding = "2.1.0"
-pin-project = "1.0.4"
-salvo_core = { version = "0.5.3", path = "../core", default-features = false }
-serde = "1.0.120"
-serde_derive = "1.0.120"
-serde_json = "1.0.61"
-thiserror = "1.0.23"
+hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+jsonwebtoken = "7.2"
+mime = "0.3"
+percent-encoding = "2.1"
+pin-project = "1.0"
+salvo_core = { version = "0.5", path = "../core", default-features = false }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+thiserror = "1.0"
 time = "0.2.24"
-tokio = { version = "1.0.2", features = ["fs", "sync", "time"] }
-tokio-tungstenite = { version = "0.13.0", default-features = false }
-tracing = "0.1.22"
-url = "2.2.0"
+tokio = { version = "1.0", features = ["fs", "sync", "time"] }
+tokio-tungstenite = { version = "0.13", default-features = false }
+tracing = "0.1"
+url = "2.2"
