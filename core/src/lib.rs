@@ -84,6 +84,8 @@ pub mod prelude {
     pub use crate::routing::filter;
     pub use crate::routing::Router;
     pub use crate::server::Server;
+    #[cfg(feature = "tls")]
+    pub use crate::server::TlsServer;
     pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;
