@@ -1,6 +1,6 @@
 [package]
 name = "salvo_macros"
-version = "0.5.2"
+version = "0.5.3"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = "salvo proc macros"
@@ -17,6 +17,7 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
+proc-macro-crate = "0.1.5"
 proc-macro2 = "1.0.24"
 proc-quote = "0.3.2"
 syn = { version = "1.0.58", features = [ "full", "parsing" ] }
