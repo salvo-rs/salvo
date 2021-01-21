@@ -50,16 +50,15 @@ In the main function, we need to create a root Router first, and then create a s
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() {
     let router = Router::new().get(hello_world);
     let server = Server::new(router);
-    server.bind(([0, 0, 0, 0], 7878)).await?;
-    Ok(())
+    server.bind(([0, 0, 0, 0], 7878)).await;
 }
 ```
 
