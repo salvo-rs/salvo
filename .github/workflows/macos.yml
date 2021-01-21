@@ -33,21 +33,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: generate-lockfile
-      - name: Cache cargo registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.version }}-x86_64-apple-darwin-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.version }}-x86_64-apple-darwin-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ matrix.version }}-x86_64-apple-darwin-cargo-build-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v1.0.1
 
       - name: check build
         uses: actions-rs/cargo@v1
