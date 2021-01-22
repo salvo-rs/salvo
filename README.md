@@ -118,6 +118,10 @@ async fn delete_user(res: &mut Response) {
 
 ```
 
+## ☕ Supporters
+
+Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy a coffee here**](https://www.buymeacoffee.com/chrislearn).
+
 ## License
 
 Salvo is licensed under MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)

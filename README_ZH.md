@@ -120,7 +120,12 @@ async fn delete_user(res: &mut Response) {
 }
 
 ```
+## ☕ 支持者
 
+`Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
+<p style="text-align: center;">
+<img src="site/static/alipay.jpg" alt="Alipay" width="320"/><img src="site/static/weixin.png" alt="Weixin" width="320"/>
+</p>
 ## License
 
 Salvo is licensed under MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
