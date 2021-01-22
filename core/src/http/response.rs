@@ -3,18 +3,18 @@ use std::error::Error as StdError;
 use std::fmt::{self, Debug};
 use std::path::Path;
 use std::sync::Arc;
+use std::pin::Pin;
+use std::task::{self, Poll};
 
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
-use futures::Stream;
-use futures::TryStreamExt;
+use futures::{Stream, TryStreamExt};
 use http::StatusCode;
 use httpdate::HttpDate;
 use hyper::header::*;
 use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use std::pin::Pin;
 use tracing;
 
 use super::errors::HttpError;
@@ -24,10 +24,24 @@ use crate::http::Request;
 
 #[allow(clippy::type_complexity)]
 pub enum ResponseBody {
-    None,
     Empty,
     Bytes(BytesMut),
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
+}
+
+impl Stream for ResponseBody {
+    type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.get_mut() {
+            ResponseBody::Empty => Poll::Ready(None),
+            ResponseBody::Bytes(bytes) => Poll::Ready(Some(Ok(bytes.clone().freeze()))),
+            ResponseBody::Stream(stream) => {
+                let x = stream.as_mut();
+                x.poll_next(cx)
+            },
+        }
+    }
 }
 /// The response representation given to `Middleware`
 pub struct Response {
@@ -40,19 +54,18 @@ pub struct Response {
 
     pub(crate) cookies: CookieJar,
 
-    pub(crate) body: ResponseBody,
+    pub(crate) body: Option<ResponseBody>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 
     is_commited: bool,
 }
 
 impl Response {
-    /// Construct a blank Response
     pub fn new(allowed_media_types: Arc<Vec<Mime>>) -> Response {
         Response {
-            status_code: None, // Start with no response code.
+            status_code: None,
             http_error: None,
-            body: ResponseBody::None, // Start with no writers.
+            body: None,
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             allowed_media_types,
@@ -64,9 +77,30 @@ impl Response {
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
-
+    #[inline(always)]
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
+    }
+    #[inline(always)]
+    pub fn set_headers(&mut self, headers: HeaderMap) {
+        self.headers = headers
+    }
+
+    #[inline(always)]
+    pub fn body(&self) -> Option<&ResponseBody> {
+        self.body.as_ref()
+    }
+    #[inline(always)]
+    pub fn body_mut(&mut self) -> Option<&mut ResponseBody> {
+        self.body.as_mut()
+    }
+    #[inline(always)]
+    pub fn set_body(&mut self, body: Option<ResponseBody>) {
+        self.body = body
+    }
+    #[inline(always)]
+    pub fn take_body(&mut self) -> Option<ResponseBody> {
+        self.body.take()
     }
     // pub fn insert_header<K>(&mut self, key: K, val: T) -> Option<T> where K: IntoHeaderName,
     //     self.headers.insert(key, val)
@@ -85,16 +119,20 @@ impl Response {
 
         if let Method::HEAD = *req.method() {
         } else {
-            match self.body {
-                ResponseBody::Bytes(bytes) => {
-                    *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
+            if let Some(body) = self.body {
+                match body {
+                    ResponseBody::Bytes(bytes) => {
+                        *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
+                    }
+                    ResponseBody::Stream(stream) => {
+                        *res.body_mut() = hyper::Body::wrap_stream(stream);
+                    }
+                    _ => {
+                        res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                    }
                 }
-                ResponseBody::Stream(stream) => {
-                    *res.body_mut() = hyper::Body::wrap_stream(stream);
-                }
-                _ => {
-                    res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
-                }
+            } else {
+                res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
             }
         }
     }
@@ -166,122 +204,76 @@ impl Response {
     #[inline]
     pub fn render_json<'a, T: Serialize>(&mut self, data: &'a T) {
         if let Ok(data) = serde_json::to_string(data) {
-            self.render("application/json; charset=utf-8", data.as_bytes());
+            self.render_binary("application/json; charset=utf-8".parse().unwrap(), data.as_bytes());
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
-            self.render("application/json; charset=utf-8", serde_json::to_string(&emsg).unwrap().as_bytes());
+            self.render_binary("application/json; charset=utf-8".parse().unwrap(), serde_json::to_string(&emsg).unwrap().as_bytes());
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
-        self.render("application/json; charset=utf-8", data.as_bytes());
+        self.render_binary("application/json; charset=utf-8".parse().unwrap(), data.as_bytes());
     }
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
-        self.render("text/html; charset=utf-8", data.as_bytes());
+        self.render_binary("text/html; charset=utf-8".parse().unwrap(), data.as_bytes());
     }
     #[inline]
     pub fn render_plain_text(&mut self, data: &str) {
-        self.render("text/plain; charset=utf-8", data.as_bytes());
+        self.render_binary("text/plain; charset=utf-8".parse().unwrap(), data.as_bytes());
     }
     #[inline]
     pub fn render_xml_text(&mut self, data: &str) {
-        self.render("text/xml; charset=utf-8", data.as_bytes());
+        self.render_binary("text/xml; charset=utf-8".parse().unwrap(), data.as_bytes());
     }
-    // RenderBinary is like RenderFile() except that it instead of a file on disk,
-    // it renders store from memory (which could be a file that has not been written,
+    // RenderBinary renders store from memory (which could be a file that has not been written,
     // the output from some function, or bytes streamed from somewhere else, as long
     // it implements io.Reader).  When called directly on something generated or
     // streamed, modtime should mostly likely be time.Now().
     #[inline]
-    pub fn render_binary(&mut self, content_type: &str, data: &[u8]) {
-        self.render(content_type, data);
-    }
-    // #[inline]
-    // pub fn render_file<T>(&mut self, content_type: &str, file: &mut File)  where T: AsRef<str> {
-    //     let mut data = Vec::new();
-    //     if file.read_to_end(&mut data).is_err() {
-    //         return self.not_found();
-    //     }
-    //     self.render_binary(content_type, data);
-    // }
-    // #[inline]
-    // pub fn render_file_with_name<T>(&mut self, content_type: &str, file: &mut File, name: &str)  where T: AsRef<str> {
-    //     self.headers_mut().append(CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", name).parse().unwrap());
-    //     self.render_file(content_type, file);
-    // }
-    // #[inline]
-    // pub fn render_file_from_path<T>(&mut self, path: T) where T: AsRef<Path> {
-    //     match File::open(path.as_ref()) {
-    //         Ok(mut file) => {
-    //             if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-    //                 self.render_file(mime.to_string(), &mut file);
-    //             }else{
-    //                 self.unsupported_media_type();
-    //                 error!("path" = path.as_ref().to_str(), "error on render file from path");
-    //             }
-    //         },
-    //         Err(_) => {
-    //             self.not_found();
-    //         },
-    //     }
-    // }
-
-    // #[inline]
-    // pub fn render_file_from_path_with_name<T>(&mut self, path: T, name: &str) where T: AsRef<Path> {
-    //     match File::open(path.as_ref()) {
-    //         Ok(mut file) => {
-    //             if let Some(mime) = self.get_mime_by_path(path.as_ref().to_str().unwrap_or("")) {
-    //                 self.render_file_with_name(mime.to_string(), &mut file, name);
-    //             }else{
-    //                 self.unsupported_media_type();
-    //                 error!("path" = path.as_ref().to_str(), "error on render file from path");
-    //             }
-    //         },
-    //         Err(_) => {
-    //             self.not_found();
-    //         },
-    //     }
-    // }
-    #[inline]
-    pub fn render(&mut self, content_type: &str, data: &[u8]) {
-        self.headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
+    pub fn render_binary(&mut self, content_type: HeaderValue, data: &[u8]) {
+        self.headers.insert(header::CONTENT_TYPE, content_type);
         self.write_body_bytes(data);
     }
 
     #[inline]
     pub fn write_body_bytes(&mut self, data: &[u8]) {
-        match &mut self.body {
-            ResponseBody::Bytes(bytes) => {
-                bytes.extend_from_slice(data);
+        if let Some(body) = self.body_mut() {
+            match body {
+                ResponseBody::Bytes(bytes) => {
+                    bytes.extend_from_slice(data);
+                }
+                ResponseBody::Stream(_) => {
+                    tracing::error!("current body kind is stream, try to write bytes to it");
+                }
+                _ => {
+                    self.body = Some(ResponseBody::Bytes(BytesMut::from(data)));
+                }
             }
-            ResponseBody::Stream(_) => {
-                tracing::warn!("current body kind is stream, try to write bytes to it");
-                self.body = ResponseBody::Bytes(BytesMut::from(data));
-            }
-            _ => {
-                self.body = ResponseBody::Bytes(BytesMut::from(data));
-            }
+        } else {
+            self.body = Some(ResponseBody::Bytes(BytesMut::from(data)));
         }
     }
     #[inline]
     pub fn streaming<S, O, E>(&mut self, stream: S)
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<Bytes> + 'static,
+        O: Into<Bytes> + 'static, 
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
-        match self.body {
-            ResponseBody::Bytes(_) => {
-                tracing::warn!("Current body kind is bytes already");
+        if let Some(body) = &self.body {
+            match body {
+                ResponseBody::Bytes(_) => {
+                    tracing::warn!("Current body kind is bytes already");
+                }
+                ResponseBody::Stream(_) => {
+                    tracing::warn!("Current body kind is stream already");
+                }
+                _ => {}
             }
-            ResponseBody::Stream(_) => {
-                tracing::warn!("Current body kind is stream already");
-            }
-            _ => {}
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = ResponseBody::Stream(Box::pin(mapped));
+        self.body = Some(ResponseBody::Stream(Box::pin(mapped)));
     }
 
     #[inline]
@@ -292,7 +284,7 @@ impl Response {
                 header::CONTENT_DISPOSITION,
                 format!("attachment; filename=\"{}\"", &file_name).parse().unwrap(),
             );
-            self.render(&mime.to_string(), data);
+            self.render_binary(mime.to_string().parse().unwrap(), data);
         } else {
             self.unsupported_media_type();
             tracing::error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
@@ -375,7 +367,7 @@ impl Response {
         Ok(())
     }
     #[inline]
-    pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue>{
+    pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
         self.headers_mut().insert(ETAG, value.parse()?);
         Ok(())
     }
