@@ -84,10 +84,6 @@ pub struct StaticDir {
     options: Options,
 }
 impl StaticDir {
-    pub fn from<T: StaticRoots + Sized>(roots: T) -> Self {
-        StaticDir::new(roots)
-    }
-
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
         StaticDir::width_options(roots, Options::default())
     }
