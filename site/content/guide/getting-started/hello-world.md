@@ -21,7 +21,8 @@ Create a simple function handler in the main.rs file, we call it `hello_world`, 
 ```rust
 use salvo::prelude::*;
 
-async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+#[fn_handler]
+async fn hello_world(res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 ```
