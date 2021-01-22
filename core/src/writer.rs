@@ -1,6 +1,3 @@
-pub mod file;
-pub use file::*;
-
 use async_trait::async_trait;
 
 use crate::http::{Request, Response};
@@ -19,7 +16,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render("text/html", self.0.as_ref().as_bytes());
+        res.render_binary("text/html".parse().unwrap(), self.0.as_ref().as_bytes());
     }
 }
 
@@ -30,7 +27,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render("application/json", self.0.as_ref().as_bytes());
+        res.render_binary("application/json".parse().unwrap(), self.0.as_ref().as_bytes());
     }
 }
 
@@ -41,7 +38,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render("text/plain", self.0.as_ref().as_bytes());
+        res.render_binary("text/plain".parse().unwrap(), self.0.as_ref().as_bytes());
     }
 }
 
@@ -52,7 +49,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render("text/xml", self.0.as_ref().as_bytes());
+        res.render_binary("text/xml".parse().unwrap(), self.0.as_ref().as_bytes());
     }
 }
 

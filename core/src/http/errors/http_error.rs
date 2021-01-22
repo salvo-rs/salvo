@@ -96,7 +96,7 @@ impl Writer for HttpError {
         res.set_status_code(self.code);
         let format = crate::http::guess_accept_mime(req, None);
         let (format, data) = self.as_bytes(&format);
-        res.render(&format.to_string(), &data);
+        res.render_binary(format.to_string().parse().unwrap(), &data);
     }
 }
 

@@ -15,7 +15,7 @@ use tracing;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::{Mime, Request, Response, ResponseBody, StatusCode};
+use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{PathState, Router};
 #[cfg(feature = "tls")]
 use crate::tls::{TlsAcceptor, TlsConfigBuilder};
@@ -436,7 +436,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
 
             if response.status_code().is_none() {
-                if let ResponseBody::None = response.body {
+                if response.body.is_none() {
                     response.set_status_code(StatusCode::NOT_FOUND);
                 } else {
                     response.set_status_code(StatusCode::OK);
@@ -471,7 +471,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     "Http response content type header is not set"
                 );
             }
-            if let ResponseBody::None = response.body {
+            if response.body.is_none() {
                 if has_error {
                     for catcher in &*catchers {
                         if catcher.catch(&request, &mut response) {

@@ -5,6 +5,7 @@ pub mod http;
 pub mod routing;
 pub mod server;
 pub mod writer;
+pub mod fs;
 mod error;
 #[cfg(feature = "tls")]
 mod tls;
