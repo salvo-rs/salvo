@@ -67,7 +67,6 @@ impl Handler for CompressionHandler {
             return;
         }
         let body = body.map(|item|item.map_err(|_|std::io::ErrorKind::Other));
-        // let body: CompressableBody<ResponseBody, Box<dyn StdError + Send + Sync>> = CompressableBody { body };
         match self.algo {
             CompressionAlgo::GZIP => {
                 let stream = ReaderStream::new(GzipEncoder::new(StreamReader::new(body)));
