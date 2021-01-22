@@ -57,16 +57,16 @@ impl CompressionHandler {
 
 #[async_trait]
 impl Handler for CompressionHandler {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        let content_type = req.headers().get(CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or_default();
-        if content_type.is_empty() || res.body().is_none() || !self.content_types.contains(&content_type.into()) {
+    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        let content_type = res.headers().get(CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or_default();
+        if content_type.is_empty() || res.body().is_none() || !self.content_types.iter().any(|c| content_type.starts_with(&**c)) {
             return;
         }
         let body = res.take_body().unwrap();
         if let ResponseBody::Empty = body {
             return;
         }
-        let body = body.map(|item|item.map_err(|_|std::io::ErrorKind::Other));
+        let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
         match self.algo {
             CompressionAlgo::GZIP => {
                 let stream = ReaderStream::new(GzipEncoder::new(StreamReader::new(body)));
