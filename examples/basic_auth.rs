@@ -1,7 +1,7 @@
 use salvo::routing::Router;
 use salvo::Server;
 use salvo_extra::auth::basic::{BasicAuthConfig, BasicAuthHandler};
-use salvo_extra::serve::Static;
+use salvo_extra::serve::StaticDir;
 
 #[tokio::main]
 async fn main()  {
@@ -13,6 +13,6 @@ async fn main()  {
     };
     let auth_handler = BasicAuthHandler::new(baconfig);
 
-    let router = Router::new().before(auth_handler).get(Static::from("./static/root1"));
+    let router = Router::new().before(auth_handler).get(StaticDir::new(vec!["examples/static/body", "examples/static/girl"]));
     Server::new(router).bind(([0, 0, 0, 0], 7879)).await;
 }
