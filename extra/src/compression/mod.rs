@@ -86,52 +86,56 @@ impl Handler for CompressionHandler {
     }
 }
 
-/// Create a wrapping filter that compresses the Body of a [`Response`](crate::reply::Response)
+/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
 /// using gzip, adding `content-encoding: gzip` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;
+/// use salvo_extra::compression;
+/// use salvo_extra::serve::StaticFile;
 ///
-/// let route = salvo::get()
-///     .and(salvo::path::end())
-///     .and(salvo::fs::file("./README.md"))
-///     .with(salvo::compression::gzip());
+/// let router = Router::new()
+///     .after(compression::gzip())
+///     .and(StaticFile::neww("./README.md"));
 /// ```
 pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::GZIP)
 }
 
-/// Create a wrapping filter that compresses the Body of a [`Response`](crate::reply::Response)
+/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
 /// using deflate, adding `content-encoding: deflate` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;
+/// use salvo_extra::compression;
+/// use salvo_extra::serve::StaticFile;
 ///
-/// let route = salvo::get()
-///     .and(salvo::path::end())
-///     .and(salvo::fs::file("./README.md"))
-///     .with(salvo::compression::deflate());
+/// let router = Router::new()
+///     .after(compression::deflate())
+///     .and(StaticFile::neww("./README.md"));
+/// use salvo_core::prelude::*;
 /// ```
 pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::DEFLATE)
 }
 
-/// Create a wrapping filter that compresses the Body of a [`Response`](crate::reply::Response)
+/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
 /// using brotli, adding `content-encoding: br` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example
 ///
 /// ```
 /// use salvo_core::prelude::*;
+/// use salvo_extra::compression;
+/// use salvo_extra::serve::StaticFile;
 ///
-/// let route = salvo::get()
-///     .and(salvo::path::end())
-///     .and(salvo::fs::file("./README.md"))
-///     .with(salvo::compression::brotli());
+/// let router = Router::new()
+///     .after(compression::brotli())
+///     .and(StaticFile::neww("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::BR)
