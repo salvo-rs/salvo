@@ -313,8 +313,12 @@ impl Writer for NamedFile {
             false
         };
 
-        res.set_content_disposition(&self.content_disposition).ok();
-        res.set_content_type(&self.content_type.to_string()).ok();
+        if let Err(e) = res.set_content_disposition(&self.content_disposition) {
+            tracing::error!(error = ?e, "set file's content disposition failed");
+        }
+        if let Err(e) = res.set_content_type(&self.content_type.to_string()) {
+            tracing::error!(error = ?e, "set file's content type failed");
+        }
 
         if let Some(lm) = last_modified {
             res.set_last_modified(lm.into()).ok();
