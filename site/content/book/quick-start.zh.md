@@ -1,6 +1,7 @@
 +++
 title = "世界, 你好!"
 weight = 1
+template = "page.html"
 +++
 
 
