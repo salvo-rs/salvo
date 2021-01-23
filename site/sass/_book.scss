@@ -1,9 +1,13 @@
-.guide {
-  padding: 3rem;
+.book {
+  margin: 1rem auto;
   display: flex;
+  max-width: 85rem;
+  text-align: left;
+  background:#352926;
 
   &__sidebar {
-    margin-right: 2rem;
+    padding: 1rem 2rem;
+    background:#202020;
 
     ul {
       padding-left: 0;
@@ -15,7 +19,7 @@
         margin-bottom: 1rem;
       }
 
-      .guide__sidebar__title {
+      .book__sidebar__title {
         font-size: 1.25rem;
         font-weight: bold;
       }
@@ -42,7 +46,7 @@
   &__content {
     width: 60%;
     // Same as the anchor absolute left to not overlap
-    margin-left: 2rem;
+    padding-left: 2rem;
 
     h1, h2, h3, h4, h5, h6 {
       .zola-anchor {
@@ -78,13 +82,13 @@
 
 
 @media only screen and (max-width: 1000px) {
-  .documentation {
+  .book {
     flex-direction: column;
     padding: 2rem;
 
     &__content {
       width: 100%;
-      margin-left: 0;
+      padding-left: 0;
     }
 
     &__sidebar {

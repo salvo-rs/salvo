@@ -6,14 +6,15 @@
   box-sizing: border-box;
 }
 
-$background: #191919;
-$foreground: white;
-$link-color: #007CBC;
+$background: #1c1c1c;
+$foreground: #ccc;
+$link-color: #ccc;
+$text-color: #ccc;
 
 @import "base";
 @import "layout";
 @import "header";
 @import "index";
-@import "guide";
+@import "book";
 @import "themes";
 @import "search";

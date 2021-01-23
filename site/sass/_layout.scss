@@ -1,9 +1,5 @@
-header {
-  padding: 2rem 3rem;
-}
-
 .container {
-  max-width: 1000px;
+  max-width: 85rem;
   margin: 0 auto;
 }
 
@@ -17,8 +13,7 @@ header {
   flex-grow: 1;
 
   &--reversed {
-    background: $foreground;
-    color: $background;
+    color: $text_color;
   }
 }
 

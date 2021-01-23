@@ -1,10 +1,16 @@
 header {
+  padding: 2rem 1rem;
   .header__logo {
     border-bottom: none;
   }
 
+  nav{
+    float: right;
+    padding-top: 10px;
+  }
+
   nav a {
-    margin-right: 2rem;
+    margin: 0 2rem 0 0;
   }
 
   .header__logo {
@@ -23,11 +29,6 @@ header {
 
     nav {
       text-align: center;
-    }
-
-    .header__logo {
-      // to force menu links to be on a line below
-      display: block;
     }
   }
 }
