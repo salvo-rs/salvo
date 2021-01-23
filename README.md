@@ -17,8 +17,8 @@
 ## 🎯 Features
   * Base on latest hyper, tokio;
   * Websocket supported;
-  * Serve a static virtual directory from many physical directories.
-  * Middlewares support executed before or after handle.
+  * Serve a static virtual directory from many physical directories;
+  * Middlewares support executed before or after handle;
   * Easy routing:
     - Path parameters and regex supported;
     - Tree-like routing system;
