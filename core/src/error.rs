@@ -1,6 +1,10 @@
+use async_trait::async_trait;
 use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
+
+use crate::http::StatusCode;
+use crate::{Depot, Request, Response, Writer};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -36,10 +40,14 @@ impl From<Infallible> for Error {
     }
 }
 
+#[async_trait]
+impl Writer for Error {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}
+
 #[test]
 fn error_size_of() {
-    assert_eq!(
-        ::std::mem::size_of::<Error>(),
-        ::std::mem::size_of::<usize>() * 2
-    );
+    assert_eq!(::std::mem::size_of::<Error>(), ::std::mem::size_of::<usize>() * 2);
 }
