@@ -1,5 +1,5 @@
 <div align="center">
-<h1>Salvo</h1>
+<img alter="Savlo" src="site/static/logo.svg" />
 <p>
 
 [![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
@@ -14,11 +14,11 @@
 <h3>Salvo is a simple web framework written by rust.</h3>
 </div>
 
-## Features
+## 🎯 Features
   * Base on hyper, tokio.
   * Tree-like routing system.
 
-## Quick start
+## ⚡️ Quick start
 You can view samples [here](https://github.com/kenorld/salvo/tree/master/examples) or read docs [here](https://docs.rs/salvo/).
 
 Create a new rust project:
