@@ -178,7 +178,11 @@ impl Response {
 
     #[inline]
     pub fn set_status_code(&mut self, code: StatusCode) {
+        let is_success = code.is_success();
         self.status_code = Some(code);
+        if !is_success {
+            self.commit();
+        }
     }
     // #[inline(always)]
     // pub fn content_type(&self) -> Option<Mime> {
