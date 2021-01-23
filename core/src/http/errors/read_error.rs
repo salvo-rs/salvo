@@ -1,10 +1,14 @@
 use std::borrow::Cow;
 use std::io;
 use std::str::Utf8Error;
-use thiserror::Error;
 
+use thiserror::Error;
+use async_trait::async_trait;
 use httparse;
 use hyper;
+
+use crate::{Depot, Writer, Request, Response};
+use crate::http::{HttpError, StatusCode};
 
 #[derive(Error, Debug)]
 pub enum ReadError {
@@ -82,4 +86,16 @@ pub enum ReadError {
 
     #[error("Filepart is not a file")]
     NotAFile,
+}
+
+#[async_trait]
+impl Writer for ReadError {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_http_error(HttpError{
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "Internal Server Error".into(),
+            summary: "Http read error happened".into(),
+            detail: "There is no more detailed explanation.".into(),
+        });
+    }
 }

@@ -4,9 +4,7 @@ use mime::Mime;
 use std::error::Error as StdError;
 use std::fmt;
 
-use crate::http::{Request, Response};
-use crate::Depot;
-use crate::Writer;
+use crate::{Depot, Writer, Request, Response};
 
 fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str) -> String {
     format!(
