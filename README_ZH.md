@@ -12,12 +12,17 @@
 ![License](https://img.shields.io/crates/l/salvo.svg)
 
 </p>
-<h3>Salvo 是一个简单的 Rust Web 框架.</h3>
+<h3>Salvo 是一个简单以用的 Rust Web 后端框架.</h3>
 </div>
 
 ## 🎯 功能
-  * 基于 hyper, tokio.
-  * 树状路由系统.
+  * 基于最新版本的 hyper, tokio.
+  * 支持 Websocket.
+  * 支持从多个本地目录映射成一个虚拟目录提供服务.
+  * 中间件系统支持在句柄之前或者之后运行.    
+  * 简单易用的路由系统:
+    - 路径参数和和支持正则表达式;
+    - 树状路由系统;
 
 ## ⚡️ 快速开始
 你可以从[这里](https://github.com/kenorld/salvo/tree/master/examples)查看实例代码， 或者从[这里](https://docs.rs/salvo/0.1.6/salvo/)查看文档。
@@ -46,7 +51,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 }
 ```
 
-在 main 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 server 函数:
+在 ```main``` 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 ```bind``` 函数:
 
 ```rust
 use salvo::prelude::*;
@@ -126,6 +131,8 @@ async fn delete_user(res: &mut Response) {
 <p style="text-align: center;">
 <img src="site/static/alipay.png" alt="Alipay" width="320"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="site/static/weixin.png" alt="Weixin" width="320"/>
 </p>
-## License
 
-Salvo is licensed under MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+## ⚠️ 开源协议
+
+Salvo 项目采用 MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
