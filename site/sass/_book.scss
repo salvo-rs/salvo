@@ -21,7 +21,6 @@
 
       .book__sidebar__title {
         font-size: 1.25rem;
-        font-weight: bold;
       }
 
       ul {
@@ -35,7 +34,6 @@
         }
 
         li.active a {
-          font-weight: bold;
           border-bottom: 1px solid $link-color;
         }
       }
