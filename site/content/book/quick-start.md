@@ -1,6 +1,7 @@
 +++
-title = "Hello World"
+title = "Quick Start"
 weight = 1
+template = "page.html"
 +++
 
 

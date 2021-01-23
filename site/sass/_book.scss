@@ -42,9 +42,9 @@
   }
 
   &__content {
-    width: 60%;
     // Same as the anchor absolute left to not overlap
-    padding-left: 2rem;
+    padding: 0 2rem;
+    flex-grow: 1;
 
     h1, h2, h3, h4, h5, h6 {
       .zola-anchor {
