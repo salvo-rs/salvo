@@ -98,7 +98,7 @@ impl Handler for CompressionHandler {
 ///
 /// let router = Router::new()
 ///     .after(compression::gzip())
-///     .and(StaticFile::new("./README.md"));
+///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::GZIP)
@@ -116,8 +116,7 @@ pub fn gzip() -> CompressionHandler {
 ///
 /// let router = Router::new()
 ///     .after(compression::deflate())
-///     .and(StaticFile::new("./README.md"));
-/// use salvo_core::prelude::*;
+///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::DEFLATE)
@@ -135,7 +134,7 @@ pub fn deflate() -> CompressionHandler {
 ///
 /// let router = Router::new()
 ///     .after(compression::brotli())
-///     .and(StaticFile::new("./README.md"));
+///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::BR)
