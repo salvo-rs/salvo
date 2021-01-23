@@ -1,4 +1,3 @@
-use display_bytes;
 use std::fmt;
 
 pub use futures::*;

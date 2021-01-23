@@ -185,7 +185,7 @@ impl PathParser {
                 return Ok(Box::new(RestSegement::new(format!("*{}", rest_seg))));
             } else {
                 let rname = self.scan_ident()?;
-                if &rname == "" {
+                if rname.is_empty() {
                     return Err("name must not equal empty string".to_owned());
                 } else {
                     regex_names.push(rname.clone());
@@ -208,7 +208,7 @@ impl PathParser {
                 } else {
                     self.next(false);
                 }
-                if &const_seg != "" {
+                if !const_seg.is_empty() {
                     regex_seg.push_str(&const_seg);
                     const_seg.clear();
                 }
@@ -220,8 +220,8 @@ impl PathParser {
         if self.offset < self.path.len() - 1 && self.curr() != '/' {
             return Err(format!("expect '/' here, but found {:?}   {:?}", self.curr(), self.offset));
         }
-        if &regex_seg != "" {
-            if &const_seg != "" {
+        if !regex_seg.is_empty() {
+            if !const_seg.is_empty() {
                 regex_seg.push_str(&const_seg);
             }
             let regex = Regex::new(&regex_seg);
@@ -229,7 +229,7 @@ impl PathParser {
                 Ok(r) => Ok(Box::new(RegexSegement::new(r, regex_names))),
                 Err(_) => Err("regex error".to_owned()),
             }
-        } else if const_seg != "" {
+        } else if !const_seg.is_empty() {
             Ok(Box::new(ConstSegement::new(const_seg)))
         } else {
             Err("parse path error 1".to_owned())

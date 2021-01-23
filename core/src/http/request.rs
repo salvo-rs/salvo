@@ -1,6 +1,5 @@
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
-use form_urlencoded;
 use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
@@ -222,7 +221,7 @@ impl Request {
     }
 
     #[inline]
-    pub fn get_param<'a, F>(&self, key: &'a str) -> Option<F>
+    pub fn get_param<F>(&self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
@@ -237,7 +236,7 @@ impl Request {
         })
     }
     #[inline]
-    pub fn get_query<'a, F>(&self, key: &'a str) -> Option<F>
+    pub fn get_query<F>(&self, key: &str) -> Option<F>
     where
         F: FromStr,
     {

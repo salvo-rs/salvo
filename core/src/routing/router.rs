@@ -25,6 +25,12 @@ pub struct DetectMatched {
 //     }
 // }
 
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Router {
     pub fn new() -> Router {
         Router {
@@ -47,8 +53,8 @@ impl Router {
             for child in &self.children {
                 if let Some(dm) = child.detect(request, path) {
                     return Some(DetectMatched {
-                        befores: Vec::from([&self.befores[..], &dm.befores[..]].concat()),
-                        afters: Vec::from([&dm.afters[..], &self.afters[..]].concat()),
+                        befores: [&self.befores[..], &dm.befores[..]].concat(),
+                        afters: [&dm.afters[..], &self.afters[..]].concat(),
                         handler: dm.handler.clone(),
                     });
                 }
@@ -64,7 +70,7 @@ impl Router {
             }
         }
         path.match_cursor = match_cursor;
-        return None;
+        None
     }
 
     pub fn visit<F>(self, func: F) -> Self

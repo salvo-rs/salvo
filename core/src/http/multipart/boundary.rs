@@ -2,7 +2,6 @@ use futures::{Stream, TryStream};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{fmt, mem};
-use tracing;
 
 use self::State::*;
 use super::helpers::*;

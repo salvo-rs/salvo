@@ -4,8 +4,6 @@ use std::str::Utf8Error;
 
 use thiserror::Error;
 use async_trait::async_trait;
-use httparse;
-use hyper;
 
 use crate::{Depot, Writer, Request, Response};
 use crate::http::{HttpError, StatusCode};

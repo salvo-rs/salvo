@@ -94,7 +94,6 @@ where
             data: FieldData {
                 multipart: multipart!(take),
             },
-            _priv: (),
         })))
     }
 }
@@ -102,6 +101,7 @@ where
 /// A single field in a multipart stream.
 ///
 /// The data of the field is provided as a `Stream` impl in the `data` field.
+#[non_exhaustive]
 pub struct Field<'a, S: TryStream + 'a>
 where
     S::Error: Into<ReadError>,
@@ -110,7 +110,6 @@ where
     pub headers: FieldHeaders,
     /// The data of this field in the request, represented as a stream of chunks.
     pub data: FieldData<'a, S>,
-    _priv: (),
 }
 
 impl<S: TryStream> fmt::Debug for Field<'_, S>
