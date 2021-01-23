@@ -12,17 +12,17 @@
         </url>
     
         <url>
-            <loc>http://127.0.0.1:1111/guide/content/</loc>
-            
-        </url>
-    
-        <url>
             <loc>http://127.0.0.1:1111/guide/getting-started/</loc>
             
         </url>
     
         <url>
             <loc>http://127.0.0.1:1111/guide/getting-started/hello-world/</loc>
+            
+        </url>
+    
+        <url>
+            <loc>http://127.0.0.1:1111/zh/</loc>
             
         </url>
     

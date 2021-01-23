@@ -1,5 +1,5 @@
 <div align="center">
-<img alter="Savlo" src="site/static/logo.svg" />
+<img alt="Savlo" src="site/static/logo.svg" />
 <p>
 
 [![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
@@ -12,7 +12,7 @@
 ![License](https://img.shields.io/crates/l/salvo.svg)
 
 </p>
-<h3>Salvo 是一个简单以用的 Rust Web 后端框架.</h3>
+<h3>Salvo 是一个简单易用的 Rust Web 后端框架.</h3>
 </div>
 
 ## 🎯 功能
