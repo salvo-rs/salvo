@@ -4,14 +4,20 @@
 {% block extra_content_class %}content--reversed{% endblock extra_content_class %}
 
 {% block content %}
-{% set section = get_section(path="guide/_index.md") %}
-<div class="guide">
-    <aside class="guide__sidebar">
+{% set section = get_section(path="book/_index.md") %}
+<div class="book">
+    <aside class="book__sidebar">
+        <div class="search-container">
+            <input id="search" type="search" placeholder="Search the book">
+            <div class="search-results">
+                <div class="search-results__items"></div>
+            </div>
+        </div>
         <ul>
             {% for p in section.subsections %}
             {% set subsection = get_section(path=p) %}
             <li>
-                <span class="guide__sidebar__title">{{ subsection.title }}</span>
+                <span class="book__sidebar__title">{{ subsection.title }}</span>
                 <ul>
                     {% for page in subsection.pages %}
                     <li class="{% if current_path == page.path %}active{% endif %}">
@@ -23,9 +29,9 @@
             {% endfor %}
         </ul>
     </aside>
-    <div class="guide__content">
-        {% block guide_content %}
-        {% endblock guide_content %}
+    <div class="book__content">
+        {% block book_content %}
+        {% endblock book_content %}
     </div>
 </div>
 {% endblock content %}
