@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
 use std::path::Path;
-use std::sync::Arc;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{self, Poll};
 
 use bytes::{Bytes, BytesMut};
@@ -15,7 +15,6 @@ use hyper::header::*;
 use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use tracing;
 
 use super::errors::HttpError;
 use super::header::SET_COOKIE;
@@ -39,7 +38,7 @@ impl Stream for ResponseBody {
             ResponseBody::Stream(stream) => {
                 let x = stream.as_mut();
                 x.poll_next(cx)
-            },
+            }
         }
     }
 }
@@ -118,22 +117,20 @@ impl Response {
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         if let Method::HEAD = *req.method() {
-        } else {
-            if let Some(body) = self.body {
-                match body {
-                    ResponseBody::Bytes(bytes) => {
-                        *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
-                    }
-                    ResponseBody::Stream(stream) => {
-                        *res.body_mut() = hyper::Body::wrap_stream(stream);
-                    }
-                    _ => {
-                        res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
-                    }
+        } else if let Some(body) = self.body {
+            match body {
+                ResponseBody::Bytes(bytes) => {
+                    *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
                 }
-            } else {
-                res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                ResponseBody::Stream(stream) => {
+                    *res.body_mut() = hyper::Body::wrap_stream(stream);
+                }
+                _ => {
+                    res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                }
             }
+        } else {
+            res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
         }
     }
 
@@ -195,24 +192,17 @@ impl Response {
         self.http_error = Some(err);
         self.commit();
     }
-    // #[inline]
-    // pub fn render_cbor<'a, T: Serialize>(&mut self, writer: &'a T) {
-    //     if let Ok(data) = serde_cbor::to_vec(writer) {
-    //         self.render("application/cbor", data);
-    //     } else {
-    //         self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-    //         let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to cbor");
-    //         self.render("application/cbor", serde_cbor::to_vec(&emsg).unwrap());
-    //     }
-    // }
     #[inline]
-    pub fn render_json<'a, T: Serialize>(&mut self, data: &'a T) {
+    pub fn render_json<T: Serialize>(&mut self, data: &T) {
         if let Ok(data) = serde_json::to_string(data) {
             self.render_binary("application/json; charset=utf-8".parse().unwrap(), data.as_bytes());
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
-            self.render_binary("application/json; charset=utf-8".parse().unwrap(), serde_json::to_string(&emsg).unwrap().as_bytes());
+            self.render_binary(
+                "application/json; charset=utf-8".parse().unwrap(),
+                serde_json::to_string(&emsg).unwrap().as_bytes(),
+            );
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
@@ -262,7 +252,7 @@ impl Response {
     pub fn streaming<S, O, E>(&mut self, stream: S)
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<Bytes> + 'static, 
+        O: Into<Bytes> + 'static,
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
         if let Some(body) = &self.body {

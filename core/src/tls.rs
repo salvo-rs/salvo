@@ -212,7 +212,7 @@ impl TlsConfigBuilder {
         let mut config = ServerConfig::new(client_auth);
         config
             .set_single_cert_with_ocsp_and_sct(cert, key, self.ocsp_resp, Vec::new())
-            .map_err(|err| TlsConfigError::InvalidKey(err))?;
+            .map_err(TlsConfigError::InvalidKey)?;
         config.set_protocols(&["h2".into(), "http/1.1".into()]);
         Ok(config)
     }

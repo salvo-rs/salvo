@@ -279,7 +279,7 @@ impl NamedFile {
 
 
     pub(crate) fn last_modified(&self) -> Option<SystemTime> {
-        self.modified.map(|mtime| mtime.into())
+        self.modified
     }
 }
 
@@ -297,7 +297,7 @@ impl Writer for NamedFile {
         let precondition_failed = if !any_match(etag.as_ref(), req) {
             true
         } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfUnmodifiedSince>()) {
-            !since.precondition_passes(last_modified.clone().into())
+            !since.precondition_passes(*last_modified)
         } else {
             false
         };
@@ -308,7 +308,7 @@ impl Writer for NamedFile {
         } else if req.headers().contains_key(header::IF_NONE_MATCH) {
             false
         } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfModifiedSince>()) {
-            !since.is_modified(last_modified.clone())
+            !since.is_modified(*last_modified)
         } else {
             false
         };

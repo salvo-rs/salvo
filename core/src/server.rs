@@ -11,7 +11,6 @@ use hyper::server::accept::{self, Accept};
 use hyper::server::conn::AddrIncoming;
 use hyper::Server as HyperServer;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tracing;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
@@ -44,7 +43,10 @@ impl Server {
     }
 
     #[inline]
-    fn create_bind_incoming_hyper_server<S>(self, incoming: S) -> Result<hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Self>, hyper::Error>
+    fn create_bind_incoming_hyper_server<S>(
+        self,
+        incoming: S,
+    ) -> Result<hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Self>, hyper::Error>
     where
         S: TryStream + Send,
         S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
@@ -98,7 +100,7 @@ impl Server {
     /// async fn hello_world(res: &mut Response) {
     ///     res.render_plain_text("Hello World!");
     /// }
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
@@ -335,8 +337,8 @@ impl TlsServer {
     fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<TlsAcceptor, Server>), crate::Error> {
         let addr = addr.into();
         let TlsServer { server, builder } = self;
-        let tls = builder.build().map_err(|e| crate::Error::new(e))?;
-        let mut incoming = AddrIncoming::bind(&addr).map_err(|e| crate::Error::new(e))?;
+        let tls = builder.build().map_err(crate::Error::new)?;
+        let mut incoming = AddrIncoming::bind(&addr).map_err(crate::Error::new)?;
         incoming.set_nodelay(true);
         let srv = HyperServer::builder(TlsAcceptor::new(tls, incoming)).serve(server);
         Ok((addr, srv))
@@ -408,10 +410,10 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new(allowed_media_types.clone());
         let mut depot = Depot::new();
         let path = request.uri().path();
-        let segments = if path.starts_with('/') { path[1..].split('/') } else { path.split('/') };
+        let segments = if let Some(path) = path.strip_prefix('/') { path.split('/') } else { path.split('/') };
         let segments = segments
             .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
-            .filter(|s| !s.contains('/') && *s != "")
+            .filter(|s| !s.contains('/') && !s.is_empty())
             .collect::<Vec<_>>();
         let mut path_state = PathState::new(segments);
         response.cookies = request.cookies().clone();
@@ -471,12 +473,10 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     "Http response content type header is not set"
                 );
             }
-            if response.body.is_none() {
-                if has_error {
-                    for catcher in &*catchers {
-                        if catcher.catch(&request, &mut response) {
-                            break;
-                        }
+            if response.body.is_none() && has_error {
+                for catcher in &*catchers {
+                    if catcher.catch(&request, &mut response) {
+                        break;
                     }
                 }
             }

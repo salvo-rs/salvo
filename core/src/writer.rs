@@ -53,6 +53,7 @@ where
     }
 }
 
+#[allow(clippy::unit_arg)]
 #[async_trait]
 impl Writer for () {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {}
