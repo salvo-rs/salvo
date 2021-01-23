@@ -124,7 +124,7 @@ async fn delete_user(res: &mut Response) {
 
 `Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
 <p style="text-align: center;">
-<img src="site/static/alipay.png" alt="Alipay" width="320"/><img src="site/static/weixin.png" alt="Weixin" width="320"/>
+<img src="site/static/alipay.png" alt="Alipay" width="320"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="site/static/weixin.png" alt="Weixin" width="320"/>
 </p>
 ## License
 
