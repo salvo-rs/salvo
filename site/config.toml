@@ -1,12 +1,21 @@
 base_url = "https://www.salvo.pub/"
 title = "Salvo"
-description = "Simple web framework written by rust"
+description = "Salvo is a easy to use web framework written by rust"
 
 compile_sass = true
 highlight_code = true
 insert_anchor_links = true
 highlight_theme = "kronuz"
 build_search_index = true
+
+
+default_language = "en"
+languages = [
+    {code = "zh"}
+]
+[translations]
+[translations.zh]
+    description = "Salvo 是一个简单易用的 Rust Web 后端框架"
 
 [extra]
 author = "Chrislearn Young"
