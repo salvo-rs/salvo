@@ -1,7 +1,0 @@
-{% extends "book.html" %}
-
-{% block title %}{{ page.title }} | {{ super() }} {% endblock title %}
-{% block book_content %}
-<h1>{{page.title}}</h1>
-{{page.content | safe}}
-{% endblock book_content %}
