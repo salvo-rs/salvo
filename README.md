@@ -1,5 +1,5 @@
 <div align="center">
-<img alt="Savlo" src="site/static/logo.svg" />
+<img alt="Savlo" src="assets/logo.svg" />
 <p>
 
 [![build status](https://github.com/kenorld/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/kenorld/salvo/actions)
