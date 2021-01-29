@@ -37,7 +37,7 @@ use salvo_core::{Depot, Handler};
 /// let cors = salvo_extra::cors::cors()
 ///     .allow_any_origin();
 /// ```
-/// You can find more usage examples [here](https://github.com/kenorld/salvo/blob/examples/cors.rs).
+/// You can find more usage examples [here](https://github.com/salvo-rs/salvo/blob/examples/cors.rs).
 pub fn cors() -> Builder {
     Builder {
         credentials: false,
