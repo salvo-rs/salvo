@@ -56,7 +56,7 @@ serde_derive = "1"
 salvo_core = { path = "./core", version = "0.5.5", features = ["full"] }
 salvo_extra = { path = "./extra", version = "0.5.5" }
 salvo_macros = { path = "./macros", version = "0.5.5" }
-tokio = { version = "1", features = [ "full" ] }
+tokio = { version = "1.1", features = [ "full" ] }
 tokio-stream = { version = "0.1", features = [ "net" ] }
 tracing = "0.1"
 tracing-futures = "0.2"

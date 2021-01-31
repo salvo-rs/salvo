@@ -29,14 +29,14 @@ hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "t
 jsonwebtoken = "7.2"
 mime = "0.3"
 percent-encoding = "2.1"
-pin-project = "1.0.4"
+pin-project = "1.0"
 salvo_core = { version = "0.5", path = "../core", default-features = false }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 thiserror = "1.0"
 time = "0.2"
-tokio = { version = "1", features = ["fs", "sync", "time"] }
+tokio = { version = "1.1", features = ["fs", "sync", "time"] }
 tokio-stream = "0.1"
 tokio-tungstenite = { version = "0.13", default-features = false }
 tokio-util = { version = "0.6", features = ["io"] }
