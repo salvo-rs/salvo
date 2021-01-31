@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.5.4"
+version = "0.5.5"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -36,7 +36,7 @@ serde_derive = "1.0"
 serde_json = "1.0"
 thiserror = "1.0"
 time = "0.2"
-tokio = { version = "1.0", features = ["fs", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "sync", "time"] }
 tokio-stream = "0.1"
 tokio-tungstenite = { version = "0.13", default-features = false }
 tokio-util = { version = "0.6", features = ["io"] }
