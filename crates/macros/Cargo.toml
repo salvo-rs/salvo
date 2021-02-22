@@ -1,0 +1,26 @@
+[package]
+name = "salvo_macros"
+version = "0.5.5"
+authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
+edition = "2018"
+description = "salvo proc macros"
+homepage = "https://github.com/salvo-rs/salvo"
+repository = "https://github.com/salvo-rs/salvo/macros"
+readme = "../README.md"
+keywords = [ "salvo", "web", "framework", "server" ]
+license = "MIT"
+categories = [ "web-programming::http-server" ]
+
+[lib]
+name = "salvo_macros"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+proc-macro-crate = "0.1"
+proc-macro2 = "1.0"
+proc-quote = "0.3"
+syn = { version = "1.0", features = [ "full", "parsing" ] }
+# [dev-dependencies]
+# salvo = { version = "0.4", path="../core"}
+# futures = { version = "0.3" }
