@@ -1,0 +1,44 @@
+[package]
+name = "salvo_extra"
+version = "0.5.5"
+authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
+edition = "2018"
+description = """
+A simple web framework written by rust
+"""
+homepage = "https://github.com/salvo-rs/salvo"
+repository = "https://github.com/salvo-rs/salvo"
+readme = "../README.md"
+keywords = [ "salvo", "web", "framework", "server" ]
+license = "MIT"
+categories = [ "web-programming::http-server" ]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+async-compression = { version = "0.3.7", features = ["brotli", "deflate", "gzip", "tokio"] }
+async-trait = "0.1"
+base64 = "0.13.0"
+chrono = { version = "0.4", features = [ "serde" ] }
+cookie = { version = "0.14", features = [ "percent-encode" ] }
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+headers = "0.3.3"
+http = "0.2.3"
+hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+jsonwebtoken = "7.2"
+mime = "0.3"
+percent-encoding = "2.1"
+pin-project = "1.0"
+salvo_core = { version = "0.5", path = "../core", default-features = false }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+thiserror = "1.0"
+time = "0.2"
+tokio = { version = "1.1", features = ["fs", "sync", "time"] }
+tokio-stream = "0.1"
+tokio-tungstenite = { version = "0.13", default-features = false }
+tokio-util = { version = "0.6", features = ["io"] }
+tracing = "0.1"
+url = "2.2"
