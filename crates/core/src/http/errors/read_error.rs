@@ -6,7 +6,7 @@ use thiserror::Error;
 use async_trait::async_trait;
 
 use crate::{Depot, Writer, Request, Response};
-use crate::http::{HttpError, StatusCode};
+use crate::http::errors::*;
 
 #[derive(Error, Debug)]
 pub enum ReadError {
@@ -89,11 +89,6 @@ pub enum ReadError {
 #[async_trait]
 impl Writer for ReadError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(HttpError{
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "Internal Server Error".into(),
-            summary: Some("Http read error happened".into()),
-            detail: Some("There is no more detailed explanation.".into()),
-        });
+        res.set_http_error(InternalServerError().set_summary("http read error happened".into()).set_detail("there is no more detailed explanation.".into()));
     }
 }
