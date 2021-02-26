@@ -68,11 +68,11 @@ pub struct HttpError {
     pub detail: Option<String>,
 }
 impl HttpError {
-    pub fn set_summary(&mut self, summary: String) -> &mut Self {
+    pub fn set_summary(mut self, summary: String) -> Self {
         self.summary = Some(summary);
         self
     }
-    pub fn set_detail(&mut self, detail: String) -> &mut Self {
+    pub fn set_detail(mut self, detail: String) -> Self {
         self.detail = Some(detail);
         self
     }

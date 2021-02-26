@@ -81,7 +81,8 @@ impl StringUtils for str {
 
 pub mod prelude {
     pub use crate::depot::Depot;
-    pub use crate::http::{Request, Response, StatusCode, HttpError};
+    pub use crate::http::{Request, Response, StatusCode};
+    pub use crate::http::errors::*;
     pub use crate::routing::filter;
     pub use crate::routing::Router;
     pub use crate::server::Server;
