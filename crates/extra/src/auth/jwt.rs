@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use salvo_core::depot::Depot;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response};
+use salvo_core::http::errors::*;
 use salvo_core::Handler;
 
 pub struct JwtHandler<C>
@@ -126,7 +127,7 @@ where
                         depot.insert(key.clone(), "forbidden");
                     }
                     if self.config.response_error {
-                        res.forbidden();
+                        res.set_http_error(Forbidden());
                     }
                 }
                 if let Some(key) = &self.config.context_token_key {
@@ -139,7 +140,7 @@ where
             depot.insert(key.clone(), "unauthorized");
         }
         if self.config.response_error {
-            res.unauthorized();
+            res.set_http_error(Unauthorized());
         }
     }
 }

@@ -11,6 +11,7 @@ use headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upg
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::{HttpError, StatusCode};
+use salvo_core::http::errors::*;
 use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
@@ -68,12 +69,7 @@ impl WsHandler {
         let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            return Err(HttpError {
-                code: StatusCode::BAD_REQUEST,
-                name: "Bad Request".into(),
-                summary: "missing connection upgrade".into(),
-                detail: "".into(),
-            });
+            return Err(BadRequest().set_summary("missing connection upgrade".into()));
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -82,12 +78,7 @@ impl WsHandler {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            return Err(HttpError {
-                code: StatusCode::BAD_REQUEST,
-                name: "Bad Request".into(),
-                summary: "missing upgrade header or it is not equal websocket".into(),
-                detail: "".into(),
-            });
+            return Err(BadRequest().set_summary("missing upgrade header or it is not equal websocket".into()));
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -96,23 +87,13 @@ impl WsHandler {
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not equal 13");
-            return Err(HttpError {
-                code: StatusCode::BAD_REQUEST,
-                name: "Bad Request".into(),
-                summary: "websocket version is not equal 13".into(),
-                detail: "".into(),
-            });
+            return Err(BadRequest().set_summary("websocket version is not equal 13".into()));
         }
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(HttpError {
-                code: StatusCode::BAD_REQUEST,
-                name: "Bad Request".into(),
-                summary: "sec_websocket_key is not exist in request headers".into(),
-                detail: "".into(),
-            });
+            return Err(BadRequest().set_summary("sec_websocket_key is not exist in request headers".into()));
         };
     
         res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
@@ -135,12 +116,7 @@ impl WsHandler {
             Ok(fut)
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
-            Err(HttpError {
-                code: StatusCode::BAD_REQUEST,
-                name: "Bad Request".into(),
-                summary: "ws couldn't be upgraded since no upgrade state was present".into(),
-                detail: "".into(),
-            })
+            Err(BadRequest().set_summary("ws couldn't be upgraded since no upgrade state was present".into()))
         }
     }
     
