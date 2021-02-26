@@ -16,7 +16,7 @@ use hyper::Method;
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 
-use super::errors::HttpError;
+use super::errors::*;
 use super::header::SET_COOKIE;
 use super::header::{self, HeaderMap, InvalidHeaderValue, CONTENT_DISPOSITION};
 use crate::http::Request;
@@ -280,7 +280,7 @@ impl Response {
             );
             self.render_binary(mime.to_string().parse().unwrap(), data);
         } else {
-            self.unsupported_media_type();
+            self.set_http_error(UnsupportedMediaType());
             tracing::error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
         }
     }
@@ -379,38 +379,6 @@ impl Response {
         self.is_commited
     }
 
-    #[inline]
-    pub fn not_found(&mut self) {
-        self.status_code = Some(StatusCode::NOT_FOUND);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-
-    #[inline]
-    pub fn unauthorized(&mut self) {
-        self.status_code = Some(StatusCode::UNAUTHORIZED);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-
-    #[inline]
-    pub fn forbidden(&mut self) {
-        self.status_code = Some(StatusCode::FORBIDDEN);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-    #[inline]
-    pub fn unsupported_media_type(&mut self) {
-        self.status_code = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-        self.commit();
-    }
-
     fn get_mime_by_path<T>(&self, path: T) -> Option<Mime>
     where
         T: AsRef<str>,
@@ -428,6 +396,54 @@ impl Response {
             }
         }
         None
+    }
+
+    #[deprecated(
+        since = "0.6.0",
+        note = "Please use set_http_error function instead"
+    )]
+    #[inline]
+    pub fn not_found(&mut self) {
+        self.status_code = Some(StatusCode::NOT_FOUND);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
+        self.commit();
+    }
+
+    #[deprecated(
+        since = "0.6.0",
+        note = "Please use set_http_error function instead"
+    )]
+    #[inline]
+    pub fn unauthorized(&mut self) {
+        self.status_code = Some(StatusCode::UNAUTHORIZED);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
+        self.commit();
+    }
+
+    #[deprecated(
+        since = "0.6.0",
+        note = "Please use set_http_error function instead"
+    )]
+    #[inline]
+    pub fn forbidden(&mut self) {
+        self.status_code = Some(StatusCode::FORBIDDEN);
+        if !self.headers().contains_key(header::CONTENT_TYPE) {
+            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        }
+        self.commit();
+    }
+    #[deprecated(
+        since = "0.6.0",
+        note = "Please use set_http_error function instead"
+    )]
+    #[inline]
+    pub fn unsupported_media_type(&mut self) {
+        self.status_code = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        self.commit();
     }
 }
 
