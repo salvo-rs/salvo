@@ -4,9 +4,9 @@ use mime::Mime;
 use std::error::Error as StdError;
 use std::fmt;
 
-use crate::{Depot, Writer, Request, Response};
+use crate::{Depot, Request, Response, Writer};
 
-fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str) -> String {
+fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "<!DOCTYPE html>
 <html>
@@ -26,29 +26,35 @@ fn error_html(code: StatusCode, name: &str, summary: &str, detail: &str) -> Stri
 </html>",
         code.as_u16(),
         name,
-        summary,
-        detail
+        summary.unwrap_or(name),
+        detail.unwrap_or_else(|| "there is no more detailed explanation")
     )
 }
-fn error_json(code: StatusCode, name: &str, summary: &str, detail: &str) -> String {
+fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
         code.as_u16(),
         name,
-        summary,
-        detail
+        summary.unwrap_or(name),
+        detail.unwrap_or_else(|| "there is no more detailed explanation")
     )
 }
-fn error_text(code: StatusCode, name: &str, summary: &str, detail: &str) -> String {
-    format!("code:{},\nname:{},\nsummary:{},\ndetail:{}", code.as_u16(), name, summary, detail)
+fn error_text(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+    format!(
+        "code:{},\nname:{},\nsummary:{},\ndetail:{}",
+        code.as_u16(),
+        name,
+        summary.unwrap_or(name),
+        detail.unwrap_or_else(|| "there is no more detailed explanation")
+    )
 }
-fn error_xml(code: StatusCode, name: &str, summary: &str, detail: &str) -> String {
+fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
         code.as_u16(),
         name,
-        summary,
-        detail
+        summary.unwrap_or(name),
+        detail.unwrap_or_else(|| "there is no more detailed explanation")
     )
 }
 
@@ -58,8 +64,18 @@ pub type HttpResult<T> = Result<T, HttpError>;
 pub struct HttpError {
     pub code: StatusCode,
     pub name: String,
-    pub summary: String,
-    pub detail: String,
+    pub summary: Option<String>,
+    pub detail: Option<String>,
+}
+impl HttpError {
+    pub fn set_summary(&mut self, summary: String) -> &mut Self {
+        self.summary = Some(summary);
+        self
+    }
+    pub fn set_detail(&mut self, detail: String) -> &mut Self {
+        self.detail = Some(detail);
+        self
+    }
 }
 
 impl StdError for HttpError {}
@@ -67,8 +83,8 @@ impl StdError for HttpError {}
 impl fmt::Display for HttpError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "name: {}", &self.name)?;
-        write!(f, "summary: {}", &self.summary)?;
-        write!(f, "detail: {}", &self.detail)?;
+        write!(f, "summary: {:?}", &self.summary)?;
+        write!(f, "detail: {:?}", &self.detail)?;
         Ok(())
     }
 }
@@ -80,10 +96,10 @@ impl HttpError {
             prefer_format.clone()
         };
         let content = match format.subtype().as_ref() {
-            "text" => error_text(self.code, &self.name, &self.summary, &self.detail),
-            "json" => error_json(self.code, &self.name, &self.summary, &self.detail),
-            "xml" => error_xml(self.code, &self.name, &self.summary, &self.detail),
-            _ => error_html(self.code, &self.name, &self.summary, &self.detail),
+            "text" => error_text(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
+            "json" => error_json(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
+            "xml" => error_xml(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
+            _ => error_html(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
         };
         (format, content.as_bytes().to_owned())
     }
@@ -102,12 +118,12 @@ macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {
         $(
             #[allow(non_snake_case)]
-            pub fn $sname(summary: Option<String>, detail: Option<String>) -> HttpError {
+            pub fn $sname() -> HttpError {
                 HttpError {
                     code: $code,
                     name: $name.into(),
-                    summary: summary.unwrap_or($summary.into()),
-                    detail: detail.unwrap_or("There is no more detailed explanation.".into()),
+                    summary: None,
+                    detail: None,
                 }
             }
         )+
@@ -116,45 +132,45 @@ macro_rules! default_errors {
 
 pub fn from_code(code: StatusCode) -> Option<HttpError> {
     match code {
-        StatusCode::BAD_REQUEST => Some(BadRequest(None, None)),
-        StatusCode::UNAUTHORIZED => Some(Unauthorized(None, None)),
-        StatusCode::PAYMENT_REQUIRED => Some(PaymentRequired(None, None)),
-        StatusCode::FORBIDDEN => Some(Forbidden(None, None)),
-        StatusCode::NOT_FOUND => Some(NotFound(None, None)),
-        StatusCode::METHOD_NOT_ALLOWED => Some(MethodNotAllowed(None, None)),
-        StatusCode::NOT_ACCEPTABLE => Some(NotAcceptable(None, None)),
-        StatusCode::PROXY_AUTHENTICATION_REQUIRED => Some(ProxyAuthenticationRequired(None, None)),
-        StatusCode::REQUEST_TIMEOUT => Some(RequestTimeout(None, None)),
-        StatusCode::CONFLICT => Some(Conflict(None, None)),
-        StatusCode::GONE => Some(Gone(None, None)),
-        StatusCode::LENGTH_REQUIRED => Some(LengthRequired(None, None)),
-        StatusCode::PRECONDITION_FAILED => Some(PreconditionFailed(None, None)),
-        StatusCode::PAYLOAD_TOO_LARGE => Some(PayloadTooLarge(None, None)),
-        StatusCode::URI_TOO_LONG => Some(UriTooLong(None, None)),
-        StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(UnsupportedMediaType(None, None)),
-        StatusCode::RANGE_NOT_SATISFIABLE => Some(RangeNotSatisfiable(None, None)),
-        StatusCode::EXPECTATION_FAILED => Some(ExpectationFailed(None, None)),
-        StatusCode::IM_A_TEAPOT => Some(ImATeapot(None, None)),
-        StatusCode::MISDIRECTED_REQUEST => Some(MisdirectedRequest(None, None)),
-        StatusCode::UNPROCESSABLE_ENTITY => Some(UnprocessableEntity(None, None)),
-        StatusCode::LOCKED => Some(Locked(None, None)),
-        StatusCode::FAILED_DEPENDENCY => Some(FailedDependency(None, None)),
-        StatusCode::UPGRADE_REQUIRED => Some(UpgradeRequired(None, None)),
-        StatusCode::PRECONDITION_REQUIRED => Some(PreconditionRequired(None, None)),
-        StatusCode::TOO_MANY_REQUESTS => Some(TooManyRequests(None, None)),
-        StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => Some(RequestHeaderFieldsTooLarge(None, None)),
-        StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(UnavailableForLegalReasons(None, None)),
-        StatusCode::INTERNAL_SERVER_ERROR => Some(InternalServerError(None, None)),
-        StatusCode::NOT_IMPLEMENTED => Some(NotImplemented(None, None)),
-        StatusCode::BAD_GATEWAY => Some(BadGateway(None, None)),
-        StatusCode::SERVICE_UNAVAILABLE => Some(ServiceUnavailable(None, None)),
-        StatusCode::GATEWAY_TIMEOUT => Some(GatewayTimeout(None, None)),
-        StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(HttpVersionNotSupported(None, None)),
-        StatusCode::VARIANT_ALSO_NEGOTIATES => Some(VariantAlsoNegotiates(None, None)),
-        StatusCode::INSUFFICIENT_STORAGE => Some(InsufficientStorage(None, None)),
-        StatusCode::LOOP_DETECTED => Some(LoopDetected(None, None)),
-        StatusCode::NOT_EXTENDED => Some(NotExtended(None, None)),
-        StatusCode::NETWORK_AUTHENTICATION_REQUIRED => Some(NetworkAuthenticationRequired(None, None)),
+        StatusCode::BAD_REQUEST => Some(BadRequest()),
+        StatusCode::UNAUTHORIZED => Some(Unauthorized()),
+        StatusCode::PAYMENT_REQUIRED => Some(PaymentRequired()),
+        StatusCode::FORBIDDEN => Some(Forbidden()),
+        StatusCode::NOT_FOUND => Some(NotFound()),
+        StatusCode::METHOD_NOT_ALLOWED => Some(MethodNotAllowed()),
+        StatusCode::NOT_ACCEPTABLE => Some(NotAcceptable()),
+        StatusCode::PROXY_AUTHENTICATION_REQUIRED => Some(ProxyAuthenticationRequired()),
+        StatusCode::REQUEST_TIMEOUT => Some(RequestTimeout()),
+        StatusCode::CONFLICT => Some(Conflict()),
+        StatusCode::GONE => Some(Gone()),
+        StatusCode::LENGTH_REQUIRED => Some(LengthRequired()),
+        StatusCode::PRECONDITION_FAILED => Some(PreconditionFailed()),
+        StatusCode::PAYLOAD_TOO_LARGE => Some(PayloadTooLarge()),
+        StatusCode::URI_TOO_LONG => Some(UriTooLong()),
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(UnsupportedMediaType()),
+        StatusCode::RANGE_NOT_SATISFIABLE => Some(RangeNotSatisfiable()),
+        StatusCode::EXPECTATION_FAILED => Some(ExpectationFailed()),
+        StatusCode::IM_A_TEAPOT => Some(ImATeapot()),
+        StatusCode::MISDIRECTED_REQUEST => Some(MisdirectedRequest()),
+        StatusCode::UNPROCESSABLE_ENTITY => Some(UnprocessableEntity()),
+        StatusCode::LOCKED => Some(Locked()),
+        StatusCode::FAILED_DEPENDENCY => Some(FailedDependency()),
+        StatusCode::UPGRADE_REQUIRED => Some(UpgradeRequired()),
+        StatusCode::PRECONDITION_REQUIRED => Some(PreconditionRequired()),
+        StatusCode::TOO_MANY_REQUESTS => Some(TooManyRequests()),
+        StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => Some(RequestHeaderFieldsTooLarge()),
+        StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(UnavailableForLegalReasons()),
+        StatusCode::INTERNAL_SERVER_ERROR => Some(InternalServerError()),
+        StatusCode::NOT_IMPLEMENTED => Some(NotImplemented()),
+        StatusCode::BAD_GATEWAY => Some(BadGateway()),
+        StatusCode::SERVICE_UNAVAILABLE => Some(ServiceUnavailable()),
+        StatusCode::GATEWAY_TIMEOUT => Some(GatewayTimeout()),
+        StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(HttpVersionNotSupported()),
+        StatusCode::VARIANT_ALSO_NEGOTIATES => Some(VariantAlsoNegotiates()),
+        StatusCode::INSUFFICIENT_STORAGE => Some(InsufficientStorage()),
+        StatusCode::LOOP_DETECTED => Some(LoopDetected()),
+        StatusCode::NOT_EXTENDED => Some(NotExtended()),
+        StatusCode::NETWORK_AUTHENTICATION_REQUIRED => Some(NetworkAuthenticationRequired()),
         _ => None,
     }
 }

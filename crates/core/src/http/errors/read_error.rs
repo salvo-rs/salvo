@@ -92,8 +92,8 @@ impl Writer for ReadError {
         res.set_http_error(HttpError{
             code: StatusCode::INTERNAL_SERVER_ERROR,
             name: "Internal Server Error".into(),
-            summary: "Http read error happened".into(),
-            detail: "There is no more detailed explanation.".into(),
+            summary: Some("Http read error happened".into()),
+            detail: Some("There is no more detailed explanation.".into()),
         });
     }
 }
