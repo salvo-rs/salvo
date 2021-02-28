@@ -69,7 +69,7 @@ impl WsHandler {
         let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            return Err(BadRequest().set_summary("missing connection upgrade".into()));
+            return Err(BadRequest().with_summary("missing connection upgrade".into()));
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -78,7 +78,7 @@ impl WsHandler {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            return Err(BadRequest().set_summary("missing upgrade header or it is not equal websocket".into()));
+            return Err(BadRequest().with_summary("missing upgrade header or it is not equal websocket".into()));
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -87,13 +87,13 @@ impl WsHandler {
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not equal 13");
-            return Err(BadRequest().set_summary("websocket version is not equal 13".into()));
+            return Err(BadRequest().with_summary("websocket version is not equal 13".into()));
         }
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(BadRequest().set_summary("sec_websocket_key is not exist in request headers".into()));
+            return Err(BadRequest().with_summary("sec_websocket_key is not exist in request headers".into()));
         };
     
         res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
@@ -116,7 +116,7 @@ impl WsHandler {
             Ok(fut)
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
-            Err(BadRequest().set_summary("ws couldn't be upgraded since no upgrade state was present".into()))
+            Err(BadRequest().with_summary("ws couldn't be upgraded since no upgrade state was present".into()))
         }
     }
     
