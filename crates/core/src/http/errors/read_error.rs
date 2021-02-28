@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::io;
 use std::str::Utf8Error;
 
-use thiserror::Error;
 use async_trait::async_trait;
+use thiserror::Error;
 
-use crate::{Depot, Writer, Request, Response};
 use crate::http::errors::*;
+use crate::{Depot, Request, Response, Writer};
 
 #[derive(Error, Debug)]
 pub enum ReadError {
@@ -89,6 +89,10 @@ pub enum ReadError {
 #[async_trait]
 impl Writer for ReadError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(InternalServerError().set_summary("http read error happened".into()).set_detail("there is no more detailed explanation.".into()));
+        res.set_http_error(
+            InternalServerError()
+                .with_summary("http read error happened".into())
+                .with_detail("there is no more detailed explanation.".into()),
+        );
     }
 }

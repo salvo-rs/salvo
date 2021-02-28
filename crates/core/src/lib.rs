@@ -1,14 +1,13 @@
 mod catcher;
 pub mod depot;
+pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
 pub mod server;
-pub mod writer;
-pub mod fs;
-mod error;
 #[cfg(feature = "tls")]
 mod tls;
+pub mod writer;
 
 #[macro_use]
 extern crate pin_utils;
@@ -17,16 +16,17 @@ extern crate futures_util;
 
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
+pub use anyhow::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
 pub use self::server::Server;
-pub use self::writer::Writer;
-pub use self::error::Error;
 #[cfg(feature = "tls")]
 pub use self::server::TlsServer;
+pub use self::writer::Writer;
 pub use salvo_macros::fn_handler;
 
+use async_trait::async_trait;
 use std::ops::{Bound, RangeBounds};
 
 trait StringUtils {
@@ -79,10 +79,17 @@ impl StringUtils for str {
     }
 }
 
+#[async_trait]
+impl Writer for ::anyhow::Error {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_http_error(crate::http::errors::InternalServerError());
+    }
+}
+
 pub mod prelude {
     pub use crate::depot::Depot;
-    pub use crate::http::{Request, Response, StatusCode};
     pub use crate::http::errors::*;
+    pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::filter;
     pub use crate::routing::Router;
     pub use crate::server::Server;
