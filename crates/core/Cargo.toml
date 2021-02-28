@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.5.5"
+version = "0.5.6"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -22,6 +22,7 @@ full = ["tls"]
 tls = ["tokio-rustls"]
 
 [dependencies]
+anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.13"
 bitflags = "1.2"
@@ -45,7 +46,7 @@ percent-encoding = "2.1"
 pin-utils = "0.1"
 rand = "0.8"
 regex = "1.4"
-salvo_macros = { path = "../macros", version = "0.5.5"}
+salvo_macros = { path = "../macros", version = "0.5.6"}
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 tempdir = "0.3"
