@@ -8,9 +8,9 @@ A simple web framework written by rust
 """
 homepage = "https://github.com/salvo-rs/salvo"
 repository = "https://github.com/salvo-rs/salvo"
-readme = "../README.md"
+readme = "../../README.md"
 keywords = [ "salvo", "web", "framework", "server" ]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 categories = [ "web-programming::http-server" ]
 
 [package.metadata.docs.rs]
