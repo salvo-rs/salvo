@@ -1,5 +1,6 @@
 mod catcher;
 pub mod depot;
+mod error;
 pub mod fs;
 mod handler;
 pub mod http;
@@ -16,7 +17,7 @@ extern crate futures_util;
 
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
-pub use anyhow::Error;
+pub use self::error::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
@@ -26,7 +27,6 @@ pub use self::server::TlsServer;
 pub use self::writer::Writer;
 pub use salvo_macros::fn_handler;
 
-use async_trait::async_trait;
 use std::ops::{Bound, RangeBounds};
 
 trait StringUtils {
@@ -76,13 +76,6 @@ impl StringUtils for str {
             Bound::Unbounded => self.len(),
         } - start;
         self.substring(start, len)
-    }
-}
-
-#[async_trait]
-impl Writer for ::anyhow::Error {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(crate::http::errors::InternalServerError());
     }
 }
 
