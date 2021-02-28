@@ -52,6 +52,7 @@ fn error_size_of() {
     assert_eq!(::std::mem::size_of::<Error>(), ::std::mem::size_of::<usize>() * 2);
 }
 
+#[cfg(feature = "anyhow")]
 #[async_trait]
 impl Writer for ::anyhow::Error {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
