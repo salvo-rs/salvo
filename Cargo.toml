@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.5.6"
+version = "0.6.0"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -44,8 +44,8 @@ members = [
 
 [dependencies]
 async-trait = "0.1.42"
-salvo_core = { path = "./crates/core", version = "0.5.6", default-features = false }
-salvo_extra = { path = "./crates/extra", version = "0.5.6", default-features = false, optional = true }
+salvo_core = { path = "./crates/core", version = "0.6.0", default-features = false }
+salvo_extra = { path = "./crates/extra", version = "0.6.0", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { version = "0.3", features = [ "std" ] }
@@ -53,9 +53,9 @@ once_cell = "1"
 reqwest = "0.11"
 serde = "1"
 serde_derive = "1"
-salvo_core = { path = "./crates/core", version = "0.5.6", features = ["full"] }
-salvo_extra = { path = "./crates/extra", version = "0.5.6" }
-salvo_macros = { path = "./crates/macros", version = "0.5.6" }
+salvo_core = { path = "./crates/core", version = "0.6.0", features = ["full"] }
+salvo_extra = { path = "./crates/extra", version = "0.6.0" }
+salvo_macros = { path = "./crates/macros", version = "0.6.0" }
 tokio = { version = "1.1", features = [ "full" ] }
 tokio-stream = { version = "0.1", features = [ "net" ] }
 tracing = "0.1"
