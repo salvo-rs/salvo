@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.6.1"
+version = "0.6.2"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -18,11 +18,11 @@ all-features = true
 
 [features]
 default = []
-full = ["tls"]
+full = ["tls", "anyhow"]
 tls = ["tokio-rustls"]
 
 [dependencies]
-anyhow = "1.0"
+anyhow = {version = "1.0", optional = true }
 async-trait = "0.1"
 base64 = "0.13"
 bitflags = "1.2"
