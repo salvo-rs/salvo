@@ -17,8 +17,7 @@ use mime::Mime;
 use serde::{Deserialize, Serialize};
 
 use super::errors::*;
-use super::header::SET_COOKIE;
-use super::header::{self, HeaderMap, InvalidHeaderValue, CONTENT_DISPOSITION};
+use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_DISPOSITION, SET_COOKIE};
 use crate::http::Request;
 
 #[allow(clippy::type_complexity)]
@@ -195,30 +194,30 @@ impl Response {
     #[inline]
     pub fn render_json<T: Serialize>(&mut self, data: &T) {
         if let Ok(data) = serde_json::to_string(data) {
-            self.render_binary("application/json; charset=utf-8".parse().unwrap(), data.as_bytes());
+            self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), data.as_bytes());
         } else {
             self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
             self.render_binary(
-                "application/json; charset=utf-8".parse().unwrap(),
+                HeaderValue::from_static("application/json; charset=utf-8"),
                 serde_json::to_string(&emsg).unwrap().as_bytes(),
             );
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
-        self.render_binary("application/json; charset=utf-8".parse().unwrap(), data.as_bytes());
+        self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), data.as_bytes());
     }
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
-        self.render_binary("text/html; charset=utf-8".parse().unwrap(), data.as_bytes());
+        self.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), data.as_bytes());
     }
     #[inline]
     pub fn render_plain_text(&mut self, data: &str) {
-        self.render_binary("text/plain; charset=utf-8".parse().unwrap(), data.as_bytes());
+        self.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), data.as_bytes());
     }
     #[inline]
     pub fn render_xml_text(&mut self, data: &str) {
-        self.render_binary("text/xml; charset=utf-8".parse().unwrap(), data.as_bytes());
+        self.render_binary(HeaderValue::from_static("text/xml; charset=utf-8"), data.as_bytes());
     }
     // RenderBinary renders store from memory (which could be a file that has not been written,
     // the output from some function, or bytes streamed from somewhere else, as long
@@ -310,7 +309,7 @@ impl Response {
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::FOUND);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+            self.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
         self.commit();
@@ -319,7 +318,7 @@ impl Response {
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
         self.status_code = Some(StatusCode::SEE_OTHER);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse()?);
+            self.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse()?);
         self.commit();
@@ -396,54 +395,6 @@ impl Response {
             }
         }
         None
-    }
-
-    #[deprecated(
-        since = "0.6.0",
-        note = "Please use set_http_error function instead"
-    )]
-    #[inline]
-    pub fn not_found(&mut self) {
-        self.status_code = Some(StatusCode::NOT_FOUND);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-
-    #[deprecated(
-        since = "0.6.0",
-        note = "Please use set_http_error function instead"
-    )]
-    #[inline]
-    pub fn unauthorized(&mut self) {
-        self.status_code = Some(StatusCode::UNAUTHORIZED);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-
-    #[deprecated(
-        since = "0.6.0",
-        note = "Please use set_http_error function instead"
-    )]
-    #[inline]
-    pub fn forbidden(&mut self) {
-        self.status_code = Some(StatusCode::FORBIDDEN);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        }
-        self.commit();
-    }
-    #[deprecated(
-        since = "0.6.0",
-        note = "Please use set_http_error function instead"
-    )]
-    #[inline]
-    pub fn unsupported_media_type(&mut self) {
-        self.status_code = Some(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-        self.commit();
     }
 }
 
