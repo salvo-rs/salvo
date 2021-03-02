@@ -7,7 +7,7 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 trait Segement: Send + Sync + Debug {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>);
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool,  Option<Vec<&'a str>>, Option<HashMap<String, String>>);
 }
 
 #[derive(Debug)]
@@ -21,9 +21,9 @@ impl RegexSegement {
     }
 }
 impl Segement for RegexSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
         if segements.is_empty() {
-            return (false, Vec::new(), None);
+            return (false, None, None);
         }
         let segement = segements[0];
         let caps = self.regex.captures(segement);
@@ -32,9 +32,9 @@ impl Segement for RegexSegement {
             for name in &self.names {
                 kv.insert(name.clone(), caps[&name[..]].to_owned());
             }
-            (true, vec![segement], Some(kv))
+            (true, Some(vec![segement]), Some(kv))
         } else {
-            (false, Vec::new(), None)
+            (false, None, None)
         }
     }
 }
@@ -47,13 +47,13 @@ impl RestSegement {
     }
 }
 impl Segement for RestSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
         if segements.is_empty() {
-            return (false, Vec::new(), None);
+            return (false, None, None);
         }
         let mut kv = HashMap::new();
         kv.insert(self.0.clone(), segements.join("/"));
-        (true, segements, Some(kv))
+        (true, Some(segements), Some(kv))
     }
 }
 
@@ -65,14 +65,14 @@ impl ConstSegement {
     }
 }
 impl Segement for ConstSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Vec<&'a str>, Option<HashMap<String, String>>) {
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
         if segements.is_empty() {
-            return (false, Vec::new(), None);
+            return (false, None, None);
         }
         if self.0 == segements[0] {
-            (true, vec![segements[0]], None)
+            (true, Some(vec![segements[0]]), None)
         } else {
-            (false, Vec::new(), None)
+            (false, None, None)
         }
     }
 }
@@ -303,7 +303,9 @@ impl Filter for PathFilter {
                     if let Some(kv) = kv {
                         params.extend(kv);
                     }
-                    match_cursor += segs.len();
+                    if let Some(segs) = segs {
+                        match_cursor += segs.len();
+                    }
                 }
             }
             if !params.is_empty() {
