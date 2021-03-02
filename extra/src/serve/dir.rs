@@ -8,7 +8,7 @@ use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use salvo_core::depot::Depot;
+use salvo_core::Depot;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
 use salvo_core::fs::NamedFile;

@@ -4,7 +4,7 @@ pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
-use salvo_core::depot::Depot;
+use salvo_core::Depot;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response};
 use salvo_core::http::errors::*;
