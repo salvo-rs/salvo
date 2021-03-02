@@ -24,10 +24,19 @@ impl Service {
             allowed_media_types: Arc::new(vec![]),
         }
     }
+    pub fn with_catchers(mut self, catchers: Vec<Box<dyn Catcher>>) -> Self {
+        self.catchers = Arc::new(catchers);
+        self
+    }
+    pub fn with_allowed_media_types(mut self, allowed_media_types: Vec<Mime>) -> Self {
+        self.allowed_media_types = Arc::new(allowed_media_types);
+        self
+    }
 }
 impl<T> hyper::service::Service<T> for Service {
     type Response = HyperHandler;
     type Error = std::io::Error;
+
     // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
