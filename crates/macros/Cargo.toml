@@ -1,6 +1,6 @@
 [package]
 name = "salvo_macros"
-version = "0.6.1"
+version = "0.6.4"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = "salvo proc macros"
@@ -21,6 +21,3 @@ proc-macro-crate = "0.1"
 proc-macro2 = "1.0"
 proc-quote = "0.3"
 syn = { version = "1.0", features = [ "full", "parsing" ] }
-# [dev-dependencies]
-# salvo = { version = "0.4", path="../core"}
-# futures = { version = "0.3" }
