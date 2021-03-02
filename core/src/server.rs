@@ -12,16 +12,16 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 #[cfg(feature = "tls")]
 use crate::tls::{TlsAcceptor, TlsConfigBuilder};
-use crate::Service;
+use crate::{Router, Service};
 
 pub struct Server {
     service: Service,
 }
 
 impl Server {
-    pub fn new(service: Service) -> Server {
+    pub fn new(router: Router) -> Server {
         Server {
-            service: service,
+            service: Service::new(router),
         }
     } 
     pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
