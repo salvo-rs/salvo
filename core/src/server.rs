@@ -3,7 +3,9 @@ use std::future::Future;
 use std::net::SocketAddr;
 #[cfg(feature = "tls")]
 use std::path::Path;
+use std::sync::Arc;
 
+use crate::http::Mime;
 use futures::{ TryStream, TryStreamExt};
 use hyper::server::accept::{self, Accept};
 use hyper::server::conn::AddrIncoming;
@@ -12,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 #[cfg(feature = "tls")]
 use crate::tls::{TlsAcceptor, TlsConfigBuilder};
-use crate::{Router, Service};
+use crate::{Router, Service, Catcher};
 
 pub struct Server {
     service: Service,
@@ -23,7 +25,15 @@ impl Server {
         Server {
             service: Service::new(router),
         }
-    } 
+    }
+    pub fn with_catchers(mut self, catchers: Vec<Box<dyn Catcher>>) -> Self {
+        self.service.catchers = Arc::new(catchers);
+        self
+    }
+    pub fn with_allowed_media_types(mut self, allowed_media_types: Vec<Mime>) -> Self {
+        self.service.allowed_media_types = Arc::new(allowed_media_types);
+        self
+    }
     pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
         HyperServer::builder(incoming)
     }
