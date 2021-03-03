@@ -7,4 +7,5 @@ pub mod serve;
 pub mod cors;
 pub mod ws;
 pub mod sse;
+pub mod proxy;
 pub mod compression;
