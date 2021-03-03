@@ -70,8 +70,8 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
-        let mut request = Request::from_hyper(req).unwrap();
-        let mut response = Response::new(allowed_media_types.clone());
+        let mut request = Request::from_hyper(req);
+        let mut response = Response::new();
         let mut depot = Depot::new();
         let path = request.uri().path();
         let segments = if let Some(path) = path.strip_prefix('/') {
