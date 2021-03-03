@@ -13,8 +13,8 @@ use textnonce::TextNonce;
 use crate::http::errors::ReadError;
 use crate::http::header::HeaderMap;
 use crate::http::multipart::{Field, FieldHeaders, Multipart};
-use crate::http::request;
-use crate::http::{Body, BodyChunk};
+use crate::http::request::{self, Body};
+use crate::http::BodyChunk;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 ///
