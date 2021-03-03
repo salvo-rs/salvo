@@ -1,44 +1,45 @@
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
-use std::path::Path;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{self, Poll};
 
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::{Stream, TryStreamExt};
-use http::StatusCode;
 use httpdate::HttpDate;
 use hyper::header::*;
 use hyper::Method;
-use mime::Mime;
 use serde::{Deserialize, Serialize};
 
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_DISPOSITION, SET_COOKIE};
-use crate::http::Request;
+use crate::http::{Request, StatusCode};
 
 #[allow(clippy::type_complexity)]
-pub enum ResponseBody {
+pub enum Body {
     Empty,
     Bytes(BytesMut),
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
 
-impl Stream for ResponseBody {
+impl Stream for Body {
     type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
-            ResponseBody::Empty => Poll::Ready(None),
-            ResponseBody::Bytes(bytes) => Poll::Ready(Some(Ok(bytes.clone().freeze()))),
-            ResponseBody::Stream(stream) => {
+            Body::Empty => Poll::Ready(None),
+            Body::Bytes(bytes) => Poll::Ready(Some(Ok(bytes.clone().freeze()))),
+            Body::Stream(stream) => {
                 let x = stream.as_mut();
                 x.poll_next(cx)
             }
         }
+    }
+}
+impl From<hyper::Body> for Body {
+    fn from(hbody: hyper::Body) -> Body {
+        Body::Stream(Box::pin(hbody.map_err(|e|e.into_cause().unwrap()).into_stream()))
     }
 }
 /// The response representation given to `Middleware`
@@ -46,27 +47,60 @@ pub struct Response {
     /// The response status-code.
     status_code: Option<StatusCode>,
     pub(crate) http_error: Option<HttpError>,
-
     /// The headers of the response.
     headers: HeaderMap,
-
     pub(crate) cookies: CookieJar,
-
-    pub(crate) body: Option<ResponseBody>,
-    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
-
+    pub(crate) body: Option<Body>,
     is_commited: bool,
 }
 
 impl Response {
-    pub fn new(allowed_media_types: Arc<Vec<Mime>>) -> Response {
+    pub fn new() -> Response {
         Response {
             status_code: None,
             http_error: None,
             body: None,
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            allowed_media_types,
+            is_commited: false,
+        }
+    }
+    /// Create a request from an hyper::Request.
+    ///
+    /// This constructor consumes the hyper::Request.
+    pub fn from_hyper(req: hyper::Response<hyper::Body>) -> Response {
+        let (
+            http::response::Parts {
+                status,
+                // version,
+                headers,
+                // extensions,
+                ..
+            },
+            body,
+        ) = req.into_parts();
+
+        // Set the request cookies, if they exist.
+        let cookies = if let Some(header) = headers.get("Cookie") {
+            let mut cookie_jar = CookieJar::new();
+            if let Ok(header) = header.to_str() {
+                for cookie_str in header.split(';').map(|s| s.trim()) {
+                    if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
+                        cookie_jar.add_original(cookie);
+                    }
+                }
+            }
+            cookie_jar
+        } else {
+            CookieJar::new()
+        };
+
+        Response {
+            status_code: Some(status),
+            http_error: None,
+            body: Some(body.into()),
+            headers,
+            cookies,
             is_commited: false,
         }
     }
@@ -85,19 +119,19 @@ impl Response {
     }
 
     #[inline(always)]
-    pub fn body(&self) -> Option<&ResponseBody> {
+    pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
     }
     #[inline(always)]
-    pub fn body_mut(&mut self) -> Option<&mut ResponseBody> {
+    pub fn body_mut(&mut self) -> Option<&mut Body> {
         self.body.as_mut()
     }
     #[inline(always)]
-    pub fn set_body(&mut self, body: Option<ResponseBody>) {
+    pub fn set_body(&mut self, body: Option<Body>) {
         self.body = body
     }
     #[inline(always)]
-    pub fn take_body(&mut self) -> Option<ResponseBody> {
+    pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
     // pub fn insert_header<K>(&mut self, key: K, val: T) -> Option<T> where K: IntoHeaderName,
@@ -118,10 +152,10 @@ impl Response {
         if let Method::HEAD = *req.method() {
         } else if let Some(body) = self.body {
             match body {
-                ResponseBody::Bytes(bytes) => {
+                Body::Bytes(bytes) => {
                     *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
                 }
-                ResponseBody::Stream(stream) => {
+                Body::Stream(stream) => {
                     *res.body_mut() = hyper::Body::wrap_stream(stream);
                 }
                 _ => {
@@ -233,18 +267,18 @@ impl Response {
     pub fn write_body_bytes(&mut self, data: &[u8]) {
         if let Some(body) = self.body_mut() {
             match body {
-                ResponseBody::Bytes(bytes) => {
+                Body::Bytes(bytes) => {
                     bytes.extend_from_slice(data);
                 }
-                ResponseBody::Stream(_) => {
+                Body::Stream(_) => {
                     tracing::error!("current body kind is stream, try to write bytes to it");
                 }
                 _ => {
-                    self.body = Some(ResponseBody::Bytes(BytesMut::from(data)));
+                    self.body = Some(Body::Bytes(BytesMut::from(data)));
                 }
             }
         } else {
-            self.body = Some(ResponseBody::Bytes(BytesMut::from(data)));
+            self.body = Some(Body::Bytes(BytesMut::from(data)));
         }
     }
     #[inline]
@@ -256,45 +290,18 @@ impl Response {
     {
         if let Some(body) = &self.body {
             match body {
-                ResponseBody::Bytes(_) => {
+                Body::Bytes(_) => {
                     tracing::warn!("Current body kind is bytes already");
                 }
-                ResponseBody::Stream(_) => {
+                Body::Stream(_) => {
                     tracing::warn!("Current body kind is stream already");
                 }
                 _ => {}
             }
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = Some(ResponseBody::Stream(Box::pin(mapped)));
+        self.body = Some(Body::Stream(Box::pin(mapped)));
     }
-
-    #[inline]
-    pub fn send_binary(&mut self, data: &[u8], file_name: &str) {
-        let file_name = Path::new(file_name).file_name().and_then(|s| s.to_str()).unwrap_or("file.dat");
-        if let Some(mime) = self.get_mime_by_path(file_name) {
-            self.headers.insert(
-                header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{}\"", &file_name).parse().unwrap(),
-            );
-            self.render_binary(mime.to_string().parse().unwrap(), data);
-        } else {
-            self.set_http_error(UnsupportedMediaType());
-            tracing::error!(file_name = AsRef::<str>::as_ref(&file_name), "Error on send binary");
-        }
-    }
-    // #[inline]
-    // pub fn send_file<T>(&mut self, file: &mut File, file_name: T) -> std::io::Result<()> where T: AsRef<str> {
-    //     let mut data = Vec::new();
-    //     file.read_to_end(&mut data)?;
-    //     self.send_binary(data, file_name.as_ref());
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn send_file_from_path<T>(&mut self, path: T, file_name: Option<T>) -> std::io::Result<()> where T: AsRef<str> {
-    //     let mut file = File::open(path.as_ref())?;
-    //     self.send_file(&mut file, file_name.unwrap_or(path))
-    // }
 
     #[inline]
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
@@ -376,25 +383,6 @@ impl Response {
     #[inline]
     pub fn is_commited(&self) -> bool {
         self.is_commited
-    }
-
-    fn get_mime_by_path<T>(&self, path: T) -> Option<Mime>
-    where
-        T: AsRef<str>,
-    {
-        let guess = mime_guess::from_path(path.as_ref());
-        if let Some(mime) = guess.first() {
-            if self.allowed_media_types.len() > 0 {
-                for m in &*self.allowed_media_types {
-                    if m.type_() == mime.type_() && m.subtype() == mime.subtype() {
-                        return Some(mime);
-                    }
-                }
-            } else {
-                return Some(mime);
-            }
-        }
-        None
     }
 }
 
