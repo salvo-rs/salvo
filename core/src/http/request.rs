@@ -4,6 +4,7 @@ use http::header::{self, HeaderMap};
 use http::method::Method;
 use http::version::Version as HttpVersion;
 use http::{self, Extensions, Uri};
+pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
@@ -14,7 +15,7 @@ use std::str::FromStr;
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
-use crate::http::{Body, Mime};
+use crate::http::Mime;
 
 /// The `Request` given to all `Middleware`.
 ///
@@ -63,7 +64,7 @@ impl Request {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Request<Body>) -> Result<Request, String> {
+    pub fn from_hyper(req: hyper::Request<Body>) -> Request {
         let (
             http::request::Parts {
                 method,
@@ -91,7 +92,7 @@ impl Request {
             CookieJar::new()
         };
 
-        Ok(Request {
+        Request {
             queries: OnceCell::new(),
             uri,
             headers,
@@ -105,7 +106,7 @@ impl Request {
             payload: DoubleCheckedCell::new(),
             // multipart: OnceCell::new(),
             version,
-        })
+        }
     }
 
     #[inline(always)]
