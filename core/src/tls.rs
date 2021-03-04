@@ -5,11 +5,14 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use std::net::SocketAddr;
 
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use futures::ready;
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
+
+use crate::transport::Transport;
 
 use tokio_rustls::rustls::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, RootCertStore, ServerConfig, TLSError,
@@ -253,13 +256,21 @@ enum State {
 // TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
 pub(crate) struct TlsStream {
     state: State,
+    remote_addr: SocketAddr,
+}
+impl Transport for TlsStream {
+    fn remote_addr(&self) -> Option<SocketAddr> {
+        Some(self.remote_addr)
+    }
 }
 
 impl TlsStream {
     fn new(stream: AddrStream, config: Arc<ServerConfig>) -> TlsStream {
+        let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
         TlsStream {
             state: State::Handshaking(accept),
+            remote_addr,
         }
     }
 }
