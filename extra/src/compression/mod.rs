@@ -4,7 +4,7 @@ use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncod
 use async_trait::async_trait;
 use http::header::HeaderValue;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::ResponseBody;
+use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
@@ -63,7 +63,7 @@ impl Handler for CompressionHandler {
             return;
         }
         let body = res.take_body().unwrap();
-        if let ResponseBody::Empty = body {
+        if let Body::Empty = body {
             return;
         }
         let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
