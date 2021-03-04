@@ -1,5 +1,5 @@
 mod catcher;
-mod depot;
+pub mod depot;
 mod error;
 pub mod fs;
 mod handler;
