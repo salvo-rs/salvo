@@ -81,9 +81,11 @@ impl ProxyHandler {
                 format!("{}{}", upstream.strip_suffix('/').unwrap_or(""), rest)
             }
         };
-        let mut build = hyper::Request::builder().method(req.method()).version(req.version()).uri(forward_url);
+        let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
-            build = build.header(key, value);
+            if key.as_str() != "host"  {
+                build = build.header(key, value);
+            }
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";
         // // Add forwarding information in the headers

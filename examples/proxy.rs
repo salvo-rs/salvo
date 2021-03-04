@@ -14,7 +14,7 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
     let router = Router::new().push(
         Router::new()
-            .path("google/<*rest>")
+            .path("google/<**rest>")
             .handle(ProxyHandler::new(vec!["https://www.google.com".into()])),
     );
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
