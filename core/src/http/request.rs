@@ -2,7 +2,7 @@ use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
 use http::header::{self, HeaderMap};
 use http::method::Method;
-use http::version::Version as HttpVersion;
+use http::version::Version;
 use http::{self, Extensions, Uri};
 pub use hyper::Body;
 use multimap::MultiMap;
@@ -45,7 +45,7 @@ pub struct Request {
     payload: DoubleCheckedCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
-    version: HttpVersion,
+    version: Version,
 }
 
 impl Debug for Request {
@@ -128,11 +128,11 @@ impl Request {
     }
 
     #[inline(always)]
-    pub fn version(&self) -> HttpVersion {
+    pub fn version(&self) -> Version {
         self.version
     }
     #[inline(always)]
-    pub fn version_mut(&mut self) -> &mut HttpVersion {
+    pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
 
