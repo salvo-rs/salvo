@@ -28,6 +28,7 @@ pub use self::service::Service;
 pub use self::server::TlsServer;
 pub use self::writer::Writer;
 pub use salvo_macros::fn_handler;
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub mod prelude {
     pub use crate::depot::Depot;
