@@ -4,7 +4,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 #[fn_handler]
 async fn index(req: &mut Request, res: &mut Response) {
-    res.render_plain_text(&format!("Your address: {:?}", req.remote_addr()));
+    res.render_plain_text(&format!("remote address: {:?}", req.remote_addr()));
 }
 
 #[tokio::main]
