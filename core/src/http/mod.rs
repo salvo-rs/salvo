@@ -17,8 +17,8 @@ pub mod errors;
 pub mod form;
 pub mod multipart;
 pub mod range;
-mod request;
-mod response;
+pub mod request;
+pub mod response;
 
 pub use body_chunk::BodyChunk;
 pub use cookie;
