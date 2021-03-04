@@ -7,7 +7,7 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 trait Segement: Send + Sync + Debug {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool,  Option<Vec<&'a str>>, Option<HashMap<String, String>>);
+    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>);
 }
 
 #[derive(Debug)]
@@ -39,6 +39,7 @@ impl Segement for RegexSegement {
     }
 }
 
+// If name starts with *, only match not empty path, if name starts with ** will match empty path.
 #[derive(Debug)]
 struct RestSegement(String);
 impl RestSegement {
@@ -48,12 +49,13 @@ impl RestSegement {
 }
 impl Segement for RestSegement {
     fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
-        if segements.is_empty() {
-            return (false, None, None);
+        if !segements.is_empty() || self.0.starts_with("**") {
+            let mut kv = HashMap::new();
+            kv.insert(self.0.clone(), segements.join("/"));
+            (true, Some(segements), Some(kv))
+        } else {
+            (false, None, None)
         }
-        let mut kv = HashMap::new();
-        kv.insert(self.0.clone(), segements.join("/"));
-        (true, Some(segements), Some(kv))
     }
 }
 
