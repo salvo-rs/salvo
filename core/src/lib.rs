@@ -9,6 +9,7 @@ mod server;
 mod service;
 #[cfg(feature = "tls")]
 mod tls;
+mod transport;
 mod writer;
 
 #[macro_use]
@@ -23,9 +24,9 @@ pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
 pub use self::server::Server;
-pub use self::service::Service;
 #[cfg(feature = "tls")]
 pub use self::server::TlsServer;
+pub use self::service::Service;
 pub use self::writer::Writer;
 pub use salvo_macros::fn_handler;
 pub type Result<T> = std::result::Result<T, Error>;
@@ -37,9 +38,9 @@ pub mod prelude {
     pub use crate::routing::filter;
     pub use crate::routing::Router;
     pub use crate::server::Server;
-    pub use crate::service::Service;
     #[cfg(feature = "tls")]
     pub use crate::server::TlsServer;
+    pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
     pub use async_trait::async_trait;

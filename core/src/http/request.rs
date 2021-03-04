@@ -10,6 +10,7 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 use crate::http::errors::ReadError;
@@ -46,6 +47,7 @@ pub struct Request {
 
     /// The version of the HTTP protocol used.
     version: Version,
+    remote_addr: Option<SocketAddr>,
 }
 
 impl Debug for Request {
@@ -106,6 +108,7 @@ impl Request {
             payload: DoubleCheckedCell::new(),
             // multipart: OnceCell::new(),
             version,
+            remote_addr: None,
         }
     }
 
@@ -134,6 +137,15 @@ impl Request {
     #[inline(always)]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
+    }
+    
+    #[inline(always)]
+    pub fn set_remote_addr(&mut self, remote_addr: Option<SocketAddr>) {
+        self.remote_addr = remote_addr;
+    }
+    #[inline(always)]
+    pub fn remote_addr(&self) -> Option<SocketAddr> {
+        self.remote_addr
     }
 
     #[inline(always)]
