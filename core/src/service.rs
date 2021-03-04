@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::net::SocketAddr;
 
 use futures::future;
 
@@ -8,6 +9,7 @@ use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{PathState, Router};
+use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
 pub struct Service {
@@ -28,12 +30,21 @@ impl Service {
         self.catchers = Arc::new(catchers);
         self
     }
+    pub fn catchers(&self) -> Arc<Vec<Box<dyn Catcher>>> {
+        self.catchers.clone()
+    }
     pub fn with_allowed_media_types(mut self, allowed_media_types: Vec<Mime>) -> Self {
         self.allowed_media_types = Arc::new(allowed_media_types);
         self
     }
+    pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
+        self.allowed_media_types.clone()
+    }
 }
-impl<T> hyper::service::Service<T> for Service {
+impl<'t, T> hyper::service::Service<&'t T> for Service
+where
+    T: Transport,
+{
     type Response = HyperHandler;
     type Error = std::io::Error;
 
@@ -44,8 +55,10 @@ impl<T> hyper::service::Service<T> for Service {
         Ok(()).into()
     }
 
-    fn call(&mut self, _: T) -> Self::Future {
+    fn call(&mut self, target: &T) -> Self::Future {
+        let remote_addr = target.remote_addr();
         future::ok(HyperHandler {
+            remote_addr,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
@@ -54,6 +67,7 @@ impl<T> hyper::service::Service<T> for Service {
 }
 
 pub struct HyperHandler {
+    remote_addr: Option<SocketAddr>,
     router: Arc<Router>,
     catchers: Arc<Vec<Box<dyn Catcher>>>,
     allowed_media_types: Arc<Vec<Mime>>,
@@ -71,6 +85,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
         let mut request = Request::from_hyper(req);
+        request.set_remote_addr(self.remote_addr);
         let mut response = Response::new();
         let mut depot = Depot::new();
         let path = request.uri().path();

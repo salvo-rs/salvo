@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::http::Mime;
-use futures::{ TryStream, TryStreamExt};
+use futures::{TryStream, TryStreamExt};
 use hyper::server::accept::{self, Accept};
 use hyper::server::conn::AddrIncoming;
 use hyper::Server as HyperServer;
@@ -14,7 +14,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 #[cfg(feature = "tls")]
 use crate::tls::{TlsAcceptor, TlsConfigBuilder};
-use crate::{Router, Service, Catcher};
+use crate::transport::LiftIo;
+use crate::{Catcher, Router, Service};
 
 pub struct Server {
     service: Service,
@@ -46,16 +47,13 @@ impl Server {
     }
 
     #[inline]
-    fn create_bind_incoming_hyper_server<S>(
-        self,
-        incoming: S,
-    ) -> hyper::Server<impl Accept<Conn = S::Ok, Error = S::Error>, Service>
+    fn create_bind_incoming_hyper_server<S>(self, incoming: S) -> hyper::Server<impl Accept<Conn = LiftIo<S::Ok>, Error = S::Error>, Service>
     where
         S: TryStream + Send,
         S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         S::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        Self::builder(accept::from_stream(incoming.into_stream())).serve(self.service)
+        Self::builder(accept::from_stream(incoming.map_ok(LiftIo).into_stream())).serve(self.service)
     }
 
     /// Bind to a socket address, returning a `Future` that can be
