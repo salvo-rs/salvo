@@ -11,6 +11,7 @@ use httpdate::HttpDate;
 use hyper::header::*;
 use hyper::Method;
 use serde::{Deserialize, Serialize};
+use http::version::Version;
 
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_DISPOSITION, SET_COOKIE};
@@ -49,6 +50,7 @@ pub struct Response {
     pub(crate) http_error: Option<HttpError>,
     /// The headers of the response.
     headers: HeaderMap,
+    version: Version,
     pub(crate) cookies: CookieJar,
     pub(crate) body: Option<Body>,
     is_commited: bool,
@@ -60,6 +62,7 @@ impl Response {
             status_code: None,
             http_error: None,
             body: None,
+            version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
             is_commited: false,
@@ -72,7 +75,7 @@ impl Response {
         let (
             http::response::Parts {
                 status,
-                // version,
+                version,
                 headers,
                 // extensions,
                 ..
@@ -99,6 +102,7 @@ impl Response {
             status_code: Some(status),
             http_error: None,
             body: Some(body.into()),
+            version: version,
             headers,
             cookies,
             is_commited: false,
@@ -116,6 +120,16 @@ impl Response {
     #[inline(always)]
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers
+    }
+    
+    #[inline]
+    pub fn version(&self) -> Version {
+        self.version
+    }
+
+    #[inline]
+    pub fn version_mut(&mut self) -> &mut Version {
+        &mut self.version
     }
 
     #[inline(always)]
