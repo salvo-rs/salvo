@@ -1,26 +1,29 @@
 //! ProxyHandler.
+use std::fmt;
+use std::sync::{Arc, Mutex};
+
 use async_trait::async_trait;
+use http::uri::Scheme;
 use hyper::header::CONNECTION;
 use hyper::Client;
+use hyper_tls::HttpsConnector;
 use salvo_core::prelude::*;
 use salvo_core::Result;
-use std::sync::{Arc, Mutex};
-use std::fmt;
 
 #[derive(Debug)]
 struct MsgError {
-    msg: String
+    msg: String,
 }
 
 impl MsgError {
     fn new(msg: impl Into<String>) -> MsgError {
-        MsgError{msg: msg.into()}
+        MsgError { msg: msg.into() }
     }
 }
 
 impl fmt::Display for MsgError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self.msg)
+        write!(f, "{}", self.msg)
     }
 }
 
@@ -55,7 +58,9 @@ impl ProxyHandler {
         } else {
             tracing::error!("upstreams is empty");
             return Err(salvo_core::Error::new(MsgError::new("upstreams is empty")));
-        }.map(|s|&**s).unwrap_or_default();
+        }
+        .map(|s| &**s)
+        .unwrap_or_default();
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(salvo_core::Error::new(MsgError::new("upstreams is empty")));
@@ -98,7 +103,7 @@ impl ProxyHandler {
         //     // shouldn't happen...
         //     Err(_) => panic!("Invalid header name: {}", x_forwarded_for_header_name),
         // }
-        build.body(req.take_body().unwrap_or_default()).map_err(|e|salvo_core::Error::new(e))
+        build.body(req.take_body().unwrap_or_default()).map_err(|e| salvo_core::Error::new(e))
     }
 }
 
@@ -107,8 +112,14 @@ impl Handler for ProxyHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
-                let client = Client::new();
-                match client.request(proxied_request).await {
+                let response = if proxied_request.uri().scheme().map(|s| s == &Scheme::HTTPS).unwrap_or(false) {
+                    let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
+                    client.request(proxied_request).await
+                } else {
+                    let client = Client::new();
+                    client.request(proxied_request).await
+                };
+                match response {
                     Ok(response) => {
                         let (
                             http::response::Parts {
