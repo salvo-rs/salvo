@@ -89,11 +89,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new();
         let mut depot = Depot::new();
         let path = request.uri().path();
-        let segments = if let Some(path) = path.strip_prefix('/') {
-            path.split('/')
-        } else {
-            path.split('/')
-        };
+        let segments = path.trim_start_matches('/').split('/');
         let segments = segments
             .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
             .filter(|s| !s.contains('/') && !s.is_empty())
