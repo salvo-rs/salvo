@@ -125,7 +125,7 @@ async fn delete_user(res: &mut Response) {
 }
 
 ```
-## ☕ 支持者
+## ☕ 支持
 
 `Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
 <p style="text-align: center;">
