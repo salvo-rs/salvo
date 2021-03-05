@@ -67,18 +67,18 @@ impl ProxyHandler {
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let rest = if let Some((_, rest)) = param { rest } else { "" }.strip_prefix('/').unwrap_or("");
+        let rest = if let Some((_, rest)) = param { rest } else { "" }.trim_start_matches('/');
         let forward_url = if let Some(query) = req.uri().query() {
             if rest.is_empty() {
                 format!("{}?{}", upstream, query)
             } else {
-                format!("{}/{}?{}", upstream.strip_suffix('/').unwrap_or(""), rest, query)
+                format!("{}/{}?{}", upstream.trim_end_matches('/'), rest, query)
             }
         } else {
             if rest.is_empty() {
                 upstream.into()
             } else {
-                format!("{}{}", upstream.strip_suffix('/').unwrap_or(""), rest)
+                format!("{}{}", upstream.trim_end_matches('/'), rest)
             }
         };
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
