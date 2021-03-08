@@ -13,21 +13,35 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 <head>
     <meta charset=\"utf-8\">
     <title>{0}: {1}</title>
-    </head>
-    <body align=\"center\">
-        <div align=\"center\">
-            <h1>{0}: {1}</h1>
-            <h3>{2}</h3>
-            <p>{3}</p>
-            <hr />
-            <small>salvo</small>
-        </div>
-    </body>
+    <style>
+    :root {{
+        --bg-color: #fff;
+        --text-color: #004050;
+    }}
+    body {{
+        background: var(--bg-color);
+        color: var(--text-color);
+        text-align: center;
+    }}
+    @media (prefers-color-scheme: dark) {{
+        :root {{
+            --bg-color: #222;
+            --text-color: #ddd;
+        }}
+    }}
+    </style>
+</head>
+<body>
+    <div>
+        <h1>{0}: {1}</h1>{2}{3}<hr />
+        <small>salvo</small>
+    </div>
+</body>
 </html>",
         code.as_u16(),
         name,
-        summary.unwrap_or(name),
-        detail.unwrap_or_else(|| "there is no more detailed explanation")
+        summary.map(|summary| format!("<h3>{}</h3>", summary)).unwrap_or_default(),
+        detail.map(|detail| format!("<p>{}</p>", detail)).unwrap_or_default(),
     )
 }
 fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
