@@ -221,6 +221,10 @@ impl Request {
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
+    #[inline(always)]
+    pub fn cookies_mut(&mut self) -> &mut CookieJar {
+        &mut self.cookies
+    }
     #[inline]
     pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
@@ -231,6 +235,10 @@ impl Request {
     #[inline(always)]
     pub fn params(&self) -> &HashMap<String, String> {
         &self.params
+    }
+    #[inline(always)]
+    pub fn params_mut(&mut self) -> &mut HashMap<String, String> {
+        &mut self.params
     }
 
     #[inline]
