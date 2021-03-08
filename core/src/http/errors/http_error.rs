@@ -16,7 +16,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
     <style>
     :root {{
         --bg-color: #fff;
-        --text-color: #004050;
+        --text-color: #222;
     }}
     body {{
         background: var(--bg-color);
