@@ -1,14 +1,16 @@
 //! ProxyHandler.
+use std::convert::TryFrom;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use http::uri::Scheme;
 use hyper::header::CONNECTION;
-use hyper::Client;
+use hyper::{Client, Uri};
 use hyper_tls::HttpsConnector;
+use salvo_core::http::header::{HeaderName, HeaderValue};
 use salvo_core::prelude::*;
-use salvo_core::Result;
+use salvo_core::{Error, Result};
 
 #[derive(Debug)]
 struct MsgError {
@@ -81,11 +83,15 @@ impl ProxyHandler {
                 format!("{}{}", upstream.trim_end_matches('/'), rest)
             }
         };
+        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
-            if key.as_str() != "host"  {
+            if key.as_str() != "host" {
                 build = build.header(key, value);
             }
+        }
+        if let Some(host) = forward_url.host().and_then(|host|HeaderValue::from_str(host).ok()) {
+            build = build.header(HeaderName::from_static("host"), host);
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";
         // // Add forwarding information in the headers
