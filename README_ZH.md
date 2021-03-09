@@ -125,6 +125,22 @@ async fn delete_user(res: &mut Response) {
 }
 
 ```
+### 更多示例
+您可以从 [examples](./examples/) 文件夹下查看更多示例代码:
+- [basic_auth.rs](./examples/basic_auth.rs)
+- [compression.rs](./examples/compression.rs)
+- [file_list.rs](./examples/file_list.rs)
+- [proxy.rs](./examples/proxy.rs)
+- [remote_addr.rs](./examples/remote_addr.rs)
+- [routing.rs](./examples/routing.rs)
+- [sse_chat.rs](./examples/sse_chat.rs)
+- [sse.rs](./examples/sse.rs)
+- [tls.rs](./examples/tls.rs)
+- [todos.rs](./examples/todos.rs)
+- [unix_socket.rs](./examples/unix_socket.rs)
+- [ws_chat.rs](./examples/ws_chat.rs)
+- [ws.rs](./examples/ws.rs)
+
 ## ☕ 支持
 
 `Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
