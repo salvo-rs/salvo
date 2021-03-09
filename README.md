@@ -128,6 +128,8 @@ Your can find more examples in [examples](./examples/) folder:
 - [basic_auth.rs](./examples/basic_auth.rs)
 - [compression.rs](./examples/compression.rs)
 - [file_list.rs](./examples/file_list.rs)
+- [proxy.rs](./examples/proxy.rs)
+- [remote_addr.rs](./examples/remote_addr.rs)
 - [routing.rs](./examples/routing.rs)
 - [sse_chat.rs](./examples/sse_chat.rs)
 - [sse.rs](./examples/sse.rs)
