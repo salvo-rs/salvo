@@ -56,7 +56,7 @@ impl Server {
         Self::builder(accept::from_stream(incoming.map_ok(LiftIo).into_stream())).serve(self.service)
     }
 
-    pub async fn start(self, addr: impl Into<SocketAddr> + 'static) {
+    pub fn start(self, addr: impl Into<SocketAddr> + 'static) {
         self.start_with_threads(addr, num_cpus::get())
     }
 
@@ -339,7 +339,7 @@ impl TlsServer {
         Ok((addr, srv))
     }
 
-    pub async fn start(self, addr: impl Into<SocketAddr> + 'static) {
+    pub fn start(self, addr: impl Into<SocketAddr> + 'static) {
         self.start_with_threads(addr, num_cpus::get())
     }
 
