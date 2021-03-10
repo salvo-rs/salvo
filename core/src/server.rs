@@ -56,6 +56,15 @@ impl Server {
         Self::builder(accept::from_stream(incoming.map_ok(LiftIo).into_stream())).serve(self.service)
     }
 
+    pub async fn start(self, addr: impl Into<SocketAddr> + 'static) {
+        self.start_with_threads(addr, num_cpus::get())
+    }
+
+    pub fn start_with_threads(self, addr: impl Into<SocketAddr> + 'static, threads: usize) {
+        let runtime = crate::new_runtime(threads);
+        let _ = runtime.block_on(async { self.bind(addr).await });
+    }
+
     /// Bind to a socket address, returning a `Future` that can be
     /// executed on any runtime.
     ///
@@ -329,6 +338,16 @@ impl TlsServer {
         let srv = Self::builder(TlsAcceptor::new(tls, incoming)).serve(service);
         Ok((addr, srv))
     }
+
+    pub async fn start(self, addr: impl Into<SocketAddr> + 'static) {
+        self.start_with_threads(addr, num_cpus::get())
+    }
+
+    pub fn start_with_threads(self, addr: impl Into<SocketAddr> + 'static, threads: usize) {
+        let runtime = crate::new_runtime(threads);
+        let _ = runtime.block_on(async { self.bind(addr).await });
+    }
+
     /// Bind to a socket address, returning a `Future` that can be
     /// executed on a runtime.
     ///

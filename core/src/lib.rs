@@ -17,6 +17,10 @@ extern crate pin_utils;
 #[macro_use]
 extern crate futures_util;
 
+#[cfg(feature = "anyhow")]
+pub use anyhow;
+pub use hyper;
+
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
 pub use self::error::Error;
@@ -46,3 +50,14 @@ pub mod prelude {
     pub use async_trait::async_trait;
     pub use salvo_macros::fn_handler;
 }
+
+use tokio::runtime::{self, Runtime};
+    
+fn new_runtime(threads: usize) -> Runtime {
+    runtime::Builder::new_multi_thread()
+        .worker_threads(threads)
+        .thread_name("salvo-worker")
+        .enable_all()
+        .build()
+        .unwrap()
+} 
