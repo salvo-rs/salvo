@@ -52,6 +52,7 @@ pub mod prelude {
 }
 
 use tokio::runtime::{self, Runtime};
+use std::future::Future;
     
 fn new_runtime(threads: usize) -> Runtime {
     runtime::Builder::new_multi_thread()
@@ -61,3 +62,13 @@ fn new_runtime(threads: usize) -> Runtime {
         .build()
         .unwrap()
 } 
+
+
+pub fn start<F: Future>(future: F) {
+    start_with_threads(future, num_cpus::get())
+}
+
+pub fn start_with_threads<F: Future>(future: F, threads: usize) {
+    let runtime = crate::new_runtime(threads);
+    let _ = runtime.block_on(async { future.await });
+}
