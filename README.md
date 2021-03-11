@@ -34,7 +34,7 @@ cargo new hello_salvo --bin
 Add this to `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.7"
+salvo = "0.8"
 tokio = { version = "1", features = ["full"] }
 ```
 
