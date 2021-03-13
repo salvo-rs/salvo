@@ -7,14 +7,12 @@ use std::task::{self, Poll};
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::{Stream, TryStreamExt};
-use httpdate::HttpDate;
-use hyper::header::*;
 use hyper::Method;
 use serde::{Deserialize, Serialize};
 use http::version::Version;
 
 use super::errors::*;
-use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_DISPOSITION, SET_COOKIE};
+use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, SET_COOKIE};
 use crate::http::{Request, StatusCode};
 
 #[allow(clippy::type_complexity)]
@@ -345,46 +343,46 @@ impl Response {
         self.commit();
         Ok(())
     }
-    #[inline]
-    pub fn set_content_disposition(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(CONTENT_DISPOSITION, value.parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_content_encoding(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(CONTENT_ENCODING, value.parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_content_length(&mut self, value: u64) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_content_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(CONTENT_RANGE, value.parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_content_type(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(CONTENT_TYPE, value.parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_accept_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(ACCEPT_RANGES, value.parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_last_modified(&mut self, value: HttpDate) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse()?);
-        Ok(())
-    }
-    #[inline]
-    pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-        self.headers_mut().insert(ETAG, value.parse()?);
-        Ok(())
-    }
+    // #[inline]
+    // pub fn set_content_disposition(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(CONTENT_DISPOSITION, value.parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_content_encoding(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(CONTENT_ENCODING, value.parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_content_length(&mut self, value: u64) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_content_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(CONTENT_RANGE, value.parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_content_type(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(CONTENT_TYPE, value.parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_accept_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(ACCEPT_RANGES, value.parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_last_modified(&mut self, value: HttpDate) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse()?);
+    //     Ok(())
+    // }
+    // #[inline]
+    // pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
+    //     self.headers_mut().insert(ETAG, value.parse()?);
+    //     Ok(())
+    // }
     #[inline]
     pub fn commit(&mut self) {
         for cookie in self.cookies.delta() {
