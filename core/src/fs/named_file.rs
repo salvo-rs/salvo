@@ -251,15 +251,9 @@ impl NamedFile {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
-
     pub(crate) fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
-        self.etag_string().and_then(|v| v.parse::<headers::ETag>().ok())
-    }
-
-    pub(crate) fn etag_string(&self) -> Option<String> {
-        // This etag format is similar to Apache's.
-        self.modified.as_ref().map(|mtime| {
+        self.modified.as_ref().and_then(|mtime| {
             let ino = {
                 #[cfg(unix)]
                 {
@@ -272,7 +266,14 @@ impl NamedFile {
             };
 
             let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
-            format!("\"{:x}-{:x}-{:x}-{:x}\"", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
+            let etag_str = format!("\"{:x}-{:x}-{:x}-{:x}\"", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos());
+            match etag_str.parse::<ETag>() {
+                Ok(etag) => Some(etag),
+                Err(e) => {
+                    tracing::error!(error = ?e, etag = %etag_str, "set file's etag failed");
+                    None
+                }
+            }
         })
     }
 
@@ -323,15 +324,8 @@ impl Writer for NamedFile {
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }
-        if let Some(etag) = self.etag_string() {
-            match etag.parse::<ETag>() {
-                Ok(etag) => {
-                    res.headers_mut().typed_insert(etag);
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, etag = ?self.etag_string(), "set file's etag failed");
-                }
-            }
+        if let Some(etag) = self.etag() {
+            res.headers_mut().typed_insert(etag);
         }
         res.headers_mut().typed_insert(AcceptRanges::bytes());
 
