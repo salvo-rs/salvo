@@ -213,7 +213,6 @@ impl DirInfo {
 #[async_trait]
 impl Handler for StaticDir {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        println!("{}", ">>>>>>>>>>>>>>>>>>");
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
         let mut base_path = if let Some((_, value)) = param { value } else { req_path }.to_owned();
@@ -224,10 +223,8 @@ impl Handler for StaticDir {
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
-        println!("{}", ">>>>>>>>>>>>>>>>>>1");
         for root in &self.roots {
             let path = root.join(&base_path);
-            println!("{:?}", path);
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req_path.ends_with('/') {
@@ -245,7 +242,6 @@ impl Handler for StaticDir {
                         return;
                     }
                 }
-                println!("{}", ">>>>>>>>>>>>>>>>>3>");
                 //list the dir
                 if let Ok(entries) = fs::read_dir(&path) {
                     for entry in entries {
@@ -264,7 +260,6 @@ impl Handler for StaticDir {
                     }
                 }
             } else if path.is_file() {
-                println!("{}", ">>>>>>>>>>>>>>>>>5>");
                 if let Ok(named_file) = NamedFile::open(path) {
                     named_file.write(req, depot, res).await;
                 } else {
@@ -277,7 +272,6 @@ impl Handler for StaticDir {
             res.set_http_error(NotFound());
             return;
         }
-        println!("{}", ">>>>>>>>>>>>>>>>>>6");
         let mut format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
         if format.type_() != "text" {
             format = mime::TEXT_HTML;
