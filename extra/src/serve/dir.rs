@@ -133,6 +133,22 @@ fn list_html(root: &BaseInfo) -> String {
     <head>
         <meta charset=\"utf-8\">
         <title>{}</title>
+        <style>
+        :root {{
+            --bg-color: #fff;
+            --text-color: #222;
+        }}
+        body {{
+            background: var(--bg-color);
+            color: var(--text-color);
+        }}
+        @media (prefers-color-scheme: dark) {{
+            :root {{
+                --bg-color: #222;
+                --text-color: #ddd;
+            }}
+        }}
+        </style>
     </head>
     <body>
         <h1>Index of: {}</h1>
