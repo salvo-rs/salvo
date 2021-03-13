@@ -9,11 +9,12 @@ use std::os::unix::fs::MetadataExt;
 
 use async_trait::async_trait;
 use bitflags::bitflags;
-use headers::{ETag, HeaderMapExt, IfMatch, IfModifiedSince, IfUnmodifiedSince};
+use headers::*;
 use mime_guess::from_path;
 
 use super::FileChunk;
 use crate::http::header;
+use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::range::HttpRange;
 use crate::http::{Request, Response, StatusCode};
 use crate::Depot;
@@ -258,25 +259,22 @@ impl NamedFile {
 
     pub(crate) fn etag_string(&self) -> Option<String> {
         // This etag format is similar to Apache's.
-        self.modified
-            .as_ref()
-            .map(|mtime| {
-                let ino = {
-                    #[cfg(unix)]
-                    {
-                        self.metadata.ino()
-                    }
-                    #[cfg(not(unix))]
-                    {
-                        0
-                    }
-                };
+        self.modified.as_ref().map(|mtime| {
+            let ino = {
+                #[cfg(unix)]
+                {
+                    self.metadata.ino()
+                }
+                #[cfg(not(unix))]
+                {
+                    0
+                }
+            };
 
-                let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
-                format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
-            })
+            let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
+            format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
+        })
     }
-
 
     pub(crate) fn last_modified(&self) -> Option<SystemTime> {
         self.modified
@@ -313,29 +311,41 @@ impl Writer for NamedFile {
             false
         };
 
-        if let Err(e) = res.set_content_disposition(&self.content_disposition) {
-            tracing::error!(error = ?e, "set file's content disposition failed");
+        match self.content_disposition.parse::<HeaderValue>() {
+            Ok(content_disposition) => {
+                res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "set file's content disposition failed");
+            }
         }
-        if let Err(e) = res.set_content_type(&self.content_type.to_string()) {
-            tracing::error!(error = ?e, "set file's content type failed");
-        }
-
+        res.headers_mut().typed_insert(ContentType::from(self.content_type.clone()));
         if let Some(lm) = last_modified {
-            res.set_last_modified(lm.into()).ok();
+            res.headers_mut().typed_insert(LastModified::from(lm));
         }
         if let Some(etag) = self.etag_string() {
-            res.set_etag(&etag).ok();
+            match etag.parse::<ETag>() {
+                Ok(etag) => {
+                    res.headers_mut().typed_insert(etag);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "set file's etag failed");
+                }
+            }
         }
-        res.set_accept_range("bytes").ok();
+        res.headers_mut().typed_insert(AcceptRanges::bytes());
 
         let mut length = self.metadata.len();
-        // default compressing
-        if let Some(current_encoding) = &self.content_encoding {
-            res.set_content_encoding(current_encoding).ok();
+        if let Some(content_encoding) = &self.content_encoding {
+            match content_encoding.parse::<HeaderValue>() {
+                Ok(content_encoding) => {
+                    res.headers_mut().insert(CONTENT_ENCODING, content_encoding);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "set file's content encoding failed");
+                }
+            }
         }
-        // else {
-        //     res.set_content_length(length);
-        // }
         let mut offset = 0;
 
         // check for range header
@@ -346,7 +356,7 @@ impl Writer for NamedFile {
                     length = rangesvec[0].length;
                     offset = rangesvec[0].start;
                 } else {
-                    res.set_content_range(&format!("bytes */{}", length)).ok();
+                    res.headers_mut().typed_insert(ContentRange::unsatisfied_bytes(length));
                     res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
@@ -366,7 +376,14 @@ impl Writer for NamedFile {
 
         if offset != 0 || length != self.metadata.len() {
             res.set_status_code(StatusCode::PARTIAL_CONTENT);
-            res.set_content_range(&format!("bytes {}-{}/{}", offset, offset + length - 1, self.metadata.len())).ok();
+            match ContentRange::bytes(offset..offset + length - 1, self.metadata.len()) {
+                Ok(content_range) => {
+                    res.headers_mut().typed_insert(content_range);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "set file's content ranage failed");
+                }
+            }
             let reader = FileChunk {
                 offset,
                 chunk_size: cmp::min(length, self.metadata.len()),
@@ -374,7 +391,7 @@ impl Writer for NamedFile {
                 file: self.file,
                 buffer_size: self.buffer_size,
             };
-            res.set_content_length(reader.chunk_size).ok();
+            res.headers_mut().typed_insert(ContentLength(reader.chunk_size));
             res.streaming(reader)
         } else {
             res.set_status_code(StatusCode::OK);
@@ -385,7 +402,7 @@ impl Writer for NamedFile {
                 read_size: 0,
                 buffer_size: self.buffer_size,
             };
-            res.set_content_length(length - offset).ok();
+            res.headers_mut().typed_insert(ContentLength(length - offset));
             res.streaming(reader)
         }
     }
