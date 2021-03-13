@@ -30,7 +30,8 @@ pub use request::Request;
 pub use response::Response;
 pub use errors::{HttpError, ReadError};
 
-pub mod header;
+pub use http::header;
+pub use headers;
 
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let dmime: Mime = default_type.unwrap_or_else(|| "text/html".parse().unwrap());
