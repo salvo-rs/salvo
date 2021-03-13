@@ -8,15 +8,17 @@ pub type Params = HashMap<String, String>;
 
 #[derive(Debug)]
 pub struct PathState {
-    pub segements: Vec<String>,
+    pub segments: Vec<String>,
     pub match_cursor: usize,
+    pub ending_matched: bool,
     pub params: Params,
 }
 impl PathState {
-    pub fn new(segements: Vec<String>) -> Self {
+    pub fn new(segments: Vec<String>) -> Self {
         PathState {
-            segements,
+            segments,
             match_cursor: 0,
+            ending_matched: false,
             params: Params::new(),
         }
     }
