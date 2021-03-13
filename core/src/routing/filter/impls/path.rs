@@ -6,75 +6,100 @@ use regex::Regex;
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
-trait Segement: Send + Sync + Debug {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>);
+trait Segment: Send + Sync + Debug {
+    fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>);
+}
+
+struct PathMatched<'a> {
+    ending_matched: bool,
+    segments: Option<Vec<&'a str>>,
+    matched_params: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug)]
-struct RegexSegement {
+struct RegexSegment {
     regex: Regex,
     names: Vec<String>,
 }
-impl RegexSegement {
-    fn new(regex: Regex, names: Vec<String>) -> RegexSegement {
-        RegexSegement { regex, names }
+impl RegexSegment {
+    fn new(regex: Regex, names: Vec<String>) -> RegexSegment {
+        RegexSegment { regex, names }
     }
 }
-impl Segement for RegexSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
-        if segements.is_empty() {
-            return (false, None, None);
+impl Segment for RegexSegment {
+    fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>) {
+        if segments.is_empty() {
+            return (false, None);
         }
-        let segement = segements[0];
-        let caps = self.regex.captures(segement);
+        let segment = segments[0];
+        let caps = self.regex.captures(segment);
         if let Some(caps) = caps {
             let mut kv = HashMap::<String, String>::new();
             for name in &self.names {
                 kv.insert(name.clone(), caps[&name[..]].to_owned());
             }
-            (true, Some(vec![segement]), Some(kv))
+            (
+                true,
+                Some(PathMatched {
+                    ending_matched: false,
+                    segments: Some(vec![segment]),
+                    matched_params: Some(kv),
+                }),
+            )
         } else {
-            (false, None, None)
+            (false, None)
         }
     }
 }
 
 // If name starts with *, only match not empty path, if name starts with ** will match empty path.
 #[derive(Debug)]
-struct RestSegement(String);
-impl RestSegement {
-    fn new(name: String) -> RestSegement {
-        RestSegement(name)
+struct RestSegment(String);
+impl RestSegment {
+    fn new(name: String) -> RestSegment {
+        RestSegment(name)
     }
 }
-impl Segement for RestSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
-        if !segements.is_empty() || self.0.starts_with("**") {
+impl Segment for RestSegment {
+    fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>) {
+        println!("YYYYYYYYYYYYY {:?}, {:?}", segments.is_empty(), self.0);
+        if !segments.is_empty() || self.0.starts_with("**") {
             let mut kv = HashMap::new();
-            kv.insert(self.0.clone(), segements.join("/"));
-            (true, Some(segements), Some(kv))
+            kv.insert(self.0.clone(), segments.join("/"));
+            (
+                true,
+                Some(PathMatched {
+                    ending_matched: true,
+                    segments: Some(segments),
+                    matched_params: Some(kv),
+                }),
+            )
         } else {
-            (false, None, None)
+            (false, None)
         }
     }
 }
 
 #[derive(Debug)]
-struct ConstSegement(String);
-impl ConstSegement {
-    fn new(segement: String) -> ConstSegement {
-        ConstSegement(segement)
+struct ConstSegment(String);
+impl ConstSegment {
+    fn new(segment: String) -> ConstSegment {
+        ConstSegment(segment)
     }
 }
-impl Segement for ConstSegement {
-    fn detect<'a>(&self, segements: Vec<&'a str>) -> (bool, Option<Vec<&'a str>>, Option<HashMap<String, String>>) {
-        if segements.is_empty() {
-            return (false, None, None);
+impl Segment for ConstSegment {
+    fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>) {
+        if segments.is_empty() {
+            return (false, None);
         }
-        if self.0 == segements[0] {
-            (true, Some(vec![segements[0]]), None)
+        if self.0 == segments[0] {
+            (true, Some(PathMatched {
+                ending_matched: false,
+                segments: Some(vec![segments[0]]), 
+                matched_params:None,
+            }))
         } else {
-            (false, None, None)
+            (false, None)
         }
     }
 }
@@ -171,7 +196,7 @@ impl PathParser {
         }
         Ok(cnst)
     }
-    fn scan_segement(&mut self) -> Result<Box<dyn Segement>, String> {
+    fn scan_segment(&mut self) -> Result<Box<dyn Segment>, String> {
         let mut const_seg = "".to_owned();
         let mut regex_seg = "".to_owned();
         let mut regex_names = vec![];
@@ -184,7 +209,7 @@ impl PathParser {
                 if self.offset < self.path.len() - 1 {
                     panic!("no chars allowed after rest egment");
                 }
-                return Ok(Box::new(RestSegement::new(format!("*{}", rest_seg))));
+                return Ok(Box::new(RestSegment::new(format!("*{}", rest_seg))));
             } else {
                 let rname = self.scan_ident()?;
                 if rname.is_empty() {
@@ -206,7 +231,7 @@ impl PathParser {
                     rrgex = self.scan_regex()?;
                 }
                 if self.curr() != '>' {
-                    return Err(format!("except '>' to end regex segement, current char is '{}'", self.curr()));
+                    return Err(format!("except '>' to end regex segment, current char is '{}'", self.curr()));
                 } else {
                     self.next(false);
                 }
@@ -228,11 +253,11 @@ impl PathParser {
             }
             let regex = Regex::new(&regex_seg);
             match regex {
-                Ok(r) => Ok(Box::new(RegexSegement::new(r, regex_names))),
+                Ok(r) => Ok(Box::new(RegexSegment::new(r, regex_names))),
                 Err(_) => Err("regex error".to_owned()),
             }
         } else if !const_seg.is_empty() {
-            Ok(Box::new(ConstSegement::new(const_seg)))
+            Ok(Box::new(ConstSegment::new(const_seg)))
         } else {
             Err("parse path error 1".to_owned())
         }
@@ -258,8 +283,8 @@ impl PathParser {
             }
         }
     }
-    fn parse(&mut self) -> Result<Vec<Box<dyn Segement>>, String> {
-        let mut segements: Vec<Box<dyn Segement>> = vec![];
+    fn parse(&mut self) -> Result<Vec<Box<dyn Segment>>, String> {
+        let mut segments: Vec<Box<dyn Segment>> = vec![];
         let ch = '/';
         loop {
             if ch == '/' {
@@ -267,7 +292,7 @@ impl PathParser {
                 if self.offset >= self.path.len() - 1 {
                     break;
                 }
-                segements.push(self.scan_segement()?);
+                segments.push(self.scan_segment()?);
             } else {
                 return Err("parse path error 2".to_owned());
             }
@@ -275,13 +300,13 @@ impl PathParser {
                 break;
             }
         }
-        Ok(segements)
+        Ok(segments)
     }
 }
 
 pub struct PathFilter {
     raw_value: String,
-    segements: Vec<Box<dyn Segement>>,
+    segments: Vec<Box<dyn Segment>>,
 }
 
 impl Debug for PathFilter {
@@ -291,23 +316,29 @@ impl Debug for PathFilter {
 }
 impl Filter for PathFilter {
     fn filter(&self, _req: &mut Request, path: &mut PathState) -> bool {
-        if path.segements.len() <= path.match_cursor {
+        if path.ending_matched {
             return false;
         }
-        let mut params = HashMap::<String, String>::new();
-        let mut match_cursor = path.match_cursor;
-        if !self.segements.is_empty() {
-            for ps in &self.segements {
-                let (matched, segs, kv) = ps.detect(path.segements[match_cursor..].iter().map(AsRef::as_ref).collect());
+        if !self.segments.is_empty() {
+            let mut params = HashMap::<String, String>::new();
+            let mut match_cursor = path.match_cursor;
+            for ps in &self.segments {
+                let (matched, detail) = ps.detect(path.segments[match_cursor..].iter().map(AsRef::as_ref).collect());
                 if !matched {
                     return false;
-                } else {
-                    if let Some(kv) = kv {
+                } else if let Some(detail) = detail{
+                    if let Some(kv) = detail.matched_params {
                         params.extend(kv);
                     }
-                    if let Some(segs) = segs {
+                    if let Some(segs) = detail.segments {
                         match_cursor += segs.len();
                     }
+                    if detail.ending_matched {
+                        path.ending_matched = true;
+                        break;
+                    }
+                } else {
+                    return false;
                 }
             }
             if !params.is_empty() {
@@ -324,12 +355,12 @@ impl PathFilter {
     pub fn new(value: impl Into<String>) -> Self {
         let raw_value = value.into();
         let mut parser = PathParser::new(&raw_value);
-        let segements = match parser.parse() {
-            Ok(segements) => segements,
+        let segments = match parser.parse() {
+            Ok(segments) => segments,
             Err(e) => {
                 panic!(e);
             }
         };
-        PathFilter { raw_value, segements }
+        PathFilter { raw_value, segments }
     }
 }
