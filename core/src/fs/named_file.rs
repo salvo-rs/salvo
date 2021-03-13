@@ -1,8 +1,8 @@
+use std::cmp;
 use std::fs::{File, Metadata};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{cmp, io};
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -45,8 +45,8 @@ pub struct NamedFile {
     pub(crate) flags: Flags,
     pub(crate) status_code: StatusCode,
     pub(crate) content_type: mime::Mime,
-    pub(crate) content_disposition: String,
-    pub(crate) content_encoding: Option<String>,
+    pub(crate) content_disposition: HeaderValue,
+    pub(crate) content_encoding: Option<HeaderValue>,
 }
 
 pub struct NamedFileBuilder {
@@ -68,8 +68,8 @@ impl NamedFileBuilder {
         self.disposition_type = Some(disposition_type.into());
         self
     }
-    pub fn with_content_type(mut self, content_type: mime::Mime) -> NamedFileBuilder {
-        self.content_type = Some(content_type);
+    pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> NamedFileBuilder {
+        self.content_type = Some(content_type.into());
         self
     }
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> NamedFileBuilder {
@@ -80,47 +80,7 @@ impl NamedFileBuilder {
         self.buffer_size = Some(buffer_size);
         self
     }
-    pub fn build(mut self) -> io::Result<NamedFile> {
-        if self.file.is_none() {
-            self.file = Some(File::open(&self.path)?);
-        }
-        let ct = from_path(&self.path).first_or_octet_stream();
-        if self.content_type.is_none() {
-            self.content_type = Some(ct);
-        }
-        if self.disposition_type.is_none() {
-            let disposition_type = if self.attached_filename.is_some() {
-                "attachment"
-            } else {
-                match self.content_type.as_ref().unwrap().type_() {
-                    mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
-                    _ => "attachment",
-                }
-            };
-            if disposition_type == "attachment" && self.attached_filename.is_none() {
-                let filename = match self.path.file_name() {
-                    Some(name) => name.to_string_lossy(),
-                    None => {
-                        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Provided path has no filename"));
-                    }
-                };
-                self.attached_filename = Some(filename.into());
-            }
-            self.disposition_type = Some(disposition_type.into());
-        }
-        if let Some("attachment") = self.disposition_type.as_deref() {
-            self.content_disposition = Some(format!(
-                "{};filename=\"{}\"",
-                self.disposition_type.as_ref().unwrap(),
-                self.attached_filename.as_ref().unwrap()
-            ));
-        } else {
-            self.content_disposition = Some("inline".into());
-        }
-
-        let metadata = self.file.as_ref().unwrap().metadata()?;
-        let modified = metadata.modified().ok();
-
+    pub fn build(self) -> crate::Result<NamedFile> {
         let NamedFileBuilder {
             path,
             file,
@@ -128,14 +88,53 @@ impl NamedFileBuilder {
             content_encoding,
             content_disposition,
             buffer_size,
+            disposition_type,
+            attached_filename,
             ..
         } = self;
 
+        let file = match file {
+            Some(file) => file,
+            None => File::open(&path).map_err(crate::Error::new)?,
+        };
+        let content_type = content_type.unwrap_or_else(|| from_path(&path).first_or_octet_stream());
+        let content_disposition = content_disposition.unwrap_or_else(|| {
+            disposition_type.unwrap_or_else(|| {
+                let disposition_type = if attached_filename.is_some() {
+                    "attachment"
+                } else {
+                    match content_type.type_() {
+                        mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
+                        _ => "attachment",
+                    }
+                };
+                if disposition_type == "attachment" {
+                    let filename = match attached_filename {
+                        Some(filename) => filename,
+                        None => path
+                            .file_name()
+                            .map(|filename| filename.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "file".into()),
+                    };
+                    format!("attachment; filename={}", filename)
+                } else {
+                    disposition_type.into()
+                }
+            })
+        });
+        let content_disposition = content_disposition.parse::<HeaderValue>().map_err(crate::Error::new)?;
+        let metadata = file.metadata().map_err(crate::Error::new)?;
+        let modified = metadata.modified().ok();
+        let content_encoding = match content_encoding {
+            Some(content_encoding) => Some(content_encoding.parse::<HeaderValue>().map_err(crate::Error::new)?),
+            None => None,
+        };
+
         Ok(NamedFile {
             path,
-            file: file.unwrap(),
-            content_type: content_type.unwrap(),
-            content_disposition: content_disposition.unwrap(),
+            file,
+            content_type,
+            content_disposition,
             metadata,
             modified,
             content_encoding,
@@ -168,7 +167,7 @@ impl NamedFile {
     /// use salvo_core::fs::NamedFile;
     /// let file = NamedFile::open("foo.txt".into());
     /// ```
-    pub fn open(path: PathBuf) -> io::Result<NamedFile> {
+    pub fn open(path: PathBuf) -> crate::Result<NamedFile> {
         Self::builder(path).build()
     }
 
@@ -199,8 +198,8 @@ impl NamedFile {
     /// Set the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
-    pub fn set_content_type(mut self, mime_type: mime::Mime) -> Self {
-        self.content_type = mime_type;
+    pub fn set_content_type(mut self, content_type: mime::Mime) -> Self {
+        self.content_type = content_type;
         self
     }
 
@@ -212,8 +211,8 @@ impl NamedFile {
     /// after converting it to UTF-8 using.
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
-    pub fn set_content_disposition(mut self, cd: String) -> Self {
-        self.content_disposition = cd;
+    pub fn set_content_disposition(mut self, content_disposition: HeaderValue) -> Self {
+        self.content_disposition = content_disposition;
         self.flags.insert(Flags::CONTENT_DISPOSITION);
         self
     }
@@ -229,8 +228,8 @@ impl NamedFile {
 
     /// Set content encoding for serving this file
     #[inline]
-    pub fn set_content_encoding(mut self, enc: String) -> Self {
-        self.content_encoding = Some(enc);
+    pub fn set_content_encoding(mut self, content_encoding: HeaderValue) -> Self {
+        self.content_encoding = Some(content_encoding);
         self
     }
 
@@ -312,14 +311,7 @@ impl Writer for NamedFile {
             false
         };
 
-        match self.content_disposition.parse::<HeaderValue>() {
-            Ok(content_disposition) => {
-                res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
-            }
-            Err(e) => {
-                tracing::error!(error = ?e, "set file's content disposition failed");
-            }
-        }
+        res.headers_mut().insert(CONTENT_DISPOSITION, self.content_disposition.clone());
         res.headers_mut().typed_insert(ContentType::from(self.content_type.clone()));
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
@@ -331,14 +323,7 @@ impl Writer for NamedFile {
 
         let mut length = self.metadata.len();
         if let Some(content_encoding) = &self.content_encoding {
-            match content_encoding.parse::<HeaderValue>() {
-                Ok(content_encoding) => {
-                    res.headers_mut().insert(CONTENT_ENCODING, content_encoding);
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "set file's content encoding failed");
-                }
-            }
+            res.headers_mut().insert(CONTENT_ENCODING, content_encoding.clone());
         }
         let mut offset = 0;
 
