@@ -62,7 +62,6 @@ impl RestSegment {
 }
 impl Segment for RestSegment {
     fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>) {
-        println!("YYYYYYYYYYYYY {:?}, {:?}", segments.is_empty(), self.0);
         if !segments.is_empty() || self.0.starts_with("**") {
             let mut kv = HashMap::new();
             kv.insert(self.0.clone(), segments.join("/"));

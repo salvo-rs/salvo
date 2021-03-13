@@ -44,18 +44,14 @@ impl Router {
     pub fn detect(&self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
         let match_cursor = path.match_cursor;
         for filter in &self.filters {
-            println!("{}", "YY===========0");
             if !filter.filter(request, path) {
                 path.match_cursor = match_cursor;
                 return None;
             }
         }
         if !self.children.is_empty() {
-            println!("{}", "YY===========2");
             for child in &self.children {
-                println!("{}", "YY===========3");
                 if let Some(dm) = child.detect(request, path) {
-                    println!("{}", "YY===========4");
                     return Some(DetectMatched {
                         befores: [&self.befores[..], &dm.befores[..]].concat(),
                         afters: [&dm.afters[..], &self.afters[..]].concat(),
@@ -65,9 +61,7 @@ impl Router {
             }
         }
         if let Some(handler) = self.handler.clone() {
-            println!("{}", "YY===========5");
             if path.segments.len() <= path.match_cursor {
-                println!("{}", "YY===========6");
                 return Some(DetectMatched {
                     befores: self.befores.clone(),
                     afters: self.afters.clone(),
