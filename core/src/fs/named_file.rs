@@ -272,7 +272,7 @@ impl NamedFile {
             };
 
             let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
-            format!("{:x}:{:x}:{:x}:{:x}", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
+            format!("\"{:x}-{:x}-{:x}-{:x}\"", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos())
         })
     }
 
@@ -329,7 +329,7 @@ impl Writer for NamedFile {
                     res.headers_mut().typed_insert(etag);
                 }
                 Err(e) => {
-                    tracing::error!(error = ?e, "set file's etag failed");
+                    tracing::error!(error = ?e, etag = ?self.etag_string(), "set file's etag failed");
                 }
             }
         }
