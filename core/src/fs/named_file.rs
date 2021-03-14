@@ -184,10 +184,9 @@ impl NamedFile {
     /// ```rust
     /// # use std::io;
     /// # use salvo_core::fs::NamedFile;
-    /// # fn path() -> io::Result<()> {
-    /// let file = NamedFile::open("test.txt".into())?;
-    /// assert_eq!(file.path().as_os_str(), "foo.txt");
-    /// # Ok(())
+    /// # fn path() {
+    ///     let file = NamedFile::open("test.txt".into()).unwrap();
+    ///     assert_eq!(file.path().as_os_str(), "foo.txt");
     /// # }
     /// ```
     #[inline]
