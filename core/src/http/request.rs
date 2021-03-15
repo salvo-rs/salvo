@@ -157,6 +157,14 @@ impl Request {
         &mut self.headers
     }
 
+    #[inline]
+    pub fn get_header<T>(&self, key: &str) -> Option<T>
+    where
+        T: FromStr,
+    {
+        self.headers.get(key).and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<T>().ok())
+    }
+
     #[inline(always)]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
@@ -242,11 +250,11 @@ impl Request {
     }
 
     #[inline]
-    pub fn get_param<F>(&self, key: &str) -> Option<F>
+    pub fn get_param<T>(&self, key: &str) -> Option<T>
     where
-        F: FromStr,
+    T: FromStr,
     {
-        self.params.get(key).and_then(|v| v.parse::<F>().ok())
+        self.params.get(key).and_then(|v| v.parse::<T>().ok())
     }
 
     pub fn queries(&self) -> &MultiMap<String, String> {
