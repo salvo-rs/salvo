@@ -6,7 +6,7 @@ use crate::Depot;
 
 #[async_trait]
 pub trait Writer {
-    #[must_use = "future must be used"]
+    #[must_use = "write future must be used"]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
