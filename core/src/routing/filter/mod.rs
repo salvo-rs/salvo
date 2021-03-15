@@ -75,27 +75,35 @@ where
     }
 }
 
+#[inline]
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)
 }
+#[inline]
 pub fn get() -> MethodFilter {
     MethodFilter(Method::GET)
 }
+#[inline]
 pub fn head() -> MethodFilter {
     MethodFilter(Method::HEAD)
 }
+#[inline]
 pub fn options() -> MethodFilter {
     MethodFilter(Method::OPTIONS)
 }
+#[inline]
 pub fn post() -> MethodFilter {
     MethodFilter(Method::POST)
 }
+#[inline]
 pub fn patch() -> MethodFilter {
     MethodFilter(Method::PATCH)
 }
+#[inline]
 pub fn put() -> MethodFilter {
     MethodFilter(Method::PUT)
 }
+#[inline]
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
 }
