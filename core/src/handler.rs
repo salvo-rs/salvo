@@ -5,6 +5,7 @@ use crate::Depot;
 
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
+    #[must_use = "handle future must be used"]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
