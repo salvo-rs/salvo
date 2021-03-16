@@ -29,7 +29,7 @@ pub trait BodyChunk: Sized {
     fn as_slice(&self) -> &[u8];
 
     /// Slice the bytes in `self` according to the given range.
-    #[inline(always)]
+    #[inline]
     fn slice<R>(&self, range: R) -> &R::Output
     where
         R: SliceIndex<[u8]>,
@@ -38,13 +38,13 @@ pub trait BodyChunk: Sized {
     }
 
     /// Equivalent to `self.as_slice().len()`
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         self.as_slice().len()
     }
 
     /// Equivalent to `self.as_slice().is_empty()`
-    #[inline(always)]
+    #[inline]
     fn is_empty(&self) -> bool {
         self.as_slice().is_empty()
     }
@@ -52,7 +52,7 @@ pub trait BodyChunk: Sized {
     /// Equivalent to `self.as_slice().to_owned()`
     ///
     /// Implementors are welcome to override this if they can provide a cheaper conversion.
-    #[inline(always)]
+    #[inline]
     fn into_vec(self) -> Vec<u8> {
         self.as_slice().to_owned()
     }
