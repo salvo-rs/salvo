@@ -18,22 +18,21 @@ use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 
-/// The `Request` given to all `Middleware`.
+/// Represents an HTTP request.
 ///
-/// Stores all the properties of the client's request plus
-/// an `TypeMap` for data communication between middleware.
+/// Stores all the properties of the client's request.
 pub struct Request {
-    /// The requested URL.
+    // The requested URL.
     uri: Uri,
 
-    /// The request headers.
+    // The request headers.
     headers: HeaderMap,
 
-    /// The request body as a reader.
+    // The request body as a reader.
     body: Option<Body>,
     extensions: Extensions,
 
-    /// The request method.
+    // The request method.
     method: Method,
 
     cookies: CookieJar,
@@ -52,17 +51,42 @@ pub struct Request {
 
 impl Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Request {{")?;
+        f.debug_struct("Request")
+            .field("method", self.method())
+            .field("uri", self.uri())
+            .field("version", &self.version())
+            .field("headers", self.headers())
+            // omits Extensions because not useful
+            .field("body", &self.body())
+            .finish()
+    }
+}
 
-        writeln!(f, "    uri: {:?}", self.uri)?;
-        writeln!(f, "    method: {:?}", self.method.clone())?;
-
-        write!(f, "}}")?;
-        Ok(())
+impl Default for Request {
+    fn default() -> Request {
+        Request::new()
     }
 }
 
 impl Request {
+    /// Creates a new blank `Request`
+    pub fn new() -> Request {
+        Request {
+            uri: Uri::default(),
+            headers: HeaderMap::default(),
+            body: Some(Body::default()),
+            extensions: Extensions::default(),
+            method: Method::default(),
+            cookies: CookieJar::default(),
+            params: HashMap::new(),
+            queries: OnceCell::new(),
+            form_data: DoubleCheckedCell::new(),
+            payload: DoubleCheckedCell::new(),
+            version: Version::default(),
+            remote_addr: None,
+        }
+    }
+
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
@@ -111,52 +135,114 @@ impl Request {
             remote_addr: None,
         }
     }
-
-    #[inline(always)]
+    /// Returns a reference to the associated URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let request = Request::default();
+    /// assert_eq!(*request.uri(), *"/");
+    /// ```
+    #[inline]
     pub fn uri(&self) -> &Uri {
         &self.uri
     }
-    #[inline(always)]
+
+    /// Returns a mutable reference to the associated URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let mut request: Request= Request::default();
+    /// *request.uri_mut() = "/hello".parse().unwrap();
+    /// assert_eq!(*request.uri(), *"/hello");
+    /// ```
+    #[inline]
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.uri
     }
 
-    #[inline(always)]
+    /// Returns a reference to the associated HTTP method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let request = Request::default();
+    /// assert_eq!(*request.method(), Method::GET);
+    /// ```
+    #[inline]
     pub fn method(&self) -> &Method {
         &self.method
     }
-    #[inline(always)]
+
+    /// Returns a mutable reference to the associated HTTP method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let mut request: Request = Request::default();
+    /// *request.method_mut() = Method::PUT;
+    /// assert_eq!(*request.method(), Method::PUT);
+    /// ```
+    #[inline]
     pub fn method_mut(&mut self) -> &mut Method {
         &mut self.method
     }
 
-    #[inline(always)]
+    /// Returns the associated version.
+    #[inline]
     pub fn version(&self) -> Version {
         self.version
     }
-    #[inline(always)]
+    /// Returns a mutable reference to the associated version.
+    #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
-    
-    #[inline(always)]
+    #[inline]
     pub fn set_remote_addr(&mut self, remote_addr: Option<SocketAddr>) {
         self.remote_addr = remote_addr;
     }
-    #[inline(always)]
+    #[inline]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
     }
 
-    #[inline(always)]
+    /// Returns a reference to the associated header field map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let request = Request::default();
+    /// assert!(request.headers().is_empty());
+    /// ```
+    #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
-    #[inline(always)]
+
+    /// Returns a mutable reference to the associated header field map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// # use salvo_core::http::header::*;
+    /// let mut request: Request = Request::default();
+    /// request.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// assert!(!request.headers().is_empty());
+    /// ```
+    #[inline]
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.headers
     }
 
+    /// Get header with supplied name and try to parse to a 'T', return None if failed or not found.
     #[inline]
     pub fn get_header<T>(&self, key: &str) -> Option<T>
     where
@@ -165,30 +251,57 @@ impl Request {
         self.headers.get(key).and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<T>().ok())
     }
 
-    #[inline(always)]
+    /// Returns a reference to the associated HTTP body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let request = Request::default();
+    /// assert!(request.body().is_some());
+    /// ```
+    #[inline]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
     }
-    #[inline(always)]
+    /// Returns a mutable reference to the associated HTTP body.
+    #[inline]
     pub fn body_mut(&mut self) -> Option<&mut Body> {
         self.body.as_mut()
     }
 
-    // #[inline(always)]
-    // pub fn body_mut(&mut self) -> Option<&mut Body> {
-    //     self.body.borrow().as_mut()
-    // }
-
-    #[inline(always)]
+    /// Take body form the request, and set the body to None in the request.
+    #[inline]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
 
-    #[inline(always)]
+    /// Returns a reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// let request = Request::default();
+    /// assert!(request.extensions().get::<i32>().is_none());
+    /// ```
+    #[inline]
     pub fn extensions(&self) -> &Extensions {
         &self.extensions
     }
-    #[inline(always)]
+
+    /// Returns a mutable reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_core::http::*;
+    /// # use salvo_core::http::header::*;
+    /// let mut request: Request = Request::default();
+    /// request.extensions_mut().insert("hello");
+    /// assert_eq!(request.extensions().get(), Some(&"hello"));
+    /// ```
+    #[inline]
     pub fn extensions_mut(&mut self) -> &mut Extensions {
         &mut self.extensions
     }
@@ -206,7 +319,7 @@ impl Request {
         list
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn frist_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
         if !accept.is_empty() {
@@ -216,7 +329,7 @@ impl Request {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
             ctype.parse().ok()
@@ -225,11 +338,11 @@ impl Request {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
-    #[inline(always)]
+    #[inline]
     pub fn cookies_mut(&mut self) -> &mut CookieJar {
         &mut self.cookies
     }
@@ -240,11 +353,11 @@ impl Request {
     {
         self.cookies.get(name.as_ref())
     }
-    #[inline(always)]
+    #[inline]
     pub fn params(&self) -> &HashMap<String, String> {
         &self.params
     }
-    #[inline(always)]
+    #[inline]
     pub fn params_mut(&mut self) -> &mut HashMap<String, String> {
         &mut self.params
     }
@@ -252,7 +365,7 @@ impl Request {
     #[inline]
     pub fn get_param<T>(&self, key: &str) -> Option<T>
     where
-    T: FromStr,
+        T: FromStr,
     {
         self.params.get(key).and_then(|v| v.parse::<T>().ok())
     }
