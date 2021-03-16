@@ -107,15 +107,15 @@ impl Response {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
-    #[inline(always)]
+    #[inline]
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
-    #[inline(always)]
+    #[inline]
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers
     }
@@ -130,19 +130,19 @@ impl Response {
         &mut self.version
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
     }
-    #[inline(always)]
+    #[inline]
     pub fn body_mut(&mut self) -> Option<&mut Body> {
         self.body.as_mut()
     }
-    #[inline(always)]
+    #[inline]
     pub fn set_body(&mut self, body: Option<Body>) {
         self.body = body
     }
-    #[inline(always)]
+    #[inline]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
@@ -179,7 +179,7 @@ impl Response {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
@@ -226,7 +226,7 @@ impl Response {
             self.commit();
         }
     }
-    // #[inline(always)]
+    // #[inline]
     // pub fn content_type(&self) -> Option<Mime> {
     //     self.headers.get_one("Content-Type").and_then(|v| v.parse().ok())
     // }
