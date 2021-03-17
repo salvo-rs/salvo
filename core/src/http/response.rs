@@ -7,9 +7,9 @@ use std::task::{self, Poll};
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::{Stream, TryStreamExt};
-use hyper::Method;
-use serde::{Deserialize, Serialize};
 use http::version::Version;
+use hyper::Method;
+use serde::Serialize;
 
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, SET_COOKIE};
@@ -38,7 +38,7 @@ impl Stream for Body {
 }
 impl From<hyper::Body> for Body {
     fn from(hbody: hyper::Body) -> Body {
-        Body::Stream(Box::pin(hbody.map_err(|e|e.into_cause().unwrap()).into_stream()))
+        Body::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
     }
 }
 /// Represents an HTTP response
@@ -59,7 +59,7 @@ impl Default for Response {
     }
 }
 impl Response {
-     /// Creates a new blank `Response`.
+    /// Creates a new blank `Response`.
     pub fn new() -> Response {
         Response {
             status_code: None,
@@ -124,7 +124,6 @@ impl Response {
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers
     }
-    
     #[inline]
     pub fn version(&self) -> Version {
         self.version
@@ -241,15 +240,10 @@ impl Response {
     }
     #[inline]
     pub fn render_json<T: Serialize>(&mut self, data: &T) {
-        if let Ok(data) = serde_json::to_string(data) {
-            self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), data.as_bytes());
+        if let Ok(data) = serde_json::to_vec(data) {
+            self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), &data);
         } else {
-            self.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            let emsg = ErrorWrap::new("server_error", "server error", "error when serialize object to json");
-            self.render_binary(
-                HeaderValue::from_static("application/json; charset=utf-8"),
-                serde_json::to_string(&emsg).unwrap().as_bytes(),
-            );
+            self.set_http_error(InternalServerError().with_summary("error when serialize object to json".into()));
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
@@ -409,33 +403,5 @@ impl Debug for Response {
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Debug::fmt(self, f)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ErrorInfo {
-    name: String,
-    summary: String,
-    detail: String,
-}
-#[derive(Serialize, Deserialize, Debug)]
-struct ErrorWrap {
-    error: ErrorInfo,
-}
-
-impl ErrorWrap {
-    pub fn new<N, S, D>(name: N, summary: S, detail: D) -> ErrorWrap
-    where
-        N: Into<String>,
-        S: Into<String>,
-        D: Into<String>,
-    {
-        ErrorWrap {
-            error: ErrorInfo {
-                name: name.into(),
-                summary: summary.into(),
-                detail: detail.into(),
-            },
-        }
     }
 }
