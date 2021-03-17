@@ -158,7 +158,11 @@ impl PathParser {
                 break;
             }
         }
-        Ok(ident)
+        if ident.is_empty() {
+            Err("ident segment is empty".to_owned())
+        } else {
+            Ok(ident)
+        }
     }
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
@@ -180,7 +184,11 @@ impl PathParser {
                 break;
             }
         }
-        Ok(regex)
+        if regex.is_empty() {
+            Err("regex segment is empty".to_owned())
+        } else {
+            Ok(regex)
+        }
     }
     fn scan_const(&mut self) -> Result<String, String> {
         let mut cnst = "".to_owned();
@@ -193,7 +201,11 @@ impl PathParser {
                 break;
             }
         }
-        Ok(cnst)
+        if cnst.is_empty() {
+            Err("const segment is empty".to_owned())
+        } else {
+            Ok(cnst)
+        }
     }
     fn scan_segment(&mut self) -> Result<Box<dyn Segment>, String> {
         let mut const_seg = "".to_owned();

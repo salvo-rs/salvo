@@ -41,7 +41,7 @@ impl From<hyper::Body> for Body {
         Body::Stream(Box::pin(hbody.map_err(|e|e.into_cause().unwrap()).into_stream()))
     }
 }
-/// The response representation given to `Middleware`
+/// Represents an HTTP response
 pub struct Response {
     /// The response status-code.
     status_code: Option<StatusCode>,
@@ -53,8 +53,13 @@ pub struct Response {
     pub(crate) body: Option<Body>,
     is_commited: bool,
 }
-
+impl Default for Response {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl Response {
+     /// Creates a new blank `Response`.
     pub fn new() -> Response {
         Response {
             status_code: None,
@@ -100,7 +105,7 @@ impl Response {
             status_code: Some(status),
             http_error: None,
             body: Some(body.into()),
-            version: version,
+            version,
             headers,
             cookies,
             is_commited: false,
@@ -146,9 +151,6 @@ impl Response {
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
-    // pub fn insert_header<K>(&mut self, key: K, val: T) -> Option<T> where K: IntoHeaderName,
-    //     self.headers.insert(key, val)
-    // }
 
     // `write_back` is used to put all the data added to `self`
     // back onto an `hyper::Response` so that it is sent back to the
