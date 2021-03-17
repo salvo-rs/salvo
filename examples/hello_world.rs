@@ -14,6 +14,10 @@ async fn hello_world2(_req: &mut Request, res: &mut Response) {
 async fn hello_world3(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World3");
 }
+#[fn_handler]
+async fn hello_world4() -> Result<&'static str, ()>{
+    Ok("Hello World4")
+}
 
 #[tokio::main]
 async fn main() {
@@ -22,6 +26,7 @@ async fn main() {
     let router = Router::new()
         .get(hello_world1)
         .push(Router::new().path("hello2").get(hello_world2))
-        .push(Router::new().path("hello3").get(hello_world3));
+        .push(Router::new().path("hello3").get(hello_world3))
+        .push(Router::new().path("hello4").get(hello_world4));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
