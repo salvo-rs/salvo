@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::http::{Request, Response};
 use crate::http::header::HeaderValue;
+use crate::http::{Request, Response};
 use crate::Depot;
 
 #[async_trait]
@@ -17,7 +17,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/html"), self.0.as_ref().as_bytes());
+        res.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), self.0.as_ref().as_bytes());
     }
 }
 
@@ -28,7 +28,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("application/json"), self.0.as_ref().as_bytes());
+        res.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), self.0.as_ref().as_bytes());
     }
 }
 
@@ -39,7 +39,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain"), self.0.as_ref().as_bytes());
+        res.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), self.0.as_ref().as_bytes());
     }
 }
 
@@ -50,7 +50,7 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/xml"), self.0.as_ref().as_bytes());
+        res.render_binary(HeaderValue::from_static("text/xml; charset=utf-8"), self.0.as_ref().as_bytes());
     }
 }
 
@@ -64,22 +64,20 @@ impl Writer for () {
 #[async_trait]
 impl<'a> Writer for &'a str {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+        res.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), self.as_bytes());
     }
 }
 #[allow(clippy::unit_arg)]
 #[async_trait]
 impl<'a> Writer for &'a String {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+        (&**self).write(_req, _depot, res).await;
     }
 }
 #[allow(clippy::unit_arg)]
 #[async_trait]
-impl<'a> Writer for String {
+impl Writer for String {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+        (&*self).write(_req, _depot, res).await;
     }
 }
-
-
