@@ -50,7 +50,7 @@ fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or_else(|| "there is no more detailed explanation")
+        detail.unwrap_or("there is no more detailed explanation")
     )
 }
 fn error_text(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
@@ -59,7 +59,7 @@ fn error_text(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or_else(|| "there is no more detailed explanation")
+        detail.unwrap_or("there is no more detailed explanation")
     )
 }
 fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
@@ -68,7 +68,7 @@ fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or_else(|| "there is no more detailed explanation")
+        detail.unwrap_or("there is no more detailed explanation")
     )
 }
 
