@@ -67,3 +67,19 @@ impl<'a> Writer for &'a str {
         res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
     }
 }
+#[allow(clippy::unit_arg)]
+#[async_trait]
+impl<'a> Writer for &'a String {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+    }
+}
+#[allow(clippy::unit_arg)]
+#[async_trait]
+impl<'a> Writer for String {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+    }
+}
+
+
