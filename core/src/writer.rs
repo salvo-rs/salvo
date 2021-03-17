@@ -59,3 +59,11 @@ where
 impl Writer for () {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, _resp: &mut Response) {}
 }
+
+#[allow(clippy::unit_arg)]
+#[async_trait]
+impl<'a> Writer for &'a str {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.render_binary(HeaderValue::from_static("text/plain"), self.as_bytes());
+    }
+}
