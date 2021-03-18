@@ -82,12 +82,12 @@ pub struct HttpError {
     pub detail: Option<String>,
 }
 impl HttpError {
-    pub fn with_summary(mut self, summary: String) -> Self {
-        self.summary = Some(summary);
+    pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = Some(summary.into());
         self
     }
-    pub fn with_detail(mut self, detail: String) -> Self {
-        self.detail = Some(detail);
+    pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
         self
     }
 }
