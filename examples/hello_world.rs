@@ -3,6 +3,10 @@ use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 #[fn_handler]
+async fn hello_world() -> &'static str{
+    "Hello World"
+}
+#[fn_handler]
 async fn hello_world1() -> Result<&'static str, ()>{
     Ok("Hello World1")
 }
@@ -24,7 +28,8 @@ async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "hello_world=debug,salvo=debug".to_owned());
     tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
     let router = Router::new()
-        .get(hello_world1)
+        .get(hello_world)
+        .push(Router::new().path("hello1").get(hello_world1))
         .push(Router::new().path("hello2").get(hello_world2))
         .push(Router::new().path("hello3").get(hello_world3))
         .push(Router::new().path("hello4").get(hello_world4));
