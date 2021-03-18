@@ -243,7 +243,7 @@ impl Response {
         if let Ok(data) = serde_json::to_vec(data) {
             self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), &data);
         } else {
-            self.set_http_error(InternalServerError().with_summary("error when serialize object to json".into()));
+            self.set_http_error(InternalServerError().with_summary("error when serialize object to json"));
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
