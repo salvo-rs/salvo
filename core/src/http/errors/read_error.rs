@@ -91,8 +91,8 @@ impl Writer for ReadError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_http_error(
             InternalServerError()
-                .with_summary("http read error happened".into())
-                .with_detail("there is no more detailed explanation.".into()),
+                .with_summary("http read error happened")
+                .with_detail("there is no more detailed explanation."),
         );
     }
 }
