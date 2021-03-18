@@ -49,6 +49,24 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 }
 ```
 
+There are many ways to write function handler.
+``` rust
+#[fn_handler]
+async fn hello_world(res: &mut Response) {// remove params you don't used.
+    res.render_plain_text("Hello World");
+}
+
+#[fn_handler]
+async fn hello_world(res: &mut Response) -> &'static str {// just return &str
+    "Hello World"
+}
+
+#[fn_handler]
+async fn hello_world(res: &mut Response) -> anyhow::Result<&'static str> {// return Result
+    Ok("Hello World")
+}
+```
+
 In the ```main``` function, we need to create a root Router first, and then create a server and call it's ```bind``` function:
 
 ```rust

@@ -51,6 +51,24 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 }
 ```
 
+对于 fn_handler，可以根据需求和喜好有不同种写法.
+``` rust
+#[fn_handler]
+async fn hello_world(res: &mut Response) {// 去掉不需要的参数.
+    res.render_plain_text("Hello World");
+}
+
+#[fn_handler]
+async fn hello_world(res: &mut Response) -> &'static str {// 仅仅只返回 &str
+    "Hello World"
+}
+
+#[fn_handler]
+async fn hello_world(res: &mut Response) -> anyhow::Result<&'static str> {// 返回一个Result
+    Ok("Hello World")
+}
+```
+
 在 ```main``` 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 ```bind``` 函数:
 
 ```rust
