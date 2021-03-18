@@ -84,10 +84,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             #[async_trait]
             impl #salvo::Handler for #name {
                 async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response) {
-                    match Self::#name(req, depot, res).await {
-                        Ok(writer) => #salvo::Writer::write(writer,  req, depot, res).await,
-                        Err(err) => #salvo::Writer::write(err,  req, depot, res).await,
-                    }
+                    Self::#name(req, depot, res).await.write(req, depot, res).await;
                 }
             }
         })
