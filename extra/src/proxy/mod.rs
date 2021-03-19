@@ -80,7 +80,7 @@ impl ProxyHandler {
             if rest.is_empty() {
                 upstream.into()
             } else {
-                format!("{}{}", upstream.trim_end_matches('/'), rest)
+                format!("{}/{}", upstream.trim_end_matches('/'), rest)
             }
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
