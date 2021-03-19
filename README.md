@@ -62,7 +62,7 @@ async fn hello_world(res: &mut Response) -> &'static str {// just return &str
 }
 
 #[fn_handler]
-async fn hello_world(res: &mut Response) -> anyhow::Result<&'static str> {// return Result
+async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// return Result
     Ok("Hello World")
 }
 ```
