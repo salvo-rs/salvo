@@ -36,7 +36,7 @@ cargo new hello_salvo --bin
 添加依赖项到 `Cargo.toml`
 ```toml
 [dependencies]
-salvo = "0.8"
+salvo = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -64,7 +64,7 @@ async fn hello_world(res: &mut Response) -> &'static str {// 仅仅只返回 &st
 }
 
 #[fn_handler]
-async fn hello_world(res: &mut Response) -> anyhow::Result<&'static str> {// 返回一个Result
+async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// 返回一个Result
     Ok("Hello World")
 }
 ```
