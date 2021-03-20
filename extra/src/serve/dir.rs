@@ -235,7 +235,7 @@ impl Handler for StaticDir {
         let base_path = if let Some((_, value)) = param {
             value.clone()
         } else {
-            decode_url_path(req_path)
+            decode_url_path_safely(req_path)
         }
         .to_owned();
         let base_path = if base_path.starts_with('/') {
@@ -303,7 +303,7 @@ impl Handler for StaticDir {
         files.sort_by(|a, b| a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
-        let root = BaseInfo::new(decode_url_path(req_path), files, dirs);
+        let root = BaseInfo::new(decode_url_path_safely(req_path), files, dirs);
         match format.subtype().as_ref() {
             "text" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),

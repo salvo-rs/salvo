@@ -89,7 +89,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let mut response = Response::new();
         let mut depot = Depot::new();
         let path = request.uri().path();
-        let segments = crate::utils::decode_url_path_segments(path);
+        let segments = crate::utils::decode_url_path_segments_safely(path);
         let mut path_state = PathState::new(segments);
         response.cookies = request.cookies().clone();
 
