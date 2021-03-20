@@ -1,20 +1,20 @@
 use async_trait::async_trait;
 use chrono::prelude::*;
 use mime;
-use percent_encoding::{percent_decode_str, utf8_percent_encode, CONTROLS};
+use percent_encoding::{utf8_percent_encode, CONTROLS};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use salvo_core::Depot;
+use salvo_core::fs::NamedFile;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
-use salvo_core::fs::NamedFile;
-use salvo_core::Writer;
-use salvo_core::Handler;
 use salvo_core::utils::decode_url_path;
+use salvo_core::Depot;
+use salvo_core::Handler;
+use salvo_core::Writer;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -232,8 +232,13 @@ impl Handler for StaticDir {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
-        let base_path = if let Some((_, value)) = param { value.clone() } else { decode_url_path(req_path) }.to_owned();
-        let base_path  = if base_path.starts_with('/') {
+        let base_path = if let Some((_, value)) = param {
+            value.clone()
+        } else {
+            decode_url_path(req_path)
+        }
+        .to_owned();
+        let base_path = if base_path.starts_with('/') {
             format!(".{}", base_path)
         } else {
             base_path
@@ -306,14 +311,6 @@ impl Handler for StaticDir {
             _ => res.render_html_text(&list_html(&root)),
         }
     }
-}
-
-fn decode_url_path_safely(raw: &str) -> String {
-    raw.split('/')
-        .map(|s| percent_decode_str(s).decode_utf8_lossy())
-        .filter(|s| !s.contains('/'))
-        .collect::<Vec<_>>()
-        .join("/")
 }
 
 fn encode_url_path(path: &str) -> String {
