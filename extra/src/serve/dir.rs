@@ -238,7 +238,6 @@ impl Handler for StaticDir {
         } else {
             base_path
         };
-        println!("==={:?}", base_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
