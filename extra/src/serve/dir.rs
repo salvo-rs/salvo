@@ -94,98 +94,6 @@ impl StaticDir {
         }
     }
 }
-
-fn list_json(root: &BaseInfo) -> String {
-    json!(root).to_string()
-}
-fn list_xml(root: &BaseInfo) -> String {
-    let mut ftxt = "<list>".to_owned();
-    if root.dirs.is_empty() && root.files.is_empty() {
-        ftxt.push_str("No files");
-    } else {
-        ftxt.push_str("<table>");
-        for dir in &root.dirs {
-            ftxt.push_str(&format!(
-                "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
-                dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S"),
-                encode_url_path(&dir.name),
-            ));
-        }
-        for file in &root.files {
-            ftxt.push_str(&format!(
-                "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
-                file.name,
-                file.modified.format("%Y-%m-%d %H:%M:%S"),
-                file.size,
-                encode_url_path(&file.name),
-            ));
-        }
-        ftxt.push_str("</table>");
-    }
-    ftxt.push_str("</list>");
-    ftxt
-}
-fn list_html(root: &BaseInfo) -> String {
-    let mut ftxt = format!(
-        "<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset=\"utf-8\">
-        <title>{}</title>
-        <style>
-        :root {{
-            --bg-color: #fff;
-            --text-color: #222;
-        }}
-        body {{
-            background: var(--bg-color);
-            color: var(--text-color);
-        }}
-        @media (prefers-color-scheme: dark) {{
-            :root {{
-                --bg-color: #222;
-                --text-color: #ddd;
-            }}
-        }}
-        </style>
-    </head>
-    <body>
-        <h1>Index of: {}</h1>
-        <hr/>
-        <a href=\"../\">[../]</a><br><br>
-",
-        root.path, root.path
-    );
-    if root.dirs.is_empty() && root.files.is_empty() {
-        ftxt.push_str("No files");
-    } else {
-        ftxt.push_str("<table>");
-        for dir in &root.dirs {
-            ftxt.push_str(&format!(
-                "<tr><td><a href=\"./{}/\">{}/</a></td><td>{}</td><td></td></tr>",
-                encode_url_path(&dir.name),
-                dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S")
-            ));
-        }
-        for file in &root.files {
-            ftxt.push_str(&format!(
-                "<tr><td><a href=\"./{}\">{}</a></td><td>{}</td><td>{}</td></tr>",
-                encode_url_path(&file.name),
-                file.name,
-                file.modified.format("%Y-%m-%d %H:%M:%S"),
-                file.size
-            ));
-        }
-        ftxt.push_str("</table>");
-    }
-    ftxt.push_str("<hr/><div style=\"text-align:center;\"><small>salvo</small></div></body>");
-    ftxt
-}
-fn list_text(root: &BaseInfo) -> String {
-    json!(root).to_string()
-}
 #[derive(Serialize, Deserialize, Debug)]
 struct BaseInfo {
     path: String,
@@ -330,3 +238,123 @@ fn decode_url_path_segments_safely(path: &str) -> Vec<String> {
         .filter(|s| !s.contains('/') && !s.is_empty())
         .collect::<Vec<_>>()
 }
+
+fn list_json(root: &BaseInfo) -> String {
+    json!(root).to_string()
+}
+fn list_xml(root: &BaseInfo) -> String {
+    let mut ftxt = "<list>".to_owned();
+    if root.dirs.is_empty() && root.files.is_empty() {
+        ftxt.push_str("No files");
+    } else {
+        ftxt.push_str("<table>");
+        for dir in &root.dirs {
+            ftxt.push_str(&format!(
+                "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
+                dir.name,
+                dir.modified.format("%Y-%m-%d %H:%M:%S"),
+                encode_url_path(&dir.name),
+            ));
+        }
+        for file in &root.files {
+            ftxt.push_str(&format!(
+                "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
+                file.name,
+                file.modified.format("%Y-%m-%d %H:%M:%S"),
+                file.size,
+                encode_url_path(&file.name),
+            ));
+        }
+        ftxt.push_str("</table>");
+    }
+    ftxt.push_str("</list>");
+    ftxt
+}
+fn list_html(root: &BaseInfo) -> String {
+    let mut ftxt = format!(
+        "<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset=\"utf-8\">
+        <title>{}</title>
+        <style>
+        :root {{
+            --bg-color: #fff;
+            --text-color: #222;
+            --dir-icon-color: #79b8ff;
+            --file-icon-color: #959da5;
+        }}
+        body {{
+            background: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+        }}
+        table{{text-align:left;}}
+        th, td {{
+            padding: 2px 4px;
+        }}
+        th:first-child,td:first-child{{
+            text-align: center;
+        }}
+        .dir-icon {{
+            color: var(--dir-icon-color);
+            fill: currentColor;
+        }}
+        .file-icon {{
+            color: var(--file-icon-color);
+            fill: currentColor;
+        }}
+        @media (prefers-color-scheme: dark) {{
+            :root {{
+                --bg-color: #222;
+                --text-color: #ddd;
+                --dir-icon-color: #7da3d0;
+                --file-icon-color: #545d68;
+            }}
+        }}
+        </style>
+    </head>
+    <body>
+        <header><h3>Index of: {}</h3></header>
+        <hr/>
+",
+        root.path, root.path
+    );
+    if root.dirs.is_empty() && root.files.is_empty() {
+        ftxt.push_str("No files");
+    } else {
+        ftxt.push_str("<table><tr><th>");
+        if !(root.path.is_empty() || root.path == "/") {
+            ftxt.push_str("<a href=\"../\">[..]</a>");
+        }
+        ftxt.push_str("</th><th>Name</th><th>Last modified</th><th>Size</th></tr>");
+        for dir in &root.dirs {
+            ftxt.push_str(&format!(
+                "<tr><td>{}</td><td><a href=\"./{}/\">{}</a></td><td>{}</td><td></td></tr>",
+                DIR_ICON,
+                encode_url_path(&dir.name),
+                dir.name,
+                dir.modified.format("%Y-%m-%d %H:%M:%S")
+            ));
+        }
+        for file in &root.files {
+            ftxt.push_str(&format!(
+                "<tr><td>{}</td><td><a href=\"./{}\">{}</a></td><td>{}</td><td>{}</td></tr>",
+                FILE_ICON,
+                encode_url_path(&file.name),
+                file.name,
+                file.modified.format("%Y-%m-%d %H:%M:%S"),
+                file.size
+            ));
+        }
+        ftxt.push_str("</table>");
+    }
+    ftxt.push_str("<hr/><footer><small>salvo</small></footer></body>");
+    ftxt
+}
+fn list_text(root: &BaseInfo) -> String {
+    json!(root).to_string()
+}
+
+const DIR_ICON: &str = r#"<svg aria-label="Directory" class="dir-icon" height="16" viewBox="0 0 16 16" version="1.1" width="16" role="img"><path fill-rule="evenodd" d="M1.75 1A1.75 1.75 0 000 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0016 13.25v-8.5A1.75 1.75 0 0014.25 3h-6.5a.25.25 0 01-.2-.1l-.9-1.2c-.33-.44-.85-.7-1.4-.7h-3.5z"></path></svg>"#;
+const FILE_ICON: &str = r#"<svg aria-label="File" class="file-icon" height="16" viewBox="0 0 16 16" version="1.1" width="16" role="img"><path fill-rule="evenodd" d="M3.75 1.5a.25.25 0 00-.25.25v11.5c0 .138.112.25.25.25h8.5a.25.25 0 00.25-.25V6H9.75A1.75 1.75 0 018 4.25V1.5H3.75zm5.75.56v2.19c0 .138.112.25.25.25h2.19L9.5 2.06zM2 1.75C2 .784 2.784 0 3.75 0h5.086c.464 0 .909.184 1.237.513l3.414 3.414c.329.328.513.773.513 1.237v8.086A1.75 1.75 0 0112.25 15h-8.5A1.75 1.75 0 012 13.25V1.75z"></path></svg>"#;
