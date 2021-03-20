@@ -11,7 +11,6 @@ use std::time::SystemTime;
 use salvo_core::fs::NamedFile;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response};
-use salvo_core::utils::decode_url_path;
 use salvo_core::Depot;
 use salvo_core::Handler;
 use salvo_core::Writer;
@@ -318,4 +317,16 @@ fn encode_url_path(path: &str) -> String {
         .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
         .collect::<Vec<_>>()
         .join("/")
+}
+
+fn decode_url_path_safely(path: &str) -> String {
+    format!("/{}", decode_url_path_segments_safely(path).join("/"))
+}
+
+fn decode_url_path_segments_safely(path: &str) -> Vec<String> {
+    let segments = path.trim_start_matches('/').split('/');
+    segments
+        .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
+        .filter(|s| !s.contains('/') && !s.is_empty())
+        .collect::<Vec<_>>()
 }
