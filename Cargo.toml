@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.9.1"
+version = "0.9.2"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -45,8 +45,8 @@ members = [
 
 [dependencies]
 async-trait = "0.1.42"
-salvo_core = { version = "0.9.0", default-features = false }
-salvo_extra = {version = "0.9.1", default-features = false, optional = true }
+salvo_core = { version = "0.9.2", default-features = false }
+salvo_extra = {version = "0.9.2", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { version = "0.3", features = [ "std" ] }
