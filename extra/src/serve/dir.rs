@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::prelude::*;
 use mime;
-use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, CONTROLS};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs::{self, Metadata};
@@ -14,6 +14,7 @@ use salvo_core::http::{Request, Response};
 use salvo_core::fs::NamedFile;
 use salvo_core::Writer;
 use salvo_core::Handler;
+use salvo_core::utils::decode_url_path;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -231,11 +232,13 @@ impl Handler for StaticDir {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
-        let mut base_path = if let Some((_, value)) = param { value } else { req_path }.to_owned();
-        if base_path.starts_with('/') || base_path.starts_with('\\') {
-            base_path = format!(".{}", base_path);
-        }
-        let base_path = decode_url_path_safely(&base_path);
+        let base_path = if let Some((_, value)) = param { value.clone() } else { decode_url_path(req_path) }.to_owned();
+        let base_path  = if base_path.starts_with('/') {
+            format!(".{}", base_path)
+        } else {
+            base_path
+        };
+        println!("==={:?}", base_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -296,7 +299,7 @@ impl Handler for StaticDir {
         files.sort_by(|a, b| a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
-        let root = BaseInfo::new(req_path.to_owned(), files, dirs);
+        let root = BaseInfo::new(decode_url_path(req_path), files, dirs);
         match format.subtype().as_ref() {
             "text" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),
@@ -316,7 +319,7 @@ fn decode_url_path_safely(raw: &str) -> String {
 
 fn encode_url_path(path: &str) -> String {
     path.split('/')
-        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
+        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
         .collect::<Vec<_>>()
         .join("/")
 }
