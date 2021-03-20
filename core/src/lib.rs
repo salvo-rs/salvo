@@ -5,6 +5,7 @@ pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
+pub mod utils;
 mod server;
 mod service;
 #[cfg(feature = "tls")]
