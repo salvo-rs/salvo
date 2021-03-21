@@ -97,7 +97,15 @@ impl NamedFileBuilder {
             Some(file) => file,
             None => File::open(&path).map_err(crate::Error::new)?,
         };
-        let content_type = content_type.unwrap_or_else(|| from_path(&path).first_or_octet_stream());
+        let content_type = content_type.unwrap_or_else(|| {
+            let ct = from_path(&path).first_or_octet_stream();
+            if ct.type_() == mime::TEXT && ct.get_param(mime::CHARSET).is_none() {
+                //TODO: auto check charset
+                format!("{}; charset=utf-8", ct).parse::<mime::Mime>().unwrap_or(ct)
+            } else {
+                ct
+            }
+        });
         let content_disposition = content_disposition.unwrap_or_else(|| {
             disposition_type.unwrap_or_else(|| {
                 let disposition_type = if attached_filename.is_some() {
