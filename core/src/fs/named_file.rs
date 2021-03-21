@@ -100,7 +100,7 @@ impl NamedFileBuilder {
         let content_type = content_type.unwrap_or_else(|| {
             let ct = from_path(&path).first_or_octet_stream();
             if ct.type_() == mime::TEXT && ct.get_param(mime::CHARSET).is_none() {
-                //TODO: auto check charset
+                //TODO: auto detect charset
                 format!("{}; charset=utf-8", ct).parse::<mime::Mime>().unwrap_or(ct)
             } else {
                 ct
