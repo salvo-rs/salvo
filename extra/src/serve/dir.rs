@@ -95,14 +95,14 @@ impl StaticDir {
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
-struct BaseInfo {
+struct CurrentInfo {
     path: String,
     files: Vec<FileInfo>,
     dirs: Vec<DirInfo>,
 }
-impl BaseInfo {
-    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> BaseInfo {
-        BaseInfo { path, files, dirs }
+impl CurrentInfo {
+    fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> CurrentInfo {
+        CurrentInfo { path, files, dirs }
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -210,7 +210,7 @@ impl Handler for StaticDir {
         files.sort_by(|a, b| a.name.cmp(&b.name));
         let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
-        let root = BaseInfo::new(decode_url_path_safely(req_path), files, dirs);
+        let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
         match format.subtype().as_ref() {
             "text" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),
@@ -239,16 +239,16 @@ fn decode_url_path_segments_safely(path: &str) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
-fn list_json(root: &BaseInfo) -> String {
-    json!(root).to_string()
+fn list_json(current: &CurrentInfo) -> String {
+    json!(current).to_string()
 }
-fn list_xml(root: &BaseInfo) -> String {
+fn list_xml(current: &CurrentInfo) -> String {
     let mut ftxt = "<list>".to_owned();
-    if root.dirs.is_empty() && root.files.is_empty() {
+    if current.dirs.is_empty() && current.files.is_empty() {
         ftxt.push_str("No files");
     } else {
         ftxt.push_str("<table>");
-        for dir in &root.dirs {
+        for dir in &current.dirs {
             ftxt.push_str(&format!(
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
@@ -256,7 +256,7 @@ fn list_xml(root: &BaseInfo) -> String {
                 encode_url_path(&dir.name),
             ));
         }
-        for file in &root.files {
+        for file in &current.files {
             ftxt.push_str(&format!(
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
@@ -270,7 +270,17 @@ fn list_xml(root: &BaseInfo) -> String {
     ftxt.push_str("</list>");
     ftxt
 }
-fn list_html(root: &BaseInfo) -> String {
+fn list_html(current: &CurrentInfo) -> String {
+    fn header_links(path: &str) -> String {
+        let segments = path.trim_start_matches("/").trim_end_matches("/").split('/');
+        let mut link = "".to_string();
+        format!("{}{}", "<a href=\"/\"><svg aria-hidden=\"true\" data-icon=\"home\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 576 512\"><path fill=\"currentColor\" d=\"M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z\"></path></svg></a>", segments
+        .map(|seg| {
+            link = format!("{}/{}", link, seg);
+            format!("/<a href=\"{}\">{}</a>", link, seg)
+        }).collect::<Vec<_>>()
+        .join(""))
+    }
     let mut ftxt = format!(
         "<!DOCTYPE html>
 <html>
@@ -282,32 +292,32 @@ fn list_html(root: &BaseInfo) -> String {
         :root {{
             --bg-color: #fff;
             --text-color: #222;
+            --link-color: #0366d6;
+            --link-visited-color: #f22526;
             --dir-icon-color: #79b8ff;
             --file-icon-color: #959da5;
         }}
-        body {{
-            background: var(--bg-color);
-            color: var(--text-color);
-        }}
+        body {{background: var(--bg-color); color: var(--text-color);}}
+        a{{text-decoration:none;color:var(--link-color);}}
+        a:visited {{
+            color: var(--link-visited-color);
+          }}
+        a:hover{{text-decoration:underline;}}
         footer{{text-align:center;}}
         table{{text-align:left;border-collapse: collapse;}}
         tr{{border-bottom: solid 1px #ccc;}}
+        tr:last-child {{border-bottom: none;}}
         th, td {{padding: 5px;}}
         th:first-child,td:first-child{{text-align: center;}}
-        .dir-icon {{
-            vertical-align: text-bottom;
-            color: var(--dir-icon-color);
-            fill: currentColor;
-        }}
-        .file-icon {{
-            vertical-align: text-bottom;
-            color: var(--file-icon-color);
-            fill: currentColor;
-        }}
+        svg[data-icon=\"dir\"] {{vertical-align: text-bottom; color: var(--dir-icon-color); fill: currentColor;}}
+        svg[data-icon=\"file\"] {{vertical-align: text-bottom; color: var(--file-icon-color); fill: currentColor;}}
+        svg[data-icon=\"home\"] {{width:24px;vertical-align: bottom;}}
         @media (prefers-color-scheme: dark) {{
             :root {{
                 --bg-color: #222;
                 --text-color: #ddd;
+                --link-color: #539bf5;
+                --link-visited-color: #f25555;
                 --dir-icon-color: #7da3d0;
                 --file-icon-color: #545d68;
             }}
@@ -318,17 +328,18 @@ fn list_html(root: &BaseInfo) -> String {
         <header><h3>Index of: {}</h3></header>
         <hr/>
 ",
-        root.path, root.path
+        current.path,
+        header_links(&current.path)
     );
-    if root.dirs.is_empty() && root.files.is_empty() {
-        ftxt.push_str("No files");
+    if current.dirs.is_empty() && current.files.is_empty() {
+        ftxt.push_str("<p>No files</p>");
     } else {
         ftxt.push_str("<table><tr><th>");
-        if !(root.path.is_empty() || root.path == "/") {
+        if !(current.path.is_empty() || current.path == "/") {
             ftxt.push_str("<a href=\"../\">[..]</a>");
         }
         ftxt.push_str("</th><th>Name</th><th>Last modified</th><th>Size</th></tr>");
-        for dir in &root.dirs {
+        for dir in &current.dirs {
             ftxt.push_str(&format!(
                 "<tr><td>{}</td><td><a href=\"./{}/\">{}</a></td><td>{}</td><td></td></tr>",
                 DIR_ICON,
@@ -337,7 +348,7 @@ fn list_html(root: &BaseInfo) -> String {
                 dir.modified.format("%Y-%m-%d %H:%M:%S")
             ));
         }
-        for file in &root.files {
+        for file in &current.files {
             ftxt.push_str(&format!(
                 "<tr><td>{}</td><td><a href=\"./{}\">{}</a></td><td>{}</td><td>{}</td></tr>",
                 FILE_ICON,
@@ -352,9 +363,9 @@ fn list_html(root: &BaseInfo) -> String {
     ftxt.push_str("<hr/><footer><small>salvo</small></footer></body>");
     ftxt
 }
-fn list_text(root: &BaseInfo) -> String {
-    json!(root).to_string()
+fn list_text(current: &CurrentInfo) -> String {
+    json!(current).to_string()
 }
 
-const DIR_ICON: &str = r#"<svg aria-label="Directory" class="dir-icon" width="20" height="20" viewBox="0 0 512 512" version="1.1" role="img"><path fill="currentColor" d="M464 128H272l-64-64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V176c0-26.51-21.49-48-48-48z"></path></svg>"#;
-const FILE_ICON: &str = r#"<svg aria-label="File" class="file-icon" width="20" height="20" viewBox="0 0 384 512" version="1.1" role="img"><path d="M369.9 97.9L286 14C277 5 264.8-.1 252.1-.1H48C21.5 0 0 21.5 0 48v416c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V131.9c0-12.7-5.1-25-14.1-34zM332.1 128H256V51.9l76.1 76.1zM48 464V48h160v104c0 13.3 10.7 24 24 24h104v288H48z"/></svg>"#;
+const DIR_ICON: &str = r#"<svg aria-label="Directory" data-icon=\"dir\" width="20" height="20" viewBox="0 0 512 512" version="1.1" role="img"><path fill="currentColor" d="M464 128H272l-64-64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V176c0-26.51-21.49-48-48-48z"></path></svg>"#;
+const FILE_ICON: &str = r#"<svg aria-label="File" data-icon=\"file\" width="20" height="20" viewBox="0 0 384 512" version="1.1" role="img"><path d="M369.9 97.9L286 14C277 5 264.8-.1 252.1-.1H48C21.5 0 0 21.5 0 48v416c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V131.9c0-12.7-5.1-25-14.1-34zM332.1 128H256V51.9l76.1 76.1zM48 464V48h160v104c0 13.3 10.7 24 24 24h104v288H48z"/></svg>"#;
