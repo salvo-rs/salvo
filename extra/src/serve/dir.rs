@@ -303,7 +303,7 @@ fn list_html(current: &CurrentInfo) -> String {
             color: var(--link-visited-color);
           }}
         a:hover{{text-decoration:underline;}}
-        footer{{text-align:center;}}
+        footer{{text-align:center;font-size:12px;}}
         table{{text-align:left;border-collapse: collapse;}}
         tr{{border-bottom: solid 1px #ccc;}}
         tr:last-child {{border-bottom: none;}}
@@ -360,7 +360,7 @@ fn list_html(current: &CurrentInfo) -> String {
         }
         ftxt.push_str("</table>");
     }
-    ftxt.push_str("<hr/><footer><small>salvo</small></footer></body>");
+    ftxt.push_str("<hr/><footer><a href=\"https://salvo.rs\" target=\"_blank\">salvo</a></footer></body>");
     ftxt
 }
 fn list_text(current: &CurrentInfo) -> String {
