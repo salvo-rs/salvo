@@ -17,16 +17,16 @@ categories = [ "web-programming::http-server" ]
 all-features = true
 
 [dependencies]
-async-compression = { version = "0.3.7", features = ["brotli", "deflate", "gzip", "tokio"] }
+async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"] }
 async-trait = "0.1"
-base64 = "0.13.0"
+base64 = "0.13"
 chrono = { version = "0.4", features = [ "serde" ] }
 cookie = { version = "0.14", features = [ "percent-encode" ] }
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
-headers = "0.3.3"
-http = "0.2.3"
+headers = "0.3"
+http = "0.2"
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
-hyper-tls = "0.5.0"
+hyper-tls = "0.5"
 jsonwebtoken = "7.2"
 mime = "0.3"
 percent-encoding = "2.1"
