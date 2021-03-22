@@ -12,6 +12,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 <html>
 <head>
     <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width\">
     <title>{0}: {1}</title>
     <style>
     :root {{
