@@ -27,7 +27,7 @@ headers = "0.3"
 http = "0.2"
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
 hyper-tls = "0.5"
-jsonwebtoken = "7.2"`
+jsonwebtoken = "7.2"
 
 mime = "0.3"
 percent-encoding = "2.1"
