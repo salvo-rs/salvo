@@ -309,7 +309,7 @@ fn list_html(current: &CurrentInfo) -> String {
         th:first-child,td:first-child {{text-align: center;}}
         svg[data-icon="dir"] {{vertical-align: text-bottom; color: var(--dir-icon-color); fill: currentColor;}}
         svg[data-icon="file"] {{vertical-align: text-bottom; color: var(--file-icon-color); fill: currentColor;}}
-        svg[data-icon="home"] {{width:24px;vertical-align: bottom;}}
+        svg[data-icon="home"] {{width:18px;}}
         @media (prefers-color-scheme: dark) {{
             :root {{
                 --bg-color: #222;
