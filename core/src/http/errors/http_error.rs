@@ -8,11 +8,11 @@ use crate::{Depot, Request, Response, Writer};
 
 fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
-        "<!DOCTYPE html>
+        r#"<!DOCTYPE html>
 <html>
 <head>
-    <meta charset=\"utf-8\">
-    <meta name=\"viewport\" content=\"width=device-width\">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
     <title>{0}: {1}</title>
     <style>
     :root {{
@@ -36,10 +36,10 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 <body>
     <div>
         <h1>{0}: {1}</h1>{2}{3}<hr />
-        <footer><a href=\"https://salvo.rs\" target=\"_blank\">salvo</a></footer>
+        <footer><a href="https://salvo.rs" target="_blank">salvo</a></footer>
     </div>
 </body>
-</html>",
+</html>"#,
         code.as_u16(),
         name,
         summary.map(|summary| format!("<h3>{}</h3>", summary)).unwrap_or_default(),
@@ -48,7 +48,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 }
 fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
-        "{{\"error\":{{\"code\":{},\"name\":\"{}\",\"summary\":\"{}\",\"detail\":\"{}\"}}}}",
+        r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
         code.as_u16(),
         name,
         summary.unwrap_or(name),
