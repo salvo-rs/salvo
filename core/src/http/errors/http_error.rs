@@ -24,6 +24,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         color: var(--text-color);
         text-align: center;
     }}
+    footer{{text-align:center;font-size:12px;}}
     @media (prefers-color-scheme: dark) {{
         :root {{
             --bg-color: #222;
@@ -35,7 +36,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 <body>
     <div>
         <h1>{0}: {1}</h1>{2}{3}<hr />
-        <small>salvo</small>
+        <footer><a href=\"https://salvo.rs\" target=\"_blank\">salvo</a></footer>
     </div>
 </body>
 </html>",
