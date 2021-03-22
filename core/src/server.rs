@@ -17,6 +17,10 @@ use crate::tls::{TlsAcceptor, TlsConfigBuilder};
 use crate::transport::LiftIo;
 use crate::{Catcher, Router, Service};
 
+pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
+    HyperServer::builder(incoming)
+}
+
 pub struct Server {
     service: Service,
 }
@@ -35,15 +39,12 @@ impl Server {
         self.service.allowed_media_types = Arc::new(allowed_media_types);
         self
     }
-    pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
-        HyperServer::builder(incoming)
-    }
 
     fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<AddrIncoming, Service>), hyper::Error> {
         let addr = addr.into();
         let mut incoming = AddrIncoming::bind(&addr)?;
         incoming.set_nodelay(true);
-        Ok((addr, Self::builder(incoming).serve(self.service)))
+        Ok((addr, builder(incoming).serve(self.service)))
     }
 
     #[inline]
@@ -53,7 +54,7 @@ impl Server {
         S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         S::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        Self::builder(accept::from_stream(incoming.map_ok(LiftIo).into_stream())).serve(self.service)
+        builder(accept::from_stream(incoming.map_ok(LiftIo).into_stream())).serve(self.service)
     }
 
     /// Bind to a socket address, returning a `Future` that can be
@@ -217,7 +218,7 @@ impl Server {
     pub fn tls(self) -> TlsServer {
         TlsServer {
             service: self.service,
-            builder: TlsConfigBuilder::new(),
+            config: TlsConfigBuilder::new(),
         }
     }
 }
@@ -225,7 +226,7 @@ impl Server {
 #[cfg(feature = "tls")]
 pub struct TlsServer {
     service: Service,
-    builder: TlsConfigBuilder,
+    config: TlsConfigBuilder,
 }
 #[cfg(feature = "tls")]
 impl TlsServer {
@@ -314,19 +315,19 @@ impl TlsServer {
     where
         Func: FnOnce(TlsConfigBuilder) -> TlsConfigBuilder,
     {
-        let TlsServer { service, builder } = self;
-        let builder = func(builder);
-        TlsServer { service, builder }
+        let TlsServer { service, config } = self;
+        let config = func(config);
+        TlsServer { service, config }
     }
 
     #[inline]
     fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<TlsAcceptor, Service>), crate::Error> {
         let addr = addr.into();
-        let TlsServer { service, builder } = self;
-        let tls = builder.build().map_err(crate::Error::new)?;
+        let TlsServer { service, config } = self;
+        let tls = config.build().map_err(crate::Error::new)?;
         let mut incoming = AddrIncoming::bind(&addr).map_err(crate::Error::new)?;
         incoming.set_nodelay(true);
-        let srv = Self::builder(TlsAcceptor::new(tls, incoming)).serve(service);
+        let srv = builder(TlsAcceptor::new(tls, incoming)).serve(service);
         Ok((addr, srv))
     }
 
