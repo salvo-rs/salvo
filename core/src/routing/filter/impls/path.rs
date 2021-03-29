@@ -26,6 +26,11 @@ impl RegexSegment {
         RegexSegment { regex, names }
     }
 }
+impl PartialEq for RegexSegment {
+    fn eq(&self, other: &Self) -> bool {
+        self.regex.as_str() == other.regex.as_str()
+    }
+}
 impl Segment for RegexSegment {
     fn detect<'a>(&self, segments: Vec<&'a str>) -> (bool, Option<PathMatched<'a>>) {
         if segments.is_empty() {
@@ -53,7 +58,7 @@ impl Segment for RegexSegment {
 }
 
 // If name starts with *, only match not empty path, if name starts with ** will match empty path.
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct RestSegment(String);
 impl RestSegment {
     fn new(name: String) -> RestSegment {
@@ -79,7 +84,7 @@ impl Segment for RestSegment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct ConstSegment(String);
 impl ConstSegment {
     fn new(segment: String) -> ConstSegment {
@@ -92,11 +97,14 @@ impl Segment for ConstSegment {
             return (false, None);
         }
         if self.0 == segments[0] {
-            (true, Some(PathMatched {
-                ending_matched: false,
-                segments: Some(vec![segments[0]]), 
-                matched_params:None,
-            }))
+            (
+                true,
+                Some(PathMatched {
+                    ending_matched: false,
+                    segments: Some(vec![segments[0]]),
+                    matched_params: None,
+                }),
+            )
         } else {
             (false, None)
         }
@@ -115,17 +123,19 @@ impl PathParser {
         }
     }
     fn next(&mut self, skip_blank: bool) -> Option<char> {
-        if !self.path.is_empty() && self.offset < self.path.len() - 1 {
+        if self.offset < self.path.len() - 1 {
             self.offset += 1;
             if skip_blank {
                 self.skip_blank();
             }
-            return Some(self.path[self.offset]);
+            Some(self.path[self.offset])
+        } else {
+            self.offset = self.path.len();
+            None
         }
-        None
     }
     fn peek(&self, skip_blank: bool) -> Option<char> {
-        if !self.path.is_empty() && self.offset < self.path.len() - 1 {
+        if self.offset < self.path.len() - 1 {
             if skip_blank {
                 let mut offset = self.offset + 1;
                 let mut ch = self.path[offset];
@@ -144,12 +154,12 @@ impl PathParser {
             None
         }
     }
-    fn curr(&self) -> char {
-        self.path[self.offset]
+    fn curr(&self) -> Result<char, String> {
+        self.path.get(self.offset).map(|c|*c).ok_or("current position is out of index".into())
     }
     fn scan_ident(&mut self) -> Result<String, String> {
         let mut ident = "".to_owned();
-        let mut ch = self.curr();
+        let mut ch = self.curr()?;
         while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
             ident.push(ch);
             if let Some(c) = self.next(false) {
@@ -166,7 +176,7 @@ impl PathParser {
     }
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
-        let mut ch = self.curr();
+        let mut ch = self.curr()?;
         loop {
             regex.push(ch);
             if let Some(c) = self.next(false) {
@@ -190,122 +200,128 @@ impl PathParser {
             Ok(regex)
         }
     }
-    fn scan_const(&mut self) -> Result<String, String> {
-        let mut cnst = "".to_owned();
-        let mut ch = self.curr();
-        while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
-            cnst.push(ch);
-            if let Some(c) = self.next(false) {
-                ch = c;
-            } else {
-                break;
-            }
-        }
-        if cnst.is_empty() {
-            Err("const segment is empty".to_owned())
-        } else {
-            Ok(cnst)
-        }
-    }
-    fn scan_segment(&mut self) -> Result<Box<dyn Segment>, String> {
-        let mut const_seg = "".to_owned();
-        let mut regex_seg = "".to_owned();
-        let mut regex_names = vec![];
-        let mut ch = self.curr();
-        if ch == '<' {
-            ch = self.next(true).expect("char is needed");
-            if ch == '*' {
-                self.next(true);
-                let rest_seg = self.scan_ident()?;
-                if self.offset < self.path.len() - 1 {
-                    panic!("no chars allowed after rest egment");
-                }
-                return Ok(Box::new(RestSegment::new(format!("*{}", rest_seg))));
-            } else {
-                let rname = self.scan_ident()?;
-                if rname.is_empty() {
-                    return Err("name must not equal empty string".to_owned());
-                } else {
-                    regex_names.push(rname.clone());
-                }
-                let mut rrgex = "[^/]+".to_owned();
-                ch = self.curr();
-                if ch == ':' {
-                    let is_slash = match self.next(true) {
-                        Some(c) => c == '/',
-                        None => false,
-                    };
-                    if !is_slash {
-                        return Err(format!("except '/' to start regex current char is '{}'", self.curr()));
-                    }
-                    self.next(false);
-                    rrgex = self.scan_regex()?;
-                }
-                if self.curr() != '>' {
-                    return Err(format!("except '>' to end regex segment, current char is '{}'", self.curr()));
-                } else {
-                    self.next(false);
-                }
-                if !const_seg.is_empty() {
-                    regex_seg.push_str(&const_seg);
-                    const_seg.clear();
-                }
-                regex_seg.push_str(&("(?P<".to_owned() + &rname + ">" + &rrgex + ")"));
-            }
-        } else {
-            const_seg = self.scan_const()?;
-        }
-        if self.offset < self.path.len() - 1 && self.curr() != '/' {
-            return Err(format!("expect '/' here, but found {:?}   {:?}", self.curr(), self.offset));
-        }
-        if !regex_seg.is_empty() {
-            if !const_seg.is_empty() {
-                regex_seg.push_str(&const_seg);
-            }
-            let regex = Regex::new(&regex_seg);
-            match regex {
-                Ok(r) => Ok(Box::new(RegexSegment::new(r, regex_names))),
-                Err(_) => Err("regex error".to_owned()),
-            }
-        } else if !const_seg.is_empty() {
-            Ok(Box::new(ConstSegment::new(const_seg)))
-        } else {
-            Err("parse path error 1".to_owned())
-        }
-    }
     fn skip_blank(&mut self) {
-        let mut ch = self.curr();
-        while ch == ' ' || ch == '\t' {
-            if !self.path.is_empty() && self.offset < self.path.len() - 1 {
-                self.offset += 1;
-                ch = self.path[self.offset];
-            } else {
-                break;
+        if let Ok(mut ch) = self.curr() {
+            while ch == ' ' || ch == '\t' {
+                if self.offset < self.path.len() - 1 {
+                    self.offset += 1;
+                    ch = self.path[self.offset];
+                } else {
+                    break;
+                }
             }
         }
     }
     fn skip_slash(&mut self) {
-        let mut ch = self.path[self.offset];
-        while ch == '/' {
-            if let Some(c) = self.next(false) {
-                ch = c;
-            } else {
-                break;
+        if let Ok(mut ch) = self.curr() {
+            while ch == '/' {
+                if let Some(c) = self.next(false) {
+                    ch = c;
+                } else {
+                    break;
+                }
             }
         }
     }
     fn parse(&mut self) -> Result<Vec<Box<dyn Segment>>, String> {
         let mut segments: Vec<Box<dyn Segment>> = vec![];
-        let ch = '/';
+        if self.path.is_empty() {
+            return Ok(segments);
+        }
         loop {
-            if ch == '/' {
-                self.skip_slash();
-                if self.offset >= self.path.len() - 1 {
-                    break;
+            self.skip_slash();
+            if self.offset >= self.path.len() - 1 {
+                break;
+            }
+            let mut const_seg = "".to_owned();
+            let mut regex_seg = "".to_owned();
+            let mut regex_names = vec![];
+            let mut ch = self.curr()?;
+            while ch != '/' {
+                if ch == '<' {
+                    ch = self.next(true).expect("char is needed after <");
+                    if ch == '*' {
+                        if !const_seg.is_empty() {
+                            segments.push(Box::new(ConstSegment::new(const_seg)));
+                        }
+                        self.next(true);
+                        let rest_seg = self.scan_ident()?;
+                        if self.offset < self.path.len() - 1 {
+                            panic!("no chars allowed after rest segment");
+                        }
+                        segments.push(Box::new(RestSegment::new(format!("*{}", rest_seg))));
+                        return Ok(segments);
+                    } else {
+                        let rname = self.scan_ident()?;
+                        if rname.is_empty() {
+                            return Err("name is empty string".to_owned());
+                        } else {
+                            regex_names.push(rname.clone());
+                        }
+                        let mut rrgex = "[^/]+".to_owned();
+                        ch = self.curr()?;
+                        if ch == ':' {
+                            let is_slash = match self.next(true) {
+                                Some(c) => c == '/',
+                                None => false,
+                            };
+                            if !is_slash {
+                                return Err(format!("except '/' to start regex current char is '{}'", self.curr()?));
+                            }
+                            self.next(false);
+                            rrgex = self.scan_regex()?;
+                        }
+                        if self.curr()? != '>' {
+                            return Err(format!("except '>' to end regex segment, current char is '{}'", self.curr()?));
+                        } else {
+                            self.next(false);
+                        }
+                        if !const_seg.is_empty() {
+                            regex_seg.push_str(&const_seg);
+                            const_seg.clear();
+                        }
+                        regex_seg.push_str(&format!("(?P<{}>{})", rname, rrgex));
+                        if let Ok(mut ch) = self.curr() {
+                            const_seg.push(ch);
+                            while ch != '<' && ch != '/' {
+                                if let Some(c) = self.next(false) {
+                                    ch = c;
+                                    const_seg.push(ch);
+                                } else {
+                                    break;
+                                }
+                            }
+                            if !const_seg.is_empty() {
+                                regex_seg.push_str(&const_seg);
+                                const_seg.clear();
+                            }
+                        }
+                    }
+                } else {
+                    const_seg.push(ch);
+                    if let Some(c) = self.next(false) {
+                        ch = c;
+                    } else {
+                        break;
+                    }
                 }
-                segments.push(self.scan_segment()?);
+            }
+            if self.offset < self.path.len() - 1 && self.curr()? != '/' {
+                return Err(format!("expect '/' here, but found {:?} at offset {:?}", self.curr()?, self.offset));
+            }
+            if !regex_seg.is_empty() {
+                if !const_seg.is_empty() {
+                    regex_seg.push_str(&const_seg);
+                }
+                let regex = Regex::new(&regex_seg);
+                match regex {
+                    Ok(r) => segments.push(Box::new(RegexSegment::new(r, regex_names))),
+                    Err(_) => return Err("regex formate error".to_owned()),
+                }
+            } else if !const_seg.is_empty() {
+                segments.push(Box::new(ConstSegment::new(const_seg)));
             } else {
-                return Err("parse path error 2".to_owned());
+                return Err("parse path error".to_owned());
             }
             if self.offset >= self.path.len() - 1 {
                 break;
@@ -337,7 +353,7 @@ impl Filter for PathFilter {
                 let (matched, detail) = ps.detect(path.segments[match_cursor..].iter().map(AsRef::as_ref).collect());
                 if !matched {
                     return false;
-                } else if let Some(detail) = detail{
+                } else if let Some(detail) = detail {
                     if let Some(kv) = detail.matched_params {
                         params.extend(kv);
                     }
@@ -369,9 +385,71 @@ impl PathFilter {
         let segments = match parser.parse() {
             Ok(segments) => segments,
             Err(e) => {
-                panic!(e);
+                panic!("{}", e);
             }
         };
         PathFilter { raw_value, segments }
     }
 }
+
+#[test]
+fn test_empty() {
+    let segments = PathParser::new("").parse().unwrap();
+    assert!(segments.is_empty());
+}
+#[test]
+fn test_root() {
+    let segments = PathParser::new("/").parse().unwrap();
+    assert!(segments.is_empty());
+}
+
+#[test]
+fn test_single_const() {
+    let segments = PathParser::new("/hello").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[ConstSegment("hello")]"#);
+}
+#[test]
+fn test_multi_const() {
+    let segments = PathParser::new("/hello/world").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[ConstSegment("hello"), ConstSegment("world")]"#);
+}
+#[test]
+fn test_single_regex() {
+    let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+):, names: ["abc"] }]"#);
+}
+#[test]
+fn test_single_regex_with_prefix() {
+    let segments = PathParser::new(r"/perfix_<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: perfix_(?P<abc>\d+):, names: ["abc"] }]"#);
+}
+#[test]
+fn test_single_regex_with_suffix() {
+    let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+)_suffix.png:, names: ["abc"] }]"#);
+}
+// #[test]
+// fn test_single_regex_with_prefix_and_suffix() {
+//     let segments = PathParser::new("/hello/world").parse().unwrap();
+//     assert_eq!(segments.is_empty(), true);
+// }
+// #[test]
+// fn test_multi_regex() {
+//     let segments = PathParser::new("/hello/world").parse().unwrap();
+//     assert_eq!(segments.is_empty(), true);
+// }
+// #[test]
+// fn test_multi_regex_with_prefix() {
+//     let segments = PathParser::new("/hello/world").parse().unwrap();
+//     assert_eq!(segments.is_empty(), true);
+// }
+// #[test]
+// fn test_multi_regex_with_suffix() {
+//     let segments = PathParser::new("/hello/world").parse().unwrap();
+//     assert_eq!(segments.is_empty(), true);
+// }
+// #[test]
+// fn test_multi_regex_with_prefix_and_suffix() {
+//     let segments = PathParser::new("/hello/world").parse().unwrap();
+//     assert_eq!(segments.is_empty(), true);
+// }
