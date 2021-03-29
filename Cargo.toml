@@ -32,9 +32,6 @@ tls = [ "salvo_core/tls" ]
 extra = [ "salvo_extra" ]
 anyhow = [ "salvo_core/anyhow" ]
 
-[profile.dev]
-codegen-units = 4
-
 [workspace]
 members = [
   ".",
@@ -69,3 +66,7 @@ salvo = { path = "." }
 salvo_core = { path = "core" }
 salvo_macros = { path = "macros" }
 salvo_extra = { path = "extra" }
+
+[profile.dev]
+codegen-units = 4
+split-debuginfo = "unpacked"
