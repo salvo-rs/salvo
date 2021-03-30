@@ -1,4 +1,4 @@
-//port form https://github.com/seanmonstar/warp/blob/master/examples/sse_chat.rs
+//port from https://github.com/seanmonstar/warp/blob/master/examples/sse_chat.rs
 
 use futures;
 use futures::StreamExt;

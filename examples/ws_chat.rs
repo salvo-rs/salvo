@@ -1,4 +1,4 @@
-//port form https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
+//port from https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
 
 use std::collections::HashMap;
 use std::sync::{

@@ -1,4 +1,4 @@
-//port form https://github.com/seanmonstar/warp/blob/master/examples/unix_socket.rs
+//port from https://github.com/seanmonstar/warp/blob/master/examples/unix_socket.rs
 
 #[cfg(target_os = "linux")]
 #[tokio::main]
