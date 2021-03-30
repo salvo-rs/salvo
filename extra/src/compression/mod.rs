@@ -86,7 +86,7 @@ impl Handler for CompressionHandler {
     }
 }
 
-/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
+/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
 /// using gzip, adding `content-encoding: gzip` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example
@@ -104,7 +104,7 @@ pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::GZIP)
 }
 
-/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
+/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
 /// using deflate, adding `content-encoding: deflate` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example
@@ -122,7 +122,7 @@ pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::DEFLATE)
 }
 
-/// Create a wrapping filter that compresses the Body of a [`ResponseBody`](salvo_core::http::ResponseBody)
+/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
 /// using brotli, adding `content-encoding: br` to the Response's [`HeaderMap`](hyper::HeaderMap)
 ///
 /// # Example

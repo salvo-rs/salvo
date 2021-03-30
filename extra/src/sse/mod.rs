@@ -230,9 +230,7 @@ where
         self
     }
 
-    /// Wrap an event stream with keep-alive functionality.
-    ///
-    /// See [`keep_alive`](keep_alive) for more.
+    /// Send stream.
     pub fn streaming(self, res: &mut Response) {
         write_request_headers(res);
         let body_stream = self
