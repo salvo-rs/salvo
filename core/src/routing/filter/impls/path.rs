@@ -480,12 +480,10 @@ fn test_rest() {
 }
 
 #[test]
-#[should_panic]
 fn test_rest_failed1() {
-    PathParser::new(r"/first<id>ext2<*rest>").parse().unwrap();
+    assert!(PathParser::new(r"/first<id>ext2<*rest>").parse().is_err());
 }
 #[test]
-#[should_panic]
 fn test_rest_failed2() {
-    PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().unwrap();
+    assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().is_err());
 }
