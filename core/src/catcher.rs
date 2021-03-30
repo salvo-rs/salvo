@@ -32,10 +32,10 @@ impl Catcher for CatcherImpl {
 
 macro_rules! default_catchers {
     ($($code:expr),+) => (
-        let mut list: Vec<Box<dyn Catcher>> = vec![];
+        let list: Vec<Box<dyn Catcher>> = vec![
         $(
-            list.push(Box::new(CatcherImpl::new($crate::http::errors::http_error::from_code($code).unwrap())));
-        )+
+            Box::new(CatcherImpl::new($crate::http::errors::http_error::from_code($code).unwrap())),
+        )+];
         list
     )
 }

@@ -155,11 +155,11 @@ impl PathParser {
         }
     }
     fn curr(&self) -> Option<char> {
-        self.path.get(self.offset).map(|c|*c)
+        self.path.get(self.offset).copied()
     }
     fn scan_ident(&mut self) -> Result<String, String> {
         let mut ident = "".to_owned();
-        let mut ch = self.curr().ok_or("current postion is out of index when scan ident".to_owned())?;
+        let mut ch = self.curr().ok_or_else(||"current postion is out of index when scan ident".to_owned())?;
         while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
             ident.push(ch);
             if let Some(c) = self.next(false) {
@@ -176,7 +176,7 @@ impl PathParser {
     }
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
-        let mut ch = self.curr().ok_or("current postion is out of index when scan regex".to_owned())?;
+        let mut ch = self.curr().ok_or_else(||"current postion is out of index when scan regex".to_owned())?;
         loop {
             regex.push(ch);
             if let Some(c) = self.next(false) {
@@ -202,7 +202,7 @@ impl PathParser {
     }
     fn scan_const(&mut self) -> Result<String, String> {
         let mut cnst = "".to_owned();
-        let mut ch = self.curr().ok_or("current postion is out of index when scan const".to_owned())?;
+        let mut ch = self.curr().ok_or_else(||"current postion is out of index when scan const".to_owned())?;
         while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
             cnst.push(ch);
             if let Some(c) = self.next(false) {
@@ -253,7 +253,7 @@ impl PathParser {
             let mut const_seg = "".to_owned();
             let mut regex_seg = "".to_owned();
             let mut regex_names = vec![];
-            let mut ch = self.curr().ok_or("current postion is out of index".to_owned())?;
+            let mut ch = self.curr().ok_or_else(||"current postion is out of index".to_owned())?;
             while ch != '/' {
                 if ch == '<' {
                     ch = self.next(true).expect("char is needed after <");
@@ -279,7 +279,7 @@ impl PathParser {
                             regex_names.push(rname.clone());
                         }
                         let mut rrgex = "[^/]+".to_owned();
-                        ch = self.curr().ok_or("current postion is out of index".to_owned())?;
+                        ch = self.curr().ok_or_else(||"current postion is out of index".to_owned())?;
                         if ch == ':' {
                             let is_slash = match self.next(true) {
                                 Some(c) => c == '/',
