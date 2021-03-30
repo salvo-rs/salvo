@@ -42,8 +42,8 @@ members = [
 
 [dependencies]
 async-trait = "0.1.42"
-salvo_core = { version = "0.9.4", default-features = false }
-salvo_extra = {version = "0.9.3", default-features = false, optional = true }
+salvo_core = { version = "0.9.5", default-features = false }
+salvo_extra = {version = "0.9.5", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { version = "0.3", features = [ "std" ] }
