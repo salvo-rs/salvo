@@ -1,5 +1,6 @@
+
+// port from https://github.com/seanmonstar/warp/blob/master/src/filters/sse.rs
 //! Server-Sent Events (SSE)
-//!
 //! # Example
 //!
 //! ```no_run

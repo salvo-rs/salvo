@@ -1,4 +1,5 @@
 //! Compress the body of a response.
+// port from https://github.com/seanmonstar/warp/blob/master/src/filters/compression.rs
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
 use async_trait::async_trait;

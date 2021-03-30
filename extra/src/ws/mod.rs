@@ -1,4 +1,5 @@
 //! Websocket
+// port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
 
 use std::borrow::Cow;
 use std::fmt;
