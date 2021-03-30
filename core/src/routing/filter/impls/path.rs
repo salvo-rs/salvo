@@ -154,12 +154,12 @@ impl PathParser {
             None
         }
     }
-    fn curr(&self) -> Result<char, String> {
-        self.path.get(self.offset).map(|c|*c).ok_or("current position is out of index".into())
+    fn curr(&self) -> Option<char> {
+        self.path.get(self.offset).map(|c|*c)
     }
     fn scan_ident(&mut self) -> Result<String, String> {
         let mut ident = "".to_owned();
-        let mut ch = self.curr()?;
+        let mut ch = self.curr().ok_or("current postion is out of index when scan ident".to_owned())?;
         while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
             ident.push(ch);
             if let Some(c) = self.next(false) {
@@ -176,7 +176,7 @@ impl PathParser {
     }
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
-        let mut ch = self.curr()?;
+        let mut ch = self.curr().ok_or("current postion is out of index when scan regex".to_owned())?;
         loop {
             regex.push(ch);
             if let Some(c) = self.next(false) {
@@ -200,8 +200,25 @@ impl PathParser {
             Ok(regex)
         }
     }
+    fn scan_const(&mut self) -> Result<String, String> {
+        let mut cnst = "".to_owned();
+        let mut ch = self.curr().ok_or("current postion is out of index when scan const".to_owned())?;
+        while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
+            cnst.push(ch);
+            if let Some(c) = self.next(false) {
+                ch = c;
+            } else {
+                break;
+            }
+        }
+        if cnst.is_empty() {
+            Err("const segment is empty".to_owned())
+        } else {
+            Ok(cnst)
+        }
+    }
     fn skip_blank(&mut self) {
-        if let Ok(mut ch) = self.curr() {
+        if let Some(mut ch) = self.curr() {
             while ch == ' ' || ch == '\t' {
                 if self.offset < self.path.len() - 1 {
                     self.offset += 1;
@@ -213,7 +230,7 @@ impl PathParser {
         }
     }
     fn skip_slash(&mut self) {
-        if let Ok(mut ch) = self.curr() {
+        if let Some(mut ch) = self.curr() {
             while ch == '/' {
                 if let Some(c) = self.next(false) {
                     ch = c;
@@ -236,7 +253,7 @@ impl PathParser {
             let mut const_seg = "".to_owned();
             let mut regex_seg = "".to_owned();
             let mut regex_names = vec![];
-            let mut ch = self.curr()?;
+            let mut ch = self.curr().ok_or("current postion is out of index".to_owned())?;
             while ch != '/' {
                 if ch == '<' {
                     ch = self.next(true).expect("char is needed after <");
@@ -259,55 +276,55 @@ impl PathParser {
                             regex_names.push(rname.clone());
                         }
                         let mut rrgex = "[^/]+".to_owned();
-                        ch = self.curr()?;
+                        ch = self.curr().ok_or("current postion is out of index".to_owned())?;
                         if ch == ':' {
                             let is_slash = match self.next(true) {
                                 Some(c) => c == '/',
                                 None => false,
                             };
                             if !is_slash {
-                                return Err(format!("except '/' to start regex current char is '{}'", self.curr()?));
+                                return Err(format!("except '/' to start regex, offset: {}", self.offset));
                             }
                             self.next(false);
                             rrgex = self.scan_regex()?;
                         }
-                        if self.curr()? != '>' {
-                            return Err(format!("except '>' to end regex segment, current char is '{}'", self.curr()?));
+                        if let Some(c) = self.curr() {
+                            if c != '>' {
+                                return Err(format!("except '>' to end regex segment, current char is '{}'", c));
+                            } else {
+                                self.next(false);
+                            }
                         } else {
-                            self.next(false);
+                            break;
                         }
                         if !const_seg.is_empty() {
                             regex_seg.push_str(&const_seg);
                             const_seg.clear();
                         }
                         regex_seg.push_str(&format!("(?P<{}>{})", rname, rrgex));
-                        if let Ok(mut ch) = self.curr() {
-                            const_seg.push(ch);
-                            while ch != '<' && ch != '/' {
-                                if let Some(c) = self.next(false) {
-                                    ch = c;
-                                    const_seg.push(ch);
-                                } else {
-                                    break;
-                                }
-                            }
-                            if !const_seg.is_empty() {
-                                regex_seg.push_str(&const_seg);
-                                const_seg.clear();
-                            }
+                        if let Ok(const_seg) = self.scan_const() {
+                            regex_seg.push_str(&const_seg);
+                        }
+                        if let Some(c) = self.curr() {
+                            ch = c;
+                        } else {
+                            break;
                         }
                     }
                 } else {
-                    const_seg.push(ch);
-                    if let Some(c) = self.next(false) {
+                    const_seg = self.scan_const().unwrap_or_default();
+                    if let Some(c) = self.curr() {
+                        if c != '/' && c != '<' {
+                            return Err(format!("expect '/' or '<' at offset {:?}", self.offset));
+                        }
                         ch = c;
                     } else {
                         break;
                     }
                 }
             }
-            if self.offset < self.path.len() - 1 && self.curr()? != '/' {
-                return Err(format!("expect '/' here, but found {:?} at offset {:?}", self.curr()?, self.offset));
+            if self.curr().map(|c|c != '/').unwrap_or(false) {
+                return Err(format!("expect '/' here, but found {:?} at offset {:?}", self.curr(), self.offset));
             }
             if !regex_seg.is_empty() {
                 if !const_seg.is_empty() {
@@ -416,40 +433,40 @@ fn test_multi_const() {
 #[test]
 fn test_single_regex() {
     let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
-    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+):, names: ["abc"] }]"#);
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+), names: ["abc"] }]"#);
 }
 #[test]
 fn test_single_regex_with_prefix() {
-    let segments = PathParser::new(r"/perfix_<abc:/\d+/>").parse().unwrap();
-    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: perfix_(?P<abc>\d+):, names: ["abc"] }]"#);
+    let segments = PathParser::new(r"/prefix_<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: prefix_(?P<abc>\d+), names: ["abc"] }]"#);
 }
 #[test]
 fn test_single_regex_with_suffix() {
     let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
-    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+)_suffix.png:, names: ["abc"] }]"#);
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: (?P<abc>\d+)_suffix.png, names: ["abc"] }]"#);
 }
-// #[test]
-// fn test_single_regex_with_prefix_and_suffix() {
-//     let segments = PathParser::new("/hello/world").parse().unwrap();
-//     assert_eq!(segments.is_empty(), true);
-// }
-// #[test]
-// fn test_multi_regex() {
-//     let segments = PathParser::new("/hello/world").parse().unwrap();
-//     assert_eq!(segments.is_empty(), true);
-// }
-// #[test]
-// fn test_multi_regex_with_prefix() {
-//     let segments = PathParser::new("/hello/world").parse().unwrap();
-//     assert_eq!(segments.is_empty(), true);
-// }
-// #[test]
-// fn test_multi_regex_with_suffix() {
-//     let segments = PathParser::new("/hello/world").parse().unwrap();
-//     assert_eq!(segments.is_empty(), true);
-// }
-// #[test]
-// fn test_multi_regex_with_prefix_and_suffix() {
-//     let segments = PathParser::new("/hello/world").parse().unwrap();
-//     assert_eq!(segments.is_empty(), true);
-// }
+#[test]
+fn test_single_regex_with_prefix_and_suffix() {
+    let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: prefix(?P<abc>\d+)suffix.png, names: ["abc"] }]"#);
+}
+#[test]
+fn test_multi_regex() {
+    let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>[^/]+), names: ["id"] }, RegexSegment { regex: prefix(?P<abc>\d+), names: ["abc"] }]"#);
+}
+#[test]
+fn test_multi_regex_with_prefix() {
+    let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>[^/]+), names: ["id"] }, RegexSegment { regex: prefix(?P<abc>\d+), names: ["abc"] }]"#);
+}
+#[test]
+fn test_multi_regex_with_suffix() {
+    let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>\d+), names: ["id"] }, RegexSegment { regex: prefix(?P<abc>\d+), names: ["abc"] }]"#);
+}
+#[test]
+fn test_multi_regex_with_prefix_and_suffix() {
+    let segments = PathParser::new(r"/first<id>ext2/prefix<abc:/\d+/>ext").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>[^/]+)ext2, names: ["id"] }, RegexSegment { regex: prefix(?P<abc>\d+)ext, names: ["abc"] }]"#);
+}
