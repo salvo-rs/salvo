@@ -160,6 +160,7 @@ async fn delete_user(res: &mut Response) {
 - [ws.rs](./examples/ws.rs)
 
 部分代码和示例移植自[warp](https://github.com/seanmonstar/warp) and [multipart-async](https://github.com/abonander/multipart-async).
+
 ## ☕ 支持
 
 `Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
