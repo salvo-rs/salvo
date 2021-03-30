@@ -11,7 +11,7 @@
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
 ![License](https://img.shields.io/crates/l/salvo.svg)
 </p>
-<h3>Salvo is a easy to use web framework written by rust.</h3>
+<h3>Salvo is a simple Rust web framework.</h3>
 </div>
 
 ## 🎯 Features
@@ -27,11 +27,13 @@
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples) or read docs [here](https://docs.rs/salvo/).
 
 Create a new rust project:
+
 ```bash
 cargo new hello_salvo --bin
 ```
 
 Add this to `Cargo.toml`
+
 ```toml
 [dependencies]
 salvo = "0.9"
