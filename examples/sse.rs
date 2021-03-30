@@ -1,4 +1,4 @@
-//port form https://github.com/seanmonstar/warp/blob/master/examples/sse.rs
+//port from https://github.com/seanmonstar/warp/blob/master/examples/sse.rs
 
 use futures::StreamExt;
 use salvo::prelude::*;
