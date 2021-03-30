@@ -1,3 +1,5 @@
+//port form https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
+
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
