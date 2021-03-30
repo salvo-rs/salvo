@@ -261,10 +261,13 @@ impl PathParser {
                         if !const_seg.is_empty() {
                             segments.push(Box::new(ConstSegment::new(const_seg)));
                         }
+                        if !regex_seg.is_empty() {
+                            return Err(format!("rest and regex pattern can not be in same path segement, regex: {:?}", regex_seg));
+                        }
                         self.next(true);
                         let rest_seg = self.scan_ident()?;
                         if self.offset < self.path.len() - 1 {
-                            panic!("no chars allowed after rest segment");
+                            return Err("no chars allowed after rest segment".to_owned());
                         }
                         segments.push(Box::new(RestSegment::new(format!("*{}", rest_seg))));
                         return Ok(segments);
@@ -283,14 +286,14 @@ impl PathParser {
                                 None => false,
                             };
                             if !is_slash {
-                                return Err(format!("except '/' to start regex, offset: {}", self.offset));
+                                return Err(format!("except '/' to start regex, but found {:?} at offset: {}", self.curr(), self.offset));
                             }
                             self.next(false);
                             rrgex = self.scan_regex()?;
                         }
                         if let Some(c) = self.curr() {
                             if c != '>' {
-                                return Err(format!("except '>' to end regex segment, current char is '{}'", c));
+                                return Err(format!("except '>' to end regex segment, but found {:?} at offset: {}", c, self.offset));
                             } else {
                                 self.next(false);
                             }
@@ -315,7 +318,7 @@ impl PathParser {
                     const_seg = self.scan_const().unwrap_or_default();
                     if let Some(c) = self.curr() {
                         if c != '/' && c != '<' {
-                            return Err(format!("expect '/' or '<' at offset {:?}", self.offset));
+                            return Err(format!("expect '/' or '<', but found {:?} at offset {}", self.curr(), self.offset));
                         }
                         ch = c;
                     } else {
@@ -324,7 +327,7 @@ impl PathParser {
                 }
             }
             if self.curr().map(|c|c != '/').unwrap_or(false) {
-                return Err(format!("expect '/' here, but found {:?} at offset {:?}", self.curr(), self.offset));
+                return Err(format!("expect '/', but found {:?} at offset {:?}", self.curr(), self.offset));
             }
             if !regex_seg.is_empty() {
                 if !const_seg.is_empty() {
@@ -469,4 +472,20 @@ fn test_multi_regex_with_suffix() {
 fn test_multi_regex_with_prefix_and_suffix() {
     let segments = PathParser::new(r"/first<id>ext2/prefix<abc:/\d+/>ext").parse().unwrap();
     assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>[^/]+)ext2, names: ["id"] }, RegexSegment { regex: prefix(?P<abc>\d+)ext, names: ["abc"] }]"#);
+}
+#[test]
+fn test_rest() {
+    let segments = PathParser::new(r"/first<id>ext2/<*rest>").parse().unwrap();
+    assert_eq!(format!("{:?}", segments), r#"[RegexSegment { regex: first(?P<id>[^/]+)ext2, names: ["id"] }, RestSegment("*rest")]"#);
+}
+
+#[test]
+#[should_panic]
+fn test_rest_failed1() {
+    PathParser::new(r"/first<id>ext2<*rest>").parse().unwrap();
+}
+#[test]
+#[should_panic]
+fn test_rest_failed2() {
+    PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().unwrap();
 }
