@@ -402,6 +402,10 @@ impl Request {
         self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
     }
     #[inline]
+    pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get_vec(key))
+    }
+    #[inline]
     pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
