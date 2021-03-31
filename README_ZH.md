@@ -87,10 +87,9 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(res: &mut Response) {
-    res.render_plain_text("Hello World");
+async fn hello_world() -> &'static str {
+    "Hello World"
 }
-
 #[tokio::main]
 async fn main() {
     let router = Router::new().get(hello_world);
@@ -171,13 +170,11 @@ async fn upload(req: &mut Request, res: &mut Response) {
         let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
         } else {
             res.render_plain_text("Ok");
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
-        res.render_plain_text("file not found in request");
     }
 }
 ```
