@@ -69,7 +69,7 @@ There are many ways to write function handler.
     }
     ```
 
-- The more common situation is we what to return a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
+- The more common situation is we want to return a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
   
     ```rust
     #[fn_handler]
