@@ -12,28 +12,30 @@
 ![License](https://img.shields.io/crates/l/salvo.svg)
 
 </p>
-<h3>Salvo 是一个简单易用的 Rust Web 后端框架.</h3>
 </div>
 
-## 🎯 功能
-  * 基于最新版本的 hyper, tokio;
+Salvo 是一个简单易用的 Rust Web 后端框架. 目标是让 Rust 下的 Web 后端开发能像 Go 等其他语言里的一样简单.
+
+## 🎯 功能特色
+  * 基于最新版本的 hyper, tokio, 部分代码和示例移植自 warp and multipart-async;
   * 支持 Websocket;
   * 支持从多个本地目录映射成一个虚拟目录提供服务;
-  * 中间件系统支持在句柄之前或者之后运行;
-  * 简单易用的路由系统:
-    - 路径参数和和支持正则表达式;
-    - 树状路由系统;
+  * 统一的中间件和句柄接口, 中间件系统支持在句柄之前或者之后运行;
+  * 简单易用的路由系统, 支持路由嵌套, 在任何嵌套层都可以添加中间件;
+  * 内置 multipart 表单处理, 处理上传文件变得非常简单.
 
 ## ⚡️ 快速开始
-你可以从[这里](https://github.com/salvo-rs/salvo/tree/master/examples)查看实例代码， 或者从[这里](https://docs.rs/salvo/0.1.6/salvo/)查看文档。
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples)， 或者[访问网站](https://salvo.rs).
 
 
 创建一个全新的项目:
+
 ```bash
 cargo new hello_salvo --bin
 ```
 
 添加依赖项到 `Cargo.toml`
+
 ```toml
 [dependencies]
 salvo = "0.9"
@@ -52,22 +54,32 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ```
 
 对于 fn_handler，可以根据需求和喜好有不同种写法.
-``` rust
-#[fn_handler]
-async fn hello_world(res: &mut Response) {// 去掉不需要的参数.
-    res.render_plain_text("Hello World");
-}
 
-#[fn_handler]
-async fn hello_world(res: &mut Response) -> &'static str {// 仅仅只返回 &str
-    "Hello World"
-}
+- 可以将一些没有用到的参数省略掉, 比如这里的 _req, _depot.
 
-#[fn_handler]
-async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// 返回一个Result
-    Ok("Hello World")
-}
-```
+    ``` rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) {
+        res.render_plain_text("Hello World");
+    }
+
+- 对于任何实现 Writer 的类型都是可以直接作为函数返回值. 比如, &str 实现了 Writer, 会直接按纯文本输出:
+
+    ```rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) -> &'static str {
+        "Hello World"
+    }
+    ```
+
+- 更常见的情况是, 我们需要通过返回一个 Result 来简化程序中的错误处理. 如果 Result<T, E> 中 T 和 E 都实现 Writer, 则 Result<T, E> 可以直接作为函数返回类型:
+
+    ```rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {
+        Ok("Hello World")
+    }
+    ```
 
 在 ```main``` 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 ```bind``` 函数:
 
@@ -87,7 +99,11 @@ async fn main() {
 }
 ```
 
+### 中间件
+Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
 ### 树状路由系统
+
+路由系统支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 path 都为 "users" 的 Router 被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
 
 ```rust
 use salvo::prelude::*;
@@ -114,35 +130,58 @@ async fn main() {
 }
 
 #[fn_handler]
-async fn index(res: &mut Response) {
-    res.render_plain_text("Hello world!");
+async fn index() -> &'static str {
+    "Hello world!"
 }
 #[fn_handler]
-async fn auth(res: &mut Response) {
-    res.render_plain_text("user has authed\n\n");
+async fn auth() -> &'static str {
+    "user has authed\n\n"
 }
 #[fn_handler]
-async fn list_users(res: &mut Response) {
-    res.render_plain_text("list users");
+async fn list_users() -> &'static str {
+    "list users"
 }
 #[fn_handler]
-async fn show_user(res: &mut Response) {
-    res.render_plain_text("show user");
+async fn show_user() -> &'static str {
+    "show user"
 }
 #[fn_handler]
-async fn create_user(res: &mut Response) {
-    res.render_plain_text("user created");
+async fn create_user() -> &'static str {
+    "user created"
 }
 #[fn_handler]
-async fn update_user(res: &mut Response) {
-    res.render_plain_text("user updated");
+async fn update_user() -> &'static str {
+    "user updated"
 }
 #[fn_handler]
-async fn delete_user(res: &mut Response) {
-    res.render_plain_text("user deleted");
+async fn delete_user() -> &'static str {
+    "user deleted"
 }
 
 ```
+
+### 文件上传
+可以通过 Request 中的 get_file 异步获取上传的文件. 文件会被存储在临时文件夹下.
+
+```rust
+#[fn_handler]
+async fn upload(req: &mut Request, res: &mut Response) {
+    let file = req.get_file("file").await;
+    if let Some(file) = file {
+        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
+        } else {
+            res.render_plain_text("Ok");
+        }
+    } else {
+        res.set_status_code(StatusCode::BAD_REQUEST);
+        res.render_plain_text("file not found in request");
+    }
+}
+```
+
 ### 更多示例
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码:
 - [basic_auth.rs](./examples/basic_auth.rs)

@@ -11,9 +11,9 @@
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
 ![License](https://img.shields.io/crates/l/salvo.svg)
 </p>
-<h3>Salvo is a simple Rust web framework.</h3>
 </div>
 
+Salvo is a web server framework written in Rust.
 ## 🎯 Features
   * Base on latest hyper, tokio;
   * Websocket supported;
