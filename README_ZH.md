@@ -19,10 +19,10 @@ Salvo 是一个简单易用的 Rust Web 后端框架. 目标是让 Rust 下的 W
 ## 🎯 功能特色
   * 基于hyper, tokio 的异步 Web 后端框架;
   * 支持 Websocket;
-  * 支持从多个本地目录映射成一个虚拟目录提供服务;
   * 统一的中间件和句柄接口, 中间件系统支持在句柄之前或者之后运行;
   * 简单易用的路由系统, 支持路由嵌套, 在任何嵌套层都可以添加中间件;
-  * 内置 multipart 表单处理, 处理上传文件变得非常简单.
+  * 内置 multipart 表单处理, 处理上传文件变得非常简单;
+  * 支持从多个本地目录映射成一个虚拟目录提供服务.
 
 ## ⚡️ 快速开始
 你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples)， 或者[访问网站](https://salvo.rs).
@@ -42,7 +42,7 @@ salvo = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
-在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello_world`, 这个函数只是简单地打印文本 "Hello World".
+在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello_world`, 这个函数只是简单地打印文本 ```"Hello World"```.
 
 ```rust
 use salvo::prelude::*;
@@ -55,15 +55,16 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 
 对于 fn_handler，可以根据需求和喜好有不同种写法.
 
-- 可以将一些没有用到的参数省略掉, 比如这里的 _req, _depot.
+- 可以将一些没有用到的参数省略掉, 比如这里的 ```_req```, ```_depot```.
 
     ``` rust
     #[fn_handler]
     async fn hello_world(res: &mut Response) {
         res.render_plain_text("Hello World");
     }
+    ```
 
-- 对于任何实现 Writer 的类型都是可以直接作为函数返回值. 比如, &str 实现了 Writer, 会直接按纯文本输出:
+- 对于任何实现 Writer 的类型都是可以直接作为函数返回值. 比如, ```&str``` 实现了 ```Writer```, 会直接按纯文本输出:
 
     ```rust
     #[fn_handler]
@@ -72,7 +73,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
     }
     ```
 
-- 更常见的情况是, 我们需要通过返回一个 Result 来简化程序中的错误处理. 如果 Result<T, E> 中 T 和 E 都实现 Writer, 则 Result<T, E> 可以直接作为函数返回类型:
+- 更常见的情况是, 我们需要通过返回一个 ```Result<T, E>``` 来简化程序中的错误处理. 如果 ```Result<T, E>``` 中 ```T``` 和 ```E``` 都实现 ```Writer```, 则 ```Result<T, E>``` 可以直接作为函数返回类型:
 
     ```rust
     #[fn_handler]
@@ -100,9 +101,10 @@ async fn main() {
 
 ### 中间件
 Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
+
 ### 树状路由系统
 
-路由系统支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 path 都为 "users" 的 Router 被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
+路由支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 ```path``` 都为 ```"users"``` 的路由被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
 
 ```rust
 use salvo::prelude::*;
@@ -127,6 +129,7 @@ async fn main() {
 
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
+
 
 #[fn_handler]
 async fn index() -> &'static str {
@@ -156,11 +159,10 @@ async fn update_user() -> &'static str {
 async fn delete_user() -> &'static str {
     "user deleted"
 }
-
 ```
 
 ### 文件上传
-可以通过 Request 中的 get_file 异步获取上传的文件. 文件会被存储在临时文件夹下.
+可以通过 Request 中的 get_file 异步获取上传的文件:
 
 ```rust
 #[fn_handler]

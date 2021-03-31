@@ -15,13 +15,12 @@
 
 Salvo is a web server framework written in Rust.
 ## 🎯 Features
-  * Base on latest hyper, tokio;
+  * Base on hyper, tokio and async supported;
   * Websocket supported;
+  * Middleware is handler and support executed before or after handle;
+  * Easy to use routing system, routers can be nested, and you can add middleware in routers;
+  * multipart form supported, handle files upload is very simple;
   * Serve a static virtual directory from many physical directories;
-  * Middlewares support executed before or after handle;
-  * Easy routing:
-    - Path parameters and regex supported;
-    - Tree-like routing system;
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples) or read docs [here](https://docs.rs/salvo/).
@@ -40,7 +39,7 @@ salvo = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
-Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text "Hello World".
+Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
 
 ```rust
 use salvo::prelude::*;
@@ -52,22 +51,32 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ```
 
 There are many ways to write function handler.
-``` rust
-#[fn_handler]
-async fn hello_world(res: &mut Response) {// remove params you don't used.
-    res.render_plain_text("Hello World");
-}
+- You can omit function arguments if they do not used, like ```_req```, ```_depot``` in this example:
 
-#[fn_handler]
-async fn hello_world(res: &mut Response) -> &'static str {// just return &str
-    "Hello World"
-}
+    ``` rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) {
+        res.render_plain_text("Hello World");
+    }
+    ```
 
-#[fn_handler]
-async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// return Result
-    Ok("Hello World")
-}
-```
+- Any type can be function handler's return value if it implements ```Writer```. For example &str implements ```Writer``` and it will render string as plain text:
+
+    ```rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) -> &'static str {// just return &str
+        "Hello World"
+    }
+    ```
+
+- The more common situation is we what to return a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
+  
+    ```rust
+    #[fn_handler]
+    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// return Result
+        Ok("Hello World")
+    }
+    ```
 
 In the ```main``` function, we need to create a root Router first, and then create a server and call it's ```bind``` function:
 
@@ -75,10 +84,9 @@ In the ```main``` function, we need to create a root Router first, and then crea
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(res: &mut Response) {
-    res.render_plain_text("Hello World");
+async fn hello_world() -> &'static str {
+    "Hello World"
 }
-
 #[tokio::main]
 async fn main() {
     let router = Router::new().get(hello_world);
@@ -86,7 +94,11 @@ async fn main() {
     server.bind(([0, 0, 0, 0], 7878)).await;
 }
 ```
+
+### Middleware
+There is no difference between Handler and Middleware, Middleware is just Handler.
 ### Tree-like routing system
+Router supports nested, and you can add middleware in router. In this example, there are two routers, both of them has same path router ```"user"```, and both of them added to the same parent router, to do that because we want to add middleware to them and let them has different access control:
 
 ```rust
 use salvo::prelude::*;
@@ -113,34 +125,78 @@ async fn main() {
 }
 
 #[fn_handler]
-async fn index(res: &mut Response) {
-    res.render_plain_text("Hello world!");
+async fn index() -> &'static str {
+    "Hello world!"
 }
 #[fn_handler]
-async fn auth(res: &mut Response) {
-    res.render_plain_text("user has authed\n\n");
+async fn auth() -> &'static str {
+    "user has authed\n\n"
 }
 #[fn_handler]
-async fn list_users(res: &mut Response) {
-    res.render_plain_text("list users");
+async fn list_users() -> &'static str {
+    "list users"
 }
 #[fn_handler]
-async fn show_user(res: &mut Response) {
-    res.render_plain_text("show user");
+async fn show_user() -> &'static str {
+    "show user"
 }
 #[fn_handler]
-async fn create_user(res: &mut Response) {
-    res.render_plain_text("user created");
+async fn create_user() -> &'static str {
+    "user created"
 }
 #[fn_handler]
-async fn update_user(res: &mut Response) {
-    res.render_plain_text("user updated");
+async fn update_user() -> &'static str {
+    "user updated"
 }
 #[fn_handler]
-async fn delete_user(res: &mut Response) {
-    res.render_plain_text("user deleted");
+async fn delete_user() -> &'static str {
+    "user deleted"
 }
+```
 
+### File upload
+We can get file async by the function ```get_file``` in ```Request```:
+
+```rust
+#[fn_handler]
+async fn upload(req: &mut Request, res: &mut Response) {
+    let file = req.get_file("file").await;
+    if let Some(file) = file {
+        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        } else {
+            res.render_plain_text("Ok");
+        }
+    } else {
+        res.set_status_code(StatusCode::BAD_REQUEST);
+    }
+}
+```
+
+Multiple files also very simple:
+
+```rust
+#[fn_handler]
+async fn upload(req: &mut Request, res: &mut Response) {
+    let files = req.get_files("files").await;
+    if let Some(files) = files {
+        let mut msgs = Vec::with_capacity(files.len());
+        for file in files {
+            let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+            if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
+            } else {
+                msgs.push(dest);
+            }
+        }
+        res.render_plain_text(&format!("Files uploaded:\n\n{}", msgs.join("\n")));
+    } else {
+        res.set_status_code(StatusCode::BAD_REQUEST);
+        res.render_plain_text("file not found in request");
+    }
+}
 ```
 
 ### More Examples
