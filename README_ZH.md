@@ -17,7 +17,7 @@
 Salvo 是一个简单易用的 Rust Web 后端框架. 目标是让 Rust 下的 Web 后端开发能像 Go 等其他语言里的一样简单.
 
 ## 🎯 功能特色
-  * 基于最新版本的 hyper, tokio, 部分代码和示例移植自 warp and multipart-async;
+  * 基于hyper, tokio 的异步 Web 后端框架;
   * 支持 Websocket;
   * 支持从多个本地目录映射成一个虚拟目录提供服务;
   * 统一的中间件和句柄接口, 中间件系统支持在句柄之前或者之后运行;
