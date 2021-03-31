@@ -179,6 +179,31 @@ async fn upload(req: &mut Request, res: &mut Response) {
 }
 ```
 
+多文件上传也是非常容易处理的:
+
+```rust
+#[fn_handler]
+async fn upload(req: &mut Request, res: &mut Response) {
+    let files = req.get_files("files").await;
+    if let Some(files) = files {
+        let mut msgs = Vec::with_capacity(files.len());
+        for file in files {
+            let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+            if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
+            } else {
+                msgs.push(dest);
+            }
+        }
+        res.render_plain_text(&format!("Files uploaded:\n\n{}", msgs.join("\n")));
+    } else {
+        res.set_status_code(StatusCode::BAD_REQUEST);
+        res.render_plain_text("file not found in request");
+    }
+}
+```
+
 ### 更多示例
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码:
 - [basic_auth.rs](./examples/basic_auth.rs)
