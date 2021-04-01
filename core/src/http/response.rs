@@ -11,6 +11,8 @@ use http::version::Version;
 use hyper::Method;
 use serde::Serialize;
 
+pub use http::response::Parts;
+
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, SET_COOKIE};
 use crate::http::{Request, StatusCode};

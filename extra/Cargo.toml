@@ -1,7 +1,7 @@
 [package]
 name = "salvo_extra"
-version = "0.9.5"
-authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
+version = "0.9.6"
+authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2018"
 description = """
 A simple web framework written by rust
@@ -9,38 +9,45 @@ A simple web framework written by rust
 homepage = "https://github.com/salvo-rs/salvo"
 repository = "https://github.com/salvo-rs/salvo"
 readme = "../README.md"
-keywords = [ "salvo", "web", "framework", "server" ]
+keywords = ["salvo", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = [ "web-programming::http-server" ]
+categories = ["web-programming::http-server"]
 
 [package.metadata.docs.rs]
 all-features = true
 
-[dependencies]
-async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"] }
-async-trait = "0.1"
-base64 = "0.13"
-chrono = { version = "0.4", features = [ "serde" ] }
-cookie = { version = "0.14", features = [ "percent-encode" ] }
-futures = { version = "0.3", default-features = false, features = ["alloc"] }
-headers = "0.3"
-http = "0.2"
-hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
-hyper-tls = "0.5"
-jsonwebtoken = "7.2"
+[features]
+default = ["full"]
+full = ["basic_auth", "jwt_auth", "compression", "cors", "proxy", "serve", "sse", "ws"]
+basic_auth = ["base64", "thiserror"]
+jwt_auth = ["cookie", "jsonwebtoken"]
+compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
+cors = []
+proxy = ["hyper",  "hyper-tls"]
+serve = ["chrono", "mime", "percent-encoding"]
+sse = ["futures", "pin-project", "tokio"]
+ws = ["futures", "tokio", "tokio-tungstenite"]
 
-mime = "0.3"
-percent-encoding = "2.1"
-pin-project = "1.0"
+[dependencies]
+async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
+async-trait = { version = "0.1" }
+base64 = { version = "0.13", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+cookie = { version = "0.15", features = ["percent-encode"], optional = true }
+futures = { version = "0.3", default-features = false, features = ["alloc"], optional = true }
+hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
+hyper-tls = { version = "0.5", optional = true }
+jsonwebtoken = { version = "7.2", optional = true }
+mime = { version ="0.3", optional = true }
+percent-encoding = { version ="2.1", optional = true }
+pin-project = { version ="1.0", optional = true }
 salvo_core = { version = "0.9", default-features = false }
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-thiserror = "1.0"
-time = "0.2"
-tokio = { version = "1", features = ["fs", "sync", "time"] }
-tokio-stream = "0.1"
-tokio-tungstenite = { version = "0.13", default-features = false }
-tokio-util = { version = "0.6", features = ["io"] }
-tracing = "0.1"
-url = "2.2"
+serde = { version ="1" }
+serde_derive = { version ="1"}
+serde_json = { version ="1" }
+thiserror = { version ="1.0.24", optional = true }
+tokio = { version = "1", features = ["fs", "sync", "time"], optional = true }
+tokio-stream = { version ="0.1", optional = true }
+tokio-tungstenite = { version = "0.14", default-features = false, optional = true }
+tokio-util = { version = "0.6", features = ["io"], optional = true }
+tracing = { version ="0.1" }

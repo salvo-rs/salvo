@@ -3,8 +3,7 @@
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
 use async_trait::async_trait;
-use http::header::HeaderValue;
-use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
+use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
 use tokio_stream::{self, StreamExt};

@@ -5,6 +5,16 @@ use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::Handler;
 
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Base64 decode error.")]
+    Base64Decode(#[from] base64::DecodeError),
+    #[error("Parse http header error")]
+    ParseHttpHeader,
+}
+
 pub struct BasicAuthHandler {
     config: BasicAuthConfig,
 }
@@ -12,7 +22,6 @@ pub struct BasicAuthHandler {
 pub struct BasicAuthConfig {
     pub realm: String,
     pub context_key: Option<String>,
-    pub expires: Option<time::Duration>,
     pub validator: Box<dyn BasicAuthValidator>,
 }
 pub trait BasicAuthValidator: Send + Sync {
@@ -39,14 +48,14 @@ impl BasicAuthHandler {
             .insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
-    fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), super::Error> {
+    fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
         let auth = base64::decode(authorization.as_ref())?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();
         let parts: Vec<&str> = auth.splitn(2, ':').collect();
         if parts.len() == 2 {
             Ok((parts[0].to_owned(), parts[1].to_owned()))
         } else {
-            Err(super::Error::ParseHttpHeader)
+            Err(Error::ParseHttpHeader)
         }
     }
 }

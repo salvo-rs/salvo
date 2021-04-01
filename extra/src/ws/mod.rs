@@ -3,16 +3,18 @@
 
 use std::borrow::Cow;
 use std::fmt;
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures::{future, ready, FutureExt, Sink, Stream, TryFutureExt};
-use headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
-use salvo_core::http::{HttpError, StatusCode};
 use salvo_core::http::errors::*;
+use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
+use salvo_core::http::headers::{
+    Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade,
+};
+use salvo_core::http::{HttpError, StatusCode};
 use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
@@ -49,25 +51,38 @@ impl WsHandler {
     // config
     /// Set the size of the internal message send queue.
     pub fn max_send_queue(mut self, max: usize) -> Self {
-        self.config.get_or_insert_with(WebSocketConfig::default).max_send_queue = Some(max);
+        self.config
+            .get_or_insert_with(WebSocketConfig::default)
+            .max_send_queue = Some(max);
         self
     }
 
     /// Set the maximum message size (defaults to 64 megabytes)
     pub fn max_message_size(mut self, max: usize) -> Self {
-        self.config.get_or_insert_with(WebSocketConfig::default).max_message_size = Some(max);
+        self.config
+            .get_or_insert_with(WebSocketConfig::default)
+            .max_message_size = Some(max);
         self
     }
 
     /// Set the maximum frame size (defaults to 16 megabytes)
     pub fn max_frame_size(mut self, max: usize) -> Self {
-        self.config.get_or_insert_with(|| WebSocketConfig::default()).max_frame_size = Some(max);
+        self.config
+            .get_or_insert_with(|| WebSocketConfig::default())
+            .max_frame_size = Some(max);
         self
     }
 
-    pub fn handle(&self, req: &mut Request, res: &mut Response) -> Result<impl Future<Output=Option<WebSocket>>, HttpError> {
+    pub fn handle(
+        &self,
+        req: &mut Request,
+        res: &mut Response,
+    ) -> Result<impl Future<Output = Option<WebSocket>>, HttpError> {
         let req_headers = req.headers();
-        let matched = req_headers.typed_get::<Connection>().map(|conn| conn.contains(UPGRADE)).unwrap_or(false);
+        let matched = req_headers
+            .typed_get::<Connection>()
+            .map(|conn| conn.contains(UPGRADE))
+            .unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
             return Err(BadRequest().with_summary("missing connection upgrade"));
@@ -79,7 +94,9 @@ impl WsHandler {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            return Err(BadRequest().with_summary("missing upgrade header or it is not equal websocket"));
+            return Err(
+                BadRequest().with_summary("missing upgrade header or it is not equal websocket")
+            );
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -94,15 +111,18 @@ impl WsHandler {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(BadRequest().with_summary("sec_websocket_key is not exist in request headers"));
+            return Err(
+                BadRequest().with_summary("sec_websocket_key is not exist in request headers")
+            );
         };
-    
+
         res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
-    
+
         res.headers_mut().typed_insert(Connection::upgrade());
         res.headers_mut().typed_insert(Upgrade::websocket());
-        res.headers_mut().typed_insert(SecWebsocketAccept::from(sec_ws_key));
-        
+        res.headers_mut()
+            .typed_insert(SecWebsocketAccept::from(sec_ws_key));
+
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config.clone();
             let fut = async move {
@@ -111,16 +131,17 @@ impl WsHandler {
                         tracing::debug!("websocket upgrade complete");
                         WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                     })
-                    .await.ok();
-                    ws
+                    .await
+                    .ok();
+                ws
             };
             Ok(fut)
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
-            Err(BadRequest().with_summary("ws couldn't be upgraded since no upgrade state was present"))
+            Err(BadRequest()
+                .with_summary("ws couldn't be upgraded since no upgrade state was present"))
         }
     }
-    
 }
 
 /// A websocket `Stream` and `Sink`, provided to `ws` filters.
@@ -133,7 +154,11 @@ pub struct WebSocket {
 }
 
 impl WebSocket {
-    pub(crate) async fn from_raw_socket(upgraded: hyper::upgrade::Upgraded, role: protocol::Role, config: Option<protocol::WebSocketConfig>) -> Self {
+    pub(crate) async fn from_raw_socket(
+        upgraded: hyper::upgrade::Upgraded,
+        role: protocol::Role,
+        config: Option<protocol::WebSocketConfig>,
+    ) -> Self {
         WebSocketStream::from_raw_socket(upgraded, role, config)
             .map(|inner| WebSocket { inner })
             .await

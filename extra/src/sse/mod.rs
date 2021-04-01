@@ -54,7 +54,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use futures::{future, Stream, TryStream, TryStreamExt};
-use http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
+use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
 use pin_project::pin_project;
 use serde_json::{self, Error};
 use tokio::time::{self, Sleep};
