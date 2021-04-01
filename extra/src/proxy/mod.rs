@@ -4,11 +4,10 @@ use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use http::uri::Scheme;
-use hyper::header::CONNECTION;
 use hyper::{Client, Uri};
 use hyper_tls::HttpsConnector;
-use salvo_core::http::header::{HeaderName, HeaderValue};
+use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
+use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
 
@@ -48,7 +47,10 @@ impl ProxyHandler {
     }
 }
 impl ProxyHandler {
-    fn build_proxied_request(&self, req: &mut Request) -> Result<hyper::Request<hyper::body::Body>> {
+    fn build_proxied_request(
+        &self,
+        req: &mut Request,
+    ) -> Result<hyper::Request<hyper::body::Body>> {
         req.headers_mut().remove(CONNECTION);
         let upstream = if self.upstreams.len() > 1 {
             let mut counter = self.counter.lock().unwrap();
@@ -69,7 +71,12 @@ impl ProxyHandler {
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let rest = if let Some((_, rest)) = param { rest } else { "" }.trim_start_matches('/');
+        let rest = if let Some((_, rest)) = param {
+            rest
+        } else {
+            ""
+        }
+        .trim_start_matches('/');
         let forward_url = if let Some(query) = req.uri().query() {
             if rest.is_empty() {
                 format!("{}?{}", upstream, query)
@@ -84,13 +91,18 @@ impl ProxyHandler {
             }
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
-        let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
+        let mut build = hyper::Request::builder()
+            .method(req.method())
+            .uri(&forward_url);
         for (key, value) in req.headers() {
             if key.as_str() != "host" {
                 build = build.header(key, value);
             }
         }
-        if let Some(host) = forward_url.host().and_then(|host|HeaderValue::from_str(host).ok()) {
+        if let Some(host) = forward_url
+            .host()
+            .and_then(|host| HeaderValue::from_str(host).ok())
+        {
             build = build.header(HeaderName::from_static("host"), host);
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";
@@ -111,7 +123,9 @@ impl ProxyHandler {
         //     // shouldn't happen...
         //     Err(_) => panic!("Invalid header name: {}", x_forwarded_for_header_name),
         // }
-        build.body(req.take_body().unwrap_or_default()).map_err(|e| salvo_core::Error::new(e))
+        build
+            .body(req.take_body().unwrap_or_default())
+            .map_err(|e| salvo_core::Error::new(e))
     }
 }
 
@@ -120,7 +134,12 @@ impl Handler for ProxyHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
-                let response = if proxied_request.uri().scheme().map(|s| s == &Scheme::HTTPS).unwrap_or(false) {
+                let response = if proxied_request
+                    .uri()
+                    .scheme()
+                    .map(|s| s == &Scheme::HTTPS)
+                    .unwrap_or(false)
+                {
                     let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
                     client.request(proxied_request).await
                 } else {
@@ -130,7 +149,7 @@ impl Handler for ProxyHandler {
                 match response {
                     Ok(response) => {
                         let (
-                            http::response::Parts {
+                            salvo_core::http::response::Parts {
                                 status,
                                 // version,
                                 headers,

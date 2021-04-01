@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.9.5"
+version = "0.9.6"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -27,10 +27,18 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = [ "extra", "tls", "anyhow" ]
+full = [ "extra", "tls", "anyhow"]
 tls = [ "salvo_core/tls" ]
 extra = [ "salvo_extra" ]
 anyhow = [ "salvo_core/anyhow" ]
+basic_auth = ["salvo_extra/basic_auth"]
+jwt_auth = ["salvo_extra/jwt_auth"]
+compression = ["salvo_extra/compression"]
+cors = ["salvo_extra/cors"]
+proxy = ["salvo_extra/proxy"]
+serve = ["salvo_extra/serve"]
+sse = ["salvo_extra/sse"]
+ws = ["salvo_extra/ws"]
 
 [workspace]
 members = [
@@ -41,9 +49,8 @@ members = [
 ]
 
 [dependencies]
-async-trait = "0.1.42"
-salvo_core = { version = "0.9.5", default-features = false }
-salvo_extra = {version = "0.9.5", default-features = false, optional = true }
+salvo_core = { version = "0.9.6", default-features = false }
+salvo_extra = {version = "0.9.6", default-features = false, optional = true }
 
 [dev-dependencies]
 futures = { version = "0.3", features = [ "std" ] }

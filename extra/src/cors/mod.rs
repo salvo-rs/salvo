@@ -7,7 +7,7 @@ use std::error::Error as StdError;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
+use salvo_core::http::headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::Method;
 use salvo_core::http::{Request, Response};

@@ -11,14 +11,13 @@ pub mod response;
 pub use body_chunk::BodyChunk;
 pub use cookie;
 pub use http::method::Method;
-pub use http::{HeaderMap, HeaderValue, StatusCode};
+pub use http::{HeaderMap, HeaderValue, StatusCode, uri, header, method, version};
 pub use mime::Mime;
 pub use range::HttpRange;
 pub use request::Request;
 pub use response::Response;
 pub use errors::{HttpError, ReadError};
 
-pub use http::header;
 pub use headers;
 
 pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

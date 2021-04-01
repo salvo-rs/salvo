@@ -1,17 +1,19 @@
+use std::collections::HashMap;
+use std::fmt::{self, Debug};
+use std::net::SocketAddr;
+use std::str::FromStr;
+
 use cookie::{Cookie, CookieJar};
 use double_checked_cell_async::DoubleCheckedCell;
 use http::header::{self, HeaderMap};
 use http::method::Method;
+pub use http::request::Parts;
 use http::version::Version;
 use http::{self, Extensions, Uri};
 pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
-use std::collections::HashMap;
-use std::fmt::{self, Debug};
-use std::net::SocketAddr;
-use std::str::FromStr;
 
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
@@ -248,7 +250,10 @@ impl Request {
     where
         T: FromStr,
     {
-        self.headers.get(key).and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<T>().ok())
+        self.headers
+            .get(key)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<T>().ok())
     }
 
     /// Returns a reference to the associated HTTP body.
@@ -331,7 +336,11 @@ impl Request {
 
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
-        if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
+        if let Some(ctype) = self
+            .headers
+            .get("content-type")
+            .and_then(|h| h.to_str().ok())
+        {
             ctype.parse().ok()
         } else {
             None
@@ -399,18 +408,28 @@ impl Request {
     }
     #[inline]
     pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
-        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
+        self.form_data()
+            .await
+            .as_ref()
+            .ok()
+            .and_then(|ps| ps.files.get(key))
     }
     #[inline]
     pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
-        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get_vec(key))
+        self.form_data()
+            .await
+            .as_ref()
+            .ok()
+            .and_then(|ps| ps.files.get_vec(key))
     }
     #[inline]
     pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
-        self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
+        self.get_form(key.as_ref())
+            .await
+            .or_else(|| self.get_query(key))
     }
     #[inline]
     pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
@@ -420,8 +439,13 @@ impl Request {
         self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ReadError> {
-        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+        let ctype = self
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
+        {
             Err(ReadError::General(String::from("failed to read data1")))
         } else if ctype.starts_with("application/json") || ctype.starts_with("text/") {
             let body = self.body.take();
@@ -439,8 +463,13 @@ impl Request {
     }
 
     pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
-        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+        let ctype = self
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
+        {
             let body = self.body.take();
             let headers = self.headers();
             self.form_data
@@ -468,9 +497,10 @@ impl Request {
     where
         T: FromStr,
     {
-        self.read_text()
-            .await
-            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
+        self.read_text().await.and_then(|body| {
+            body.parse::<T>()
+                .map_err(|_| ReadError::Parsing(body.into()))
+        })
     }
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
@@ -501,13 +531,20 @@ impl Request {
     where
         T: DeserializeOwned,
     {
-        let ctype = self.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+        let ctype = self
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
+        {
             self.read_from_form().await
         } else if ctype.starts_with("application/json") {
             self.read_from_json().await
         } else {
-            Err(ReadError::General(String::from("failed to read data or this type is not supported")))
+            Err(ReadError::General(String::from(
+                "failed to read data or this type is not supported",
+            )))
         }
     }
 }
