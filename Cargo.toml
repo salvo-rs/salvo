@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.9.6"
+version = "0.9.7"
 authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
 edition = "2018"
 description = """
@@ -29,8 +29,8 @@ path = "src/lib.rs"
 default = []
 full = [ "extra", "tls", "anyhow"]
 tls = [ "salvo_core/tls" ]
-extra = [ "salvo_extra" ]
 anyhow = [ "salvo_core/anyhow" ]
+extra = [ "basic_auth", "jwt_auth", "compression", "cors", "proxy", "serve", "sse", "ws" ]
 basic_auth = ["salvo_extra/basic_auth"]
 jwt_auth = ["salvo_extra/jwt_auth"]
 compression = ["salvo_extra/compression"]
