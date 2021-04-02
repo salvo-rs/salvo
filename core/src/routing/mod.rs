@@ -10,7 +10,6 @@ pub type Params = HashMap<String, String>;
 pub struct PathState {
     pub segments: Vec<String>,
     pub match_cursor: usize,
-    pub ending_matched: bool,
     pub params: Params,
 }
 impl PathState {
@@ -18,8 +17,10 @@ impl PathState {
         PathState {
             segments,
             match_cursor: 0,
-            ending_matched: false,
             params: Params::new(),
         }
+    }
+    pub fn ended(&self) -> bool {
+        self.match_cursor >= self.segments.len()
     }
 }
