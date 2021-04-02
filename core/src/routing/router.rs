@@ -41,17 +41,15 @@ impl Router {
             handler: None,
         }
     }
-    pub fn detect(&self, request: &mut Request, path: &mut PathState) -> Option<DetectMatched> {
-        let match_cursor = path.match_cursor;
+    pub fn detect(&self, request: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
         for filter in &self.filters {
-            if !filter.filter(request, path) {
-                path.match_cursor = match_cursor;
+            if !filter.filter(request, path_state) {
                 return None;
             }
         }
         if !self.children.is_empty() {
             for child in &self.children {
-                if let Some(dm) = child.detect(request, path) {
+                if let Some(dm) = child.detect(request, path_state) {
                     return Some(DetectMatched {
                         befores: [&self.befores[..], &dm.befores[..]].concat(),
                         afters: [&dm.afters[..], &self.afters[..]].concat(),
@@ -61,7 +59,7 @@ impl Router {
             }
         }
         if let Some(handler) = self.handler.clone() {
-            if path.segments.len() <= path.match_cursor {
+            if path_state.ended() {
                 return Some(DetectMatched {
                     befores: self.befores.clone(),
                     afters: self.afters.clone(),
@@ -69,7 +67,6 @@ impl Router {
                 });
             }
         }
-        path.match_cursor = match_cursor;
         None
     }
 

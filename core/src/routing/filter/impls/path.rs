@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::{self, Debug};
 
 use regex::Regex;
@@ -7,64 +6,33 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 trait PathPart: Send + Sync + Debug {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>);
-}
-
-struct PathMatched<'a> {
-    segments: Option<Vec<&'a str>>,
-    matched_params: Option<HashMap<String, String>>,
+    fn detect<'a>(&self, state: &mut PathState) -> bool;
 }
 
 #[derive(Debug)]
 struct CombPart(Vec<Box<dyn PathPart>>);
 impl PathPart for CombPart {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>) {
-        if segments.is_empty() {
-            return (false, None);
-        }
-        let mut matched_segments: Vec<&str> = Vec::with_capacity(self.0.len());
-        let mut matched_params = HashMap::<String, String>::new();
-        let mut matched_cursor = 0;
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
         for child in &self.0 {
-            let (matched, detail) = child.detect(&segments[matched_cursor..]);
-            if !matched {
-                return (false, None);
-            } else if let Some(detail) = detail {
-                if let Some(segments) = detail.segments {
-                    matched_segments.extend(segments.iter());
-                    matched_cursor += matched_segments.len();
-                }
-                if let Some(params) = detail.matched_params {
-                    matched_params.extend(params);
-                }
+            if !child.detect(state) {
+                return false;
             }
         }
-        return (
-            true,
-            Some(PathMatched {
-                segments: Some(matched_segments),
-                matched_params: Some(matched_params),
-            }),
-        );
+        true
     }
 }
 #[derive(Debug, Eq, PartialEq)]
 struct NamedPart(String);
 impl PathPart for NamedPart {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>) {
-        if segments.is_empty() {
-            return (false, None);
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let url_path = &state.url_path[state.cursor..];
+        if url_path.is_empty() {
+            return false;
         }
-        let segment = segments[0];
-        let mut kv = HashMap::<String, String>::new();
-        kv.insert(self.0.clone(), segment.to_owned());
-        (
-            true,
-            Some(PathMatched {
-                segments: Some(vec![segment]),
-                matched_params: Some(kv),
-            }),
-        )
+        let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
+        state.params.insert(self.0.clone(), segment.to_owned());
+        state.cursor += segment.len();
+        true
     }
 }
 
@@ -84,24 +52,21 @@ impl PartialEq for RegexPart {
     }
 }
 impl PathPart for RegexPart {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>) {
-        if segments.is_empty() {
-            return (false, None);
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let url_path = &state.url_path[state.cursor..];
+        if url_path.is_empty() {
+            return false;
         }
-        let segment = segments[0];
+        let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
         let caps = self.regex.captures(segment);
         if let Some(caps) = caps {
-            let mut kv = HashMap::<String, String>::new();
-            kv.insert(self.name.clone(), caps[&self.name[..]].to_owned());
-            (
-                true,
-                Some(PathMatched {
-                    segments: Some(vec![segment]),
-                    matched_params: Some(kv),
-                }),
-            )
+            state
+                .params
+                .insert(self.name.clone(), caps[&self.name[..]].to_owned());
+            state.cursor += segment.len();
+            true
         } else {
-            (false, None)
+            false
         }
     }
 }
@@ -115,19 +80,13 @@ impl RestPart {
     }
 }
 impl PathPart for RestPart {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>) {
-        if !segments.is_empty() || self.0.starts_with("**") {
-            let mut kv = HashMap::new();
-            kv.insert(self.0.clone(), segments.join("/"));
-            (
-                true,
-                Some(PathMatched {
-                    segments: Some(segments.to_vec()),
-                    matched_params: Some(kv),
-                }),
-            )
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let url_path = &state.url_path[state.cursor..];
+        if !url_path.is_empty() || self.0.starts_with("**") {
+            state.params.insert(self.0.clone(), url_path.to_owned());
+            true
         } else {
-            (false, None)
+            false
         }
     }
 }
@@ -140,20 +99,17 @@ impl ConstPart {
     }
 }
 impl PathPart for ConstPart {
-    fn detect<'a>(&self, segments: &'a [&str]) -> (bool, Option<PathMatched<'a>>) {
-        if segments.is_empty() {
-            return (false, None);
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let url_path = &state.url_path[state.cursor..];
+        if url_path.is_empty() {
+            return false;
         }
-        if self.0 == segments[0] {
-            (
-                true,
-                Some(PathMatched {
-                    segments: Some(vec![segments[0]]),
-                    matched_params: None,
-                }),
-            )
+        let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
+        if self.0 == segment {
+            state.cursor += segment.len();
+            true
         } else {
-            (false, None)
+            false
         }
     }
 }
@@ -338,7 +294,7 @@ impl PathParser {
                         parts.push(Box::new(RegexPart::new(name, regex)));
                     } else if ch == '>' {
                         parts.push(Box::new(NamedPart(name)));
-                        if !self.peek(false).map(|c|c == '/').unwrap_or(true) {
+                        if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
                             return Err(format!(
                                 "named part must be the last one in current segement, expect '/' or end, but found {:?} at offset: {}",
                                 self.curr(),
@@ -428,43 +384,8 @@ impl Debug for PathFilter {
     }
 }
 impl Filter for PathFilter {
-    fn filter(&self, _req: &mut Request, path_state: &mut PathState) -> bool {
-        if path_state.ended() {
-            return false;
-        }
-        if !self.path_parts.is_empty() {
-            let mut params = HashMap::<String, String>::new();
-            let mut match_cursor = path_state.match_cursor;
-            for ps in &self.path_parts {
-                let segments = path_state.segments[match_cursor..]
-                    .iter()
-                    .map(AsRef::as_ref)
-                    .collect::<Vec<_>>();
-                let (matched, detail) = ps.detect(&segments);
-                if !matched {
-                    return false;
-                } else if let Some(detail) = detail {
-                    if let Some(kv) = detail.matched_params {
-                        params.extend(kv);
-                    }
-                    if let Some(segs) = detail.segments {
-                        match_cursor += segs.len();
-                    }
-                    if match_cursor >= path_state.segments.len() {
-                        break;
-                    }
-                } else {
-                    return false;
-                }
-            }
-            if !params.is_empty() {
-                path_state.params.extend(params);
-            }
-            path_state.match_cursor = match_cursor;
-            true
-        } else {
-            false
-        }
+    fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
+        self.detect(state)
     }
 }
 impl PathFilter {
@@ -482,130 +403,192 @@ impl PathFilter {
             path_parts,
         }
     }
+    pub(crate) fn detect(&self, state: &mut PathState) -> bool {
+        if state.ended() {
+            return false;
+        }
+        if !self.path_parts.is_empty() {
+            for ps in &self.path_parts {
+                if ps.detect(state) {
+                    if state.ended() {
+                        return false;
+                    }
+                    let rest = &state.url_path[state.cursor..];
+                    if rest.starts_with('/') {
+                        state.cursor += 1;
+                    }
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
 }
 
-#[test]
-fn test_parse_empty() {
-    let segments = PathParser::new("").parse().unwrap();
-    assert!(segments.is_empty());
-}
-#[test]
-fn test_parse_root() {
-    let segments = PathParser::new("/").parse().unwrap();
-    assert!(segments.is_empty());
-}
-#[test]
-fn test_parse_rest_without_name() {
-    let segments = PathParser::new("/hello/<*>").parse().unwrap();
-    assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello"), RestPart("*")]"#);
-}
+#[cfg(test)]
+mod tests {
+    use super::PathParser;
+    use crate::routing::{PathFilter, PathState};
+    use std::collections::HashMap;
 
-#[test]
-fn test_parse_single_const() {
-    let segments = PathParser::new("/hello").parse().unwrap();
-    assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello")]"#);
-}
-#[test]
-fn test_parse_multi_const() {
-    let segments = PathParser::new("/hello/world").parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[ConstPart("hello"), ConstPart("world")]"#
-    );
-}
-#[test]
-fn test_parse_single_regex() {
-    let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[RegexPart { name: "abc", regex: \d+ }]"#
-    );
-}
-#[test]
-fn test_parse_single_regex_with_prefix() {
-    let segments = PathParser::new(r"/prefix_<abc:/\d+/>").parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("prefix_"), RegexPart { name: "abc", regex: \d+ }])]"#
-    );
-}
-#[test]
-fn test_parse_single_regex_with_suffix() {
-    let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([RegexPart { name: "abc", regex: \d+ }, ConstPart("_suffix.png")])]"#
-    );
-}
-#[test]
-fn test_parse_single_regex_with_prefix_and_suffix() {
-    let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png")
-        .parse()
-        .unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("suffix.png")])]"#
-    );
-}
-#[test]
-fn test_parse_multi_regex() {
-    let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
-        .parse()
-        .unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
-    );
-}
-#[test]
-fn test_parse_multi_regex_with_prefix() {
-    let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
-        .parse()
-        .unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
-    );
-}
-#[test]
-fn test_parse_multi_regex_with_suffix() {
-    let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>")
-        .parse()
-        .unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("first"), RegexPart { name: "id", regex: \d+ }]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
-    );
-}
-#[test]
-fn test_parse_multi_regex_with_prefix_and_suffix() {
-    let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext")
-        .parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("ext")])]"#
-    );
-}
-#[test]
-fn test_parse_rest() {
-    let segments = PathParser::new(r"/first<id>/<*rest>").parse().unwrap();
-    assert_eq!(
-        format!("{:?}", segments),
-        r#"[CombPart([ConstPart("first"), NamedPart("id")]), RestPart("*rest")]"#
-    );
-}
-#[test]
-fn test_parse_named_failed1() {
-    assert!(PathParser::new(r"/first<id>ext2").parse().is_err());
-}
+    #[test]
+    fn test_parse_empty() {
+        let segments = PathParser::new("").parse().unwrap();
+        assert!(segments.is_empty());
+    }
+    #[test]
+    fn test_parse_root() {
+        let segments = PathParser::new("/").parse().unwrap();
+        assert!(segments.is_empty());
+    }
+    #[test]
+    fn test_parse_rest_without_name() {
+        let segments = PathParser::new("/hello/<*>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[ConstPart("hello"), RestPart("*")]"#
+        );
+    }
 
-#[test]
-fn test_parse_rest_failed1() {
-    assert!(PathParser::new(r"/first<id>ext2<*rest>").parse().is_err());
-}
-#[test]
-fn test_parse_rest_failed2() {
-    assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe")
-        .parse()
-        .is_err());
+    #[test]
+    fn test_parse_single_const() {
+        let segments = PathParser::new("/hello").parse().unwrap();
+        assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello")]"#);
+    }
+    #[test]
+    fn test_parse_multi_const() {
+        let segments = PathParser::new("/hello/world").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[ConstPart("hello"), ConstPart("world")]"#
+        );
+    }
+    #[test]
+    fn test_parse_single_regex() {
+        let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[RegexPart { name: "abc", regex: \d+ }]"#
+        );
+    }
+    #[test]
+    fn test_parse_single_regex_with_prefix() {
+        let segments = PathParser::new(r"/prefix_<abc:/\d+/>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("prefix_"), RegexPart { name: "abc", regex: \d+ }])]"#
+        );
+    }
+    #[test]
+    fn test_parse_single_regex_with_suffix() {
+        let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([RegexPart { name: "abc", regex: \d+ }, ConstPart("_suffix.png")])]"#
+        );
+    }
+    #[test]
+    fn test_parse_single_regex_with_prefix_and_suffix() {
+        let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("suffix.png")])]"#
+        );
+    }
+    #[test]
+    fn test_parse_multi_regex() {
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
+        );
+    }
+    #[test]
+    fn test_parse_multi_regex_with_prefix() {
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
+        );
+    }
+    #[test]
+    fn test_parse_multi_regex_with_suffix() {
+        let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), RegexPart { name: "id", regex: \d+ }]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
+        );
+    }
+    #[test]
+    fn test_parse_multi_regex_with_prefix_and_suffix() {
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("ext")])]"#
+        );
+    }
+    #[test]
+    fn test_parse_rest() {
+        let segments = PathParser::new(r"/first<id>/<*rest>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), RestPart("*rest")]"#
+        );
+    }
+    #[test]
+    fn test_parse_named_failed1() {
+        assert!(PathParser::new(r"/first<id>ext2").parse().is_err());
+    }
+
+    #[test]
+    fn test_parse_rest_failed1() {
+        assert!(PathParser::new(r"/first<id>ext2<*rest>").parse().is_err());
+    }
+    #[test]
+    fn test_parse_rest_failed2() {
+        assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe")
+            .parse()
+            .is_err());
+    }
+
+    #[test]
+    fn test_detect_consts() {
+        let filter = PathFilter::new("/hello/world");
+        let mut state = PathState::new("hello/world");
+        filter.detect(&mut state);
+        assert_eq!(
+            state,
+            PathState {
+                url_path: "hello/world".into(),
+                cursor: 2,
+                params: HashMap::new(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_detect_const_and_named() {
+        let filter = PathFilter::new("/hello/world<id>");
+        let mut state = PathState::new("hello/worldabc");
+        filter.detect(&mut state);
+        assert_eq!(
+            state,
+            PathState {
+                url_path: "hello/world".into(),
+                cursor: 2,
+                params: HashMap::new(),
+            }
+        );
+    }
 }
