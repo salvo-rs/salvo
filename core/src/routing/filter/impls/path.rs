@@ -92,7 +92,7 @@ impl FnPart {
 }
 impl Debug for FnPart {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "name: {:?}, args: {:?}", self.name, self.args)
+        write!(f, "FnPart{{name: {:?}, args: {:?}}}", self.name, self.args)
     }
 }
 impl PathPart for FnPart {
@@ -701,7 +701,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:nums(10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NamedPart("id")]), RestPart("*rest")]"#
+            r#"[CombPart([ConstPart("first"), FnPart{name: "id", args: ["10"]}])]"#
         );
     }
     #[test]
