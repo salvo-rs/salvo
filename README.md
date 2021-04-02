@@ -154,6 +154,10 @@ async fn delete_user() -> &'static str {
 }
 ```
 
+```<id:/\d+/>``` appears multiple times in this example. We can define custom FnPart to handle this. Use preset ```nums``` FnPart is very easy to handle. ```<id:nums>``` means match all numbers in url. ```<id:nums(10)>``` or ```<id:nums[10]>``` means only match 10 length of numbers.
+
+It is allowed to use multiple match parttern to match the same path segment. for example: ```/hello/world_<id:nums>_<*rest>```.
+
 ### File upload
 We can get file async by the function ```get_file``` in ```Request```:
 
