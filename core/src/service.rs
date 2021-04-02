@@ -88,9 +88,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         request.set_remote_addr(self.remote_addr);
         let mut response = Response::new();
         let mut depot = Depot::new();
-        let path = request.uri().path();
-        let segments = decode_url_path_segments_safely(path);
-        let mut path_state = PathState::new(segments);
+        let mut path_state = PathState::new(request.uri().path());
         response.cookies = request.cookies().clone();
 
         let router = self.router.clone();
@@ -160,12 +158,4 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         };
         Box::pin(fut)
     }
-}
-
-fn decode_url_path_segments_safely(path: &str) -> Vec<String> {
-    let segments = path.trim_start_matches('/').split('/');
-    segments
-        .map(|s| percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string())
-        .filter(|s| !s.contains('/') && !s.is_empty())
-        .collect::<Vec<_>>()
 }
