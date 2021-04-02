@@ -1,10 +1,8 @@
 //port from https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
 
 use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures::{FutureExt, StreamExt};
 use once_cell::sync::Lazy;
