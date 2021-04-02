@@ -5,7 +5,7 @@
 /site/public
 /.vscode
 **/target
-examples/_tmp.rs
+examples/_*.rs
 cobertura.xml
 debug.log
 temp
