@@ -1,12 +1,104 @@
+use std::collections::HashMap;
 use std::fmt::{self, Debug};
+use std::sync::Arc;
 
+use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::RwLock;
 
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 trait PathPart: Send + Sync + Debug {
     fn detect<'a>(&self, state: &mut PathState) -> bool;
+}
+
+type FnPartMap = Arc<
+    RwLock<
+        HashMap<
+            String,
+            Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
+        >,
+    >,
+>;
+static FN_PART_HANDLERS: Lazy<FnPartMap> = Lazy::new(|| {
+    let mut map: HashMap<
+        String,
+        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
+    > = HashMap::with_capacity(8);
+    map.insert("num".into(), Arc::new(Box::new(num_handler)));
+    map.insert("nums".into(), Arc::new(Box::new(num_handler)));
+    Arc::new(RwLock::new(map))
+});
+
+fn num_handler(part: &FnPart, state: &mut PathState) -> bool {
+    let url_path = &state.url_path[state.cursor..];
+    if url_path.is_empty() {
+        return false;
+    }
+    let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
+    if part.args.is_empty() && part.sign == "nums" {
+        if segment.chars().all(char::is_numeric) {
+            state.cursor += segment.len();
+            true
+        } else {
+            false
+        }
+    } else {
+        let width = if part.args.is_empty() {
+            1
+        } else {
+            if let Ok(width) = part.args[0].parse::<usize>() {
+                width
+            } else {
+                tracing::error!(
+                    "num args defined in path can not parsed to usize, set it to default value 1"
+                );
+                1
+            }
+        };
+        let mut chars = Vec::with_capacity(width);
+        for ch in segment.chars() {
+            if ch.is_numeric() {
+                chars.push(ch);
+            }
+            if chars.len() == width {
+                state.params.insert(part.name.clone(), chars.into_iter().collect());
+                state.cursor += width;
+                return true;
+            }
+        }
+        false
+    }
+}
+
+pub struct FnPart {
+    name: String,
+    sign: String,
+    args: Vec<String>,
+    handler:
+        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
+}
+impl FnPart {
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    pub fn sign(&self) -> &String {
+        &self.sign
+    }
+    pub fn args(&self) -> &Vec<String> {
+        &self.args
+    }
+}
+impl Debug for FnPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "name: {:?}, args: {:?}", self.name, self.args)
+    }
+}
+impl PathPart for FnPart {
+    fn detect<'a>(&self, state: &mut PathState) -> bool {
+        (self.handler)(&self, state)
+    }
 }
 
 #[derive(Debug)]
@@ -160,7 +252,7 @@ impl PathParser {
         let mut ch = self
             .curr()
             .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
-        while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
+        while !['/', ':', '<', '>', '[', ']', '(', ')'].contains(&ch) {
             ident.push(ch);
             if let Some(c) = self.next(false) {
                 ch = c;
@@ -207,7 +299,7 @@ impl PathParser {
         let mut ch = self
             .curr()
             .ok_or_else(|| "current postion is out of index when scan const".to_owned())?;
-        while ch != '/' && ch != ':' && ch != '<' && ch != '>' {
+        while !['/', ':', '<', '>', '[', ']', '(', ')'].contains(&ch) {
             cnst.push(ch);
             if let Some(c) = self.next(false) {
                 ch = c;
@@ -278,15 +370,66 @@ impl PathParser {
                             None => false,
                         };
                         if !is_slash {
-                            return Err(format!(
-                                "except '/' to start regex, but found {:?} at offset: {}",
-                                self.curr(),
-                                self.offset
-                            ));
+                            //start to scan fn part
+                            let sign = self.scan_ident()?;
+                            self.skip_blank();
+                            let lb = self.curr().ok_or("path ended unexcept".to_owned())?;
+                            let args = if lb == '[' || lb == '(' {
+                                let rb = if lb == '[' { ']' } else { ')' };
+                                let mut args = "".to_owned();
+                                ch = self.next(true).ok_or_else(|| {
+                                    "current postion is out of index when scan ident".to_owned()
+                                })?;
+                                while ch != rb {
+                                    args.push(ch);
+                                    if let Some(c) = self.next(false) {
+                                        ch = c;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                if self.next(false).is_none() {
+                                    return Err(format!("ended unexcept, should end with: {}", rb));
+                                }
+                                if args.is_empty() {
+                                    vec![]
+                                } else {
+                                    args.split(',').map(|s| s.trim().to_owned()).collect()
+                                }
+                            } else if lb == '>' {
+                                vec![]
+                            } else {
+                                return Err(format!(
+                                    "except any char of '/,[,(', but found {:?} at offset: {}",
+                                    self.curr(),
+                                    self.offset
+                                ));
+                            };
+                            let handlers = FN_PART_HANDLERS
+                                .read()
+                                .map_err(|_| "read FN_PART_HANDLERS failed".to_owned())?;
+                            let handler = handlers
+                                .get(&sign)
+                                .ok_or_else(|| {
+                                    format!(
+                                        "FN_PART_HANDLERS does not contains fn part with sign {}",
+                                        sign
+                                    )
+                                })?
+                                .clone();
+
+                            parts.push(Box::new(FnPart {
+                                name,
+                                sign,
+                                args,
+                                handler,
+                            }));
+                        } else {
+                            self.next(false);
+                            let regex =
+                                Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
+                            parts.push(Box::new(RegexPart::new(name, regex)));
                         }
-                        self.next(false);
-                        let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
-                        parts.push(Box::new(RegexPart::new(name, regex)));
                     } else if ch == '>' {
                         parts.push(Box::new(NamedPart(name)));
                         if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
@@ -300,7 +443,7 @@ impl PathParser {
                     if let Some(c) = self.curr() {
                         if c != '>' {
                             return Err(format!(
-                                "except '>' to end regex segment, but found {:?} at offset: {}",
+                                "except '>' to end regex part or fn part, but found {:?} at offset: {}",
                                 c, self.offset
                             ));
                         } else {
@@ -397,6 +540,15 @@ impl PathFilter {
             raw_value,
             path_parts,
         }
+    }
+    pub fn register_fn_part<P>(name: String, part: P)
+    where
+        P: Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static,
+    {
+        FN_PART_HANDLERS
+            .write()
+            .unwrap()
+            .insert(name, Arc::new(Box::new(part)));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
@@ -545,6 +697,14 @@ mod tests {
         );
     }
     #[test]
+    fn test_parse_nums() {
+        let segments = PathParser::new(r"/first<id:nums(10)>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), RestPart("*rest")]"#
+        );
+    }
+    #[test]
     fn test_parse_named_failed1() {
         assert!(PathParser::new(r"/first<id>ext2").parse().is_err());
     }
@@ -607,7 +767,7 @@ mod tests {
         let mut state = PathState::new("hello/worldabc");
         filter.detect(&mut state);
         assert_eq!(
-        format!("{:?}", state),
+            format!("{:?}", state),
             r#"PathState { url_path: "hello/worldabc", cursor: 14, params: {"id": "abc"} }"#
         );
     }
