@@ -10,7 +10,7 @@ pub(crate) use self::or::Or;
 use self::or_else::OrElse;
 use crate::http::Request;
 use crate::routing::PathState;
-pub(crate) use impls::*;
+pub use impls::*;
 
 use crate::http::Method;
 

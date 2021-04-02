@@ -93,11 +93,6 @@ impl PathPart for RestPart {
 
 #[derive(Eq, PartialEq, Debug)]
 struct ConstPart(String);
-impl ConstPart {
-    fn new(segment: String) -> ConstPart {
-        ConstPart(segment)
-    }
-}
 impl PathPart for ConstPart {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
@@ -105,8 +100,8 @@ impl PathPart for ConstPart {
             return false;
         }
         let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
-        if self.0 == segment {
-            state.cursor += segment.len();
+        if segment.contains(&self.0) {
+            state.cursor += self.0.len();
             true
         } else {
             false
@@ -320,7 +315,7 @@ impl PathParser {
                 if part.is_empty() {
                     return Err("const part is empty string".to_owned());
                 }
-                parts.push(Box::new(ConstPart::new(part)));
+                parts.push(Box::new(ConstPart(part)));
             }
             if let Some(c) = self.curr() {
                 if c == '/' {
@@ -403,20 +398,24 @@ impl PathFilter {
             path_parts,
         }
     }
-    pub(crate) fn detect(&self, state: &mut PathState) -> bool {
+    pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
             return false;
         }
         if !self.path_parts.is_empty() {
-            for ps in &self.path_parts {
+            for (i, ps) in self.path_parts.iter().enumerate() {
                 if ps.detect(state) {
                     if state.ended() {
-                        return false;
+                        return i == self.path_parts.len() - 1;
                     }
                     let rest = &state.url_path[state.cursor..];
                     if rest.starts_with('/') {
                         state.cursor += 1;
+                    } else if !rest.is_empty() {
+                        return false;
                     }
+                } else {
+                    return false;
                 }
             }
             true
@@ -430,7 +429,6 @@ impl PathFilter {
 mod tests {
     use super::PathParser;
     use crate::routing::{PathFilter, PathState};
-    use std::collections::HashMap;
 
     #[test]
     fn test_parse_empty() {
@@ -568,12 +566,38 @@ mod tests {
         let mut state = PathState::new("hello/world");
         filter.detect(&mut state);
         assert_eq!(
-            state,
-            PathState {
-                url_path: "hello/world".into(),
-                cursor: 2,
-                params: HashMap::new(),
-            }
+            format!("{:?}", state),
+            r#"PathState { url_path: "hello/world", cursor: 11, params: {} }"#
+        );
+    }
+    #[test]
+    fn test_detect_consts0() {
+        let filter = PathFilter::new("/hello/world/");
+        let mut state = PathState::new("hello/world");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "hello/world", cursor: 11, params: {} }"#
+        );
+    }
+    #[test]
+    fn test_detect_consts1() {
+        let filter = PathFilter::new("/hello/world");
+        let mut state = PathState::new("hello/world/");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "hello/world", cursor: 11, params: {} }"#
+        );
+    }
+    #[test]
+    fn test_detect_consts2() {
+        let filter = PathFilter::new("/hello/world2");
+        let mut state = PathState::new("hello/world");
+        assert!(!filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "hello/world", cursor: 6, params: {} }"#
         );
     }
 
@@ -583,12 +607,8 @@ mod tests {
         let mut state = PathState::new("hello/worldabc");
         filter.detect(&mut state);
         assert_eq!(
-            state,
-            PathState {
-                url_path: "hello/world".into(),
-                cursor: 2,
-                params: HashMap::new(),
-            }
+        format!("{:?}", state),
+            r#"PathState { url_path: "hello/worldabc", cursor: 14, params: {"id": "abc"} }"#
         );
     }
 }

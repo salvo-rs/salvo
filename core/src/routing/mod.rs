@@ -13,7 +13,7 @@ pub struct PathState {
     pub(crate) params: PathParams,
 }
 impl PathState {
-    pub(crate) fn new(url_path: &str) -> Self {
+    pub fn new(url_path: &str) -> Self {
         let url_path = url_path.trim_start_matches('/').trim_end_matches('/');
         PathState {
             url_path: decode_url_path_safely(url_path),
