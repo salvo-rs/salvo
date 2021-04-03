@@ -119,15 +119,14 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 
 mod models {
     use serde_derive::{Deserialize, Serialize};
-    use std::sync::Arc;
     use tokio::sync::Mutex;
 
     /// So we don't have to tackle how different database work, we'll just use
     /// a simple in-memory DB, a vector synchronized by a mutex.
-    pub type Db = Arc<Mutex<Vec<Todo>>>;
+    pub type Db = Mutex<Vec<Todo>>;
 
     pub fn blank_db() -> Db {
-        Arc::new(Mutex::new(Vec::new()))
+        Mutex::new(Vec::new())
     }
 
     #[derive(Debug, Deserialize, Serialize, Clone)]
