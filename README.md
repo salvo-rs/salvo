@@ -98,7 +98,7 @@ async fn main() {
 ### Middleware
 There is no difference between Handler and Middleware, Middleware is just Handler.
 ### Tree-like routing system
-Router supports nested, and you can add middleware in router. In this example, there are two routers, both of them has same path router ```"user"```, and both of them added to the same parent router, to do that because we want to add middleware to them and let them has different access control:
+Router supports nested, and you can add middleware in router. In this example, there are two routers, both of them has same path router ```"sers```, and both of them added to the same parent router, to do that because we want to add middleware to them and let them has different access control:
 
 ```rust
 use salvo::prelude::*;
