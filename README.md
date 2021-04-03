@@ -211,6 +211,7 @@ Your can find more examples in [examples](./examples/) folder:
 - [proxy.rs](./examples/proxy.rs)
 - [remote_addr.rs](./examples/remote_addr.rs)
 - [routing.rs](./examples/routing.rs)
+- [size_limiter.rs](./examples/size_limiter.rs)
 - [sse_chat.rs](./examples/sse_chat.rs)
 - [sse.rs](./examples/sse.rs)
 - [tls.rs](./examples/tls.rs)
