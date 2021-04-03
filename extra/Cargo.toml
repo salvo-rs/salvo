@@ -18,11 +18,12 @@ all-features = true
 
 [features]
 default = ["full"]
-full = ["basic_auth", "jwt_auth", "compression", "cors", "proxy", "serve", "sse", "ws"]
+full = ["basic_auth", "jwt_auth", "compression", "cors", "proxy", "serve", "sse", "ws", "size_limiter"]
 basic_auth = ["base64", "thiserror"]
 jwt_auth = ["cookie", "jsonwebtoken"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
+size_limiter = []
 proxy = ["hyper",  "hyper-tls"]
 serve = ["chrono", "mime", "percent-encoding"]
 sse = ["futures", "pin-project", "tokio"]
