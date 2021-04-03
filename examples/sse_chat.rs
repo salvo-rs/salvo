@@ -7,7 +7,7 @@ use salvo::prelude::*;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
-    Arc, Mutex,
+    Mutex,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -23,7 +23,7 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 ///
 /// - Key is their id
 /// - Value is a sender of `Message`
-type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>>;
+type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;
 
 // Keep track of all connected users, key is usize, value
 // is an event stream sender.

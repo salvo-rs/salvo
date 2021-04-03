@@ -13,12 +13,10 @@ trait PathPart: Send + Sync + Debug {
     fn detect<'a>(&self, state: &mut PathState) -> bool;
 }
 
-type FnPartMap = Arc<
-    RwLock<
-        HashMap<
-            String,
-            Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
-        >,
+type FnPartMap = RwLock<
+    HashMap<
+        String,
+        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
     >,
 >;
 static FN_PART_HANDLERS: Lazy<FnPartMap> = Lazy::new(|| {
@@ -28,7 +26,7 @@ static FN_PART_HANDLERS: Lazy<FnPartMap> = Lazy::new(|| {
     > = HashMap::with_capacity(8);
     map.insert("num".into(), Arc::new(Box::new(num_handler)));
     map.insert("nums".into(), Arc::new(Box::new(num_handler)));
-    Arc::new(RwLock::new(map))
+    RwLock::new(map)
 });
 
 fn num_handler(part: &FnPart, state: &mut PathState) -> bool {
