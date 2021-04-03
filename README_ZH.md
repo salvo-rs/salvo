@@ -133,7 +133,7 @@ Router::new()
     .push(Router::new().path("<id>").patch(edit_article).delete(delete_article));
 ```
 
-```"<id>"``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id`` ` matching rules, ```r"<id:/\d+/>"```. 
+虽然这两个路由都有这同样的 ```path("articles")```, 然而它们依然可以被同时添加到同一个父路由, 所以最后的路由长成了这个样子:
 
 ```rust
 Router::new()
@@ -154,11 +154,18 @@ Router::new()
 
 ```"<id>"```匹配了路径中的一个片段, 正常情况下文章的 ```id``` 只是一个数字, 这是我们可以使用正则表达式限制 ```id``` 的匹配规则, ```r"<id:/\d+/>"```. 
 
-对于这种数字类型, 还有一种更简单的方法是写作 ```"<id:nums>"```, 如果只匹配固定特定数量的数字,还可以写作 ```"<id:nums[10]>"``` 或者 ```"<id:nums(10)>"```, 这里的 10 代表匹配仅仅匹配 10 个数字.
+对于这种数字类型, 还有一种更简单的方法是使用  ```"<id:num>"```, 具体写法为:
+- ```"<id:num>"```， 匹配任意多个数字字符;
+- ```"<id:num[10]>"```， 只匹配固定特定数量的数字字符，这里的 10 代表匹配仅仅匹配 10 个数字字符;
+- ```"<id:num(..10)>"``` 代表匹配 1 到 9 个数字字符;
+- ```"<id:num(3..10)>"``` 代表匹配 3 到 9 个数字字符;
+- ```"<id:num(..=10)>"``` 代表匹配 1 到 10 个数字字符;
+- ```"<id:num(3..=10)>"``` 代表匹配 3 到 10 个数字字符;
+- ```"<id:num(10..)>"``` 代表匹配至少 10 个数字字符.
 
 还可以通过 ```<*>``` 或者 ```<**>``` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: ```<**file_path>```.
 
-允许组合使用多个表达式匹配同一个路径片段, 比如 ```/articles/article_<id:nums>/```.
+允许组合使用多个表达式匹配同一个路径片段, 比如 ```/articles/article_<id:num>/```.
 
 ### 文件上传
 可以通过 Request 中的 get_file 异步获取上传的文件:
