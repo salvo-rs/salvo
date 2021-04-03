@@ -21,21 +21,13 @@ impl Transport for AddrStream {
 pub(crate) struct LiftIo<T>(pub(crate) T);
 
 impl<T: AsyncRead + Unpin> AsyncRead for LiftIo<T> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.get_mut().0).poll_read(cx, buf)
     }
 }
 
 impl<T: AsyncWrite + Unpin> AsyncWrite for LiftIo<T> {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.get_mut().0).poll_write(cx, buf)
     }
 

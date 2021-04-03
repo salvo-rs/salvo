@@ -42,7 +42,9 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
 </html>"#,
         code.as_u16(),
         name,
-        summary.map(|summary| format!("<h3>{}</h3>", summary)).unwrap_or_default(),
+        summary
+            .map(|summary| format!("<h3>{}</h3>", summary))
+            .unwrap_or_default(),
         detail.map(|detail| format!("<p>{}</p>", detail)).unwrap_or_default(),
     )
 }

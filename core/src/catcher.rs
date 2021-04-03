@@ -24,7 +24,8 @@ impl Catcher for CatcherImpl {
             &self.0
         };
         let (format, data) = err.as_bytes(&format);
-        res.headers_mut().insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+        res.headers_mut()
+            .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         res.write_body_bytes(&data);
         true
     }

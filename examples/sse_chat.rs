@@ -32,7 +32,10 @@ static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "sse_chat=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let router = Router::new().handle(index).push(
         Router::new()

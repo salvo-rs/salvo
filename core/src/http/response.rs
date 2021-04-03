@@ -174,11 +174,13 @@ impl Response {
                     *res.body_mut() = hyper::Body::wrap_stream(stream);
                 }
                 _ => {
-                    res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                    res.headers_mut()
+                        .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
                 }
             }
         } else {
-            res.headers_mut().insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            res.headers_mut()
+                .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
         }
     }
 
@@ -249,7 +251,10 @@ impl Response {
         }
     }
     pub fn render_json_text(&mut self, data: &str) {
-        self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), data.as_bytes());
+        self.render_binary(
+            HeaderValue::from_static("application/json; charset=utf-8"),
+            data.as_bytes(),
+        );
     }
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
@@ -326,7 +331,8 @@ impl Response {
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::FOUND);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
+            self.headers
+                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
         self.commit();
@@ -335,7 +341,8 @@ impl Response {
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
         self.status_code = Some(StatusCode::SEE_OTHER);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
+            self.headers
+                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse()?);
         self.commit();
@@ -398,7 +405,12 @@ impl Response {
 
 impl Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "HTTP/1.1 {}\n{:?}", self.status_code.unwrap_or(StatusCode::NOT_FOUND), self.headers)
+        writeln!(
+            f,
+            "HTTP/1.1 {}\n{:?}",
+            self.status_code.unwrap_or(StatusCode::NOT_FOUND),
+            self.headers
+        )
     }
 }
 

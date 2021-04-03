@@ -13,17 +13,10 @@ trait PathPart: Send + Sync + Debug {
     fn detect<'a>(&self, state: &mut PathState) -> bool;
 }
 
-type FnPartMap = RwLock<
-    HashMap<
-        String,
-        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
-    >,
->;
+type FnPartMap = RwLock<HashMap<String, Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>>>;
 static FN_PART_HANDLERS: Lazy<FnPartMap> = Lazy::new(|| {
-    let mut map: HashMap<
-        String,
-        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
-    > = HashMap::with_capacity(8);
+    let mut map: HashMap<String, Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>> =
+        HashMap::with_capacity(8);
     map.insert("num".into(), Arc::new(Box::new(num_handler)));
     map.insert("nums".into(), Arc::new(Box::new(num_handler)));
     RwLock::new(map)
@@ -49,9 +42,7 @@ fn num_handler(part: &FnPart, state: &mut PathState) -> bool {
             if let Ok(width) = part.args[0].parse::<usize>() {
                 width
             } else {
-                tracing::error!(
-                    "num args defined in path can not parsed to usize, set it to default value 1"
-                );
+                tracing::error!("num args defined in path can not parsed to usize, set it to default value 1");
                 1
             }
         };
@@ -74,8 +65,7 @@ pub struct FnPart {
     name: String,
     sign: String,
     args: Vec<String>,
-    handler:
-        Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
+    handler: Arc<Box<dyn Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static>>,
 }
 impl FnPart {
     pub fn name(&self) -> &String {
@@ -150,9 +140,7 @@ impl PathPart for RegexPart {
         let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
         let caps = self.regex.captures(segment);
         if let Some(caps) = caps {
-            state
-                .params
-                .insert(self.name.clone(), caps[&self.name[..]].to_owned());
+            state.params.insert(self.name.clone(), caps[&self.name[..]].to_owned());
             state.cursor += segment.len();
             true
         } else {
@@ -341,9 +329,7 @@ impl PathParser {
         let mut parts: Vec<Box<dyn PathPart>> = vec![];
         while ch != '/' {
             if ch == '<' {
-                ch = self
-                    .next(true)
-                    .ok_or_else(|| "char is needed after <".to_owned())?;
+                ch = self.next(true).ok_or_else(|| "char is needed after <".to_owned())?;
                 if ch == '*' {
                     self.next(true);
                     let name = format!("*{}", self.scan_ident().unwrap_or_default());
@@ -375,9 +361,9 @@ impl PathParser {
                             let args = if lb == '[' || lb == '(' {
                                 let rb = if lb == '[' { ']' } else { ')' };
                                 let mut args = "".to_owned();
-                                ch = self.next(true).ok_or_else(|| {
-                                    "current postion is out of index when scan ident".to_owned()
-                                })?;
+                                ch = self
+                                    .next(true)
+                                    .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
                                 while ch != rb {
                                     args.push(ch);
                                     if let Some(c) = self.next(false) {
@@ -409,10 +395,7 @@ impl PathParser {
                             let handler = handlers
                                 .get(&sign)
                                 .ok_or_else(|| {
-                                    format!(
-                                        "FN_PART_HANDLERS does not contains fn part with sign {}",
-                                        sign
-                                    )
+                                    format!("FN_PART_HANDLERS does not contains fn part with sign {}", sign)
                                 })?
                                 .clone();
 
@@ -424,8 +407,7 @@ impl PathParser {
                             }));
                         } else {
                             self.next(false);
-                            let regex =
-                                Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
+                            let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
                             parts.push(Box::new(RegexPart::new(name, regex)));
                         }
                     } else if ch == '>' {
@@ -480,10 +462,7 @@ impl PathParser {
                 break;
             }
             if self.curr().map(|c| c == '/').unwrap_or(false) {
-                return Err(format!(
-                    "'/' is not allowed after '/' at offset {:?}",
-                    self.offset
-                ));
+                return Err(format!("'/' is not allowed after '/' at offset {:?}", self.offset));
             }
             let mut parts = self.scan_parts()?;
             if parts.len() > 1 {
@@ -534,19 +513,13 @@ impl PathFilter {
                 panic!("{}", e);
             }
         };
-        PathFilter {
-            raw_value,
-            path_parts,
-        }
+        PathFilter { raw_value, path_parts }
     }
     pub fn register_fn_part<P>(name: String, part: P)
     where
         P: Fn(&FnPart, &mut PathState) -> bool + Send + Sync + 'static,
     {
-        FN_PART_HANDLERS
-            .write()
-            .unwrap()
-            .insert(name, Arc::new(Box::new(part)));
+        FN_PART_HANDLERS.write().unwrap().insert(name, Arc::new(Box::new(part)));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
@@ -593,10 +566,7 @@ mod tests {
     #[test]
     fn test_parse_rest_without_name() {
         let segments = PathParser::new("/hello/<*>").parse().unwrap();
-        assert_eq!(
-            format!("{:?}", segments),
-            r#"[ConstPart("hello"), RestPart("*")]"#
-        );
+        assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello"), RestPart("*")]"#);
     }
 
     #[test]
@@ -607,18 +577,12 @@ mod tests {
     #[test]
     fn test_parse_multi_const() {
         let segments = PathParser::new("/hello/world").parse().unwrap();
-        assert_eq!(
-            format!("{:?}", segments),
-            r#"[ConstPart("hello"), ConstPart("world")]"#
-        );
+        assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello"), ConstPart("world")]"#);
     }
     #[test]
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
-        assert_eq!(
-            format!("{:?}", segments),
-            r#"[RegexPart { name: "abc", regex: \d+ }]"#
-        );
+        assert_eq!(format!("{:?}", segments), r#"[RegexPart { name: "abc", regex: \d+ }]"#);
     }
     #[test]
     fn test_parse_single_regex_with_prefix() {
@@ -638,9 +602,7 @@ mod tests {
     }
     #[test]
     fn test_parse_single_regex_with_prefix_and_suffix() {
-        let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png")
-            .parse()
-            .unwrap();
+        let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("suffix.png")])]"#
@@ -648,9 +610,7 @@ mod tests {
     }
     #[test]
     fn test_parse_multi_regex() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
-            .parse()
-            .unwrap();
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
@@ -658,9 +618,7 @@ mod tests {
     }
     #[test]
     fn test_parse_multi_regex_with_prefix() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>")
-            .parse()
-            .unwrap();
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
@@ -668,9 +626,7 @@ mod tests {
     }
     #[test]
     fn test_parse_multi_regex_with_suffix() {
-        let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>")
-            .parse()
-            .unwrap();
+        let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombPart([ConstPart("first"), RegexPart { name: "id", regex: \d+ }]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }])]"#
@@ -678,9 +634,7 @@ mod tests {
     }
     #[test]
     fn test_parse_multi_regex_with_prefix_and_suffix() {
-        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext")
-            .parse()
-            .unwrap();
+        let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombPart([ConstPart("first"), NamedPart("id")]), CombPart([ConstPart("prefix"), RegexPart { name: "abc", regex: \d+ }, ConstPart("ext")])]"#
@@ -713,9 +667,7 @@ mod tests {
     }
     #[test]
     fn test_parse_rest_failed2() {
-        assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe")
-            .parse()
-            .is_err());
+        assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().is_err());
     }
 
     #[test]

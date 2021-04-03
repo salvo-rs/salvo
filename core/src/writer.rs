@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde::Serialize;
 
-use crate::http::header::HeaderValue;
 use crate::http::errors::*;
+use crate::http::header::HeaderValue;
 use crate::http::{Request, Response};
 use crate::Depot;
 
@@ -18,7 +18,11 @@ impl Writer for () {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, _res: &mut Response) {}
 }
 #[async_trait]
-impl<T, E> Writer for Result<T, E> where T: Writer + Send, E: Writer + Send {
+impl<T, E> Writer for Result<T, E>
+where
+    T: Writer + Send,
+    E: Writer + Send,
+{
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         match self {
             Ok(v) => {
@@ -57,7 +61,10 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), self.0.as_ref().as_bytes());
+        res.render_binary(
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+            self.0.as_ref().as_bytes(),
+        );
     }
 }
 
@@ -87,6 +94,9 @@ where
     T: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), self.0.as_ref().as_bytes());
+        res.render_binary(
+            HeaderValue::from_static("text/html; charset=utf-8"),
+            self.0.as_ref().as_bytes(),
+        );
     }
 }

@@ -51,9 +51,9 @@ pub mod prelude {
     pub use salvo_macros::fn_handler;
 }
 
-use tokio::runtime::{self, Runtime};
 use std::future::Future;
-    
+use tokio::runtime::{self, Runtime};
+
 fn new_runtime(threads: usize) -> Runtime {
     runtime::Builder::new_multi_thread()
         .worker_threads(threads)
@@ -61,8 +61,7 @@ fn new_runtime(threads: usize) -> Runtime {
         .enable_all()
         .build()
         .unwrap()
-} 
-
+}
 
 pub fn start<F: Future>(future: F) {
     start_with_threads(future, num_cpus::get())

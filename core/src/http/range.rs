@@ -153,7 +153,14 @@ mod tests {
             T("bytes=-5", 10, vec![HttpRange { start: 5, length: 5 }]),
             T("bytes=-15", 10, vec![HttpRange { start: 0, length: 10 }]),
             T("bytes=0-499", 10000, vec![HttpRange { start: 0, length: 500 }]),
-            T("bytes=500-999", 10000, vec![HttpRange { start: 500, length: 500 }]),
+            T(
+                "bytes=500-999",
+                10000,
+                vec![HttpRange {
+                    start: 500,
+                    length: 500,
+                }],
+            ),
             T(
                 "bytes=-500",
                 10000,
@@ -178,12 +185,30 @@ mod tests {
             T(
                 "bytes=500-600,601-999",
                 10000,
-                vec![HttpRange { start: 500, length: 101 }, HttpRange { start: 601, length: 399 }],
+                vec![
+                    HttpRange {
+                        start: 500,
+                        length: 101,
+                    },
+                    HttpRange {
+                        start: 601,
+                        length: 399,
+                    },
+                ],
             ),
             T(
                 "bytes=500-700,601-999",
                 10000,
-                vec![HttpRange { start: 500, length: 201 }, HttpRange { start: 601, length: 399 }],
+                vec![
+                    HttpRange {
+                        start: 500,
+                        length: 201,
+                    },
+                    HttpRange {
+                        start: 601,
+                        length: 399,
+                    },
+                ],
             ),
             // Match Apache laxity:
             T(
@@ -208,7 +233,13 @@ mod tests {
                 if expected.is_empty() {
                     continue;
                 } else {
-                    assert!(false, "parse({}, {}) returned error {:?}", header, size, res.unwrap_err());
+                    assert!(
+                        false,
+                        "parse({}, {}) returned error {:?}",
+                        header,
+                        size,
+                        res.unwrap_err()
+                    );
                 }
             }
 

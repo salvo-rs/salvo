@@ -271,8 +271,16 @@ impl NamedFile {
                 }
             };
 
-            let dur = mtime.duration_since(UNIX_EPOCH).expect("modification time must be after epoch");
-            let etag_str = format!("\"{:x}-{:x}-{:x}-{:x}\"", ino, self.metadata.len(), dur.as_secs(), dur.subsec_nanos());
+            let dur = mtime
+                .duration_since(UNIX_EPOCH)
+                .expect("modification time must be after epoch");
+            let etag_str = format!(
+                "\"{:x}-{:x}-{:x}-{:x}\"",
+                ino,
+                self.metadata.len(),
+                dur.as_secs(),
+                dur.subsec_nanos()
+            );
             match etag_str.parse::<ETag>() {
                 Ok(etag) => Some(etag),
                 Err(e) => {
@@ -291,7 +299,11 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        let etag = if self.flags.contains(Flags::ETAG) { self.etag() } else { None };
+        let etag = if self.flags.contains(Flags::ETAG) {
+            self.etag()
+        } else {
+            None
+        };
         let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
             self.last_modified()
         } else {
@@ -301,7 +313,9 @@ impl Writer for NamedFile {
         // check preconditions
         let precondition_failed = if !any_match(etag.as_ref(), req) {
             true
-        } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfUnmodifiedSince>()) {
+        } else if let (Some(ref last_modified), Some(since)) =
+            (last_modified, req.headers().typed_get::<IfUnmodifiedSince>())
+        {
             !since.precondition_passes(*last_modified)
         } else {
             false
@@ -312,14 +326,18 @@ impl Writer for NamedFile {
             true
         } else if req.headers().contains_key(header::IF_NONE_MATCH) {
             false
-        } else if let (Some(ref last_modified), Some(since)) = (last_modified, req.headers().typed_get::<IfModifiedSince>()) {
+        } else if let (Some(ref last_modified), Some(since)) =
+            (last_modified, req.headers().typed_get::<IfModifiedSince>())
+        {
             !since.is_modified(*last_modified)
         } else {
             false
         };
 
-        res.headers_mut().insert(CONTENT_DISPOSITION, self.content_disposition.clone());
-        res.headers_mut().typed_insert(ContentType::from(self.content_type.clone()));
+        res.headers_mut()
+            .insert(CONTENT_DISPOSITION, self.content_disposition.clone());
+        res.headers_mut()
+            .typed_insert(ContentType::from(self.content_type.clone()));
         if let Some(lm) = last_modified {
             res.headers_mut().typed_insert(LastModified::from(lm));
         }

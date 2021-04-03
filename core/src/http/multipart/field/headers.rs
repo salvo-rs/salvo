@@ -170,7 +170,12 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
 
     let headers = match httparse::parse_headers(bytes, &mut header_buf) {
         Ok(Status::Complete((_, headers))) => headers,
-        Ok(Status::Partial) => return Err(ReadError::Parsing(format!("field headers incomplete: {}", show_bytes(bytes)))),
+        Ok(Status::Partial) => {
+            return Err(ReadError::Parsing(format!(
+                "field headers incomplete: {}",
+                show_bytes(bytes)
+            )))
+        }
         Err(e) => {
             return Err(ReadError::Parsing(format!(
                 "error parsing headers: {}; from buffer: {}",
@@ -230,11 +235,13 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
                     .map_err(|_| ReadError::Parsing(format!("could not parse MIME type from {:?}", str_val)))?,
             );
         } else {
-            let hdr_name = HeaderName::from_bytes(header.name.as_bytes())
-                .map_err(|e| ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e)))?;
+            let hdr_name = HeaderName::from_bytes(header.name.as_bytes()).map_err(|e| {
+                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
+            })?;
 
-            let hdr_val = HeaderValue::from_bytes(bytes)
-                .map_err(|e| ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e)))?;
+            let hdr_val = HeaderValue::from_bytes(bytes).map_err(|e| {
+                ReadError::Parsing(format!("error on multipart field header \"{}\": {}", header.name, e))
+            })?;
 
             out_headers.ext_headers.append(hdr_name, hdr_val);
         }
@@ -305,7 +312,10 @@ fn parse_cont_disp_val(val: &str, out: &mut FieldHeaders) -> Result<(), ReadErro
     }
 
     if out.name.is_empty() {
-        return Err(ReadError::Parsing(format!("expected 'name' parameter in `Content-Disposition: {}`", val)));
+        return Err(ReadError::Parsing(format!(
+            "expected 'name' parameter in `Content-Disposition: {}`",
+            val
+        )));
     }
 
     Ok(())

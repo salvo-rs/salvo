@@ -206,9 +206,15 @@ impl Handler for StaticDir {
         if format.type_() != "text" {
             format = mime::TEXT_HTML;
         }
-        let mut files: Vec<FileInfo> = files.into_iter().map(|(name, metadata)| FileInfo::new(name, metadata)).collect();
+        let mut files: Vec<FileInfo> = files
+            .into_iter()
+            .map(|(name, metadata)| FileInfo::new(name, metadata))
+            .collect();
         files.sort_by(|a, b| a.name.cmp(&b.name));
-        let mut dirs: Vec<DirInfo> = dirs.into_iter().map(|(name, metadata)| DirInfo::new(name, metadata)).collect();
+        let mut dirs: Vec<DirInfo> = dirs
+            .into_iter()
+            .map(|(name, metadata)| DirInfo::new(name, metadata))
+            .collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
         let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
         match format.subtype().as_ref() {

@@ -18,11 +18,15 @@ async fn main() {
                 .path("users")
                 .get(list_users)
                 .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
-        ).push_when(|_|if debug_mode {
-            Some(Router::new().path("debug").get(debug))
-        } else {
-            None
-        }).visit(|parent|{
+        )
+        .push_when(|_| {
+            if debug_mode {
+                Some(Router::new().path("debug").get(debug))
+            } else {
+                None
+            }
+        })
+        .visit(|parent| {
             if admin_mode {
                 parent.push(Router::new().path("admin").get(admin))
             } else {

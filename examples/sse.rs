@@ -2,12 +2,12 @@
 
 use futures::StreamExt;
 use salvo::prelude::*;
-use tracing_subscriber;
-use tracing_subscriber::fmt::format::FmtSpan;
+use std::convert::Infallible;
+use std::time::Duration;
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;
-use std::time::Duration;
-use std::convert::Infallible;
+use tracing_subscriber;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use salvo_extra::sse::{self, SseEvent};
 
@@ -35,7 +35,10 @@ async fn handle_tick(_req: &mut Request, res: &mut Response) {
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "sse=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let router = Router::new().path("ticks").get(handle_tick);
     Server::new(router).bind(([0, 0, 0, 0], 3030)).await;

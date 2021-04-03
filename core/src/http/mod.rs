@@ -10,14 +10,14 @@ pub mod response;
 
 pub use body_chunk::BodyChunk;
 pub use cookie;
+pub use errors::{HttpError, ReadError};
 pub use http::method::Method;
-pub use http::{HeaderMap, HeaderValue, StatusCode, uri, header, method, version};
+pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
 pub use hyper::body::HttpBody;
 pub use mime::Mime;
 pub use range::HttpRange;
 pub use request::Request;
 pub use response::Response;
-pub use errors::{HttpError, ReadError};
 
 pub use headers;
 
