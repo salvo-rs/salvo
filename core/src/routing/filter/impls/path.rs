@@ -36,7 +36,7 @@ struct NumPart {
 }
 impl NumPart {
     fn build(name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
-        let ps = args[0].splitn(2, "..").map(|s|s.trim()).collect::<Vec<_>>();
+        let ps = args[0].splitn(2, "..").map(|s| s.trim()).collect::<Vec<_>>();
         let (min_width, max_width) = if ps.is_empty() {
             (1, None)
         } else {
@@ -552,10 +552,7 @@ impl PathFilter {
     }
     pub fn register_creator<P>(name: String, creator: P)
     where
-        P: Fn(String, String, Vec<String>) -> Result<Box<dyn PathPart>, String>
-            + Send
-            + Sync
-            + 'static,
+        P: Fn(String, String, Vec<String>) -> Result<Box<dyn PathPart>, String> + Send + Sync + 'static,
     {
         PART_CREATORS.write().unwrap().insert(name, Arc::new(Box::new(creator)));
     }
