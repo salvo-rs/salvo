@@ -98,65 +98,62 @@ async fn main() {
 ### Middleware
 There is no difference between Handler and Middleware, Middleware is just Handler.
 ### Tree-like routing system
-Router supports nested, and you can add middleware in router. In this example, there are two routers, both of them has same path router ```"sers```, and both of them added to the same parent router, to do that because we want to add middleware to them and let them has different access control:
+
+Normally we write routing like this：
 
 ```rust
-use salvo::prelude::*;
-
-#[tokio::main]
-async fn main() {
-    let router = Router::new()
-        .get(index)
-        .push(
-            Router::new()
-                .path("users")
-                .before(auth)
-                .post(create_user)
-                .push(Router::new().path(r"<id:/\d+/>").post(update_user).delete(delete_user)),
-        )
-        .push(
-            Router::new()
-                .path("users")
-                .get(list_users)
-                .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
-        );
-
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
-}
-
-#[fn_handler]
-async fn index() -> &'static str {
-    "Hello world!"
-}
-#[fn_handler]
-async fn auth() -> &'static str {
-    "user has authed\n\n"
-}
-#[fn_handler]
-async fn list_users() -> &'static str {
-    "list users"
-}
-#[fn_handler]
-async fn show_user() -> &'static str {
-    "show user"
-}
-#[fn_handler]
-async fn create_user() -> &'static str {
-    "user created"
-}
-#[fn_handler]
-async fn update_user() -> &'static str {
-    "user updated"
-}
-#[fn_handler]
-async fn delete_user() -> &'static str {
-    "user deleted"
-}
+Router::new().path("articles").get(list_articles).post(create_article);
+Router::new()
+    .path("articles/<id>")
+    .get(show_article)
+    .patch(edit_article)
+    .delete(delete_article);
 ```
 
-```<id:/\d+/>``` appears multiple times in this example. We can define custom FnPart to handle this. Use preset ```nums``` FnPart is very easy to handle. ```<id:nums>``` means match all numbers in url. ```<id:nums(10)>``` or ```<id:nums[10]>``` means only match 10 length of numbers.
+Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together: 
 
-It is allowed to use multiple match partterns to match the same path segment. for example: ```/hello/world_<id:nums>_<*rest>```.
+```rust
+Router::new()
+    .path("articles")
+    .get(list_articles)
+    .push(Router::new().path("<id>").get(show_article));
+```
+
+Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in: 
+```rust
+Router::new()
+    .path("articles")
+    .before(auth_check)
+    .post(list_articles)
+    .push(Router::new().path("<id>").patch(edit_article).delete(delete_article));
+```
+
+Although these two routes have the same ```path("articles")```, they can still be added to the same parent route at the same time, so the final route looks like this: 
+
+```rust
+Router::new()
+    .push(
+        Router::new()
+            .path("articles")
+            .get(list_articles)
+            .push(Router::new().path("<id>").get(show_article)),
+    )
+    .push(
+        Router::new()
+            .path("articles")
+            .before(auth_check)
+            .post(list_articles)
+            .push(Router::new().path("<id>").patch(edit_article).delete(delete_article)),
+    );
+```
+
+```"<id>"``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
+
+For this type of number, there is a simpler way to write ```"<id:nums>"```, if only a certain number of digits are matched, you can also write ```"<id:nums[10]>" ``` or ```"<id:nums(10)>"```, where 10 means that the match only matches 10 digits. 
+
+You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
+
+It is allowed to combine multiple expressions to match the same path segment, such as ```/articles/article_<id:nums>/```. 
 
 ### File upload
 We can get file async by the function ```get_file``` in ```Request```:

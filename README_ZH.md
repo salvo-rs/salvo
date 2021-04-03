@@ -25,7 +25,7 @@ Salvo 是一个简单易用的 Rust Web 后端框架. 目标是让 Rust 下的 W
   * 支持从多个本地目录映射成一个虚拟目录提供服务.
 
 ## ⚡️ 快速开始
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples)， 或者[访问网站](https://salvo.rs).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples),  或者[访问网站](https://salvo.rs).
 
 
 创建一个全新的项目:
@@ -53,7 +53,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 }
 ```
 
-对于 fn_handler，可以根据需求和喜好有不同种写法.
+对于 fn_handler, 可以根据需求和喜好有不同种写法.
 
 - 可以将一些没有用到的参数省略掉, 比如这里的 ```_req```, ```_depot```.
 
@@ -104,66 +104,61 @@ Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
 
 ### 树状路由系统
 
-路由支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 ```path``` 都为 ```users``` 的路由被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
+正常情况下我们是这样写路由的：
 
 ```rust
-use salvo::prelude::*;
-
-#[tokio::main]
-async fn main() {
-    let router = Router::new()
-        .get(index)
-        .push(
-            Router::new()
-                .path("users")
-                .before(auth)
-                .post(create_user)
-                .push(Router::new().path(r"<id:/\d+/>").post(update_user).delete(delete_user)),
-        )
-        .push(
-            Router::new()
-                .path("users")
-                .get(list_users)
-                .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
-        );
-
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
-}
-
-
-#[fn_handler]
-async fn index() -> &'static str {
-    "Hello world!"
-}
-#[fn_handler]
-async fn auth() -> &'static str {
-    "user has authed\n\n"
-}
-#[fn_handler]
-async fn list_users() -> &'static str {
-    "list users"
-}
-#[fn_handler]
-async fn show_user() -> &'static str {
-    "show user"
-}
-#[fn_handler]
-async fn create_user() -> &'static str {
-    "user created"
-}
-#[fn_handler]
-async fn update_user() -> &'static str {
-    "user updated"
-}
-#[fn_handler]
-async fn delete_user() -> &'static str {
-    "user deleted"
-}
+Router::new().path("articles").get(list_articles).post(create_article);
+Router::new()
+    .path("articles/<id>")
+    .get(show_article)
+    .patch(edit_article)
+    .delete(delete_article);
 ```
 
-对于上例中的 ```<id:/\d+/>``` 匹配多次出现, 可以同过实现自定义的```FnPart```函数统一处理. 直接使用内置的 ```nums``` 更简单. 可以直接写成 ```<id:nums>```, 代表匹配所有的带数字, 如果对数字长度有限制, 可以写成 ```<id:nums(10)>``` 或者 ```<id:nums[10]>``` 代表匹配长度为10的数字.
+往往查看文章和文章列表是不需要用户登录的, 但是创建, 编辑, 删除文章等需要用户登录认证权限才可以. Salvo 中支持嵌套的路由系统可以很好地满足这种需求. 我们可以把不需要用户登录的路由写到一起：
 
-允许组合使用多个表达式匹配同一个路径片段, 比如 ```/hello/world_<id:nums>_<*rest>```.
+```rust
+Router::new()
+    .path("articles")
+    .get(list_articles)
+    .push(Router::new().path("<id>").get(show_article));
+```
+
+然后把需要用户登录的路由写到一起， 并且使用相应的中间件验证用户是否登录：
+```rust
+Router::new()
+    .path("articles")
+    .before(auth_check)
+    .post(list_articles)
+    .push(Router::new().path("<id>").patch(edit_article).delete(delete_article));
+```
+
+```"<id>"``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id`` ` matching rules, ```r"<id:/\d+/>"```. 
+
+```rust
+Router::new()
+    .push(
+        Router::new()
+            .path("articles")
+            .get(list_articles)
+            .push(Router::new().path("<id>").get(show_article)),
+    )
+    .push(
+        Router::new()
+            .path("articles")
+            .before(auth_check)
+            .post(list_articles)
+            .push(Router::new().path("<id>").patch(edit_article).delete(delete_article)),
+    );
+```
+
+```"<id>"```匹配了路径中的一个片段, 正常情况下文章的 ```id``` 只是一个数字, 这是我们可以使用正则表达式限制 ```id``` 的匹配规则, ```r"<id:/\d+/>"```. 
+
+对于这种数字类型, 还有一种更简单的方法是写作 ```"<id:nums>"```, 如果只匹配固定特定数量的数字,还可以写作 ```"<id:nums[10]>"``` 或者 ```"<id:nums(10)>"```, 这里的 10 代表匹配仅仅匹配 10 个数字.
+
+还可以通过 ```<*>``` 或者 ```<**>``` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: ```<**file_path>```.
+
+允许组合使用多个表达式匹配同一个路径片段, 比如 ```/articles/article_<id:nums>/```.
 
 ### 文件上传
 可以通过 Request 中的 get_file 异步获取上传的文件:
@@ -231,7 +226,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 
 ## ☕ 支持
 
-`Salvo`是一个开源项目，如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
+`Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
 <p style="text-align: center;">
 <img src="assets/alipay.png" alt="Alipay" width="320"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="assets/weixin.png" alt="Weixin" width="320"/>
 </p>
