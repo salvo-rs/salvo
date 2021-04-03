@@ -149,11 +149,18 @@ Router::new()
 
 ```"<id>"``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
 
-For this type of number, there is a simpler way to write ```"<id:nums>"```, if only a certain number of digits are matched, you can also write ```"<id:nums[10]>" ``` or ```"<id:nums(10)>"```, where 10 means that the match only matches 10 digits. 
+For numeric characters there is an easier way to use ```"<id:num>"```, the specific writing is:
+- ```"<id:num>"```, matches any number of numeric characters;
+- ```"<id:num[10]>"```, only matches a certain number of numeric characters, where 10 means that the match only matches 10 numeric characters;
+-```"<id:num(..10)>"``` means matching 1 to 9 numeric characters;
+- ```"<id:num(3..10)>"``` means matching 3 to 9 numeric characters;
+- ```"<id:num(..=10)>"``` means matching 1 to 10 numeric characters;
+- ```"<id:num(3..=10)>"``` means match 3 to 10 numeric characters;
+- ```"<id:num(10..)>"``` means to match at least 10 numeric characters.
 
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
-It is allowed to combine multiple expressions to match the same path segment, such as ```/articles/article_<id:nums>/```. 
+It is allowed to combine multiple expressions to match the same path segment, such as ```/articles/article_<id:num>/```. 
 
 ### File upload
 We can get file async by the function ```get_file``` in ```Request```:
