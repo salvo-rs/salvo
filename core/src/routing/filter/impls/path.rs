@@ -597,9 +597,11 @@ impl PathFilter {
     {
         PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(builder)));
     }
-    pub fn register_path_part_regex<B>(name: String, regex: Regex)
-    {
-        PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
+    pub fn register_path_part_regex<B>(name: String, regex: Regex) {
+        PART_BUILDERS
+            .write()
+            .unwrap()
+            .insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
