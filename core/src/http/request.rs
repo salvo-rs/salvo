@@ -336,11 +336,7 @@ impl Request {
 
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
-        if let Some(ctype) = self
-            .headers
-            .get("content-type")
-            .and_then(|h| h.to_str().ok())
-        {
+        if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
             ctype.parse().ok()
         } else {
             None
@@ -408,11 +404,7 @@ impl Request {
     }
     #[inline]
     pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
-        self.form_data()
-            .await
-            .as_ref()
-            .ok()
-            .and_then(|ps| ps.files.get(key))
+        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
     }
     #[inline]
     pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
@@ -427,9 +419,7 @@ impl Request {
     where
         F: FromStr,
     {
-        self.get_form(key.as_ref())
-            .await
-            .or_else(|| self.get_query(key))
+        self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
     }
     #[inline]
     pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
@@ -444,8 +434,7 @@ impl Request {
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
-        {
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
             Err(ReadError::General(String::from("failed to read data1")))
         } else if ctype.starts_with("application/json") || ctype.starts_with("text/") {
             let body = self.body.take();
@@ -468,8 +457,7 @@ impl Request {
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
-        {
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
             let body = self.body.take();
             let headers = self.headers();
             self.form_data
@@ -497,10 +485,9 @@ impl Request {
     where
         T: FromStr,
     {
-        self.read_text().await.and_then(|body| {
-            body.parse::<T>()
-                .map_err(|_| ReadError::Parsing(body.into()))
-        })
+        self.read_text()
+            .await
+            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
     }
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
@@ -536,8 +523,7 @@ impl Request {
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data")
-        {
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
             self.read_from_form().await
         } else if ctype.starts_with("application/json") {
             self.read_from_json().await

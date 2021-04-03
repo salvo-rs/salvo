@@ -4,10 +4,10 @@ pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
-use salvo_core::Depot;
+use salvo_core::http::errors::*;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response};
-use salvo_core::http::errors::*;
+use salvo_core::Depot;
 use salvo_core::Handler;
 
 pub struct JwtHandler<C>
@@ -103,7 +103,11 @@ where
         JwtHandler { config }
     }
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
-        decode::<C>(&token, &DecodingKey::from_secret(&*self.config.secret.as_ref()), &self.config.validation)
+        decode::<C>(
+            &token,
+            &DecodingKey::from_secret(&*self.config.secret.as_ref()),
+            &self.config.validation,
+        )
     }
 }
 

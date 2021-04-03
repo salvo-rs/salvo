@@ -7,8 +7,10 @@ use std::error::Error as StdError;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use salvo_core::http::headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
+use salvo_core::http::headers::{
+    AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
+};
 use salvo_core::http::Method;
 use salvo_core::http::{Request, Response};
 use salvo_core::{Depot, Handler};
@@ -25,12 +27,12 @@ use salvo_core::{Depot, Handler};
 ///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
 /// let cors = salvo_extra::cors::cors().allow_origin("https://hyper.rs")
 ///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
-/// 
+///
 /// let router = Router::new().before(cors).post(upload_file);
 /// #[fn_handler]
 /// async fn upload_file(res: &mut Response) {
 /// }
-/// 
+///
 /// ```
 /// If you want to allow any route:
 /// ```
@@ -207,10 +209,12 @@ impl Builder {
         I: IntoIterator,
         I::Item: IntoOrigin,
     {
-        let iter = origins
-            .into_iter()
-            .map(IntoOrigin::into_origin)
-            .map(|origin| origin.to_string().parse().expect("Origin is always a valid HeaderValue"));
+        let iter = origins.into_iter().map(IntoOrigin::into_origin).map(|origin| {
+            origin
+                .to_string()
+                .parse()
+                .expect("Origin is always a valid HeaderValue")
+        });
 
         self.origins.get_or_insert_with(HashSet::new).extend(iter);
 
@@ -379,7 +383,10 @@ impl Configured {
 
     fn append_common_headers(&self, headers: &mut HeaderMap) {
         if self.cors.credentials {
-            headers.insert(header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true"));
+            headers.insert(
+                header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                HeaderValue::from_static("true"),
+            );
         }
         if let Some(expose_headers_header) = &self.expose_headers_header {
             headers.typed_insert(expose_headers_header.clone())

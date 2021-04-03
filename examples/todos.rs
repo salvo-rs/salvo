@@ -1,6 +1,5 @@
 //port from https://github.com/seanmonstar/warp/blob/master/examples/todos.rs
 
-
 use once_cell::sync::Lazy;
 use tracing;
 use tracing_subscriber;
@@ -23,12 +22,17 @@ static DB: Lazy<Db> = Lazy::new(|| blank_db());
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "todos=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     // View access logs by setting `RUST_LOG=todos`.
-    let router = Router::new().path("todos").get(list_todos).post(create_todo).push(
-        Router::new().path("<id>").put(update_todo).delete(delete_todo)
-    );
+    let router = Router::new()
+        .path("todos")
+        .get(list_todos)
+        .post(create_todo)
+        .push(Router::new().path("<id>").put(update_todo).delete(delete_todo));
     // Start up the server...
     Server::new(router).bind(([0, 0, 0, 0], 3040)).await;
 }
@@ -146,8 +150,8 @@ mod models {
 
 #[cfg(test)]
 mod tests {
-    use salvo::http::StatusCode;
     use reqwest::Client;
+    use salvo::http::StatusCode;
 
     use super::{
         filters,
@@ -157,7 +161,8 @@ mod tests {
     #[tokio::test]
     async fn test_post() {
         let client = Client::new();
-        let resp = client.post("https://127.0.0.1:3030/todos")
+        let resp = client
+            .post("https://127.0.0.1:3030/todos")
             .json(&Todo {
                 id: 1,
                 text: "test 1".into(),
@@ -172,7 +177,8 @@ mod tests {
     #[tokio::test]
     async fn test_post_conflict() {
         let client = Client::new();
-        let resp = client.post("https://127.0.0.1:3030/todos")
+        let resp = client
+            .post("https://127.0.0.1:3030/todos")
             .json(&Todo {
                 id: 1,
                 text: "test 1".into(),

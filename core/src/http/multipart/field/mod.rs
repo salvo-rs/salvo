@@ -206,7 +206,11 @@ where
             Poll::Pending => return Poll::Pending,
         } {
             if let Some((mut start, start_len)) = self.surrogate {
-                assert!(start_len > 0 && start_len < 4, "start_len out of range: {:?}", start_len);
+                assert!(
+                    start_len > 0 && start_len < 4,
+                    "start_len out of range: {:?}",
+                    start_len
+                );
 
                 let start_len = start_len as usize;
 

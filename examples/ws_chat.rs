@@ -1,8 +1,8 @@
 //port from https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use futures::{FutureExt, StreamExt};
 use once_cell::sync::Lazy;
@@ -30,8 +30,13 @@ static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "ws_chat=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
-    let router = Router::new().handle(index).push(Router::new().path("chat").handle(user_connected));
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
+    let router = Router::new()
+        .handle(index)
+        .push(Router::new().path("chat").handle(user_connected));
     Server::new(router).bind(([0, 0, 0, 0], 3131)).await;
 }
 

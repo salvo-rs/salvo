@@ -7,7 +7,10 @@ use salvo_extra::proxy::ProxyHandler;
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "proxy=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt().with_env_filter(filter).with_span_events(FmtSpan::CLOSE).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
     let router = Router::new()
         .push(
             Router::new()

@@ -38,7 +38,8 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.try_borrow(key).expect("required type is not present in depot container")
+        self.try_borrow(key)
+            .expect("required type is not present in depot container")
     }
     pub fn try_borrow_mut<K, V>(&mut self, key: K) -> Option<&mut V>
     where
@@ -62,7 +63,10 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.data.remove(&key.into()).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
+        self.data
+            .remove(&key.into())
+            .and_then(|b| b.downcast::<V>().ok())
+            .map(|b| *b)
     }
 
     pub fn take<K, V>(&mut self, key: K) -> V
@@ -70,17 +74,15 @@ impl Depot {
         K: Into<String>,
         V: Any + Send,
     {
-        self.try_take(key).expect("required type is not present in depot container")
+        self.try_take(key)
+            .expect("required type is not present in depot container")
     }
 
-    pub fn transfer(&mut self) -> Depot
-    {
+    pub fn transfer(&mut self) -> Depot {
         let mut data = HashMap::with_capacity(self.data.len());
         for (k, v) in self.data.drain() {
             data.insert(k, v);
         }
-        Depot {
-            data,
-        }
+        Depot { data }
     }
 }

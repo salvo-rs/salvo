@@ -15,7 +15,9 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let body = &input.block;
     let name = &sig.ident;
 
-    let salvo = crate_name("salvo_core").or_else(|_| crate_name("salvo")).unwrap_or("salvo_core".into());
+    let salvo = crate_name("salvo_core")
+        .or_else(|_| crate_name("salvo"))
+        .unwrap_or("salvo_core".into());
     let salvo = Ident::new(&salvo, Span::call_site());
 
     if sig.asyncness.is_none() {
@@ -46,7 +48,11 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
         }
         3 => {}
-        _ => return syn::Error::new_spanned(&sig.inputs, "too many args in handler").to_compile_error().into(),
+        _ => {
+            return syn::Error::new_spanned(&sig.inputs, "too many args in handler")
+                .to_compile_error()
+                .into()
+        }
     }
 
     let sdef = quote! {

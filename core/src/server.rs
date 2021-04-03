@@ -40,7 +40,10 @@ impl Server {
         self
     }
 
-    fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<AddrIncoming, Service>), hyper::Error> {
+    fn create_bind_hyper_server(
+        self,
+        addr: impl Into<SocketAddr>,
+    ) -> Result<(SocketAddr, hyper::Server<AddrIncoming, Service>), hyper::Error> {
         let addr = addr.into();
         let mut incoming = AddrIncoming::bind(&addr)?;
         incoming.set_nodelay(true);
@@ -48,7 +51,10 @@ impl Server {
     }
 
     #[inline]
-    fn create_bind_incoming_hyper_server<S>(self, incoming: S) -> hyper::Server<impl Accept<Conn = LiftIo<S::Ok>, Error = S::Error>, Service>
+    fn create_bind_incoming_hyper_server<S>(
+        self,
+        incoming: S,
+    ) -> hyper::Server<impl Accept<Conn = LiftIo<S::Ok>, Error = S::Error>, Service>
     where
         S: TryStream + Send,
         S::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
@@ -117,7 +123,11 @@ impl Server {
     ///     let _ = tx.send(());
     /// }
     /// ```
-    pub async fn bind_with_graceful_shutdown(self, addr: impl Into<SocketAddr> + 'static, signal: impl Future<Output = ()> + Send + 'static) {
+    pub async fn bind_with_graceful_shutdown(
+        self,
+        addr: impl Into<SocketAddr> + 'static,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) {
         self.try_bind_with_graceful_shutdown(addr, signal).await.unwrap();
     }
 
@@ -174,13 +184,18 @@ impl Server {
         }
     }
 
-    pub async fn bind_incoming_with_graceful_shutdown<I>(self, incoming: I, signal: impl Future<Output = ()> + Send + 'static)
-    where
+    pub async fn bind_incoming_with_graceful_shutdown<I>(
+        self,
+        incoming: I,
+        signal: impl Future<Output = ()> + Send + 'static,
+    ) where
         I: TryStream + Send,
         I::Ok: AsyncRead + AsyncWrite + Send + 'static + Unpin,
         I::Error: Into<Box<dyn StdError + Send + Sync>>,
     {
-        self.try_bind_incoming_with_graceful_shutdown(incoming, signal).await.unwrap();
+        self.try_bind_incoming_with_graceful_shutdown(incoming, signal)
+            .await
+            .unwrap();
     }
     /// Setup this `Server` with a specific stream of incoming connections and a
     /// signal to initiate graceful shutdown.
@@ -321,7 +336,10 @@ impl TlsServer {
     }
 
     #[inline]
-    fn create_bind_hyper_server(self, addr: impl Into<SocketAddr>) -> Result<(SocketAddr, hyper::Server<TlsAcceptor, Service>), crate::Error> {
+    fn create_bind_hyper_server(
+        self,
+        addr: impl Into<SocketAddr>,
+    ) -> Result<(SocketAddr, hyper::Server<TlsAcceptor, Service>), crate::Error> {
         let addr = addr.into();
         let TlsServer { service, config } = self;
         let tls = config.build().map_err(crate::Error::new)?;

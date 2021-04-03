@@ -136,7 +136,11 @@ where
 
                     if needed_len > chunk.len() {
                         // hopefully rare; must be dealing with a poorly behaved stream impl
-                        return Poll::Ready(Some(fmt_err!("needed {} more bytes to verify boundary, got {}", needed_len, chunk.len())));
+                        return Poll::Ready(Some(fmt_err!(
+                            "needed {} more bytes to verify boundary, got {}",
+                            needed_len,
+                            chunk.len()
+                        )));
                     }
 
                     let bnd_start = res.boundary_start();
@@ -237,7 +241,9 @@ where
         let maybe_prefix = first.iter().chain(second);
 
         if res.incl_crlf {
-            maybe_prefix.zip(b"\r\n".iter().chain(&*self.boundary)).all(|(l, r)| l == r)
+            maybe_prefix
+                .zip(b"\r\n".iter().chain(&*self.boundary))
+                .all(|(l, r)| l == r)
         } else {
             maybe_prefix.zip(&*self.boundary).all(|(l, r)| l == r)
         }
@@ -275,7 +281,12 @@ where
     fn check_boundary_split(&self, first: &[u8], second: &[u8]) -> bool {
         let check_len = self.boundary.len().saturating_sub(first.len());
 
-        second.len() >= check_len && first.iter().chain(&second[..check_len]).zip(self.boundary.iter()).all(|(l, r)| l == r)
+        second.len() >= check_len
+            && first
+                .iter()
+                .chain(&second[..check_len])
+                .zip(self.boundary.iter())
+                .all(|(l, r)| l == r)
     }
 
     /// Returns `true` if another field should follow this boundary, `false` if the stream
@@ -534,7 +545,10 @@ mod test {
 
     #[test]
     fn test_one_empty_field() {
-        let finder = BoundaryFinder::new(mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]), BOUNDARY);
+        let finder = BoundaryFinder::new(
+            mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]),
+            BOUNDARY,
+        );
         pin_mut!(finder);
         ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);
         ready_assert_eq_none!(|cx| finder.as_mut().body_chunk(cx));
@@ -543,7 +557,10 @@ mod test {
 
     #[test]
     fn test_one_nonempty_field() {
-        let finder = BoundaryFinder::new(mock_stream(&[b"--boundary", b"\r\n", b"field data", b"\r\n", b"--boundary--"]), BOUNDARY);
+        let finder = BoundaryFinder::new(
+            mock_stream(&[b"--boundary", b"\r\n", b"field data", b"\r\n", b"--boundary--"]),
+            BOUNDARY,
+        );
         pin_mut!(finder);
 
         ready_assert_ok_eq!(|cx| finder.as_mut().consume_boundary(cx), true);

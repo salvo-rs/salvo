@@ -20,7 +20,10 @@ pub trait Filter: Send + Sync + 'static {
         Self: Sized,
         F: Filter + Sync + Send,
     {
-        And { first: self, second: other }
+        And {
+            first: self,
+            second: other,
+        }
     }
 
     fn or<F>(self, other: F) -> Or<Self, F>
@@ -28,7 +31,10 @@ pub trait Filter: Send + Sync + 'static {
         Self: Sized,
         F: Filter + Sync + Send,
     {
-        Or { first: self, second: other }
+        Or {
+            first: self,
+            second: other,
+        }
     }
 
     fn and_then<F, U>(self, fun: F) -> AndThen<Self, F>
@@ -37,7 +43,10 @@ pub trait Filter: Send + Sync + 'static {
         F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
         U: Filter + Sync + Send,
     {
-        AndThen { filter: self, callback: fun }
+        AndThen {
+            filter: self,
+            callback: fun,
+        }
     }
 
     fn or_else<F, U>(self, fun: F) -> OrElse<Self, F>
@@ -46,7 +55,10 @@ pub trait Filter: Send + Sync + 'static {
         F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
         U: Filter + Sync + Send,
     {
-        OrElse { filter: self, callback: fun }
+        OrElse {
+            filter: self,
+            callback: fun,
+        }
     }
 
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
-use salvo_core::Depot;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
+use salvo_core::Depot;
 use salvo_core::Handler;
 
 use thiserror::Error;
@@ -44,8 +44,10 @@ impl BasicAuthHandler {
 }
 impl BasicAuthHandler {
     fn ask_credentials(&self, res: &mut Response) {
-        res.headers_mut()
-            .insert("WWW-Authenticate", format!("Basic realm={:?}", self.config.realm).parse().unwrap());
+        res.headers_mut().insert(
+            "WWW-Authenticate",
+            format!("Basic realm={:?}", self.config.realm).parse().unwrap(),
+        );
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {

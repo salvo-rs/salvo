@@ -1,4 +1,3 @@
-
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/sse.rs
 //! Server-Sent Events (SSE)
 //! # Example
@@ -7,7 +6,7 @@
 //! use std::time::Duration;
 //! use std::convert::Infallible;
 //! use futures::{stream::iter, Stream};
-//! 
+//!
 //! use salvo_core::prelude::*;
 //! use salvo_extra::sse::{self, SseEvent};
 //!
@@ -54,8 +53,8 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use futures::{future, Stream, TryStream, TryStreamExt};
-use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
 use pin_project::pin_project;
+use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
 use serde_json::{self, Error};
 use tokio::time::{self, Sleep};
 
@@ -246,9 +245,11 @@ where
 }
 #[inline]
 fn write_request_headers(res: &mut Response) {
-    res.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+    res.headers_mut()
+        .insert(CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
     // Disable response body caching
-    res.headers_mut().insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    res.headers_mut()
+        .insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 }
 
 pub fn streaming<S>(res: &mut Response, event_stream: S)

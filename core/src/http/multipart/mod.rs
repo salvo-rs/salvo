@@ -281,7 +281,10 @@ mod test {
 
     #[test]
     fn test_no_headers() {
-        let multipart = Multipart::with_body(mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]), BOUNDARY);
+        let multipart = Multipart::with_body(
+            mock_stream(&[b"--boundary", b"\r\n", b"\r\n", b"--boundary--"]),
+            BOUNDARY,
+        );
         pin_mut!(multipart);
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
         until_ready!(|cx| multipart.as_mut().poll_field_headers(cx)).unwrap_err();
@@ -382,7 +385,10 @@ mod test {
             }
         );
 
-        ready_assert_some_ok_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), &b"field data--2\r\n--data--field"[..]);
+        ready_assert_some_ok_eq!(
+            |cx| multipart.as_mut().poll_field_chunk(cx),
+            &b"field data--2\r\n--data--field"[..]
+        );
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
 
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);

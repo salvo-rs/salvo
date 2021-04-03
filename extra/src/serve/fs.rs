@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 
-use salvo_core::{Request, Response, Depot, Writer};
 use salvo_core::fs::NamedFile;
-use salvo_core::Handler;
 use salvo_core::http::errors::*;
+use salvo_core::Handler;
+use salvo_core::{Depot, Request, Response, Writer};
 
 #[derive(Clone)]
 pub struct StaticFile(String);

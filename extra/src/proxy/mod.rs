@@ -47,10 +47,7 @@ impl ProxyHandler {
     }
 }
 impl ProxyHandler {
-    fn build_proxied_request(
-        &self,
-        req: &mut Request,
-    ) -> Result<hyper::Request<hyper::body::Body>> {
+    fn build_proxied_request(&self, req: &mut Request) -> Result<hyper::Request<hyper::body::Body>> {
         req.headers_mut().remove(CONNECTION);
         let upstream = if self.upstreams.len() > 1 {
             let mut counter = self.counter.lock().unwrap();
@@ -71,12 +68,7 @@ impl ProxyHandler {
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let rest = if let Some((_, rest)) = param {
-            rest
-        } else {
-            ""
-        }
-        .trim_start_matches('/');
+        let rest = if let Some((_, rest)) = param { rest } else { "" }.trim_start_matches('/');
         let forward_url = if let Some(query) = req.uri().query() {
             if rest.is_empty() {
                 format!("{}?{}", upstream, query)
@@ -91,18 +83,13 @@ impl ProxyHandler {
             }
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
-        let mut build = hyper::Request::builder()
-            .method(req.method())
-            .uri(&forward_url);
+        let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
             if key.as_str() != "host" {
                 build = build.header(key, value);
             }
         }
-        if let Some(host) = forward_url
-            .host()
-            .and_then(|host| HeaderValue::from_str(host).ok())
-        {
+        if let Some(host) = forward_url.host().and_then(|host| HeaderValue::from_str(host).ok()) {
             build = build.header(HeaderName::from_static("host"), host);
         }
         // let x_forwarded_for_header_name = "x-forwarded-for";

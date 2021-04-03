@@ -3,21 +3,22 @@
 use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::net::SocketAddr;
 
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use futures::ready;
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::transport::Transport;
 
 use tokio_rustls::rustls::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, RootCertStore, ServerConfig, TLSError,
+    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, RootCertStore, ServerConfig,
+    TLSError,
 };
 
 /// Represents errors that can occur building the TlsConfig
@@ -170,7 +171,8 @@ impl TlsConfigBuilder {
 
     pub(crate) fn build(mut self) -> Result<ServerConfig, TlsConfigError> {
         let mut cert_rdr = BufReader::new(self.cert);
-        let cert = tokio_rustls::rustls::internal::pemfile::certs(&mut cert_rdr).map_err(|()| TlsConfigError::CertParseError)?;
+        let cert = tokio_rustls::rustls::internal::pemfile::certs(&mut cert_rdr)
+            .map_err(|()| TlsConfigError::CertParseError)?;
 
         let key = {
             // convert it to Vec<u8> to allow reading it again if key is RSA
@@ -181,14 +183,14 @@ impl TlsConfigBuilder {
                 return Err(TlsConfigError::EmptyKey);
             }
 
-            let mut pkcs8 =
-                tokio_rustls::rustls::internal::pemfile::pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|()| TlsConfigError::Pkcs8ParseError)?;
+            let mut pkcs8 = tokio_rustls::rustls::internal::pemfile::pkcs8_private_keys(&mut key_vec.as_slice())
+                .map_err(|()| TlsConfigError::Pkcs8ParseError)?;
 
             if !pkcs8.is_empty() {
                 pkcs8.remove(0)
             } else {
-                let mut rsa =
-                    tokio_rustls::rustls::internal::pemfile::rsa_private_keys(&mut key_vec.as_slice()).map_err(|()| TlsConfigError::RsaParseError)?;
+                let mut rsa = tokio_rustls::rustls::internal::pemfile::rsa_private_keys(&mut key_vec.as_slice())
+                    .map_err(|()| TlsConfigError::RsaParseError)?;
 
                 if !rsa.is_empty() {
                     rsa.remove(0)
@@ -210,7 +212,9 @@ impl TlsConfigBuilder {
 
         let client_auth = match self.client_auth {
             TlsClientAuth::Off => NoClientAuth::new(),
-            TlsClientAuth::Optional(trust_anchor) => AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?),
+            TlsClientAuth::Optional(trust_anchor) => {
+                AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?)
+            }
             TlsClientAuth::Required(trust_anchor) => AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?),
         };
 
@@ -371,6 +375,10 @@ mod tests {
         let key = include_str!("../../examples/tls/key.rsa");
         let cert = include_str!("../../examples/tls/cert.pem");
 
-        TlsConfigBuilder::new().key(key.as_bytes()).cert(cert.as_bytes()).build().unwrap();
+        TlsConfigBuilder::new()
+            .key(key.as_bytes())
+            .cert(cert.as_bytes())
+            .build()
+            .unwrap();
     }
 }
