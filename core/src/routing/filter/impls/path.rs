@@ -12,30 +12,36 @@ use crate::routing::{Filter, PathState};
 pub trait PathPart: Send + Sync + Debug {
     fn detect<'a>(&self, state: &mut PathState) -> bool;
 }
+pub trait PartBuilder: Send + Sync {
+    fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String>;
+}
 
-type PartCreatorMap = RwLock<
-    HashMap<
-        String,
-        Arc<Box<dyn Fn(String, String, Vec<String>) -> Result<Box<dyn PathPart>, String> + Send + Sync + 'static>>,
-    >,
->;
-static PART_CREATORS: Lazy<PartCreatorMap> = Lazy::new(|| {
-    let mut map: HashMap<
-        String,
-        Arc<Box<dyn Fn(String, String, Vec<String>) -> Result<Box<dyn PathPart>, String> + Send + Sync + 'static>>,
-    > = HashMap::with_capacity(8);
-    map.insert("num".into(), Arc::new(Box::new(NumPart::build)));
+type PartBuilderMap = RwLock<HashMap<String, Arc<Box<dyn PartBuilder>>>>;
+static PART_BUILDERS: Lazy<PartBuilderMap> = Lazy::new(|| {
+    let mut map: HashMap<String, Arc<Box<dyn PartBuilder>>> = HashMap::with_capacity(8);
+    map.insert("num".into(), Arc::new(Box::new(CharPartBuilder::new(is_num))));
+    map.insert("hex".into(), Arc::new(Box::new(CharPartBuilder::new(is_hex))));
     RwLock::new(map)
 });
 
-#[derive(Debug)]
-struct NumPart {
-    name: String,
-    min_width: usize,
-    max_width: Option<usize>,
+fn is_num(ch: char) -> bool {
+    ch.is_ascii_digit()
 }
-impl NumPart {
-    fn build(name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
+fn is_hex(ch: char) -> bool {
+    ch.is_ascii_hexdigit()
+}
+
+pub struct CharPartBuilder<C>(Arc<C>);
+impl<C> CharPartBuilder<C> {
+    pub fn new(checker: C) -> Self {
+        Self(Arc::new(checker))
+    }
+}
+impl<C> PartBuilder for CharPartBuilder<C>
+where
+    C: Fn(char) -> bool + Sync + Send + 'static,
+{
+    fn build(&self, name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
         let ps = args[0].splitn(2, "..").map(|s| s.trim()).collect::<Vec<_>>();
         let (min_width, max_width) = if ps.is_empty() {
             (1, None)
@@ -80,14 +86,34 @@ impl NumPart {
                 }
             }
         };
-        Ok(Box::new(NumPart {
-            name: name.to_owned(),
+        Ok(Box::new(CharPart {
+            name,
+            checker: self.0.clone(),
             min_width,
             max_width,
         }))
     }
 }
-impl PathPart for NumPart {
+
+struct CharPart<C> {
+    name: String,
+    checker: Arc<C>,
+    min_width: usize,
+    max_width: Option<usize>,
+}
+impl<C> fmt::Debug for CharPart<C> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "CharPart {{ name: {:?}, min_width: {:?}, max_width: {:?} }}",
+            self.name, self.min_width, self.max_width
+        )
+    }
+}
+impl<C> PathPart for CharPart<C>
+where
+    C: Fn(char) -> bool + Sync + Send + 'static,
+{
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if url_path.is_empty() {
@@ -97,7 +123,7 @@ impl PathPart for NumPart {
         if let Some(max_width) = self.max_width {
             let mut chars = Vec::with_capacity(max_width);
             for ch in segment.chars() {
-                if ch.is_numeric() {
+                if (self.checker)(ch) {
                     chars.push(ch);
                 }
                 if chars.len() == max_width {
@@ -116,7 +142,7 @@ impl PathPart for NumPart {
         } else {
             let mut chars = Vec::with_capacity(16);
             for ch in segment.chars() {
-                if ch.is_numeric() {
+                if (self.checker)(ch) {
                     chars.push(ch);
                 }
             }
@@ -431,15 +457,15 @@ impl PathParser {
                                     self.offset
                                 ));
                             };
-                            let creators = PART_CREATORS
+                            let builders = PART_BUILDERS
                                 .read()
-                                .map_err(|_| "read PART_CREATORS failed".to_owned())?;
-                            let creator = creators
+                                .map_err(|_| "read PART_BUILDERS failed".to_owned())?;
+                            let builder = builders
                                 .get(&sign)
-                                .ok_or_else(|| format!("PART_CREATORS does not contains fn part with sign {}", sign))?
+                                .ok_or_else(|| format!("PART_BUILDERS does not contains fn part with sign {}", sign))?
                                 .clone();
 
-                            parts.push(creator(name, sign, args)?);
+                            parts.push(builder.build(name, sign, args)?);
                         } else {
                             self.next(false);
                             let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
@@ -550,11 +576,11 @@ impl PathFilter {
         };
         PathFilter { raw_value, path_parts }
     }
-    pub fn register_creator<P>(name: String, creator: P)
+    pub fn register_path_part_builder<B>(name: String, builder: B)
     where
-        P: Fn(String, String, Vec<String>) -> Result<Box<dyn PathPart>, String> + Send + Sync + 'static,
+        B: PartBuilder + 'static,
     {
-        PART_CREATORS.write().unwrap().insert(name, Arc::new(Box::new(creator)));
+        PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(builder)));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
@@ -688,7 +714,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NumPart { name: "id", min_width: 10, max_width: None }])]"#
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 10, max_width: None }])]"#
         );
     }
     #[test]
@@ -696,7 +722,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(..10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NumPart { name: "id", min_width: 1, max_width: Some(9) }])]"#
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 1, max_width: Some(9) }])]"#
         );
     }
     #[test]
@@ -704,7 +730,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(3..10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NumPart { name: "id", min_width: 3, max_width: Some(9) }])]"#
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 3, max_width: Some(9) }])]"#
         );
     }
     #[test]
@@ -712,7 +738,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num[3..]>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NumPart { name: "id", min_width: 3, max_width: None }])]"#
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 3, max_width: None }])]"#
         );
     }
     #[test]
@@ -720,7 +746,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(3..=10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NumPart { name: "id", min_width: 3, max_width: Some(10) }])]"#
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 3, max_width: Some(10) }])]"#
         );
     }
     #[test]
