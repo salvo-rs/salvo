@@ -147,16 +147,16 @@ Router::new()
     );
 ```
 
-```"<id>"``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
+```<id>``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
 
-For numeric characters there is an easier way to use ```"<id:num>"```, the specific writing is:
-- ```"<id:num>"```, matches any number of numeric characters;
-- ```"<id:num[10]>"```, only matches a certain number of numeric characters, where 10 means that the match only matches 10 numeric characters;
--```"<id:num(..10)>"``` means matching 1 to 9 numeric characters;
-- ```"<id:num(3..10)>"``` means matching 3 to 9 numeric characters;
-- ```"<id:num(..=10)>"``` means matching 1 to 10 numeric characters;
-- ```"<id:num(3..=10)>"``` means match 3 to 10 numeric characters;
-- ```"<id:num(10..)>"``` means to match at least 10 numeric characters.
+For numeric characters there is an easier way to use ```<id:num>```, the specific writing is:
+- ```<id:num>```, matches any number of numeric characters;
+- ```<id:num[10]>```, only matches a certain number of numeric characters, where 10 means that the match only matches 10 numeric characters;
+-```<id:num(..10)>``` means matching 1 to 9 numeric characters;
+- ```<id:num(3..10)>``` means matching 3 to 9 numeric characters;
+- ```<id:num(..=10)>``` means matching 1 to 10 numeric characters;
+- ```<id:num(3..=10)>``` means match 3 to 10 numeric characters;
+- ```<id:num(10..)>``` means to match at least 10 numeric characters.
 
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
