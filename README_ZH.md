@@ -104,7 +104,7 @@ Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
 
 ### 树状路由系统
 
-路由支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 ```path``` 都为 ```"users"``` 的路由被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
+路由支持嵌套, 并且可以在每一层添加中间件. 比如下面的例子中, 两个 ```path``` 都为 ```users``` 的路由被同时添加到了同一个父路由, 目的就是为了通过中间件对它们实现不一样的权限访问控制:
 
 ```rust
 use salvo::prelude::*;
@@ -218,6 +218,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 - [proxy.rs](./examples/proxy.rs)
 - [remote_addr.rs](./examples/remote_addr.rs)
 - [routing.rs](./examples/routing.rs)
+- [size_limiter.rs](./examples/size_limiter.rs)
 - [sse_chat.rs](./examples/sse_chat.rs)
 - [sse.rs](./examples/sse.rs)
 - [tls.rs](./examples/tls.rs)
