@@ -1,8 +1,8 @@
 use std::fs::create_dir_all;
 use std::path::Path;
 
-use salvo::prelude::*;
 use salvo::extra::size_limiter::max_size;
+use salvo::prelude::*;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -39,7 +39,12 @@ async fn main() {
     create_dir_all("temp").unwrap();
     let router = Router::new()
         .get(index)
-        .push(Router::new().before(max_size(1024*1024*10)).path("limited").post(upload))
+        .push(
+            Router::new()
+                .before(max_size(1024 * 1024 * 10))
+                .path("limited")
+                .post(upload),
+        )
         .push(Router::new().path("unlimit").post(upload));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
