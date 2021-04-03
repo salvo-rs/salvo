@@ -31,6 +31,21 @@ fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
 
+pub struct RegexPartBuilder(Regex);
+impl RegexPartBuilder {
+    pub fn new(checker: Regex) -> Self {
+        Self(checker)
+    }
+}
+impl PartBuilder for RegexPartBuilder {
+    fn build(&self, name: String, _sign: String, _args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
+        Ok(Box::new(RegexPart {
+            name,
+            regex: self.0.clone(),
+        }))
+    }
+}
+
 pub struct CharPartBuilder<C>(Arc<C>);
 impl<C> CharPartBuilder<C> {
     pub fn new(checker: C) -> Self {
@@ -581,6 +596,10 @@ impl PathFilter {
         B: PartBuilder + 'static,
     {
         PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(builder)));
+    }
+    pub fn register_path_part_regex<B>(name: String, regex: Regex)
+    {
+        PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
         if state.ended() {
