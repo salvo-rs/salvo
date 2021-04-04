@@ -19,7 +19,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         .or_else(|_| crate_name("salvo"))
         .unwrap_or(FoundCrate::Name("salvo_core".into()));
     let salvo = match salvo {
-        FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()),//This never not happend.
+        FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()), //This never not happend.
         FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
     };
 
