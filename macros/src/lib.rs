@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_crate::crate_name;
+use proc_macro_crate::{crate_name, FoundCrate};
 use proc_quote::quote;
 use syn::Ident;
 use syn::ReturnType;
@@ -17,8 +17,11 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
 
     let salvo = crate_name("salvo_core")
         .or_else(|_| crate_name("salvo"))
-        .unwrap_or("salvo_core".into());
-    let salvo = Ident::new(&salvo, Span::call_site());
+        .unwrap_or(FoundCrate::Name("salvo_core".into()));
+    let salvo = match salvo {
+        FoundCrate::Itself => Ident::new("", Span::call_site()),
+        FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+    };
 
     if sig.asyncness.is_none() {
         return syn::Error::new_spanned(sig.fn_token, "only async fn is supported")
