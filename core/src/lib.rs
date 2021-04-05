@@ -5,7 +5,7 @@ pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
-mod server;
+pub mod server;
 mod service;
 #[cfg(feature = "tls")]
 mod tls;
