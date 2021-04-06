@@ -11,13 +11,13 @@ async fn main() {
                 .path("users")
                 .before(auth)
                 .post(create_user)
-                .push(Router::new().path(r"<id:/\d+/>").post(update_user).delete(delete_user)),
+                .push(Router::new().path(r"<id:num>").post(update_user).delete(delete_user)),
         )
         .push(
             Router::new()
                 .path("users")
                 .get(list_users)
-                .push(Router::new().path(r"<id:/\d+/>").get(show_user)),
+                .push(Router::new().path(r"<id:num>").get(show_user)),
         )
         .push_when(|_| {
             if debug_mode {

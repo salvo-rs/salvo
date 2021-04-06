@@ -17,16 +17,9 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use salvo_core;
 use salvo_extra::sse::{SseEvent, SseKeepAlive};
 
-/// Our global unique user id counter.
-static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-/// Our state of currently connected users.
-///
-/// - Key is their id
-/// - Value is a sender of `Message`
 type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;
 
-// Keep track of all connected users, key is usize, value
-// is an event stream sender.
+static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 
 #[tokio::main]
@@ -46,15 +39,11 @@ async fn main() {
     Server::new(router).bind(([0, 0, 0, 0], 3232)).await;
 }
 
-/// Message variants.
 #[derive(Debug)]
 enum Message {
     UserId(usize),
     Reply(String),
 }
-
-#[derive(Debug)]
-struct NotUtf8;
 
 #[fn_handler]
 async fn chat_send(req: &mut Request, res: &mut Response) {
@@ -69,7 +58,7 @@ async fn user_connected(_req: &mut Request, res: &mut Response) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
-    eprintln!("new chat user: {}", my_id);
+    tracing::info!("new chat user: {}", my_id);
 
     // Use an unbounded channel to handle buffering and flushing of messages
     // to the event source...
@@ -85,7 +74,7 @@ async fn user_connected(_req: &mut Request, res: &mut Response) {
 
     // Convert messages into Server-Sent Events and return resulting stream.
     let stream = rx.map(|msg| match msg {
-        Message::UserId(my_id) => Ok::<_, salvo_core::Error>(SseEvent::default().name("user").data(my_id.to_string())),
+        Message::UserId(my_id) => Ok::<_, salvo_core::Error>(SseEvent::default().name("user").data(my_id.to_owned())),
         Message::Reply(reply) => Ok(SseEvent::default().data(reply)),
     });
     SseKeepAlive::new(stream).streaming(res);
@@ -125,34 +114,36 @@ static INDEX_HTML: &str = r#"
         <div id="chat">
             <p><em>Connecting...</em></p>
         </div>
-        <input type="text" id="text" />
-        <button type="button" id="send">Send</button>
-        <script type="text/javascript">
-        var uri = 'http://' + location.host + '/chat';
-        var sse = new EventSource(uri);
-        function message(data) {
-            var line = document.createElement('p');
-            line.innerText = data;
-            chat.appendChild(line);
-        }
+        <input type="text" id="msg" />
+        <button type="button" id="submit">Send</button>
+        <script>
+        const chat = document.getElementById('chat');
+        const msg = document.getElementById('msg');
+        const submit = document.getElementById('submit');
+        let sse = new EventSource(`http://${location.host}/chat`);
         sse.onopen = function() {
             chat.innerHTML = "<p><em>Connected!</em></p>";
         }
-        var user_id;
+        var userId;
         sse.addEventListener("user", function(msg) {
-            user_id = msg.data;
+            userId = msg.data;
         });
         sse.onmessage = function(msg) {
-            message(msg.data);
+            showMessage(msg.data);
         };
-        send.onclick = function() {
+        document.getElementById('submit').onclick = function() {
             var msg = text.value;
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", uri + '/' + user_id, true);
+            xhr.open("POST", `${uri}/${user_id}`, true);
             xhr.send(msg);
             text.value = '';
-            message('<You>: ' + msg);
+            showMessage('<You>: ' + msg);
         };
+        function showMessage(data) {
+            const line = document.createElement('p');
+            line.innerText = data;
+            chat.appendChild(line);
+        }
         </script>
     </body>
 </html>

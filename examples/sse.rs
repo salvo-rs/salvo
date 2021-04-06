@@ -20,7 +20,6 @@ fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
 async fn handle_tick(_req: &mut Request, res: &mut Response) {
     let event_stream = {
         let mut counter: u64 = 0;
-        // create server event source
         let interval = interval(Duration::from_secs(1));
         let stream = IntervalStream::new(interval);
         let event_stream = stream.map(move |_| {
@@ -41,5 +40,5 @@ async fn main() {
         .init();
 
     let router = Router::new().path("ticks").get(handle_tick);
-    Server::new(router).bind(([0, 0, 0, 0], 3030)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
