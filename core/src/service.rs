@@ -13,9 +13,9 @@ use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
 pub struct Service {
-    pub router: Arc<Router>,
-    pub catchers: Arc<Vec<Box<dyn Catcher>>>,
-    pub allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) router: Arc<Router>,
+    pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 
 impl Service {
@@ -25,6 +25,9 @@ impl Service {
             catchers: Arc::new(catcher::defaults::get()),
             allowed_media_types: Arc::new(vec![]),
         }
+    }
+    pub fn router(&self) -> Arc<Router> {
+        self.router.clone()
     }
     pub fn with_catchers(mut self, catchers: Vec<Box<dyn Catcher>>) -> Self {
         self.catchers = Arc::new(catchers);
@@ -67,10 +70,10 @@ where
 }
 
 pub struct HyperHandler {
-    remote_addr: Option<SocketAddr>,
-    router: Arc<Router>,
-    catchers: Arc<Vec<Box<dyn Catcher>>>,
-    allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) remote_addr: Option<SocketAddr>,
+    pub(crate) router: Arc<Router>,
+    pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
+    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 #[allow(clippy::type_complexity)]
 impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
