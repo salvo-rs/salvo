@@ -50,8 +50,8 @@ members = [
 ]
 
 [dependencies]
-salvo_core = { version = "0.10.1", default-features = false }
-salvo_extra = {version = "0.10.0", default-features = false, optional = true }
+salvo_core = { version = "0.10.1", default-features = false, path="./core" }
+salvo_extra = {version = "0.10.0", default-features = false, optional = true, path="./extra" }
 
 [dev-dependencies]
 futures = { version = "0.3", features = [ "std" ] }
@@ -66,12 +66,6 @@ tracing = "0.1"
 tracing-futures = "0.2"
 tracing-log = "0.1"
 tracing-subscriber = "0.2"
-
-# [patch.crates-io]
-# salvo = { path = "." }
-# salvo_core = { path = "core" }
-# salvo_macros = { path = "macros" }
-# salvo_extra = { path = "extra" }
 
 [profile.dev]
 codegen-units = 4
