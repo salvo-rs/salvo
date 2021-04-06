@@ -15,12 +15,12 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let body = &input.block;
     let name = &sig.ident;
 
-    let salvo = crate_name("salvo_core")
-        .or_else(|_| crate_name("salvo"))
-        .unwrap_or(FoundCrate::Name("salvo_core".into()));
-    let salvo = match salvo {
-        FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()), //This never not happend.
-        FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+    let salvo = match crate_name("salvo_core").or_else(|_| crate_name("salvo")) {
+        Ok(salvo) => match salvo {
+            FoundCrate::Itself => Ident::new("crate", Span::call_site()),
+            FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+        },
+        Err(_) => Ident::new("crate", Span::call_site()),
     };
 
     if sig.asyncness.is_none() {
