@@ -11,16 +11,17 @@ async fn hello_world(res: &mut Response) {
 // the salvo repository.
 #[tokio::main]
 async fn main() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "hello_world=debug,salvo=debug".to_owned());
+    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "tls=debug,salvo=debug".to_owned());
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_span_events(FmtSpan::CLOSE)
         .init();
+
     let router = Router::new().get(hello_world);
     Server::new(router)
         .tls()
         .cert_path("examples/tls/cert.pem")
         .key_path("examples/tls/key.rsa")
-        .bind(([0, 0, 0, 0], 3030))
+        .bind(([0, 0, 0, 0], 7878))
         .await;
 }

@@ -14,17 +14,9 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use salvo::prelude::*;
 use salvo_extra::ws::{Message, WsHandler};
 
-/// Our global unique user id counter.
+type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
+
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-
-/// Our state of currently connected users.
-///
-/// - Key is their id
-/// - Value is a sender of `salvo::ws::Message`
-type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>>;
-
-// Keep track of all connected users, key is usize, value
-// is a websocket sender.
 static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 
 #[tokio::main]
@@ -37,7 +29,7 @@ async fn main() {
     let router = Router::new()
         .handle(index)
         .push(Router::new().path("chat").handle(user_connected));
-    Server::new(router).bind(([0, 0, 0, 0], 3131)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
 
 #[fn_handler]
@@ -48,7 +40,7 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Htt
             // Use a counter to assign a new unique ID for this user.
             let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
-            eprintln!("new chat user: {}", my_id);
+            tracing::info!("new chat user: {}", my_id);
 
             // Split the socket into a sender and receive of messages.
             let (user_ws_tx, mut user_ws_rx) = ws.split();
@@ -59,16 +51,13 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Htt
             let rx = UnboundedReceiverStream::new(rx);
             let fut = rx.forward(user_ws_tx).map(|result| {
                 if let Err(e) = result {
-                    eprintln!("websocket send error: {}", e);
+                    tracing::error!(error = ?e, "websocket send error");
                 }
             });
             tokio::task::spawn(fut);
             let fut = async move {
-                // Save the sender in our list of connected users.
                 ONLINE_USERS.write().await.insert(my_id, tx);
 
-                // Every time the user sends a message, broadcast it to
-                // all other users...
                 while let Some(result) = user_ws_rx.next().await {
                     let msg = match result {
                         Ok(msg) => msg,
@@ -80,8 +69,6 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Htt
                     user_message(my_id, msg).await;
                 }
 
-                // user_ws_rx stream will keep processing as long as the user stays
-                // connected. Once they disconnect, then...
                 user_disconnected(my_id).await;
             };
             tokio::task::spawn(fut);
@@ -91,7 +78,6 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Htt
     Ok(())
 }
 async fn user_message(my_id: usize, msg: Message) {
-    // Skip any non-Text messages...
     let msg = if let Ok(s) = msg.to_str() {
         s
     } else {
@@ -133,19 +119,13 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
         <div id="chat">
             <p><em>Connecting...</em></p>
         </div>
-        <input type="text" id="text" />
-        <button type="button" id="send">Send</button>
-        <script type="text/javascript">
+        <input type="text" id="msg" />
+        <button type="button" id="submit">Submit</button>
+        <script>
         const chat = document.getElementById('chat');
-        const text = document.getElementById('text');
-        const uri = 'ws://' + location.host + '/chat';
-        const ws = new WebSocket(uri);
-
-        function message(data) {
-            const line = document.createElement('p');
-            line.innerText = data;
-            chat.appendChild(line);
-        }
+        const msg = document.getElementById('msg');
+        const submit = document.getElementById('submit');
+        const ws = new WebSocket(`ws://${location.host}/chat');
 
         ws.onopen = function() {
             chat.innerHTML = '<p><em>Connected!</em></p>';
@@ -166,6 +146,11 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
 
             message('<You>: ' + msg);
         };
+        function showMessage(data) {
+            const line = document.createElement('p');
+            line.innerText = data;
+            chat.appendChild(line);
+        }
         </script>
     </body>
 </html>

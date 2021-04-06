@@ -1,5 +1,3 @@
-//port from https://github.com/seanmonstar/warp/blob/master/examples/todos.rs
-
 use once_cell::sync::Lazy;
 use tracing;
 use tracing_subscriber;
@@ -9,16 +7,8 @@ use salvo::prelude::*;
 
 use self::models::*;
 
-static DB: Lazy<Db> = Lazy::new(|| blank_db());
+static STORE: Lazy<Db> = Lazy::new(|| new_store());
 
-/// Provides a RESTful web server managing some Todos.
-///
-/// API will be:
-///
-/// - `GET /todos`: return a JSON list of Todos.
-/// - `POST /todos`: create a new Todo.
-/// - `PUT /todos/:id`: update a specific Todo.
-/// - `DELETE /todos/:id`: delete a specific Todo.
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "todos=debug,salvo=debug".to_owned());
@@ -27,21 +17,18 @@ async fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    // View access logs by setting `RUST_LOG=todos`.
     let router = Router::new()
         .path("todos")
         .get(list_todos)
         .post(create_todo)
         .push(Router::new().path("<id>").put(update_todo).delete(delete_todo));
-    // Start up the server...
     Server::new(router).bind(([0, 0, 0, 0], 3040)).await;
 }
 
 #[fn_handler]
 pub async fn list_todos(req: &mut Request, res: &mut Response) {
     let opts = req.read::<ListOptions>().await.unwrap();
-    // Just return a JSON array of todos, applying the limit and offset.
-    let todos = DB.lock().await;
+    let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
         .into_iter()
@@ -53,21 +40,19 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 
 #[fn_handler]
 pub async fn create_todo(req: &mut Request, res: &mut Response) {
-    let create = req.read::<Todo>().await.unwrap();
-    tracing::debug!("create_todo: {:?}", create);
+    let new_todo = req.read::<Todo>().await.unwrap();
+    tracing::debug!(todo = ?new_todo, "create todo");
 
-    let mut vec = DB.lock().await;
+    let mut vec = STORE.lock().await;
 
     for todo in vec.iter() {
-        if todo.id == create.id {
-            tracing::debug!("    -> id already exists: {}", create.id);
-            // Todo with id already exists, return `400 BadRequest`.
+        if todo.id == new_todo.id {
+            tracing::debug!(id = ?new_todo.id, "todo already exists");
             res.set_status_code(StatusCode::BAD_REQUEST);
             return;
         }
     }
 
-    // No existing Todo with id, so insert and return `201 Created`.
     vec.push(create);
     res.set_status_code(StatusCode::CREATED);
 }
@@ -75,48 +60,37 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 #[fn_handler]
 pub async fn update_todo(req: &mut Request, res: &mut Response) {
     let id = req.get_param::<u64>("id").unwrap();
-    let update = req.read::<Todo>().await.unwrap();
-    tracing::debug!("update_todo: id={}, todo={:?}", id, update);
-    let mut vec = DB.lock().await;
+    let updated_todo = req.read::<Todo>().await.unwrap();
+    tracing::debug!(todo = ?todo, id = ?id, "update todo");
+    let mut vec = STORE.lock().await;
 
-    // Look for the specified Todo...
     for todo in vec.iter_mut() {
         if todo.id == id {
-            *todo = update;
+            *todo = updated_todo;
             res.set_status_code(StatusCode::OK);
             return;
         }
     }
 
-    tracing::debug!("    -> todo id not found!");
-
-    // If the for loop didn't return OK, then the ID doesn't exist...
+    tracing::debug!(id = ?id, "todo is not found");
     res.set_status_code(StatusCode::NOT_FOUND);
 }
 
 #[fn_handler]
 pub async fn delete_todo(req: &mut Request, res: &mut Response) {
     let id = req.get_param::<u64>("id").unwrap();
-    tracing::debug!("delete_todo: id={}", id);
+    tracing::debug!(id = ?id, "delete todo");
 
-    let mut vec = DB.lock().await;
+    let mut vec = STORE.lock().await;
 
     let len = vec.len();
-    vec.retain(|todo| {
-        // Retain all Todos that aren't this id...
-        // In other words, remove all that *are* this id...
-        todo.id != id
-    });
+    vec.retain(|todo| todo.id != id);
 
-    // If the vec is smaller, we found and deleted a Todo!
     let deleted = vec.len() != len;
-
     if deleted {
-        // respond with a `204 No Content`, which means successful,
-        // yet no body expected...
         res.set_status_code(StatusCode::NO_CONTENT);
     } else {
-        tracing::debug!("    -> todo id not found!");
+        tracing::debug!(id = ?id, "todo is not found");
         res.set_status_code(StatusCode::NOT_FOUND);
     }
 }
@@ -125,23 +99,20 @@ mod models {
     use serde_derive::{Deserialize, Serialize};
     use tokio::sync::Mutex;
 
-    /// So we don't have to tackle how different database work, we'll just use
-    /// a simple in-memory DB, a vector synchronized by a mutex.
     pub type Db = Mutex<Vec<Todo>>;
 
-    pub fn blank_db() -> Db {
+    pub fn new_store() -> Db {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Debug, Deserialize, Serialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Todo {
         pub id: u64,
         pub text: String,
         pub completed: bool,
     }
 
-    // The query parameters for list_todos.
-    #[derive(Debug, Deserialize)]
+    #[derive(Deserialize, Debug)]
     pub struct ListOptions {
         pub offset: Option<usize>,
         pub limit: Option<usize>,
@@ -153,21 +124,15 @@ mod tests {
     use reqwest::Client;
     use salvo::http::StatusCode;
 
-    use super::{
-        filters,
-        models::{self, Todo},
-    };
+    use super::filters;
+    use super::models::{self, Todo};
 
     #[tokio::test]
-    async fn test_post() {
+    async fn test_create() {
         let client = Client::new();
         let resp = client
-            .post("https://127.0.0.1:3030/todos")
-            .json(&Todo {
-                id: 1,
-                text: "test 1".into(),
-                completed: false,
-            })
+            .post("https://127.0.0.1:7878/todos")
+            .json(&test_todo)
             .send()
             .await?;
 
@@ -175,25 +140,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_post_conflict() {
+    async fn test_create_conflict() {
         let client = Client::new();
         let resp = client
-            .post("https://127.0.0.1:3030/todos")
-            .json(&Todo {
-                id: 1,
-                text: "test 1".into(),
-                completed: false,
-            })
+            .post("https://127.0.0.1:7878/todos")
+            .json(&test_todo)
             .send()
             .await?;
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
-    fn todo1() -> Todo {
+    fn test_todo() -> Todo {
         Todo {
             id: 1,
-            text: "test 1".into(),
+            text: "test todo".into(),
             completed: false,
         }
     }
