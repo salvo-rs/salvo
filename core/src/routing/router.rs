@@ -225,3 +225,30 @@ impl Router {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+use super::{PathState, Router};
+use crate::{Request, Response};
+use crate::fn_handler;
+
+use async_trait::async_trait;
+    
+    #[fn_handler]
+    async fn fake_handler(_res: &mut Response) {
+    }
+    #[test]
+    fn test_router_detect1() {
+        let router = Router::new().push(
+            Router::new().path("users").push(
+                Router::new().path("<id>").push(
+                    Router::new().path("emails").get(fake_handler)
+                )
+            )
+        );
+        let mut req = Request::from_hyper(hyper::Request::builder().uri("http://local.host/users/12/emails").body(hyper::Body::empty()).unwrap());
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+    }
+}

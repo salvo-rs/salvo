@@ -835,4 +835,15 @@ mod tests {
             r#"PathState { url_path: "hello/worldabc", cursor: 14, params: {"id": "abc"} }"#
         );
     }
+
+    #[test]
+    fn test_detect_many() {
+        let filter = PathFilter::new("/users/<id>/emails");
+        let mut state = PathState::new("/users/29/emails");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "users/29/emails", cursor: 15, params: {"id": "29"} }"#
+        );
+    }
 }
