@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 use futures::{FutureExt, StreamExt};
 use once_cell::sync::Lazy;
