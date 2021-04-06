@@ -12,7 +12,7 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError>
             let (tx, rx) = ws.split();
             let fut = rx.forward(tx).map(|result| {
                 if let Err(e) = result {
-                    tracing.error!(error = ?e, "websocket error");
+                    tracing::error!(error = ?e, "websocket error");
                 }
             });
             tokio::task::spawn(fut);
