@@ -232,4 +232,4 @@ Salvo is an open source project. If you want to support Salvo, you can ☕ [**bu
 
 ## ⚠️ License
 
-Salvo is licensed under MIT license ([LICENSE-MIT](LICENSE-MIT).
+Salvo is licensed under MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT).
