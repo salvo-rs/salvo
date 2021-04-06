@@ -74,7 +74,7 @@ async fn user_connected(_req: &mut Request, res: &mut Response) {
 
     // Convert messages into Server-Sent Events and return resulting stream.
     let stream = rx.map(|msg| match msg {
-        Message::UserId(my_id) => Ok::<_, salvo_core::Error>(SseEvent::default().name("user").data(my_id.to_owned())),
+        Message::UserId(my_id) => Ok::<_, salvo_core::Error>(SseEvent::default().name("user").data(my_id.to_string())),
         Message::Reply(reply) => Ok(SseEvent::default().data(reply)),
     });
     SseKeepAlive::new(stream).streaming(res);
