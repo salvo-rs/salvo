@@ -53,7 +53,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
         }
     }
 
-    vec.push(create);
+    vec.push(new_todo);
     res.set_status_code(StatusCode::CREATED);
 }
 
@@ -61,7 +61,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 pub async fn update_todo(req: &mut Request, res: &mut Response) {
     let id = req.get_param::<u64>("id").unwrap();
     let updated_todo = req.read::<Todo>().await.unwrap();
-    tracing::debug!(todo = ?todo, id = ?id, "update todo");
+    tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter_mut() {

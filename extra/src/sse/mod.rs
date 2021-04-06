@@ -60,8 +60,6 @@ use tokio::time::{self, Sleep};
 
 use salvo_core::http::Response;
 
-use self::sealed::SseError;
-
 // Server-sent event data type
 #[derive(Debug)]
 enum DataType {
@@ -69,6 +67,16 @@ enum DataType {
     Json(String),
 }
 
+#[derive(Debug)]
+pub struct SseError;
+
+impl Display for SseError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "sse error")
+    }
+}
+
+impl StdError for SseError {}
 /// Server-sent event
 #[derive(Default, Debug)]
 pub struct SseEvent {
@@ -300,20 +308,4 @@ where
             }
         }
     }
-}
-
-mod sealed {
-    use super::*;
-
-    /// SSE error type
-    #[derive(Debug)]
-    pub struct SseError;
-
-    impl Display for SseError {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-            write!(f, "sse error")
-        }
-    }
-
-    impl StdError for SseError {}
 }
