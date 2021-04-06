@@ -221,9 +221,9 @@ impl PathPart for RegexPart {
             return false;
         }
         let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
-        let caps = self.regex.captures(segment);
-        if let Some(caps) = caps {
-            state.params.insert(self.name.clone(), caps[&self.name[..]].to_owned());
+        let cap = self.regex.captures(segment).and_then(|caps| caps.get(0));
+        if let Some(cap) = cap {
+            state.params.insert(self.name.clone(), cap.as_str().to_owned());
             state.cursor += segment.len();
             true
         } else {
@@ -608,18 +608,26 @@ impl PathFilter {
             return false;
         }
         if !self.path_parts.is_empty() {
+            let original_cursor = state.cursor;
             for (i, ps) in self.path_parts.iter().enumerate() {
                 if ps.detect(state) {
                     if state.ended() {
-                        return i == self.path_parts.len() - 1;
+                        if i == self.path_parts.len() - 1 {
+                            return true;
+                        } else {
+                            state.cursor = original_cursor;
+                            return false;
+                        }
                     }
                     let rest = &state.url_path[state.cursor..];
                     if rest.starts_with('/') {
                         state.cursor += 1;
                     } else if !rest.is_empty() {
+                        state.cursor = original_cursor;
                         return false;
                     }
                 } else {
+                    state.cursor = original_cursor;
                     return false;
                 }
             }
@@ -821,7 +829,7 @@ mod tests {
         assert!(!filter.detect(&mut state));
         assert_eq!(
             format!("{:?}", state),
-            r#"PathState { url_path: "hello/world", cursor: 6, params: {} }"#
+            r#"PathState { url_path: "hello/world", cursor: 0, params: {} }"#
         );
     }
 
