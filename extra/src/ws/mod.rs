@@ -1,5 +1,8 @@
-//! Websocket
+// Copyright (c) 2018-2020 Sean McArthur
+// Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
+
+//! Websocket
 
 use std::borrow::Cow;
 use std::fmt;
@@ -169,7 +172,7 @@ impl Stream for WebSocket {
                 Poll::Ready(Some(Err(Error::new(e))))
             }
             None => {
-                tracing::trace!("websocket closed");
+                tracing::tracing::debug!("websocket closed");
                 Poll::Ready(None)
             }
         }

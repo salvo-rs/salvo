@@ -1,3 +1,5 @@
+// Copyright (c) 2018-2020 Sean McArthur
+// Licensed under the MIT license http://opensource.org/licenses/MIT
 //port from https://github.com/seanmonstar/warp/blob/master/examples/sse.rs
 
 use futures::StreamExt;

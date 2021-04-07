@@ -1,3 +1,10 @@
+// Copyright 2017-2019 `multipart-async` Crate Developers
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 use futures::{Stream, TryStream};
 use http::header::HeaderMap;
 use mime::Mime;
@@ -30,10 +37,6 @@ macro_rules! ret_err (
         return fmt_err!($($args)+).into();
     )
 );
-
-// macro_rules! ret_ok(
-//     ($expr:expr) => (return Ok($expr).into());
-// );
 
 macro_rules! fmt_err (
     ($string:expr) => (
@@ -257,7 +260,6 @@ where
         if let Some(pushed) = self.as_mut().pushed().take() {
             return Poll::Ready(Some(Ok(pushed)));
         }
-
         self.stream().try_poll_next(cx)
     }
 }
@@ -268,7 +270,6 @@ mod test {
     use crate::http::multipart::FieldHeaders;
 
     use super::Multipart;
-    // use std::convert::Infallible;
 
     const BOUNDARY: &str = "boundary";
 
@@ -359,7 +360,6 @@ mod test {
         pin_mut!(multipart);
 
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
-
         ready_assert_ok_eq!(
             |cx| multipart.as_mut().poll_field_headers(cx),
             FieldHeaders {
@@ -369,12 +369,9 @@ mod test {
                 ext_headers: Default::default(),
             }
         );
-
         ready_assert_some_ok_eq!(|cx| multipart.as_mut().poll_field_chunk(cx), &b"field data"[..]);
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
-
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), true);
-
         ready_assert_ok_eq!(
             |cx| multipart.as_mut().poll_field_headers(cx),
             FieldHeaders {
@@ -384,13 +381,11 @@ mod test {
                 ext_headers: Default::default(),
             }
         );
-
         ready_assert_some_ok_eq!(
             |cx| multipart.as_mut().poll_field_chunk(cx),
             &b"field data--2\r\n--data--field"[..]
         );
         ready_assert_eq_none!(|cx| multipart.as_mut().poll_field_chunk(cx));
-
         ready_assert_ok_eq!(|cx| multipart.as_mut().poll_has_next_field(cx), false);
     }
 }

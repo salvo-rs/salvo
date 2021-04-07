@@ -1,7 +1,7 @@
 use salvo::routing::Router;
 use salvo::Server;
-use salvo_extra::basic_auth::{BasicAuthConfig, BasicAuthHandler};
-use salvo_extra::serve::StaticDir;
+use salvo::extra::basic_auth::{BasicAuthConfig, BasicAuthHandler};
+use salvo::extra::serve::StaticDir;
 
 #[tokio::main]
 async fn main() {
