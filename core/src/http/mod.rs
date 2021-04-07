@@ -1,5 +1,3 @@
-//some code port from https://github.com/abonander/multipart-async
-
 pub mod body_chunk;
 pub mod errors;
 pub mod form;

@@ -48,21 +48,6 @@ macro_rules! until_ready(
     }}
 );
 
-// macro_rules! ready_assert_eq(
-//     (|$cx:ident| $expr:expr, $eq:expr) => {{
-//         use std::task::Poll::*;
-//         let ref mut $cx = futures_test::task::noop_context();
-//         loop {
-//             match $expr {
-//                 Ready(val) => {
-//                     assert_eq!(val, $eq);
-//                     break;
-//                 },
-//                 Pending => (),
-//             }
-//         }
-//     }}
-// );
 macro_rules! ready_assert_eq_none(
     (|$cx:ident| $expr:expr) => {{
         use std::task::Poll::*;

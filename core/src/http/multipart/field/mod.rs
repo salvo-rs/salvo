@@ -22,7 +22,6 @@ use super::Multipart;
 pub use self::headers::FieldHeaders;
 pub(crate) use self::headers::ReadHeaders;
 
-// mod collect;
 mod headers;
 
 /// A `Future` potentially yielding the next field in the multipart stream.
@@ -48,10 +47,6 @@ where
             has_next_field: false,
         }
     }
-
-    // fn multipart(&mut self) -> Option<Pin<&mut Multipart<S>>> {
-    //     Some(self.multipart.as_mut()?.as_mut())
-    // }
 }
 
 impl<'a, S: 'a> Future for NextField<'a, S>
@@ -230,7 +225,7 @@ where
                 surrogate[..start_len].copy_from_slice(&start[..start_len]);
                 surrogate[start_len..width].copy_from_slice(data.slice(..needed));
 
-                // trace!("decoding surrogate: {:?}", &surrogate[..width]);
+                // tracing::debug!("decoding surrogate: {:?}", &surrogate[..width]);
 
                 self.string
                     .push_str(str::from_utf8(&surrogate[..width]).map_err(ReadError::Utf8)?);
@@ -244,7 +239,7 @@ where
                 Ok(s) => self.string.push_str(s),
                 Err(e) => {
                     if e.error_len().is_some() {
-                        // trace!("ReadToString failed to decode; string: {:?}, surrogate: {:?}, data: {:?}",
+                        // tracing::debug!("ReadToString failed to decode; string: {:?}, surrogate: {:?}, data: {:?}",
                         //    self.string, self.surrogate, data.as_slice());
                         // we encountered an invalid surrogate
                         return Poll::Ready(Err(ReadError::Utf8(e)));

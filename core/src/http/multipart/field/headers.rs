@@ -1,3 +1,10 @@
+// Copyright 2017-2019 `multipart-async` Crate Developers
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 use futures::task::Context;
 use futures::{Stream, TryStream};
 use http::header::{HeaderMap, HeaderName, HeaderValue};
@@ -83,7 +90,7 @@ impl ReadHeaders {
         S::Ok: BodyChunk,
     {
         loop {
-            // trace!(
+            // tracing::debug!(
             //     "read_headers state: accumulator: {}",
             //     show_bytes(&self.accumulator)
             // );
@@ -96,7 +103,7 @@ impl ReadHeaders {
                 ),
             };
 
-            // trace!("got chunk for headers: {}", show_bytes(chunk.as_slice()));
+            // tracing::debug!("got chunk for headers: {}", show_bytes(chunk.as_slice()));
 
             // End of the headers section is signalled by a double-CRLF
             if let Some(header_end) = twoway::find_bytes(chunk.as_slice(), b"\r\n\r\n") {
@@ -185,7 +192,7 @@ fn parse_headers(bytes: &[u8]) -> Result<FieldHeaders, ReadError> {
         }
     };
 
-    // trace!("parsed headers: {:?}", headers);
+    // tracing::debug!("parsed headers: {:?}", headers);
 
     let mut out_headers = FieldHeaders::default();
 

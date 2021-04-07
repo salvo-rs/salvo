@@ -224,7 +224,7 @@ Your can find more examples in [examples](./examples/) folder:
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
 
-Some code and examples port from [warp](https://github.com/seanmonstar/warp) and [multipart-async](https://github.com/abonander/multipart-async).
+Some code and examples port from [warp](https://github.com/seanmonstar/warp), [multipart-async](https://github.com/abonander/multipart-async), [mime-multipart](https://github.com/mikedilger/mime-multipart) and [actix-web](https://github.com/actix/actix-web).
 
 ## ☕ Supporters
 

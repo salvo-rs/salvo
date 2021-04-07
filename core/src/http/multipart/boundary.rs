@@ -1,3 +1,10 @@
+// Copyright 2017-2019 `multipart-async` Crate Developers
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 use futures::{Stream, TryStream};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -79,8 +86,7 @@ where
         );
 
         loop {
-            // trace!("body_chunk() loop state: {:?}", self.state,);
-
+            // tracing::debug!("body_chunk() loop state: {:?}", self.state);
             match self.state {
                 Found(_) | Split(_, _) | End => return Poll::Ready(None),
                 _ => (),
@@ -124,10 +130,9 @@ where
                         }
                     };
 
-                    // trace!("Partial got second chunk: {}", show_bytes(chunk.as_slice()));
-
+                    // tracing::debug!("Partial got second chunk: {}", show_bytes(chunk.as_slice()));
                     if !self.is_boundary_prefix(partial.as_slice(), chunk.as_slice(), res) {
-                        // trace!("partial + chunk don't make a boundary prefix");
+                        // tracing::debug!("partial + chunk don't make a boundary prefix");
                         set_state!(self = Remainder(chunk));
                         return ready_ok(partial);
                     }
@@ -151,7 +156,7 @@ where
                         || self.check_boundary_split(&partial.as_slice()[bnd_start..], chunk.as_slice());
 
                     if !is_boundary {
-                        // trace!("partial + chunk don't make a whole boundary");
+                        // tracing::debug!("partial + chunk don't make a whole boundary");
                         *self.as_mut().state() = Remainder(chunk);
                         return ready_ok(partial);
                     }
@@ -186,40 +191,33 @@ where
     }
 
     fn check_chunk(mut self: Pin<&mut Self>, chunk: S::Ok) -> Option<S::Ok> {
-        // trace!("check chunk: '{}'", show_bytes(chunk.as_slice()));
-
+        // tracing::debug!("check chunk: '{}'", show_bytes(chunk.as_slice()));
         if chunk.is_empty() {
             return None;
         }
 
         if let Some(res) = self.find_boundary(&chunk) {
             // debug!("boundary found: {:?}", res);
-
             let len = self.boundary_size(res.incl_crlf);
-
             if chunk.len() < res.idx + len {
                 // Either partial boundary, or boundary but not the two bytes after it
                 set_state!(self = Partial(chunk, res));
-                // trace!("partial boundary: {:?}", self.state);
+                // tracing::debug!("partial boundary: {:?}", self.state);
                 None
             } else {
                 let (ret, bnd) = chunk.split_into(res.idx);
-
                 let bnd = if res.incl_crlf {
                     // cut off the preceding CRLF
                     bnd.split_into(2).1
                 } else {
                     bnd
                 };
-
                 set_state!(self = Found(bnd));
-
-                // trace!(
+                // tracing::debug!(
                 //     "boundary located: {:?} returning chunk: {}",
                 //     self.state,
                 //     show_bytes(ret.as_slice())
                 // );
-
                 if !ret.is_empty() {
                     Some(ret)
                 } else {
@@ -256,8 +254,7 @@ where
         partial_rmatch(chunk, &self.boundary)
             .map(|idx| check_crlf(chunk, idx))
             .or_else(||
-                // EDGE CASE: the bytes of the newline before the boundary are at the end
-                // of the chunk
+                // EDGE CASE: the bytes of the newline before the boundary are at the end of the chunk
                 if len >= 2 && chunk[len - 2..] == *b"\r\n" {
                     Some(SearchResult {
                         idx: len - 2,
@@ -289,17 +286,14 @@ where
                 .all(|(l, r)| l == r)
     }
 
-    /// Returns `true` if another field should follow this boundary, `false` if the stream
-    /// is at a logical end
+    /// Returns `true` if another field should follow this boundary, `false` if the stream is at a logical end
     pub fn consume_boundary(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<bool, ReadError>> {
         // debug!("consuming boundary");
 
         while ready!(self.as_mut().body_chunk(cx)?).is_some() {
-            // trace!("body chunk loop!");
+            // tracing::debug!("body chunk loop!");
         }
-
-        // trace!("consume_boundary() after-loop state: {:?}", self.state,);
-
+        // tracing::debug!("consume_boundary() after-loop state: {:?}", self.state,);
         match mem::replace(self.as_mut().state(), Watching) {
             Found(bnd) => self.confirm_boundary(bnd),
             Split(first, second) => self.confirm_boundary_split(first, second),
@@ -318,15 +312,12 @@ where
 
         let (boundary, rem) = boundary.split_into(self.boundary_size(false));
         let boundary = boundary.as_slice();
-
-        // trace!("confirming boundary: {}", show_bytes(boundary));
-
+        // tracing::debug!("confirming boundary: {}", show_bytes(boundary));
         debug_assert!(
             !boundary.starts_with(b"\r\n"),
             "leading CRLF should have been trimmed from boundary: {}",
             show_bytes(boundary)
         );
-
         debug_assert!(
             self.check_boundary(boundary),
             "invalid boundary previous confirmed as valid: {}",
@@ -334,13 +325,9 @@ where
         );
 
         set_state!(self = if !rem.is_empty() { Remainder(rem) } else { Watching });
-
-        // trace!("boundary found: {}", show_bytes(boundary));
-
+        // tracing::debug!("boundary found: {}", show_bytes(boundary));
         let is_end = check_last_two(boundary);
-
         // debug!("is_end: {:?}", is_end);
-
         if is_end {
             set_state!(self = End);
         }
@@ -364,13 +351,11 @@ where
         let second = second.as_slice();
 
         set_state!(self = Remainder(rem));
-
         debug_assert!(
             !first.starts_with(b"\r\n"),
             "leading CRLF should have been trimmed from first boundary section: {}",
             show_bytes(first)
         );
-
         debug_assert!(
             self.check_boundary_split(first, second),
             "invalid split boundary previous confirmed as valid: ({}, {})",
@@ -379,7 +364,6 @@ where
         );
 
         let is_end = check_last_two(second);
-
         if is_end {
             set_state!(self = End);
         }
@@ -499,11 +483,8 @@ fn partial_rmatch(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
     // If the haystack is smaller than the needle, we still need to test it
     let trim_start = haystack.len().saturating_sub(needle.len() - 1);
-
     let idx = try_opt!(twoway::find_bytes(&haystack[trim_start..], &needle[..1])) + trim_start;
-
-    // trace!("partial_rmatch found start: {:?}", idx);
-
+    // tracing::debug!("partial_rmatch found start: {:?}", idx);
     // If the rest of `haystack` matches `needle`, then we have our partial match
     if haystack[idx..].iter().zip(needle).all(|(l, r)| l == r) {
         Some(idx)
@@ -515,9 +496,6 @@ fn partial_rmatch(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 #[cfg(test)]
 mod test {
     use super::BoundaryFinder;
-
-    // use crate::http::errors::ReadError;
-
     use crate::http::multipart::test_util::*;
 
     #[test]

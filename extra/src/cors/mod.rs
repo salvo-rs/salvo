@@ -1,5 +1,7 @@
-//! CORS Filters
+// Copyright (c) 2018-2020 Sean McArthur
+// Licensed under the MIT license http://opensource.org/licenses/MIT
 // modified from https://github.com/seanmonstar/salvo/blob/master/src/filters/cors.rs
+//! CORS Filters
 
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -318,7 +320,7 @@ impl Configured {
                         return Err(Forbidden::MethodNotAllowed);
                     }
                 } else {
-                    tracing::trace!("preflight request missing access-control-request-method header");
+                    tracing::tracing::debug!("preflight request missing access-control-request-method header");
                     return Err(Forbidden::MethodNotAllowed);
                 }
 
@@ -336,7 +338,7 @@ impl Configured {
             (Some(origin), _) => {
                 // Any other method, simply check for a valid origin...
 
-                tracing::trace!("origin header: {:?}", origin);
+                tracing::tracing::debug!("origin header: {:?}", origin);
                 if self.is_origin_allowed(origin) {
                     Ok(Validated::Simple(origin.clone()))
                 } else {
