@@ -1,4 +1,7 @@
-//port from https://github.com/seanmonstar/warp/blob/master/examples/ws_chat.rs
+// Copyright (c) 2018-2020 Sean McArthur
+// Licensed under the MIT license http://opensource.org/licenses/MIT
+//
+// port from https://github.com/seanmonstar/warp/blob/master/examples/websocket_chat.rs
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
