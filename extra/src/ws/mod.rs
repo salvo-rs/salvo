@@ -172,7 +172,7 @@ impl Stream for WebSocket {
                 Poll::Ready(Some(Err(Error::new(e))))
             }
             None => {
-                tracing::tracing::debug!("websocket closed");
+                tracing::debug!("websocket closed");
                 Poll::Ready(None)
             }
         }
