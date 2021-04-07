@@ -1,4 +1,7 @@
-//port from https://github.com/seanmonstar/warp/blob/master/src/tls.rs
+// Copyright (c) 2018-2020 Sean McArthur
+// Licensed under the MIT license http://opensource.org/licenses/MIT
+//
+// port from https://github.com/seanmonstar/warp/blob/master/src/tls.rs
 
 use std::fs::File;
 use std::future::Future;
