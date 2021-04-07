@@ -176,8 +176,10 @@ where
 struct CombPart(Vec<Box<dyn PathPart>>);
 impl PathPart for CombPart {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let original_cursor = state.cursor;
         for child in &self.0 {
             if !child.detect(state) {
+                state.cursor = original_cursor;
                 return false;
             }
         }
@@ -245,6 +247,7 @@ impl PathPart for RestPart {
         let url_path = &state.url_path[state.cursor..];
         if !url_path.is_empty() || self.0.starts_with("**") {
             state.params.insert(self.0.clone(), url_path.to_owned());
+            state.cursor = state.url_path.len();
             true
         } else {
             false
@@ -604,27 +607,18 @@ impl PathFilter {
             .insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     pub fn detect(&self, state: &mut PathState) -> bool {
-        if state.ended() {
-            return false;
-        }
         if !self.path_parts.is_empty() {
             let original_cursor = state.cursor;
-            for (i, ps) in self.path_parts.iter().enumerate() {
+            for ps in &self.path_parts {
                 if ps.detect(state) {
-                    if state.ended() {
-                        if i == self.path_parts.len() - 1 {
-                            return true;
-                        } else {
+                    if !state.ended() {
+                        let rest = &state.url_path[state.cursor..];
+                        if rest.starts_with('/') {
+                            state.cursor += 1;
+                        } else if !rest.is_empty() {
                             state.cursor = original_cursor;
                             return false;
                         }
-                    }
-                    let rest = &state.url_path[state.cursor..];
-                    if rest.starts_with('/') {
-                        state.cursor += 1;
-                    } else if !rest.is_empty() {
-                        state.cursor = original_cursor;
-                        return false;
                     }
                 } else {
                     state.cursor = original_cursor;
