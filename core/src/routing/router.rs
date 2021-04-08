@@ -106,10 +106,7 @@ impl Router {
         self.routers.append(&mut others);
         self
     }
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn push_when<F>(mut self, func: F) -> Self
     where
         F: Fn(&Router) -> Option<Router>,
@@ -140,7 +137,10 @@ impl Router {
         self
     }
 
-    pub fn then<F>(self, func: F) -> Self where F: FnOnce(Self) -> Self {
+    pub fn then<F>(self, func: F) -> Self
+    where
+        F: FnOnce(Self) -> Self,
+    {
         func(self)
     }
 
@@ -166,20 +166,14 @@ impl Router {
         self.push(Router::new().filter(filter::options()).handle(handler))
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn visit<F>(self, func: F) -> Self
     where
         F: Fn(Router) -> Router,
     {
         func(self)
     }
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn handle_when<H, F>(mut self, func: F) -> Self
     where
         H: Handler,
@@ -190,10 +184,7 @@ impl Router {
         }
         self
     }
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn get_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -205,10 +196,7 @@ impl Router {
             self
         }
     }
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn post_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -221,10 +209,7 @@ impl Router {
         }
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn put_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -237,10 +222,7 @@ impl Router {
         }
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn delete_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -253,10 +235,7 @@ impl Router {
         }
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn head_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -269,10 +248,7 @@ impl Router {
         }
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn patch_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -285,10 +261,7 @@ impl Router {
         }
     }
 
-    #[deprecated(
-        since = "0.10.4",
-        note = "Please use then function instead"
-    )]
+    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn options_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
