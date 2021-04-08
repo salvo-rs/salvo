@@ -7,11 +7,11 @@ use crate::http::Request;
 use crate::Handler;
 
 pub struct Router {
-    pub children: Vec<Router>,
-    pub filters: Vec<Box<dyn Filter>>,
-    pub handler: Option<Arc<dyn Handler>>,
-    pub befores: Vec<Arc<dyn Handler>>,
-    pub afters: Vec<Arc<dyn Handler>>,
+    pub(crate) routers: Vec<Router>,
+    pub(crate) filters: Vec<Box<dyn Filter>>,
+    pub(crate) handler: Option<Arc<dyn Handler>>,
+    pub(crate) befores: Vec<Arc<dyn Handler>>,
+    pub(crate) afters: Vec<Arc<dyn Handler>>,
 }
 pub struct DetectMatched {
     pub handler: Arc<dyn Handler>,
@@ -34,12 +34,36 @@ impl Default for Router {
 impl Router {
     pub fn new() -> Router {
         Router {
-            children: Vec::new(),
+            routers: Vec::new(),
             befores: Vec::new(),
             afters: Vec::new(),
             filters: Vec::new(),
             handler: None,
         }
+    }
+    pub fn routers(&self) -> &Vec<Router> {
+        &self.routers
+    }
+    pub fn routers_mut(&mut self) -> &mut Vec<Router> {
+        &mut self.routers
+    }
+    pub fn befores(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.befores
+    }
+    pub fn befores_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.befores
+    }
+    pub fn afters(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.afters
+    }
+    pub fn afters_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.afters
+    }
+    pub fn filters(&self) -> &Vec<Box<dyn Filter>> {
+        &self.filters
+    }
+    pub fn filters_mut(&mut self) -> &mut Vec<Box<dyn Filter>> {
+        &mut self.filters
     }
     pub fn detect(&self, request: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
         for filter in &self.filters {
@@ -47,9 +71,9 @@ impl Router {
                 return None;
             }
         }
-        if !self.children.is_empty() {
+        if !self.routers.is_empty() {
             let original_cursor = path_state.cursor;
-            for child in &self.children {
+            for child in &self.routers {
                 if let Some(dm) = child.detect(request, path_state) {
                     return Some(DetectMatched {
                         befores: [&self.befores[..], &dm.befores[..]].concat(),
@@ -73,23 +97,25 @@ impl Router {
         None
     }
 
-    pub fn visit<F>(self, func: F) -> Self
-    where
-        F: Fn(Router) -> Router,
-    {
-        func(self)
-    }
-
     pub fn push(mut self, router: Router) -> Self {
-        self.children.push(router);
+        self.routers.push(router);
         self
     }
+    pub fn append(mut self, others: Vec<Router>) -> Self {
+        let mut others = others;
+        self.routers.append(&mut others);
+        self
+    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn push_when<F>(mut self, func: F) -> Self
     where
         F: Fn(&Router) -> Option<Router>,
     {
         if let Some(router) = func(&self) {
-            self.children.push(router);
+            self.routers.push(router);
         }
         self
     }
@@ -113,6 +139,47 @@ impl Router {
         self.handler = Some(Arc::new(handler));
         self
     }
+
+    pub fn then<F>(self, func: F) -> Self where F: FnOnce(Self) -> Self {
+        func(self)
+    }
+
+    pub fn get<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::get()).handle(handler))
+    }
+    pub fn post<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::post()).handle(handler))
+    }
+    pub fn put<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::put()).handle(handler))
+    }
+    pub fn delete<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::delete()).handle(handler))
+    }
+    pub fn patch<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::patch()).handle(handler))
+    }
+    pub fn head<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::head()).handle(handler))
+    }
+    pub fn options<H: Handler>(self, handler: H) -> Self {
+        self.push(Router::new().filter(filter::options()).handle(handler))
+    }
+
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
+    pub fn visit<F>(self, func: F) -> Self
+    where
+        F: Fn(Router) -> Router,
+    {
+        func(self)
+    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn handle_when<H, F>(mut self, func: F) -> Self
     where
         H: Handler,
@@ -123,9 +190,10 @@ impl Router {
         }
         self
     }
-    pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::get()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn get_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -137,10 +205,10 @@ impl Router {
             self
         }
     }
-
-    pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::post()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn post_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -153,9 +221,10 @@ impl Router {
         }
     }
 
-    pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::put()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn put_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -168,9 +237,10 @@ impl Router {
         }
     }
 
-    pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::delete()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn delete_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -183,9 +253,10 @@ impl Router {
         }
     }
 
-    pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::head()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn head_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -198,9 +269,10 @@ impl Router {
         }
     }
 
-    pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::patch()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn patch_when<H, F>(self, func: F) -> Self
     where
         H: Handler,
@@ -213,9 +285,10 @@ impl Router {
         }
     }
 
-    pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::options()).handle(handler))
-    }
+    #[deprecated(
+        since = "0.10.4",
+        note = "Please use then function instead"
+    )]
     pub fn options_when<H, F>(self, func: F) -> Self
     where
         H: Handler,

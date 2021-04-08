@@ -19,18 +19,18 @@ async fn main() {
                 .get(list_users)
                 .push(Router::new().path(r"<id:num>").get(show_user)),
         )
-        .push_when(|_| {
+        .then(|router| {
             if debug_mode {
-                Some(Router::new().path("debug").get(debug))
+                router.push(Router::new().path("debug").get(debug))
             } else {
-                None
+                router
             }
         })
-        .visit(|parent| {
+        .then(|router| {
             if admin_mode {
-                parent.push(Router::new().path("admin").get(admin))
+                router.push(Router::new().path("admin").get(admin))
             } else {
-                parent
+                router
             }
         });
 
