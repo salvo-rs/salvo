@@ -61,3 +61,4 @@ twoway = "0.2"
 
 [dev-dependencies]
 futures-test = "0.3"
+reqwest = "0.11"
