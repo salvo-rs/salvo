@@ -403,3 +403,32 @@ impl TlsServer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[tokio::main]
+    async fn test_hello_word() {
+        #[fn_handler]
+        async fn hello_world() -> Result<&'static str, ()> {
+            Ok("Hello World")
+        }
+        let router = Router::new().get(hello_world);
+
+        tokio::task::spawn(async {
+            Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+        });
+
+        let client = reqwest::Client::new();
+        let result = client
+            .get("http://0.0.0.0:7878")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(result, "Hello World");
+    }
+}
