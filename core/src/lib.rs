@@ -32,8 +32,8 @@ pub use self::server::Server;
 pub use self::server::TlsServer;
 pub use self::service::Service;
 pub use self::writer::Writer;
-pub use salvo_macros::fn_handler;
 pub use async_trait::async_trait;
+pub use salvo_macros::fn_handler;
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub mod prelude {
