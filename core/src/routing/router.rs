@@ -19,12 +19,6 @@ pub struct DetectMatched {
     pub afters: Vec<Arc<dyn Handler>>,
 }
 
-// impl Debug for Router {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "{{ : '{}'}}", &self)
-//     }
-// }
-
 impl Default for Router {
     fn default() -> Self {
         Self::new()
