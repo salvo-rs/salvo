@@ -70,6 +70,7 @@ impl Stream for FileChunk {
                     // so return read these data
                     if read_num != 0 {
                         data.truncate(read_num);
+                        return Poll::Ready(Some(Ok(data)));
                     } else {
                         return Poll::Pending;
                     }

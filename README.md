@@ -171,7 +171,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.get_file("file").await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
-        if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+        if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
             res.render_plain_text("Ok");
@@ -192,7 +192,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         let mut msgs = Vec::with_capacity(files.len());
         for file in files {
             let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
-            if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
+            if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
                 res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
             } else {

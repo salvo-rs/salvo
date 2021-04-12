@@ -13,18 +13,18 @@ use tokio_util::io::{ReaderStream, StreamReader};
 
 #[derive(Clone, Copy, Debug)]
 pub enum CompressionAlgo {
-    BR,
-    DEFLATE,
-    GZIP,
+    Br,
+    Deflate,
+    Gzip,
 }
 
 impl From<CompressionAlgo> for HeaderValue {
     #[inline]
     fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            CompressionAlgo::BR => HeaderValue::from_static("br"),
-            CompressionAlgo::DEFLATE => HeaderValue::from_static("deflate"),
-            CompressionAlgo::GZIP => HeaderValue::from_static("gzip"),
+            CompressionAlgo::Br => HeaderValue::from_static("br"),
+            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
+            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
         }
     }
 }
@@ -77,15 +77,15 @@ impl Handler for CompressionHandler {
         }
         let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
         match self.algo {
-            CompressionAlgo::GZIP => {
+            CompressionAlgo::Gzip => {
                 let stream = ReaderStream::new(GzipEncoder::new(StreamReader::new(body)));
                 res.streaming(stream);
             }
-            CompressionAlgo::DEFLATE => {
+            CompressionAlgo::Deflate => {
                 let stream = ReaderStream::new(DeflateEncoder::new(StreamReader::new(body)));
                 res.streaming(stream);
             }
-            CompressionAlgo::BR => {
+            CompressionAlgo::Br => {
                 let stream = ReaderStream::new(BrotliEncoder::new(StreamReader::new(body)));
                 res.streaming(stream);
             }
@@ -110,7 +110,7 @@ impl Handler for CompressionHandler {
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn gzip() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::GZIP)
+    CompressionHandler::new(CompressionAlgo::Gzip)
 }
 
 /// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
@@ -128,7 +128,7 @@ pub fn gzip() -> CompressionHandler {
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn deflate() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::DEFLATE)
+    CompressionHandler::new(CompressionAlgo::Deflate)
 }
 
 /// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
@@ -146,5 +146,5 @@ pub fn deflate() -> CompressionHandler {
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::BR)
+    CompressionHandler::new(CompressionAlgo::Br)
 }
