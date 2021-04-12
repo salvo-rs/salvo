@@ -10,7 +10,7 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 pub trait PathPart: Send + Sync + Debug {
-    fn detect<'a>(&self, state: &mut PathState) -> bool;
+    fn detect(&self, state: &mut PathState) -> bool;
 }
 pub trait PartBuilder: Send + Sync {
     fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String>;
@@ -443,7 +443,7 @@ impl PathParser {
                             //start to scan fn part
                             let sign = self.scan_ident()?;
                             self.skip_blank();
-                            let lb = self.curr().ok_or("path ended unexcept".to_owned())?;
+                            let lb = self.curr().ok_or_else(|| "path ended unexcept".to_owned())?;
                             let args = if lb == '[' || lb == '(' {
                                 let rb = if lb == '[' { ']' } else { ')' };
                                 let mut args = "".to_owned();

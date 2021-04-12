@@ -75,12 +75,10 @@ impl ProxyHandler {
             } else {
                 format!("{}/{}?{}", upstream.trim_end_matches('/'), rest, query)
             }
+        } else if rest.is_empty() {
+            upstream.into()
         } else {
-            if rest.is_empty() {
-                upstream.into()
-            } else {
-                format!("{}/{}", upstream.trim_end_matches('/'), rest)
-            }
+            format!("{}/{}", upstream.trim_end_matches('/'), rest)
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
@@ -112,7 +110,7 @@ impl ProxyHandler {
         // }
         build
             .body(req.take_body().unwrap_or_default())
-            .map_err(|e| salvo_core::Error::new(e))
+            .map_err(salvo_core::Error::new)
     }
 }
 

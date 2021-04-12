@@ -64,9 +64,7 @@ impl WsHandler {
 
     /// Set the maximum frame size (defaults to 16 megabytes)
     pub fn max_frame_size(mut self, max: usize) -> Self {
-        self.config
-            .get_or_insert_with(|| WebSocketConfig::default())
-            .max_frame_size = Some(max);
+        self.config.get_or_insert_with(WebSocketConfig::default).max_frame_size = Some(max);
         self
     }
 
@@ -116,7 +114,7 @@ impl WsHandler {
         res.headers_mut().typed_insert(SecWebsocketAccept::from(sec_ws_key));
 
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
-            let config = self.config.clone();
+            let config = self.config;
             let fut = async move {
                 let ws = on_upgrade
                     .and_then(move |upgraded| {
@@ -306,10 +304,10 @@ impl Message {
     }
 
     /// Try to get a reference to the string text, if this is a Text message.
-    pub fn to_str(&self) -> Result<&str, ()> {
+    pub fn to_str(&self) -> Option<&str> {
         match self.inner {
-            protocol::Message::Text(ref s) => Ok(s),
-            _ => Err(()),
+            protocol::Message::Text(ref s) => Some(s),
+            _ => None,
         }
     }
 
