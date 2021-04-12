@@ -1,7 +1,8 @@
 //! ProxyHandler.
+#![allow(clippy::mutex_atomic)]
 use std::convert::TryFrom;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 use hyper::{Client, Uri};
@@ -32,7 +33,7 @@ impl std::error::Error for MsgError {}
 
 pub struct ProxyHandler {
     pub upstreams: Vec<String>,
-    counter: Arc<Mutex<usize>>,
+    counter: Mutex<usize>,
 }
 
 impl ProxyHandler {
@@ -42,7 +43,7 @@ impl ProxyHandler {
         }
         ProxyHandler {
             upstreams,
-            counter: Arc::new(Mutex::new(0)),
+            counter: Mutex::new(0),
         }
     }
 }
