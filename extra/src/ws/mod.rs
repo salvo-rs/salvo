@@ -39,6 +39,13 @@ use tokio_tungstenite::{
 pub struct WsHandler {
     config: Option<WebSocketConfig>,
 }
+
+impl Default for WsHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WsHandler {
     pub fn new() -> Self {
         WsHandler { config: None }
@@ -334,6 +341,7 @@ impl fmt::Debug for Message {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Vec<u8>> for Message {
     fn into(self) -> Vec<u8> {
         self.into_bytes()
