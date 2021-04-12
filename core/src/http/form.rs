@@ -11,12 +11,10 @@ use http::header;
 use mime::Mime;
 use multimap::MultiMap;
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::prelude::*;
-use std::ops::Drop;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
 use textnonce::TextNonce;
+use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::http::errors::ReadError;
 use crate::http::header::HeaderMap;
@@ -74,7 +72,7 @@ pub struct FilePart {
 }
 impl FilePart {
     /// If you do not want the file on disk to be deleted when Self drops, call this
-    /// function.  It will become your responsability to clean up.
+    /// function.  It will become your responsibility to clean up.
     pub fn do_not_delete_on_drop(&mut self) {
         self.temp_dir = None;
     }
@@ -83,7 +81,10 @@ impl FilePart {
     /// deleted once the FilePart object goes out of scope).
     pub async fn create(field: &mut Field<'_, Body>) -> Result<FilePart, ReadError> {
         // Setup a file to capture the contents.
-        let mut path = TempDir::new("salvo_http_multipart")?.into_path();
+        let mut path = tokio::task::spawn_blocking(|| TempDir::new("salvo_http_multipart"))
+            .await
+            .expect("Runtime spawn blocking poll error")?
+            .into_path();
         let temp_dir = Some(path.clone());
         path.push(format!(
             "{}.{}",
@@ -95,9 +96,9 @@ impl FilePart {
                 .and_then(|f| get_extension_from_filename(&f))
                 .unwrap_or("unknown")
         ));
-        let mut file = File::create(&path)?;
+        let mut file = File::create(&path).await?;
         while let Some(chunk) = field.data.try_next().await? {
-            file.write_all(chunk.as_slice())?;
+            file.write_all(chunk.as_slice()).await?;
         }
         Ok(FilePart {
             headers: field.headers.clone(),
@@ -119,8 +120,12 @@ impl FilePart {
 impl Drop for FilePart {
     fn drop(&mut self) {
         if self.temp_dir.is_some() {
-            let _ = ::std::fs::remove_file(&self.path);
-            let _ = ::std::fs::remove_dir(&self.temp_dir.as_ref().unwrap());
+            let path = self.path.clone();
+            let temp_dir = self.temp_dir.clone();
+            tokio::task::spawn_blocking(move || {
+                let _ = ::std::fs::remove_file(&path);
+                let _ = ::std::fs::remove_dir(temp_dir.as_ref().unwrap());
+            });
         }
     }
 }

@@ -16,7 +16,7 @@ impl StaticFile {
 #[async_trait]
 impl Handler for StaticFile {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        let named_file = NamedFile::open(self.0.clone().into());
+        let named_file = NamedFile::open(self.0.clone().into()).await;
         if named_file.is_err() {
             res.set_http_error(NotFound());
             return;
