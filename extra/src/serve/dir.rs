@@ -164,7 +164,7 @@ impl Handler for StaticDir {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(ipath) {
+                        if let Ok(named_file) = NamedFile::open(ipath).await {
                             named_file.write(req, depot, res).await;
                         } else {
                             res.set_http_error(InternalServerError().with_summary("file read error"));
@@ -190,7 +190,7 @@ impl Handler for StaticDir {
                     }
                 }
             } else if path.is_file() {
-                if let Ok(named_file) = NamedFile::open(path) {
+                if let Ok(named_file) = NamedFile::open(path).await {
                     named_file.write(req, depot, res).await;
                 } else {
                     res.set_http_error(InternalServerError().with_summary("file read error"));

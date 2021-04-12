@@ -8,10 +8,11 @@
 // port from https://github.com/actix/actix-web/blob/master/actix-files/src/named.rs
 
 use std::cmp;
-use std::fs::{File, Metadata};
+use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::fs::File;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -89,7 +90,7 @@ impl NamedFileBuilder {
         self.buffer_size = Some(buffer_size);
         self
     }
-    pub fn build(self) -> crate::Result<NamedFile> {
+    pub async fn build(self) -> crate::Result<NamedFile> {
         let NamedFileBuilder {
             path,
             file,
@@ -104,7 +105,7 @@ impl NamedFileBuilder {
 
         let file = match file {
             Some(file) => file,
-            None => File::open(&path).map_err(crate::Error::new)?,
+            None => File::open(&path).await.map_err(crate::Error::new)?,
         };
         let content_type = content_type.unwrap_or_else(|| {
             let ct = from_path(&path).first_or_octet_stream();
@@ -140,7 +141,7 @@ impl NamedFileBuilder {
             })
         });
         let content_disposition = content_disposition.parse::<HeaderValue>().map_err(crate::Error::new)?;
-        let metadata = file.metadata().map_err(crate::Error::new)?;
+        let metadata = file.metadata().await.map_err(crate::Error::new)?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(content_encoding.parse::<HeaderValue>().map_err(crate::Error::new)?),
@@ -180,12 +181,12 @@ impl NamedFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use salvo_core::fs::NamedFile;
-    /// let file = NamedFile::open("foo.txt".into());
+    /// let file = NamedFile::open("foo.txt".into()).await;
     /// ```
-    pub fn open(path: PathBuf) -> crate::Result<NamedFile> {
-        Self::builder(path).build()
+    pub async fn open(path: PathBuf) -> crate::Result<NamedFile> {
+        Self::builder(path).build().await
     }
 
     /// Returns reference to the underlying `File` object.
@@ -198,7 +199,7 @@ impl NamedFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// # use std::io;
     /// # use salvo_core::fs::NamedFile;
     /// # fn path() {
