@@ -29,30 +29,53 @@ impl Stream for FileChunk {
 
         let max_bytes = cmp::min(self.chunk_size.saturating_sub(self.read_size), self.buffer_size) as usize;
         let offset = self.offset;
+
+        // must call poll_complete before start_seek, and call poll_complete to confirm seek finished
+        // https://docs.rs/tokio/1.4.0/tokio/io/trait.AsyncSeek.html#errors
+        futures::ready!(Pin::new(&mut self.file).poll_complete(cx))?;
         Pin::new(&mut self.file).start_seek(io::SeekFrom::Start(offset))?;
+        futures::ready!(Pin::new(&mut self.file).poll_complete(cx))?;
+
         let mut data = BytesMut::with_capacity(max_bytes);
         // safety: it has max bytes capacity, and we don't read it
         unsafe {
             data.set_len(max_bytes);
         }
-        // ReadBuf get a &mut [u8], so it cannot expand by itself, it can only read max_bytes at most
-        let mut buf = tokio::io::ReadBuf::new(data.as_mut());
+        // Temporary index
+        let mut read_num = 0;
 
-        match Pin::new(&mut self.file).poll_read(cx, &mut buf) {
-            Poll::Ready(Ok(())) => {
-                // we only read this size data from the file
-                let filled = max_bytes - buf.remaining();
-                if filled == max_bytes {
-                    Poll::Ready(Some(Err(std::io::ErrorKind::UnexpectedEof.into())))
-                } else {
-                    self.offset += filled as u64;
-                    self.read_size += filled as u64;
-                    data.truncate(filled);
-                    Poll::Ready(Some(Ok(data)))
+        loop {
+            let mut buf = tokio::io::ReadBuf::new(&mut data.as_mut()[read_num..]);
+            match Pin::new(&mut self.file).poll_read(cx, &mut buf) {
+                Poll::Ready(Ok(())) => {
+                    // we only read this size data from the file
+                    let filled = buf.filled().len();
+                    if filled == 0 {
+                        return Poll::Ready(Some(Err(std::io::ErrorKind::UnexpectedEof.into())));
+                    } else {
+                        self.offset += filled as u64;
+                        self.read_size += filled as u64;
+                        read_num += filled;
+                        // read to end
+                        if read_num == max_bytes {
+                            return Poll::Ready(Some(Ok(data)));
+                        } else {
+                            // try read more
+                            continue;
+                        }
+                    }
                 }
+                Poll::Pending => {
+                    // have read some buf, but pending here
+                    // so return read these data
+                    if read_num != 0 {
+                        data.truncate(read_num);
+                    } else {
+                        return Poll::Pending;
+                    }
+                }
+                Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
             }
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
         }
     }
 }
