@@ -40,17 +40,86 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
             sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
         }
-        1 => {
-            let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
-            sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
-            let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
-            sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
-        }
+        1 => match parse_input_type(sig.inputs.first().unwrap()) {
+            InputType::Response => {
+                let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
+                sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+                let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
+                sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+            }
+            InputType::Request => {
+                let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
+                sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
+                let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
+                sig.inputs.insert(2, syn::parse_macro_input!(ts as syn::FnArg));
+            }
+            InputType::Depot => {
+                let ts: TokenStream = quote! {_res: &mut #salvo::Request}.into();
+                sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+                let ts: TokenStream = quote! {_req: &mut #salvo::Response}.into();
+                sig.inputs.insert(2, syn::parse_macro_input!(ts as syn::FnArg));
+            }
+            InputType::UnKnow => {
+                return syn::Error::new_spanned(&sig.inputs, "The inputs parameters must be Request, Depot or Response")
+                    .to_compile_error()
+                    .into()
+            }
+            InputType::NoReferenceArg => {
+                return syn::Error::new_spanned(
+                    &sig.inputs,
+                    "The inputs parameters must be mutable reference Request, Depot or Response",
+                )
+                .to_compile_error()
+                .into()
+            }
+        },
         2 => {
-            let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
-            sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
+            let mut input_types = [InputType::Request, InputType::Request];
+            for (index, arg) in sig.inputs.iter().enumerate() {
+                input_types[index] = parse_input_type(arg);
+            }
+
+            match input_types {
+                [InputType::Request, InputType::Response] => {
+                    let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
+                    sig.inputs.insert(1, syn::parse_macro_input!(ts as syn::FnArg));
+                }
+                [InputType::Request, InputType::Depot] => {
+                    let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
+                    sig.inputs.insert(2, syn::parse_macro_input!(ts as syn::FnArg));
+                }
+                [InputType::Depot, InputType::Response] => {
+                    let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
+                    sig.inputs.insert(0, syn::parse_macro_input!(ts as syn::FnArg));
+                }
+                _ => {
+                    return syn::Error::new_spanned(
+                        &sig.inputs,
+                        "The order of the inputs parameters must be Request, Depot, Response",
+                    )
+                    .to_compile_error()
+                    .into()
+                }
+            }
         }
-        3 => {}
+        3 => {
+            let mut input_types = [InputType::Request, InputType::Request, InputType::Request];
+            for (index, arg) in sig.inputs.iter().enumerate() {
+                input_types[index] = parse_input_type(arg);
+            }
+
+            match input_types {
+                [InputType::Request, InputType::Depot, InputType::Response] => (),
+                _ => {
+                    return syn::Error::new_spanned(
+                        &sig.inputs,
+                        "The order of the inputs parameters must be Request, Depot, Response",
+                    )
+                    .to_compile_error()
+                    .into()
+                }
+            }
+        }
         _ => {
             return syn::Error::new_spanned(&sig.inputs, "too many args in handler")
                 .to_compile_error()
@@ -98,5 +167,44 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             }
         })
         .into(),
+    }
+}
+
+enum InputType {
+    Request,
+    Depot,
+    Response,
+    UnKnow,
+    NoReferenceArg,
+}
+
+fn parse_input_type(input: &syn::FnArg) -> InputType {
+    if let syn::FnArg::Typed(p) = input {
+        if let syn::Type::Reference(ty) = &*p.ty {
+            if let syn::Type::Path(nty) = &*ty.elem {
+                // the last ident for path type is the real type
+                // such as:
+                // `::std::vec::Vec` is `Vec`
+                // `Vec` is `Vec`
+                let ident = &nty.path.segments.last().unwrap().ident;
+                if ident == "Request" {
+                    InputType::Request
+                } else if ident == "Response" {
+                    InputType::Response
+                } else if ident == "Depot" {
+                    InputType::Depot
+                } else {
+                    InputType::UnKnow
+                }
+            } else {
+                InputType::UnKnow
+            }
+        } else {
+            // like owned type or other type
+            InputType::NoReferenceArg
+        }
+    } else {
+        // like self on fn
+        InputType::UnKnow
     }
 }
