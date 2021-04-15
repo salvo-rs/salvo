@@ -340,4 +340,37 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
+    #[test]
+    fn test_router_detect_utf8() {
+        let router = Router::new().push(
+            Router::new().path("用户").push(
+                Router::new().path(r"<id:/\d+/>").push(
+                    Router::new().push(
+                        Router::new()
+                            .path("facebook/insights")
+                            .push(Router::new().path("<*rest>").handle(fake_handler)),
+                    ),
+                ),
+            ),
+        );
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_none());
+
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+    }
 }
