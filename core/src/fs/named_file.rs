@@ -181,9 +181,11 @@ impl NamedFile {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use salvo_core::fs::NamedFile;
-    /// let file = NamedFile::open("foo.txt".into()).await;
+    /// # async fn open() {
+    ///     let file = NamedFile::open("foo.txt".into()).await;
+    /// # }
     /// ```
     pub async fn open(path: PathBuf) -> crate::Result<NamedFile> {
         Self::builder(path).build().await
@@ -199,11 +201,11 @@ impl NamedFile {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// # use std::io;
     /// # use salvo_core::fs::NamedFile;
-    /// # fn path() {
-    ///     let file = NamedFile::open("test.txt".into()).unwrap();
+    /// # async fn path() {
+    ///     let file = NamedFile::open("test.txt".into()).await.unwrap();
     ///     assert_eq!(file.path().as_os_str(), "foo.txt");
     /// # }
     /// ```
