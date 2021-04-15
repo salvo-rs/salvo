@@ -284,11 +284,11 @@ impl PathParser {
             path: raw_value.chars().collect(),
         }
     }
-    fn next(&mut self, skip_blank: bool) -> Option<char> {
+    fn next(&mut self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
             self.offset += 1;
-            if skip_blank {
-                self.skip_blank();
+            if skip_blanks {
+                self.skip_blanks();
             }
             Some(self.path[self.offset])
         } else {
@@ -296,9 +296,9 @@ impl PathParser {
             None
         }
     }
-    fn peek(&self, skip_blank: bool) -> Option<char> {
+    fn peek(&self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
-            if skip_blank {
+            if skip_blanks {
                 let mut offset = self.offset + 1;
                 let mut ch = self.path[offset];
                 while ch == ' ' || ch == '\t' {
@@ -385,7 +385,7 @@ impl PathParser {
             Ok(cnst)
         }
     }
-    fn skip_blank(&mut self) {
+    fn skip_blanks(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == ' ' || ch == '\t' {
                 if self.offset < self.path.len() - 1 {
@@ -397,7 +397,7 @@ impl PathParser {
             }
         }
     }
-    fn skip_slash(&mut self) {
+    fn skip_slashes(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == '/' {
                 if let Some(c) = self.next(false) {
@@ -430,7 +430,7 @@ impl PathParser {
                     if name.is_empty() {
                         return Err("name is empty string".to_owned());
                     }
-                    self.skip_blank();
+                    self.skip_blanks();
                     ch = self
                         .curr()
                         .ok_or_else(|| "current position is out of index".to_owned())?;
@@ -442,7 +442,7 @@ impl PathParser {
                         if !is_slash {
                             //start to scan fn part
                             let sign = self.scan_ident()?;
-                            self.skip_blank();
+                            self.skip_blanks();
                             let lb = self.curr().ok_or_else(|| "path ended unexcept".to_owned())?;
                             let args = if lb == '[' || lb == '(' {
                                 let rb = if lb == '[' { ']' } else { ')' };
@@ -536,7 +536,7 @@ impl PathParser {
             return Ok(path_parts);
         }
         loop {
-            self.skip_slash();
+            self.skip_slashes();
             if self.offset >= self.path.len() - 1 {
                 break;
             }
@@ -615,6 +615,11 @@ impl PathFilter {
                         let rest = &state.url_path[state.cursor..];
                         if rest.starts_with('/') {
                             state.cursor += 1;
+                            let mut rest = &state.url_path[state.cursor..];
+                            while rest.starts_with('/') {
+                                state.cursor += 1;
+                                rest = &state.url_path[state.cursor..];
+                            }
                         } else if !rest.is_empty() {
                             state.cursor = original_cursor;
                             return false;
@@ -785,6 +790,14 @@ mod tests {
     fn test_parse_rest_failed2() {
         assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().is_err());
     }
+    #[test]
+    fn test_parse_many_slashes() {
+        let segments = PathParser::new(r"/first///second//<id>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[ConstPart("first"), ConstPart("second"), NamedPart("id")]"#
+        );
+    }
 
     #[test]
     fn test_detect_consts() {
@@ -846,6 +859,16 @@ mod tests {
         assert_eq!(
             format!("{:?}", state),
             r#"PathState { url_path: "users/29/emails", cursor: 15, params: {"id": "29"} }"#
+        );
+    }
+    #[test]
+    fn test_detect_many_slashes() {
+        let filter = PathFilter::new("/users/<id>/emails");
+        let mut state = PathState::new("/users///29//emails");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "users///29//emails", cursor: 18, params: {"id": "29"} }"#
         );
     }
 }
