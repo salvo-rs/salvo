@@ -1,5 +1,4 @@
 use salvo::prelude::*;
-use std::sync::Arc;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
