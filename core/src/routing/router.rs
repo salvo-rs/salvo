@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use super::filter;
-use super::{Filter, PathFilter, PathState};
+use super::{Filter, PathFilter, FnFilter, PathState};
 use crate::http::Request;
 use crate::Handler;
 
@@ -123,6 +123,13 @@ impl Router {
     }
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
         self.filters.push(Box::new(filter));
+        self
+    }
+    pub fn filter_fn<T>(mut self, func: T) -> Self
+    where
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    {
+        self.filters.push(Box::new(FnFilter(func)));
         self
     }
 
