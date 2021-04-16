@@ -15,10 +15,11 @@ async fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
+    // only allow access from http://localhost:7878/, http://127.0.0.1:7878/ will get not found page.
     let router = Router::new()
         .filter_fn(|req, _| {
-            println!("{:?}", req.uri());
-            true
+            let host = req.get_header::<String>("host").unwrap_or_default();
+            host == "localhost:7878"
         })
         .get(hello_world);
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
