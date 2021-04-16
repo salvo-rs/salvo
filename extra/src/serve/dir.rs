@@ -14,6 +14,8 @@ use salvo_core::Depot;
 use salvo_core::Handler;
 use salvo_core::Writer;
 
+const CHUNKSIZE: u64 = 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct Options {
     pub dot_files: bool,
@@ -81,6 +83,7 @@ impl StaticRoots for Path {
 pub struct StaticDir {
     roots: Vec<PathBuf>,
     options: Options,
+    chuck_size: u64,
 }
 impl StaticDir {
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
@@ -90,7 +93,16 @@ impl StaticDir {
         StaticDir {
             roots: roots.collect(),
             options,
+            chuck_size: CHUNKSIZE,
         }
+    }
+
+    // During the file chunk read, the maximum read size at one time will affect the
+    // access experience and the demand for server memory. Please set it according to your own situation.
+    // The default is 1M
+    pub fn chuck_size(mut self, size: u64) -> Self {
+        self.chuck_size = size;
+        self
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -163,7 +175,11 @@ impl Handler for StaticDir {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::open(ipath).await {
+                        if let Ok(named_file) = NamedFile::builder(ipath)
+                            .with_buffer_size(self.chuck_size)
+                            .build()
+                            .await
+                        {
                             named_file.write(req, depot, res).await;
                         } else {
                             res.set_http_error(InternalServerError().with_summary("file read error"));

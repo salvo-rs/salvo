@@ -6,20 +6,20 @@ use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{cmp, io};
-use tokio::{
-    fs::File,
-    io::{AsyncRead, AsyncSeek},
-};
+use tokio::io::{AsyncRead, AsyncSeek};
 
-pub struct FileChunk {
+pub struct FileChunk<T> {
     chunk_size: u64,
     read_size: u64,
     buffer_size: u64,
     offset: u64,
-    file: File,
+    file: T,
 }
 
-impl Stream for FileChunk {
+impl<T> Stream for FileChunk<T>
+where
+    T: AsyncRead + AsyncSeek + Unpin,
+{
     type Item = Result<BytesMut, io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -78,5 +78,34 @@ impl Stream for FileChunk {
                 Poll::Ready(Err(e)) => return Poll::Ready(Some(Err(e))),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::FileChunk;
+    use futures::stream::StreamExt;
+    use std::io::Cursor;
+
+    #[tokio::test]
+    async fn test_chunk_read() {
+        const SIZE: u64 = 1024 * 1024 * 5;
+        let mock = Cursor::new((0..SIZE).map(|_| rand::random::<u8>()).collect::<Vec<_>>());
+
+        let mut chunk = FileChunk {
+            chunk_size: SIZE,
+            read_size: 0,
+            buffer_size: 65535,
+            offset: 0,
+            file: mock.clone(),
+        };
+
+        let mut result = bytes::BytesMut::with_capacity(SIZE as usize);
+
+        while let Some(Ok(read_chunck)) = chunk.next().await {
+            result.extend_from_slice(&read_chunck)
+        }
+
+        assert_eq!(mock.into_inner(), result)
     }
 }
