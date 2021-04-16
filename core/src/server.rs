@@ -26,17 +26,26 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(router: Router) -> Server {
+    pub fn new<T>(router: T) -> Server
+    where
+        T: Into<Arc<Router>>,
+    {
         Server {
             service: Service::new(router),
         }
     }
-    pub fn with_catchers(mut self, catchers: Vec<Box<dyn Catcher>>) -> Self {
-        self.service.catchers = Arc::new(catchers);
+    pub fn with_catchers<T>(mut self, catchers: T) -> Self
+    where
+        T: Into<Arc<Vec<Box<dyn Catcher>>>>,
+    {
+        self.service.catchers = catchers.into();
         self
     }
-    pub fn with_allowed_media_types(mut self, allowed_media_types: Vec<Mime>) -> Self {
-        self.service.allowed_media_types = Arc::new(allowed_media_types);
+    pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
+    where
+        T: Into<Arc<Vec<Mime>>>,
+    {
+        self.service.allowed_media_types = allowed_media_types.into();
         self
     }
 

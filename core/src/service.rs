@@ -19,9 +19,12 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(router: Router) -> Service {
+    pub fn new<T>(router: T) -> Service
+    where
+        T: Into<Arc<Router>>,
+    {
         Service {
-            router: Arc::new(router),
+            router: router.into(),
             catchers: Arc::new(catcher::defaults::get()),
             allowed_media_types: Arc::new(vec![]),
         }
@@ -29,15 +32,21 @@ impl Service {
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
-    pub fn with_catchers(mut self, catchers: Vec<Box<dyn Catcher>>) -> Self {
-        self.catchers = Arc::new(catchers);
+    pub fn with_catchers<T>(mut self, catchers: T) -> Self
+    where
+        T: Into<Arc<Vec<Box<dyn Catcher>>>>,
+    {
+        self.catchers = catchers.into();
         self
     }
     pub fn catchers(&self) -> Arc<Vec<Box<dyn Catcher>>> {
         self.catchers.clone()
     }
-    pub fn with_allowed_media_types(mut self, allowed_media_types: Vec<Mime>) -> Self {
-        self.allowed_media_types = Arc::new(allowed_media_types);
+    pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
+    where
+        T: Into<Arc<Vec<Mime>>>,
+    {
+        self.allowed_media_types = allowed_media_types.into();
         self
     }
     pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
