@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use super::filter;
-use super::{Filter, PathFilter, FnFilter, PathState};
+use super::{Filter, FnFilter, PathFilter, PathState};
 use crate::http::Request;
 use crate::Handler;
 

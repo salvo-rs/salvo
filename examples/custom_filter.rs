@@ -15,9 +15,11 @@ async fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    let router = Router::new().filter_fn(|req, _|{
-        println!("{:?}", req.uri());
-        true
-    }).get(hello_world);
+    let router = Router::new()
+        .filter_fn(|req, _| {
+            println!("{:?}", req.uri());
+            true
+        })
+        .get(hello_world);
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
