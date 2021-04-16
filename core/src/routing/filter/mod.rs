@@ -65,17 +65,9 @@ pub trait Filter: Send + Sync + 'static {
 }
 
 // ===== FnFilter =====
-
-pub fn fn_filter<F>(func: F) -> FnFilter<F>
-where
-    F: Fn(&mut Request, &mut PathState) -> bool,
-{
-    FnFilter(func)
-}
-
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
-pub struct FnFilter<F>(F);
+pub struct FnFilter<F>(pub F);
 
 impl<F> Filter for FnFilter<F>
 where
