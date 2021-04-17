@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
-use double_checked_cell_async::DoubleCheckedCell;
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -43,8 +42,8 @@ pub struct Request {
 
     // accept: Option<Vec<Mime>>,
     queries: OnceCell<MultiMap<String, String>>,
-    form_data: DoubleCheckedCell<FormData>,
-    payload: DoubleCheckedCell<Vec<u8>>,
+    form_data: tokio::sync::OnceCell<FormData>,
+    payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
     version: Version,
@@ -82,8 +81,8 @@ impl Request {
             cookies: CookieJar::default(),
             params: HashMap::new(),
             queries: OnceCell::new(),
-            form_data: DoubleCheckedCell::new(),
-            payload: DoubleCheckedCell::new(),
+            form_data: tokio::sync::OnceCell::new(),
+            payload: tokio::sync::OnceCell::new(),
             version: Version::default(),
             remote_addr: None,
         }
@@ -130,8 +129,8 @@ impl Request {
             cookies,
             // accept: None,
             params: HashMap::new(),
-            form_data: DoubleCheckedCell::new(),
-            payload: DoubleCheckedCell::new(),
+            form_data: tokio::sync::OnceCell::new(),
+            payload: tokio::sync::OnceCell::new(),
             // multipart: OnceCell::new(),
             version,
             remote_addr: None,
@@ -439,7 +438,7 @@ impl Request {
         } else if ctype.starts_with("application/json") || ctype.starts_with("text/") {
             let body = self.body.take();
             self.payload
-                .get_or_try_init(async {
+                .get_or_try_init(|| async {
                     match body {
                         Some(body) => read_body_bytes(body).await,
                         None => Err(ReadError::General(String::from("failed to read data2"))),
@@ -461,7 +460,7 @@ impl Request {
             let body = self.body.take();
             let headers = self.headers();
             self.form_data
-                .get_or_try_init(async {
+                .get_or_try_init(|| async {
                     match body {
                         Some(body) => form::read_form_data(headers, body).await,
                         None => Err(ReadError::General("empty body".into())),
