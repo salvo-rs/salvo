@@ -216,7 +216,9 @@ async fn upload(req: &mut Request, res: &mut Response) {
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码:
 - [basic_auth.rs](./examples/basic_auth.rs)
 - [compression.rs](./examples/compression.rs)
+- [custom_filter.rs](./examples/custom_filter.rs)
 - [file_list.rs](./examples/file_list.rs)
+- [handle_error.rs](./examples/custom_filter.rs)
 - [proxy.rs](./examples/proxy.rs)
 - [remote_addr.rs](./examples/remote_addr.rs)
 - [routing.rs](./examples/routing.rs)
