@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
+use std::io::{self, Write};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::{Stream, TryStreamExt};
 use http::version::Version;
@@ -244,18 +245,27 @@ impl Response {
     }
     #[inline]
     pub fn render_json<T: Serialize>(&mut self, data: &T) {
-        if let Ok(data) = serde_json::to_vec(data) {
-            self.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), &data);
-        } else {
-            self.set_http_error(InternalServerError().with_summary("error when serialize object to json"));
+        let mut cache = Cache::with_capacity(128);
+        match serde_json::to_writer(&mut cache, data) {
+            Ok(_) => {
+                self.headers.insert(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/json; charset=utf-8"),
+                );
+                self.set_body(Some(Body::Bytes(cache.into_inner())));
+            }
+            Err(_) => self.set_http_error(InternalServerError().with_summary("error when serialize object to json")),
         }
     }
+
     pub fn render_json_text(&mut self, data: &str) {
-        self.render_binary(
+        self.headers.insert(
+            header::CONTENT_TYPE,
             HeaderValue::from_static("application/json; charset=utf-8"),
-            data.as_bytes(),
         );
+        self.set_body(Some(Body::Bytes(BytesMut::from(data))));
     }
+
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
         self.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), data.as_bytes());
@@ -417,5 +427,28 @@ impl Debug for Response {
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Debug::fmt(self, f)
+    }
+}
+
+pub(crate) struct Cache(BytesMut);
+
+impl Cache {
+    pub fn with_capacity(size: usize) -> Self {
+        Cache(BytesMut::with_capacity(size))
+    }
+
+    pub fn into_inner(self) -> BytesMut {
+        self.0
+    }
+}
+
+impl Write for Cache {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.put(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
