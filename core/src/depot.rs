@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::fmt;
 
 pub struct Depot {
     data: HashMap<String, Box<dyn Any + Send>>,
@@ -84,5 +85,12 @@ impl Depot {
             data.insert(k, v);
         }
         Depot { data }
+    }
+}
+
+impl fmt::Debug for Depot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Depot")
+        .finish()
     }
 }
