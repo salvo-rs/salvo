@@ -26,6 +26,8 @@ pub struct Server {
 }
 
 impl Server {
+    /// Create new Server with router.
+    /// 
     pub fn new<T>(router: T) -> Server
     where
         T: Into<Arc<Router>>,
@@ -34,6 +36,8 @@ impl Server {
             service: Service::new(router),
         }
     }
+
+    /// Set custom catchers for server.
     pub fn with_catchers<T>(mut self, catchers: T) -> Self
     where
         T: Into<Arc<Vec<Box<dyn Catcher>>>>,
@@ -41,6 +45,9 @@ impl Server {
         self.service.catchers = catchers.into();
         self
     }
+
+    /// Set allowed media types for server, any media type is not include in this list
+    /// will not allowed to send to client.
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,

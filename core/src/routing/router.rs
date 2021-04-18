@@ -26,6 +26,7 @@ impl Default for Router {
 }
 
 impl Router {
+    /// Create a new Router.
     pub fn new() -> Router {
         Router {
             routers: Vec::new(),
@@ -35,40 +36,54 @@ impl Router {
             handler: None,
         }
     }
+
+    /// Get current router's children reference.
     pub fn routers(&self) -> &Vec<Router> {
         &self.routers
     }
+    /// Get current router's children mutable reference.
     pub fn routers_mut(&mut self) -> &mut Vec<Router> {
         &mut self.routers
     }
+
+    /// Get current router's before middlewares reference.
     pub fn befores(&self) -> &Vec<Arc<dyn Handler>> {
         &self.befores
     }
+    /// Get current router's before middlewares mutable reference.
     pub fn befores_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.befores
     }
+    
+    /// Get current router's after middlewares reference.
     pub fn afters(&self) -> &Vec<Arc<dyn Handler>> {
         &self.afters
     }
+    /// Get current router's after middlewares mutable reference.
     pub fn afters_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.afters
     }
+
+    /// Get current router's filters reference.
     pub fn filters(&self) -> &Vec<Box<dyn Filter>> {
         &self.filters
     }
+    /// Get current router's filters mutable reference.
     pub fn filters_mut(&mut self) -> &mut Vec<Box<dyn Filter>> {
         &mut self.filters
     }
-    pub fn detect(&self, request: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
+
+    /// Detect current router is matched for current request.
+    pub fn detect(&self, req: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
         for filter in &self.filters {
-            if !filter.filter(request, path_state) {
+            if !filter.filter(req, path_state) {
                 return None;
             }
         }
         if !self.routers.is_empty() {
             let original_cursor = path_state.cursor;
             for child in &self.routers {
-                if let Some(dm) = child.detect(request, path_state) {
+                if let Some(dm) = child.detect(req, path_state) {
                     return Some(DetectMatched {
                         befores: [&self.befores[..], &dm.befores[..]].concat(),
                         afters: [&dm.afters[..], &self.afters[..]].concat(),
@@ -91,15 +106,18 @@ impl Router {
         None
     }
 
+    /// Push a router as child of current router.
     pub fn push(mut self, router: Router) -> Self {
         self.routers.push(router);
         self
     }
+    /// Append all routers in a Vec as children of current router.
     pub fn append(mut self, others: Vec<Router>) -> Self {
         let mut others = others;
         self.routers.append(&mut others);
         self
     }
+
     #[deprecated(since = "0.10.4", note = "Please use then function instead")]
     pub fn push_when<F>(mut self, func: F) -> Self
     where
@@ -110,21 +128,38 @@ impl Router {
         }
         self
     }
+
+    /// Add a handler as middleware, it will run before the handler in current router or it's descendants
+    /// handle the request.
     pub fn before<H: Handler>(mut self, handler: H) -> Self {
         self.befores.push(Arc::new(handler));
         self
     }
+
+    /// Add a handler as middleware, it will run after the handler in current router or it's descendants
+    /// handle the request.
     pub fn after<H: Handler>(mut self, handler: H) -> Self {
         self.afters.push(Arc::new(handler));
         self
     }
+    
+    /// Create a new path filter for current router.
+    ///
+    /// # Panics
+    ///
+    /// Panics if path value is not in correct format.
     pub fn path(self, path: impl Into<String>) -> Self {
         self.filter(PathFilter::new(path))
     }
+
+    /// Add a filter for current router.
+    ///
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
         self.filters.push(Box::new(filter));
         self
     }
+
+    /// Create a new FnFilter from Fn.
     pub fn filter_fn<T>(mut self, func: T) -> Self
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
@@ -133,11 +168,15 @@ impl Router {
         self
     }
 
+    /// Set current router's handler.
     pub fn handle<H: Handler>(mut self, handler: H) -> Self {
         self.handler = Some(Arc::new(handler));
         self
     }
 
+    /// When you want write router chain, this function will be useful,
+    /// You can write your custom logic in FnOnce.
+    /// 
     pub fn then<F>(self, func: F) -> Self
     where
         F: FnOnce(Self) -> Self,
@@ -145,24 +184,37 @@ impl Router {
         func(self)
     }
 
+    /// Create a new child router with MethodFilter to filter get method and set this child router's handler.
     pub fn get<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::get()).handle(handler))
     }
+
+    /// Create a new child router with MethodFilter to filter post method and set this child router's handler.
     pub fn post<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::post()).handle(handler))
     }
+
+    /// Create a new child router with MethodFilter to filter put method and set this child router's handler.
     pub fn put<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::put()).handle(handler))
     }
+
+    /// Create a new child router with MethodFilter to filter delete method and set this child router's handler.
     pub fn delete<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::delete()).handle(handler))
     }
+
+    /// Create a new child router with MethodFilter to filter patch method and set this child router's handler.
     pub fn patch<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::patch()).handle(handler))
     }
+
+    /// Create a new child router with MethodFilter to filter head method and set this child router's handler.
     pub fn head<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::head()).handle(handler))
     }
+    
+    /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
     pub fn options<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::options()).handle(handler))
     }

@@ -64,10 +64,36 @@ fn new_runtime(threads: usize) -> Runtime {
         .unwrap()
 }
 
+/// If you don't want to include tokio in your project directly,
+/// you can use this function to start server.
+/// ```
+/// use salvo_core::prelude::*;
+/// #[fn_handler]
+/// async fn hello_world() -> &'static str {
+///     "Hello World"
+/// }
+/// fn main() {
+///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+///    salvo_core::start(server);
+/// }
+/// ```
 pub fn start<F: Future>(future: F) {
     start_with_threads(future, num_cpus::get())
 }
 
+/// If you don't want to include tokio in your project directly,
+/// you can use this function to start server.
+/// ```
+/// use salvo_core::prelude::*;
+/// #[fn_handler]
+/// async fn hello_world() -> &'static str {
+///     "Hello World"
+/// }
+/// fn main() {
+///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+///    salvo_core::start_with_threads(server, 8);
+/// }
+/// ```
 pub fn start_with_threads<F: Future>(future: F, threads: usize) {
     let runtime = crate::new_runtime(threads);
     let _ = runtime.block_on(async { future.await });

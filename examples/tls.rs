@@ -7,8 +7,6 @@ async fn hello_world(res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 
-// Don't copy this `cfg`, it's only needed because this file is within
-// the salvo repository.
 #[tokio::main]
 async fn main() {
     let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "tls=debug,salvo=debug".to_owned());
