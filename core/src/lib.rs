@@ -66,7 +66,7 @@ fn new_runtime(threads: usize) -> Runtime {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to start server.
-/// ```
+/// ```ignore
 /// use salvo_core::prelude::*;
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
@@ -83,7 +83,7 @@ pub fn start<F: Future>(future: F) {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to start server.
-/// ```
+/// ```ignore
 /// use salvo_core::prelude::*;
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
