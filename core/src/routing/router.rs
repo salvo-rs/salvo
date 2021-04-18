@@ -54,7 +54,7 @@ impl Router {
     pub fn befores_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.befores
     }
-    
+
     /// Get current router's after middlewares reference.
     pub fn afters(&self) -> &Vec<Arc<dyn Handler>> {
         &self.afters
@@ -142,7 +142,7 @@ impl Router {
         self.afters.push(Arc::new(handler));
         self
     }
-    
+
     /// Create a new path filter for current router.
     ///
     /// # Panics
@@ -176,7 +176,7 @@ impl Router {
 
     /// When you want write router chain, this function will be useful,
     /// You can write your custom logic in FnOnce.
-    /// 
+    ///
     pub fn then<F>(self, func: F) -> Self
     where
         F: FnOnce(Self) -> Self,
@@ -213,7 +213,7 @@ impl Router {
     pub fn head<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::head()).handle(handler))
     }
-    
+
     /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
     pub fn options<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::options()).handle(handler))

@@ -27,7 +27,7 @@ pub struct Server {
 
 impl Server {
     /// Create new Server with router.
-    /// 
+    ///
     pub fn new<T>(router: T) -> Server
     where
         T: Into<Arc<Router>>,
