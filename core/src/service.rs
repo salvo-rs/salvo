@@ -107,11 +107,15 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         let fut = async move {
             if let Some(dm) = router.detect(&mut request, &mut path_state) {
                 request.params = path_state.params;
-                for handler in [&dm.befores[..], &[dm.handler], &dm.afters[..]].concat() {
+                for handler in [&dm.befores[..], &[dm.handler]].concat() {
                     handler.handle(&mut request, &mut depot, &mut response).await;
                     if response.is_commited() {
                         break;
                     }
+                }
+                // Ensure these after handlers must be executed
+                for handler in &dm.afters {
+                    handler.handle(&mut request, &mut depot, &mut response).await;
                 }
                 if !response.is_commited() {
                     response.commit();
