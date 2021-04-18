@@ -232,10 +232,10 @@ Some code and examples port from [warp](https://github.com/seanmonstar/warp), [m
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
 
-    - Submit a feature request or bug report as an issue;
-    - Comment on issues that require feedback;
-    - Contribute code via pull requests;
-    - Publish Salvo-related technical articles on blogs or technical platforms。
+  - Submit a feature request or bug report as an issue;
+  - Comment on issues that require feedback;
+  - Contribute code via pull requests;
+  - Publish Salvo-related technical articles on blogs or technical platforms。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
 
