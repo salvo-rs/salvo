@@ -54,7 +54,7 @@ pub struct Response {
     version: Version,
     pub(crate) cookies: CookieJar,
     pub(crate) body: Option<Body>,
-    is_commited: bool,
+    is_committed: bool,
 }
 impl Default for Response {
     fn default() -> Self {
@@ -71,7 +71,7 @@ impl Response {
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            is_commited: false,
+            is_committed: false,
         }
     }
     /// Create a request from an hyper::Request.
@@ -111,7 +111,7 @@ impl Response {
             version,
             headers,
             cookies,
-            is_commited: false,
+            is_committed: false,
         }
     }
 
@@ -398,6 +398,13 @@ impl Response {
     //     self.headers_mut().insert(ETAG, value.parse()?);
     //     Ok(())
     // }
+
+    /// Salvo executes before handler and path handler in sequence, when the response is in a
+    /// committed state, subsequent handlers will not be executed, and then all after
+    /// handlers will be executed.
+    ///
+    /// This is a sign that the http request is completed, which can be used to process early
+    /// return verification logic, such as permission verification, etc.
     #[inline]
     pub fn commit(&mut self) {
         for cookie in self.cookies.delta() {
@@ -405,11 +412,11 @@ impl Response {
                 self.headers.append(SET_COOKIE, hv);
             }
         }
-        self.is_commited = true;
+        self.is_committed = true;
     }
     #[inline]
     pub fn is_commited(&self) -> bool {
-        self.is_commited
+        self.is_committed
     }
 }
 
