@@ -1,16 +1,16 @@
 mod catcher;
-pub mod depot;
+mod depot;
 mod error;
 pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
-pub mod server;
+mod server;
 mod service;
 #[cfg(feature = "tls")]
 mod tls;
 mod transport;
-mod writer;
+pub mod writer;
 
 #[macro_use]
 extern crate pin_utils;

@@ -1,7 +1,7 @@
 [package]
 name = "salvo_core"
-version = "0.11.0"
-authors = [ "Chrislearn Young <chrislearn@hotmail.com>" ]
+version = "0.11.1"
+authors = [ "Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>" ]
 edition = "2018"
 description = """
 A simple web framework written by rust

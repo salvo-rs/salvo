@@ -6,6 +6,7 @@ use proc_quote::quote;
 use syn::Ident;
 use syn::ReturnType;
 
+/// ```fn_handler``` is a pro macro to help create ```Handler``` from function easily.
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut input = syn::parse_macro_input!(input as syn::ItemFn);

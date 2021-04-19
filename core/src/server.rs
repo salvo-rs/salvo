@@ -261,10 +261,6 @@ pub struct TlsServer {
 }
 #[cfg(feature = "tls")]
 impl TlsServer {
-    pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
-        HyperServer::builder(incoming)
-    }
-
     // TLS config methods
 
     /// Specify the file path to read the private key.
