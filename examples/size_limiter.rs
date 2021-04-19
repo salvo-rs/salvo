@@ -28,8 +28,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .init();
+    tracing_subscriber::fmt().init();
 
     create_dir_all("temp").unwrap();
     let router = Router::new()
