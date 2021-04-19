@@ -3,22 +3,18 @@
 //
 // port from https://github.com/seanmonstar/warp/blob/master/examples/sse_chat.rs
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
+
 use futures;
 use futures::StreamExt;
 use once_cell::sync::Lazy;
-use salvo::prelude::*;
-use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Mutex,
-};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing_subscriber;
-use tracing_subscriber::fmt::format::FmtSpan;
 
-use salvo_core;
-use salvo_extra::sse::{SseEvent, SseKeepAlive};
+use salvo::extra::sse::{SseEvent, SseKeepAlive};
+use salvo::prelude::*;
 
 type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;
 
@@ -27,11 +23,7 @@ static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
 
 #[tokio::main]
 async fn main() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "sse_chat=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().init();
 
     let router = Router::new().handle(index).push(
         Router::new()

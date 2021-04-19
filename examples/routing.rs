@@ -2,6 +2,7 @@ use salvo::prelude::*;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
     let debug_mode = true;
     let admin_mode = true;
     let router = Router::new()

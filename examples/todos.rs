@@ -1,7 +1,4 @@
 use once_cell::sync::Lazy;
-use tracing;
-use tracing_subscriber;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 use salvo::prelude::*;
 
@@ -11,11 +8,7 @@ static STORE: Lazy<Db> = Lazy::new(|| new_store());
 
 #[tokio::main]
 async fn main() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "todos=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().init();
 
     let router = Router::new()
         .path("todos")

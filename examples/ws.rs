@@ -1,8 +1,7 @@
 use futures::{FutureExt, StreamExt};
-use tokio;
 
+use salvo::extra::ws::WsHandler;
 use salvo::prelude::*;
-use salvo_extra::ws::WsHandler;
 
 #[fn_handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError> {
@@ -24,6 +23,7 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError>
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
     let router = Router::new().handle(connect);
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

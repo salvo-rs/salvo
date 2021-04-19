@@ -5,6 +5,8 @@ use salvo::Server;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
+
     let baconfig = BasicAuthConfig {
         realm: "realm".to_owned(),
         context_key: Some("user_name".to_owned()),
@@ -15,5 +17,5 @@ async fn main() {
     let router = Router::new()
         .before(auth_handler)
         .get(StaticDir::new(vec!["examples/static/body", "examples/static/girl"]));
-    Server::new(router).bind(([0, 0, 0, 0], 7879)).await;
+    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

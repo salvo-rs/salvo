@@ -1,6 +1,4 @@
 use salvo::prelude::*;
-use tracing_subscriber;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 #[fn_handler]
 async fn hello_world1() -> &'static str {
@@ -13,11 +11,7 @@ async fn hello_world2() -> &'static str {
 
 #[tokio::main]
 async fn main() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "salvo=debug".to_owned());
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().init();
 
     let router1 = Router::new().get(hello_world1);
     let router2 = Router::new().get(hello_world2);

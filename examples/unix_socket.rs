@@ -6,9 +6,8 @@ async fn main() {
     #[cfg(target_os = "linux")]
     use tokio_stream::wrappers::UnixListenerStream;
 
-    use salvo_core::routing::Router;
-    use salvo_core::Server;
-    use salvo_extra::serve::StaticDir;
+    use salvo::prelude::*;
+    use salvo::extra::serve::StaticDir;
 
     let listener = UnixListener::bind("/tmp/salvo.sock").unwrap();
     let incoming = UnixListenerStream::new(listener);

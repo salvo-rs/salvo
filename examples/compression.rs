@@ -1,18 +1,10 @@
-#![deny(warnings)]
-
-use salvo_core::prelude::*;
-use salvo_extra::compression;
-use salvo_extra::serve::*;
-use tracing_subscriber;
-use tracing_subscriber::fmt::format::FmtSpan;
+use salvo::prelude::*;
+use salvo::extra::compression;
+use salvo::extra::serve::*;
 
 #[tokio::main]
 async fn main() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| "compression=debug,salvo=debug".to_owned());
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
+    tracing_subscriber::fmt().init();
 
     let router = Router::new()
         .push(
