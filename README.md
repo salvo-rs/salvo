@@ -35,7 +35,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "0.11"
+salvo = { version = "0.11", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -225,6 +225,14 @@ Your can find more examples in [examples](./examples/) folder:
 - [unix_socket.rs](./examples/unix_socket.rs)
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
+
+You can run these examples with the following commands:
+
+```
+cargo run --example basic_auth
+```
+
+You can use any example name you want to run instead of ```basic_auth``` here. 
 
 Some code and examples port from [warp](https://github.com/seanmonstar/warp), [multipart-async](https://github.com/abonander/multipart-async), [mime-multipart](https://github.com/mikedilger/mime-multipart) and [actix-web](https://github.com/actix/actix-web).
 

@@ -38,7 +38,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "0.11"
+salvo = { version = "0.11", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -230,6 +230,14 @@ async fn upload(req: &mut Request, res: &mut Response) {
 - [unix_socket.rs](./examples/unix_socket.rs)
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
+
+您可以通过以下命令运行这些示例：
+
+```
+cargo run --example basic_auth
+```
+
+您可以使用任何你想运行的示例名称替代这里的 ```basic_auth```.
 
 部分代码和示例移植自 [warp](https://github.com/seanmonstar/warp), [multipart-async](https://github.com/abonander/multipart-async), [mime-multipart](https://github.com/mikedilger/mime-multipart) 和 [actix-web](https://github.com/actix/actix-web).
 
