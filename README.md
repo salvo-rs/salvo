@@ -226,7 +226,7 @@ Your can find more examples in [examples](./examples/) folder:
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
 
-You can run these examples with the following commands:
+You can run these examples with the following command:
 
 ```
 cargo run --example basic_auth
