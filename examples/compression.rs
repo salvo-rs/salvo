@@ -1,6 +1,6 @@
-use salvo::prelude::*;
 use salvo::extra::compression;
 use salvo::extra::serve::*;
+use salvo::prelude::*;
 
 #[tokio::main]
 async fn main() {
