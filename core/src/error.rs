@@ -56,6 +56,6 @@ fn error_size_of() {
 #[async_trait]
 impl Writer for ::anyhow::Error {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(crate::http::errors::InternalServerError());
+        res.set_http_error(crate::http::errors::InternalServerError().with_summary("anyhow error message").with_detail(&self.to_string()));
     }
 }
