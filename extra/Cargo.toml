@@ -25,7 +25,7 @@ compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
 size_limiter = []
 proxy = ["hyper",  "hyper-tls"]
-serve = ["chrono", "mime", "percent-encoding"]
+serve = ["chrono", "mime", "percent-encoding", "tokio"]
 sse = ["futures", "pin-project", "tokio"]
 ws = ["futures", "tokio", "tokio-tungstenite"]
 

@@ -4,6 +4,7 @@ use std::fmt;
 
 /// Depot if for store temp data of current request. Each handler can read or write data to it.
 ///
+#[derive(Default)]
 pub struct Depot {
     data: HashMap<String, Box<dyn Any + Send>>,
 }

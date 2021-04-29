@@ -22,7 +22,7 @@ use bitflags::bitflags;
 use headers::*;
 use mime_guess::from_path;
 
-use super::FileChunk;
+use super::{ChunkedState, FileChunk};
 use crate::http::header;
 use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::range::HttpRange;
@@ -404,7 +404,7 @@ impl Writer for NamedFile {
                 offset,
                 chunk_size: cmp::min(length, self.metadata.len()),
                 read_size: 0,
-                file: self.file,
+                state: ChunkedState::File(Some(self.file.into_std().await)),
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(reader.chunk_size));
@@ -413,7 +413,7 @@ impl Writer for NamedFile {
             res.set_status_code(StatusCode::OK);
             let reader = FileChunk {
                 offset,
-                file: self.file,
+                state: ChunkedState::File(Some(self.file.into_std().await)),
                 chunk_size: length,
                 read_size: 0,
                 buffer_size: self.buffer_size,

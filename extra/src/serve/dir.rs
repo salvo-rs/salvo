@@ -3,7 +3,7 @@ use chrono::prelude::*;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use serde_json::json;
 use std::collections::HashMap;
-use std::fs::{self, Metadata};
+use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -188,18 +188,16 @@ impl Handler for StaticDir {
                     }
                 }
                 //list the dir
-                if let Ok(entries) = fs::read_dir(&path) {
-                    for entry in entries {
-                        if let Ok(entry) = entry {
-                            if let Ok(metadata) = entry.metadata() {
-                                if metadata.is_dir() {
-                                    dirs.entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
-                                        .or_insert(metadata);
-                                } else {
-                                    files
-                                        .entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
-                                        .or_insert(metadata);
-                                }
+                if let Ok(mut entries) = tokio::fs::read_dir(&path).await {
+                    while let Ok(Some(entry)) = entries.next_entry().await {
+                        if let Ok(metadata) = entry.metadata().await {
+                            if metadata.is_dir() {
+                                dirs.entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
+                                    .or_insert(metadata);
+                            } else {
+                                files
+                                    .entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
+                                    .or_insert(metadata);
                             }
                         }
                     }
