@@ -14,8 +14,6 @@ use salvo_core::Depot;
 use salvo_core::Handler;
 use salvo_core::Writer;
 
-const CHUNKSIZE: u64 = 1024 * 1024;
-
 #[derive(Debug, Clone)]
 pub struct Options {
     pub dot_files: bool,
@@ -83,7 +81,7 @@ impl StaticRoots for Path {
 pub struct StaticDir {
     roots: Vec<PathBuf>,
     options: Options,
-    chuck_size: u64,
+    chunk_size: Option<u64>,
 }
 impl StaticDir {
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
@@ -93,15 +91,15 @@ impl StaticDir {
         StaticDir {
             roots: roots.collect(),
             options,
-            chuck_size: CHUNKSIZE,
+            chunk_size: None,
         }
     }
 
     // During the file chunk read, the maximum read size at one time will affect the
     // access experience and the demand for server memory. Please set it according to your own situation.
     // The default is 1M
-    pub fn chuck_size(mut self, size: u64) -> Self {
-        self.chuck_size = size;
+    pub fn chunk_size(mut self, size: u64) -> Self {
+        self.chunk_size = Some(size);
         self
     }
 }
@@ -175,11 +173,14 @@ impl Handler for StaticDir {
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
                     if ipath.exists() {
-                        if let Ok(named_file) = NamedFile::builder(ipath)
-                            .with_buffer_size(self.chuck_size)
-                            .build()
-                            .await
-                        {
+                        let builder = {
+                            let mut builder = NamedFile::builder(ipath);
+                            if let Some(size) = self.chunk_size {
+                                builder = builder.with_buffer_size(size);
+                            }
+                            builder
+                        };
+                        if let Ok(named_file) = builder.build().await {
                             named_file.write(req, depot, res).await;
                         } else {
                             res.set_http_error(InternalServerError().with_summary("file read error"));
