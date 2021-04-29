@@ -30,6 +30,8 @@ use crate::http::{Request, Response, StatusCode};
 use crate::Depot;
 use crate::Writer;
 
+const CHUNK_SIZE: u64 = 1024 * 1024;
+
 bitflags! {
     pub(crate) struct Flags: u8 {
         const ETAG = 0b0000_0001;
@@ -59,9 +61,9 @@ pub struct NamedFile {
     pub(crate) content_encoding: Option<HeaderValue>,
 }
 
+#[derive(Clone)]
 pub struct NamedFileBuilder {
     path: PathBuf,
-    file: Option<File>,
     attached_filename: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
@@ -93,7 +95,6 @@ impl NamedFileBuilder {
     pub async fn build(self) -> crate::Result<NamedFile> {
         let NamedFileBuilder {
             path,
-            file,
             content_type,
             content_encoding,
             content_disposition,
@@ -103,10 +104,7 @@ impl NamedFileBuilder {
             ..
         } = self;
 
-        let file = match file {
-            Some(file) => file,
-            None => File::open(&path).await.map_err(crate::Error::new)?,
-        };
+        let file = File::open(&path).await.map_err(crate::Error::new)?;
         let content_type = content_type.unwrap_or_else(|| {
             let ct = from_path(&path).first_or_octet_stream();
             if ct.type_() == mime::TEXT && ct.get_param(mime::CHARSET).is_none() {
@@ -156,7 +154,7 @@ impl NamedFileBuilder {
             metadata,
             modified,
             content_encoding,
-            buffer_size: buffer_size.unwrap_or(65_536),
+            buffer_size: buffer_size.unwrap_or(CHUNK_SIZE),
             status_code: StatusCode::OK,
             flags: Flags::default(),
         })
@@ -167,7 +165,6 @@ impl NamedFile {
     pub fn builder(path: PathBuf) -> NamedFileBuilder {
         NamedFileBuilder {
             path,
-            file: None,
             attached_filename: None,
             disposition_type: None,
             content_type: None,
