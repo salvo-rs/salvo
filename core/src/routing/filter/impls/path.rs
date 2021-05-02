@@ -57,6 +57,14 @@ where
     C: Fn(char) -> bool + Sync + Send + 'static,
 {
     fn build(&self, name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
+        if args.is_empty() {
+            return Ok(Box::new(CharPart {
+                name,
+                checker: self.0.clone(),
+                min_width: 1,
+                max_width: None,
+            }));
+        }
         let ps = args[0].splitn(2, "..").map(|s| s.trim()).collect::<Vec<_>>();
         let (min_width, max_width) = if ps.is_empty() {
             (1, None)
@@ -738,7 +746,15 @@ mod tests {
         );
     }
     #[test]
-    fn test_parse_num() {
+    fn test_parse_num0() {
+        let segments = PathParser::new(r"/first<id:num>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombPart([ConstPart("first"), CharPart { name: "id", min_width: 1, max_width: None }])]"#
+        );
+    }
+    #[test]
+    fn test_parse_num1() {
         let segments = PathParser::new(r"/first<id:num(10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
