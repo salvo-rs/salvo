@@ -1,7 +1,8 @@
 ### 0.11.2
 
 - fix bug： in router num with no limit.
-- ### 0.11.1
+
+### 0.11.1
 
 - extra serve: move default chunk size to name file.
 - core fs: rewrite chunked file.
