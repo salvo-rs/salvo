@@ -6,7 +6,6 @@ pub use salvo_core::*;
     feature = "jwt_auth",
     feature = "compression",
     feature = "proxy",
-    feature = "proxy_rustls",
     feature = "serve",
     feature = "sse",
     feature = "ws",
