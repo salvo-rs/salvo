@@ -11,7 +11,7 @@ pub mod jwt_auth;
 pub mod compression;
 #[cfg(feature = "cors")]
 pub mod cors;
-#[cfg(any(feature = "proxy", feature = "proxy_rustls"))]
+#[cfg(feature = "proxy")]
 pub mod proxy;
 #[cfg(feature = "serve")]
 pub mod serve;

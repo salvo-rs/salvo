@@ -24,8 +24,7 @@ jwt_auth = ["cookie", "jsonwebtoken"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
 size_limiter = []
-proxy = ["hyper",  "hyper-tls"]
-proxy_rustls = ["hyper",  "hyper-rustls/webpki-tokio"]
+proxy = ["hyper",  "hyper-rustls/webpki-tokio"]
 serve = ["chrono", "mime", "percent-encoding", "tokio"]
 sse = ["futures", "pin-project", "tokio"]
 ws = ["futures", "tokio", "tokio-tungstenite"]
@@ -38,7 +37,6 @@ chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.15", features = ["percent-encode"], optional = true }
 futures = { version = "0.3", default-features = false, features = ["alloc"], optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
-hyper-tls = { version = "0.5", optional = true }
 hyper-rustls = { version = "0.22.1", default-features = false, optional = true }
 jsonwebtoken = { version = "7", optional = true }
 mime = { version ="0.3", optional = true }
