@@ -5,12 +5,25 @@ use std::fmt;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use hyper::{Client, Uri};
+use hyper::{client::connect::HttpConnector, Client, Uri};
+#[cfg(feature = "proxy_rustls")]
+use hyper_rustls::HttpsConnector;
+#[cfg(feature = "proxy")]
 use hyper_tls::HttpsConnector;
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
+
+#[cfg(feature = "proxy")]
+fn https_connector() -> HttpsConnector<HttpConnector> {
+    HttpsConnector::new()
+}
+
+#[cfg(feature = "proxy_rustls")]
+fn https_connector() -> HttpsConnector<HttpConnector> {
+    HttpsConnector::with_webpki_roots()
+}
 
 #[derive(Debug)]
 struct MsgError {
@@ -126,7 +139,7 @@ impl Handler for ProxyHandler {
                     .map(|s| s == &Scheme::HTTPS)
                     .unwrap_or(false)
                 {
-                    let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
+                    let client = Client::builder().build::<_, hyper::Body>(https_connector());
                     client.request(proxied_request).await
                 } else {
                     let client = Client::new();
