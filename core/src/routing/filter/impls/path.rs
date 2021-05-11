@@ -199,13 +199,23 @@ struct NamedPart(String);
 impl PathPart for NamedPart {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
-        if url_path.is_empty() {
-            return false;
+        if self.0.starts_with('*') {
+            if !url_path.is_empty() || self.0.starts_with("**") {
+                state.params.insert(self.0.clone(), url_path.to_owned());
+                state.cursor = state.url_path.len();
+                true
+            } else {
+                false
+            }
+        } else {
+            if url_path.is_empty() {
+                return false;
+            }
+            let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
+            state.params.insert(self.0.clone(), segment.to_owned());
+            state.cursor += segment.len();
+            true
         }
-        let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
-        state.params.insert(self.0.clone(), segment.to_owned());
-        state.cursor += segment.len();
-        true
     }
 }
 
@@ -227,38 +237,33 @@ impl PartialEq for RegexPart {
 impl PathPart for RegexPart {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
-        if url_path.is_empty() {
-            return false;
-        }
-        let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
-        let cap = self.regex.captures(segment).and_then(|caps| caps.get(0));
-        if let Some(cap) = cap {
-            state.params.insert(self.name.clone(), cap.as_str().to_owned());
-            state.cursor += segment.len();
-            true
+        if self.name.starts_with('*') {
+            if !url_path.is_empty() || self.name.starts_with("**") {
+                let cap = self.regex.captures(url_path).and_then(|caps| caps.get(0));
+                if let Some(cap) = cap {
+                    let cap = cap.as_str().to_owned();
+                    state.cursor += cap.len();
+                    state.params.insert(self.name.clone(), cap);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
         } else {
-            false
-        }
-    }
-}
-
-// If name starts with *, only match not empty path, if name starts with ** will match empty path.
-#[derive(Eq, PartialEq, Debug)]
-struct RestPart(String);
-impl RestPart {
-    fn new(name: String) -> RestPart {
-        RestPart(name)
-    }
-}
-impl PathPart for RestPart {
-    fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let url_path = &state.url_path[state.cursor..];
-        if !url_path.is_empty() || self.0.starts_with("**") {
-            state.params.insert(self.0.clone(), url_path.to_owned());
-            state.cursor = state.url_path.len();
-            true
-        } else {
-            false
+            if url_path.is_empty() {
+                return false;
+            }
+            let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
+            let cap = self.regex.captures(segment).and_then(|caps| caps.get(0));
+            if let Some(cap) = cap {
+                state.params.insert(self.name.clone(), cap.as_str().to_owned());
+                state.cursor += segment.len();
+                true
+            } else {
+                false
+            }
         }
     }
 }
@@ -423,102 +428,91 @@ impl PathParser {
         let mut parts: Vec<Box<dyn PathPart>> = vec![];
         while ch != '/' {
             if ch == '<' {
-                ch = self.next(true).ok_or_else(|| "char is needed after <".to_owned())?;
-                if ch == '*' {
-                    self.next(true);
-                    let name = format!("*{}", self.scan_ident().unwrap_or_default());
-                    if self.offset < self.path.len() - 1 {
-                        return Err("no chars allowed after rest segment".to_owned());
-                    }
-                    parts.push(Box::new(RestPart::new(name)));
-                    self.next(false);
-                    break;
-                } else {
-                    let name = self.scan_ident()?;
-                    if name.is_empty() {
-                        return Err("name is empty string".to_owned());
-                    }
-                    self.skip_blanks();
-                    ch = self
-                        .curr()
-                        .ok_or_else(|| "current position is out of index".to_owned())?;
-                    if ch == ':' {
-                        let is_slash = match self.next(true) {
-                            Some(c) => c == '/',
-                            None => false,
-                        };
-                        if !is_slash {
-                            //start to scan fn part
-                            let sign = self.scan_ident()?;
-                            self.skip_blanks();
-                            let lb = self.curr().ok_or_else(|| "path ended unexcept".to_owned())?;
-                            let args = if lb == '[' || lb == '(' {
-                                let rb = if lb == '[' { ']' } else { ')' };
-                                let mut args = "".to_owned();
-                                ch = self
-                                    .next(true)
-                                    .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
-                                while ch != rb {
-                                    args.push(ch);
-                                    if let Some(c) = self.next(false) {
-                                        ch = c;
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                if self.next(false).is_none() {
-                                    return Err(format!("ended unexcept, should end with: {}", rb));
-                                }
-                                if args.is_empty() {
-                                    vec![]
+                self.next(true).ok_or_else(|| "char is needed after <".to_owned())?;
+                let name = self.scan_ident()?;
+                if name.is_empty() {
+                    return Err("name is empty string".to_owned());
+                }
+                self.skip_blanks();
+                ch = self
+                    .curr()
+                    .ok_or_else(|| "current position is out of index".to_owned())?;
+                if ch == ':' {
+                    let is_slash = match self.next(true) {
+                        Some(c) => c == '/',
+                        None => false,
+                    };
+                    if !is_slash {
+                        //start to scan fn part
+                        let sign = self.scan_ident()?;
+                        self.skip_blanks();
+                        let lb = self.curr().ok_or_else(|| "path ended unexcept".to_owned())?;
+                        let args = if lb == '[' || lb == '(' {
+                            let rb = if lb == '[' { ']' } else { ')' };
+                            let mut args = "".to_owned();
+                            ch = self
+                                .next(true)
+                                .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
+                            while ch != rb {
+                                args.push(ch);
+                                if let Some(c) = self.next(false) {
+                                    ch = c;
                                 } else {
-                                    args.split(',').map(|s| s.trim().to_owned()).collect()
+                                    break;
                                 }
-                            } else if lb == '>' {
+                            }
+                            if self.next(false).is_none() {
+                                return Err(format!("ended unexcept, should end with: {}", rb));
+                            }
+                            if args.is_empty() {
                                 vec![]
                             } else {
-                                return Err(format!(
-                                    "except any char of '/,[,(', but found {:?} at offset: {}",
-                                    self.curr(),
-                                    self.offset
-                                ));
-                            };
-                            let builders = PART_BUILDERS
-                                .read()
-                                .map_err(|_| "read PART_BUILDERS failed".to_owned())?;
-                            let builder = builders
-                                .get(&sign)
-                                .ok_or_else(|| format!("PART_BUILDERS does not contains fn part with sign {}", sign))?
-                                .clone();
-
-                            parts.push(builder.build(name, sign, args)?);
+                                args.split(',').map(|s| s.trim().to_owned()).collect()
+                            }
+                        } else if lb == '>' {
+                            vec![]
                         } else {
-                            self.next(false);
-                            let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
-                            parts.push(Box::new(RegexPart::new(name, regex)));
-                        }
-                    } else if ch == '>' {
-                        parts.push(Box::new(NamedPart(name)));
-                        if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
                             return Err(format!(
+                                "except any char of '/,[,(', but found {:?} at offset: {}",
+                                self.curr(),
+                                self.offset
+                            ));
+                        };
+                        let builders = PART_BUILDERS
+                            .read()
+                            .map_err(|_| "read PART_BUILDERS failed".to_owned())?;
+                        let builder = builders
+                            .get(&sign)
+                            .ok_or_else(|| format!("PART_BUILDERS does not contains fn part with sign {}", sign))?
+                            .clone();
+
+                        parts.push(builder.build(name, sign, args)?);
+                    } else {
+                        self.next(false);
+                        let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
+                        parts.push(Box::new(RegexPart::new(name, regex)));
+                    }
+                } else if ch == '>' {
+                    parts.push(Box::new(NamedPart(name)));
+                    if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
+                        return Err(format!(
                                 "named part must be the last one in current segement, expect '/' or end, but found {:?} at offset: {}",
                                 self.curr(),
                                 self.offset
                             ));
-                        }
                     }
-                    if let Some(c) = self.curr() {
-                        if c != '>' {
-                            return Err(format!(
-                                "except '>' to end regex part or fn part, but found {:?} at offset: {}",
-                                c, self.offset
-                            ));
-                        } else {
-                            self.next(false);
-                        }
+                }
+                if let Some(c) = self.curr() {
+                    if c != '>' {
+                        return Err(format!(
+                            "except '>' to end regex part or fn part, but found {:?} at offset: {}",
+                            c, self.offset
+                        ));
                     } else {
-                        break;
+                        self.next(false);
                     }
+                } else {
+                    break;
                 }
             } else {
                 let part = self.scan_const().unwrap_or_default();
@@ -663,7 +657,7 @@ mod tests {
     #[test]
     fn test_parse_rest_without_name() {
         let segments = PathParser::new("/hello/<*>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello"), RestPart("*")]"#);
+        assert_eq!(format!("{:?}", segments), r#"[ConstPart("hello"), NamedPart("*")]"#);
     }
 
     #[test]
@@ -680,6 +674,14 @@ mod tests {
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
         assert_eq!(format!("{:?}", segments), r#"[RegexPart { name: "abc", regex: \d+ }]"#);
+    }
+    #[test]
+    fn test_parse_wildcard_regex() {
+        let segments = PathParser::new(r"/<abc:/\d+/.+/>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[RegexPart { name: "abc", regex: \d+/.+ }]"#
+        );
     }
     #[test]
     fn test_parse_single_regex_with_prefix() {
@@ -742,7 +744,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id>/<*rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombPart([ConstPart("first"), NamedPart("id")]), RestPart("*rest")]"#
+            r#"[CombPart([ConstPart("first"), NamedPart("id")]), NamedPart("*rest")]"#
         );
     }
     #[test]

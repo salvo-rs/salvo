@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use hyper::{Client, Uri};
-use hyper_tls::HttpsConnector;
+use hyper_rustls::HttpsConnector;
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
@@ -126,7 +126,7 @@ impl Handler for ProxyHandler {
                     .map(|s| s == &Scheme::HTTPS)
                     .unwrap_or(false)
                 {
-                    let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::new());
+                    let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::with_webpki_roots());
                     client.request(proxied_request).await
                 } else {
                     let client = Client::new();

@@ -432,4 +432,58 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
+    #[test]
+    fn test_router_detect9() {
+        let router = Router::new().push(
+            Router::new()
+                .path("users/<*sub:/(images|css)/>/<filename>")
+                .handle(fake_handler),
+        );
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/users/12/m.jpg")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_none());
+
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/users/css/m.jpg")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+    }
+    #[test]
+    fn test_router_detect10() {
+        let router = Router::new().push(
+            Router::new()
+                .path(r"users/<*sub:/(images|css)/.+/>")
+                .handle(fake_handler),
+        );
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/users/12/m.jpg")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_none());
+
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://local.host/users/css/abc/m.jpg")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+    }
 }
