@@ -678,7 +678,10 @@ mod tests {
     #[test]
     fn test_parse_wildcard_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/.+/>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[RegexPart { name: "abc", regex: \d+/.+ }]"#);
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[RegexPart { name: "abc", regex: \d+/.+ }]"#
+        );
     }
     #[test]
     fn test_parse_single_regex_with_prefix() {

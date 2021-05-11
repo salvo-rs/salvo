@@ -434,7 +434,11 @@ mod tests {
     }
     #[test]
     fn test_router_detect9() {
-        let router = Router::new().push(Router::new().path("users/<*sub:/(images|css)/>/<filename>").handle(fake_handler));
+        let router = Router::new().push(
+            Router::new()
+                .path("users/<*sub:/(images|css)/>/<filename>")
+                .handle(fake_handler),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
@@ -447,7 +451,7 @@ mod tests {
 
         let mut req = Request::from_hyper(
             hyper::Request::builder()
-            .uri("http://local.host/users/css/m.jpg")
+                .uri("http://local.host/users/css/m.jpg")
                 .body(hyper::Body::empty())
                 .unwrap(),
         );
@@ -457,7 +461,11 @@ mod tests {
     }
     #[test]
     fn test_router_detect10() {
-        let router = Router::new().push(Router::new().path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
+        let router = Router::new().push(
+            Router::new()
+                .path(r"users/<*sub:/(images|css)/.+/>")
+                .handle(fake_handler),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
@@ -470,7 +478,7 @@ mod tests {
 
         let mut req = Request::from_hyper(
             hyper::Request::builder()
-            .uri("http://local.host/users/css/abc/m.jpg")
+                .uri("http://local.host/users/css/abc/m.jpg")
                 .body(hyper::Body::empty())
                 .unwrap(),
         );
