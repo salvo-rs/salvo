@@ -152,11 +152,11 @@ Router::new()
 For numeric characters there is an easier way to use ```<id:num>```, the specific writing is:
 - ```<id:num>```, matches any number of numeric characters;
 - ```<id:num[10]>```, only matches a certain number of numeric characters, where 10 means that the match only matches 10 numeric characters;
-- ```<id:num(..10)>``` means matching 1 to 9 numeric characters;
-- ```<id:num(3..10)>``` means matching 3 to 9 numeric characters;
-- ```<id:num(..=10)>``` means matching 1 to 10 numeric characters;
-- ```<id:num(3..=10)>``` means match 3 to 10 numeric characters;
-- ```<id:num(10..)>``` means to match at least 10 numeric characters.
+- ```<id:num(..10)>```, means matching 1 to 9 numeric characters;
+- ```<id:num(3..10)>```, means matching 3 to 9 numeric characters;
+- ```<id:num(..=10)>```, means matching 1 to 10 numeric characters;
+- ```<id:num(3..=10)>```, means match 3 to 10 numeric characters;
+- ```<id:num(10..)>```, means to match at least 10 numeric characters.
 
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
@@ -235,7 +235,12 @@ cargo run --example basic_auth
 You can use any example name you want to run instead of ```basic_auth``` here. 
 
 Some code and examples port from [warp](https://github.com/seanmonstar/warp), [multipart-async](https://github.com/abonander/multipart-async), [mime-multipart](https://github.com/mikedilger/mime-multipart) and [actix-web](https://github.com/actix/actix-web).
+## Performance
+Benchmark testing result can be found from here:
 
+[https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
+
+[https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2)
 ## Contributing
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
