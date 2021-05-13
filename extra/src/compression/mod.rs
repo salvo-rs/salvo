@@ -71,23 +71,47 @@ impl Handler for CompressionHandler {
         {
             return;
         }
-        let body = res.take_body().unwrap();
-        if let Body::Empty = body {
-            return;
-        }
-        let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
-        match self.algo {
-            CompressionAlgo::Gzip => {
-                let stream = ReaderStream::new(GzipEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
-            }
-            CompressionAlgo::Deflate => {
-                let stream = ReaderStream::new(DeflateEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
-            }
-            CompressionAlgo::Br => {
-                let stream = ReaderStream::new(BrotliEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
+        if let Some(body) = res.take_body() {
+            match body {
+                Body::Empty => {
+                    return;
+                }
+                Body::Bytes(body) => {
+                    let reader =
+                        StreamReader::new(tokio_stream::iter(vec![Result::<_, std::io::Error>::Ok(body.freeze())]));
+                    match self.algo {
+                        CompressionAlgo::Gzip => {
+                            let stream = ReaderStream::new(GzipEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Deflate => {
+                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Br => {
+                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                    }
+                }
+                Body::Stream(body) => {
+                    let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
+                    let reader = StreamReader::new(body);
+                    match self.algo {
+                        CompressionAlgo::Gzip => {
+                            let stream = ReaderStream::new(GzipEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Deflate => {
+                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Br => {
+                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                    }
+                }
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
