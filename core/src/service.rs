@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use once_cell::sync::Lazy;
 use futures::future;
 
 use crate::catcher;
@@ -12,6 +13,7 @@ use crate::routing::{PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
+static DEFAULT_CATCHERS: Lazy<Arc<Vec<Box<dyn Catcher>>>> = Lazy::new(|| Arc::new(catcher::defaults::get()));
 pub struct Service {
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
@@ -25,7 +27,7 @@ impl Service {
     {
         Service {
             router: router.into(),
-            catchers: Arc::new(catcher::defaults::get()),
+            catchers: Arc::new(vec![]),
             allowed_media_types: Arc::new(vec![]),
         }
     }
@@ -163,9 +165,18 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 );
             }
             if response.body.is_none() && has_error {
+                let mut catched = false;
                 for catcher in &*catchers {
                     if catcher.catch(&request, &mut response) {
+                        catched = true;
                         break;
+                    }
+                }
+                if !catched {
+                    for catcher in &**DEFAULT_CATCHERS {
+                        if catcher.catch(&request, &mut response) {
+                            break;
+                        }
                     }
                 }
             }

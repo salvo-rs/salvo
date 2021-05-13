@@ -211,6 +211,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 Your can find more examples in [examples](./examples/) folder:
 - [basic_auth.rs](./examples/basic_auth.rs)
 - [compression.rs](./examples/compression.rs)
+- [custom_error_page.rs](./examples/custom_error_page.rs)
 - [custom_filter.rs](./examples/custom_filter.rs)
 - [file_list.rs](./examples/file_list.rs)
 - [handle_error.rs](./examples/custom_filter.rs)
