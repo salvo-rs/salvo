@@ -60,7 +60,7 @@ reqwest = "0.11"
 serde = "1"
 serde_derive = "1"
 salvo = { path = ".", features = ["full"] }
-tokio = { version = "1", features = [ "full" ] }
+tokio = { version = "1.5", features = [ "full" ] }
 tokio-stream = { version = "0.1", features = [ "net" ] }
 tracing = "0.1"
 tracing-futures = "0.2"
