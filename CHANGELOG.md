@@ -1,4 +1,8 @@
-### 0.11.3
+### 0.11.5
+
+- extra: pub fs and dir mod in serve.
+- fix bug: compression bug when body orginal is Body::Bytes.
+- ### 0.11.4
 
 - feature： Add regex support for wildcard match with * or **.
 - use static var for default catchers.
