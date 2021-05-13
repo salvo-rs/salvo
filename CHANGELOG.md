@@ -1,4 +1,9 @@
-### 0.11.2
+### 0.11.3
+
+- feature： Add regex support for wildcard match with * or **.
+- use static var for default catchers.
+
+- ### 0.11.2
 
 - fix bug： in router num with no limit.
 
