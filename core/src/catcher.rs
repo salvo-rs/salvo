@@ -3,11 +3,11 @@ use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 
 /// Catch error in current response.
 pub trait Catcher: Send + Sync + 'static {
-    /// If current catcher catched error, it will return true.
+    /// If the current catcher caught the error, it will return true.
     fn catch(&self, req: &Request, res: &mut Response) -> bool;
 }
 
-/// Default implemention of Catcher.
+/// Default implementation of Catcher.
 pub struct CatcherImpl(HttpError);
 impl CatcherImpl {
     pub fn new(e: HttpError) -> CatcherImpl {
