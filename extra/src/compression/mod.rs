@@ -78,7 +78,7 @@ impl Handler for CompressionHandler {
                 }
                 Body::Bytes(body) => {
                     let reader =
-                        StreamReader::new(tokio_stream::iter(vec![Result::<_, std::io::Error>::Ok(body.freeze())]));
+                        StreamReader::new(tokio_stream::iter(vec![Result::<_, std::io::Error>::Ok(body)]));
                     match self.algo {
                         CompressionAlgo::Gzip => {
                             let stream = ReaderStream::new(GzipEncoder::new(reader));
