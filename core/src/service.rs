@@ -13,7 +13,7 @@ use crate::routing::{PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
-static DEFAULT_CATCHERS: Lazy<Arc<Vec<Box<dyn Catcher>>>> = Lazy::new(|| Arc::new(catcher::defaults::get()));
+static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(|| catcher::defaults::get());
 pub struct Service {
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
@@ -34,6 +34,8 @@ impl Service {
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
+    /// when the response code is 400-600 and the body is empty, capture and set the return value.
+    /// By default, it is the built-in default html page.
     pub fn with_catchers<T>(mut self, catchers: T) -> Self
     where
         T: Into<Arc<Vec<Box<dyn Catcher>>>>,
@@ -165,18 +167,9 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 );
             }
             if response.body.is_none() && has_error {
-                let mut catched = false;
-                for catcher in &*catchers {
+                for catcher in catchers.iter().chain(DEFAULT_CATCHERS.iter()) {
                     if catcher.catch(&request, &mut response) {
-                        catched = true;
                         break;
-                    }
-                }
-                if !catched {
-                    for catcher in &**DEFAULT_CATCHERS {
-                        if catcher.catch(&request, &mut response) {
-                            break;
-                        }
                     }
                 }
             }
