@@ -31,7 +31,13 @@ impl Stream for Body {
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
             Body::Empty => Poll::Ready(None),
-            Body::Bytes(bytes) => Poll::Ready(Some(Ok(bytes.clone().freeze()))),
+            Body::Bytes(bytes) => {
+                if bytes.is_empty() {
+                    Poll::Ready(None)
+                } else {
+                    Poll::Ready(Some(Ok(bytes.split().freeze())))
+                }
+            }
             Body::Stream(stream) => {
                 let x = stream.as_mut();
                 x.poll_next(cx)
@@ -457,5 +463,40 @@ impl Write for Cache {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Body;
+    use bytes::BytesMut;
+    use futures::stream::{iter, StreamExt};
+    use std::error::Error;
+
+    #[tokio::test]
+    async fn test_body_stream1() {
+        let mut body = Body::Bytes(BytesMut::from("hello"));
+
+        let mut result = bytes::BytesMut::new();
+        while let Some(Ok(data)) = body.next().await {
+            result.extend_from_slice(&data)
+        }
+
+        assert_eq!("hello", &result)
+    }
+
+    #[tokio::test]
+    async fn test_body_stream2() {
+        let mut body = Body::Stream(Box::pin(iter(vec![
+            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("hello").freeze()),
+            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" world").freeze()),
+        ])));
+
+        let mut result = bytes::BytesMut::new();
+        while let Some(Ok(data)) = body.next().await {
+            result.extend_from_slice(&data)
+        }
+
+        assert_eq!("hello world", &result)
     }
 }
