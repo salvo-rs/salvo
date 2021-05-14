@@ -24,8 +24,8 @@ pub struct Options {
 impl Options {
     fn new() -> Options {
         Options {
-            dot_files: true,
-            listing: true,
+            dot_files: false,
+            listing: false,
             defaults: vec!["index.html".to_owned()],
         }
     }
@@ -152,12 +152,11 @@ impl Handler for StaticDir {
             value.clone()
         } else {
             decode_url_path_safely(req_path)
-        }
-        .to_owned();
+        };
         let base_path = if base_path.starts_with('/') {
             format!(".{}", base_path)
         } else {
-            base_path
+            base_path.to_owned()
         };
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
@@ -188,22 +187,35 @@ impl Handler for StaticDir {
                         return;
                     }
                 }
-                //list the dir
+                // list the dir
                 if let Ok(mut entries) = tokio::fs::read_dir(&path).await {
                     while let Ok(Some(entry)) = entries.next_entry().await {
                         if let Ok(metadata) = entry.metadata().await {
                             if metadata.is_dir() {
-                                dirs.entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
+                                dirs.entry(entry.file_name().to_string_lossy().to_string())
                                     .or_insert(metadata);
                             } else {
-                                files
-                                    .entry(entry.file_name().into_string().unwrap_or_else(|_| "".to_owned()))
-                                    .or_insert(metadata);
+                                let file_name = entry.file_name().to_string_lossy().to_string();
+                                if !self.options.dot_files && file_name.starts_with('.') {
+                                    continue;
+                                }
+                                files.entry(file_name).or_insert(metadata);
                             }
                         }
                     }
                 }
             } else if path.is_file() {
+                if !self.options.dot_files
+                    && path
+                        .file_name()
+                        .map(|s| s.to_str())
+                        .flatten()
+                        .map(|s| s.starts_with('.'))
+                        .unwrap_or(false)
+                {
+                    res.set_http_error(NotFound());
+                    return;
+                }
                 if let Ok(named_file) = NamedFile::open(path).await {
                     named_file.write(req, depot, res).await;
                 } else {

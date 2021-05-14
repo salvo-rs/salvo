@@ -13,7 +13,7 @@ use crate::routing::{PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
-static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(|| catcher::defaults::get());
+static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(catcher::defaults::get);
 pub struct Service {
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
