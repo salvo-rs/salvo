@@ -33,6 +33,7 @@ impl From<CompressionAlgo> for HeaderValue {
 pub struct CompressionHandler {
     pub algo: CompressionAlgo,
     pub content_types: Vec<String>,
+    min_length: usize,
 }
 
 impl CompressionHandler {
@@ -47,7 +48,14 @@ impl CompressionHandler {
                 "application/rss+xml".into(),
                 "image/svg+xml".into(),
             ],
+            min_length: 1024,
         }
+    }
+    // Set minimum compression size, if body less than this value, no compression
+    // default is 1kb
+    pub fn min_length(mut self, size: usize) -> Self {
+        self.min_length = size;
+        self
     }
     pub fn content_types(&self) -> &Vec<String> {
         &self.content_types
@@ -77,8 +85,10 @@ impl Handler for CompressionHandler {
                     return;
                 }
                 Body::Bytes(body) => {
-                    let reader =
-                        StreamReader::new(tokio_stream::iter(vec![Result::<_, std::io::Error>::Ok(body)]));
+                    if body.len() < self.min_length {
+                        return;
+                    }
+                    let reader = StreamReader::new(tokio_stream::once(Result::<_, std::io::Error>::Ok(body)));
                     match self.algo {
                         CompressionAlgo::Gzip => {
                             let stream = ReaderStream::new(GzipEncoder::new(reader));

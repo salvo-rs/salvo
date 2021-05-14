@@ -1,5 +1,5 @@
-pub mod dir;
-pub mod fs;
+mod dir;
+mod fs;
 
-pub use dir::StaticDir;
+pub use dir::{Options, StaticDir};
 pub use fs::StaticFile;
