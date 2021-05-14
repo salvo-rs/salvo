@@ -33,6 +33,7 @@ impl From<CompressionAlgo> for HeaderValue {
 pub struct CompressionHandler {
     pub algo: CompressionAlgo,
     pub content_types: Vec<String>,
+    min_length: usize,
 }
 
 impl CompressionHandler {
@@ -47,7 +48,14 @@ impl CompressionHandler {
                 "application/rss+xml".into(),
                 "image/svg+xml".into(),
             ],
+            min_length: 1024,
         }
+    }
+    // Set minimum compression size, if body less than this value, no compression
+    // default is 1kb
+    pub fn min_length(mut self, size: usize) -> Self {
+        self.min_length = size;
+        self
     }
     pub fn content_types(&self) -> &Vec<String> {
         &self.content_types
@@ -71,23 +79,49 @@ impl Handler for CompressionHandler {
         {
             return;
         }
-        let body = res.take_body().unwrap();
-        if let Body::Empty = body {
-            return;
-        }
-        let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
-        match self.algo {
-            CompressionAlgo::Gzip => {
-                let stream = ReaderStream::new(GzipEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
-            }
-            CompressionAlgo::Deflate => {
-                let stream = ReaderStream::new(DeflateEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
-            }
-            CompressionAlgo::Br => {
-                let stream = ReaderStream::new(BrotliEncoder::new(StreamReader::new(body)));
-                res.streaming(stream);
+        if let Some(body) = res.take_body() {
+            match body {
+                Body::Empty => {
+                    return;
+                }
+                Body::Bytes(body) => {
+                    if body.len() < self.min_length {
+                        return;
+                    }
+                    let reader = StreamReader::new(tokio_stream::once(Result::<_, std::io::Error>::Ok(body)));
+                    match self.algo {
+                        CompressionAlgo::Gzip => {
+                            let stream = ReaderStream::new(GzipEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Deflate => {
+                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Br => {
+                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                    }
+                }
+                Body::Stream(body) => {
+                    let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
+                    let reader = StreamReader::new(body);
+                    match self.algo {
+                        CompressionAlgo::Gzip => {
+                            let stream = ReaderStream::new(GzipEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Deflate => {
+                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                        CompressionAlgo::Br => {
+                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                            res.streaming(stream);
+                        }
+                    }
+                }
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
