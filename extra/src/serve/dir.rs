@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
-use salvo_core::http::errors::*;
+use salvo_core::http::{errors::*, StatusCode};
 use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
@@ -231,6 +231,7 @@ impl Handler for StaticDir {
             .collect();
         dirs.sort_by(|a, b| a.name.cmp(&b.name));
         let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
+        res.set_status_code(StatusCode::OK);
         match format.subtype().as_ref() {
             "text" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),
