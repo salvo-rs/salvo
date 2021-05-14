@@ -413,6 +413,9 @@ impl Response {
     /// return verification logic, such as permission verification, etc.
     #[inline]
     pub fn commit(&mut self) {
+        if self.is_committed {
+            return;
+        }
         for cookie in self.cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
                 self.headers.append(SET_COOKIE, hv);

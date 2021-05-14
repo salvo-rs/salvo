@@ -121,9 +121,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 for handler in &dm.afters {
                     handler.handle(&mut request, &mut depot, &mut response).await;
                 }
-                if !response.is_commited() {
-                    response.commit();
-                }
+                response.commit();
             } else {
                 response.set_status_code(StatusCode::NOT_FOUND);
             }
@@ -137,6 +135,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     response.set_status_code(StatusCode::OK);
                 }
             }
+
             let status = response.status_code().unwrap();
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = response.headers().get(CONTENT_TYPE) {
