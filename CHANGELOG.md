@@ -1,7 +1,7 @@
 ### 0.11.5
 
 - extra: pub fs and dir mod in serve.
-- fix bug: compression bug when body orginal is Body::Bytes.
+- fix bug: wrong Stream impl for Body.
 - ### 0.11.4
 
 - feature： Add regex support for wildcard match with * or **.
