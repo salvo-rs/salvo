@@ -231,6 +231,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 - [unix_socket.rs](./examples/unix_socket.rs)
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
+- [work_with_tower.rs](./examples/work_with_tower.rs)
 
 您可以通过以下命令运行这些示例：
 

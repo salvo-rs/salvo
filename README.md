@@ -226,6 +226,7 @@ Your can find more examples in [examples](./examples/) folder:
 - [unix_socket.rs](./examples/unix_socket.rs)
 - [ws_chat.rs](./examples/ws_chat.rs)
 - [ws.rs](./examples/ws.rs)
+- [work_with_tower.rs](./examples/work_with_tower.rs)
 
 You can run these examples with the following command:
 
