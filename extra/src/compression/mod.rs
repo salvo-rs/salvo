@@ -86,6 +86,7 @@ impl Handler for CompressionHandler {
                 }
                 Body::Bytes(body) => {
                     if body.len() < self.min_length {
+                        res.set_body(Some(Body::Bytes(body)));
                         return;
                     }
                     let reader = StreamReader::new(tokio_stream::once(Result::<_, std::io::Error>::Ok(body)));
