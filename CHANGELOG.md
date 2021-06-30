@@ -1,3 +1,7 @@
+### 0.11.6
+
+- extra: fix proxy bug.
+
 ### 0.11.5
 
 - extra: pub fs and dir mod in serve.
