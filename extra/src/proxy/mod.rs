@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use hyper::{Client, Uri};
 use hyper_rustls::HttpsConnector;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
@@ -74,12 +75,12 @@ impl ProxyHandler {
             if rest.is_empty() {
                 format!("{}?{}", upstream, query)
             } else {
-                format!("{}/{}?{}", upstream.trim_end_matches('/'), rest, query)
+                format!("{}/{}?{}", upstream.trim_end_matches('/'), encode_url_path(rest), query)
             }
         } else if rest.is_empty() {
             upstream.into()
         } else {
-            format!("{}/{}", upstream.trim_end_matches('/'), rest)
+            format!("{}/{}", upstream.trim_end_matches('/'), encode_url_path(rest))
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
@@ -160,4 +161,11 @@ impl Handler for ProxyHandler {
             }
         }
     }
+}
+
+fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
