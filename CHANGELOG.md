@@ -1,4 +1,4 @@
-### 0.11.6
+### 0.12.0
 
 - core: use multer to parse multipart.
 
