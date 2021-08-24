@@ -20,7 +20,7 @@ macro_rules! handler_tuple_impls {
         {
             async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
                 $(
-                    if !res.is_commited() {
+                    if !res.is_committed() {
                         self.$idx.handle(req, depot, res).await;
                     }
                 )+

@@ -424,7 +424,7 @@ impl Response {
         self.is_committed = true;
     }
     #[inline]
-    pub fn is_commited(&self) -> bool {
+    pub fn is_committed(&self) -> bool {
         self.is_committed
     }
 }

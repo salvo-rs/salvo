@@ -113,7 +113,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                 request.params = path_state.params;
                 for handler in [&dm.befores[..], &[dm.handler]].concat() {
                     handler.handle(&mut request, &mut depot, &mut response).await;
-                    if response.is_commited() {
+                    if response.is_committed() {
                         break;
                     }
                 }
