@@ -85,7 +85,8 @@ impl FilePart {
         path.push(format!(
             "{}.{}",
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
-            file_name.as_deref()
+            file_name
+                .as_deref()
                 .and_then(|f| get_extension_from_filename(&f))
                 .unwrap_or("unknown")
         ));
@@ -129,25 +130,21 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             Ok(form_data)
         }
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
-            let boundary = headers
+            let mut form_data = FormData::new();
+            if let Some(boundary) = headers
                 .get(header::CONTENT_TYPE)
                 .and_then(|ct| ct.to_str().ok())
                 .and_then(|ct| multer::parse_boundary(ct).ok())
-                .unwrap();
-
-            let mut form_data = FormData::new();
-            let mut multipart = Multipart::new(body, boundary);
-            while let Some(mut field) = multipart.next_field().await? {
-                if let Some(name) = field.name().map(|s|s.to_owned()) {
-                    if let Some(content_type) = field.headers().get(header::CONTENT_TYPE) {
-                        if content_type.to_str().unwrap_or_default().starts_with("text/") {
-                            form_data
-                                .fields
-                                .insert(name, field.text().await?);
-                        } else {
-                            form_data
-                                .files
-                                .insert(name, FilePart::create(&mut field).await?);
+            {
+                let mut multipart = Multipart::new(body, boundary);
+                while let Some(mut field) = multipart.next_field().await? {
+                    if let Some(name) = field.name().map(|s| s.to_owned()) {
+                        if let Some(content_type) = field.headers().get(header::CONTENT_TYPE) {
+                            if content_type.to_str().unwrap_or_default().starts_with("text/") {
+                                form_data.fields.insert(name, field.text().await?);
+                            } else {
+                                form_data.files.insert(name, FilePart::create(&mut field).await?);
+                            }
                         }
                     }
                 }

@@ -1,5 +1,9 @@
 ### 0.11.6
 
+- core: use multer to parse multipart.
+
+### 0.11.6
+
 - extra: fix proxy bug.
 
 ### 0.11.5
