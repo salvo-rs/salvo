@@ -1,12 +1,9 @@
-pub mod body_chunk;
 pub mod errors;
 pub mod form;
-pub mod multipart;
 pub mod range;
 pub mod request;
 pub mod response;
 
-pub use body_chunk::BodyChunk;
 pub use cookie;
 pub use errors::{HttpError, ReadError};
 pub use http::method::Method;
