@@ -6,9 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 //
 // port from https://github.com/mikedilger/mime-multipart/blob/master/src/lib.rs
-use futures::stream::TryStreamExt;
 use http::header;
-use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use std::ffi::OsStr;
@@ -107,11 +105,6 @@ impl FilePart {
     pub fn file_name(&self) -> Option<&str> {
         self.file_name.as_deref()
     }
-
-    /// Mime content-type specified in the header
-    pub fn content_type(&self) -> Option<&Mime> {
-        self.headers.content_type.as_ref()
-    }
 }
 impl Drop for FilePart {
     fn drop(&mut self) {
@@ -145,15 +138,17 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             let mut form_data = FormData::new();
             let mut multipart = Multipart::new(body, boundary);
             while let Some(mut field) = multipart.next_field().await? {
-                if let Some(name) = field.name() {
-                    if let Ok(text)= field.text().await {
-                        form_data
-                            .fields
-                            .insert(name.to_owned(), text);
-                    } else {
-                        form_data
-                            .files
-                            .insert(name.to_owned(), FilePart::create(&mut field).await?);
+                if let Some(name) = field.name().map(|s|s.to_owned()) {
+                    if let Some(content_type) = field.headers().get(header::CONTENT_TYPE) {
+                        if content_type.to_str().unwrap_or_default().starts_with("text/") {
+                            form_data
+                                .fields
+                                .insert(name, field.text().await?);
+                        } else {
+                            form_data
+                                .files
+                                .insert(name, FilePart::create(&mut field).await?);
+                        }
                     }
                 }
             }
