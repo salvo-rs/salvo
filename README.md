@@ -35,7 +35,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { version = "0.11", features = ["full"] }
+salvo = { version = "0.12", features = ["full"] }
 tokio = { version = "1.5", features = ["full"] }
 ```
 

@@ -61,6 +61,9 @@ pub enum ReadError {
     #[error("An HTTP parsing error from a multipart section: {0}")]
     HttParse(#[from] httparse::Error),
 
+    #[error("An multer error from: {0}")]
+    Multer(#[from] multer::Error),
+
     #[error("An I/O error: {}", _0)]
     Io(#[from] io::Error),
 

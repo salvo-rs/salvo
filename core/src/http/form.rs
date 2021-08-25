@@ -6,9 +6,8 @@
 // copied, modified, or distributed except according to those terms.
 //
 // port from https://github.com/mikedilger/mime-multipart/blob/master/src/lib.rs
-use futures::stream::TryStreamExt;
 use http::header;
-use mime::Mime;
+use multer::{Field, Multipart};
 use multimap::MultiMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -18,9 +17,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::http::errors::ReadError;
 use crate::http::header::HeaderMap;
-use crate::http::multipart::{Field, FieldHeaders, Multipart};
 use crate::http::request::{self, Body};
-use crate::http::BodyChunk;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 ///
@@ -32,7 +29,6 @@ pub struct FormData {
     /// Name-value pairs for temporary files. Technically, these are form data parts with a filename
     /// specified in the part's `Content-Disposition`.
     pub files: MultiMap<String, FilePart>,
-    pub multipart: Option<Multipart<Body>>,
 }
 
 impl FormData {
@@ -40,7 +36,6 @@ impl FormData {
         FormData {
             fields: MultiMap::new(),
             files: MultiMap::new(),
-            multipart: None,
         }
     }
 }
@@ -49,7 +44,6 @@ impl Default for FormData {
         FormData {
             fields: MultiMap::new(),
             files: MultiMap::new(),
-            multipart: None,
         }
     }
 }
@@ -60,8 +54,9 @@ fn get_extension_from_filename(filename: &str) -> Option<&str> {
 /// was received as part of `multipart/*` parsing.
 #[derive(Debug)]
 pub struct FilePart {
+    pub file_name: Option<String>,
     /// The headers of the part
-    pub headers: FieldHeaders,
+    pub headers: HeaderMap,
     /// A temporary file containing the file content
     pub path: PathBuf,
     /// Optionally, the size of the file.  This is filled when multiparts are parsed, but is
@@ -79,42 +74,37 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
-    pub async fn create(field: &mut Field<'_, Body>) -> Result<FilePart, ReadError> {
+    pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ReadError> {
         // Setup a file to capture the contents.
         let mut path = tokio::task::spawn_blocking(|| TempDir::new("salvo_http_multipart"))
             .await
             .expect("Runtime spawn blocking poll error")?
             .into_path();
         let temp_dir = Some(path.clone());
+        let file_name = field.file_name().map(|s| s.to_owned());
         path.push(format!(
             "{}.{}",
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
-            field
-                .headers
-                .filename
-                .as_ref()
+            file_name
+                .as_deref()
                 .and_then(|f| get_extension_from_filename(&f))
                 .unwrap_or("unknown")
         ));
         let mut file = File::create(&path).await?;
-        while let Some(chunk) = field.data.try_next().await? {
-            file.write_all(chunk.as_slice()).await?;
+        while let Some(chunk) = field.chunk().await? {
+            file.write_all(&chunk).await?;
         }
         Ok(FilePart {
-            headers: field.headers.clone(),
+            file_name,
+            headers: field.headers().to_owned(),
             path,
             size: None,
             temp_dir,
         })
     }
 
-    pub fn filename(&self) -> Option<&str> {
-        self.headers.filename.as_deref()
-    }
-
-    /// Mime content-type specified in the header
-    pub fn content_type(&self) -> Option<&Mime> {
-        self.headers.content_type.as_ref()
+    pub fn file_name(&self) -> Option<&str> {
+        self.file_name.as_deref()
     }
 }
 impl Drop for FilePart {
@@ -141,16 +131,22 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
         }
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/form-data") => {
             let mut form_data = FormData::new();
-            let mut multipart = Multipart::try_from_body_headers(body, headers)?;
-            while let Some(mut field) = multipart.next_field().await? {
-                if field.headers.is_text() {
-                    form_data
-                        .fields
-                        .insert(field.headers.name.clone(), field.data.read_to_string().await?);
-                } else {
-                    form_data
-                        .files
-                        .insert(field.headers.name.clone(), FilePart::create(&mut field).await?);
+            if let Some(boundary) = headers
+                .get(header::CONTENT_TYPE)
+                .and_then(|ct| ct.to_str().ok())
+                .and_then(|ct| multer::parse_boundary(ct).ok())
+            {
+                let mut multipart = Multipart::new(body, boundary);
+                while let Some(mut field) = multipart.next_field().await? {
+                    if let Some(name) = field.name().map(|s| s.to_owned()) {
+                        if let Some(content_type) = field.headers().get(header::CONTENT_TYPE) {
+                            if content_type.to_str().unwrap_or_default().starts_with("text/") {
+                                form_data.fields.insert(name, field.text().await?);
+                            } else {
+                                form_data.files.insert(name, FilePart::create(&mut field).await?);
+                            }
+                        }
+                    }
                 }
             }
             Ok(form_data)

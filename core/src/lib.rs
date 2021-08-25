@@ -12,11 +12,6 @@ mod tls;
 mod transport;
 pub mod writer;
 
-#[macro_use]
-extern crate pin_utils;
-#[macro_use]
-extern crate futures_util;
-
 #[cfg(feature = "anyhow")]
 pub use anyhow;
 pub use hyper;
