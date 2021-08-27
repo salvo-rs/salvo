@@ -11,7 +11,7 @@ repository = "https://github.com/salvo-rs/salvo"
 readme = "../README.md"
 keywords = ["salvo", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server"]
+categories = ["network-programming", "asynchronous", "web-programming::http-server", "web-programming::websocket"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -24,7 +24,7 @@ jwt_auth = ["cookie", "jsonwebtoken"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
 size_limiter = []
-proxy = ["hyper",  "hyper-rustls/webpki-tokio"]
+proxy = ["hyper", "hyper-rustls/webpki-tokio"]
 serve = ["chrono", "mime", "percent-encoding", "tokio"]
 sse = ["futures", "pin-project", "tokio"]
 ws = ["futures", "tokio", "tokio-tungstenite"]
@@ -39,16 +39,16 @@ futures = { version = "0.3", default-features = false, features = ["alloc"], opt
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
 hyper-rustls = { version = "0.22.1", default-features = false, optional = true }
 jsonwebtoken = { version = "7", optional = true }
-mime = { version ="0.3", optional = true }
-percent-encoding = { version ="2.1", optional = true }
-pin-project = { version ="1.0", optional = true }
+mime = { version = "0.3", optional = true }
+percent-encoding = { version = "2.1", optional = true }
+pin-project = { version = "1.0", optional = true }
 salvo_core = { version = "0.12", default-features = false, path = "../core" }
-serde = { version ="1" }
-serde_derive = { version ="1"}
-serde_json = { version ="1" }
-thiserror = { version ="1", optional = true }
+serde = { version = "1" }
+serde_derive = { version = "1" }
+serde_json = { version = "1" }
+thiserror = { version = "1", optional = true }
 tokio = { version = "1.5", features = ["fs", "sync", "time"], optional = true }
-tokio-stream = { version ="0.1", optional = true }
+tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.14", default-features = false, optional = true }
 tokio-util = { version = "0.6", features = ["io"], optional = true }
-tracing = { version ="0.1" }
+tracing = { version = "0.1" }

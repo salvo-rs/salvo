@@ -1,7 +1,7 @@
 [package]
 name = "salvo_core"
 version = "0.12.1"
-authors = [ "Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>" ]
+authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2018"
 description = """
 A simple web framework written by rust
@@ -9,9 +9,9 @@ A simple web framework written by rust
 homepage = "https://github.com/salvo-rs/salvo"
 repository = "https://github.com/salvo-rs/salvo"
 readme = "../README.md"
-keywords = [ "salvo", "web", "framework", "server" ]
+keywords = ["salvo", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = [ "web-programming::http-server" ]
+categories = ["network-programming", "asynchronous", "web-programming::http-server", "web-programming::websocket"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -22,15 +22,15 @@ full = ["tls", "anyhow"]
 tls = ["tokio-rustls"]
 
 [dependencies]
-anyhow = {version = "1", optional = true }
+anyhow = { version = "1", optional = true }
 async-trait = "0.1"
 base64 = "0.13"
 bitflags = "1"
 bytes = "1"
-cookie = { version = "0.15", features = [ "percent-encode" ] }
+cookie = { version = "0.15", features = ["percent-encode"] }
 display_bytes = "0.2"
 form_urlencoded = "1"
-futures = { version = "0.3", features = [ "std" ] }
+futures = { version = "0.3", features = ["std"] }
 futures-util = "0.3"
 headers = "0.3"
 http = "0.2"
@@ -39,21 +39,21 @@ hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "t
 mime = "0.3"
 mime_guess = "2"
 multer = "2.0.1"
-multimap = { version = "0.8", features = [ "serde" ] }
+multimap = { version = "0.8", features = ["serde"] }
 num_cpus = "1"
 once_cell = "1"
 percent-encoding = "2"
 pin-utils = "0.1"
 rand = "0.8"
 regex = "1"
-salvo_macros = { version = "0.12", path="../macros"}
-serde = { version = "1", features = [ "derive" ] }
+salvo_macros = { version = "0.12", path = "../macros" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempdir = "0.3"
 textnonce = "1"
 thiserror = "1"
 time = "0.3"
-tokio = { version = "1.5", features = [ "full" ] }
+tokio = { version = "1.5", features = ["full"] }
 tokio-rustls = { version = "0.22", optional = true }
 tracing = "0.1"
 tracing-futures = "0.2"
