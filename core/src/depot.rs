@@ -35,20 +35,16 @@ impl Depot {
     }
 
     /// Check is there a value stored in depot with this key.
-    pub fn has<K>(&self, key: K) -> bool
-    where
-        K: Into<String>,
-    {
-        self.data.get(&key.into()).is_some()
+    pub fn has(&self, key: &str) -> bool {
+        self.data.get(key).is_some()
     }
 
     /// Immutably borrows value from depot, returing none if value is not present in depot.
-    pub fn try_borrow<K, V>(&self, key: K) -> Option<&V>
+    pub fn try_borrow<V>(&self, key: &str) -> Option<&V>
     where
-        K: Into<String>,
         V: Any + Send,
     {
-        self.data.get(&key.into()).and_then(|b| b.downcast_ref::<V>())
+        self.data.get(key).and_then(|b| b.downcast_ref::<V>())
     }
 
     /// Immutably borrows value from depot.
@@ -57,9 +53,8 @@ impl Depot {
     ///
     /// Panics if the value is currently mutably borrowed or not present in depot. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
-    pub fn borrow<K, V>(&self, key: K) -> &V
+    pub fn borrow<V>(&self, key: &str) -> &V
     where
-        K: Into<String>,
         V: Any + Send,
     {
         self.try_borrow(key)
@@ -67,12 +62,11 @@ impl Depot {
     }
 
     /// Mutably borrows value from depot, returing none if value is not present in depot.
-    pub fn try_borrow_mut<K, V>(&mut self, key: K) -> Option<&mut V>
+    pub fn try_borrow_mut<V>(&mut self, key: &str) -> Option<&mut V>
     where
-        K: Into<String>,
         V: Any + Send,
     {
-        self.data.get_mut(&key.into()).and_then(|b| b.downcast_mut::<V>())
+        self.data.get_mut(key).and_then(|b| b.downcast_mut::<V>())
     }
 
     ///Mutably borrows value from depot.
@@ -81,9 +75,8 @@ impl Depot {
     ///
     /// Panics if the value is currently borrowed or not present in depot. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
-    pub fn borrow_mut<K, V>(&mut self, key: K) -> &mut V
+    pub fn borrow_mut<V>(&mut self, key: &str) -> &mut V
     where
-        K: Into<String>,
         V: Any + Send,
     {
         self.try_borrow_mut(key)
@@ -91,15 +84,11 @@ impl Depot {
     }
 
     /// Take value from depot container.
-    pub fn try_take<K, V>(&mut self, key: K) -> Option<V>
+    pub fn try_take<V>(&mut self, key: &str) -> Option<V>
     where
-        K: Into<String>,
         V: Any + Send,
     {
-        self.data
-            .remove(&key.into())
-            .and_then(|b| b.downcast::<V>().ok())
-            .map(|b| *b)
+        self.data.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
     }
 
     /// Take value from depot container.
@@ -108,9 +97,8 @@ impl Depot {
     ///
     /// Panics if the value is not present in depot container. For a non-panicking variant, use
     /// [`try_take`](#method.try_take).
-    pub fn take<K, V>(&mut self, key: K) -> V
+    pub fn take<V>(&mut self, key: &str) -> V
     where
-        K: Into<String>,
         V: Any + Send,
     {
         self.try_take(key)
