@@ -7,10 +7,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new()
-        .push(
-            Router::with_path("ws_chat")
-                .get(StaticFile::new("examples/ws_chat.rs")),
-        )
+        .push(Router::with_path("ws_chat").get(StaticFile::new("examples/ws_chat.rs")))
         .push(
             Router::new()
                 .after(compression::deflate())

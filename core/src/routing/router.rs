@@ -241,10 +241,8 @@ mod tests {
     #[test]
     fn test_router_detect1() {
         let router = Router::new().push(
-            Router::with_path("users").push(
-                Router::with_path("<id>")
-                    .push(Router::with_path("emails").get(fake_handler)),
-            ),
+            Router::with_path("users")
+                .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
         );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
@@ -259,15 +257,10 @@ mod tests {
     #[test]
     fn test_router_detect2() {
         let router = Router::new()
+            .push(Router::with_path("users").push(Router::with_path("<id>").get(fake_handler)))
             .push(
                 Router::with_path("users")
-                    .push(Router::with_path("<id>").get(fake_handler)),
-            )
-            .push(
-                Router::with_path("users").push(
-                    Router::with_path("<id>")
-                        .push(Router::with_path("emails").get(fake_handler)),
-                ),
+                    .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
             );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
@@ -339,16 +332,12 @@ mod tests {
     }
     #[test]
     fn test_router_detect5() {
-        let router = Router::new().push(
-            Router::with_path("users").push(
-                Router::with_path(r"<id:/\d+/>").push(
-                    Router::new().push(
-                        Router::with_path("facebook/insights")
-                            .push(Router::with_path("<**rest>").handle(fake_handler)),
-                    ),
+        let router =
+            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
+                Router::new().push(
+                    Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
                 ),
-            ),
-        );
+            )));
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/facebook/insights")
@@ -371,16 +360,12 @@ mod tests {
     }
     #[test]
     fn test_router_detect6() {
-        let router = Router::new().push(
-            Router::with_path("users").push(
-                Router::with_path(r"<id:/\d+/>").push(
-                    Router::new().push(
-                        Router::with_path("facebook/insights")
-                            .push(Router::with_path("<*rest>").handle(fake_handler)),
-                    ),
+        let router =
+            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
+                Router::new().push(
+                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
                 ),
-            ),
-        );
+            )));
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/facebook/insights")
@@ -403,16 +388,12 @@ mod tests {
     }
     #[test]
     fn test_router_detect_utf8() {
-        let router = Router::new().push(
-            Router::with_path("用户").push(
-                Router::with_path(r"<id:/\d+/>").push(
-                    Router::new().push(
-                        Router::with_path("facebook/insights")
-                            .push(Router::with_path("<*rest>").handle(fake_handler)),
-                    ),
+        let router =
+            Router::new().push(Router::with_path("用户").push(Router::with_path(r"<id:/\d+/>").push(
+                Router::new().push(
+                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
                 ),
-            ),
-        );
+            )));
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights")
@@ -435,10 +416,8 @@ mod tests {
     }
     #[test]
     fn test_router_detect9() {
-        let router = Router::new().push(
-            Router::with_path("users/<*sub:/(images|css)/>/<filename>")
-                .handle(fake_handler),
-        );
+        let router =
+            Router::new().push(Router::with_path("users/<*sub:/(images|css)/>/<filename>").handle(fake_handler));
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
@@ -461,10 +440,7 @@ mod tests {
     }
     #[test]
     fn test_router_detect10() {
-        let router = Router::new().push(
-            Router::with_path(r"users/<*sub:/(images|css)/.+/>")
-                .handle(fake_handler),
-        );
+        let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
