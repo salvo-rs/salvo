@@ -151,7 +151,7 @@ impl Router {
     pub fn with_path(path: impl Into<String>) -> Self {
         Router::new().filter(PathFilter::new(path))
     }
-    
+
     /// Create a new path filter for current router.
     ///
     /// # Panics
