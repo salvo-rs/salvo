@@ -5,7 +5,7 @@ use salvo_extra::serve::{Options, StaticDir};
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().path("<**path>").get(StaticDir::width_options(
+    let router = Router::with_path("<**path>").get(StaticDir::width_options(
         vec!["examples/static/body", "examples/static/girl"],
         Options {
             dot_files: false,

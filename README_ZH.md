@@ -107,9 +107,8 @@ Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
 正常情况下我们是这样写路由的：
 
 ```rust
-Router::new().path("articles").get(list_articles).post(create_article);
-Router::new()
-    .path("articles/<id>")
+Router::with_path("articles").get(list_articles).post(create_article);
+Router::with_path("articles/<id>")
     .get(show_article)
     .patch(edit_article)
     .delete(delete_article);
@@ -118,19 +117,17 @@ Router::new()
 往往查看文章和文章列表是不需要用户登录的, 但是创建, 编辑, 删除文章等需要用户登录认证权限才可以. Salvo 中支持嵌套的路由系统可以很好地满足这种需求. 我们可以把不需要用户登录的路由写到一起：
 
 ```rust
-Router::new()
-    .path("articles")
+Router::with_path("articles")
     .get(list_articles)
-    .push(Router::new().path("<id>").get(show_article));
+    .push(Router::with_path("<id>").get(show_article));
 ```
 
 然后把需要用户登录的路由写到一起， 并且使用相应的中间件验证用户是否登录：
 ```rust
-Router::new()
-    .path("articles")
+Router::with_path("articles")
     .before(auth_check)
     .post(list_articles)
-    .push(Router::new().path("<id>").patch(edit_article).delete(delete_article));
+    .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
 虽然这两个路由都有这同样的 ```path("articles")```, 然而它们依然可以被同时添加到同一个父路由, 所以最后的路由长成了这个样子:
@@ -138,17 +135,15 @@ Router::new()
 ```rust
 Router::new()
     .push(
-        Router::new()
-            .path("articles")
+        Router::with_path("articles")
             .get(list_articles)
-            .push(Router::new().path("<id>").get(show_article)),
+            .push(Router::with_path("<id>").get(show_article)),
     )
     .push(
-        Router::new()
-            .path("articles")
+        Router::with_path("articles")
             .before(auth_check)
             .post(list_articles)
-            .push(Router::new().path("<id>").patch(edit_article).delete(delete_article)),
+            .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
     );
 ```
 

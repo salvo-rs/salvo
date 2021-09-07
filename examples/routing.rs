@@ -8,28 +8,26 @@ async fn main() {
     let router = Router::new()
         .get(index)
         .push(
-            Router::new()
-                .path("users")
+            Router::with_path("users")
                 .before(auth)
                 .post(create_user)
-                .push(Router::new().path(r"<id:num>").post(update_user).delete(delete_user)),
+                .push(Router::with_path(r"<id:num>").post(update_user).delete(delete_user)),
         )
         .push(
-            Router::new()
-                .path("users")
+            Router::with_path("users")
                 .get(list_users)
-                .push(Router::new().path(r"<id:num>").get(show_user)),
+                .push(Router::with_path(r"<id:num>").get(show_user)),
         )
         .then(|router| {
             if debug_mode {
-                router.push(Router::new().path("debug").get(debug))
+                router.push(Router::with_path("debug").get(debug))
             } else {
                 router
             }
         })
         .then(|router| {
             if admin_mode {
-                router.push(Router::new().path("admin").get(admin))
+                router.push(Router::with_path("admin").get(admin))
             } else {
                 router
             }

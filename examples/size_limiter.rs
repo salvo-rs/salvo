@@ -39,7 +39,7 @@ async fn main() {
                 .path("limited")
                 .post(upload),
         )
-        .push(Router::new().path("unlimit").post(upload));
+        .push(Router::with_path("unlimit").post(upload));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
 

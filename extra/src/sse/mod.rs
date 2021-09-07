@@ -33,7 +33,7 @@
 //! }
 //! #[tokio::main]
 //! async fn main() {
-//!     let router = Router::new().path("push-notifications").get(handle);
+//!     let router = Router::with_path("push-notifications").get(handle);
 //!     Server::new(router).bind(([0, 0, 0, 0], 3131)).await;
 //! }
 //! ```

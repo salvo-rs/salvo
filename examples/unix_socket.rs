@@ -11,7 +11,7 @@ async fn main() {
 
     let listener = UnixListener::bind("/tmp/salvo.sock").unwrap();
     let incoming = UnixListenerStream::new(listener);
-    let router = Router::new().path("files/<*path>").get(StaticDir::new("./static"));
+    let router = Router::with_path("files/<*path>").get(StaticDir::new("./static"));
     Server::new(router).bind_incoming(incoming).await;
 }
 

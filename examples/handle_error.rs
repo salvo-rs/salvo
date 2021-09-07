@@ -24,7 +24,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new()
-        .push(Router::new().path("anyhow").get(handle_anyhow))
-        .push(Router::new().path("custom").get(handle_custom));
+        .push(Router::with_path("anyhow").get(handle_anyhow))
+        .push(Router::with_path("custom").get(handle_custom));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

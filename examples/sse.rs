@@ -35,6 +35,6 @@ async fn handle_tick(_req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().path("ticks").get(handle_tick);
+    let router = Router::with_path("ticks").get(handle_tick);
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
