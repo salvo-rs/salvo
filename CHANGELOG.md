@@ -1,3 +1,7 @@
+### 0.12.2
+
+- core: add with_path to Router.
+
 ### 0.12.0
 
 - core: use multer to parse multipart.
