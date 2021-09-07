@@ -143,6 +143,15 @@ impl Router {
         self
     }
 
+    /// Create a new router and set path filter.
+    ///
+    /// # Panics
+    ///
+    /// Panics if path value is not in correct format.
+    pub fn with_path(path: impl Into<String>) -> Self {
+        Router::new().filter(PathFilter::new(path))
+    }
+    
     /// Create a new path filter for current router.
     ///
     /// # Panics
