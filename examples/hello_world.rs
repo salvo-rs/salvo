@@ -27,9 +27,9 @@ async fn main() {
 
     let router = Router::new()
         .get(hello_world)
-        .push(Router::new().path("hello1").get(hello_world1))
-        .push(Router::new().path("hello2").get(hello_world2))
-        .push(Router::new().path("hello3").get(hello_world3))
-        .push(Router::new().path("hello4").get(hello_world4));
+        .push(Router::with_path("hello1").get(hello_world1))
+        .push(Router::with_path("hello2").get(hello_world2))
+        .push(Router::with_path("hello3").get(hello_world3))
+        .push(Router::with_path("hello4").get(hello_world4));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

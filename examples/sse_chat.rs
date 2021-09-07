@@ -26,10 +26,9 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().handle(index).push(
-        Router::new()
-            .path("chat")
+        Router::with_path("chat")
             .get(user_connected)
-            .push(Router::new().path("<id>").post(chat_send)),
+            .push(Router::with_path("<id>").post(chat_send)),
     );
     Server::new(router).bind(([0, 0, 0, 0], 3232)).await;
 }

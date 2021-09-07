@@ -8,8 +8,7 @@ async fn main() {
 
     let router = Router::new()
         .push(
-            Router::new()
-                .path("ws_chat")
+            Router::with_path("ws_chat")
                 .get(StaticFile::new("examples/ws_chat.rs")),
         )
         .push(

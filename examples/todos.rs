@@ -10,11 +10,10 @@ static STORE: Lazy<Db> = Lazy::new(|| new_store());
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new()
-        .path("todos")
+    let router = Router::with_path("todos")
         .get(list_todos)
         .post(create_todo)
-        .push(Router::new().path("<id>").put(update_todo).delete(delete_todo));
+        .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
     Server::new(router).bind(([0, 0, 0, 0], 3040)).await;
 }
 
