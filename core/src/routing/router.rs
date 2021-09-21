@@ -38,37 +38,45 @@ impl Router {
     }
 
     /// Get current router's children reference.
+    #[inline]
     pub fn routers(&self) -> &Vec<Router> {
         &self.routers
     }
     /// Get current router's children mutable reference.
+    #[inline]
     pub fn routers_mut(&mut self) -> &mut Vec<Router> {
         &mut self.routers
     }
 
     /// Get current router's before middlewares reference.
+    #[inline]
     pub fn befores(&self) -> &Vec<Arc<dyn Handler>> {
         &self.befores
     }
     /// Get current router's before middlewares mutable reference.
+    #[inline]
     pub fn befores_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.befores
     }
 
     /// Get current router's after middlewares reference.
+    #[inline]
     pub fn afters(&self) -> &Vec<Arc<dyn Handler>> {
         &self.afters
     }
     /// Get current router's after middlewares mutable reference.
+    #[inline]
     pub fn afters_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
         &mut self.afters
     }
 
     /// Get current router's filters reference.
+    #[inline]
     pub fn filters(&self) -> &Vec<Box<dyn Filter>> {
         &self.filters
     }
     /// Get current router's filters mutable reference.
+    #[inline]
     pub fn filters_mut(&mut self) -> &mut Vec<Box<dyn Filter>> {
         &mut self.filters
     }
@@ -107,11 +115,13 @@ impl Router {
     }
 
     /// Push a router as child of current router.
+    #[inline]
     pub fn push(mut self, router: Router) -> Self {
         self.routers.push(router);
         self
     }
     /// Append all routers in a Vec as children of current router.
+    #[inline]
     pub fn append(mut self, others: Vec<Router>) -> Self {
         let mut others = others;
         self.routers.append(&mut others);
@@ -119,6 +129,7 @@ impl Router {
     }
 
     #[deprecated(since = "0.10.4", note = "Please use then function instead")]
+    #[inline]
     pub fn push_when<F>(mut self, func: F) -> Self
     where
         F: Fn(&Router) -> Option<Router>,
@@ -131,6 +142,7 @@ impl Router {
 
     /// Add a handler as middleware, it will run before the handler in current router or it's descendants
     /// handle the request.
+    #[inline]
     pub fn before<H: Handler>(mut self, handler: H) -> Self {
         self.befores.push(Arc::new(handler));
         self
@@ -138,6 +150,7 @@ impl Router {
 
     /// Add a handler as middleware, it will run after the handler in current router or it's descendants
     /// handle the request.
+    #[inline]
     pub fn after<H: Handler>(mut self, handler: H) -> Self {
         self.afters.push(Arc::new(handler));
         self
@@ -148,6 +161,7 @@ impl Router {
     /// # Panics
     ///
     /// Panics if path value is not in correct format.
+    #[inline]
     pub fn with_path(path: impl Into<String>) -> Self {
         Router::new().filter(PathFilter::new(path))
     }
@@ -157,18 +171,21 @@ impl Router {
     /// # Panics
     ///
     /// Panics if path value is not in correct format.
+    #[inline]
     pub fn path(self, path: impl Into<String>) -> Self {
         self.filter(PathFilter::new(path))
     }
 
     /// Add a filter for current router.
     ///
+    #[inline]
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
         self.filters.push(Box::new(filter));
         self
     }
 
     /// Create a new FnFilter from Fn.
+    #[inline]
     pub fn filter_fn<T>(mut self, func: T) -> Self
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
@@ -178,6 +195,7 @@ impl Router {
     }
 
     /// Set current router's handler.
+    #[inline]
     pub fn handle<H: Handler>(mut self, handler: H) -> Self {
         self.handler = Some(Arc::new(handler));
         self
@@ -186,6 +204,7 @@ impl Router {
     /// When you want write router chain, this function will be useful,
     /// You can write your custom logic in FnOnce.
     ///
+    #[inline]
     pub fn then<F>(self, func: F) -> Self
     where
         F: FnOnce(Self) -> Self,
@@ -194,36 +213,43 @@ impl Router {
     }
 
     /// Create a new child router with MethodFilter to filter get method and set this child router's handler.
+    #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::get()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter post method and set this child router's handler.
+    #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::post()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter put method and set this child router's handler.
+    #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::put()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter delete method and set this child router's handler.
+    #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::delete()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter patch method and set this child router's handler.
+    #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::patch()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter head method and set this child router's handler.
+    #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::head()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
+    #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
         self.push(Router::new().filter(filter::options()).handle(handler))
     }
@@ -241,8 +267,10 @@ mod tests {
     #[test]
     fn test_router_detect1() {
         let router = Router::new().push(
-            Router::with_path("users")
-                .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
+            Router::with_path("users").push(
+                Router::with_path("<id>")
+                    .push(Router::with_path("emails").get(fake_handler)),
+            ),
         );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
@@ -257,10 +285,15 @@ mod tests {
     #[test]
     fn test_router_detect2() {
         let router = Router::new()
-            .push(Router::with_path("users").push(Router::with_path("<id>").get(fake_handler)))
             .push(
                 Router::with_path("users")
-                    .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
+                    .push(Router::with_path("<id>").get(fake_handler)),
+            )
+            .push(
+                Router::with_path("users").push(
+                    Router::with_path("<id>")
+                        .push(Router::with_path("emails").get(fake_handler)),
+                ),
             );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
@@ -332,12 +365,16 @@ mod tests {
     }
     #[test]
     fn test_router_detect5() {
-        let router =
-            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
-                Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
+        let router = Router::new().push(
+            Router::with_path("users").push(
+                Router::with_path(r"<id:/\d+/>").push(
+                    Router::new().push(
+                        Router::with_path("facebook/insights")
+                            .push(Router::with_path("<**rest>").handle(fake_handler)),
+                    ),
                 ),
-            )));
+            ),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/facebook/insights")
@@ -360,12 +397,16 @@ mod tests {
     }
     #[test]
     fn test_router_detect6() {
-        let router =
-            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
-                Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
+        let router = Router::new().push(
+            Router::with_path("users").push(
+                Router::with_path(r"<id:/\d+/>").push(
+                    Router::new().push(
+                        Router::with_path("facebook/insights")
+                            .push(Router::with_path("<*rest>").handle(fake_handler)),
+                    ),
                 ),
-            )));
+            ),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/facebook/insights")
@@ -388,12 +429,16 @@ mod tests {
     }
     #[test]
     fn test_router_detect_utf8() {
-        let router =
-            Router::new().push(Router::with_path("用户").push(Router::with_path(r"<id:/\d+/>").push(
-                Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
+        let router = Router::new().push(
+            Router::with_path("用户").push(
+                Router::with_path(r"<id:/\d+/>").push(
+                    Router::new().push(
+                        Router::with_path("facebook/insights")
+                            .push(Router::with_path("<*rest>").handle(fake_handler)),
+                    ),
                 ),
-            )));
+            ),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights")
@@ -416,8 +461,10 @@ mod tests {
     }
     #[test]
     fn test_router_detect9() {
-        let router =
-            Router::new().push(Router::with_path("users/<*sub:/(images|css)/>/<filename>").handle(fake_handler));
+        let router = Router::new().push(
+            Router::with_path("users/<*sub:/(images|css)/>/<filename>")
+                .handle(fake_handler),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
@@ -440,7 +487,10 @@ mod tests {
     }
     #[test]
     fn test_router_detect10() {
-        let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
+        let router = Router::new().push(
+            Router::with_path(r"users/<*sub:/(images|css)/.+/>")
+                .handle(fake_handler),
+        );
         let mut req = Request::from_hyper(
             hyper::Request::builder()
                 .uri("http://local.host/users/12/m.jpg")
