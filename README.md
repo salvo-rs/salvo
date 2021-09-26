@@ -13,7 +13,7 @@
 </p>
 </div>
 
-Salvo is a web server framework written in Rust.
+Salvo is a simple but powerful web server framework written in Rust.
 ## 🎯 Features
   - Base on hyper, tokio and async supported;
   - Websocket supported;
