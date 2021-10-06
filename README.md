@@ -234,14 +234,14 @@ You can use any example name you want to run instead of ```basic_auth``` here.
 There is a real and open source project use Salvo: [https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
 
-## Performance
+## 🚀 Performance
 Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
 [https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2)
 
-## Contributing
+## 🩸 Contributing
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
 

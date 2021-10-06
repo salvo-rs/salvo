@@ -239,13 +239,14 @@ cargo run --example basic_auth
 这里有一个真实的项目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
 
-## 性能
+## 🚀 性能
 Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
 [https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2)
-## 贡献
+
+## 🩸 贡献
 
 非常欢迎大家为项目贡献力量，可以通过以下方法为项目作出贡献:
 
