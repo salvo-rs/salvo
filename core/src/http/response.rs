@@ -226,7 +226,7 @@ impl Response {
         self.cookies.remove(Cookie::named(name));
     }
     #[inline]
-    pub fn status_code(&mut self) -> Option<StatusCode> {
+    pub fn status_code(&self) -> Option<StatusCode> {
         self.status_code
     }
 
