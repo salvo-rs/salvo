@@ -236,7 +236,7 @@ cargo run --example basic_auth
 
 您可以使用任何你想运行的示例名称替代这里的 ```basic_auth```.
 
-部分代码和示例移植自 [warp](https://github.com/seanmonstar/warp), [multipart-async](https://github.com/abonander/multipart-async), [mime-multipart](https://github.com/mikedilger/mime-multipart) 和 [actix-web](https://github.com/actix/actix-web).
+这里有一个真实的项目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
 
 ## 性能
