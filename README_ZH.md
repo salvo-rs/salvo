@@ -244,7 +244,7 @@ Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=e81c66ad-1e37-4f2c-9e25-bcc79796fab8&hw=ph&test=plaintext&l=zik0zj-e6&a=2)
+[https://www.techempower.com/benchmarks/#section=test&runid=1922b097-2d7f-413c-be21-9571c8302734&hw=ph&test=query&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=1922b097-2d7f-413c-be21-9571c8302734&hw=ph&test=query&l=zik0zj-e6&a=2)
 
 ## 🩸 贡献
 
