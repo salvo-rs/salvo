@@ -475,7 +475,7 @@ impl Request {
     #[inline]
     pub async fn read_text(&mut self) -> Result<&str, ReadError> {
         match self.payload().await {
-            Ok(body) => Ok(std::str::from_utf8(&body)?),
+            Ok(body) => Ok(std::str::from_utf8(body)?),
             Err(_) => Err(ReadError::General("read text from body failed".into())),
         }
     }

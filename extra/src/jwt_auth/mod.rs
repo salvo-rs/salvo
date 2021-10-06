@@ -104,7 +104,7 @@ where
     }
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
         decode::<C>(
-            &token,
+            token,
             &DecodingKey::from_secret(&*self.config.secret.as_ref()),
             &self.config.validation,
         )
