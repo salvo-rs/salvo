@@ -244,11 +244,16 @@ impl Response {
     // }
 
     #[inline]
+    pub fn http_error(&self) -> Option<&HttpError> {
+        self.http_error.as_ref()
+    }
+    #[inline]
     pub fn set_http_error(&mut self, err: HttpError) {
         self.status_code = Some(err.code);
         self.http_error = Some(err);
         self.commit();
     }
+
     #[inline]
     pub fn render_json<T: Serialize>(&mut self, data: &T) {
         let mut cache = Cache::with_capacity(128);
