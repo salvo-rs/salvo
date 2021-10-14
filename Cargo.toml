@@ -64,6 +64,10 @@ tracing-subscriber = "0.2"
 tower = { version = "0.4", features = ["limit"] }
 hyper = { version = "0.14", features = ["server"] }
 
-[profile.dev]
-codegen-units = 4
-split-debuginfo = "unpacked"
+[profile.release]
+codegen-units = 1
+incremental = false
+
+[profile.bench]
+codegen-units = 1
+incremental = false
