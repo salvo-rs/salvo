@@ -24,8 +24,8 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::header::*;
+    use super::*;
 
     #[test]
     fn test_guess_accept_mime() {

@@ -247,7 +247,6 @@ impl NamedFile {
         self.flags.remove(Flags::CONTENT_DISPOSITION);
     }
 
-
     /// Set content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(&mut self, content_encoding: HeaderValue) {
@@ -299,7 +298,6 @@ impl NamedFile {
             }
         })
     }
-
 
     #[inline]
     ///Specifies whether to use Last-Modified or not.

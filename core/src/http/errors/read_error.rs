@@ -102,8 +102,8 @@ impl Writer for ReadError {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
     use super::*;
+    use crate::prelude::*;
 
     #[tokio::test]
     async fn test_write_error() {
