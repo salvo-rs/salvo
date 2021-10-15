@@ -16,6 +16,6 @@ async fn main() {
 
     let router = Router::new()
         .before(auth_handler)
-        .get(StaticDir::new(vec!["examples/static/body", "examples/static/girl"]));
+        .get(StaticDir::new(vec!["examples/static/boy", "examples/static/girl"]));
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }
