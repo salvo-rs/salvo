@@ -6,7 +6,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::with_path("<**path>").get(StaticDir::width_options(
-        vec!["examples/static/body", "examples/static/girl"],
+        vec!["examples/static/boy", "examples/static/girl"],
         Options {
             dot_files: false,
             listing: true,

@@ -420,7 +420,7 @@ impl TlsServer {
 mod tests {
     use crate::prelude::*;
 
-    #[tokio::main]
+    #[tokio::test]
     async fn test_hello_word() {
         #[fn_handler]
         async fn hello_world() -> Result<&'static str, ()> {
@@ -429,12 +429,12 @@ mod tests {
         let router = Router::new().get(hello_world);
 
         tokio::task::spawn(async {
-            Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+            Server::new(router).bind(([0, 0, 0, 0], 7979)).await;
         });
 
         let client = reqwest::Client::new();
         let result = client
-            .get("http://0.0.0.0:7878")
+            .get("http://127.0.0.1:7979")
             .send()
             .await
             .unwrap()
@@ -442,5 +442,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, "Hello World");
+        let result = client
+            .get("http://127.0.0.1:7979/not_exist")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(result.contains("Not Found"));
     }
 }

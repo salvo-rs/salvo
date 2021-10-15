@@ -99,3 +99,18 @@ impl Writer for ReadError {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use super::*;
+
+    #[tokio::test]
+    async fn test_write_error() {
+        let mut res = Response::default();
+        let mut req = Request::default();
+        let mut depot = Depot::new();
+        let err = ReadError::NoName;
+        err.write(&mut req, &mut depot, &mut res).await;
+    }
+}

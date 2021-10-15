@@ -218,6 +218,10 @@ impl NamedFile {
         self.content_type = content_type;
         self
     }
+    #[inline]
+    pub fn content_type(&self) -> &mime::Mime {
+        &self.content_type
+    }
 
     /// Set the Content-Disposition for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
@@ -232,6 +236,10 @@ impl NamedFile {
         self.flags.insert(Flags::CONTENT_DISPOSITION);
         self
     }
+    #[inline]
+    pub fn content_disposition(&self) -> &HeaderValue {
+        &self.content_disposition
+    }
 
     /// Disable `Content-Disposition` header.
     ///
@@ -242,11 +250,16 @@ impl NamedFile {
         self
     }
 
+
     /// Set content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(mut self, content_encoding: HeaderValue) -> Self {
         self.content_encoding = Some(content_encoding);
         self
+    }
+    #[inline]
+    pub fn content_encoding(&self) -> Option<&HeaderValue> {
+        self.content_encoding.as_ref()
     }
 
     #[inline]
@@ -257,16 +270,7 @@ impl NamedFile {
         self.flags.set(Flags::ETAG, value);
         self
     }
-
-    #[inline]
-    ///Specifies whether to use Last-Modified or not.
-    ///
-    ///Default is true.
-    pub fn use_last_modified(mut self, value: bool) -> Self {
-        self.flags.set(Flags::LAST_MODIFIED, value);
-        self
-    }
-    pub(crate) fn etag(&self) -> Option<ETag> {
+    pub fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
         self.modified.as_ref().and_then(|mtime| {
             let ino = {
@@ -300,7 +304,16 @@ impl NamedFile {
         })
     }
 
-    pub(crate) fn last_modified(&self) -> Option<SystemTime> {
+
+    #[inline]
+    ///Specifies whether to use Last-Modified or not.
+    ///
+    ///Default is true.
+    pub fn use_last_modified(mut self, value: bool) -> Self {
+        self.flags.set(Flags::LAST_MODIFIED, value);
+        self
+    }
+    pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
     }
 }

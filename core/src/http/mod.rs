@@ -21,3 +21,18 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let accept = req.accept();
     accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::header::*;
+
+    #[test]
+    fn test_guess_accept_mime() {
+        let mut req = Request::default();
+        let headers = req.headers_mut();
+        headers.insert(ACCEPT, HeaderValue::from_static("application/javascript"));
+        let mime = guess_accept_mime(&req, None);
+        assert_eq!(mime, "application/javascript".parse::<Mime>().unwrap());
+    }
+}
