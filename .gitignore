@@ -9,3 +9,4 @@ examples/_*.rs
 cobertura.xml
 debug.log
 temp
+tarpaulin-report.*
