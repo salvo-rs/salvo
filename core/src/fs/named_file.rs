@@ -250,7 +250,6 @@ impl NamedFile {
         self
     }
 
-
     /// Set content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(mut self, content_encoding: HeaderValue) -> Self {
@@ -303,7 +302,6 @@ impl NamedFile {
             }
         })
     }
-
 
     #[inline]
     ///Specifies whether to use Last-Modified or not.
