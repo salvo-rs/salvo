@@ -214,9 +214,8 @@ impl NamedFile {
     /// Set the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
-    pub fn set_content_type(mut self, content_type: mime::Mime) -> Self {
+    pub fn set_content_type(&mut self, content_type: mime::Mime) {
         self.content_type = content_type;
-        self
     }
     #[inline]
     pub fn content_type(&self) -> &mime::Mime {
@@ -231,10 +230,9 @@ impl NamedFile {
     /// after converting it to UTF-8 using.
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
-    pub fn set_content_disposition(mut self, content_disposition: HeaderValue) -> Self {
+    pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {
         self.content_disposition = content_disposition;
         self.flags.insert(Flags::CONTENT_DISPOSITION);
-        self
     }
     #[inline]
     pub fn content_disposition(&self) -> &HeaderValue {
@@ -245,17 +243,15 @@ impl NamedFile {
     ///
     /// By default Content-Disposition` header is enabled.
     #[inline]
-    pub fn disable_content_disposition(mut self) -> Self {
+    pub fn disable_content_disposition(&mut self) {
         self.flags.remove(Flags::CONTENT_DISPOSITION);
-        self
     }
 
 
     /// Set content encoding for serving this file
     #[inline]
-    pub fn set_content_encoding(mut self, content_encoding: HeaderValue) -> Self {
+    pub fn set_content_encoding(&mut self, content_encoding: HeaderValue) {
         self.content_encoding = Some(content_encoding);
-        self
     }
     #[inline]
     pub fn content_encoding(&self) -> Option<&HeaderValue> {
