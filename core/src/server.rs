@@ -432,6 +432,7 @@ mod tests {
             Server::new(router).bind(([0, 0, 0, 0], 7979)).await;
         });
 
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         let client = reqwest::Client::new();
         let result = client
             .get("http://127.0.0.1:7979")
