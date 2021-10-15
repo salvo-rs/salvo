@@ -266,7 +266,7 @@ mod tests {
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_detect1() {
-        let router = Router::new().push(
+        let router = Router::default().push(
             Router::with_path("users")
                 .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
         );
@@ -486,5 +486,9 @@ mod tests {
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
+    }
+    #[test]
+    fn test_router_fns() {
+        let router = Router::new().be
     }
 }
