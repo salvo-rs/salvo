@@ -487,8 +487,4 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
-    #[test]
-    fn test_router_fns() {
-        let router = Router::new().be
-    }
 }
