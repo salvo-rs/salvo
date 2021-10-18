@@ -17,7 +17,7 @@ use crate::tls::{TlsAcceptor, TlsConfigBuilder};
 use crate::transport::LiftIo;
 use crate::{Catcher, Router, Service};
 
-pub fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
+fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
     HyperServer::builder(incoming)
 }
 
