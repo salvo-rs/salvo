@@ -172,7 +172,6 @@ fn encode_url_path(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::response::Body;
     use salvo_core::hyper;
     use salvo_core::prelude::*;
 
