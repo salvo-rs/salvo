@@ -172,7 +172,11 @@ mod tests {
             context_state_key: Some("jwt_state".to_owned()),
             secret: "ABCDEF".into(),
             claims: PhantomData::<JwtClaims>,
-            extractors: vec![Box::new(HeaderExtractor::new())],
+            extractors: vec![
+                Box::new(HeaderExtractor::new()),
+                Box::new(QueryExtractor::new("jwt_token")),
+                Box::new(CookieExtractor::new("jwt_token")),
+            ],
             validation: Validation::default(),
         };
         let auth_handler = JwtHandler::new(baconfig);
@@ -211,6 +215,26 @@ mod tests {
         )
         .unwrap();
         let content = access(&service, &token).await;
+        assert!(content.contains("hello"));
+
+        let request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("GET")
+                .uri(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let content = service.handle(request).await.take_text().await.unwrap();
+        assert!(content.contains("hello"));
+        let request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("GET")
+                .uri("http://127.0.0.1:7979/hello")
+                .header("Cookie", format!("jwt_token={}", token))
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let content = service.handle(request).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
 
         let token = jsonwebtoken::encode(
