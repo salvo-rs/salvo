@@ -36,7 +36,7 @@ impl Body {
     }
     pub async fn json<T: DeserializeOwned>(self) -> crate::Result<T> {
         let full = self.bytes().await?;
-        serde_json::from_slice(&full).map_err(|e| crate::Error::new(e))
+        serde_json::from_slice(&full).map_err(crate::Error::new)
     }
     pub async fn text(self, encoding: &str) -> crate::Result<String> {
         let encoding = Encoding::for_label(encoding.as_bytes()).unwrap_or(UTF_8);
@@ -58,7 +58,7 @@ impl Body {
             Self::Stream(mut stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {
-                    bytes.extend(chunk.map_err(|e| crate::Error::new(e))?);
+                    bytes.extend(chunk.map_err(crate::Error::new)?);
                 }
                 bytes.freeze()
             }
