@@ -29,6 +29,7 @@ bitflags = "1"
 bytes = "1"
 cookie = { version = "0.15", features = ["percent-encode"] }
 display_bytes = "0.2"
+encoding_rs = "0.8.29"
 form_urlencoded = "1"
 futures = { version = "0.3", features = ["std"] }
 futures-util = "0.3"

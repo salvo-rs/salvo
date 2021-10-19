@@ -7,8 +7,11 @@ use std::task::{self, Poll};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
-use futures::{Stream, TryStreamExt};
+use encoding_rs::{Encoding, UTF_8};
+use futures::{Stream, StreamExt, TryStreamExt};
 use http::version::Version;
+use mime::Mime;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub use http::response::Parts;
@@ -25,11 +28,42 @@ pub enum Body {
 }
 impl Body {
     pub fn is_empty(&self) -> bool {
-        if let  Body::Empty = *self {
+        if let Body::Empty = *self {
             true
         } else {
             false
         }
+    }
+    pub async fn json<T: DeserializeOwned>(self) -> crate::Result<T> {
+        let full = self.bytes().await?;
+        serde_json::from_slice(&full).map_err(|e| crate::Error::new(e))
+    }
+    pub async fn text(self, encoding: &str) -> crate::Result<String> {
+        let encoding = Encoding::for_label(encoding.as_bytes()).unwrap_or(UTF_8);
+        let full = self.bytes().await?;
+        let (text, _, _) = encoding.decode(&full);
+        if let Cow::Owned(s) = text {
+            return Ok(s);
+        }
+        unsafe {
+            // decoding returned Cow::Borrowed, meaning these bytes
+            // are already valid utf8
+            Ok(String::from_utf8_unchecked(full.to_vec()))
+        }
+    }
+    pub async fn bytes(self) -> crate::Result<Bytes> {
+        let bytes = match self {
+            Self::Empty => Bytes::new(),
+            Self::Bytes(bytes) => bytes.freeze(),
+            Self::Stream(mut stream) => {
+                let mut bytes = BytesMut::new();
+                while let Some(chunk) = stream.next().await {
+                    bytes.extend(chunk.map_err(|e| crate::Error::new(e))?);
+                }
+                bytes.freeze()
+            }
+        };
+        Ok(bytes)
     }
 }
 
@@ -166,6 +200,32 @@ impl Response {
     #[inline]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
+    }
+    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
+        match self.body.take() {
+            Some(body) => body.json().await,
+            None => Err(crate::Error::new("body is none")),
+        }
+    }
+    pub async fn take_text(&mut self) -> crate::Result<String> {
+        self.take_text_with_charset("utf-8").await
+    }
+    pub async fn take_text_with_charset(&mut self, default_encoding: &str) -> crate::Result<String> {
+        match self.body.take() {
+            Some(body) => {
+                let content_type = self
+                    .headers
+                    .get(header::CONTENT_TYPE)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<Mime>().ok());
+                let encoding = content_type
+                    .as_ref()
+                    .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+                    .unwrap_or(default_encoding);
+                body.text(encoding).await
+            }
+            None => Err(crate::Error::new("body is none")),
+        }
     }
 
     // `write_back` is used to put all the data added to `self`
