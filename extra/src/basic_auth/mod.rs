@@ -83,3 +83,50 @@ impl Handler for BasicAuthHandler {
         self.ask_credentials(res);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::headers::{Authorization, HeaderMapExt};
+    use salvo_core::hyper;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_basic_auth() {
+        let baconfig = BasicAuthConfig {
+            realm: "realm".to_owned(),
+            context_key: Some("user_name".to_owned()),
+            validator: Box::new(|user_name, password| -> bool { user_name == "root" && password == "pwd" }),
+        };
+        let auth_handler = BasicAuthHandler::new(baconfig);
+
+        #[fn_handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .before(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let mut request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello");
+        let headers = request.headers_mut().unwrap();
+        headers.typed_insert(Authorization::basic("root", "pwd"));
+        let request = Request::from_hyper(request.body(hyper::Body::empty()).unwrap());
+        let content = service.handle(request).await.take_text().await.unwrap();
+        assert!(content.contains("hello"));
+
+        let mut request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello");
+        let headers = request.headers_mut().unwrap();
+        headers.typed_insert(Authorization::basic("root", "pwd2"));
+        let request = Request::from_hyper(request.body(hyper::Body::empty()).unwrap());
+        let content = service.handle(request).await.take_text().await.unwrap();
+        assert!(content.contains("Unauthorized"));
+    }
+}

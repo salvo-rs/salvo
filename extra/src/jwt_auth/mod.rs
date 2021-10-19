@@ -148,3 +148,78 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Utc};
+    use jsonwebtoken::EncodingKey;
+    use salvo_core::hyper;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct JwtClaims {
+        user: String,
+        exp: i64,
+    }
+    #[tokio::test]
+    async fn test_jwt_auth() {
+        let baconfig = JwtConfig {
+            response_error: true,
+            context_token_key: Some("jwt_token".to_owned()),
+            context_data_key: Some("jwt_data".to_owned()),
+            context_state_key: Some("jwt_state".to_owned()),
+            secret: "ABCDEF".into(),
+            claims: PhantomData::<JwtClaims>,
+            extractors: vec![Box::new(HeaderExtractor::new())],
+            validation: Validation::default(),
+        };
+        let auth_handler = JwtHandler::new(baconfig);
+
+        #[fn_handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .before(auth_handler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        async fn access(service: &Service, token: &str) -> String {
+            let request = Request::from_hyper(
+                hyper::Request::builder()
+                    .method("GET")
+                    .uri("http://127.0.0.1:7979/hello")
+                    .header("Authorization", format!("Bearer {}", token))
+                    .body(hyper::Body::empty())
+                    .unwrap(),
+            );
+            service.handle(request).await.take_text().await.unwrap()
+        }
+
+        let claim = JwtClaims {
+            user: "root".into(),
+            exp: (Utc::now() + Duration::days(1)).timestamp(),
+        };
+
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(b"ABCDEF"),
+        )
+        .unwrap();
+        let content = access(&service, &token).await;
+        assert!(content.contains("hello"));
+
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &claim,
+            &EncodingKey::from_secret(b"ABCDEFG"),
+        )
+        .unwrap();
+        let content = access(&service, &token).await;
+        assert!(content.contains("Forbidden"));
+    }
+}

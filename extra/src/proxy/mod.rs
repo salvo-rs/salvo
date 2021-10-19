@@ -178,10 +178,17 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[should_panic]
+    async fn test_proxy_painc() {
+        ProxyHandler::new(vec![]);
+    }
+
+    #[tokio::test]
     async fn test_proxy() {
         let router = Router::new()
             .push(Router::with_path("baidu/<**rest>").handle(ProxyHandler::new(vec!["https://www.baidu.com".into()])));
         let service = Service::new(router);
+
         let request = Request::from_hyper(
             hyper::Request::builder()
                 .method("GET")
