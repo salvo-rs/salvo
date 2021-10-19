@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use crate::{Depot, Request, Response, Writer};
 
-static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(||vec![mime::JSON, mime::HTML, mime::XML, mime::TEXT]);
+static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(||vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 
 fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
@@ -61,7 +61,7 @@ fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         detail.unwrap_or("there is no more detailed explanation")
     )
 }
-fn error_text(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "code:{},\nname:{},\nsummary:{},\ndetail:{}",
         code.as_u16(),
@@ -118,7 +118,7 @@ impl HttpError {
             prefer_format.clone()
         };
         let content = match format.subtype().as_ref() {
-            "text" => error_text(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
+            "plain" => error_plain(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
             "json" => error_json(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
             "xml" => error_xml(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
             _ => error_html(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),

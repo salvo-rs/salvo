@@ -471,6 +471,7 @@ mod tests {
             .text()
             .await
             .unwrap();
+        println!("======text: {:?}", result);
         assert!(result.contains("code:404"));
         let result = client
             .get("http://127.0.0.1:7979/not_exist")
