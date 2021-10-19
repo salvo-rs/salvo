@@ -421,7 +421,7 @@ mod tests {
     use crate::prelude::*;
 
     #[tokio::test]
-    async fn test_hello_word() {
+    async fn test_server() {
         #[fn_handler]
         async fn hello_world() -> Result<&'static str, ()> {
             Ok("Hello World")
@@ -452,5 +452,35 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("Not Found"));
+        let result = client
+            .get("http://127.0.0.1:7979/not_exist")
+            .header("accept", "application/json")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(result.contains(r#""code":404"#));
+        let result = client
+            .get("http://127.0.0.1:7979/not_exist")
+            .header("accept", "text/plain")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(result.contains("code:404"));
+        let result = client
+            .get("http://127.0.0.1:7979/not_exist")
+            .header("accept", "application/xml")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert!(result.contains("<code>404</code>"));
     }
 }

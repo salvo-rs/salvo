@@ -1,10 +1,14 @@
-use async_trait::async_trait;
-use http::StatusCode;
-use mime::Mime;
 use std::error::Error as StdError;
 use std::fmt;
 
+use async_trait::async_trait;
+use http::StatusCode;
+use mime::Mime;
+use once_cell::sync::Lazy;
+
 use crate::{Depot, Request, Response, Writer};
+
+static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(||vec![mime::JSON, mime::HTML, mime::XML, mime::TEXT]);
 
 fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
@@ -108,7 +112,7 @@ impl fmt::Display for HttpError {
 }
 impl HttpError {
     pub fn as_bytes(&self, prefer_format: &Mime) -> (Mime, Vec<u8>) {
-        let format = if prefer_format.subtype() != mime::JSON && prefer_format.subtype() != mime::HTML {
+        let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
             "text/html".parse().unwrap()
         } else {
             prefer_format.clone()
