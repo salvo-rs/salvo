@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use crate::{Depot, Request, Response, Writer};
 
-static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(||vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 
 fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
