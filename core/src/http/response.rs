@@ -9,20 +9,28 @@ use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures::{Stream, TryStreamExt};
 use http::version::Version;
-use hyper::Method;
 use serde::Serialize;
 
 pub use http::response::Parts;
 
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, SET_COOKIE};
-use crate::http::{Request, StatusCode};
+use crate::http::StatusCode;
 
 #[allow(clippy::type_complexity)]
 pub enum Body {
     Empty,
     Bytes(BytesMut),
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
+}
+impl Body {
+    pub fn is_empty(&self) -> bool {
+        if let  Body::Empty = *self {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl Stream for Body {
@@ -165,14 +173,13 @@ impl Response {
     // client.
     //
     // `write_back` consumes the `Response`.
-    pub(crate) async fn write_back(self, req: &mut Request, res: &mut hyper::Response<hyper::Body>) {
+    pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
-        if let Method::HEAD = *req.method() {
-        } else if let Some(body) = self.body {
+        if let Some(body) = self.body {
             match body {
                 Body::Bytes(bytes) => {
                     *res.body_mut() = hyper::Body::from(Bytes::from(bytes));

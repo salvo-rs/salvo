@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use futures::future;
 use once_cell::sync::Lazy;
+use hyper::Method;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
@@ -56,6 +57,15 @@ impl Service {
     pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
         self.allowed_media_types.clone()
     }
+    pub async fn handle(&self, request: Request) -> Response {
+        let handler = HyperHandler {
+            remote_addr: None,
+            router: self.router.clone(),
+            catchers: self.catchers.clone(),
+            allowed_media_types: self.allowed_media_types.clone(),
+        };
+        handler.handle(request).await
+    }
 }
 impl<'t, T> hyper::service::Service<&'t T> for Service
 where
@@ -82,32 +92,24 @@ where
     }
 }
 
+#[doc(hidden)]
 pub struct HyperHandler {
     pub(crate) remote_addr: Option<SocketAddr>,
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
-#[allow(clippy::type_complexity)]
-impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
-    type Response = hyper::Response<hyper::body::Body>;
-    type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-    fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
+impl HyperHandler {
+    pub fn handle(&self, mut request: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
-        let mut request = Request::from_hyper(req);
         request.set_remote_addr(self.remote_addr);
         let mut response = Response::new();
         let mut depot = Depot::new();
         let mut path_state = PathState::new(request.uri().path());
         response.cookies = request.cookies().clone();
-
         let router = self.router.clone();
+
         let fut = async move {
             if let Some(dm) = router.detect(&mut request, &mut path_state) {
                 request.params = path_state.params;
@@ -125,8 +127,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             } else {
                 response.set_status_code(StatusCode::NOT_FOUND);
             }
-
-            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
 
             if response.status_code().is_none() {
                 if response.body.is_none() {
@@ -172,7 +172,33 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
                     }
                 }
             }
-            response.write_back(&mut request, &mut hyper_response).await;
+            #[cfg(debug_assertions)]
+            if let Method::HEAD = *request.method() {
+                if let Some(body) = response.body() {
+                    if !body.is_empty() {
+                        tracing::warn!("request with head method should have empty body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
+                    }
+                }
+            }
+            response
+        };
+        fut
+    }
+}
+#[allow(clippy::type_complexity)]
+impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
+    type Response = hyper::Response<hyper::body::Body>;
+    type Error = hyper::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+    fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
+        let response = self.handle(Request::from_hyper(req));
+        let fut = async move {
+            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
+            response.await.write_back(&mut hyper_response).await;
             Ok(hyper_response)
         };
         Box::pin(fut)
