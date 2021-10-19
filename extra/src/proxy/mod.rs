@@ -169,3 +169,28 @@ fn encode_url_path(path: &str) -> String {
         .collect::<Vec<_>>()
         .join("/")
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::response::Body;
+    use salvo_core::hyper;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_proxy() {
+        let router = Router::new()
+            .push(Router::with_path("baidu/<**rest>").handle(ProxyHandler::new(vec!["https://www.baidu.com".into()])));
+        let service = Service::new(router);
+        let request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("GET")
+                .uri("http://127.0.0.1:7979/baidu")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        let content = service.handle(request).await.take_text().await.unwrap();
+        assert!(content.contains("baidu"));
+    }
+}
