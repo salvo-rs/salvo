@@ -13,11 +13,13 @@ use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
+use tokio::io::{BufReader, AsyncReadExt};
 
 pub use http::response::Parts;
 
 use super::errors::*;
-use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, SET_COOKIE};
+use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING, SET_COOKIE};
 use crate::http::StatusCode;
 
 #[allow(clippy::type_complexity)]
@@ -38,10 +40,35 @@ impl Body {
         let full = self.bytes().await?;
         serde_json::from_slice(&full).map_err(crate::Error::new)
     }
-    pub async fn text(self, encoding: &str) -> crate::Result<String> {
-        let encoding = Encoding::for_label(encoding.as_bytes()).unwrap_or(UTF_8);
-        let full = self.bytes().await?;
-        let (text, _, _) = encoding.decode(&full);
+    pub async fn text(self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
+        let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
+        let mut full = self.bytes().await?;
+        if let Some(algo) = compress {
+            match algo {
+                "gzip" => {
+                    let mut reader = GzipDecoder::new(BufReader::new(full.as_ref()));
+                    let mut buf = vec![];
+                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    full = Bytes::from(buf);
+                },
+                "deflate"=> {
+                    let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
+                    let mut buf = vec![];
+                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    full = Bytes::from(buf);
+                },
+                "br" => {
+                    let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
+                    let mut buf = vec![];
+                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    full = Bytes::from(buf);
+                },
+                _ => {
+                    tracing::error!(compress = %algo, "unknown compress format");
+                }
+            }
+        }
+        let (text, _, _) = charset.decode(&full);
         if let Cow::Owned(s) = text {
             return Ok(s);
         }
@@ -210,7 +237,7 @@ impl Response {
     pub async fn take_text(&mut self) -> crate::Result<String> {
         self.take_text_with_charset("utf-8").await
     }
-    pub async fn take_text_with_charset(&mut self, default_encoding: &str) -> crate::Result<String> {
+    pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
         match self.body.take() {
             Some(body) => {
                 let content_type = self
@@ -218,11 +245,12 @@ impl Response {
                     .get(header::CONTENT_TYPE)
                     .and_then(|value| value.to_str().ok())
                     .and_then(|value| value.parse::<Mime>().ok());
-                let encoding = content_type
+                let charset = content_type
                     .as_ref()
                     .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-                    .unwrap_or(default_encoding);
-                body.text(encoding).await
+                    .unwrap_or(default_charset);
+                body.text(charset, self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()))
+                    .await
             }
             None => Err(crate::Error::new("body is none")),
         }
