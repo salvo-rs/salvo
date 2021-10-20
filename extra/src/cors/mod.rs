@@ -1,48 +1,65 @@
-// Copyright (c) 2018-2020 Sean McArthur
-// Licensed under the MIT license http://opensource.org/licenses/MIT
-// modified from https://github.com/seanmonstar/salvo/blob/master/src/filters/cors.rs
-//! CORS Filters
+//! [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+//!
+//! # Example
+//!
+//! ```
+//! use salvo_core::prelude::*;
+//! use salvo_extra::cors::CorsHandler;
+//!
+//! let cors_handler = CorsHandler::builder()
+//!     .allow_origin("https://salvo.rs")
+//!     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
+//!
+//! let router = Router::new().before(cors_handler).post(upload_file);
+//! #[fn_handler]
+//! async fn upload_file(res: &mut Response) {
+//! }
+//!
+//! ```
+//! If you want to allow any route:
+//! ```
+//! use salvo_core::prelude::*;
+//! use salvo_extra::cors::CorsHandler;
+//! let cors_handler = CorsHandler::builder()
+//!     .allow_any_origin().build();
+//! ```
 
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::headers::{
     AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
 };
-use salvo_core::http::Method;
-use salvo_core::http::{Request, Response};
+use salvo_core::http::{Method, Request, Response, StatusCode};
 use salvo_core::{Depot, Handler};
 
-/// [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-///
-/// # Example
-///
-/// ```
-/// use salvo_core::prelude::*;
-///
-/// let cors = salvo_extra::cors::cors()
-///     .allow_origin("https://hyper.rs")
-///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
-/// let cors = salvo_extra::cors::cors().allow_origin("https://hyper.rs")
-///     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
-///
-/// let router = Router::new().before(cors).post(upload_file);
-/// #[fn_handler]
-/// async fn upload_file(res: &mut Response) {
-/// }
-///
-/// ```
-/// If you want to allow any route:
-/// ```
-/// use salvo_core::prelude::*;
-/// let cors = salvo_extra::cors::cors()
-///     .allow_any_origin();
-/// ```
-/// You can find more usage examples [here](https://github.com/salvo-rs/salvo/blob/examples/cors.rs).
+/// A constructed via `salvo_extra::cors::CorsHandler::builder()`.
+#[derive(Clone, Debug)]
+pub struct Builder {
+    credentials: bool,
+    allowed_headers: HashSet<HeaderName>,
+    exposed_headers: HashSet<HeaderName>,
+    max_age: Option<u64>,
+    methods: HashSet<Method>,
+    origins: Option<HashSet<HeaderValue>>,
+}
+impl Default for Builder {
+    fn default() -> Self {
+        Builder {
+            credentials: false,
+            allowed_headers: HashSet::new(),
+            exposed_headers: HashSet::new(),
+            max_age: None,
+            methods: HashSet::new(),
+            origins: None,
+        }
+    }
+}
+
+#[deprecated(since = "0.13.0", note = "please use `CorsHandler::builder` instead")]
 pub fn cors() -> Builder {
     Builder {
         credentials: false,
@@ -52,17 +69,6 @@ pub fn cors() -> Builder {
         methods: HashSet::new(),
         origins: None,
     }
-}
-
-/// A constructed via `salvo_extra::cors::cors()`.
-#[derive(Clone, Debug)]
-pub struct Builder {
-    credentials: bool,
-    allowed_headers: HashSet<HeaderName>,
-    exposed_headers: HashSet<HeaderName>,
-    max_age: Option<u64>,
-    methods: HashSet<Method>,
-    origins: Option<HashSet<HeaderValue>>,
 }
 
 impl Builder {
@@ -255,14 +261,26 @@ impl Builder {
         let allowed_headers_header = self.allowed_headers.iter().cloned().collect();
         let methods_header = self.methods.iter().cloned().collect();
 
-        let config = Arc::new(Configured {
-            cors: self,
+        let Builder {
+            credentials,
+            allowed_headers,
+            exposed_headers,
+            max_age,
+            methods,
+            origins,
+        } = self;
+
+        CorsHandler {
+            credentials,
+            allowed_headers,
+            exposed_headers,
+            max_age,
+            methods,
+            origins,
             allowed_headers_header,
             expose_headers_header,
             methods_header,
-        });
-
-        CorsHandler { config }
+        }
     }
 }
 
@@ -291,26 +309,32 @@ impl ::std::fmt::Display for Forbidden {
 
 impl StdError for Forbidden {}
 
-#[derive(Clone, Debug)]
-struct Configured {
-    cors: Builder,
-    allowed_headers_header: AccessControlAllowHeaders,
-    expose_headers_header: Option<AccessControlExposeHeaders>,
-    methods_header: AccessControlAllowMethods,
-}
-
 enum Validated {
     Preflight(HeaderValue),
     Simple(HeaderValue),
     NotCors,
 }
 
-impl Configured {
+#[derive(Debug)]
+pub struct CorsHandler {
+    credentials: bool,
+    allowed_headers: HashSet<HeaderName>,
+    exposed_headers: HashSet<HeaderName>,
+    max_age: Option<u64>,
+    methods: HashSet<Method>,
+    origins: Option<HashSet<HeaderValue>>,
+    allowed_headers_header: AccessControlAllowHeaders,
+    expose_headers_header: Option<AccessControlExposeHeaders>,
+    methods_header: AccessControlAllowMethods,
+}
+impl CorsHandler {
+    pub fn builder() -> Builder {
+        Builder::default()
+    }
     fn check_request(&self, method: &Method, headers: &HeaderMap) -> Result<Validated, Forbidden> {
         match (headers.get(header::ORIGIN), method) {
             (Some(origin), &Method::OPTIONS) => {
                 // OPTIONS requests are preflight CORS requests...
-
                 if !self.is_origin_allowed(origin) {
                     return Err(Forbidden::Origin);
                 }
@@ -337,7 +361,6 @@ impl Configured {
             }
             (Some(origin), _) => {
                 // Any other method, simply check for a valid origin...
-
                 tracing::debug!("origin header: {:?}", origin);
                 if self.is_origin_allowed(origin) {
                     Ok(Validated::Simple(origin.clone()))
@@ -354,18 +377,18 @@ impl Configured {
 
     fn is_method_allowed(&self, header: &HeaderValue) -> bool {
         Method::from_bytes(header.as_bytes())
-            .map(|method| self.cors.methods.contains(&method))
+            .map(|method| self.methods.contains(&method))
             .unwrap_or(false)
     }
 
     fn is_header_allowed(&self, header: &str) -> bool {
         HeaderName::from_bytes(header.as_bytes())
-            .map(|header| self.cors.allowed_headers.contains(&header))
+            .map(|header| self.allowed_headers.contains(&header))
             .unwrap_or(false)
     }
 
     fn is_origin_allowed(&self, origin: &HeaderValue) -> bool {
-        if let Some(ref allowed) = self.cors.origins {
+        if let Some(ref allowed) = self.origins {
             allowed.contains(origin)
         } else {
             true
@@ -378,13 +401,13 @@ impl Configured {
         headers.typed_insert(self.allowed_headers_header.clone());
         headers.typed_insert(self.methods_header.clone());
 
-        if let Some(max_age) = self.cors.max_age {
+        if let Some(max_age) = self.max_age {
             headers.insert(header::ACCESS_CONTROL_MAX_AGE, max_age.into());
         }
     }
 
     fn append_common_headers(&self, headers: &mut HeaderMap) {
-        if self.cors.credentials {
+        if self.credentials {
             headers.insert(
                 header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
                 HeaderValue::from_static("true"),
@@ -396,27 +419,23 @@ impl Configured {
     }
 }
 
-#[derive(Debug)]
-pub struct CorsHandler {
-    config: Arc<Configured>,
-}
-
 #[async_trait]
 impl Handler for CorsHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        let validated = self.config.check_request(req.method(), req.headers());
+        let validated = self.check_request(req.method(), req.headers());
 
         match validated {
             Ok(Validated::Preflight(origin)) => {
-                self.config.append_preflight_headers(res.headers_mut());
+                self.append_preflight_headers(res.headers_mut());
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
             }
             Ok(Validated::Simple(origin)) => {
-                self.config.append_common_headers(res.headers_mut());
+                self.append_common_headers(res.headers_mut());
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
             }
             Err(err) => {
                 tracing::error!(error = %err, "CorsHandler validate error");
+                res.set_status_code(StatusCode::FORBIDDEN);
             }
             _ => {}
         }
@@ -450,5 +469,96 @@ impl<'a> IntoOrigin for &'a str {
         let rest = parts.next().expect("missing scheme");
 
         Origin::try_from_parts(scheme, rest, None).expect("invalid Origin")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::*;
+    use salvo_core::hyper;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_cors() {
+        let cors_handler = CorsHandler::builder()
+            .allow_origin("https://salvo.rs")
+            .allow_methods(vec!["GET", "POST", "OPTIONS"])
+            .allow_headers(vec![
+                "CONTENT-TYPE",
+                "Access-Control-Request-Method",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Max-Age",
+            ])
+            .build();
+
+        #[fn_handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .before(cors_handler)
+            .push(Router::with_path("hello").handle(hello));
+        let service = Service::new(router);
+
+        async fn options_access(service: &Service, origin: &str) -> Response {
+            let request = Request::from_hyper(
+                hyper::Request::builder()
+                    .method("OPTIONS")
+                    .uri("http://127.0.0.1:7979/hello")
+                    .header("Origin", origin)
+                    .header("Access-Control-Request-Method", "POST")
+                    .header("Access-Control-Request-Headers", "Content-Type")
+                    .body(hyper::Body::empty())
+                    .unwrap(),
+            );
+            service.handle(request).await
+        }
+
+        async fn access(service: &Service, method: &str, origin: &str) -> Response {
+            let request = Request::from_hyper(
+                hyper::Request::builder()
+                    .method(method)
+                    .uri("http://127.0.0.1:7979/hello")
+                    .header("Origin", origin)
+                    .body(hyper::Body::empty())
+                    .unwrap(),
+            );
+            service.handle(request).await
+        }
+
+        let response = access(&service, "OPTIONS", "https://salvo.rs").await;
+        let headers = response.headers();
+        assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none());
+
+        let response = options_access(&service, "https://salvo.rs").await;
+        let headers = response.headers();
+        assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_some());
+        assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_some());
+
+        let response = access(&service, "OPTIONS", "https://google.com").await;
+        let headers = response.headers();
+        assert!(
+            headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none(),
+            "POST, GET, DELETE, OPTIONS"
+        );
+        assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
+
+        let content = access(&service, "GET", "https://salvo.rs")
+            .await
+            .take_text()
+            .await
+            .unwrap();
+        assert!(content.contains("hello"));
+
+        let content = access(&service, "GET", "https://google.rs")
+            .await
+            .take_text()
+            .await
+            .unwrap();
+        assert!(content.contains("Forbidden"));
     }
 }
