@@ -4,8 +4,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::future;
-use once_cell::sync::Lazy;
 use hyper::Method;
+use once_cell::sync::Lazy;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
