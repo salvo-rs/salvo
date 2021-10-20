@@ -143,9 +143,23 @@ impl Router {
     /// Add a handler as middleware, it will run before the handler in current router or it's descendants
     /// handle the request.
     #[inline]
+    pub fn with_before<H: Handler>(handler: H) -> Self {
+        Router::new().before(handler)
+    }
+
+    /// Add a handler as middleware, it will run before the handler in current router or it's descendants
+    /// handle the request.
+    #[inline]
     pub fn before<H: Handler>(mut self, handler: H) -> Self {
         self.befores.push(Arc::new(handler));
         self
+    }
+
+    /// Add a handler as middleware, it will run after the handler in current router or it's descendants
+    /// handle the request.
+    #[inline]
+    pub fn with_after<H: Handler>(handler: H) -> Self {
+        Router::new().after(handler)
     }
 
     /// Add a handler as middleware, it will run after the handler in current router or it's descendants
