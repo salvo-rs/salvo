@@ -13,19 +13,26 @@ impl Depot {
     /// Creates an empty ```Depot```.
     ///
     /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
+    #[inline]
     pub fn new() -> Depot {
         Depot { data: HashMap::new() }
     }
     /// Creates an empty ```Depot``` with the specified capacity.
     ///
     /// The depot will be able to hold at least capacity elements without reallocating. If capacity is 0, the depot will not allocate.
+    #[inline]
     pub fn with_capacity(capacity: usize) -> Depot {
         Depot {
             data: HashMap::with_capacity(capacity),
         }
     }
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.data.capacity()
+    }
 
     /// Inserts a key-value pair into the depot.
+    #[inline]
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
@@ -35,11 +42,13 @@ impl Depot {
     }
 
     /// Check is there a value stored in depot with this key.
+    #[inline]
     pub fn has(&self, key: &str) -> bool {
         self.data.get(key).is_some()
     }
 
     /// Immutably borrows value from depot, returing none if value is not present in depot.
+    #[inline]
     pub fn try_borrow<V>(&self, key: &str) -> Option<&V>
     where
         V: Any + Send,
@@ -53,6 +62,7 @@ impl Depot {
     ///
     /// Panics if the value is currently mutably borrowed or not present in depot. For a non-panicking variant, use
     /// [`try_borrow`](#method.try_borrow).
+    #[inline]
     pub fn borrow<V>(&self, key: &str) -> &V
     where
         V: Any + Send,
@@ -62,6 +72,7 @@ impl Depot {
     }
 
     /// Mutably borrows value from depot, returing none if value is not present in depot.
+    #[inline]
     pub fn try_borrow_mut<V>(&mut self, key: &str) -> Option<&mut V>
     where
         V: Any + Send,
@@ -75,6 +86,7 @@ impl Depot {
     ///
     /// Panics if the value is currently borrowed or not present in depot. For a non-panicking variant, use
     /// [`try_borrow_mut`](#method.try_borrow_mut).
+    #[inline]
     pub fn borrow_mut<V>(&mut self, key: &str) -> &mut V
     where
         V: Any + Send,
@@ -84,6 +96,7 @@ impl Depot {
     }
 
     /// Take value from depot container.
+    #[inline]
     pub fn try_take<V>(&mut self, key: &str) -> Option<V>
     where
         V: Any + Send,
@@ -97,6 +110,7 @@ impl Depot {
     ///
     /// Panics if the value is not present in depot container. For a non-panicking variant, use
     /// [`try_take`](#method.try_take).
+    #[inline]
     pub fn take<V>(&mut self, key: &str) -> V
     where
         V: Any + Send,
@@ -105,6 +119,7 @@ impl Depot {
             .expect("required type is not present in depot container")
     }
 
+    #[inline]
     pub fn transfer(&mut self) -> Depot {
         let mut data = HashMap::with_capacity(self.data.len());
         for (k, v) in self.data.drain() {
@@ -117,5 +132,37 @@ impl Depot {
 impl fmt::Debug for Depot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Depot").finish()
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_depot() {
+        let mut depot = Depot::with_capacity(6);
+        assert!(depot.capacity() >= 6);
+
+        depot.insert("one", "ONE".to_owned());
+        assert!(depot.has("one"));
+        
+        assert_eq!(depot.try_borrow::<String>("one"), Some(&"ONE".to_owned()));
+        assert_eq!(depot.borrow::<String>("one"), &"ONE".to_owned());
+        assert_eq!(depot.take::<String>("one"), "ONE".to_owned());
+    }
+    
+    #[test]
+    #[should_panic]
+    fn test_depot_panic1() {
+        let depot = Depot::new();
+        depot.borrow::<String>("one");
+    }
+    #[test]
+    #[should_panic]
+    fn test_depot_panic2() {
+        let mut depot = Depot::new();
+        depot.take::<String>("one");
     }
 }

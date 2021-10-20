@@ -74,29 +74,24 @@ pub struct NamedFileBuilder {
 }
 impl NamedFileBuilder {
     #[deprecated(since="0.13.0", note="please use `attached_filename` instead")]
-    pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> NamedFileBuilder {
-        self.attached_filename = Some(attached_filename.into());
-        self
+    pub fn with_attached_filename<T: Into<String>>(self, attached_filename: T) -> NamedFileBuilder {
+        self.attached_filename(attached_filename)
     }
     #[deprecated(since="0.13.0", note="please use `disposition_type` instead")]
-    pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> NamedFileBuilder {
-        self.disposition_type = Some(disposition_type.into());
-        self
+    pub fn with_disposition_type<T: Into<String>>(self, disposition_type: T) -> NamedFileBuilder {
+        self.disposition_type(disposition_type)
     }
     #[deprecated(since="0.13.0", note="please use `content_type` instead")]
-    pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> NamedFileBuilder {
-        self.content_type = Some(content_type.into());
-        self
+    pub fn with_content_type<T: Into<mime::Mime>>(self, content_type: T) -> NamedFileBuilder {
+        self.content_type(content_type)
     }
     #[deprecated(since="0.13.0", note="please use `content_encoding` instead")]
-    pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> NamedFileBuilder {
-        self.content_encoding = Some(content_encoding.into());
-        self
+    pub fn with_content_encoding<T: Into<String>>(self, content_encoding: T) -> NamedFileBuilder {
+        self.content_encoding(content_encoding)
     }
     #[deprecated(since="0.13.0", note="please use `buffer_size` instead")]
-    pub fn with_buffer_size(mut self, buffer_size: u64) -> NamedFileBuilder {
-        self.buffer_size = Some(buffer_size);
-        self
+    pub fn with_buffer_size(self, buffer_size: u64) -> NamedFileBuilder {
+        self.buffer_size(buffer_size)
     }
 
     #[inline]

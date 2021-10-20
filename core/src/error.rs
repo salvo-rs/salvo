@@ -14,6 +14,7 @@ pub struct Error {
 }
 
 impl Error {
+    #[inline]
     pub fn new<E: Into<BoxError>>(err: E) -> Error {
         Error { inner: err.into() }
     }
@@ -42,6 +43,7 @@ impl From<Infallible> for Error {
 
 #[async_trait]
 impl Writer for Error {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
     }

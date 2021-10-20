@@ -22,6 +22,7 @@ pub struct Options {
 }
 
 impl Options {
+    #[inline]
     fn new() -> Options {
         Options {
             dot_files: false,
@@ -32,6 +33,7 @@ impl Options {
 }
 
 impl Default for Options {
+    #[inline]
     fn default() -> Self {
         Options::new()
     }
@@ -42,36 +44,43 @@ pub trait StaticRoots {
 }
 
 impl<'a> StaticRoots for &'a str {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
 impl<'a> StaticRoots for Vec<&'a str> {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
 impl<'a> StaticRoots for &'a String {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
 impl<'a> StaticRoots for Vec<&'a String> {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
 impl<'a> StaticRoots for String {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
 impl<'a> StaticRoots for Vec<String> {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
 impl StaticRoots for Path {
+    #[inline]
     fn collect(&self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
@@ -84,9 +93,11 @@ pub struct StaticDir {
     chunk_size: Option<u64>,
 }
 impl StaticDir {
+    #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
         StaticDir::width_options(roots, Options::default())
     }
+    #[inline]
     pub fn width_options<T: StaticRoots + Sized>(roots: T, options: Options) -> Self {
         StaticDir {
             roots: roots.collect(),
@@ -98,6 +109,7 @@ impl StaticDir {
     // During the file chunk read, the maximum read size at one time will affect the
     // access experience and the demand for server memory. Please set it according to your own situation.
     // The default is 1M
+    #[inline]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
@@ -121,6 +133,7 @@ struct FileInfo {
     modified: DateTime<Local>,
 }
 impl FileInfo {
+    #[inline]
     fn new(name: String, metadata: Metadata) -> FileInfo {
         FileInfo {
             name,
@@ -135,6 +148,7 @@ struct DirInfo {
     modified: DateTime<Local>,
 }
 impl DirInfo {
+    #[inline]
     fn new(name: String, metadata: Metadata) -> DirInfo {
         DirInfo {
             name,
@@ -253,6 +267,7 @@ impl Handler for StaticDir {
     }
 }
 
+#[inline]
 fn encode_url_path(path: &str) -> String {
     path.split('/')
         .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
@@ -260,12 +275,14 @@ fn encode_url_path(path: &str) -> String {
         .join("/")
 }
 
+#[inline]
 fn decode_url_path_safely(path: &str) -> String {
     percent_encoding::percent_decode_str(path)
         .decode_utf8_lossy()
         .to_string()
 }
 
+#[inline]
 fn list_json(current: &CurrentInfo) -> String {
     json!(current).to_string()
 }
@@ -388,6 +405,7 @@ fn list_html(current: &CurrentInfo) -> String {
     ftxt.push_str(r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#);
     ftxt
 }
+#[inline]
 fn list_text(current: &CurrentInfo) -> String {
     json!(current).to_string()
 }
