@@ -70,26 +70,66 @@ pub struct NamedFileBuilder {
     content_encoding: Option<String>,
     content_disposition: Option<String>,
     buffer_size: Option<u64>,
+    flags: Flags,
 }
 impl NamedFileBuilder {
+    #[deprecated(since="0.13.0", note="please use `attached_filename` instead")]
     pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> NamedFileBuilder {
         self.attached_filename = Some(attached_filename.into());
         self
     }
+    #[deprecated(since="0.13.0", note="please use `disposition_type` instead")]
     pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> NamedFileBuilder {
         self.disposition_type = Some(disposition_type.into());
         self
     }
+    #[deprecated(since="0.13.0", note="please use `content_type` instead")]
     pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> NamedFileBuilder {
         self.content_type = Some(content_type.into());
         self
     }
+    #[deprecated(since="0.13.0", note="please use `content_encoding` instead")]
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> NamedFileBuilder {
         self.content_encoding = Some(content_encoding.into());
         self
     }
+    #[deprecated(since="0.13.0", note="please use `buffer_size` instead")]
     pub fn with_buffer_size(mut self, buffer_size: u64) -> NamedFileBuilder {
         self.buffer_size = Some(buffer_size);
+        self
+    }
+
+    #[inline]
+    pub fn attached_filename<T: Into<String>>(mut self, attached_filename: T) -> Self {
+        self.attached_filename = Some(attached_filename.into());
+        self
+    }
+    #[inline]
+    pub fn disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
+        self.disposition_type = Some(disposition_type.into());
+        self
+    }
+    #[inline]
+    pub fn content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
+        self.content_type = Some(content_type.into());
+        self
+    }
+    #[inline]
+    pub fn content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
+        self.content_encoding = Some(content_encoding.into());
+        self
+    }
+    #[inline]
+    pub fn buffer_size(mut self, buffer_size: u64) -> Self {
+        self.buffer_size = Some(buffer_size);
+        self
+    }
+    #[inline]
+    ///Specifies whether to use ETag or not.
+    ///
+    ///Default is true.
+    pub fn use_etag(mut self, value: bool) -> Self {
+        self.flags.set(Flags::ETAG, value);
         self
     }
     pub async fn build(self) -> crate::Result<NamedFile> {
@@ -101,7 +141,7 @@ impl NamedFileBuilder {
             buffer_size,
             disposition_type,
             attached_filename,
-            ..
+            flags,
         } = self;
 
         let file = File::open(&path).await.map_err(crate::Error::new)?;
@@ -156,12 +196,13 @@ impl NamedFileBuilder {
             content_encoding,
             buffer_size: buffer_size.unwrap_or(CHUNK_SIZE),
             status_code: StatusCode::OK,
-            flags: Flags::default(),
+            flags,
         })
     }
 }
 
 impl NamedFile {
+    #[inline]
     pub fn builder(path: PathBuf) -> NamedFileBuilder {
         NamedFileBuilder {
             path,
@@ -171,6 +212,7 @@ impl NamedFile {
             content_encoding: None,
             content_disposition: None,
             buffer_size: None,
+            flags: Flags::default(),
         }
     }
 
@@ -184,6 +226,7 @@ impl NamedFile {
     ///     let file = NamedFile::open("foo.txt".into()).await;
     /// # }
     /// ```
+    #[inline]
     pub async fn open(path: PathBuf) -> crate::Result<NamedFile> {
         Self::builder(path).build().await
     }
@@ -221,7 +264,7 @@ impl NamedFile {
     pub fn content_type(&self) -> &mime::Mime {
         &self.content_type
     }
-
+    
     /// Set the Content-Disposition for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
     /// sent to the peer. By default the disposition is `inline` for text,
@@ -257,13 +300,12 @@ impl NamedFile {
         self.content_encoding.as_ref()
     }
 
-    #[inline]
     ///Specifies whether to use ETag or not.
     ///
     ///Default is true.
-    pub fn use_etag(mut self, value: bool) -> Self {
+    #[inline]
+    pub fn use_etag(mut self, value: bool) {
         self.flags.set(Flags::ETAG, value);
-        self
     }
     pub fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
@@ -299,14 +341,15 @@ impl NamedFile {
         })
     }
 
-    #[inline]
     ///Specifies whether to use Last-Modified or not.
     ///
     ///Default is true.
+    #[inline]
     pub fn use_last_modified(mut self, value: bool) -> Self {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
+    #[inline]
     pub fn last_modified(&self) -> Option<SystemTime> {
         self.modified
     }

@@ -72,9 +72,15 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{ChunkedState, FileChunk};
-    use futures::stream::StreamExt;
     use std::io::Cursor;
+    use std::path::Path;
+    use std::str::FromStr;
+
+    use futures::stream::StreamExt;
+    use mime::Mime;
+
+    use super::*;
+    use crate::http::header::HeaderValue;
 
     #[tokio::test]
     async fn test_chunk_read() {
@@ -96,5 +102,21 @@ mod test {
         }
 
         assert_eq!(mock.into_inner(), result)
+    }
+    #[tokio::test]
+    async fn test_named_file_builder() {
+        let src = "../examples/static/test/test1.txt";
+        // println!("current path: {:?}", std::env::current_dir());
+        // println!("current current_exe: {:?}", std::env::current_exe());
+        let file = NamedFile::builder(src.into())
+            .attached_filename("attach.file")
+            .buffer_size(8888)
+            .content_type(Mime::from_str("text/html").unwrap())
+            .build()
+            .await
+            .unwrap();
+        assert_eq!(file.path(), Path::new(src));
+        assert_eq!(file.content_type(), &Mime::from_str("text/html").unwrap());
+        assert_eq!(file.content_disposition(), &HeaderValue::from_static("attachment; filename=attach.file"));
     }
 }
