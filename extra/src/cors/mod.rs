@@ -38,7 +38,7 @@ use salvo_core::{Depot, Handler};
 
 /// A constructed via `salvo_extra::cors::CorsHandler::builder()`.
 #[derive(Clone, Debug)]
-pub struct Builder {
+pub struct HandlerBuilder {
     credentials: bool,
     allowed_headers: HashSet<HeaderName>,
     exposed_headers: HashSet<HeaderName>,
@@ -46,9 +46,9 @@ pub struct Builder {
     methods: HashSet<Method>,
     origins: Option<HashSet<HeaderValue>>,
 }
-impl Default for Builder {
+impl Default for HandlerBuilder {
     fn default() -> Self {
-        Builder {
+        HandlerBuilder {
             credentials: false,
             allowed_headers: HashSet::new(),
             exposed_headers: HashSet::new(),
@@ -60,8 +60,8 @@ impl Default for Builder {
 }
 
 #[deprecated(since = "0.13.0", note = "please use `CorsHandler::builder` instead")]
-pub fn cors() -> Builder {
-    Builder {
+pub fn cors() -> HandlerBuilder {
+    HandlerBuilder {
         credentials: false,
         allowed_headers: HashSet::new(),
         exposed_headers: HashSet::new(),
@@ -71,7 +71,7 @@ pub fn cors() -> Builder {
     }
 }
 
-impl Builder {
+impl HandlerBuilder {
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     pub fn allow_credentials(mut self, allow: bool) -> Self {
         self.credentials = allow;
@@ -249,7 +249,7 @@ impl Builder {
 
     /// Builds the `Cors` wrapper from the configured settings.
     ///
-    /// This step isn't *required*, as the `Builder` itself can be passed
+    /// This step isn't *required*, as the `HandlerBuilder` itself can be passed
     /// to `Filter::with`. This just allows constructing once, thus not needing
     /// to pay the cost of "building" every time.
     pub fn build(self) -> CorsHandler {
@@ -261,7 +261,7 @@ impl Builder {
         let allowed_headers_header = self.allowed_headers.iter().cloned().collect();
         let methods_header = self.methods.iter().cloned().collect();
 
-        let Builder {
+        let HandlerBuilder {
             credentials,
             allowed_headers,
             exposed_headers,
@@ -328,8 +328,8 @@ pub struct CorsHandler {
     methods_header: AccessControlAllowMethods,
 }
 impl CorsHandler {
-    pub fn builder() -> Builder {
-        Builder::default()
+    pub fn builder() -> HandlerBuilder {
+        HandlerBuilder::default()
     }
     fn check_request(&self, method: &Method, headers: &HeaderMap) -> Result<Validated, Forbidden> {
         match (headers.get(header::ORIGIN), method) {
