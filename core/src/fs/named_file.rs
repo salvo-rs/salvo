@@ -73,23 +73,23 @@ pub struct NamedFileBuilder {
     flags: Flags,
 }
 impl NamedFileBuilder {
-    #[deprecated(since="0.13.0", note="please use `attached_filename` instead")]
+    #[deprecated(since = "0.13.0", note = "please use `attached_filename` instead")]
     pub fn with_attached_filename<T: Into<String>>(self, attached_filename: T) -> NamedFileBuilder {
         self.attached_filename(attached_filename)
     }
-    #[deprecated(since="0.13.0", note="please use `disposition_type` instead")]
+    #[deprecated(since = "0.13.0", note = "please use `disposition_type` instead")]
     pub fn with_disposition_type<T: Into<String>>(self, disposition_type: T) -> NamedFileBuilder {
         self.disposition_type(disposition_type)
     }
-    #[deprecated(since="0.13.0", note="please use `content_type` instead")]
+    #[deprecated(since = "0.13.0", note = "please use `content_type` instead")]
     pub fn with_content_type<T: Into<mime::Mime>>(self, content_type: T) -> NamedFileBuilder {
         self.content_type(content_type)
     }
-    #[deprecated(since="0.13.0", note="please use `content_encoding` instead")]
+    #[deprecated(since = "0.13.0", note = "please use `content_encoding` instead")]
     pub fn with_content_encoding<T: Into<String>>(self, content_encoding: T) -> NamedFileBuilder {
         self.content_encoding(content_encoding)
     }
-    #[deprecated(since="0.13.0", note="please use `buffer_size` instead")]
+    #[deprecated(since = "0.13.0", note = "please use `buffer_size` instead")]
     pub fn with_buffer_size(self, buffer_size: u64) -> NamedFileBuilder {
         self.buffer_size(buffer_size)
     }
@@ -259,7 +259,7 @@ impl NamedFile {
     pub fn content_type(&self) -> &mime::Mime {
         &self.content_type
     }
-    
+
     /// Set the Content-Disposition for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
     /// sent to the peer. By default the disposition is `inline` for text,

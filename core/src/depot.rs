@@ -135,7 +135,6 @@ impl fmt::Debug for Depot {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -147,12 +146,12 @@ mod test {
 
         depot.insert("one", "ONE".to_owned());
         assert!(depot.has("one"));
-        
+
         assert_eq!(depot.try_borrow::<String>("one"), Some(&"ONE".to_owned()));
         assert_eq!(depot.borrow::<String>("one"), &"ONE".to_owned());
         assert_eq!(depot.take::<String>("one"), "ONE".to_owned());
     }
-    
+
     #[test]
     #[should_panic]
     fn test_depot_panic1() {

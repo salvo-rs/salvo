@@ -4,7 +4,6 @@ mod fs;
 pub use dir::{Options, StaticDir};
 pub use fs::StaticFile;
 
-
 #[cfg(test)]
 mod tests {
     use salvo_core::hyper;
@@ -41,11 +40,10 @@ mod tests {
         }
         let content = access(&service, "http://127.0.0.1:7979/").await;
         assert!(content.contains("test1.txt") && content.contains("test2.txt"));
-        
+
         let content = access(&service, "http://127.0.0.1:7979/test1.txt").await;
         assert!(content.contains("copy1"));
-        
-        
+
         let content = access(&service, "http://127.0.0.1:7979/test3.txt").await;
         assert!(content.contains("Not Found"));
     }
