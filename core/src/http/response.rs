@@ -5,6 +5,7 @@ use std::io::{self, Write};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
+use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
 use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use encoding_rs::{Encoding, UTF_8};
@@ -13,8 +14,7 @@ use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
-use tokio::io::{BufReader, AsyncReadExt};
+use tokio::io::{AsyncReadExt, BufReader};
 
 pub use http::response::Parts;
 
@@ -50,19 +50,19 @@ impl Body {
                     let mut buf = vec![];
                     reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
                     full = Bytes::from(buf);
-                },
-                "deflate"=> {
+                }
+                "deflate" => {
                     let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
                     let mut buf = vec![];
                     reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
                     full = Bytes::from(buf);
-                },
+                }
                 "br" => {
                     let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
                     let mut buf = vec![];
                     reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
                     full = Bytes::from(buf);
-                },
+                }
                 _ => {
                     tracing::error!(compress = %algo, "unknown compress format");
                 }
@@ -249,8 +249,11 @@ impl Response {
                     .as_ref()
                     .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
                     .unwrap_or(default_charset);
-                body.text(charset, self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()))
-                    .await
+                body.text(
+                    charset,
+                    self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
+                )
+                .await
             }
             None => Err(crate::Error::new("body is none")),
         }
