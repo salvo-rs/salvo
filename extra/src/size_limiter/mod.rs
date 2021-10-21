@@ -18,3 +18,45 @@ impl Handler for MaxSizeHandler {
 pub fn max_size(size: u64) -> MaxSizeHandler {
     MaxSizeHandler(size)
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::hyper;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[fn_handler]
+    async fn hello() -> &'static str {
+        "hello"
+    }
+
+    #[tokio::test]
+    async fn test_size_limiter() {
+        let limit_handler = MaxSizeHandler(32);
+        let router = Router::new()
+            .before(limit_handler)
+            .push(Router::with_path("hello").post(hello));
+        let service = Service::new(router);
+
+        let request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("POST")
+                .uri("http://127.0.0.1:7979/hello")
+                .body("abc".into())
+                .unwrap(),
+        );
+        let content = service.handle(request).await.take_text().await.unwrap();
+        assert_eq!(content, "hello");
+
+        let request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("POST")
+                .uri("http://127.0.0.1:7979/hello")
+                .body("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".into())
+                .unwrap(),
+        );
+        let response = service.handle(request).await;
+        assert_eq!(response.status_code(), Some(StatusCode::PAYLOAD_TOO_LARGE));
+    }
+}
