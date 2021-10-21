@@ -39,8 +39,15 @@ pub struct CompressionHandler {
 impl Default for CompressionHandler {
     #[inline]
     fn default() -> Self {
+        Self::new(CompressionAlgo::Gzip)
+    }
+}
+
+impl CompressionHandler {
+    #[inline]
+    pub fn new(algo: CompressionAlgo) -> Self {
         CompressionHandler {
-            algo: CompressionAlgo::Gzip,
+            algo,
             content_types: vec![
                 "text/".into(),
                 "application/javascript".into(),
@@ -51,13 +58,6 @@ impl Default for CompressionHandler {
             ],
             min_length: 1024,
         }
-    }
-}
-
-impl CompressionHandler {
-    #[inline]
-    pub fn new(algo: CompressionAlgo) -> Self {
-        Self::default().with_algo(algo)
     }
     #[inline]
     pub fn with_algo(mut self, algo: CompressionAlgo) -> Self {
