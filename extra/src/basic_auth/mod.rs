@@ -15,15 +15,6 @@ pub enum Error {
     ParseHttpHeader,
 }
 
-pub struct BasicAuthHandler {
-    config: BasicAuthConfig,
-}
-
-pub struct BasicAuthConfig {
-    pub realm: String,
-    pub context_key: Option<String>,
-    pub validator: Box<dyn BasicAuthValidator>,
-}
 pub trait BasicAuthValidator: Send + Sync {
     fn validate(&self, name: String, password: String) -> bool;
 }
@@ -37,16 +28,36 @@ where
     }
 }
 
-impl BasicAuthHandler {
-    pub fn new(config: BasicAuthConfig) -> BasicAuthHandler {
-        BasicAuthHandler { config }
-    }
+pub struct BasicAuthHandler<V: BasicAuthValidator> {
+    realm: String,
+    context_key: Option<String>,
+    validator: V,
 }
-impl BasicAuthHandler {
+impl<V> BasicAuthHandler<V>
+where
+    V: BasicAuthValidator,
+{
+    pub fn new(realm: String, validator: V) -> Self {
+        BasicAuthHandler {
+            realm,
+            context_key: None,
+            validator,
+        }
+    }
+    pub fn context_key(&self) -> Option<&String> {
+        self.context_key.as_ref()
+    }
+    pub fn set_context_key(&mut self, context_key: Option<String>) {
+        self.context_key = context_key;
+    }
+    pub fn with_context_key(mut self, context_key: Option<String>) -> Self {
+        self.context_key = context_key;
+        self
+    }
     fn ask_credentials(&self, res: &mut Response) {
         res.headers_mut().insert(
             "WWW-Authenticate",
-            format!("Basic realm={:?}", self.config.realm).parse().unwrap(),
+            format!("Basic realm={:?}", self.realm).parse().unwrap(),
         );
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
@@ -62,15 +73,18 @@ impl BasicAuthHandler {
     }
 }
 #[async_trait]
-impl Handler for BasicAuthHandler {
+impl<V> Handler for BasicAuthHandler<V>
+where
+    V: BasicAuthValidator + 'static,
+{
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
                     if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
                         if let Ok((user_name, password)) = self.parse_authorization(auth) {
-                            if self.config.validator.validate(user_name.clone(), password) {
-                                if let Some(key) = &self.config.context_key {
+                            if self.validator.validate(user_name.clone(), password) {
+                                if let Some(key) = &self.context_key {
                                     depot.insert(key.clone(), user_name);
                                 }
                                 return;
@@ -94,12 +108,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_auth() {
-        let baconfig = BasicAuthConfig {
-            realm: "realm".to_owned(),
-            context_key: Some("user_name".to_owned()),
-            validator: Box::new(|user_name, password| -> bool { user_name == "root" && password == "pwd" }),
-        };
-        let auth_handler = BasicAuthHandler::new(baconfig);
+        let auth_handler = BasicAuthHandler::new("realm".to_owned(), |user_name, password| -> bool {
+            user_name == "root" && password == "pwd"
+        })
+        .with_context_key(Some("user_name".to_owned()));
 
         #[fn_handler]
         async fn hello() -> &'static str {
