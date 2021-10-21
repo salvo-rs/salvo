@@ -114,10 +114,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_auth() {
-        let auth_handler = BasicAuthHandler::new(|user_name, password| -> bool {
-            user_name == "root" && password == "pwd"
-        })
-        .with_context_key(Some("user_name".to_owned()));
+        let auth_handler =
+            BasicAuthHandler::new(|user_name, password| -> bool { user_name == "root" && password == "pwd" })
+                .with_context_key(Some("user_name".to_owned()));
 
         #[fn_handler]
         async fn hello() -> &'static str {
