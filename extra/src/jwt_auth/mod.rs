@@ -91,6 +91,7 @@ impl<C> JwtHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
+    #[inline]
     pub fn new(secret: String) -> JwtHandler<C> {
         JwtHandler {
             response_error: true,
@@ -103,56 +104,75 @@ where
             validation: Validation::default(),
         }
     }
+    #[inline]
     pub fn response_error(&self) -> bool {
         self.response_error
     }
+    #[inline]
     pub fn with_response_error(mut self, response_error: bool) -> Self {
         self.response_error = response_error;
         self
     }
 
+    #[inline]
     pub fn secret(&self) -> &String {
         &self.secret
     }
+    #[inline]
     pub fn secret_mut(&mut self) -> &mut String {
         &mut self.secret
     }
+    #[inline]
     pub fn with_secret(mut self, secret: String) -> Self {
         self.secret = secret;
         self
     }
+
+    #[inline]
     pub fn context_token_key(&self) -> Option<&String> {
         self.context_token_key.as_ref()
     }
+    #[inline]
     pub fn with_context_token_key(mut self, context_token_key: Option<String>) -> Self {
         self.context_token_key = context_token_key;
         self
     }
+
+    #[inline]
     pub fn context_data_key(&self) -> Option<&String> {
         self.context_data_key.as_ref()
     }
+    #[inline]
     pub fn with_context_data_key(mut self, context_data_key: Option<String>) -> Self {
         self.context_data_key = context_data_key;
         self
     }
+
+    #[inline]
     pub fn context_state_key(&self) -> Option<&String> {
         self.context_state_key.as_ref()
     }
+    #[inline]
     pub fn with_context_state_key(mut self, context_state_key: Option<String>) -> Self {
         self.context_state_key = context_state_key;
         self
     }
+    
+    #[inline]
     pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
         &self.extractors
     }
+    #[inline]
     pub fn extractors_mut(&mut self) -> &mut Vec<Box<dyn JwtExtractor>> {
         &mut self.extractors
     }
+    #[inline]
     pub fn with_extractors(mut self, extractors: Vec<Box<dyn JwtExtractor>>) -> Self {
         self.extractors = extractors;
         self
     }
 
+    #[inline]
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
         decode::<C>(
             token,

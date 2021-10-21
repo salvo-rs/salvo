@@ -47,6 +47,20 @@ impl ProxyHandler {
             counter: Mutex::new(0),
         }
     }
+
+    #[inline]
+    pub fn upstreams(&self) -> &Vec<String> {
+        &self.upstreams
+    }
+    #[inline]
+    pub fn upstreams_mut(&mut self) -> &mut Vec<String> {
+        &mut self.upstreams
+    }
+    #[inline]
+    pub fn with_upstreams(mut self, upstreams: &[String]) -> Self {
+        self.upstreams = upstreams.to_vec();
+        self
+    }
 }
 impl ProxyHandler {
     fn build_proxied_request(&self, req: &mut Request) -> Result<hyper::Request<hyper::body::Body>> {

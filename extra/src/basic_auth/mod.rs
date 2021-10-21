@@ -44,16 +44,21 @@ where
             validator,
         }
     }
+    #[inline]
     pub fn context_key(&self) -> Option<&String> {
         self.context_key.as_ref()
     }
+    #[inline]
     pub fn set_context_key(&mut self, context_key: Option<String>) {
         self.context_key = context_key;
     }
+    #[inline]
     pub fn with_context_key(mut self, context_key: Option<String>) -> Self {
         self.context_key = context_key;
         self
     }
+    
+    #[inline]
     fn ask_credentials(&self, res: &mut Response) {
         res.headers_mut().insert(
             "WWW-Authenticate",
@@ -61,6 +66,7 @@ where
         );
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
+    
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
         let auth = base64::decode(authorization.as_ref())?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();

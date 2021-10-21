@@ -61,6 +61,7 @@ impl Default for HandlerBuilder {
 
 impl HandlerBuilder {
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
+    #[inline]
     pub fn with_allow_credentials(mut self, allow: bool) -> Self {
         self.credentials = allow;
         self
@@ -71,6 +72,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `http::Method`.
+    #[inline]
     pub fn with_allow_method<M>(mut self, method: M) -> Self
     where
         Method: TryFrom<M>,
@@ -88,6 +90,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `http::Method`.
+    #[inline]
     pub fn with_allow_methods<I>(mut self, methods: I) -> Self
     where
         I: IntoIterator,
@@ -108,6 +111,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `http::header::HeaderName`.
+    #[inline]
     pub fn with_allow_header<H>(mut self, header: H) -> Self
     where
         HeaderName: TryFrom<H>,
@@ -127,6 +131,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
+    #[inline]
     pub fn with_allow_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator,
@@ -145,6 +150,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `http::header::HeaderName`.
+    #[inline]
     pub fn with_expose_header<H>(mut self, header: H) -> Self
     where
         HeaderName: TryFrom<H>,
@@ -162,6 +168,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
+    #[inline]
     pub fn with_expose_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator,
@@ -181,6 +188,7 @@ impl HandlerBuilder {
     ///
     /// This can allow websites you didn't intend to access this resource,
     /// it is usually better to set an explicit list.
+    #[inline]
     pub fn with_allow_any_origin(mut self) -> Self {
         self.origins = None;
         self
@@ -191,6 +199,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `Origin`.
+    #[inline]
     pub fn with_allow_origin(self, origin: impl IntoOrigin) -> Self {
         self.with_allow_origins(Some(origin))
     }
@@ -200,6 +209,7 @@ impl HandlerBuilder {
     /// # Panics
     ///
     /// Panics if the provided argument is not a valid `Origin`.
+    #[inline]
     pub fn with_allow_origins<I>(mut self, origins: I) -> Self
     where
         I: IntoIterator,
@@ -230,6 +240,7 @@ impl HandlerBuilder {
     ///     .with_max_age(30) // 30u32 seconds
     ///     .with_max_age(Duration::from_secs(30)); // or a Duration
     /// ```
+    #[inline]
     pub fn with_max_age(mut self, seconds: impl Seconds) -> Self {
         self.max_age = Some(seconds.seconds());
         self
@@ -316,6 +327,7 @@ pub struct CorsHandler {
     methods_header: AccessControlAllowMethods,
 }
 impl CorsHandler {
+    #[inline]
     pub fn builder() -> HandlerBuilder {
         HandlerBuilder::default()
     }
@@ -363,18 +375,21 @@ impl CorsHandler {
         }
     }
 
+    #[inline]
     fn is_method_allowed(&self, header: &HeaderValue) -> bool {
         Method::from_bytes(header.as_bytes())
             .map(|method| self.methods.contains(&method))
             .unwrap_or(false)
     }
 
+    #[inline]
     fn is_header_allowed(&self, header: &str) -> bool {
         HeaderName::from_bytes(header.as_bytes())
             .map(|header| self.allowed_headers.contains(&header))
             .unwrap_or(false)
     }
 
+    #[inline]
     fn is_origin_allowed(&self, origin: &HeaderValue) -> bool {
         if let Some(ref allowed) = self.origins {
             allowed.contains(origin)
@@ -435,12 +450,14 @@ pub trait Seconds {
 }
 
 impl Seconds for u32 {
+    #[inline]
     fn seconds(self) -> u64 {
         self.into()
     }
 }
 
 impl Seconds for ::std::time::Duration {
+    #[inline]
     fn seconds(self) -> u64 {
         self.as_secs()
     }
