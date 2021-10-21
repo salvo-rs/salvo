@@ -57,7 +57,7 @@ where
         self.context_key = context_key;
         self
     }
-    
+
     #[inline]
     fn ask_credentials(&self, res: &mut Response) {
         res.headers_mut().insert(
@@ -66,7 +66,7 @@ where
         );
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
-    
+
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
         let auth = base64::decode(authorization.as_ref())?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();
