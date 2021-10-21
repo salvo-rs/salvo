@@ -1,4 +1,4 @@
-use salvo::extra::basic_auth::{BasicAuthConfig, BasicAuthHandler};
+use salvo::extra::basic_auth::BasicAuthHandler;
 use salvo::extra::serve::StaticDir;
 use salvo::routing::Router;
 use salvo::Server;
@@ -7,12 +7,8 @@ use salvo::Server;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let baconfig = BasicAuthConfig {
-        realm: "realm".to_owned(),
-        context_key: Some("user_name".to_owned()),
-        validator: Box::new(|user_name, password| -> bool { user_name == "root" && password == "pwd" }),
-    };
-    let auth_handler = BasicAuthHandler::new(baconfig);
+    let validator = |user_name, password| -> bool { user_name == "root" && password == "pwd" };
+    let auth_handler = BasicAuthHandler::new(validator);
 
     let router = Router::new()
         .before(auth_handler)

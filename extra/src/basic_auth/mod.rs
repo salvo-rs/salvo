@@ -37,9 +37,9 @@ impl<V> BasicAuthHandler<V>
 where
     V: BasicAuthValidator,
 {
-    pub fn new(realm: String, validator: V) -> Self {
+    pub fn new(validator: V) -> Self {
         BasicAuthHandler {
-            realm,
+            realm: "realm".to_owned(),
             context_key: None,
             validator,
         }
@@ -114,7 +114,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_auth() {
-        let auth_handler = BasicAuthHandler::new("realm".to_owned(), |user_name, password| -> bool {
+        let auth_handler = BasicAuthHandler::new(|user_name, password| -> bool {
             user_name == "root" && password == "pwd"
         })
         .with_context_key(Some("user_name".to_owned()));
