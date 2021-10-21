@@ -1,4 +1,4 @@
-use futures::{FutureExt, StreamExt};
+use futures_util::{FutureExt, StreamExt};
 
 use salvo::extra::ws::WsHandler;
 use salvo::prelude::*;

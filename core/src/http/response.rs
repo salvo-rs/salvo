@@ -8,7 +8,7 @@ use std::task::{self, Poll};
 use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use encoding_rs::{Encoding, UTF_8};
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures_util::{Stream, StreamExt, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
@@ -573,7 +573,7 @@ impl Write for Cache {
 mod test {
     use super::Body;
     use bytes::BytesMut;
-    use futures::stream::{iter, StreamExt};
+    use futures_util::stream::{iter, StreamExt};
     use std::error::Error;
 
     #[tokio::test]

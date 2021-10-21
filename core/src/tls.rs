@@ -12,7 +12,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures::ready;
+use futures_util::ready;
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};

@@ -2,7 +2,7 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 //port from https://github.com/seanmonstar/warp/blob/master/examples/sse.rs
 
-use futures::StreamExt;
+use futures_util::StreamExt;
 use salvo::prelude::*;
 use std::convert::Infallible;
 use std::time::Duration;

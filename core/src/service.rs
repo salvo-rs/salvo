@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures::future;
+use futures_util::future;
 use hyper::Method;
 use once_cell::sync::Lazy;
 

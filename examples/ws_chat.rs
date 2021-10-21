@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use futures::{FutureExt, StreamExt};
+use futures_util::{FutureExt, StreamExt};
 use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;

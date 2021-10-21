@@ -1,15 +1,14 @@
 mod named_file;
 pub use named_file::*;
 
-use bytes::BytesMut;
-use futures::Stream;
+use std::cmp;
 use std::future::Future;
+use std::io::{self, Read, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::{
-    cmp,
-    io::{self, Read, Seek},
-};
+
+use bytes::BytesMut;
+use futures_util::{ready, Stream};
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),
@@ -57,7 +56,7 @@ where
                 self.poll_next(cx)
             }
             ChunkedState::Future(ref mut fut) => {
-                let (file, buf) = futures::ready!(Pin::new(fut).poll(cx))
+                let (file, buf) = ready!(Pin::new(fut).poll(cx))
                     .map_err(|_| io::Error::new(io::ErrorKind::Other, "BlockingErr"))??;
                 self.state = ChunkedState::File(Some(file));
 
@@ -76,7 +75,7 @@ mod test {
     use std::path::Path;
     use std::str::FromStr;
 
-    use futures::stream::StreamExt;
+    use futures_util::stream::StreamExt;
     use mime::Mime;
 
     use super::*;
