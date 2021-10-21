@@ -13,7 +13,7 @@ use tokio_util::io::{ReaderStream, StreamReader};
 
 #[derive(Clone, Copy, Debug)]
 pub enum CompressionAlgo {
-    Br,
+    Brotli,
     Deflate,
     Gzip,
 }
@@ -24,21 +24,22 @@ impl From<CompressionAlgo> for HeaderValue {
         match algo {
             CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
             CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
-            CompressionAlgo::Br => HeaderValue::from_static("br"),
+            CompressionAlgo::Brotli => HeaderValue::from_static("br"),
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct HandlerBuilder {
+pub struct CompressionHandler {
     algo: CompressionAlgo,
     content_types: Vec<String>,
     min_length: usize,
 }
-impl Default for HandlerBuilder {
+
+impl Default for CompressionHandler {
     #[inline]
     fn default() -> Self {
-        HandlerBuilder {
+        CompressionHandler {
             algo: CompressionAlgo::Gzip,
             content_types: vec![
                 "text/".into(),
@@ -53,52 +54,15 @@ impl Default for HandlerBuilder {
     }
 }
 
-impl HandlerBuilder {
-    #[inline]
-    pub fn algo(mut self, algo: CompressionAlgo) -> Self {
-        self.algo = algo;
-        self
-    }
-    #[inline]
-    pub fn content_types(mut self, content_types: &[String]) -> Self {
-        self.content_types = content_types.to_vec();
-        self
-    }
-    #[inline]
-    pub fn min_length(mut self, min_length: usize) -> Self {
-        self.min_length = min_length;
-        self
-    }
-    #[inline]
-    pub fn build(self) -> CompressionHandler {
-        let Self {
-            algo,
-            content_types,
-            min_length,
-        } = self;
-        CompressionHandler {
-            algo,
-            content_types,
-            min_length,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CompressionHandler {
-    algo: CompressionAlgo,
-    content_types: Vec<String>,
-    min_length: usize,
-}
-
 impl CompressionHandler {
     #[inline]
     pub fn new(algo: CompressionAlgo) -> Self {
-        HandlerBuilder::default().algo(algo).build()
+        Self::default().with_algo(algo)
     }
     #[inline]
-    pub fn builder() -> HandlerBuilder {
-        HandlerBuilder::default()
+    pub fn with_algo(mut self, algo: CompressionAlgo) -> Self {
+        self.algo = algo;
+        self
     }
 
     #[inline]
@@ -111,6 +75,11 @@ impl CompressionHandler {
     pub fn set_min_length(&mut self, size: usize) {
         self.min_length = size;
     }
+    #[inline]
+    pub fn with_min_length(mut self, min_length: usize) -> Self {
+        self.min_length = min_length;
+        self
+    }
 
     #[inline]
     pub fn content_types(&self) -> &Vec<String> {
@@ -119,6 +88,11 @@ impl CompressionHandler {
     #[inline]
     pub fn content_types_mut(&mut self) -> &mut Vec<String> {
         &mut self.content_types
+    }
+    #[inline]
+    pub fn with_content_types(mut self, content_types: &[String]) -> Self {
+        self.content_types = content_types.to_vec();
+        self
     }
 }
 
@@ -156,7 +130,7 @@ impl Handler for CompressionHandler {
                             let stream = ReaderStream::new(DeflateEncoder::new(reader));
                             res.streaming(stream);
                         }
-                        CompressionAlgo::Br => {
+                        CompressionAlgo::Brotli => {
                             let stream = ReaderStream::new(BrotliEncoder::new(reader));
                             res.streaming(stream);
                         }
@@ -174,7 +148,7 @@ impl Handler for CompressionHandler {
                             let stream = ReaderStream::new(DeflateEncoder::new(reader));
                             res.streaming(stream);
                         }
-                        CompressionAlgo::Br => {
+                        CompressionAlgo::Brotli => {
                             let stream = ReaderStream::new(BrotliEncoder::new(reader));
                             res.streaming(stream);
                         }
@@ -238,7 +212,7 @@ pub fn deflate() -> CompressionHandler {
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::Br)
+    CompressionHandler::new(CompressionAlgo::Brotli)
 }
 
 #[cfg(test)]
@@ -255,10 +229,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gzip() {
-        let comp_handler = CompressionHandler::builder()
-            .algo(CompressionAlgo::Gzip)
-            .min_length(1)
-            .build();
+        let comp_handler = CompressionHandler::new(CompressionAlgo::Gzip).with_min_length(1);
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
@@ -274,7 +245,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_brotli() {
-        let router = Router::with_after(brotli()).push(Router::with_path("hello").get(hello));
+        let comp_handler = CompressionHandler::new(CompressionAlgo::Brotli).with_min_length(1);
+        let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
         let request = hyper::Request::builder()
@@ -289,7 +261,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_deflate() {
-        let router = Router::with_after(deflate()).push(Router::with_path("hello").get(hello));
+        let comp_handler = CompressionHandler::new(CompressionAlgo::Deflate).with_min_length(1);
+        let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
         let request = hyper::Request::builder()
