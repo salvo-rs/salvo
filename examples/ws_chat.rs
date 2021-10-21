@@ -118,35 +118,35 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
         <input type="text" id="msg" />
         <button type="button" id="submit">Submit</button>
         <script>
-        const chat = document.getElementById('chat');
-        const msg = document.getElementById('msg');
-        const submit = document.getElementById('submit');
-        const ws = new WebSocket(`ws://${location.host}/chat');
+            const chat = document.getElementById('chat');
+            const msg = document.getElementById('msg');
+            const submit = document.getElementById('submit');
+            const ws = new WebSocket(`ws://${location.host}/chat`);
 
-        ws.onopen = function() {
-            chat.innerHTML = '<p><em>Connected!</em></p>';
-        };
+            ws.onopen = function() {
+                chat.innerHTML = '<p><em>Connected!</em></p>';
+            };
 
-        ws.onmessage = function(msg) {
-            message(msg.data);
-        };
+            ws.onmessage = function(msg) {
+                message(msg.data);
+            };
 
-        ws.onclose = function() {
-            chat.getElementsByTagName('em')[0].innerText = 'Disconnected!';
-        };
+            ws.onclose = function() {
+                chat.getElementsByTagName('em')[0].innerText = 'Disconnected!';
+            };
 
-        send.onclick = function() {
-            const msg = text.value;
-            ws.send(msg);
-            text.value = '';
+            send.onclick = function() {
+                const msg = text.value;
+                ws.send(msg);
+                text.value = '';
 
-            message('<You>: ' + msg);
-        };
-        function showMessage(data) {
-            const line = document.createElement('p');
-            line.innerText = data;
-            chat.appendChild(line);
-        }
+                message('<You>: ' + msg);
+            };
+            function showMessage(data) {
+                const line = document.createElement('p');
+                line.innerText = data;
+                chat.appendChild(line);
+            }
         </script>
     </body>
 </html>
