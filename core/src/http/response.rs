@@ -36,13 +36,13 @@ impl Body {
             false
         }
     }
-    pub async fn json<T: DeserializeOwned>(self) -> crate::Result<T> {
-        let full = self.bytes().await?;
+    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
+        let full = self.take_bytes().await?;
         serde_json::from_slice(&full).map_err(crate::Error::new)
     }
-    pub async fn text(self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
+    pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
         let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
-        let mut full = self.bytes().await?;
+        let mut full = self.take_bytes().await?;
         if let Some(algo) = compress {
             match algo {
                 "gzip" => {
@@ -78,11 +78,11 @@ impl Body {
             Ok(String::from_utf8_unchecked(full.to_vec()))
         }
     }
-    pub async fn bytes(self) -> crate::Result<Bytes> {
+    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         let bytes = match self {
             Self::Empty => Bytes::new(),
-            Self::Bytes(bytes) => bytes.freeze(),
-            Self::Stream(mut stream) => {
+            Self::Bytes(bytes) => std::mem::take(bytes).freeze(),
+            Self::Stream(stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {
                     bytes.extend(chunk.map_err(crate::Error::new)?);
@@ -229,8 +229,8 @@ impl Response {
         self.body.take()
     }
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        match self.body.take() {
-            Some(body) => body.json().await,
+        match &mut self.body {
+            Some(body) => body.take_json().await,
             None => Err(crate::Error::new("body is none")),
         }
     }
@@ -238,7 +238,7 @@ impl Response {
         self.take_text_with_charset("utf-8").await
     }
     pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
-        match self.body.take() {
+        match &mut self.body {
             Some(body) => {
                 let content_type = self
                     .headers
@@ -249,12 +249,18 @@ impl Response {
                     .as_ref()
                     .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
                     .unwrap_or(default_charset);
-                body.text(
+                body.take_text(
                     charset,
                     self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
                 )
                 .await
             }
+            None => Err(crate::Error::new("body is none")),
+        }
+    }
+    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
+        match &mut self.body {
+            Some(body) => body.take_bytes().await,
             None => Err(crate::Error::new("body is none")),
         }
     }
