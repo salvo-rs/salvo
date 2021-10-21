@@ -315,15 +315,18 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::convert::Infallible;
     use salvo_core::prelude::*;
+    use std::convert::Infallible;
     use tokio_stream;
 
     use super::*;
 
     #[tokio::test]
     async fn test_sse_data() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().data("1")), Ok::<_, Infallible>(SseEvent::default().data("2"))]);
+        let event_stream = tokio_stream::iter(vec![
+            Ok::<_, Infallible>(SseEvent::default().data("1")),
+            Ok::<_, Infallible>(SseEvent::default().data("2")),
+        ]);
         let mut response = Response::new();
         super::streaming(&mut response, event_stream);
         let text = response.take_text().await.unwrap();
@@ -332,7 +335,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_json() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().json(r#"{"hello": "world"}"#))]);
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
+            SseEvent::default().json(r#"{"hello": "world"}"#),
+        )]);
         let mut response = Response::new();
         super::streaming(&mut response, event_stream);
         let text = response.take_text().await.unwrap();
@@ -359,13 +364,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_retry() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().retry(std::time::Duration::from_secs_f32(1.02)))]);
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
+            SseEvent::default().retry(std::time::Duration::from_secs_f32(1.02)),
+        )]);
         let mut response = Response::new();
         super::streaming(&mut response, event_stream);
         let text = response.take_text().await.unwrap();
         assert!(text.contains("retry:1020"));
-        
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().retry(std::time::Duration::from_secs_f32(1.001)))]);
+
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
+            SseEvent::default().retry(std::time::Duration::from_secs_f32(1.001)),
+        )]);
         let mut response = Response::new();
         super::streaming(&mut response, event_stream);
         let text = response.take_text().await.unwrap();
