@@ -2,14 +2,14 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 //port from https://github.com/seanmonstar/warp/blob/master/examples/sse.rs
 
-use futures_util::StreamExt;
-use salvo::prelude::*;
 use std::convert::Infallible;
 use std::time::Duration;
+
+use futures_util::StreamExt;
+use salvo::prelude::*;
+use salvo_extra::sse::{self, SseEvent};
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;
-
-use salvo_extra::sse::{self, SseEvent};
 
 // create server-sent event
 fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
