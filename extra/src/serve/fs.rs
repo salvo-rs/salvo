@@ -17,7 +17,7 @@ impl StaticFile {
     // access experience and the demand for server memory. Please set it according to your own situation.
     // The default is 1M
     pub fn chunk_size(self, size: u64) -> Self {
-        Self(self.0.buffer_size(size))
+        Self(self.0.with_buffer_size(size))
     }
 }
 

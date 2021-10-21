@@ -189,7 +189,7 @@ impl Handler for StaticDir {
                         let builder = {
                             let mut builder = NamedFile::builder(ipath);
                             if let Some(size) = self.chunk_size {
-                                builder = builder.buffer_size(size);
+                                builder = builder.with_buffer_size(size);
                             }
                             builder
                         };
