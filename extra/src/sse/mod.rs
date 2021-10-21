@@ -7,7 +7,8 @@
 //! ```no_run
 //! use std::time::Duration;
 //! use std::convert::Infallible;
-//! use futures::{stream::iter, Stream};
+//! use futures_util::stream::iter;
+//! use futures_util::Stream;
 //!
 //! use salvo_core::prelude::*;
 //! use salvo_extra::sse::{self, SseEvent};
