@@ -10,25 +10,6 @@ use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
 
-pub struct JwtHandler<C>
-where
-    C: DeserializeOwned + Sync + Send + 'static,
-{
-    config: JwtConfig<C>,
-}
-pub struct JwtConfig<C>
-where
-    C: DeserializeOwned + Sync + Send + 'static,
-{
-    pub secret: String,
-    pub context_token_key: Option<String>,
-    pub context_data_key: Option<String>,
-    pub context_state_key: Option<String>,
-    pub response_error: bool,
-    pub claims: PhantomData<C>,
-    pub validation: Validation,
-    pub extractors: Vec<Box<dyn JwtExtractor>>,
-}
 #[async_trait]
 pub trait JwtExtractor: Send + Sync {
     async fn get_token(&self, req: &mut Request) -> Option<String>;
@@ -95,18 +76,88 @@ impl JwtExtractor for CookieExtractor {
     }
 }
 
+pub struct JwtHandler<C> {
+    secret: String,
+    context_token_key: Option<String>,
+    context_data_key: Option<String>,
+    context_state_key: Option<String>,
+    response_error: bool,
+    claims: PhantomData<C>,
+    validation: Validation,
+    extractors: Vec<Box<dyn JwtExtractor>>,
+}
+
 impl<C> JwtHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
-    pub fn new(config: JwtConfig<C>) -> JwtHandler<C> {
-        JwtHandler { config }
+    pub fn new(secret: String) -> JwtHandler<C> {
+        JwtHandler {
+            response_error: true,
+            context_token_key: Some("jwt_token".to_owned()),
+            context_data_key: Some("jwt_data".to_owned()),
+            context_state_key: Some("jwt_state".to_owned()),
+            secret,
+            claims: PhantomData::<C>,
+            extractors: vec![Box::new(HeaderExtractor::new())],
+            validation: Validation::default(),
+        }
     }
+    pub fn response_error(&self) -> bool {
+        self.response_error
+    }
+    pub fn with_response_error(mut self, response_error: bool) -> Self {
+        self.response_error = response_error;
+        self
+    }
+
+    pub fn secret(&self) -> &String {
+        &self.secret
+    }
+    pub fn secret_mut(&mut self) -> &mut String {
+        &mut self.secret
+    }
+    pub fn with_secret(mut self, secret: String) -> Self {
+        self.secret = secret;
+        self
+    }
+    pub fn context_token_key(&self) -> Option<&String> {
+        self.context_token_key.as_ref()
+    }
+    pub fn with_context_token_key(mut self, context_token_key: Option<String>) -> Self {
+        self.context_token_key = context_token_key;
+        self
+    }
+    pub fn context_data_key(&self) -> Option<&String> {
+        self.context_data_key.as_ref()
+    }
+    pub fn with_context_data_key(mut self, context_data_key: Option<String>) -> Self {
+        self.context_data_key = context_data_key;
+        self
+    }
+    pub fn context_state_key(&self) -> Option<&String> {
+        self.context_state_key.as_ref()
+    }
+    pub fn with_context_state_key(mut self, context_state_key: Option<String>) -> Self {
+        self.context_state_key = context_state_key;
+        self
+    }
+    pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
+        &self.extractors
+    }
+    pub fn extractors_mut(&mut self) -> &mut Vec<Box<dyn JwtExtractor>> {
+        &mut self.extractors
+    }
+    pub fn with_extractors(mut self, extractors: Vec<Box<dyn JwtExtractor>>) -> Self {
+        self.extractors = extractors;
+        self
+    }
+
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
         decode::<C>(
             token,
-            &DecodingKey::from_secret(&*self.config.secret.as_ref()),
-            &self.config.validation,
+            &DecodingKey::from_secret(&*self.secret.as_ref()),
+            &self.validation,
         )
     }
 }
@@ -117,33 +168,33 @@ where
     C: DeserializeOwned + Sync + Send + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        for extractor in &self.config.extractors {
+        for extractor in &self.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
-                    if let Some(key) = &self.config.context_data_key {
+                    if let Some(key) = &self.context_data_key {
                         depot.insert(key.clone(), data);
                     }
-                    if let Some(key) = &self.config.context_state_key {
+                    if let Some(key) = &self.context_state_key {
                         depot.insert(key.clone(), "authorized");
                     }
                 } else {
-                    if let Some(key) = &self.config.context_state_key {
+                    if let Some(key) = &self.context_state_key {
                         depot.insert(key.clone(), "forbidden");
                     }
-                    if self.config.response_error {
+                    if self.response_error {
                         res.set_http_error(Forbidden());
                     }
                 }
-                if let Some(key) = &self.config.context_token_key {
+                if let Some(key) = &self.context_token_key {
                     depot.insert(key.clone(), token);
                 }
                 return;
             }
         }
-        if let Some(key) = &self.config.context_state_key {
+        if let Some(key) = &self.context_state_key {
             depot.insert(key.clone(), "unauthorized");
         }
-        if self.config.response_error {
+        if self.response_error {
             res.set_http_error(Unauthorized());
         }
     }
@@ -165,21 +216,15 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let baconfig = JwtConfig {
-            response_error: true,
-            context_token_key: Some("jwt_token".to_owned()),
-            context_data_key: Some("jwt_data".to_owned()),
-            context_state_key: Some("jwt_state".to_owned()),
-            secret: "ABCDEF".into(),
-            claims: PhantomData::<JwtClaims>,
-            extractors: vec![
+        let auth_handler: JwtHandler<JwtClaims> = JwtHandler::new("ABCDEF".into())
+            .with_response_error(true)
+            .with_context_token_key(Some("jwt_token".to_owned()))
+            .with_context_state_key(Some("jwt_state".to_owned()))
+            .with_extractors(vec![
                 Box::new(HeaderExtractor::new()),
                 Box::new(QueryExtractor::new("jwt_token")),
                 Box::new(CookieExtractor::new("jwt_token")),
-            ],
-            validation: Validation::default(),
-        };
-        let auth_handler = JwtHandler::new(baconfig);
+            ]);
 
         #[fn_handler]
         async fn hello() -> &'static str {
