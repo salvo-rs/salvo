@@ -157,7 +157,7 @@ where
         self.context_state_key = context_state_key;
         self
     }
-    
+
     #[inline]
     pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
         &self.extractors
