@@ -312,3 +312,26 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::convert::Infallible;
+
+    use salvo_core::prelude::*;
+    use tokio_stream;
+
+    use super::*;
+
+    fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
+        Ok(SseEvent::default().data(counter.to_string()))
+    }
+
+    #[tokio::test]
+    async fn test_sse() {
+        let event_stream = tokio_stream::iter(vec![sse_counter(1), sse_counter(2)]);
+        let mut response = Response::new();
+        super::streaming(&mut response, event_stream);
+        let text = response.take_text().await.unwrap();
+        assert!(text.contains("data:1") && text.contains("data:2"));
+    }
+}
