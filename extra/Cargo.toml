@@ -2,7 +2,7 @@
 name = "salvo_extra"
 version = "0.13.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
-edition = "2018"
+edition = "2021"
 description = """
 A simple web framework written by rust
 """
