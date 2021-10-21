@@ -48,6 +48,12 @@ pub struct HandlerBuilder {
 }
 impl Default for HandlerBuilder {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HandlerBuilder {
+    pub fn new() -> Self {
         HandlerBuilder {
             credentials: false,
             allowed_headers: HashSet::new(),
@@ -57,9 +63,6 @@ impl Default for HandlerBuilder {
             origins: None,
         }
     }
-}
-
-impl HandlerBuilder {
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
     pub fn with_allow_credentials(mut self, allow: bool) -> Self {
