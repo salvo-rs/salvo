@@ -91,7 +91,7 @@ impl TlsConfigBuilder {
     }
 
     /// sets the Tls key via File Path, returns `TlsConfigError::IoError` if the file cannot be open
-    pub(crate) fn key_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub(crate) fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -100,13 +100,13 @@ impl TlsConfigBuilder {
     }
 
     /// sets the Tls key via bytes slice
-    pub(crate) fn key(mut self, key: &[u8]) -> Self {
+    pub(crate) fn with_key(mut self, key: &[u8]) -> Self {
         self.key = Box::new(Cursor::new(Vec::from(key)));
         self
     }
 
     /// Specify the file path for the TLS certificate to use.
-    pub(crate) fn cert_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub(crate) fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
         self.cert = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -115,7 +115,7 @@ impl TlsConfigBuilder {
     }
 
     /// sets the Tls certificate via bytes slice
-    pub(crate) fn cert(mut self, cert: &[u8]) -> Self {
+    pub(crate) fn with_cert(mut self, cert: &[u8]) -> Self {
         self.cert = Box::new(Cursor::new(Vec::from(cert)));
         self
     }
@@ -124,7 +124,7 @@ impl TlsConfigBuilder {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub(crate) fn with_client_auth_optional_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -137,7 +137,7 @@ impl TlsConfigBuilder {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn client_auth_optional(mut self, trust_anchor: &[u8]) -> Self {
+    pub(crate) fn with_client_auth_optional(mut self, trust_anchor: &[u8]) -> Self {
         let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
         self.client_auth = TlsClientAuth::Optional(cursor);
         self
@@ -147,7 +147,7 @@ impl TlsConfigBuilder {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub(crate) fn with_client_auth_required_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -160,14 +160,14 @@ impl TlsConfigBuilder {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn client_auth_required(mut self, trust_anchor: &[u8]) -> Self {
+    pub(crate) fn with_client_auth_required(mut self, trust_anchor: &[u8]) -> Self {
         let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
         self.client_auth = TlsClientAuth::Required(cursor);
         self
     }
 
     /// sets the DER-encoded OCSP response
-    pub(crate) fn ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
+    pub(crate) fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
         self.ocsp_resp = Vec::from(ocsp_resp);
         self
     }
@@ -372,8 +372,8 @@ mod tests {
     #[test]
     fn file_cert_key() {
         TlsConfigBuilder::new()
-            .key_path("../examples/tls/key.rsa")
-            .cert_path("../examples/tls/cert.pem")
+            .with_key_path("../examples/tls/key.rsa")
+            .with_cert_path("../examples/tls/cert.pem")
             .build()
             .unwrap();
     }
@@ -384,8 +384,8 @@ mod tests {
         let cert = include_str!("../../examples/tls/cert.pem");
 
         TlsConfigBuilder::new()
-            .key(key.as_bytes())
-            .cert(cert.as_bytes())
+            .with_key(key.as_bytes())
+            .with_cert(cert.as_bytes())
             .build()
             .unwrap();
     }

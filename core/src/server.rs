@@ -267,14 +267,14 @@ impl TlsServer {
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn key_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.key_path(path))
+        self.with_tls(|tls| tls.with_key_path(path))
     }
 
     /// Specify the file path to read the certificate.
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn cert_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.cert_path(path))
+        self.with_tls(|tls| tls.with_cert_path(path))
     }
 
     /// Specify the file path to read the trust anchor for optional client authentication.
@@ -284,7 +284,7 @@ impl TlsServer {
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn client_auth_optional_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.client_auth_optional_path(path))
+        self.with_tls(|tls| tls.with_client_auth_optional_path(path))
     }
 
     /// Specify the file path to read the trust anchor for required client authentication.
@@ -294,21 +294,21 @@ impl TlsServer {
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn client_auth_required_path(self, path: impl AsRef<Path>) -> Self {
-        self.with_tls(|tls| tls.client_auth_required_path(path))
+        self.with_tls(|tls| tls.with_client_auth_required_path(path))
     }
 
     /// Specify the in-memory contents of the private key.
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn key(self, key: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.key(key.as_ref()))
+        self.with_tls(|tls| tls.with_key(key.as_ref()))
     }
 
     /// Specify the in-memory contents of the certificate.
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn cert(self, cert: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.cert(cert.as_ref()))
+        self.with_tls(|tls| tls.with_cert(cert.as_ref()))
     }
 
     /// Specify the in-memory contents of the trust anchor for optional client authentication.
@@ -318,7 +318,7 @@ impl TlsServer {
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn client_auth_optional(self, trust_anchor: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.client_auth_optional(trust_anchor.as_ref()))
+        self.with_tls(|tls| tls.with_client_auth_optional(trust_anchor.as_ref()))
     }
 
     /// Specify the in-memory contents of the trust anchor for required client authentication.
@@ -328,14 +328,14 @@ impl TlsServer {
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn client_auth_required(self, trust_anchor: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.client_auth_required(trust_anchor.as_ref()))
+        self.with_tls(|tls| tls.with_client_auth_required(trust_anchor.as_ref()))
     }
 
     /// Specify the DER-encoded OCSP response.
     ///
     /// *This function requires the `"tls"` feature.*
     pub fn ocsp_resp(self, resp: impl AsRef<[u8]>) -> Self {
-        self.with_tls(|tls| tls.ocsp_resp(resp.as_ref()))
+        self.with_tls(|tls| tls.with_ocsp_resp(resp.as_ref()))
     }
 
     fn with_tls<Func>(self, func: Func) -> Self
