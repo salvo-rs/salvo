@@ -229,7 +229,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gzip() {
-        let comp_handler = CompressionHandler::new(CompressionAlgo::Gzip).with_min_length(1);
+        let comp_handler = gzip().with_min_length(1);
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
@@ -245,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_brotli() {
-        let comp_handler = CompressionHandler::new(CompressionAlgo::Brotli).with_min_length(1);
+        let comp_handler = brotli().with_min_length(1);
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
@@ -261,7 +261,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_deflate() {
-        let comp_handler = CompressionHandler::new(CompressionAlgo::Deflate).with_min_length(1);
+        let comp_handler = deflate().with_min_length(1);
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
