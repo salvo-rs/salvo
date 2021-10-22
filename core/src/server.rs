@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::http::Mime;
-use futures_util::{TryStream, TryStreamExt};
+use futures_util::stream::{TryStream, TryStreamExt};
 use hyper::server::accept::{self, Accept};
 use hyper::server::conn::AddrIncoming;
 use hyper::Server as HyperServer;

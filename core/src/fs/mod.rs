@@ -8,7 +8,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::BytesMut;
-use futures_util::{ready, Stream};
+use futures_util::ready;
+use futures_util::stream::Stream;
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),

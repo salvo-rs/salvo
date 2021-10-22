@@ -10,7 +10,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures_util::{future, ready, FutureExt, Sink, Stream, TryFutureExt};
+use futures_util::{future, ready, FutureExt, TryFutureExt};
+use futures_util::stream::Stream;
+use futures_util::sink::Sink;
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::errors::*;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};

@@ -55,7 +55,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use futures_util::{future, Stream, TryStream, TryStreamExt};
+use futures_util::future;
+use futures_util::stream::{Stream, TryStream, TryStreamExt};
 use pin_project::pin_project;
 use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
 use serde_json::{self, Error};

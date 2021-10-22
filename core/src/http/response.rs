@@ -9,7 +9,7 @@ use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecod
 use bytes::{BufMut, Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use encoding_rs::{Encoding, UTF_8};
-use futures_util::{Stream, StreamExt, TryStreamExt};
+use futures_util::stream::{Stream, StreamExt, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
