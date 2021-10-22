@@ -397,6 +397,7 @@ mod tests {
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
+        assert_eq!(path_state.params["id"], "12");
     }
     #[test]
     fn test_router_detect6() {
