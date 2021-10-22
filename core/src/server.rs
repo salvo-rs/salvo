@@ -418,6 +418,8 @@ impl TlsServer {
 
 #[cfg(test)]
 mod tests {
+    user serde::Serialize;
+    
     use crate::prelude::*;
 
     #[tokio::test]
