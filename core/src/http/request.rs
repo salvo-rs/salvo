@@ -575,6 +575,9 @@ mod tests {
                 .body(r#"{"name": "jobs"}"#.into())
                 .unwrap(),
         );
-        assert_eq!(req.read_from_json::<User>().await.unwrap(), User { name: "jobs".into() });
+        assert_eq!(
+            req.read_from_json::<User>().await.unwrap(),
+            User { name: "jobs".into() }
+        );
     }
 }

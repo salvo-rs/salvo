@@ -234,9 +234,7 @@ mod tests {
         }
         #[fn_handler]
         async fn test() -> JsonContent<User> {
-            JsonContent(User{
-                name: "jobs".into()
-            })
+            JsonContent(User { name: "jobs".into() })
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
