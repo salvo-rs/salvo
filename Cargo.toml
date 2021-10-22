@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.13.0"
+version = "0.13.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -45,7 +45,7 @@ size_limiter = ["salvo_extra/size_limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.13.0", default-features = false, path = "./core" }
+salvo_core = { version = "0.13.1", default-features = false, path = "./core" }
 salvo_extra = { version = "0.13.0", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
