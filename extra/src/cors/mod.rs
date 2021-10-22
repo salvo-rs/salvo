@@ -266,16 +266,17 @@ impl HandlerBuilder {
         let HandlerBuilder {
             credentials,
             allowed_headers,
-            exposed_headers,
+            // exposed_headers,
             max_age,
             methods,
             origins,
+            ..
         } = self;
 
         CorsHandler {
             credentials,
             allowed_headers,
-            exposed_headers,
+            // exposed_headers,
             max_age,
             methods,
             origins,
@@ -321,7 +322,7 @@ enum Validated {
 pub struct CorsHandler {
     credentials: bool,
     allowed_headers: HashSet<HeaderName>,
-    exposed_headers: HashSet<HeaderName>,
+    // exposed_headers: HashSet<HeaderName>,
     max_age: Option<u64>,
     methods: HashSet<Method>,
     origins: Option<HashSet<HeaderValue>>,

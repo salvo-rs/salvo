@@ -55,7 +55,6 @@ pub struct NamedFile {
     pub buffer_size: u64,
     pub(crate) metadata: Metadata,
     pub(crate) flags: Flags,
-    pub(crate) status_code: StatusCode,
     pub(crate) content_type: mime::Mime,
     pub(crate) content_disposition: HeaderValue,
     pub(crate) content_encoding: Option<HeaderValue>,
@@ -169,7 +168,6 @@ impl NamedFileBuilder {
             modified,
             content_encoding,
             buffer_size: buffer_size.unwrap_or(CHUNK_SIZE),
-            status_code: StatusCode::OK,
             flags,
         })
     }
