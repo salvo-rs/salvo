@@ -196,10 +196,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_json_text() {
-        #[derive(Serialize, Debug)]
-        struct User {
-            name: String,
-        }
         #[fn_handler]
         async fn test() -> JsonText<&'static str> {
             JsonText(r#"{"hello": "world"}"#)

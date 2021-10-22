@@ -111,3 +111,19 @@ pub fn put() -> MethodFilter {
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_methods() {
+       assert!(get() == MethodFilter(Method::GET));
+       assert!(head() == MethodFilter(Method::HEAD));
+       assert!(options() == MethodFilter(Method::OPTIONS));
+       assert!(post() == MethodFilter(Method::POST));
+       assert!(patch() == MethodFilter(Method::PATCH));
+       assert!(put() == MethodFilter(Method::PUT));
+       assert!(delete() == MethodFilter(Method::DELETE));
+    }
+}

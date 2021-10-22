@@ -544,3 +544,37 @@ pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
         .map_err(|_| ReadError::General("read body bytes error".into()))
         .map(|d| d.to_vec())
 }
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_read_text() {
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://127.0.0.1:7878/hello")
+                .header("content-type", "text/plain")
+                .body("hello".into())
+                .unwrap(),
+        );
+        assert_eq!(req.read_from_text::<String>().await.unwrap(), "hello");
+    }
+    #[tokio::test]
+    async fn test_read_json() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User {
+            name: String,
+        }
+        let mut req = Request::from_hyper(
+            hyper::Request::builder()
+                .uri("http://127.0.0.1:7878/hello")
+                .header("content-type", "application/json")
+                .body(r#"{"name": "jobs"}"#.into())
+                .unwrap(),
+        );
+        assert_eq!(req.read_from_json::<User>().await.unwrap(), User { name: "jobs".into() });
+    }
+}

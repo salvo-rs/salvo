@@ -19,7 +19,7 @@ all-features = true
 [features]
 default = []
 full = ["tls", "anyhow"]
-tls = ["tokio-rustls"]
+tls = ["tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
@@ -47,7 +47,7 @@ percent-encoding = "2"
 pin-utils = "0.1"
 rand = "0.8"
 regex = "1"
-rustls-pemfile = "0.2.1"
+rustls-pemfile = { version = "0.2.1", optional = true }
 salvo_macros = { version = "0.13", path = "../macros" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

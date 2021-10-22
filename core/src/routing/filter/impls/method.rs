@@ -1,6 +1,7 @@
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct MethodFilter(pub Method);
 
 impl Filter for MethodFilter {

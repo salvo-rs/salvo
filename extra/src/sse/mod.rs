@@ -204,7 +204,7 @@ impl Display for SseEvent {
 pub struct SseKeepAlive<S> {
     #[pin]
     event_stream: S,
-    comment_text: Cow<'static, str>,
+    comment: Cow<'static, str>,
     max_interval: Duration,
     #[pin]
     alive_timer: Sleep,
@@ -220,7 +220,7 @@ where
         let alive_timer = time::sleep(max_interval);
         SseKeepAlive {
             event_stream,
-            comment_text: Cow::Borrowed(""),
+            comment: Cow::Borrowed(""),
             max_interval,
             alive_timer,
         }
@@ -228,7 +228,7 @@ where
     /// Customize the interval between keep-alive messages.
     ///
     /// Default is 15 seconds.
-    pub fn interval(mut self, time: Duration) -> Self {
+    pub fn with_interval(mut self, time: Duration) -> Self {
         self.max_interval = time;
         self
     }
@@ -236,8 +236,8 @@ where
     /// Customize the text of the keep-alive message.
     ///
     /// Default is an empty comment.
-    pub fn text(mut self, text: impl Into<Cow<'static, str>>) -> Self {
-        self.comment_text = text.into();
+    pub fn with_comment(mut self, comment: impl Into<Cow<'static, str>>) -> Self {
+        self.comment = comment.into();
         self
     }
 
@@ -294,8 +294,7 @@ where
                 Poll::Ready(_) => {
                     // restart timer
                     pin.alive_timer.reset(tokio::time::Instant::now() + *pin.max_interval);
-                    let comment_str = pin.comment_text.clone();
-                    let event = SseEvent::default().comment(comment_str);
+                    let event = SseEvent::default().comment(pin.comment.clone());
                     Poll::Ready(Some(Ok(event)))
                 }
             },
@@ -315,8 +314,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::prelude::*;
     use std::convert::Infallible;
+    use std::time::Duration;
+
+    use salvo_core::prelude::*;
     use tokio_stream;
 
     use super::*;
@@ -334,14 +335,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_sse_keep_alive() {
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().data("1"))]);
+        let mut response = Response::new();
+        SseKeepAlive::new(event_stream)
+            .with_comment("love you")
+            .with_interval(Duration::from_secs(1))
+            .streaming(&mut response);
+        let text = response.take_text().await.unwrap();
+        assert!(text.contains("data:1"));
+    }
+
+    #[tokio::test]
     async fn test_sse_json() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
-            SseEvent::default().json(r#"{"hello": "world"}"#),
-        )]);
+        #[derive(Serialize, Debug)]
+        struct User {
+            name: String,
+        }
+
+        let event_stream = tokio_stream::iter(vec![SseEvent::default().json_data(User {
+            name: "jobs".to_owned(),
+        })]);
         let mut response = Response::new();
         super::streaming(&mut response, event_stream);
         let text = response.take_text().await.unwrap();
-        assert!(text.contains(r#"data:{"hello": "world""#));
+        assert!(text.contains(r#"data:{"name":"jobs"}"#));
     }
 
     #[tokio::test]
