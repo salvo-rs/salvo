@@ -451,7 +451,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, "Hello World");
-        
+
         let client = reqwest::Client::new();
         let result = client
             .get("http://127.0.0.1:7979/json")
