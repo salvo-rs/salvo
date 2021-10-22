@@ -1,6 +1,3 @@
-// Copyright (c) 2018-2020 Sean McArthur
-// Licensed under the MIT license http://opensource.org/licenses/MIT
-// port from https://github.com/seanmonstar/warp/blob/master/src/filters/compression.rs
 //! Compress the body of a response.
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
