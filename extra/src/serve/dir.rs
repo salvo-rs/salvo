@@ -242,10 +242,7 @@ impl Handler for StaticDir {
             res.set_http_error(NotFound());
             return;
         }
-        let mut format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
-        if format.type_() != "text" {
-            format = mime::TEXT_HTML;
-        }
+        let format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
         let mut files: Vec<FileInfo> = files
             .into_iter()
             .map(|(name, metadata)| FileInfo::new(name, metadata))
@@ -259,7 +256,7 @@ impl Handler for StaticDir {
         let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
         res.set_status_code(StatusCode::OK);
         match format.subtype().as_ref() {
-            "text" => res.render_plain_text(&list_text(&root)),
+            "plain" => res.render_plain_text(&list_text(&root)),
             "json" => res.render_json_text(&list_json(&root)),
             "xml" => res.render_xml_text(&list_xml(&root)),
             _ => res.render_html_text(&list_html(&root)),
@@ -291,7 +288,6 @@ fn list_xml(current: &CurrentInfo) -> String {
     if current.dirs.is_empty() && current.files.is_empty() {
         ftxt.push_str("No files");
     } else {
-        ftxt.push_str("<table>");
         for dir in &current.dirs {
             ftxt.push_str(&format!(
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
@@ -309,7 +305,6 @@ fn list_xml(current: &CurrentInfo) -> String {
                 encode_url_path(&file.name),
             ));
         }
-        ftxt.push_str("</table>");
     }
     ftxt.push_str("</list>");
     ftxt

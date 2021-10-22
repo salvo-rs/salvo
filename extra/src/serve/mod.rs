@@ -28,23 +28,30 @@ mod tests {
         ));
         let service = Service::new(router);
 
-        async fn access(service: &Service, url: &str) -> String {
+        async fn access(service: &Service, accept: &str, url: &str) -> String {
             let request = Request::from_hyper(
                 hyper::Request::builder()
                     .method("GET")
+                    .header("accept", accept)
                     .uri(url)
                     .body(hyper::Body::empty())
                     .unwrap(),
             );
             service.handle(request).await.take_text().await.unwrap()
         }
-        let content = access(&service, "http://127.0.0.1:7979/").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
         assert!(content.contains("test1.txt") && content.contains("test2.txt"));
+        
+        let content = access(&service, "text/xml", "http://127.0.0.1:7979/").await;
+        assert!(content.starts_with("<list>") && content.contains("test1.txt") && content.contains("test2.txt"));
+        
+        let content = access(&service, "application/json", "http://127.0.0.1:7979/").await;
+        assert!(content.starts_with("{") && content.contains("test1.txt") && content.contains("test2.txt"));
 
-        let content = access(&service, "http://127.0.0.1:7979/test1.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/test1.txt").await;
         assert!(content.contains("copy1"));
 
-        let content = access(&service, "http://127.0.0.1:7979/test3.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/test3.txt").await;
         assert!(content.contains("Not Found"));
     }
 }
