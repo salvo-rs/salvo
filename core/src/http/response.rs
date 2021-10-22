@@ -152,7 +152,7 @@ impl Response {
     /// Create a request from an hyper::Request.
     ///
     /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Response<hyper::Body>) -> Response {
+    pub fn from_hyper(res: hyper::Response<hyper::Body>) -> Response {
         let (
             http::response::Parts {
                 status,
@@ -162,7 +162,7 @@ impl Response {
                 ..
             },
             body,
-        ) = req.into_parts();
+        ) = res.into_parts();
 
         // Set the request cookies, if they exist.
         let cookies = if let Some(header) = headers.get("Cookie") {
@@ -584,6 +584,14 @@ mod test {
     use bytes::BytesMut;
     use futures_util::stream::{iter, StreamExt};
     use std::error::Error;
+
+    #[test]
+    fn test_body_empty() {
+        let body = Body::Bytes(BytesMut::from("hello"));
+        assert!(!body.is_empty());
+        let body = Body::Empty;
+        assert!(body.is_empty());
+    }
 
     #[tokio::test]
     async fn test_body_stream1() {

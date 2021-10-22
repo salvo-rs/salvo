@@ -426,7 +426,15 @@ mod tests {
         async fn hello_world() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
-        let router = Router::new().get(hello_world);
+        #[fn_handler]
+        async fn json(res: &mut Response) {
+            #[derive(Serialize, Debug)]
+            struct User {
+                name: String,
+            }
+            res.render_json(&User { name: "jobs".into() });
+        }
+        let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
         tokio::task::spawn(async {
             Server::new(router).bind(([0, 0, 0, 0], 7979)).await;
@@ -443,6 +451,18 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, "Hello World");
+        
+        let client = reqwest::Client::new();
+        let result = client
+            .get("http://127.0.0.1:7979/json")
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(result, r#"{"name":"jobs"}"#);
+
         let result = client
             .get("http://127.0.0.1:7979/not_exist")
             .send()
