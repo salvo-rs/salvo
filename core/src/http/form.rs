@@ -63,8 +63,8 @@ pub struct FilePart {
     temp_dir: Option<PathBuf>,
 }
 impl FilePart {
-    pub fn file_name(&self) -> Option<&String> {
-        self.file_name.as_ref()
+    pub fn file_name(&self) -> Option<&str> {
+        self.file_name.as_deref()
     }
     pub fn file_name_mut(&mut self) -> Option<&mut String> {
         self.file_name.as_mut()
