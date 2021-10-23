@@ -110,7 +110,7 @@ impl HyperHandler {
         response.cookies = request.cookies().clone();
         let router = self.router.clone();
 
-        let fut = async move {
+        async move {
             if let Some(dm) = router.detect(&mut request, &mut path_state) {
                 request.params = path_state.params;
                 for handler in [&dm.befores[..], &[dm.handler]].concat() {
@@ -181,8 +181,7 @@ impl HyperHandler {
                 }
             }
             response
-        };
-        fut
+        }
     }
 }
 #[allow(clippy::type_complexity)]

@@ -30,11 +30,7 @@ pub enum Body {
 }
 impl Body {
     pub fn is_empty(&self) -> bool {
-        if let Body::Empty = *self {
-            true
-        } else {
-            false
-        }
+        matches!(*self, Body::Empty)
     }
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         let full = self.take_bytes().await?;
