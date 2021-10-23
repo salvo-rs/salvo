@@ -57,8 +57,8 @@ impl ProxyHandler {
         &mut self.upstreams
     }
     #[inline]
-    pub fn with_upstreams(mut self, upstreams: &[String]) -> Self {
-        self.upstreams = upstreams.to_vec();
+    pub fn with_upstreams(mut self, upstreams: Vec<String>) -> Self {
+        self.upstreams = upstreams;
         self
     }
 }
@@ -206,11 +206,19 @@ mod tests {
         let request = Request::from_hyper(
             hyper::Request::builder()
                 .method("GET")
-                .uri("http://127.0.0.1:7979/baidu")
+                .uri("http://127.0.0.1:7979/baidu?wd=rust")
                 .body(hyper::Body::empty())
                 .unwrap(),
         );
         let content = service.handle(request).await.take_text().await.unwrap();
         assert!(content.contains("baidu"));
+    }
+    #[test]
+    fn test_others() {
+        let mut handler = ProxyHandler::new(vec!["https://www.baidu.com".into()]);
+        assert_eq!(handler.upstreams().len(), 1);
+        assert_eq!(handler.upstreams_mut().len(), 1);
+        let handler = handler.with_upstreams(vec!["https://www.baidu.com".into(), "https://www.baidu.com".into()]);
+        assert_eq!(handler.upstreams().len(), 2);
     }
 }
