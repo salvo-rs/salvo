@@ -126,7 +126,7 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
             form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
             Ok(form_data)
         }
-        Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/*") => {
+        Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {
             let mut form_data = FormData::new();
             if let Some(boundary) = headers
                 .get(header::CONTENT_TYPE)
