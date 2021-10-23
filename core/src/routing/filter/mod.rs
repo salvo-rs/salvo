@@ -37,11 +37,10 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
-    fn and_then<F, U>(self, fun: F) -> AndThen<Self, F>
+    fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
-        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
-        U: Filter + Sync + Send,
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static
     {
         AndThen {
             filter: self,
@@ -49,11 +48,10 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
-    fn or_else<F, U>(self, fun: F) -> OrElse<Self, F>
+    fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
         Self: Sized,
         F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
-        U: Filter + Sync + Send,
     {
         OrElse {
             filter: self,
@@ -125,5 +123,43 @@ mod tests {
         assert!(patch() == MethodFilter(Method::PATCH));
         assert!(put() == MethodFilter(Method::PUT));
         assert!(delete() == MethodFilter(Method::DELETE));
+    }
+    
+    #[test]
+    fn test_opts() {
+        fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
+            path.url_path.contains("one")
+        }
+        fn has_two(_req: &mut Request, path: &mut PathState) -> bool {
+            path.url_path.contains("two")
+        }
+
+        let one_filter = FnFilter(has_one);
+        let two_filter = FnFilter(has_two);
+
+        let mut request = Request::default();
+        let mut path_state = PathState::new("http://localhost/one");
+        assert!(one_filter.filter(&mut request, &mut path_state));
+        assert!(!two_filter.filter(&mut request, &mut path_state));
+        assert!(one_filter.or_else(has_two).filter(&mut request, &mut path_state));
+        assert!(one_filter.or(two_filter).filter(&mut request, &mut path_state));
+        assert!(!one_filter.and_then(has_two).filter(&mut request, &mut path_state));
+        assert!(!one_filter.and(two_filter).filter(&mut request, &mut path_state));
+        
+        let mut path_state = PathState::new("http://localhost/one/two");
+        assert!(one_filter.filter(&mut request, &mut path_state));
+        assert!(two_filter.filter(&mut request, &mut path_state));
+        assert!(one_filter.or_else(has_two).filter(&mut request, &mut path_state));
+        assert!(one_filter.or(two_filter).filter(&mut request, &mut path_state));
+        assert!(one_filter.and_then(has_two).filter(&mut request, &mut path_state));
+        assert!(one_filter.and(two_filter).filter(&mut request, &mut path_state));
+        
+        let mut path_state = PathState::new("http://localhost/two");
+        assert!(!one_filter.filter(&mut request, &mut path_state));
+        assert!(two_filter.filter(&mut request, &mut path_state));
+        assert!(one_filter.or_else(has_two).filter(&mut request, &mut path_state));
+        assert!(one_filter.or(two_filter).filter(&mut request, &mut path_state));
+        assert!(!one_filter.and_then(has_two).filter(&mut request, &mut path_state));
+        assert!(!one_filter.and(two_filter).filter(&mut request, &mut path_state));
     }
 }

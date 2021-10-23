@@ -148,8 +148,18 @@ mod test {
         assert!(depot.has("one"));
 
         assert_eq!(depot.try_borrow::<String>("one"), Some(&"ONE".to_owned()));
+        assert_eq!(depot.borrow_mut::<String>("one"), &mut "ONE".to_owned());
         assert_eq!(depot.borrow::<String>("one"), &"ONE".to_owned());
         assert_eq!(depot.take::<String>("one"), "ONE".to_owned());
+    }
+
+    #[test]
+    fn test_transfer() {
+        let mut depot = Depot::with_capacity(6);
+        depot.insert("one", "ONE".to_owned());
+
+        let depot = depot.transfer();
+        assert_eq!(depot.borrow::<String>("one"), &"ONE".to_owned());
     }
 
     #[test]

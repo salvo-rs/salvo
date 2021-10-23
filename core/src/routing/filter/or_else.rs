@@ -13,11 +13,11 @@ where
     F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
 {
     #[inline]
-    fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
-        if self.filter.filter(req, path) {
+    fn filter(&self, req: &mut Request, state: &mut PathState) -> bool {
+        if self.filter.filter(req, state) {
             true
         } else {
-            (self.callback)(req, path)
+            (self.callback)(req, state)
         }
     }
 }
