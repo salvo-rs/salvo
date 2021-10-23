@@ -51,18 +51,36 @@ fn get_extension_from_filename(filename: &str) -> Option<&str> {
 /// was received as part of `multipart/*` parsing.
 #[derive(Debug)]
 pub struct FilePart {
-    pub file_name: Option<String>,
+    file_name: Option<String>,
     /// The headers of the part
-    pub headers: HeaderMap,
+    headers: HeaderMap,
     /// A temporary file containing the file content
-    pub path: PathBuf,
+    path: PathBuf,
     /// Optionally, the size of the file.  This is filled when multiparts are parsed, but is
     /// not necessary when they are generated.
-    pub size: Option<usize>,
+    size: Option<usize>,
     // The temporary directory the upload was put into, saved for the Drop trait
     temp_dir: Option<PathBuf>,
 }
 impl FilePart {
+    pub fn file_name(&self) -> Option<&String> {
+        self.file_name.as_ref()
+    }
+    pub fn file_name_mut(&mut self) -> Option<&mut String> {
+        self.file_name.as_mut()
+    }
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+    pub fn headers_mut(&mut self) -> &mut HeaderMap {
+        &mut self.headers
+    }
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+    pub fn size(&self) -> Option<usize> {
+        self.size
+    }
     /// If you do not want the file on disk to be deleted when Self drops, call this
     /// function.  It will become your responsibility to clean up.
     pub fn do_not_delete_on_drop(&mut self) {
@@ -98,10 +116,6 @@ impl FilePart {
             size: None,
             temp_dir,
         })
-    }
-
-    pub fn file_name(&self) -> Option<&str> {
-        self.file_name.as_deref()
     }
 }
 impl Drop for FilePart {

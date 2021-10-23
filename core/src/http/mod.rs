@@ -85,6 +85,6 @@ file content\r\n\
         );
         assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
         let file = request.get_file("file1").await.unwrap();
-        assert_eq!(file.file_name.as_deref(), Some("err.txt"));
+        assert_eq!(file.file_name().unwrap(), "err.txt");
     }
 }
