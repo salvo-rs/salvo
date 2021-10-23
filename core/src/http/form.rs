@@ -136,12 +136,10 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
                 let mut multipart = Multipart::new(body, boundary);
                 while let Some(mut field) = multipart.next_field().await? {
                     if let Some(name) = field.name().map(|s| s.to_owned()) {
-                        if let Some(content_type) = field.headers().get(header::CONTENT_TYPE) {
-                            if content_type.to_str().unwrap_or_default().starts_with("text/") {
-                                form_data.fields.insert(name, field.text().await?);
-                            } else {
-                                form_data.files.insert(name, FilePart::create(&mut field).await?);
-                            }
+                        if field.headers().get(header::CONTENT_TYPE).is_some() {
+                            form_data.files.insert(name, FilePart::create(&mut field).await?);
+                        } else {
+                            form_data.fields.insert(name, field.text().await?);
                         }
                     }
                 }
