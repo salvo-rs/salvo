@@ -68,16 +68,23 @@ mod tests {
                 .method("POST")
                 .header(
                     "content-type",
-                    "multipart/form-data; boundary=X-BOUNDARY",
+                    "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
                 )
                 .uri("http://127.0.0.1:7979/hello?q=rust")
                 .body(
-                    "--X-BOUNDARY\r\nContent-Disposition: form-data; \
-name=\"money\"\r\n\r\nsh*t\r\n--X-BOUNDARY--\r\n"
+                    "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
+Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
+------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
+Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+file content\r\n\
+------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n"
                         .into(),
                 )
                 .unwrap(),
         );
         assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
+        let file = request.get_file("file1").await.unwrap();
+        assert_eq!(file.file_name.as_deref(), Some("err.txt"));
     }
 }
