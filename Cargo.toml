@@ -4,9 +4,9 @@ version = "0.13.3"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
-A simple web framework
+Salvo is a simple but powerful web server framework written in Rust.
 """
-homepage = "https://github.com/salvo-rs/salvo"
+homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
 documentation = "https://docs.rs/salvo/"
 readme = "./README.md"
@@ -45,8 +45,8 @@ size_limiter = ["salvo_extra/size_limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.13.2", default-features = false, path = "./core" }
-salvo_extra = { version = "0.13.0", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.13.3", default-features = false, path = "./core" }
+salvo_extra = { version = "0.13.3", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 futures-util = { version = "0.3", default-features = false }

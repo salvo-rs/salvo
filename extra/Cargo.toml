@@ -4,9 +4,9 @@ version = "0.13.3"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
-A simple web framework written by rust
+Salvo is a simple but powerful web server framework written in Rust.
 """
-homepage = "https://github.com/salvo-rs/salvo"
+homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
 readme = "../README.md"
 keywords = ["salvo", "web", "framework", "server"]
