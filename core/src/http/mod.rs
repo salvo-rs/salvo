@@ -24,6 +24,9 @@ pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
 
 #[cfg(test)]
 mod tests {
+    use cookie::Cookie;
+    use serde::Deserialize;
+
     use super::header::*;
     use super::*;
     use crate::hyper;
@@ -86,5 +89,35 @@ file content\r\n\
         assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
         let file = request.get_file("file1").await.unwrap();
         assert_eq!(file.file_name().unwrap(), "err.txt");
+        let files = request.get_files("file1").await.unwrap();
+        assert_eq!(files[0].file_name().unwrap(), "err.txt");
+    }
+
+    #[tokio::test]
+    async fn test_response() {
+        let mut response = Response::from_hyper(
+            hyper::Response::builder()
+                .header("set-cookie", "lover=dog")
+                .body("response body".into())
+                .unwrap(),
+        );
+        assert_eq!(response.header_cookies().len(), 1);
+        response.cookies_mut().add(Cookie::new("money", "sh*t"));
+        assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
+        response.commit();
+        assert_eq!(response.header_cookies().len(), 2);
+        assert_eq!(response.take_bytes().await.unwrap().len(), b"response body".len());
+
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User {
+            name: String,
+        }
+
+        let mut response = Response::from_hyper(
+            hyper::Response::builder()
+                .body(r#"{"name": "jobs"}"#.into())
+                .unwrap(),
+        );
+        assert_eq!(response.take_json::<User>().await.unwrap(), User {name: "jobs".into()});
     }
 }
