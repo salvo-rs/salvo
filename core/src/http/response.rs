@@ -565,10 +565,10 @@ impl Write for Cache {
 
 #[cfg(test)]
 mod test {
-    use cookie::Cookie;
-    use serde::Deserialize;
     use bytes::BytesMut;
+    use cookie::Cookie;
     use futures_util::stream::{iter, StreamExt};
+    use serde::Deserialize;
     use std::error::Error;
 
     use super::*;
@@ -627,11 +627,10 @@ mod test {
             name: String,
         }
 
-        let mut response = Response::from_hyper(
-            hyper::Response::builder()
-                .body(r#"{"name": "jobs"}"#.into())
-                .unwrap(),
+        let mut response = Response::from_hyper(hyper::Response::builder().body(r#"{"name": "jobs"}"#.into()).unwrap());
+        assert_eq!(
+            response.take_json::<User>().await.unwrap(),
+            User { name: "jobs".into() }
         );
-        assert_eq!(response.take_json::<User>().await.unwrap(), User {name: "jobs".into()});
     }
 }

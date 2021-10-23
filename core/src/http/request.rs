@@ -549,8 +549,8 @@ pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
 mod tests {
     use serde::Deserialize;
 
-    use crate::hyper;
     use super::*;
+    use crate::hyper;
 
     #[tokio::test]
     async fn test_read_text() {
