@@ -165,7 +165,7 @@ impl Response {
         ) = res.into_parts();
 
         // Set the request cookies, if they exist.
-        let cookies = if let Some(header) = headers.get("Cookie") {
+        let cookies = if let Some(header) = headers.get(header::SET_COOKIE) {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
                 for cookie_str in header.split(';').map(|s| s.trim()) {
@@ -565,10 +565,13 @@ impl Write for Cache {
 
 #[cfg(test)]
 mod test {
-    use super::Body;
+    use cookie::Cookie;
+    use serde::Deserialize;
     use bytes::BytesMut;
     use futures_util::stream::{iter, StreamExt};
     use std::error::Error;
+
+    use super::*;
 
     #[test]
     fn test_body_empty() {
@@ -603,5 +606,32 @@ mod test {
         }
 
         assert_eq!("hello world", &result)
+    }
+    #[tokio::test]
+    async fn test_others() {
+        let mut response = Response::from_hyper(
+            hyper::Response::builder()
+                .header("set-cookie", "lover=dog")
+                .body("response body".into())
+                .unwrap(),
+        );
+        assert_eq!(response.header_cookies().len(), 1);
+        response.cookies_mut().add(Cookie::new("money", "sh*t"));
+        assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
+        response.commit();
+        assert_eq!(response.header_cookies().len(), 2);
+        assert_eq!(response.take_bytes().await.unwrap().len(), b"response body".len());
+
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User {
+            name: String,
+        }
+
+        let mut response = Response::from_hyper(
+            hyper::Response::builder()
+                .body(r#"{"name": "jobs"}"#.into())
+                .unwrap(),
+        );
+        assert_eq!(response.take_json::<User>().await.unwrap(), User {name: "jobs".into()});
     }
 }

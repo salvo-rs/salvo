@@ -549,6 +549,7 @@ pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
 mod tests {
     use serde::Deserialize;
 
+    use crate::hyper;
     use super::*;
 
     #[tokio::test]
@@ -579,5 +580,59 @@ mod tests {
             req.read_from_json::<User>().await.unwrap(),
             User { name: "jobs".into() }
         );
+    }
+    #[tokio::test]
+    async fn test_query() {
+        let mut request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("GET")
+                .uri("http://127.0.0.1:7979/hello?q=rust")
+                .body(hyper::Body::empty())
+                .unwrap(),
+        );
+        assert_eq!(request.queries().len(), 1);
+        assert_eq!(request.get_query::<String>("q").unwrap(), "rust");
+        assert_eq!(request.get_query_or_form::<String>("q").await.unwrap(), "rust");
+    }
+    #[tokio::test]
+    async fn test_form() {
+        let mut request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("POST")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .uri("http://127.0.0.1:7979/hello?q=rust")
+                .body("lover=dog&money=sh*t&q=firefox".into())
+                .unwrap(),
+        );
+        assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
+        assert_eq!(request.get_query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(request.get_form_or_query::<String>("q").await.unwrap(), "firefox");
+
+        let mut request = Request::from_hyper(
+            hyper::Request::builder()
+                .method("POST")
+                .header(
+                    "content-type",
+                    "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
+                )
+                .uri("http://127.0.0.1:7979/hello?q=rust")
+                .body(
+                    "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
+Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
+------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
+Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+file content\r\n\
+------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n"
+                        .into(),
+                )
+                .unwrap(),
+        );
+        assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
+        let file = request.get_file("file1").await.unwrap();
+        assert_eq!(file.file_name().unwrap(), "err.txt");
+        assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
+        let files = request.get_files("file1").await.unwrap();
+        assert_eq!(files[0].file_name().unwrap(), "err.txt");
     }
 }
