@@ -66,7 +66,6 @@ impl Writer for ::anyhow::Error {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::http::*;
