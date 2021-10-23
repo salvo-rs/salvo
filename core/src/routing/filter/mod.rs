@@ -40,7 +40,7 @@ pub trait Filter: Send + Sync + 'static {
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
-        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static
+        F: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
         AndThen {
             filter: self,
@@ -124,7 +124,7 @@ mod tests {
         assert!(put() == MethodFilter(Method::PUT));
         assert!(delete() == MethodFilter(Method::DELETE));
     }
-    
+
     #[test]
     fn test_opts() {
         fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
@@ -145,7 +145,7 @@ mod tests {
         assert!(one_filter.or(two_filter).filter(&mut request, &mut path_state));
         assert!(!one_filter.and_then(has_two).filter(&mut request, &mut path_state));
         assert!(!one_filter.and(two_filter).filter(&mut request, &mut path_state));
-        
+
         let mut path_state = PathState::new("http://localhost/one/two");
         assert!(one_filter.filter(&mut request, &mut path_state));
         assert!(two_filter.filter(&mut request, &mut path_state));
@@ -153,7 +153,7 @@ mod tests {
         assert!(one_filter.or(two_filter).filter(&mut request, &mut path_state));
         assert!(one_filter.and_then(has_two).filter(&mut request, &mut path_state));
         assert!(one_filter.and(two_filter).filter(&mut request, &mut path_state));
-        
+
         let mut path_state = PathState::new("http://localhost/two");
         assert!(!one_filter.filter(&mut request, &mut path_state));
         assert!(two_filter.filter(&mut request, &mut path_state));
