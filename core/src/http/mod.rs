@@ -113,11 +113,10 @@ file content\r\n\
             name: String,
         }
 
-        let mut response = Response::from_hyper(
-            hyper::Response::builder()
-                .body(r#"{"name": "jobs"}"#.into())
-                .unwrap(),
+        let mut response = Response::from_hyper(hyper::Response::builder().body(r#"{"name": "jobs"}"#.into()).unwrap());
+        assert_eq!(
+            response.take_json::<User>().await.unwrap(),
+            User { name: "jobs".into() }
         );
-        assert_eq!(response.take_json::<User>().await.unwrap(), User {name: "jobs".into()});
     }
 }
