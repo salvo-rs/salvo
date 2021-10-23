@@ -65,3 +65,34 @@ impl Writer for ::anyhow::Error {
         );
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::http::*;
+
+    use super::*;
+
+    #[tokio::test]
+    #[cfg(feature = "anyhow")]
+    async fn test_anyhow() {
+        let mut request = Request::default();
+        let mut response = Response::default();
+        let mut depot = Depot::new();
+
+        let err: ::anyhow::Error = Error::new("detail message").into();
+        err.write(&mut request, &mut depot, &mut response).await;
+        assert_eq!(response.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+
+    #[tokio::test]
+    async fn test_error() {
+        let mut request = Request::default();
+        let mut response = Response::default();
+        let mut depot = Depot::new();
+
+        let err = Error::new("detail message");
+        err.write(&mut request, &mut depot, &mut response).await;
+        assert_eq!(response.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+}
