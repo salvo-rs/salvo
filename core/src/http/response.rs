@@ -310,6 +310,24 @@ impl Response {
         }
         cookies
     }
+    #[inline]
+    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    where
+        T: AsRef<str>,
+    {
+        self.cookies.get(name.as_ref())
+    }
+    #[inline]
+    pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
+        self.cookies.add(cookie);
+    }
+    #[inline]
+    pub fn remove_cookie<T>(&mut self, name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.cookies.remove(Cookie::named(name));
+    }
 
     #[inline]
     pub fn status_code(&self) -> Option<StatusCode> {
