@@ -3,7 +3,6 @@ use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
 
-use crate::http::StatusCode;
 use crate::{Depot, Request, Response, Writer};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -41,6 +40,16 @@ impl From<Infallible> for Error {
     }
 }
 
+#[cfg(debug_assertions)]
+#[async_trait]
+impl Writer for Error {
+    #[inline]
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_http_error(crate::http::errors::InternalServerError().with_detail(&self.to_string()));
+    }
+}
+
+#[cfg(not(debug_assertions))]
 #[async_trait]
 impl Writer for Error {
     #[inline]
@@ -54,15 +63,21 @@ fn error_size_of() {
     assert_eq!(::std::mem::size_of::<Error>(), ::std::mem::size_of::<usize>() * 2);
 }
 
+#[cfg(debug_assertions)]
 #[cfg(feature = "anyhow")]
 #[async_trait]
 impl Writer for ::anyhow::Error {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(
-            crate::http::errors::InternalServerError()
-                .with_summary("anyhow error message")
-                .with_detail(&self.to_string()),
-        );
+        res.set_http_error(crate::http::errors::InternalServerError().with_detail(&self.to_string()));
+    }
+}
+
+#[cfg(not(debug_assertions))]
+#[cfg(feature = "anyhow")]
+#[async_trait]
+impl Writer for ::anyhow::Error {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.set_http_error(crate::http::errors::InternalServerError());
     }
 }
 
