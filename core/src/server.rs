@@ -96,11 +96,11 @@ impl Server {
     /// error and logs the reason.
     pub async fn try_bind(self, addr: impl Into<SocketAddr>) -> Result<SocketAddr, hyper::Error> {
         let (addr, srv) = self.create_bind_hyper_server(addr)?;
+        tracing::info!("listening with socket addr: {}", addr);
         if let Err(err) = srv.await {
             tracing::error!("server error: {}", err);
             Err(err)
         } else {
-            tracing::info!("listening with socket addr: {}", addr);
             Ok(addr)
         }
     }
