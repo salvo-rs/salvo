@@ -1,14 +1,30 @@
 use async_trait::async_trait;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
+use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
 use salvo_core::http::errors::*;
 use salvo_core::http::header::AUTHORIZATION;
+use salvo_core::http::Method;
 use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
+
+static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
+    vec![
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::HEAD,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::PATCH,
+        Method::TRACE,
+    ]
+});
 
 #[async_trait]
 pub trait JwtExtractor: Send + Sync {
@@ -16,19 +32,38 @@ pub trait JwtExtractor: Send + Sync {
 }
 
 #[derive(Default)]
-pub struct HeaderExtractor;
+pub struct HeaderExtractor {
+    catch_methods: Vec<Method>,
+}
 impl HeaderExtractor {
     pub fn new() -> Self {
-        HeaderExtractor {}
+        HeaderExtractor {
+            catch_methods: ALL_METHODS.clone(),
+        }
+    }
+    pub fn catch_methods(&self) -> &Vec<Method> {
+        &self.catch_methods
+    }
+    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.catch_methods
+    }
+    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
+        self.catch_methods = methods;
+    }
+    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
+        self.catch_methods = methods;
+        self
     }
 }
 #[async_trait]
 impl JwtExtractor for HeaderExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        if let Some(auth) = req.headers().get(AUTHORIZATION) {
-            if let Ok(auth) = auth.to_str() {
-                if auth.starts_with("Bearer") {
-                    return auth.splitn(2, ' ').collect::<Vec<&str>>().pop().map(|s| s.to_owned());
+        if self.catch_methods.contains(req.method()) {
+            if let Some(auth) = req.headers().get(AUTHORIZATION) {
+                if let Ok(auth) = auth.to_str() {
+                    if auth.starts_with("Bearer") {
+                        return auth.splitn(2, ' ').collect::<Vec<&str>>().pop().map(|s| s.to_owned());
+                    }
                 }
             }
         }
@@ -36,43 +71,112 @@ impl JwtExtractor for HeaderExtractor {
     }
 }
 
-pub struct FormExtractor(String);
+pub struct FormExtractor {
+    catch_methods: Vec<Method>,
+    field_name: String,
+}
 impl FormExtractor {
-    pub fn new<T: Into<String>>(name: T) -> Self {
-        FormExtractor(name.into())
+    pub fn new<T: Into<String>>(field_name: T) -> Self {
+        FormExtractor {
+            field_name: field_name.into(),
+            catch_methods: ALL_METHODS.clone(),
+        }
+    }
+    pub fn catch_methods(&self) -> &Vec<Method> {
+        &self.catch_methods
+    }
+    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.catch_methods
+    }
+    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
+        self.catch_methods = methods;
+    }
+    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
+        self.catch_methods = methods;
+        self
     }
 }
 #[async_trait]
 impl JwtExtractor for FormExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        req.get_form(&self.0).await
+        if self.catch_methods.contains(req.method()) {
+            req.get_form(&self.field_name).await
+        } else {
+            None
+        }
     }
 }
 
-pub struct QueryExtractor(String);
+pub struct QueryExtractor {
+    catch_methods: Vec<Method>,
+    query_name: String,
+}
 impl QueryExtractor {
-    pub fn new<T: Into<String>>(name: T) -> Self {
-        QueryExtractor(name.into())
+    pub fn new<T: Into<String>>(query_name: T) -> Self {
+        QueryExtractor {
+            query_name: query_name.into(),
+            catch_methods: ALL_METHODS.clone(),
+        }
+    }
+    pub fn catch_methods(&self) -> &Vec<Method> {
+        &self.catch_methods
+    }
+    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.catch_methods
+    }
+    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
+        self.catch_methods = methods;
+    }
+    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
+        self.catch_methods = methods;
+        self
     }
 }
 
 #[async_trait]
 impl JwtExtractor for QueryExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        req.get_query(&self.0)
+        if self.catch_methods.contains(req.method()) {
+            req.get_query(&self.query_name)
+        } else {
+            None
+        }
     }
 }
 
-pub struct CookieExtractor(String);
+pub struct CookieExtractor {
+    catch_methods: Vec<Method>,
+    cookie_name: String,
+}
 impl CookieExtractor {
-    pub fn new<T: Into<String>>(name: T) -> Self {
-        CookieExtractor(name.into())
+    pub fn new<T: Into<String>>(cookie_name: T) -> Self {
+        CookieExtractor {
+            cookie_name: cookie_name.into(),
+            catch_methods: vec![Method::GET],
+        }
+    }
+    pub fn catch_methods(&self) -> &Vec<Method> {
+        &self.catch_methods
+    }
+    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.catch_methods
+    }
+    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
+        self.catch_methods = methods;
+    }
+    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
+        self.catch_methods = methods;
+        self
     }
 }
 #[async_trait]
 impl JwtExtractor for CookieExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        req.get_cookie(&self.0).map(|c| c.value().to_owned())
+        if self.catch_methods.contains(req.method()) {
+            req.get_cookie(&self.cookie_name).map(|c| c.value().to_owned())
+        } else {
+            None
+        }
     }
 }
 
