@@ -33,32 +33,32 @@ pub trait JwtExtractor: Send + Sync {
 
 #[derive(Default)]
 pub struct HeaderExtractor {
-    catch_methods: Vec<Method>,
+    cared_methods: Vec<Method>,
 }
 impl HeaderExtractor {
     pub fn new() -> Self {
         HeaderExtractor {
-            catch_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.clone(),
         }
     }
-    pub fn catch_methods(&self) -> &Vec<Method> {
-        &self.catch_methods
+    pub fn cared_methods(&self) -> &Vec<Method> {
+        &self.cared_methods
     }
-    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
-        &mut self.catch_methods
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.cared_methods
     }
-    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
-        self.catch_methods = methods;
+    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
+        self.cared_methods = methods;
     }
-    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
-        self.catch_methods = methods;
+    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+        self.cared_methods = methods;
         self
     }
 }
 #[async_trait]
 impl JwtExtractor for HeaderExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        if self.catch_methods.contains(req.method()) {
+        if self.cared_methods.contains(req.method()) {
             if let Some(auth) = req.headers().get(AUTHORIZATION) {
                 if let Ok(auth) = auth.to_str() {
                     if auth.starts_with("Bearer") {
@@ -72,34 +72,34 @@ impl JwtExtractor for HeaderExtractor {
 }
 
 pub struct FormExtractor {
-    catch_methods: Vec<Method>,
+    cared_methods: Vec<Method>,
     field_name: String,
 }
 impl FormExtractor {
     pub fn new<T: Into<String>>(field_name: T) -> Self {
         FormExtractor {
             field_name: field_name.into(),
-            catch_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.clone(),
         }
     }
-    pub fn catch_methods(&self) -> &Vec<Method> {
-        &self.catch_methods
+    pub fn cared_methods(&self) -> &Vec<Method> {
+        &self.cared_methods
     }
-    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
-        &mut self.catch_methods
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.cared_methods
     }
-    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
-        self.catch_methods = methods;
+    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
+        self.cared_methods = methods;
     }
-    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
-        self.catch_methods = methods;
+    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+        self.cared_methods = methods;
         self
     }
 }
 #[async_trait]
 impl JwtExtractor for FormExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        if self.catch_methods.contains(req.method()) {
+        if self.cared_methods.contains(req.method()) {
             req.get_form(&self.field_name).await
         } else {
             None
@@ -108,27 +108,27 @@ impl JwtExtractor for FormExtractor {
 }
 
 pub struct QueryExtractor {
-    catch_methods: Vec<Method>,
+    cared_methods: Vec<Method>,
     query_name: String,
 }
 impl QueryExtractor {
     pub fn new<T: Into<String>>(query_name: T) -> Self {
         QueryExtractor {
             query_name: query_name.into(),
-            catch_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.clone(),
         }
     }
-    pub fn catch_methods(&self) -> &Vec<Method> {
-        &self.catch_methods
+    pub fn cared_methods(&self) -> &Vec<Method> {
+        &self.cared_methods
     }
-    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
-        &mut self.catch_methods
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.cared_methods
     }
-    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
-        self.catch_methods = methods;
+    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
+        self.cared_methods = methods;
     }
-    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
-        self.catch_methods = methods;
+    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+        self.cared_methods = methods;
         self
     }
 }
@@ -136,7 +136,7 @@ impl QueryExtractor {
 #[async_trait]
 impl JwtExtractor for QueryExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        if self.catch_methods.contains(req.method()) {
+        if self.cared_methods.contains(req.method()) {
             req.get_query(&self.query_name)
         } else {
             None
@@ -145,14 +145,14 @@ impl JwtExtractor for QueryExtractor {
 }
 
 pub struct CookieExtractor {
-    catch_methods: Vec<Method>,
+    cared_methods: Vec<Method>,
     cookie_name: String,
 }
 impl CookieExtractor {
     pub fn new<T: Into<String>>(cookie_name: T) -> Self {
         CookieExtractor {
             cookie_name: cookie_name.into(),
-            catch_methods: vec![
+            cared_methods: vec![
                 Method::GET,
                 Method::HEAD,
                 Method::OPTIONS,
@@ -161,24 +161,24 @@ impl CookieExtractor {
             ],
         }
     }
-    pub fn catch_methods(&self) -> &Vec<Method> {
-        &self.catch_methods
+    pub fn cared_methods(&self) -> &Vec<Method> {
+        &self.cared_methods
     }
-    pub fn catch_methods_mut(&mut self) -> &mut Vec<Method> {
-        &mut self.catch_methods
+    pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
+        &mut self.cared_methods
     }
-    pub fn set_catch_methods(&mut self, methods: Vec<Method>) {
-        self.catch_methods = methods;
+    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
+        self.cared_methods = methods;
     }
-    pub fn with_catch_methods(mut self, methods: Vec<Method>) -> Self {
-        self.catch_methods = methods;
+    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+        self.cared_methods = methods;
         self
     }
 }
 #[async_trait]
 impl JwtExtractor for CookieExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
-        if self.catch_methods.contains(req.method()) {
+        if self.cared_methods.contains(req.method()) {
             req.get_cookie(&self.cookie_name).map(|c| c.value().to_owned())
         } else {
             None
