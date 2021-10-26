@@ -152,7 +152,13 @@ impl CookieExtractor {
     pub fn new<T: Into<String>>(cookie_name: T) -> Self {
         CookieExtractor {
             cookie_name: cookie_name.into(),
-            catch_methods: vec![Method::GET],
+            catch_methods: vec![
+                Method::GET,
+                Method::HEAD,
+                Method::OPTIONS,
+                Method::CONNECT,
+                Method::TRACE,
+            ],
         }
     }
     pub fn catch_methods(&self) -> &Vec<Method> {
