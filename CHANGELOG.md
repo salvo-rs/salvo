@@ -1,3 +1,14 @@
+### 0.14.0
+- extra::baisc_auth: 
+    - add USERNAME_KEY and BasicAuthDepotExt
+    - remove context_key functions.
+- extra::jwt_auth:
+    - add consts AUTH_CLAIMS_KEY, AUTH_STATE_KEY, AUTH_TOKEN_KEY
+    - all extractors add card_methods functions. CookieExtractor ignore PUT, PATH, POST, PATCH methods for csrf.
+    - add JwtAuthDepotExt.
+    - add enum JwtAuthState.
+
+
 ### 0.13.3
 
 - upgrade to rust edition 2021;
