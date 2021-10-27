@@ -197,7 +197,9 @@ pub enum JwtAuthState {
 }
 pub trait JwtAuthDepotExt {
     fn jwt_auth_token(&self) -> Option<&String>;
-    fn jwt_auth_claims<C>(&self) -> Option<&C> where C: DeserializeOwned + Sync + Send + 'static;
+    fn jwt_auth_claims<C>(&self) -> Option<&C>
+    where
+        C: DeserializeOwned + Sync + Send + 'static;
     fn jwt_auth_state(&self) -> JwtAuthState;
 }
 
@@ -206,12 +208,17 @@ impl JwtAuthDepotExt for Depot {
         self.try_borrow(AUTH_TOKEN_KEY)
     }
 
-    fn jwt_auth_claims<C>(&self) -> Option<&C> where C: DeserializeOwned + Sync + Send + 'static {
+    fn jwt_auth_claims<C>(&self) -> Option<&C>
+    where
+        C: DeserializeOwned + Sync + Send + 'static,
+    {
         self.try_borrow(AUTH_CLAIMS_KEY)
     }
 
     fn jwt_auth_state(&self) -> JwtAuthState {
-        self.try_borrow(AUTH_STATE_KEY).cloned().unwrap_or(JwtAuthState::Unauthorized)
+        self.try_borrow(AUTH_STATE_KEY)
+            .cloned()
+            .unwrap_or(JwtAuthState::Unauthorized)
     }
 }
 
