@@ -7,11 +7,11 @@ use salvo_core::Handler;
 
 use thiserror::Error;
 
-pub const USERNAME_KEY: &'static str = "::salvo::extra::basic_auth::username";
+pub const USERNAME_KEY: &str = "::salvo::extra::basic_auth::username";
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Base64 decode error.")]
+    #[error("Base64 decode error")]
     Base64Decode(#[from] base64::DecodeError),
     #[error("Parse http header error")]
     ParseHttpHeader,

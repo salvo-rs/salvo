@@ -12,9 +12,9 @@ use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
 
-pub const AUTH_CLAIMS_KEY: &'static str = "::salvo::extra::jwt_auth::auth_data";
-pub const AUTH_STATE_KEY: &'static str = "::salvo::extra::jwt_auth::auth_state";
-pub const AUTH_TOKEN_KEY: &'static str = "::salvo::extra::jwt_auth::auth_token";
+pub const AUTH_CLAIMS_KEY: &str = "::salvo::extra::jwt_auth::auth_data";
+pub const AUTH_STATE_KEY: &str = "::salvo::extra::jwt_auth::auth_state";
+pub const AUTH_TOKEN_KEY: &str = "::salvo::extra::jwt_auth::auth_token";
 
 static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     vec![
