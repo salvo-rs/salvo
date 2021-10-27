@@ -12,6 +12,10 @@ use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
 
+pub const AUTH_CLAIMS_KEY: &'static str = "::salvo::extra::jwt_auth::auth_data";
+pub const AUTH_STATE_KEY: &'static str = "::salvo::extra::jwt_auth::auth_state";
+pub const AUTH_TOKEN_KEY: &'static str = "::salvo::extra::jwt_auth::auth_token";
+
 static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     vec![
         Method::GET,
@@ -185,29 +189,48 @@ impl JwtExtractor for CookieExtractor {
         }
     }
 }
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum JwtAuthState {
+    Authorized,
+    Unauthorized,
+    Forbidden,
+}
+pub trait JwtAuthDepotExt {
+    fn jwt_auth_token(&self) -> Option<&String>;
+    fn jwt_auth_claims<C>(&self) -> Option<&C> where C: DeserializeOwned + Sync + Send + 'static;
+    fn jwt_auth_state(&self) -> JwtAuthState;
+}
 
-pub struct JwtHandler<C> {
+impl JwtAuthDepotExt for Depot {
+    fn jwt_auth_token(&self) -> Option<&String> {
+        self.try_borrow(AUTH_TOKEN_KEY)
+    }
+
+    fn jwt_auth_claims<C>(&self) -> Option<&C> where C: DeserializeOwned + Sync + Send + 'static {
+        self.try_borrow(AUTH_CLAIMS_KEY)
+    }
+
+    fn jwt_auth_state(&self) -> JwtAuthState {
+        self.try_borrow(AUTH_STATE_KEY).cloned().unwrap_or(JwtAuthState::Unauthorized)
+    }
+}
+
+pub struct JwtAuthHandler<C> {
     secret: String,
-    context_token_key: Option<String>,
-    context_data_key: Option<String>,
-    context_state_key: Option<String>,
     response_error: bool,
     claims: PhantomData<C>,
     validation: Validation,
     extractors: Vec<Box<dyn JwtExtractor>>,
 }
 
-impl<C> JwtHandler<C>
+impl<C> JwtAuthHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
     #[inline]
-    pub fn new(secret: String) -> JwtHandler<C> {
-        JwtHandler {
+    pub fn new(secret: String) -> JwtAuthHandler<C> {
+        JwtAuthHandler {
             response_error: true,
-            context_token_key: Some("jwt_token".to_owned()),
-            context_data_key: Some("jwt_data".to_owned()),
-            context_state_key: Some("jwt_state".to_owned()),
             secret,
             claims: PhantomData::<C>,
             extractors: vec![Box::new(HeaderExtractor::new())],
@@ -239,36 +262,6 @@ where
     }
 
     #[inline]
-    pub fn context_token_key(&self) -> Option<&String> {
-        self.context_token_key.as_ref()
-    }
-    #[inline]
-    pub fn with_context_token_key(mut self, context_token_key: Option<String>) -> Self {
-        self.context_token_key = context_token_key;
-        self
-    }
-
-    #[inline]
-    pub fn context_data_key(&self) -> Option<&String> {
-        self.context_data_key.as_ref()
-    }
-    #[inline]
-    pub fn with_context_data_key(mut self, context_data_key: Option<String>) -> Self {
-        self.context_data_key = context_data_key;
-        self
-    }
-
-    #[inline]
-    pub fn context_state_key(&self) -> Option<&String> {
-        self.context_state_key.as_ref()
-    }
-    #[inline]
-    pub fn with_context_state_key(mut self, context_state_key: Option<String>) -> Self {
-        self.context_state_key = context_state_key;
-        self
-    }
-
-    #[inline]
     pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
         &self.extractors
     }
@@ -293,7 +286,7 @@ where
 }
 
 #[async_trait]
-impl<C> Handler for JwtHandler<C>
+impl<C> Handler for JwtAuthHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
@@ -301,29 +294,19 @@ where
         for extractor in &self.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
-                    if let Some(key) = &self.context_data_key {
-                        depot.insert(key.clone(), data);
-                    }
-                    if let Some(key) = &self.context_state_key {
-                        depot.insert(key.clone(), "authorized");
-                    }
+                    depot.insert(AUTH_CLAIMS_KEY, data);
+                    depot.insert(AUTH_STATE_KEY, JwtAuthState::Authorized);
                 } else {
-                    if let Some(key) = &self.context_state_key {
-                        depot.insert(key.clone(), "forbidden");
-                    }
+                    depot.insert(AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     if self.response_error {
                         res.set_http_error(Forbidden());
                     }
                 }
-                if let Some(key) = &self.context_token_key {
-                    depot.insert(key.clone(), token);
-                }
+                depot.insert(AUTH_TOKEN_KEY, token);
                 return;
             }
         }
-        if let Some(key) = &self.context_state_key {
-            depot.insert(key.clone(), "unauthorized");
-        }
+        depot.insert(AUTH_STATE_KEY, JwtAuthState::Unauthorized);
         if self.response_error {
             res.set_http_error(Unauthorized());
         }
@@ -346,10 +329,8 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtHandler<JwtClaims> = JwtHandler::new("ABCDEF".into())
+        let auth_handler: JwtAuthHandler<JwtClaims> = JwtAuthHandler::new("ABCDEF".into())
             .with_response_error(true)
-            .with_context_token_key(Some("jwt_token".to_owned()))
-            .with_context_state_key(Some("jwt_state".to_owned()))
             .with_extractors(vec![
                 Box::new(HeaderExtractor::new()),
                 Box::new(QueryExtractor::new("jwt_token")),

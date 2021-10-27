@@ -7,6 +7,8 @@ use salvo_core::Handler;
 
 use thiserror::Error;
 
+pub const USERNAME_KEY: &'static str = "::salvo::extra::basic_auth::username";
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Base64 decode error.")]
@@ -16,21 +18,30 @@ pub enum Error {
 }
 
 pub trait BasicAuthValidator: Send + Sync {
-    fn validate(&self, name: String, password: String) -> bool;
+    fn validate(&self, username: String, password: String) -> bool;
 }
 impl<F> BasicAuthValidator for F
 where
     F: Send + Sync,
     F: Fn(String, String) -> bool,
 {
-    fn validate(&self, name: String, password: String) -> bool {
-        self(name, password)
+    fn validate(&self, username: String, password: String) -> bool {
+        self(username, password)
+    }
+}
+
+pub trait BasicAuthDepotExt {
+    fn basic_auth_username(&self) -> Option<&String>;
+}
+
+impl BasicAuthDepotExt for Depot {
+    fn basic_auth_username(&self) -> Option<&String> {
+        self.try_borrow(USERNAME_KEY)
     }
 }
 
 pub struct BasicAuthHandler<V: BasicAuthValidator> {
     realm: String,
-    context_key: Option<String>,
     validator: V,
 }
 impl<V> BasicAuthHandler<V>
@@ -40,22 +51,8 @@ where
     pub fn new(validator: V) -> Self {
         BasicAuthHandler {
             realm: "realm".to_owned(),
-            context_key: None,
             validator,
         }
-    }
-    #[inline]
-    pub fn context_key(&self) -> Option<&String> {
-        self.context_key.as_ref()
-    }
-    #[inline]
-    pub fn set_context_key(&mut self, context_key: Option<String>) {
-        self.context_key = context_key;
-    }
-    #[inline]
-    pub fn with_context_key(mut self, context_key: Option<String>) -> Self {
-        self.context_key = context_key;
-        self
     }
 
     #[inline]
@@ -88,11 +85,9 @@ where
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
                     if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
-                        if let Ok((user_name, password)) = self.parse_authorization(auth) {
-                            if self.validator.validate(user_name.clone(), password) {
-                                if let Some(key) = &self.context_key {
-                                    depot.insert(key.clone(), user_name);
-                                }
+                        if let Ok((username, password)) = self.parse_authorization(auth) {
+                            if self.validator.validate(username.clone(), password) {
+                                depot.insert(USERNAME_KEY, username);
                                 return;
                             }
                         }
@@ -115,8 +110,7 @@ mod tests {
     #[tokio::test]
     async fn test_basic_auth() {
         let auth_handler =
-            BasicAuthHandler::new(|user_name, password| -> bool { user_name == "root" && password == "pwd" })
-                .with_context_key(Some("user_name".to_owned()));
+            BasicAuthHandler::new(|username, password| -> bool { username == "root" && password == "pwd" });
 
         #[fn_handler]
         async fn hello() -> &'static str {
