@@ -53,7 +53,6 @@ serde_json = "1"
 tempdir = "0.3"
 textnonce = "1"
 thiserror = "1"
-time = "0.3"
 tokio = { version = "1.5", features = ["full"] }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
