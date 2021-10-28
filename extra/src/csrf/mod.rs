@@ -1,10 +1,12 @@
+// port from https://github.com/malyn/tide-csrf
+
 use std::collections::HashSet;
 use std::time::Duration;
 
 use csrflib::{
     AesGcmCsrfProtection, CsrfCookie, CsrfProtection, CsrfToken, UnencryptedCsrfCookie, UnencryptedCsrfToken,
 };
-use salvo_core::http::cookie::{Cookie, SameSite, Expiration};
+use salvo_core::http::cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::headers::HeaderName;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};
@@ -90,10 +92,10 @@ impl CsrfHandler {
     ///
     /// The defaults for CsrfHandler are:
     /// - cookie path: `/`
-    /// - cookie name: `salvo_core.csrf`
+    /// - cookie name: `salvo.extra.csrf`
     /// - cookie domain: None
     /// - ttl: 24 hours
-    /// - header name: `X-CSRF-Token`
+    /// - header name: `x-csrf-token`
     /// - query param: `csrf-token`
     /// - form field: `csrf-token`
     /// - protected methods: `[POST, PUT, PATCH, DELETE]`
@@ -103,10 +105,10 @@ impl CsrfHandler {
 
         Self {
             cookie_path: "/".into(),
-            cookie_name: "salvo_core.csrf".into(),
+            cookie_name: "salvo.extra.csrf".into(),
             cookie_domain: None,
             ttl: Duration::from_secs(24 * 60 * 60),
-            header_name: HeaderName::from_static("X-CSRF-Token"),
+            header_name: HeaderName::from_static("x-csrf-token"),
             query_param: "csrf-token".into(),
             form_field: "csrf-token".into(),
             protected_methods: vec![Method::POST, Method::PUT, Method::PATCH, Method::DELETE]
@@ -130,7 +132,7 @@ impl CsrfHandler {
     /// Sets the name of the HTTP header where the middleware will look
     /// for the CSRF token.
     ///
-    /// Defaults to "X-CSRF-Token".
+    /// Defaults to "x-csrf-token".
     pub fn with_header_name(mut self, header_name: HeaderName) -> Self {
         self.header_name = header_name;
         self
@@ -199,8 +201,20 @@ impl CsrfHandler {
 
     fn find_csrf_cookie(&self, req: &Request) -> Option<UnencryptedCsrfCookie> {
         req.get_cookie(&self.cookie_name)
-            .and_then(|c| base64::decode(c.value().as_bytes()).ok())
-            .and_then(|b| self.protect.parse_cookie(&b).ok())
+            .and_then(|c| match base64::decode(c.value().as_bytes()) {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    tracing::error!(error = ?e, "base64 decode error");
+                    None
+                }
+            })
+            .and_then(|b| match self.protect.parse_cookie(&b) {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    tracing::error!(error = ?e, "parse cookie error");
+                    None
+                }
+            })
     }
 
     async fn find_csrf_token(&self, req: &mut Request) -> Result<UnencryptedCsrfToken, salvo_core::Error> {
@@ -222,14 +236,13 @@ impl CsrfHandler {
         } else {
             return Err(salvo_core::Error::new("not found"));
         };
-
         self.protect.parse_token(&csrf_token).map_err(salvo_core::Error::new)
     }
 
     fn find_csrf_token_in_header(&self, req: &Request) -> Option<Vec<u8>> {
         req.headers()
             .get(&self.header_name)
-            .and_then(|v|v.to_str().ok())
+            .and_then(|v| v.to_str().ok())
             .and_then(|v| base64::decode_config(v.as_bytes(), base64::URL_SAFE).ok())
     }
 
@@ -240,7 +253,7 @@ impl CsrfHandler {
     }
 
     async fn find_csrf_token_in_form(&self, req: &mut Request) -> Option<Vec<u8>> {
-        req.get_form::<String>(&self.query_param)
+        req.get_form::<String>(&self.form_field)
             .await
             .and_then(|v| base64::decode_config(v.as_bytes(), base64::URL_SAFE).ok())
     }
@@ -313,418 +326,424 @@ fn derive_key(secret: &[u8], key: &mut [u8; 32]) {
 mod tests {
     use super::*;
     use salvo_core::hyper;
-    use salvo_core::prelude::*;
-    use salvo_core::{
-        http::headers::{COOKIE, SET_COOKIE},
-        Request,
-    };
 
     const SECRET: [u8; 32] = *b"secrets must be >= 32 bytes long";
+
     #[fn_handler]
-    async fn hello(depot: &mut Depot) -> &'static str {
-        "hello"
+    async fn get_index(depot: &mut Depot) -> String {
+        depot.csrf_token().unwrap_or_default().to_owned()
+    }
+    #[fn_handler]
+    async fn post_index() -> &'static str {
+        "POST"
     }
 
     #[tokio::test]
-    async fn middleware_exposes_csrf_request_extensions() -> salvo_core::Result<()> {
-        let router = Router::new().before(CsrfHandler::new(&SECRET)).get(hello);
+    async fn middleware_exposes_csrf_request_extensions() {
+        let router = Router::new().before(CsrfHandler::new(&SECRET)).get(get_index);
         let service = Service::new(router);
 
-        app.at("/").get(|req: Request<()>| async move {
-            assert_ne!(req.csrf_token(), "");
-            assert_eq!(req.csrf_header_name(), "x-csrf-token");
-            Ok("")
-        });
-
-        let res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let response = service.handle(req).await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
     }
 
     #[tokio::test]
-    async fn middleware_adds_csrf_cookie_sets_request_token() -> salvo_core::Result<()> {
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_adds_csrf_cookie_sets_request_token() {
+        let router = Router::new().before(CsrfHandler::new(&SECRET)).get(get_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-
-        let csrf_token = res.body_string().await?;
-        assert_ne!(csrf_token, "");
-
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
-
-        Ok(())
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_ne!(res.take_text().await.unwrap(), "");
+        assert_ne!(res.get_cookie("salvo.extra.csrf"), None);
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_header() -> salvo_core::Result<()> {
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_validates_token_in_header() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let mut res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        assert_eq!(res.body_string().await?, "POST");
-
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("x-csrf-token", csrf_token)
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_alternate_header() -> salvo_core::Result<()> {
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET).with_header_name("X-MyCSRF-Header"));
+    async fn middleware_validates_token_in_alternate_header() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET).with_header_name(HeaderName::from_static("x-mycsrf-header")))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move {
-                assert_eq!(req.csrf_header_name(), "x-mycsrf-header");
-                Ok(req.csrf_token().to_string())
-            })
-            .post(|_| async { Ok("POST") });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let mut res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-MyCSRF-Header", csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        assert_eq!(res.body_string().await?, "POST");
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("x-mycsrf-header", csrf_token)
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_alternate_query() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET).with_query_param("my-csrf-token"));
+    async fn middleware_validates_token_in_query() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let mut res = app
-            .post(format!("/?a=1&my-csrf-token={}&b=2", csrf_token))
-            .header(COOKIE, cookie.to_string())
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        assert_eq!(res.body_string().await?, "POST");
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri(format!("http://127.0.0.1:7979?a=1&csrf-token={}&b=2", csrf_token))
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
+    }
+    #[tokio::test]
+    async fn middleware_validates_token_in_alternate_query() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET).with_query_param("my-csrf-token"))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
+
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri(format!("http://127.0.0.1:7979?a=1&my-csrf-token={}&b=2", csrf_token))
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_query() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_validates_token_in_form() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET).with_query_param("my-csrf-token"))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let mut res = app
-            .post(format!("/?a=1&csrf-token={}&b=2", csrf_token))
-            .header(COOKIE, cookie.to_string())
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        assert_eq!(res.body_string().await?, "POST");
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("cookie", cookie.to_string())
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(hyper::Body::from(format!("a=1&csrf-token={}&b=2", csrf_token)))
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
+    }
+    #[tokio::test]
+    async fn middleware_validates_token_in_alternate_form() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET).with_form_field("my-csrf-token"))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+
+        let csrf_token = res.take_text().await.unwrap();
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("cookie", cookie.to_string())
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(hyper::Body::from(format!("a=1&my-csrf-token={}&b=2", csrf_token)))
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.take_text().await.unwrap(), "POST");
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_form() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_rejects_short_token() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|mut req: Request<()>| async move {
-                // Deserialize our part of the form in order to verify that
-                // the CsrfHandler does not break form parsing since it
-                // also had to parse the form in order to find its CSRF field.
-                #[derive(serde::Deserialize)]
-                struct Form {
-                    a: String,
-                    b: i32,
-                }
-                let form: Form = req.body_form().await?;
-                assert_eq!(form.a, "1");
-                assert_eq!(form.b, 2);
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-                Ok("POST")
-            });
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        let mut res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .content_type("application/x-www-form-urlencoded")
-            .body(format!("a=1&csrf-token={}&b=2", csrf_token))
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        assert_eq!(res.body_string().await?, "POST");
-
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("x-csrf-token", "aGVsbG8=")
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
-    async fn middleware_ignores_non_form_bodies() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_rejects_invalid_base64_token() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        // Include the CSRF token in what *looks* like a form body, but
-        // the Content-Type is `text/html` and so the middleware will
-        // ignore the body.
-        let res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .content_type("text/html")
-            .body(format!("a=1&csrf-token={}&b=2", csrf_token))
-            .await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        Ok(())
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("x-csrf-token", "aGVsbG8")
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test]
-    async fn middleware_allows_different_generation_cookies_and_tokens() -> salvo_core::Result<()> {
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
+    async fn middleware_rejects_mismatched_token() {
+        let router = Router::new()
+            .before(CsrfHandler::new(&SECRET))
+            .get(get_index)
+            .post(post_index);
+        let service = Service::new(router);
 
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) });
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        let csrf_token = res.take_text().await.unwrap();
 
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
 
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        // Send a valid CSRF token and verify that we get back a
-        // *different* token *and* cookie (which is how the `csrf` crate
-        // works; each response generates a different token and cookie,
-        // but all related -- part of the same request/response flow --
-        // tokens and cookies are compatible with each other until they
-        // expire).
-        let mut res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", &csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let new_csrf_token = res.body_string().await?;
-        assert_ne!(new_csrf_token, csrf_token);
-        let new_cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(new_cookie.name(), "salvo_core.csrf");
-        assert_ne!(new_cookie.to_string(), cookie.to_string());
-
-        // Now send another request with the *first* token and the
-        // *second* cookie and verify that the older token still works.
-        // (because the token hasn't expired yet, and all unexpired
-        // tokens are compatible with all related cookies).
-        let res = app
-            .post("/")
-            .header(COOKIE, new_cookie.to_string())
-            .header("X-CSRF-Token", csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-
-        // Finally, one more check that does the opposite of what we
-        // just did: a new token with an old cookie.
-        let res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", new_csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn middleware_rejects_short_token() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
-
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
-
-        let res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
-
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        // Send a CSRF token that is not a token (instead, it is the
-        // Base64 string "hello") and verify that we get a Forbidden
-        // response (and not a server error or anything like that, since
-        // the server is operating fine, it is the request that we are
-        // rejecting).
-        let res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", "aGVsbG8=")
-            .await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn middleware_rejects_invalid_base64_token() -> salvo_core::Result<()> {
-        // tracing::with_level(tracing::LevelFilter::Trace);
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
-
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
-
-        let res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
-
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        // Send a corrupt Base64 string as the CSRF token and verify
-        // that we get a Forbidden response (and not a server error or
-        // anything like that, since the server is operating fine, it is
-        // the request that we are rejecting).
-        let res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", "aGVsbG8")
-            .await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn middleware_rejects_mismatched_token() -> salvo_core::Result<()> {
-        let mut app = salvo_core::new();
-        app.with(CsrfHandler::new(&SECRET));
-
-        app.at("/")
-            .get(|req: Request<()>| async move { Ok(req.csrf_token().to_string()) })
-            .post(|_| async { Ok("POST") });
-
-        // Make two requests, keep the token from the first and the
-        // cookie from the second. This ensures that we have a
-        // validly-formatted token, but one that will be rejected if
-        // provided with the wrong cookie.
-        let mut res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let csrf_token = res.body_string().await?;
-
-        let res = app.get("/").await?;
-        assert_eq!(res.status(), StatusCode::Ok);
-        let cookie = get_csrf_cookie(&res).expect("Expected CSRF cookie in response.");
-        assert_eq!(cookie.name(), "salvo_core.csrf");
-
-        let res = app.post("/").await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        // Send a valid (but mismatched) CSRF token and verify that we
-        // get a Forbidden response.
-        let res = app
-            .post("/")
-            .header(COOKIE, cookie.to_string())
-            .header("X-CSRF-Token", csrf_token)
-            .await?;
-        assert_eq!(res.status(), StatusCode::Forbidden);
-
-        Ok(())
-    }
-
-    fn get_csrf_cookie(res: &Response) -> Option<Cookie> {
-        if let Some(values) = res.header(SET_COOKIE) {
-            if let Some(value) = values.get(0) {
-                Cookie::parse(value.to_string()).ok()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        let req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979")
+            .header("x-csrf-token", csrf_token)
+            .header("cookie", cookie.to_string())
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }
 }
