@@ -29,13 +29,13 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, accept: &str, url: &str) -> String {
-            let req: Request = 
-                hyper::Request::builder()
-                    .method("GET")
-                    .header("accept", accept)
-                    .uri(url)
-                    .body(hyper::Body::empty())
-                    .unwrap().into();
+            let req: Request = hyper::Request::builder()
+                .method("GET")
+                .header("accept", accept)
+                .uri(url)
+                .body(hyper::Body::empty())
+                .unwrap()
+                .into();
             service.handle(req).await.take_text().await.unwrap()
         }
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
