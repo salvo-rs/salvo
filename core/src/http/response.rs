@@ -132,23 +132,8 @@ impl Default for Response {
         Self::new()
     }
 }
-impl Response {
-    /// Creates a new blank `Response`.
-    pub fn new() -> Response {
-        Response {
-            status_code: None,
-            http_error: None,
-            body: None,
-            version: Version::default(),
-            headers: HeaderMap::new(),
-            cookies: CookieJar::new(),
-            is_committed: false,
-        }
-    }
-    /// Create a request from an hyper::Request.
-    ///
-    /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(res: hyper::Response<hyper::Body>) -> Response {
+impl From<hyper::Response<hyper::Body>> for Response {
+    fn from(res: hyper::Response<hyper::Body>) -> Self {
         let (
             http::response::Parts {
                 status,
@@ -182,6 +167,20 @@ impl Response {
             version,
             headers,
             cookies,
+            is_committed: false,
+        }
+    }
+}
+impl Response {
+    /// Creates a new blank `Response`.
+    pub fn new() -> Response {
+        Response {
+            status_code: None,
+            http_error: None,
+            body: None,
+            version: Version::default(),
+            headers: HeaderMap::new(),
+            cookies: CookieJar::new(),
             is_committed: false,
         }
     }
@@ -472,46 +471,6 @@ impl Response {
         self.commit();
         Ok(())
     }
-    // #[inline]
-    // pub fn set_content_disposition(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(CONTENT_DISPOSITION, value.parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_content_encoding(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(CONTENT_ENCODING, value.parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_content_length(&mut self, value: u64) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(CONTENT_LENGTH, value.to_string().parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_content_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(CONTENT_RANGE, value.parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_content_type(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(CONTENT_TYPE, value.parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_accept_range(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(ACCEPT_RANGES, value.parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_last_modified(&mut self, value: HttpDate) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(LAST_MODIFIED, format!("{}", value).parse()?);
-    //     Ok(())
-    // }
-    // #[inline]
-    // pub fn set_etag(&mut self, value: &str) -> Result<(), InvalidHeaderValue> {
-    //     self.headers_mut().insert(ETAG, value.parse()?);
-    //     Ok(())
-    // }
 
     /// Salvo executes before handler and path handler in sequence, when the response is in a
     /// committed state, subsequent handlers will not be executed, and then all after
@@ -623,12 +582,11 @@ mod test {
     }
     #[tokio::test]
     async fn test_others() {
-        let mut response = Response::from_hyper(
-            hyper::Response::builder()
-                .header("set-cookie", "lover=dog")
-                .body("response body".into())
-                .unwrap(),
-        );
+        let mut response: Response = hyper::Response::builder()
+            .header("set-cookie", "lover=dog")
+            .body("response body".into())
+            .unwrap()
+            .into();
         assert_eq!(response.header_cookies().len(), 1);
         response.cookies_mut().add(Cookie::new("money", "sh*t"));
         assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
@@ -641,7 +599,10 @@ mod test {
             name: String,
         }
 
-        let mut response = Response::from_hyper(hyper::Response::builder().body(r#"{"name": "jobs"}"#.into()).unwrap());
+        let mut response: Response = hyper::Response::builder()
+            .body(r#"{"name": "jobs"}"#.into())
+            .unwrap()
+            .into();
         assert_eq!(
             response.take_json::<User>().await.unwrap(),
             User { name: "jobs".into() }
