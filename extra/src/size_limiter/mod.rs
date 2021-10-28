@@ -39,24 +39,22 @@ mod tests {
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 
-        let request = Request::from_hyper(
+        let req: Request = 
             hyper::Request::builder()
                 .method("POST")
                 .uri("http://127.0.0.1:7979/hello")
                 .body("abc".into())
-                .unwrap(),
-        );
-        let content = service.handle(request).await.take_text().await.unwrap();
+                .unwrap().into();
+        let content = service.handle(req).await.take_text().await.unwrap();
         assert_eq!(content, "hello");
 
-        let request = Request::from_hyper(
+        let req: Request = 
             hyper::Request::builder()
                 .method("POST")
                 .uri("http://127.0.0.1:7979/hello")
                 .body("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".into())
-                .unwrap(),
-        );
-        let response = service.handle(request).await;
-        assert_eq!(response.status_code(), Some(StatusCode::PAYLOAD_TOO_LARGE));
+                .unwrap().into();
+        let res = service.handle(req).await;
+        assert_eq!(res.status_code(), Some(StatusCode::PAYLOAD_TOO_LARGE));
     }
 }

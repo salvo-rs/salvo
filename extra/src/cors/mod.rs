@@ -514,42 +514,40 @@ mod tests {
         let service = Service::new(router);
 
         async fn options_access(service: &Service, origin: &str) -> Response {
-            let request = Request::from_hyper(
-                hyper::Request::builder()
-                    .method("OPTIONS")
-                    .uri("http://127.0.0.1:7979/hello")
-                    .header("Origin", origin)
-                    .header("Access-Control-Request-Method", "POST")
-                    .header("Access-Control-Request-Headers", "Content-Type")
-                    .body(hyper::Body::empty())
-                    .unwrap(),
-            );
-            service.handle(request).await
+            let req: Request = hyper::Request::builder()
+                .method("OPTIONS")
+                .uri("http://127.0.0.1:7979/hello")
+                .header("Origin", origin)
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "Content-Type")
+                .body(hyper::Body::empty())
+                .unwrap()
+                .into();
+            service.handle(req).await
         }
 
         async fn access(service: &Service, method: &str, origin: &str) -> Response {
-            let request = Request::from_hyper(
-                hyper::Request::builder()
-                    .method(method)
-                    .uri("http://127.0.0.1:7979/hello")
-                    .header("Origin", origin)
-                    .body(hyper::Body::empty())
-                    .unwrap(),
-            );
-            service.handle(request).await
+            let req: Request = hyper::Request::builder()
+                .method(method)
+                .uri("http://127.0.0.1:7979/hello")
+                .header("Origin", origin)
+                .body(hyper::Body::empty())
+                .unwrap()
+                .into();
+            service.handle(req).await
         }
 
-        let response = access(&service, "OPTIONS", "https://salvo.rs").await;
-        let headers = response.headers();
+        let res = access(&service, "OPTIONS", "https://salvo.rs").await;
+        let headers = res.headers();
         assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none());
 
-        let response = options_access(&service, "https://salvo.rs").await;
-        let headers = response.headers();
+        let res = options_access(&service, "https://salvo.rs").await;
+        let headers = res.headers();
         assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_some());
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_some());
 
-        let response = access(&service, "OPTIONS", "https://google.com").await;
-        let headers = response.headers();
+        let res = access(&service, "OPTIONS", "https://google.com").await;
+        let headers = res.headers();
         assert!(
             headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none(),
             "POST, GET, DELETE, OPTIONS"

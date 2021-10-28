@@ -230,13 +230,15 @@ mod tests {
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
-        let request = hyper::Request::builder()
+        let req: Request = hyper::Request::builder()
             .method("GET")
-            .uri("http://127.0.0.1:7979/hello");
-        let request = Request::from_hyper(request.body(hyper::Body::empty()).unwrap());
-        let mut response = service.handle(request).await;
-        assert_eq!(response.headers().get("content-encoding").unwrap(), "gzip");
-        let content = response.take_text().await.unwrap();
+            .uri("http://127.0.0.1:7979/hello")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.headers().get("content-encoding").unwrap(), "gzip");
+        let content = res.take_text().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -246,13 +248,15 @@ mod tests {
         let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
-        let request = hyper::Request::builder()
+        let req: Request = hyper::Request::builder()
             .method("GET")
-            .uri("http://127.0.0.1:7979/hello");
-        let request = Request::from_hyper(request.body(hyper::Body::empty()).unwrap());
-        let mut response = service.handle(request).await;
-        assert_eq!(response.headers().get("content-encoding").unwrap(), "br");
-        let content = response.take_text().await.unwrap();
+            .uri("http://127.0.0.1:7979/hello")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.headers().get("content-encoding").unwrap(), "br");
+        let content = res.take_text().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -265,10 +269,10 @@ mod tests {
         let request = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979/hello");
-        let request = Request::from_hyper(request.body(hyper::Body::empty()).unwrap());
-        let mut response = service.handle(request).await;
-        assert_eq!(response.headers().get("content-encoding").unwrap(), "deflate");
-        let content = response.take_text().await.unwrap();
+        let req: Request = request.body(hyper::Body::empty()).unwrap().into();
+        let mut res = service.handle(req).await;
+        assert_eq!(res.headers().get("content-encoding").unwrap(), "deflate");
+        let content = res.take_text().await.unwrap();
         assert_eq!(content, "hello");
     }
 }

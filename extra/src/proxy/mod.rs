@@ -203,14 +203,13 @@ mod tests {
             .push(Router::with_path("baidu/<**rest>").handle(ProxyHandler::new(vec!["https://www.baidu.com".into()])));
         let service = Service::new(router);
 
-        let request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7979/baidu?wd=rust")
-                .body(hyper::Body::empty())
-                .unwrap(),
-        );
-        let content = service.handle(request).await.take_text().await.unwrap();
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/baidu?wd=rust")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("baidu"));
     }
     #[test]

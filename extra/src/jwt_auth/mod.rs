@@ -355,15 +355,14 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, token: &str) -> String {
-            let request = Request::from_hyper(
-                hyper::Request::builder()
-                    .method("GET")
-                    .uri("http://127.0.0.1:7979/hello")
-                    .header("Authorization", format!("Bearer {}", token))
-                    .body(hyper::Body::empty())
-                    .unwrap(),
-            );
-            service.handle(request).await.take_text().await.unwrap()
+            let req: Request = hyper::Request::builder()
+                .method("GET")
+                .uri("http://127.0.0.1:7979/hello")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(hyper::Body::empty())
+                .unwrap()
+                .into();
+            service.handle(req).await.take_text().await.unwrap()
         }
 
         let claim = JwtClaims {
@@ -380,24 +379,22 @@ mod tests {
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
-        let request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("GET")
-                .uri(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
-                .body(hyper::Body::empty())
-                .unwrap(),
-        );
-        let content = service.handle(request).await.take_text().await.unwrap();
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
-        let request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7979/hello")
-                .header("Cookie", format!("jwt_token={}", token))
-                .body(hyper::Body::empty())
-                .unwrap(),
-        );
-        let content = service.handle(request).await.take_text().await.unwrap();
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello")
+            .header("Cookie", format!("jwt_token={}", token))
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
 
         let token = jsonwebtoken::encode(

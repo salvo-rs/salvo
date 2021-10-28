@@ -329,21 +329,21 @@ mod tests {
             Ok::<_, Infallible>(SseEvent::default().data("1")),
             Ok::<_, Infallible>(SseEvent::default().data("2")),
         ]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("data:1") && text.contains("data:2"));
     }
 
     #[tokio::test]
     async fn test_sse_keep_alive() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().data("1"))]);
-        let mut response = Response::new();
+        let mut res = Response::new();
         SseKeepAlive::new(event_stream)
             .with_comment("love you")
             .with_interval(Duration::from_secs(1))
-            .streaming(&mut response);
-        let text = response.take_text().await.unwrap();
+            .streaming(&mut res);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("data:1"));
     }
 
@@ -357,27 +357,27 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![SseEvent::default().json_data(User {
             name: "jobs".to_owned(),
         })]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains(r#"data:{"name":"jobs"}"#));
     }
 
     #[tokio::test]
     async fn test_sse_comment() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().comment("comment"))]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains(":comment"));
     }
 
     #[tokio::test]
     async fn test_sse_name() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().name("evt2"))]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("event:evt2"));
     }
 
@@ -386,26 +386,26 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
             SseEvent::default().retry(std::time::Duration::from_secs_f32(1.02)),
         )]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("retry:1020"));
 
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
             SseEvent::default().retry(std::time::Duration::from_secs_f32(1.001)),
         )]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("retry:1001"));
     }
 
     #[tokio::test]
     async fn test_sse_id() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().id("jobs"))]);
-        let mut response = Response::new();
-        super::streaming(&mut response, event_stream);
-        let text = response.take_text().await.unwrap();
+        let mut res = Response::new();
+        super::streaming(&mut res, event_stream);
+        let text = res.take_text().await.unwrap();
         assert!(text.contains("id:jobs"));
     }
 }

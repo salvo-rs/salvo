@@ -194,7 +194,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
         std::task::Poll::Ready(Ok(()))
     }
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let response = self.handle(Request::from_hyper(req));
+        let response = self.handle(req.into());
         let fut = async move {
             let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
             response.await.write_back(&mut hyper_response).await;
