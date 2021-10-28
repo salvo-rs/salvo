@@ -1,4 +1,5 @@
 ### 0.14.0
+- core::http: Request and Response's from_hyper function removed and impl From trait now.
 - extra::baisc_auth: 
     - add USERNAME_KEY and BasicAuthDepotExt
     - remove context_key functions.

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
@@ -69,29 +70,8 @@ impl Default for Request {
     }
 }
 
-impl Request {
-    /// Creates a new blank `Request`
-    pub fn new() -> Request {
-        Request {
-            uri: Uri::default(),
-            headers: HeaderMap::default(),
-            body: Some(Body::default()),
-            extensions: Extensions::default(),
-            method: Method::default(),
-            cookies: CookieJar::default(),
-            params: HashMap::new(),
-            queries: OnceCell::new(),
-            form_data: tokio::sync::OnceCell::new(),
-            payload: tokio::sync::OnceCell::new(),
-            version: Version::default(),
-            remote_addr: None,
-        }
-    }
-
-    /// Create a request from an hyper::Request.
-    ///
-    /// This constructor consumes the hyper::Request.
-    pub fn from_hyper(req: hyper::Request<Body>) -> Request {
+impl From<hyper::Request<Body>> for Request {
+    fn from(req: hyper::Request<Body>) -> Self {
         let (
             http::request::Parts {
                 method,
@@ -136,14 +116,34 @@ impl Request {
             remote_addr: None,
         }
     }
+}
+
+impl Request {
+    /// Creates a new blank `Request`
+    pub fn new() -> Request {
+        Request {
+            uri: Uri::default(),
+            headers: HeaderMap::default(),
+            body: Some(Body::default()),
+            extensions: Extensions::default(),
+            method: Method::default(),
+            cookies: CookieJar::default(),
+            params: HashMap::new(),
+            queries: OnceCell::new(),
+            form_data: tokio::sync::OnceCell::new(),
+            payload: tokio::sync::OnceCell::new(),
+            version: Version::default(),
+            remote_addr: None,
+        }
+    }
     /// Returns a reference to the associated URI.
     ///
     /// # Examples
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let request = Request::default();
-    /// assert_eq!(*request.uri(), *"/");
+    /// let req = Request::default();
+    /// assert_eq!(*req.uri(), *"/");
     /// ```
     #[inline]
     pub fn uri(&self) -> &Uri {
@@ -156,9 +156,9 @@ impl Request {
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let mut request: Request= Request::default();
-    /// *request.uri_mut() = "/hello".parse().unwrap();
-    /// assert_eq!(*request.uri(), *"/hello");
+    /// let mut req: Request= Request::default();
+    /// *req.uri_mut() = "/hello".parse().unwrap();
+    /// assert_eq!(*req.uri(), *"/hello");
     /// ```
     #[inline]
     pub fn uri_mut(&mut self) -> &mut Uri {
@@ -171,8 +171,8 @@ impl Request {
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let request = Request::default();
-    /// assert_eq!(*request.method(), Method::GET);
+    /// let req = Request::default();
+    /// assert_eq!(*req.method(), Method::GET);
     /// ```
     #[inline]
     pub fn method(&self) -> &Method {
@@ -219,8 +219,8 @@ impl Request {
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let request = Request::default();
-    /// assert!(request.headers().is_empty());
+    /// let req = Request::default();
+    /// assert!(req.headers().is_empty());
     /// ```
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
@@ -234,9 +234,9 @@ impl Request {
     /// ```
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
-    /// let mut request: Request = Request::default();
-    /// request.headers_mut().insert(HOST, HeaderValue::from_static("world"));
-    /// assert!(!request.headers().is_empty());
+    /// let mut req: Request = Request::default();
+    /// req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// assert!(!req.headers().is_empty());
     /// ```
     #[inline]
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
@@ -261,8 +261,8 @@ impl Request {
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let request = Request::default();
-    /// assert!(request.body().is_some());
+    /// let req = Request::default();
+    /// assert!(req.body().is_some());
     /// ```
     #[inline]
     pub fn body(&self) -> Option<&Body> {
@@ -286,8 +286,8 @@ impl Request {
     ///
     /// ```
     /// # use salvo_core::http::*;
-    /// let request = Request::default();
-    /// assert!(request.extensions().get::<i32>().is_none());
+    /// let req = Request::default();
+    /// assert!(req.extensions().get::<i32>().is_none());
     /// ```
     #[inline]
     pub fn extensions(&self) -> &Extensions {
@@ -356,6 +356,17 @@ impl Request {
         T: AsRef<str>,
     {
         self.cookies.get(name.as_ref())
+    }
+    #[inline]
+    pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
+        self.cookies.add(cookie);
+    }
+    #[inline]
+    pub fn remove_cookie<T>(&mut self, name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.cookies.remove(Cookie::named(name));
     }
     #[inline]
     pub fn params(&self) -> &HashMap<String, String> {
@@ -554,13 +565,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_text() {
-        let mut req = Request::from_hyper(
-            hyper::Request::builder()
-                .uri("http://127.0.0.1:7878/hello")
-                .header("content-type", "text/plain")
-                .body("hello".into())
-                .unwrap(),
-        );
+        let mut req: Request = hyper::Request::builder()
+            .uri("http://127.0.0.1:7878/hello")
+            .header("content-type", "text/plain")
+            .body("hello".into())
+            .unwrap()
+            .into();
         assert_eq!(req.read_from_text::<String>().await.unwrap(), "hello");
     }
     #[tokio::test]
@@ -569,13 +579,12 @@ mod tests {
         struct User {
             name: String,
         }
-        let mut req = Request::from_hyper(
-            hyper::Request::builder()
-                .uri("http://127.0.0.1:7878/hello")
-                .header("content-type", "application/json")
-                .body(r#"{"name": "jobs"}"#.into())
-                .unwrap(),
-        );
+        let mut req: Request = hyper::Request::builder()
+            .uri("http://127.0.0.1:7878/hello")
+            .header("content-type", "application/json")
+            .body(r#"{"name": "jobs"}"#.into())
+            .unwrap()
+            .into();
         assert_eq!(
             req.read_from_json::<User>().await.unwrap(),
             User { name: "jobs".into() }
@@ -583,56 +592,53 @@ mod tests {
     }
     #[tokio::test]
     async fn test_query() {
-        let mut request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7979/hello?q=rust")
-                .body(hyper::Body::empty())
-                .unwrap(),
-        );
-        assert_eq!(request.queries().len(), 1);
-        assert_eq!(request.get_query::<String>("q").unwrap(), "rust");
-        assert_eq!(request.get_query_or_form::<String>("q").await.unwrap(), "rust");
+        let mut req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello?q=rust")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        assert_eq!(req.queries().len(), 1);
+        assert_eq!(req.get_query::<String>("q").unwrap(), "rust");
+        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
     }
     #[tokio::test]
     async fn test_form() {
-        let mut request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("POST")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .uri("http://127.0.0.1:7979/hello?q=rust")
-                .body("lover=dog&money=sh*t&q=firefox".into())
-                .unwrap(),
-        );
-        assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
-        assert_eq!(request.get_query_or_form::<String>("q").await.unwrap(), "rust");
-        assert_eq!(request.get_form_or_query::<String>("q").await.unwrap(), "firefox");
+        let mut req: Request = hyper::Request::builder()
+            .method("POST")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .uri("http://127.0.0.1:7979/hello?q=rust")
+            .body("lover=dog&money=sh*t&q=firefox".into())
+            .unwrap()
+            .into();
+        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
+        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(req.get_form_or_query::<String>("q").await.unwrap(), "firefox");
 
-        let mut request = Request::from_hyper(
-            hyper::Request::builder()
-                .method("POST")
-                .header(
-                    "content-type",
-                    "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
-                )
-                .uri("http://127.0.0.1:7979/hello?q=rust")
-                .body(
-                    "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
+        let mut req: Request = hyper::Request::builder()
+            .method("POST")
+            .header(
+                "content-type",
+                "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
+            )
+            .uri("http://127.0.0.1:7979/hello?q=rust")
+            .body(
+                "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
 Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
 ------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
 Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\
 Content-Type: text/plain\r\n\r\n\
 file content\r\n\
 ------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n"
-                        .into(),
-                )
-                .unwrap(),
-        );
-        assert_eq!(request.get_form::<String>("money").await.unwrap(), "sh*t");
-        let file = request.get_file("file1").await.unwrap();
+                    .into(),
+            )
+            .unwrap()
+            .into();
+        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
+        let file = req.get_file("file1").await.unwrap();
         assert_eq!(file.file_name().unwrap(), "err.txt");
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
-        let files = request.get_files("file1").await.unwrap();
+        let files = req.get_files("file1").await.unwrap();
         assert_eq!(files[0].file_name().unwrap(), "err.txt");
     }
 }
