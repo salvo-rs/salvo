@@ -172,7 +172,7 @@ impl HyperHandler {
                 }
             }
             #[cfg(debug_assertions)]
-            if let Method::HEAD = *request.method() {
+            if let hyper::Method::HEAD = *request.method() {
                 if let Some(body) = response.body() {
                     if !body.is_empty() {
                         tracing::warn!("request with head method should have empty body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");

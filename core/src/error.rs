@@ -3,8 +3,7 @@ use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
 
-use crate::http::{Request, Response, StatusCode};
-use crate::{Depot, Writer};
+use crate::{Depot, Request, Response, Writer};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -55,7 +54,7 @@ impl Writer for Error {
 impl Writer for Error {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        res.set_status_code(crate::http::StatusCode::INTERNAL_SERVER_ERROR);
     }
 }
 
@@ -97,7 +96,7 @@ mod tests {
 
         let err: ::anyhow::Error = Error::new("detail message").into();
         err.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     #[tokio::test]
@@ -108,6 +107,6 @@ mod tests {
 
         let err = Error::new("detail message");
         err.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
     }
 }

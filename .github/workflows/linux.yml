@@ -42,6 +42,12 @@ jobs:
           command: check
           args: --all --bins --examples --tests
 
+      - name: check release build
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --bins --examples --tests --release
+
       - name: tests
         uses: actions-rs/cargo@v1
         timeout-minutes: 40
