@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures_util::future;
-use hyper::Method;
 use once_cell::sync::Lazy;
 
 use crate::catcher;

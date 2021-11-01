@@ -3,7 +3,8 @@ use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
 
-use crate::{Depot, Request, Response, Writer};
+use crate::{Depot, Writer};
+use crate::http::{StatusCode, Request, Response};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
