@@ -28,7 +28,6 @@ async-trait = "0.1"
 bitflags = "1"
 bytes = "1"
 cookie = { version = "0.15", features = ["percent-encode"] }
-display_bytes = "0.2"
 encoding_rs = "0.8.29"
 form_urlencoded = "1"
 futures-util = { version = "0.3", default-features = false }
@@ -56,7 +55,6 @@ thiserror = "1"
 tokio = { version = "1.5", features = ["full"] }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
-tracing-futures = "0.2"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }
