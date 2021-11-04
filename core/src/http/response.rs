@@ -115,6 +115,7 @@ impl From<hyper::Body> for Body {
         Body::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
     }
 }
+
 /// Represents an HTTP response
 pub struct Response {
     /// The response status-code.
@@ -125,7 +126,7 @@ pub struct Response {
     version: Version,
     pub(crate) cookies: CookieJar,
     pub(crate) body: Option<Body>,
-    is_committed: bool,
+    pub(crate) flow_state: FlowState,
 }
 impl Default for Response {
     fn default() -> Self {
@@ -181,7 +182,7 @@ impl Response {
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            is_committed: false,
+            flow_status: FlowState::Capturing,
         }
     }
 
