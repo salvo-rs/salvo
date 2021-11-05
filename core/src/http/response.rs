@@ -134,10 +134,8 @@ pub enum FlowState {
 }
 /// Represents an HTTP response
 pub struct Response {
-    /// The response status-code.
     status_code: Option<StatusCode>,
     pub(crate) http_error: Option<HttpError>,
-    /// The headers of the response.
     headers: HeaderMap,
     version: Version,
     pub(crate) cookies: CookieJar,

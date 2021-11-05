@@ -8,8 +8,8 @@ use once_cell::sync::Lazy;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::{Mime, Request, Response, StatusCode};
 use crate::http::response::FlowState;
+use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
@@ -112,48 +112,52 @@ pub struct HyperHandler {
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 impl HyperHandler {
-    pub fn handle(&self, mut request: Request) -> impl Future<Output = Response> {
+    pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
-        request.set_remote_addr(self.remote_addr);
-        let mut response = Response::new();
+        req.set_remote_addr(self.remote_addr);
+        let mut res = Response::new();
         let mut depot = Depot::new();
-        let mut path_state = PathState::new(request.uri().path());
-        response.cookies = request.cookies().clone();
+        let mut path_state = PathState::new(req.uri().path());
+        res.cookies = req.cookies().clone();
         let router = self.router.clone();
 
         async move {
-            if let Some(dm) = router.detect(&mut request, &mut path_state) {
-                request.params = path_state.params;
-                for handler in [&dm.befores[..], &[dm.handler]].concat() {
-                    handler.handle(&mut request, &mut depot, &mut response).await;
-                    if response.flow_state() >= FlowState::Bubbling {
+            if let Some(dm) = router.detect(&mut req, &mut path_state, 0) {
+                req.params = path_state.params;
+                let mut max_depth = 0;
+                for (depth, handler) in [&dm.befores[..], &[dm.handler]].concat() {
+                    handler.handle(&mut req, &mut depot, &mut res).await;
+                    max_depth = depth;
+                    if res.flow_state() >= FlowState::Bubbling {
                         break;
                     }
                 }
-                if response.flow_state() != FlowState::Commited {
-                    response.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
+                if res.flow_state() != FlowState::Commited {
+                    res.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
                     // Ensure these after handlers must be executed
-                    for handler in &dm.afters {
-                        handler.handle(&mut request, &mut depot, &mut response).await;
+                    for (depth, handler) in &dm.afters {
+                        if *depth <= max_depth {
+                            handler.handle(&mut req, &mut depot, &mut res).await;
+                        }
                     }
                 }
-                response.set_flow_state(FlowState::Commited);
+                res.set_flow_state(FlowState::Commited);
             } else {
-                response.set_status_code(StatusCode::NOT_FOUND);
+                res.set_status_code(StatusCode::NOT_FOUND);
             }
 
-            if response.status_code().is_none() {
-                if response.body.is_none() {
-                    response.set_status_code(StatusCode::NOT_FOUND);
+            if res.status_code().is_none() {
+                if res.body.is_none() {
+                    res.set_status_code(StatusCode::NOT_FOUND);
                 } else {
-                    response.set_status_code(StatusCode::OK);
+                    res.set_status_code(StatusCode::OK);
                 }
             }
 
-            let status = response.status_code().unwrap();
+            let status = res.status_code().unwrap();
             let has_error = status.is_client_error() || status.is_server_error();
-            if let Some(value) = response.headers().get(CONTENT_TYPE) {
+            if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
                 if let Ok(value) = value.to_str() {
                     if allowed_media_types.is_empty() {
@@ -171,31 +175,31 @@ impl HyperHandler {
                     }
                 }
                 if !is_allowed {
-                    response.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else {
                 tracing::warn!(
-                    uri = ?request.uri(),
-                    method = request.method().as_str(),
+                    uri = ?req.uri(),
+                    method = req.method().as_str(),
                     "Http response content type header is not set"
                 );
             }
-            if response.body.is_none() && has_error {
+            if res.body.is_none() && has_error {
                 for catcher in catchers.iter().chain(DEFAULT_CATCHERS.iter()) {
-                    if catcher.catch(&request, &mut response) {
+                    if catcher.catch(&req, &mut res) {
                         break;
                     }
                 }
             }
             #[cfg(debug_assertions)]
-            if let hyper::Method::HEAD = *request.method() {
-                if let Some(body) = response.body() {
+            if let hyper::Method::HEAD = *req.method() {
+                if let Some(body) = res.body() {
                     if !body.is_empty() {
                         tracing::warn!("request with head method should have empty body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
                     }
                 }
             }
-            response
+            res
         }
     }
 }
@@ -216,5 +220,80 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
             Ok(hyper_response)
         };
         Box::pin(fut)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::http::response::FlowState;
+    use crate::prelude::*;
+
+    #[tokio::test]
+    async fn test_service() {
+        #[fn_handler]
+        async fn before1(req: &mut Request, res: &mut Response) {
+            if req.get_query::<String>("b").unwrap_or_default() == "1" {
+                res.set_flow_state(FlowState::Bubbling);
+            } else {
+                res.render_plain_text("before1");
+            }
+        }
+        #[fn_handler]
+        async fn before2(req: &mut Request, res: &mut Response) {
+            if req.get_query::<String>("b").unwrap_or_default() == "2" {
+                res.set_flow_state(FlowState::Bubbling);
+            } else {
+                res.render_plain_text("before2");
+            }
+        }
+        #[fn_handler]
+        async fn before3(req: &mut Request, res: &mut Response) {
+            if req.get_query::<String>("b").unwrap_or_default() == "3" {
+                res.set_flow_state(FlowState::Bubbling);
+            } else {
+                res.render_plain_text("before3");
+            }
+        }
+        #[fn_handler]
+        async fn after1() -> &'static str {
+            "after1"
+        }
+        #[fn_handler]
+        async fn after2() -> &'static str {
+            "after2"
+        }
+        #[fn_handler]
+        async fn after3() -> &'static str {
+            "after3"
+        }
+        #[fn_handler]
+        async fn hello() -> Result<&'static str, ()> {
+            Ok("hello")
+        }
+        let router = Router::with_path("level1").before(before1).after(after1).push(
+            Router::with_before(before2)
+                .after(after2)
+                .path("level2")
+                .push(Router::with_before(before3).after(after3).path("hello").handle(hello)),
+        );
+        let service = Service::new(router);
+
+        async fn access(service: &Service, b: &str) -> String {
+            let req: Request = hyper::Request::builder()
+                .method("GET")
+                .uri(format!("http://127.0.0.1:7979/level1/level2/hello?b={}", b))
+                .body(hyper::Body::empty())
+                .unwrap()
+                .into();
+            service.handle(req).await.take_text().await.unwrap()
+        }
+        let content = access(&service, "").await;
+        assert_eq!(content, "before1before2before3helloafter3after2after1");
+        let content = access(&service, "1").await;
+        assert_eq!(content, "after1");
+        let content = access(&service, "2").await;
+        assert_eq!(content, "before1after2after1");
+        let content = access(&service, "3").await;
+        assert_eq!(content, "before1before2after3after2after1");
     }
 }

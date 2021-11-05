@@ -61,7 +61,7 @@ jobs:
           cargo install cargo-tarpaulin
           cargo tarpaulin --workspace --out Xml
 
-      - name: Upload to Codecov
+      - name: Upload to codecov
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'push')
         uses: codecov/codecov-action@v1
         with:

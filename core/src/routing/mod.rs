@@ -4,6 +4,7 @@ pub use filter::*;
 pub use router::{DetectMatched, Router};
 
 use std::collections::HashMap;
+
 #[doc(hidden)]
 pub type PathParams = HashMap<String, String>;
 #[doc(hidden)]
@@ -14,7 +15,7 @@ pub struct PathState {
     pub(crate) params: PathParams,
 }
 impl PathState {
-    /// Create new ```PathState```.
+    /// Create new `PathState`.
     pub fn new(url_path: &str) -> Self {
         let url_path = url_path.trim_start_matches('/').trim_end_matches('/');
         PathState {
