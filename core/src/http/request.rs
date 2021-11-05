@@ -237,7 +237,7 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut req: Request = Request::default();
-    /// Req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
     /// assert!(!req.headers().is_empty());
     /// ```
     #[inline]
@@ -303,9 +303,9 @@ impl Request {
     /// ```
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
-    /// let mut request: Request = Request::default();
-    /// Request.extensions_mut().insert("hello");
-    /// assert_eq!(request.extensions().get(), Some(&"hello"));
+    /// let mut req = Request::default();
+    /// req.extensions_mut().insert("hello");
+    /// assert_eq!(req.extensions().get(), Some(&"hello"));
     /// ```
     #[inline]
     pub fn extensions_mut(&mut self) -> &mut Extensions {
