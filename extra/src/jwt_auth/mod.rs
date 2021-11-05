@@ -380,7 +380,7 @@ mod tests {
     use super::*;
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub struct JwtClaims {
+    struct JwtClaims {
         user: String,
         exp: i64,
     }
