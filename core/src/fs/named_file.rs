@@ -25,7 +25,7 @@ use mime_guess::from_path;
 use super::{ChunkedState, FileChunk};
 use crate::http::header;
 use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING};
-use crate::http::{Request, Response, StatusCode, HttpRange};
+use crate::http::{HttpRange, Request, Response, StatusCode};
 use crate::Depot;
 use crate::Writer;
 
