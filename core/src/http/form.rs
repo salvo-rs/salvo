@@ -160,6 +160,6 @@ pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<Fo
             }
             Ok(form_data)
         }
-        _ => Err(ReadError::Parsing("parse form data failed".into())),
+        _ => Err(ReadError::InvalidContentType),
     }
 }
