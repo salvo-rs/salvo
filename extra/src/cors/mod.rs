@@ -53,6 +53,7 @@ impl Default for HandlerBuilder {
 }
 
 impl HandlerBuilder {
+    /// Create new `HandlerBuilder`.
     pub fn new() -> Self {
         HandlerBuilder {
             credentials: false,
@@ -318,6 +319,7 @@ enum Validated {
     NotCors,
 }
 
+/// CorsHandler
 #[derive(Debug)]
 pub struct CorsHandler {
     credentials: bool,
@@ -331,6 +333,7 @@ pub struct CorsHandler {
     methods_header: AccessControlAllowMethods,
 }
 impl CorsHandler {
+    /// Return `HandlerBuilder` instance for build `CorsHandler`.
     #[inline]
     pub fn builder() -> HandlerBuilder {
         HandlerBuilder::default()
@@ -449,7 +452,9 @@ impl Handler for CorsHandler {
     }
 }
 
+/// Seconds
 pub trait Seconds {
+    /// Get seconds.
     fn seconds(self) -> u64;
 }
 
@@ -467,7 +472,9 @@ impl Seconds for ::std::time::Duration {
     }
 }
 
+/// IntoOrigin
 pub trait IntoOrigin {
+    /// Convert to `Origin`.
     fn into_origin(self) -> Origin;
 }
 

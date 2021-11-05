@@ -25,6 +25,7 @@ pub enum Error {
 
 /// BasicAuthValidator
 pub trait BasicAuthValidator: Send + Sync {
+    /// Validate is that username and password is right.
     fn validate(&self, username: String, password: String) -> bool;
 }
 impl<F> BasicAuthValidator for F
@@ -39,6 +40,7 @@ where
 
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
+    /// Get basic auth username reference.
     fn basic_auth_username(&self) -> Option<&String>;
 }
 
@@ -57,6 +59,7 @@ impl<V> BasicAuthHandler<V>
 where
     V: BasicAuthValidator,
 {
+    /// Create new `BasicAuthValidator`.
     pub fn new(validator: V) -> Self {
         BasicAuthHandler {
             realm: "realm".to_owned(),

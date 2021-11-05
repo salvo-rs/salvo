@@ -14,8 +14,11 @@ use salvo_core::http::{Request, Response};
 use salvo_core::Depot;
 use salvo_core::Handler;
 
-pub const AUTH_CLAIMS_KEY: &str = "::salvo::extra::jwt_auth::auth_data";
+/// key used to insert auth claims data to depot.
+pub const AUTH_CLAIMS_KEY: &str = "::salvo::extra::jwt_auth::auth_claims";
+/// key used to insert auth state data to depot.
 pub const AUTH_STATE_KEY: &str = "::salvo::extra::jwt_auth::auth_state";
+/// key used to insert auth token data to depot.
 pub const AUTH_TOKEN_KEY: &str = "::salvo::extra::jwt_auth::auth_token";
 
 static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
@@ -32,30 +35,38 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     ]
 });
 
+/// JwtExtractor
 #[async_trait]
 pub trait JwtExtractor: Send + Sync {
+    /// Get token from request.
     async fn get_token(&self, req: &mut Request) -> Option<String>;
 }
 
+/// HeaderExtractor
 #[derive(Default)]
 pub struct HeaderExtractor {
     cared_methods: Vec<Method>,
 }
 impl HeaderExtractor {
+    /// Create new `HeaderExtractor`.
     pub fn new() -> Self {
         HeaderExtractor {
             cared_methods: ALL_METHODS.clone(),
         }
     }
+    /// Get cated methods list reference.
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
+    /// Get cated methods list mutable reference.
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
+    /// Set cated methods list.
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
+    /// Set cated methods list and return Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -77,26 +88,32 @@ impl JwtExtractor for HeaderExtractor {
     }
 }
 
+/// FormExtractor
 pub struct FormExtractor {
     cared_methods: Vec<Method>,
     field_name: String,
 }
 impl FormExtractor {
+    /// Create new `FormExtractor`.
     pub fn new<T: Into<String>>(field_name: T) -> Self {
         FormExtractor {
             field_name: field_name.into(),
             cared_methods: ALL_METHODS.clone(),
         }
     }
+    /// Get cated methods list reference.
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
+    /// Get cated methods list mutable reference.
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
+    /// Set cated methods list.
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
+    /// Set cated methods list and return Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -113,26 +130,32 @@ impl JwtExtractor for FormExtractor {
     }
 }
 
+/// QueryExtractor
 pub struct QueryExtractor {
     cared_methods: Vec<Method>,
     query_name: String,
 }
 impl QueryExtractor {
+    /// Create new `QueryExtractor`.
     pub fn new<T: Into<String>>(query_name: T) -> Self {
         QueryExtractor {
             query_name: query_name.into(),
             cared_methods: ALL_METHODS.clone(),
         }
     }
+    /// Get cated methods list reference.
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
+    /// Get cated methods list mutable reference.
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
+    /// Set cated methods list.
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
+    /// Set cated methods list and return Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -150,11 +173,13 @@ impl JwtExtractor for QueryExtractor {
     }
 }
 
+/// CookieExtractor
 pub struct CookieExtractor {
     cared_methods: Vec<Method>,
     cookie_name: String,
 }
 impl CookieExtractor {
+    /// Create new `CookieExtractor`.
     pub fn new<T: Into<String>>(cookie_name: T) -> Self {
         CookieExtractor {
             cookie_name: cookie_name.into(),
@@ -167,15 +192,19 @@ impl CookieExtractor {
             ],
         }
     }
+    /// Get cated methods list reference.
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
+    /// Get cated methods list mutable reference.
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
+    /// Set cated methods list.
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
+    /// Set cated methods list and return Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -191,17 +220,25 @@ impl JwtExtractor for CookieExtractor {
         }
     }
 }
+/// JwtAuthState
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum JwtAuthState {
+    /// Authorized.
     Authorized,
+    /// Unauthorized.
     Unauthorized,
+    /// Forbidden.
     Forbidden,
 }
+/// JwtAuthDepotExt
 pub trait JwtAuthDepotExt {
+    /// get jwt auth token reference from depot.
     fn jwt_auth_token(&self) -> Option<&String>;
+    /// get jwt auth claims from depot.
     fn jwt_auth_claims<C>(&self) -> Option<&C>
     where
         C: DeserializeOwned + Sync + Send + 'static;
+    /// get jwt auth state from depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
 }
 
@@ -224,6 +261,7 @@ impl JwtAuthDepotExt for Depot {
     }
 }
 
+/// JwtAuthHandler, used as middleware.
 pub struct JwtAuthHandler<C> {
     secret: String,
     response_error: bool,
@@ -236,6 +274,7 @@ impl<C> JwtAuthHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
+    /// Create new `JwtAuthHandler`.
     #[inline]
     pub fn new(secret: String) -> JwtAuthHandler<C> {
         JwtAuthHandler {
@@ -246,44 +285,53 @@ where
             validation: Validation::default(),
         }
     }
+    /// Get response_error value.
     #[inline]
     pub fn response_error(&self) -> bool {
         self.response_error
     }
+    /// Set response_error value and return Self.
     #[inline]
     pub fn with_response_error(mut self, response_error: bool) -> Self {
         self.response_error = response_error;
         self
     }
 
+    /// Get secret reference.
     #[inline]
     pub fn secret(&self) -> &String {
         &self.secret
     }
+    /// Get secret mutable reference.
     #[inline]
     pub fn secret_mut(&mut self) -> &mut String {
         &mut self.secret
     }
+    /// Set secret with new value and return Self.
     #[inline]
     pub fn with_secret(mut self, secret: String) -> Self {
         self.secret = secret;
         self
     }
 
+    /// Get extractor list reference.
     #[inline]
     pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
         &self.extractors
     }
+    /// Get extractor list mutable reference.
     #[inline]
     pub fn extractors_mut(&mut self) -> &mut Vec<Box<dyn JwtExtractor>> {
         &mut self.extractors
     }
+    /// Set extractor list with new value and return Self.
     #[inline]
     pub fn with_extractors(mut self, extractors: Vec<Box<dyn JwtExtractor>>) -> Self {
         self.extractors = extractors;
         self
     }
 
+    /// Decode token with secret.
     #[inline]
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
         decode::<C>(

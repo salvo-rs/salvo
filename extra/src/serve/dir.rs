@@ -14,10 +14,14 @@ use salvo_core::Depot;
 use salvo_core::Handler;
 use salvo_core::Writer;
 
+/// Options
 #[derive(Debug, Clone)]
 pub struct Options {
+    /// List dot files.
     pub dot_files: bool,
+    /// Listing dir
     pub listing: bool,
+    /// Default file names list.
     pub defaults: Vec<String>,
 }
 

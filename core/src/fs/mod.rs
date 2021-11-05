@@ -16,6 +16,7 @@ pub(crate) enum ChunkedState<T> {
     Future(tokio::task::JoinHandle<Result<(T, BytesMut), io::Error>>),
 }
 
+/// FileChunk
 pub struct FileChunk<T> {
     chunk_size: u64,
     read_size: u64,

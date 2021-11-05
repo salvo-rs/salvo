@@ -14,6 +14,7 @@ use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};
 use salvo_core::prelude::*;
 
+/// key used to save csrf data to depot.
 pub const DATA_KEY: &str = "::salvo::extra::csrf::data";
 
 struct CsrfData {

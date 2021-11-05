@@ -51,12 +51,12 @@ pub struct NamedFile {
     path: PathBuf,
     file: File,
     modified: Option<SystemTime>,
-    pub buffer_size: u64,
-    pub(crate) metadata: Metadata,
-    pub(crate) flags: Flags,
-    pub(crate) content_type: mime::Mime,
-    pub(crate) content_disposition: HeaderValue,
-    pub(crate) content_encoding: Option<HeaderValue>,
+    buffer_size: u64,
+    metadata: Metadata,
+    flags: Flags,
+    content_type: mime::Mime,
+    content_disposition: HeaderValue,
+    content_encoding: Option<HeaderValue>,
 }
 
 /// Builder for build `NamedFile`.
@@ -102,14 +102,15 @@ impl NamedFileBuilder {
         self.buffer_size = Some(buffer_size);
         self
     }
-    ///Specifies whether to use ETag or not.
+    /// Specifies whether to use ETag or not.
     ///
-    ///Default is true.
+    /// Default is true.
     #[inline]
     pub fn use_etag(mut self, value: bool) -> Self {
         self.flags.set(Flags::ETAG, value);
         self
     }
+    /// Build a new `NamedFile`.
     pub async fn build(self) -> crate::Result<NamedFile> {
         let NamedFileBuilder {
             path,
@@ -179,6 +180,7 @@ impl NamedFileBuilder {
 }
 
 impl NamedFile {
+    /// Create new `NamedFileBuilder`.
     #[inline]
     pub fn builder(path: PathBuf) -> NamedFileBuilder {
         NamedFileBuilder {
@@ -231,17 +233,23 @@ impl NamedFile {
         self.path.as_path()
     }
 
+    /// Get content type value.
+    #[inline]
+    pub fn content_type(&self) -> &mime::Mime {
+        &self.content_type
+    }
     /// Set the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
     pub fn set_content_type(&mut self, content_type: mime::Mime) {
         self.content_type = content_type;
     }
-    #[inline]
-    pub fn content_type(&self) -> &mime::Mime {
-        &self.content_type
-    }
 
+    /// Get Content-Disposition value.
+    #[inline]
+    pub fn content_disposition(&self) -> &HeaderValue {
+        &self.content_disposition
+    }
     /// Set the Content-Disposition for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
     /// sent to the peer. By default the disposition is `inline` for text,
@@ -254,10 +262,6 @@ impl NamedFile {
         self.content_disposition = content_disposition;
         self.flags.insert(Flags::CONTENT_DISPOSITION);
     }
-    #[inline]
-    pub fn content_disposition(&self) -> &HeaderValue {
-        &self.content_disposition
-    }
 
     /// Disable `Content-Disposition` header.
     ///
@@ -267,23 +271,18 @@ impl NamedFile {
         self.flags.remove(Flags::CONTENT_DISPOSITION);
     }
 
+    /// Get content encoding value reference.
+    #[inline]
+    pub fn content_encoding(&self) -> Option<&HeaderValue> {
+        self.content_encoding.as_ref()
+    }
     /// Set content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(&mut self, content_encoding: HeaderValue) {
         self.content_encoding = Some(content_encoding);
     }
-    #[inline]
-    pub fn content_encoding(&self) -> Option<&HeaderValue> {
-        self.content_encoding.as_ref()
-    }
 
-    ///Specifies whether to use ETag or not.
-    ///
-    ///Default is true.
-    #[inline]
-    pub fn use_etag(mut self, value: bool) {
-        self.flags.set(Flags::ETAG, value);
-    }
+    /// Get etag value.
     pub fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
         self.modified.as_ref().and_then(|mtime| {
@@ -317,7 +316,19 @@ impl NamedFile {
             }
         })
     }
+    ///Specifies whether to use ETag or not.
+    ///
+    ///Default is true.
+    #[inline]
+    pub fn use_etag(mut self, value: bool) {
+        self.flags.set(Flags::ETAG, value);
+    }
 
+    /// GEt last_modified value.
+    #[inline]
+    pub fn last_modified(&self) -> Option<SystemTime> {
+        self.modified
+    }
     ///Specifies whether to use Last-Modified or not.
     ///
     ///Default is true.
@@ -325,10 +336,6 @@ impl NamedFile {
     pub fn use_last_modified(mut self, value: bool) -> Self {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
-    }
-    #[inline]
-    pub fn last_modified(&self) -> Option<SystemTime> {
-        self.modified
     }
 }
 

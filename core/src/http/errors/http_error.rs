@@ -96,10 +96,12 @@ pub struct HttpError {
     pub detail: Option<String>,
 }
 impl HttpError {
+    /// Set summary field and return Self.
     pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
         self.summary = Some(summary.into());
         self
     }
+    /// Set detail field and return Self.
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
@@ -117,6 +119,7 @@ impl fmt::Display for HttpError {
     }
 }
 impl HttpError {
+    /// Create new `HttpError` with code. If code is not error, it will be `None`.
     pub fn from_code(code: StatusCode) -> Option<HttpError> {
         match code {
             StatusCode::BAD_REQUEST => Some(BadRequest()),
@@ -161,6 +164,7 @@ impl HttpError {
             _ => None,
         }
     }
+    /// Get bytes for write to response.
     pub fn as_bytes(&self, prefer_format: &Mime) -> (Mime, Vec<u8>) {
         let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
             "text/html".parse().unwrap()
@@ -189,6 +193,7 @@ impl Writer for HttpError {
 macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {
         $(
+            /// Create a new `HttpError`.
             #[allow(non_snake_case)]
             pub fn $sname() -> HttpError {
                 HttpError {

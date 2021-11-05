@@ -469,6 +469,7 @@ impl Request {
         }
     }
 
+    /// Get `FormData` reference from request.
     pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
         let ctype = self
             .headers()
