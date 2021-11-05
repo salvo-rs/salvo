@@ -2,7 +2,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-name: Clippy Check
+name: clippy-check
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
