@@ -269,4 +269,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ⚠️ 开源协议
 
-Salvo 项目采用 MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+Salvo 项目采用以下开源协议:
+* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+
