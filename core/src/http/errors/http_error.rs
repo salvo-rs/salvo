@@ -80,20 +80,28 @@ fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option
     )
 }
 
+/// Resut type with `HttpError` has it's error type.
 pub type HttpResult<T> = Result<T, HttpError>;
 
+/// HttpError contains http error information.
 #[derive(Debug)]
 pub struct HttpError {
+    /// Http error status code.
     pub code: StatusCode,
+    /// Http error name.
     pub name: String,
+    /// Summary information about http error.
     pub summary: Option<String>,
+    /// Detail information about http error.
     pub detail: Option<String>,
 }
 impl HttpError {
+    /// Set summary field and return Self.
     pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
         self.summary = Some(summary.into());
         self
     }
+    /// Set detail field and return Self.
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
@@ -111,6 +119,52 @@ impl fmt::Display for HttpError {
     }
 }
 impl HttpError {
+    /// Create new `HttpError` with code. If code is not error, it will be `None`.
+    pub fn from_code(code: StatusCode) -> Option<HttpError> {
+        match code {
+            StatusCode::BAD_REQUEST => Some(BadRequest()),
+            StatusCode::UNAUTHORIZED => Some(Unauthorized()),
+            StatusCode::PAYMENT_REQUIRED => Some(PaymentRequired()),
+            StatusCode::FORBIDDEN => Some(Forbidden()),
+            StatusCode::NOT_FOUND => Some(NotFound()),
+            StatusCode::METHOD_NOT_ALLOWED => Some(MethodNotAllowed()),
+            StatusCode::NOT_ACCEPTABLE => Some(NotAcceptable()),
+            StatusCode::PROXY_AUTHENTICATION_REQUIRED => Some(ProxyAuthenticationRequired()),
+            StatusCode::REQUEST_TIMEOUT => Some(RequestTimeout()),
+            StatusCode::CONFLICT => Some(Conflict()),
+            StatusCode::GONE => Some(Gone()),
+            StatusCode::LENGTH_REQUIRED => Some(LengthRequired()),
+            StatusCode::PRECONDITION_FAILED => Some(PreconditionFailed()),
+            StatusCode::PAYLOAD_TOO_LARGE => Some(PayloadTooLarge()),
+            StatusCode::URI_TOO_LONG => Some(UriTooLong()),
+            StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(UnsupportedMediaType()),
+            StatusCode::RANGE_NOT_SATISFIABLE => Some(RangeNotSatisfiable()),
+            StatusCode::EXPECTATION_FAILED => Some(ExpectationFailed()),
+            StatusCode::IM_A_TEAPOT => Some(ImATeapot()),
+            StatusCode::MISDIRECTED_REQUEST => Some(MisdirectedRequest()),
+            StatusCode::UNPROCESSABLE_ENTITY => Some(UnprocessableEntity()),
+            StatusCode::LOCKED => Some(Locked()),
+            StatusCode::FAILED_DEPENDENCY => Some(FailedDependency()),
+            StatusCode::UPGRADE_REQUIRED => Some(UpgradeRequired()),
+            StatusCode::PRECONDITION_REQUIRED => Some(PreconditionRequired()),
+            StatusCode::TOO_MANY_REQUESTS => Some(TooManyRequests()),
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => Some(RequestHeaderFieldsTooLarge()),
+            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(UnavailableForLegalReasons()),
+            StatusCode::INTERNAL_SERVER_ERROR => Some(InternalServerError()),
+            StatusCode::NOT_IMPLEMENTED => Some(NotImplemented()),
+            StatusCode::BAD_GATEWAY => Some(BadGateway()),
+            StatusCode::SERVICE_UNAVAILABLE => Some(ServiceUnavailable()),
+            StatusCode::GATEWAY_TIMEOUT => Some(GatewayTimeout()),
+            StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(HttpVersionNotSupported()),
+            StatusCode::VARIANT_ALSO_NEGOTIATES => Some(VariantAlsoNegotiates()),
+            StatusCode::INSUFFICIENT_STORAGE => Some(InsufficientStorage()),
+            StatusCode::LOOP_DETECTED => Some(LoopDetected()),
+            StatusCode::NOT_EXTENDED => Some(NotExtended()),
+            StatusCode::NETWORK_AUTHENTICATION_REQUIRED => Some(NetworkAuthenticationRequired()),
+            _ => None,
+        }
+    }
+    /// Get bytes for write to response.
     pub fn as_bytes(&self, prefer_format: &Mime) -> (Mime, Vec<u8>) {
         let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
             "text/html".parse().unwrap()
@@ -139,6 +193,7 @@ impl Writer for HttpError {
 macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {
         $(
+            /// Create a new `HttpError`.
             #[allow(non_snake_case)]
             pub fn $sname() -> HttpError {
                 HttpError {
@@ -152,50 +207,6 @@ macro_rules! default_errors {
     }
 }
 
-pub fn from_code(code: StatusCode) -> Option<HttpError> {
-    match code {
-        StatusCode::BAD_REQUEST => Some(BadRequest()),
-        StatusCode::UNAUTHORIZED => Some(Unauthorized()),
-        StatusCode::PAYMENT_REQUIRED => Some(PaymentRequired()),
-        StatusCode::FORBIDDEN => Some(Forbidden()),
-        StatusCode::NOT_FOUND => Some(NotFound()),
-        StatusCode::METHOD_NOT_ALLOWED => Some(MethodNotAllowed()),
-        StatusCode::NOT_ACCEPTABLE => Some(NotAcceptable()),
-        StatusCode::PROXY_AUTHENTICATION_REQUIRED => Some(ProxyAuthenticationRequired()),
-        StatusCode::REQUEST_TIMEOUT => Some(RequestTimeout()),
-        StatusCode::CONFLICT => Some(Conflict()),
-        StatusCode::GONE => Some(Gone()),
-        StatusCode::LENGTH_REQUIRED => Some(LengthRequired()),
-        StatusCode::PRECONDITION_FAILED => Some(PreconditionFailed()),
-        StatusCode::PAYLOAD_TOO_LARGE => Some(PayloadTooLarge()),
-        StatusCode::URI_TOO_LONG => Some(UriTooLong()),
-        StatusCode::UNSUPPORTED_MEDIA_TYPE => Some(UnsupportedMediaType()),
-        StatusCode::RANGE_NOT_SATISFIABLE => Some(RangeNotSatisfiable()),
-        StatusCode::EXPECTATION_FAILED => Some(ExpectationFailed()),
-        StatusCode::IM_A_TEAPOT => Some(ImATeapot()),
-        StatusCode::MISDIRECTED_REQUEST => Some(MisdirectedRequest()),
-        StatusCode::UNPROCESSABLE_ENTITY => Some(UnprocessableEntity()),
-        StatusCode::LOCKED => Some(Locked()),
-        StatusCode::FAILED_DEPENDENCY => Some(FailedDependency()),
-        StatusCode::UPGRADE_REQUIRED => Some(UpgradeRequired()),
-        StatusCode::PRECONDITION_REQUIRED => Some(PreconditionRequired()),
-        StatusCode::TOO_MANY_REQUESTS => Some(TooManyRequests()),
-        StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE => Some(RequestHeaderFieldsTooLarge()),
-        StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS => Some(UnavailableForLegalReasons()),
-        StatusCode::INTERNAL_SERVER_ERROR => Some(InternalServerError()),
-        StatusCode::NOT_IMPLEMENTED => Some(NotImplemented()),
-        StatusCode::BAD_GATEWAY => Some(BadGateway()),
-        StatusCode::SERVICE_UNAVAILABLE => Some(ServiceUnavailable()),
-        StatusCode::GATEWAY_TIMEOUT => Some(GatewayTimeout()),
-        StatusCode::HTTP_VERSION_NOT_SUPPORTED => Some(HttpVersionNotSupported()),
-        StatusCode::VARIANT_ALSO_NEGOTIATES => Some(VariantAlsoNegotiates()),
-        StatusCode::INSUFFICIENT_STORAGE => Some(InsufficientStorage()),
-        StatusCode::LOOP_DETECTED => Some(LoopDetected()),
-        StatusCode::NOT_EXTENDED => Some(NotExtended()),
-        StatusCode::NETWORK_AUTHENTICATION_REQUIRED => Some(NetworkAuthenticationRequired()),
-        _ => None,
-    }
-}
 default_errors! {
     BadRequest,            StatusCode::BAD_REQUEST,            "Bad Request", "The request could not be understood by the server due to malformed syntax.";
     Unauthorized,          StatusCode::UNAUTHORIZED,           "Unauthorized", "The request requires user authentication.";

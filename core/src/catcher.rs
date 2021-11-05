@@ -10,6 +10,7 @@ pub trait Catcher: Send + Sync + 'static {
 /// Default implementation of Catcher.
 pub struct CatcherImpl(HttpError);
 impl CatcherImpl {
+    /// Create new `CatcherImpl`.
     pub fn new(e: HttpError) -> CatcherImpl {
         CatcherImpl(e)
     }
@@ -38,16 +39,18 @@ macro_rules! default_catchers {
     ($($code:expr),+) => (
         let list: Vec<Box<dyn Catcher>> = vec![
         $(
-            Box::new(CatcherImpl::new($crate::http::errors::http_error::from_code($code).unwrap())),
+            Box::new(CatcherImpl::new($crate::http::errors::HttpError::from_code($code).unwrap())),
         )+];
         list
     )
 }
 
+/// Defaut catchers.
 pub mod defaults {
     use super::{Catcher, CatcherImpl};
     use http::status::StatusCode;
 
+    /// Get a new default catchers list.
     pub fn get() -> Vec<Box<dyn Catcher>> {
         default_catchers! {
             StatusCode::BAD_REQUEST,

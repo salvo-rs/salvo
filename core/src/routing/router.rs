@@ -6,6 +6,7 @@ use super::{Filter, FnFilter, PathFilter, PathState};
 use crate::http::Request;
 use crate::Handler;
 
+/// Router struct is used for route request to different handlers.
 pub struct Router {
     pub(crate) routers: Vec<Router>,
     pub(crate) filters: Vec<Box<dyn Filter>>,
@@ -13,6 +14,7 @@ pub struct Router {
     pub(crate) befores: Vec<Arc<dyn Handler>>,
     pub(crate) afters: Vec<Arc<dyn Handler>>,
 }
+#[doc(hidden)]
 pub struct DetectMatched {
     pub handler: Arc<dyn Handler>,
     pub befores: Vec<Arc<dyn Handler>>,
@@ -125,18 +127,6 @@ impl Router {
     pub fn append(mut self, others: Vec<Router>) -> Self {
         let mut others = others;
         self.routers.append(&mut others);
-        self
-    }
-
-    #[deprecated(since = "0.10.4", note = "Please use then function instead")]
-    #[inline]
-    pub fn push_when<F>(mut self, func: F) -> Self
-    where
-        F: Fn(&Router) -> Option<Router>,
-    {
-        if let Some(router) = func(&self) {
-            self.routers.push(router);
-        }
         self
     }
 

@@ -1,3 +1,5 @@
+//! Http response.
+
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::net::SocketAddr;
@@ -204,9 +206,10 @@ impl Request {
         &mut self.version
     }
     #[inline]
-    pub fn set_remote_addr(&mut self, remote_addr: Option<SocketAddr>) {
+    pub(crate) fn set_remote_addr(&mut self, remote_addr: Option<SocketAddr>) {
         self.remote_addr = remote_addr;
     }
+    /// Get request remote address.
     #[inline]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
@@ -309,6 +312,7 @@ impl Request {
         &mut self.extensions
     }
 
+    /// Get accept.
     pub fn accept(&self) -> Vec<Mime> {
         let mut list: Vec<Mime> = vec![];
         if let Some(accept) = self.headers.get("accept").and_then(|h| h.to_str().ok()) {
@@ -322,6 +326,7 @@ impl Request {
         list
     }
 
+    /// Get first accept.
     #[inline]
     pub fn frist_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
@@ -332,23 +337,26 @@ impl Request {
         }
     }
 
+    /// Get content type.
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
-        if let Some(ctype) = self.headers.get("content-type").and_then(|h| h.to_str().ok()) {
-            ctype.parse().ok()
-        } else {
-            None
-        }
+        self.headers
+            .get("content-type")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok())
     }
 
+    /// Get `CookieJar` reference.
     #[inline]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
+    /// Get `CookieJar` mutable reference.
     #[inline]
     pub fn cookies_mut(&mut self) -> &mut CookieJar {
         &mut self.cookies
     }
+    /// Get `Cookie` from cookies.
     #[inline]
     pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
@@ -356,15 +364,18 @@ impl Request {
     {
         self.cookies.get(name.as_ref())
     }
+    /// Get params reference.
     #[inline]
     pub fn params(&self) -> &HashMap<String, String> {
         &self.params
     }
+    /// Get params mutable reference.
     #[inline]
     pub fn params_mut(&mut self) -> &mut HashMap<String, String> {
         &mut self.params
     }
 
+    /// Get param value from params.
     #[inline]
     pub fn get_param<T>(&self, key: &str) -> Option<T>
     where
@@ -373,6 +384,7 @@ impl Request {
         self.params.get(key).and_then(|v| v.parse::<T>().ok())
     }
 
+    /// Get queries reference.
     pub fn queries(&self) -> &MultiMap<String, String> {
         self.queries.get_or_init(|| {
             form_urlencoded::parse(self.uri.query().unwrap_or_default().as_bytes())
@@ -380,6 +392,7 @@ impl Request {
                 .collect()
         })
     }
+    /// Get query value from queries.
     #[inline]
     pub fn get_query<F>(&self, key: &str) -> Option<F>
     where
@@ -388,6 +401,7 @@ impl Request {
         self.queries().get(key).and_then(|v| v.parse::<F>().ok())
     }
 
+    /// Get field data from form.
     #[inline]
     pub async fn get_form<F>(&mut self, key: &str) -> Option<F>
     where
@@ -400,10 +414,12 @@ impl Request {
             .and_then(|ps| ps.fields.get(key))
             .and_then(|v| v.parse::<F>().ok())
     }
+    /// Get `FilePart` reference from request.
     #[inline]
     pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
         self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
     }
+    /// Get `FilePart` lsit reference from request.
     #[inline]
     pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
         self.form_data()
@@ -412,6 +428,7 @@ impl Request {
             .ok()
             .and_then(|ps| ps.files.get_vec(key))
     }
+    /// Get value from form first if not found then get from query.
     #[inline]
     pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
     where
@@ -419,6 +436,7 @@ impl Request {
     {
         self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
     }
+    /// Get value from query first if not found then get from form.
     #[inline]
     pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
     where
@@ -426,6 +444,8 @@ impl Request {
     {
         self.get_query(key.as_ref()).or(self.get_form(key).await)
     }
+
+    /// Get request payload.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ReadError> {
         let ctype = self
             .headers()
@@ -449,6 +469,7 @@ impl Request {
         }
     }
 
+    /// Get `FormData` reference from request.
     pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
         let ctype = self
             .headers()
@@ -471,6 +492,7 @@ impl Request {
         }
     }
 
+    /// read body as text from request.
     #[inline]
     pub async fn read_text(&mut self) -> Result<&str, ReadError> {
         match self.payload().await {
@@ -478,6 +500,7 @@ impl Request {
             Err(_) => Err(ReadError::General("read text from body failed".into())),
         }
     }
+    /// read body as type `T` from request.
     #[inline]
     pub async fn read_from_text<T>(&mut self) -> Result<T, ReadError>
     where
@@ -487,6 +510,7 @@ impl Request {
             .await
             .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
     }
+    /// read body as type `T` from request.
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
     where
@@ -497,6 +521,7 @@ impl Request {
             Err(_) => Err(ReadError::General("read json from body failed".into())),
         }
     }
+    /// read body as type `T` from request.
     #[inline]
     pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError>
     where
@@ -511,6 +536,7 @@ impl Request {
         }
     }
 
+    /// read body as type `T` from request.
     #[inline]
     pub async fn read<T>(&mut self) -> Result<T, ReadError>
     where
@@ -533,10 +559,6 @@ impl Request {
     }
 }
 
-pub trait BodyReader: Send {}
-// pub(crate) async fn read_body_cursor<B: HttpBody>(body: B) -> Result<Cursor<Vec<u8>>, ReadError> {
-//     Ok(Cursor::new(read_body_bytes(body).await?))
-// }
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
     hyper::body::to_bytes(body)
         .await

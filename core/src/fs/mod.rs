@@ -7,15 +7,16 @@ use std::io::{self, Read, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use bytes::BytesMut;
+use bytes::Bytes;
 use futures_util::ready;
 use futures_util::stream::Stream;
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),
-    Future(tokio::task::JoinHandle<Result<(T, BytesMut), io::Error>>),
+    Future(tokio::task::JoinHandle<Result<(T, Bytes), io::Error>>),
 }
 
+/// FileChunk
 pub struct FileChunk<T> {
     chunk_size: u64,
     read_size: u64,
@@ -28,7 +29,7 @@ impl<T> Stream for FileChunk<T>
 where
     T: Read + Seek + Unpin + Send + 'static,
 {
-    type Item = Result<BytesMut, io::Error>;
+    type Item = Result<Bytes, io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if self.chunk_size == self.read_size {
@@ -41,30 +42,28 @@ where
                 let max_bytes = cmp::min(self.chunk_size.saturating_sub(self.read_size), self.buffer_size) as usize;
                 let offset = self.offset;
                 let fut = tokio::task::spawn_blocking(move || {
-                    let mut buf = BytesMut::with_capacity(max_bytes);
-                    // safety: it has max bytes capacity, and we don't read it
-                    unsafe {
-                        buf.set_len(max_bytes);
-                    }
+                    let mut buf = Vec::with_capacity(max_bytes);
                     file.seek(io::SeekFrom::Start(offset))?;
+                    let n_bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
 
-                    file.by_ref().read_exact(&mut buf)?;
-
-                    Ok((file, buf))
+                    if n_bytes == 0 {
+                        return Err(io::ErrorKind::UnexpectedEof.into());
+                    }
+                    Ok((file, Bytes::from(buf)))
                 });
 
                 self.state = ChunkedState::Future(fut);
                 self.poll_next(cx)
             }
             ChunkedState::Future(ref mut fut) => {
-                let (file, buf) = ready!(Pin::new(fut).poll(cx))
+                let (file, bytes) = ready!(Pin::new(fut).poll(cx))
                     .map_err(|_| io::Error::new(io::ErrorKind::Other, "BlockingErr"))??;
                 self.state = ChunkedState::File(Some(file));
 
-                self.offset += buf.len() as u64;
-                self.read_size += buf.len() as u64;
+                self.offset += bytes.len() as u64;
+                self.read_size += bytes.len() as u64;
 
-                Poll::Ready(Some(Ok(buf)))
+                Poll::Ready(Some(Ok(bytes)))
             }
         }
     }

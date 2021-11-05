@@ -1,3 +1,5 @@
+//! Salvo is a simple but powerful web server framework written in Rust.
+
 pub use salvo_core as core;
 pub use salvo_core::*;
 

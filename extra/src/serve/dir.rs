@@ -14,10 +14,14 @@ use salvo_core::Depot;
 use salvo_core::Handler;
 use salvo_core::Writer;
 
+/// Options
 #[derive(Debug, Clone)]
 pub struct Options {
+    /// List dot files.
     pub dot_files: bool,
+    /// Listing dir
     pub listing: bool,
+    /// Default file names list.
     pub defaults: Vec<String>,
 }
 
@@ -85,7 +89,7 @@ impl StaticRoots for Path {
         vec![PathBuf::from(self)]
     }
 }
-
+/// StaticDir
 #[derive(Clone)]
 pub struct StaticDir {
     roots: Vec<PathBuf>,
@@ -93,10 +97,12 @@ pub struct StaticDir {
     chunk_size: Option<u64>,
 }
 impl StaticDir {
+    /// Create new `StaticDir`.
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
         StaticDir::width_options(roots, Options::default())
     }
+    /// Create new `StaticDir` with options.
     #[inline]
     pub fn width_options<T: StaticRoots + Sized>(roots: T, options: Options) -> Self {
         StaticDir {
@@ -106,9 +112,9 @@ impl StaticDir {
         }
     }
 
-    // During the file chunk read, the maximum read size at one time will affect the
-    // access experience and the demand for server memory. Please set it according to your own situation.
-    // The default is 1M
+    /// During the file chunk read, the maximum read size at one time will affect the
+    /// access experience and the demand for server memory. Please set it according to your own situation.
+    /// The default is 1M
     #[inline]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);

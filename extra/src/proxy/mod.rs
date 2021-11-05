@@ -32,12 +32,14 @@ impl fmt::Display for MsgError {
 
 impl std::error::Error for MsgError {}
 
+/// ProxyHandler
 pub struct ProxyHandler {
-    pub upstreams: Vec<String>,
+    upstreams: Vec<String>,
     counter: Mutex<usize>,
 }
 
 impl ProxyHandler {
+    /// Create new `ProxyHandler` with upstreams list.
     pub fn new(upstreams: Vec<String>) -> Self {
         if upstreams.is_empty() {
             panic!("proxy upstreams is empty");
@@ -48,14 +50,17 @@ impl ProxyHandler {
         }
     }
 
+    /// Get upstreams list.
     #[inline]
     pub fn upstreams(&self) -> &Vec<String> {
         &self.upstreams
     }
+    /// Get upstreams mutable list.
     #[inline]
     pub fn upstreams_mut(&mut self) -> &mut Vec<String> {
         &mut self.upstreams
     }
+    /// set upstreams list and return Self.
     #[inline]
     pub fn with_upstreams(mut self, upstreams: Vec<String>) -> Self {
         self.upstreams = upstreams;

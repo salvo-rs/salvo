@@ -26,6 +26,7 @@ impl Depot {
             data: HashMap::with_capacity(capacity),
         }
     }
+    /// Returns the number of elements the depot can hold without reallocating.
     #[inline]
     pub fn capacity(&self) -> usize {
         self.data.capacity()
@@ -119,6 +120,7 @@ impl Depot {
             .expect("required type is not present in depot container")
     }
 
+    /// Transfer all data to a new instance.
     #[inline]
     pub fn transfer(&mut self) -> Depot {
         let mut data = HashMap::with_capacity(self.data.len());

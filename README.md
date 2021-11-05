@@ -2,13 +2,17 @@
 <img alt="Savlo" src="assets/logo.svg" />
 <p>
 
-[![build status](https://github.com/salvo-rs/salvo/workflows/CI%20(Linux)/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo//workflows/CI%20(macOS)/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/CI%20(Windows)/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo//workflows/ci-macos/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
+<br>
+[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
+[![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
+[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
+[![Rust Version](https://img.shields.io/badge/rust-1.56%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
 <br>
 [![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
-[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
-[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
+[![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs)](https://salvo.rs)
 ![License](https://img.shields.io/crates/l/salvo.svg)
 </p>
 </div>
@@ -258,4 +262,6 @@ Salvo is an open source project. If you want to support Salvo, you can ☕ [**bu
 
 ## ⚠️ License
 
-Salvo is licensed under MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT).
+Salvo is licensed under either of
+* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))

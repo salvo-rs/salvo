@@ -1,15 +1,27 @@
-mod catcher;
+//! The core lib of Savlo web server framework.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
+/// catcher module
+pub mod catcher;
 mod depot;
 mod error;
+/// fs module
 pub mod fs;
 mod handler;
+/// http module
 pub mod http;
+/// routing module
 pub mod routing;
-pub mod server;
+mod server;
 mod service;
 #[cfg(feature = "tls")]
 mod tls;
 mod transport;
+/// writer module
 pub mod writer;
 
 #[cfg(feature = "anyhow")]
@@ -29,8 +41,10 @@ pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
 pub use salvo_macros::fn_handler;
+/// Result type wich has salvo::Error as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::errors::*;
