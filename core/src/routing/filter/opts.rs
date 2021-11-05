@@ -43,7 +43,6 @@ where
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct And<T, U> {
     pub(super) first: T,
