@@ -74,7 +74,7 @@ pub enum ReadError {
     /// EofInPart.
     #[error("EofInPart")]
     EofInPart,
-    
+
     /// An multer error.
     #[error("An multer error from: {0}")]
     Multer(#[from] multer::Error),

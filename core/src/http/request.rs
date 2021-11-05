@@ -495,7 +495,9 @@ impl Request {
     /// Read body as text from request.
     #[inline]
     pub async fn read_text(&mut self) -> Result<&str, ReadError> {
-        self.payload().await.and_then(|body|std::str::from_utf8(body).map_err(ReadError::Utf8))
+        self.payload()
+            .await
+            .and_then(|body| std::str::from_utf8(body).map_err(ReadError::Utf8))
     }
     /// Read body as type `T` from request.
     #[inline]
