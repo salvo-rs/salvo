@@ -94,19 +94,13 @@ impl Router {
             let original_cursor = path_state.cursor;
             for child in &self.routers {
                 if let Some(dm) = child.detect(req, path_state, depth + 1) {
-                    let self_befores: Vec<(u64, Arc<dyn Handler>)> = self.befores.iter().map(|before| (depth, Arc::clone(before))).collect();
-                    let self_afters: Vec<(u64, Arc<dyn Handler>)> = self.afters.iter().map(|after| (depth, Arc::clone(after))).collect();
+                    let self_befores: Vec<(u64, Arc<dyn Handler>)> =
+                        self.befores.iter().map(|before| (depth, Arc::clone(before))).collect();
+                    let self_afters: Vec<(u64, Arc<dyn Handler>)> =
+                        self.afters.iter().map(|after| (depth, Arc::clone(after))).collect();
                     return Some(DetectMatched {
-                        befores: [
-                            &self_befores[..],
-                            &dm.befores[..],
-                        ]
-                        .concat(),
-                        afters: [
-                            &dm.afters[..],
-                            &self_afters[..],
-                        ]
-                        .concat(),
+                        befores: [&self_befores[..], &dm.befores[..]].concat(),
+                        afters: [&dm.afters[..], &self_afters[..]].concat(),
                         handler: dm.handler.clone(),
                     });
                 } else {

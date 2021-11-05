@@ -135,7 +135,7 @@ impl HyperHandler {
                 }
                 if res.flow_state() != FlowState::Commited {
                     res.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
-                    // Ensure these after handlers must be executed
+                                                             // Ensure these after handlers must be executed
                     for (depth, handler) in &dm.afters {
                         if *depth <= max_depth {
                             handler.handle(&mut req, &mut depot, &mut res).await;
