@@ -1,3 +1,5 @@
+//! jwt auth middleware
+
 use async_trait::async_trait;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};

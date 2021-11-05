@@ -11,7 +11,9 @@ use crate::http::errors::ReadError;
 /// HTTP Range header representation.
 #[derive(Debug, Clone, Copy)]
 pub struct HttpRange {
+    /// Start position.
     pub start: u64,
+    /// Total length.
     pub length: u64,
 }
 

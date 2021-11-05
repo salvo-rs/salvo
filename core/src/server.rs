@@ -21,6 +21,7 @@ fn builder<I>(incoming: I) -> hyper::server::Builder<I> {
     HyperServer::builder(incoming)
 }
 
+/// Server type
 pub struct Server {
     service: Service,
 }
@@ -200,6 +201,8 @@ impl Server {
         }
     }
 
+    /// Setup this `Server` with a specific stream of incoming connections and a
+    /// signal to initiate graceful shutdown.
     pub async fn bind_incoming_with_graceful_shutdown<I>(
         self,
         incoming: I,
@@ -254,6 +257,7 @@ impl Server {
     }
 }
 
+/// Server with tls supported.
 #[cfg(feature = "tls")]
 pub struct TlsServer {
     service: Service,
@@ -361,10 +365,12 @@ impl TlsServer {
         Ok((addr, srv))
     }
 
+    /// Start sever with default threads.
     pub fn start(self, addr: impl Into<SocketAddr> + 'static) {
         self.start_with_threads(addr, num_cpus::get())
     }
 
+    /// Start sever with threads.
     pub fn start_with_threads(self, addr: impl Into<SocketAddr> + 'static, threads: usize) {
         let runtime = crate::new_runtime(threads);
         let _ = runtime.block_on(async { self.bind(addr).await });

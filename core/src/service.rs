@@ -14,6 +14,7 @@ use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
 static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(catcher::defaults::get);
+/// Service http request.
 pub struct Service {
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
@@ -21,6 +22,7 @@ pub struct Service {
 }
 
 impl Service {
+    /// Create a new Service with a router.
     pub fn new<T>(router: T) -> Service
     where
         T: Into<Arc<Router>>,
@@ -31,6 +33,8 @@ impl Service {
             allowed_media_types: Arc::new(vec![]),
         }
     }
+    
+    /// Get root router.
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
@@ -43,9 +47,13 @@ impl Service {
         self.catchers = catchers.into();
         self
     }
+
+    /// Get catchers list.
     pub fn catchers(&self) -> Arc<Vec<Box<dyn Catcher>>> {
         self.catchers.clone()
     }
+    
+    /// Set allowed media types list and return Self for wite code chained.
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -53,9 +61,13 @@ impl Service {
         self.allowed_media_types = allowed_media_types.into();
         self
     }
+    
+    /// Get allowed media types list.
     pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
         self.allowed_media_types.clone()
     }
+    
+    /// Handle ```Request``` and return ```Response```.
     pub async fn handle(&self, request: Request) -> Response {
         let handler = HyperHandler {
             remote_addr: None,

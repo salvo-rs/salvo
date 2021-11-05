@@ -1,3 +1,5 @@
+//! serve middleware
+
 mod dir;
 mod fs;
 

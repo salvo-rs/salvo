@@ -1,20 +1,19 @@
-mod and;
-mod and_then;
-pub(crate) mod impls;
-mod or;
-mod or_else;
+//! filter
 
-pub(crate) use self::and::And;
-use self::and_then::AndThen;
-pub(crate) use self::or::Or;
-use self::or_else::OrElse;
-use crate::http::Request;
+mod method;
+mod opts;
+mod path;
+
+use self::opts::*;
+use crate::http::{Method, Request};
 use crate::routing::PathState;
-pub use impls::*;
 
-use crate::http::Method;
+pub use method::*;
+pub use path::*;
 
+/// Fiter trait for filter request.
 pub trait Filter: Send + Sync + 'static {
+    /// Create a new filter use ```And``` filter.
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,
@@ -26,6 +25,7 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
+    /// Create a new filter use ```Or``` filter.
     fn or<F>(self, other: F) -> Or<Self, F>
     where
         Self: Sized,
@@ -37,6 +37,7 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
+    /// Create a new filter use ```AndThen``` filter.
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
@@ -48,6 +49,7 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
+    /// Create a new filter use ```OrElse``` filter.
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
         Self: Sized,
@@ -59,10 +61,11 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
+    /// Filter ```Request``` and return false or true.
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
-// ===== FnFilter =====
+/// ```FnFilter``` accpect a function as it's param, use this function to filter request.
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
 pub struct FnFilter<F>(pub F);
@@ -77,34 +80,43 @@ where
     }
 }
 
+/// Filter request use ```PathFilter```.
 #[inline]
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)
 }
+/// Filter request, only allow get method.
 #[inline]
 pub fn get() -> MethodFilter {
     MethodFilter(Method::GET)
 }
+/// Filter request, only allow head method.
 #[inline]
 pub fn head() -> MethodFilter {
     MethodFilter(Method::HEAD)
 }
+/// Filter request, only allow options method.
 #[inline]
 pub fn options() -> MethodFilter {
     MethodFilter(Method::OPTIONS)
 }
+/// Filter request, only allow post method.
 #[inline]
 pub fn post() -> MethodFilter {
     MethodFilter(Method::POST)
 }
+/// Filter request, only allow path method.
 #[inline]
 pub fn patch() -> MethodFilter {
     MethodFilter(Method::PATCH)
 }
+/// Filter request, only allow put method.
 #[inline]
 pub fn put() -> MethodFilter {
     MethodFilter(Method::PUT)
 }
+
+/// Filter request, only allow delete method.
 #[inline]
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)

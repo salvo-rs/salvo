@@ -9,10 +9,14 @@ use std::sync::RwLock;
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
+/// PathPart
 pub trait PathPart: Send + Sync + Debug {
+    /// Detect is that path matched.
     fn detect(&self, state: &mut PathState) -> bool;
 }
+/// PartBuilder
 pub trait PartBuilder: Send + Sync {
+    /// Build `PathPart`.
     fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String>;
 }
 
@@ -31,8 +35,10 @@ fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
 
+/// RegexPartBuilder
 pub struct RegexPartBuilder(Regex);
 impl RegexPartBuilder {
+    /// Create new `RegexPartBuilder`.
     pub fn new(checker: Regex) -> Self {
         Self(checker)
     }
@@ -46,8 +52,10 @@ impl PartBuilder for RegexPartBuilder {
     }
 }
 
+/// CharPartBuilder
 pub struct CharPartBuilder<C>(Arc<C>);
 impl<C> CharPartBuilder<C> {
+    /// Create new `CharPartBuilder`.
     pub fn new(checker: C) -> Self {
         Self(Arc::new(checker))
     }
@@ -569,6 +577,7 @@ impl PathParser {
     }
 }
 
+/// Filter request by it's path information.
 pub struct PathFilter {
     raw_value: String,
     path_parts: Vec<Box<dyn PathPart>>,
@@ -585,6 +594,7 @@ impl Filter for PathFilter {
     }
 }
 impl PathFilter {
+    /// Create new `PathFilter`.
     pub fn new(value: impl Into<String>) -> Self {
         let raw_value = value.into();
         let mut parser = PathParser::new(&raw_value);
@@ -596,18 +606,21 @@ impl PathFilter {
         };
         PathFilter { raw_value, path_parts }
     }
+    /// Register new path part builder.
     pub fn register_path_part_builder<B>(name: String, builder: B)
     where
         B: PartBuilder + 'static,
     {
         PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(builder)));
     }
+    /// Register new path part regex.
     pub fn register_path_part_regex<B>(name: String, regex: Regex) {
         PART_BUILDERS
             .write()
             .unwrap()
             .insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
+    /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
         if !self.path_parts.is_empty() {
             let original_cursor = state.cursor;

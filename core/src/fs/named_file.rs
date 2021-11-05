@@ -25,8 +25,7 @@ use mime_guess::from_path;
 use super::{ChunkedState, FileChunk};
 use crate::http::header;
 use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING};
-use crate::http::range::HttpRange;
-use crate::http::{Request, Response, StatusCode};
+use crate::http::{Request, Response, StatusCode, HttpRange};
 use crate::Depot;
 use crate::Writer;
 
@@ -60,6 +59,7 @@ pub struct NamedFile {
     pub(crate) content_encoding: Option<HeaderValue>,
 }
 
+/// Builder for build `NamedFile`.
 #[derive(Clone)]
 pub struct NamedFileBuilder {
     path: PathBuf,
@@ -72,35 +72,40 @@ pub struct NamedFileBuilder {
     flags: Flags,
 }
 impl NamedFileBuilder {
+    /// Set attached filename and return Self.
     #[inline]
     pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> Self {
         self.attached_filename = Some(attached_filename.into());
         self
     }
+    /// Set disposition encoding and return Self.
     #[inline]
     pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
         self
     }
+    /// Set content type and return Self.
     #[inline]
     pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
+    /// Set content encoding and return Self.
     #[inline]
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
     }
+    /// Set buffer size and return Self.
     #[inline]
     pub fn with_buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
         self
     }
-    #[inline]
     ///Specifies whether to use ETag or not.
     ///
     ///Default is true.
+    #[inline]
     pub fn use_etag(mut self, value: bool) -> Self {
         self.flags.set(Flags::ETAG, value);
         self

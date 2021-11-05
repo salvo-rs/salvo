@@ -1,3 +1,5 @@
+//! Http response.
+
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
@@ -22,20 +24,27 @@ use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING, SET_COOKIE};
 use crate::http::StatusCode;
 
+/// Response body type.
 #[allow(clippy::type_complexity)]
 pub enum Body {
+    /// Empty body.
     Empty,
+    /// Bytes body.
     Bytes(BytesMut),
+    /// Stream body.
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
 impl Body {
+    /// Check is that body is empty.
     pub fn is_empty(&self) -> bool {
         matches!(*self, Body::Empty)
     }
+    /// Take body as deserialize it to type `T` instance.
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         let full = self.take_bytes().await?;
         serde_json::from_slice(&full).map_err(crate::Error::new)
     }
+    /// Take body as text.
     pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
         let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
         let mut full = self.take_bytes().await?;
@@ -68,12 +77,9 @@ impl Body {
         if let Cow::Owned(s) = text {
             return Ok(s);
         }
-        unsafe {
-            // decoding returned Cow::Borrowed, meaning these bytes
-            // are already valid utf8
-            Ok(String::from_utf8_unchecked(full.to_vec()))
-        }
+        String::from_utf8(full.to_vec()).map_err(crate::Error::new)
     }
+    /// Take all body bytes.
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         let bytes = match self {
             Self::Empty => Bytes::new(),
@@ -185,53 +191,66 @@ impl Response {
         }
     }
 
+    /// Get headers reference.
     #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
+    /// Get mutable headers reference.
     #[inline]
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
+    /// Set headers.
     #[inline]
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers
     }
+
+    /// Get version.
     #[inline]
     pub fn version(&self) -> Version {
         self.version
     }
-
+    /// Get mutable version reference.
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
 
+    /// Get body reference.
     #[inline]
     pub fn body(&self) -> Option<&Body> {
         self.body.as_ref()
     }
+    /// Get mutable body reference.
     #[inline]
     pub fn body_mut(&mut self) -> Option<&mut Body> {
         self.body.as_mut()
     }
+    /// Set body.
     #[inline]
     pub fn set_body(&mut self, body: Option<Body>) {
         self.body = body
     }
+
+    /// Take body from response.
     #[inline]
     pub fn take_body(&mut self) -> Option<Body> {
         self.body.take()
     }
+    /// Take body from response.
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         match &mut self.body {
             Some(body) => body.take_json().await,
             None => Err(crate::Error::new("body is none")),
         }
     }
+    /// Take body as ```String``` from response.
     pub async fn take_text(&mut self) -> crate::Result<String> {
         self.take_text_with_charset("utf-8").await
     }
+    /// Take body as ```String``` from response with charset.
     pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
         match &mut self.body {
             Some(body) => {
@@ -253,6 +272,7 @@ impl Response {
             None => Err(crate::Error::new("body is none")),
         }
     }
+    /// Take body bytes from response.
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         match &mut self.body {
             Some(body) => body.take_bytes().await,
@@ -260,11 +280,11 @@ impl Response {
         }
     }
 
-    // `write_back` is used to put all the data added to `self`
-    // back onto an `hyper::Response` so that it is sent back to the
-    // client.
-    //
-    // `write_back` consumes the `Response`.
+    /// `write_back` is used to put all the data added to `self`
+    /// back onto an `hyper::Response` so that it is sent back to the
+    /// client.
+    ///
+    /// `write_back` consumes the `Response`.
     pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
         *res.headers_mut() = self.headers;
 
@@ -290,15 +310,18 @@ impl Response {
         }
     }
 
+    /// Get cookies reference.
     #[inline]
     pub fn cookies(&self) -> &CookieJar {
         &self.cookies
     }
+    /// Get mutable cookies reference.
     #[inline]
     pub fn cookies_mut(&mut self) -> &mut CookieJar {
         &mut self.cookies
     }
-    pub fn header_cookies(&self) -> Vec<Cookie<'_>> {
+    /// convert `set-cookie` header to Cookie list.
+    pub(crate) fn header_cookies(&self) -> Vec<Cookie<'_>> {
         let mut cookies = vec![];
         for header in self.headers().get_all(header::SET_COOKIE).iter() {
             if let Ok(header) = header.to_str() {
@@ -309,6 +332,7 @@ impl Response {
         }
         cookies
     }
+    /// Helper function for get cookie.
     #[inline]
     pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
@@ -316,10 +340,12 @@ impl Response {
     {
         self.cookies.get(name.as_ref())
     }
+    /// Helper function for add cookie.
     #[inline]
     pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
         self.cookies.add(cookie);
     }
+    /// Helper function for remove cookie.
     #[inline]
     pub fn remove_cookie<T>(&mut self, name: T)
     where
@@ -328,11 +354,13 @@ impl Response {
         self.cookies.remove(Cookie::named(name));
     }
 
+    /// Get status code.
     #[inline]
     pub fn status_code(&self) -> Option<StatusCode> {
         self.status_code
     }
 
+    /// Set status code.
     #[inline]
     pub fn set_status_code(&mut self, code: StatusCode) {
         let is_success = code.is_success();
@@ -341,15 +369,22 @@ impl Response {
             self.commit();
         }
     }
-    // #[inline]
-    // pub fn content_type(&self) -> Option<Mime> {
-    //     self.headers.get_one("Content-Type").and_then(|v| v.parse().ok())
-    // }
 
+    /// Get content type.
+    #[inline]
+    pub fn content_type(&self) -> Option<Mime> {
+        self.headers
+            .get("content-type")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok())
+    }
+
+    /// Get http error if exists, only exists after use `set_http_error` set http error.
     #[inline]
     pub fn http_error(&self) -> Option<&HttpError> {
         self.http_error.as_ref()
     }
+    /// Set http error.
     #[inline]
     pub fn set_http_error(&mut self, err: HttpError) {
         self.status_code = Some(err.code);
@@ -357,6 +392,7 @@ impl Response {
         self.commit();
     }
 
+    /// Render serializable data as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
     pub fn render_json<T: Serialize>(&mut self, data: &T) {
         let mut cache = Cache::with_capacity(128);
         match serde_json::to_writer(&mut cache, data) {
@@ -371,6 +407,7 @@ impl Response {
         }
     }
 
+    /// Render text as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
     pub fn render_json_text(&mut self, data: &str) {
         self.headers.insert(
             header::CONTENT_TYPE,
@@ -379,28 +416,32 @@ impl Response {
         self.set_body(Some(Body::Bytes(BytesMut::from(data))));
     }
 
+    /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
     #[inline]
     pub fn render_html_text(&mut self, data: &str) {
         self.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), data.as_bytes());
     }
+    /// Render plain text content. It will set ```content-type``` to ```text/plain; charset=utf-8```.
     #[inline]
     pub fn render_plain_text(&mut self, data: &str) {
         self.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), data.as_bytes());
     }
+    /// Render text as xml content. It will set ```content-type``` to ```text/xml; charset=utf-8```.
     #[inline]
     pub fn render_xml_text(&mut self, data: &str) {
         self.render_binary(HeaderValue::from_static("text/xml; charset=utf-8"), data.as_bytes());
     }
-    // RenderBinary renders store from memory (which could be a file that has not been written,
-    // the output from some function, or bytes streamed from somewhere else, as long
-    // it implements io.Reader).  When called directly on something generated or
-    // streamed, modtime should mostly likely be time.Now().
+    /// RenderBinary renders store from memory (which could be a file that has not been written,
+    /// the output from some function, or bytes streamed from somewhere else, as long
+    /// it implements io.Reader).  When called directly on something generated or
+    /// streamed, modtime should mostly likely be time.Now().
     #[inline]
     pub fn render_binary(&mut self, content_type: HeaderValue, data: &[u8]) {
         self.headers.insert(header::CONTENT_TYPE, content_type);
         self.write_body_bytes(data);
     }
 
+    /// Write bytes data.
     #[inline]
     pub fn write_body_bytes(&mut self, data: &[u8]) {
         if let Some(body) = self.body_mut() {
@@ -419,6 +460,7 @@ impl Response {
             self.body = Some(Body::Bytes(BytesMut::from(data)));
         }
     }
+    /// Write streaming data.
     #[inline]
     pub fn streaming<S, O, E>(&mut self, stream: S)
     where
@@ -441,6 +483,7 @@ impl Response {
         self.body = Some(Body::Stream(Box::pin(mapped)));
     }
 
+    /// Redirect temporary.
     #[inline]
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
@@ -450,6 +493,7 @@ impl Response {
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
         self.commit();
     }
+    /// Redirect found.
     #[inline]
     pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::FOUND);
@@ -460,6 +504,7 @@ impl Response {
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
         self.commit();
     }
+    /// Redirect other.
     #[inline]
     pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
         self.status_code = Some(StatusCode::SEE_OTHER);
@@ -516,11 +561,11 @@ impl fmt::Display for Response {
 pub(crate) struct Cache(BytesMut);
 
 impl Cache {
-    pub fn with_capacity(size: usize) -> Self {
+    pub(crate) fn with_capacity(size: usize) -> Self {
         Cache(BytesMut::with_capacity(size))
     }
 
-    pub fn into_inner(self) -> BytesMut {
+    pub(crate) fn into_inner(self) -> BytesMut {
         self.0
     }
 }

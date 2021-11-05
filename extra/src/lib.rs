@@ -1,3 +1,10 @@
+//! The extra lib of Savlo web server framework.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;

@@ -7,8 +7,10 @@ use crate::http::header::HeaderValue;
 use crate::http::{Request, Response};
 use crate::Depot;
 
+/// Writer is used to write data to response.
 #[async_trait]
 pub trait Writer {
+    /// Write data to ```Respone```.
     #[must_use = "write future must be used"]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
@@ -54,6 +56,7 @@ impl Writer for String {
     }
 }
 
+/// Write text content to response as text content. It will set ```content-type``` to ```text/plain; charset=utf-8```.
 pub struct PlainText<T>(T);
 #[async_trait]
 impl<T> Writer for PlainText<T>
@@ -68,6 +71,7 @@ where
     }
 }
 
+/// Write text content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
 pub struct JsonText<T>(T);
 #[async_trait]
 impl<T> Writer for JsonText<T>
@@ -90,6 +94,7 @@ where
     }
 }
 
+/// Write text content to response as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
 pub struct HtmlText<T>(T);
 #[async_trait]
 impl<T> Writer for HtmlText<T>
@@ -104,6 +109,7 @@ where
     }
 }
 
+/// Write serializable content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
 pub struct JsonContent<T>(T);
 #[async_trait]
 impl<T> Writer for JsonContent<T>

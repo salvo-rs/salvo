@@ -8,10 +8,14 @@ use salvo_core::prelude::*;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 
+/// CompressionAlgo
 #[derive(Clone, Copy, Debug)]
 pub enum CompressionAlgo {
+    /// Brotli
     Brotli,
+    /// Deflate
     Deflate,
+    /// Gzip
     Gzip,
 }
 
@@ -26,6 +30,7 @@ impl From<CompressionAlgo> for HeaderValue {
     }
 }
 
+/// CompressionHandler
 #[derive(Clone, Debug)]
 pub struct CompressionHandler {
     algo: CompressionAlgo,
@@ -41,6 +46,7 @@ impl Default for CompressionHandler {
 }
 
 impl CompressionHandler {
+    /// Create a new `CompressionHandler`.
     #[inline]
     pub fn new(algo: CompressionAlgo) -> Self {
         CompressionHandler {
@@ -56,36 +62,42 @@ impl CompressionHandler {
             min_length: 1024,
         }
     }
+    /// Create a new `CompressionHandler` with algo.
     #[inline]
     pub fn with_algo(mut self, algo: CompressionAlgo) -> Self {
         self.algo = algo;
         self
     }
 
+    /// get min_length.
     #[inline]
     pub fn min_length(&mut self) -> usize {
         self.min_length
     }
-    // Set minimum compression size, if body less than this value, no compression
-    // default is 1kb
+    /// Set minimum compression size, if body less than this value, no compression
+    /// default is 1kb
     #[inline]
     pub fn set_min_length(&mut self, size: usize) {
         self.min_length = size;
     }
+    /// Create a new `CompressionHandler` with min_length.
     #[inline]
     pub fn with_min_length(mut self, min_length: usize) -> Self {
         self.min_length = min_length;
         self
     }
 
+    /// Get content type list reference.
     #[inline]
     pub fn content_types(&self) -> &Vec<String> {
         &self.content_types
     }
+    /// Get content type list mutable reference.
     #[inline]
     pub fn content_types_mut(&mut self) -> &mut Vec<String> {
         &mut self.content_types
     }
+    /// Create a new `CompressionHandler` with content types list.
     #[inline]
     pub fn with_content_types(mut self, content_types: &[String]) -> Self {
         self.content_types = content_types.to_vec();

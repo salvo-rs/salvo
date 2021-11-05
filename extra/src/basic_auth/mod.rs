@@ -1,3 +1,5 @@
+//! basic auth middleware
+
 use async_trait::async_trait;
 
 use salvo_core::http::header::AUTHORIZATION;
@@ -7,16 +9,21 @@ use salvo_core::Handler;
 
 use thiserror::Error;
 
+/// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::extra::basic_auth::username";
 
+/// Error
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Base64 decode error
     #[error("Base64 decode error")]
     Base64Decode(#[from] base64::DecodeError),
+    /// ParseHttpHeader
     #[error("Parse http header error")]
     ParseHttpHeader,
 }
 
+/// BasicAuthValidator
 pub trait BasicAuthValidator: Send + Sync {
     fn validate(&self, username: String, password: String) -> bool;
 }
@@ -30,6 +37,7 @@ where
     }
 }
 
+/// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
     fn basic_auth_username(&self) -> Option<&String>;
 }
@@ -40,6 +48,7 @@ impl BasicAuthDepotExt for Depot {
     }
 }
 
+/// BasicAuthHandler
 pub struct BasicAuthHandler<V: BasicAuthValidator> {
     realm: String,
     validator: V,

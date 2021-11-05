@@ -13,6 +13,7 @@ pub struct Error {
 }
 
 impl Error {
+    /// Create a new `Error`.
     #[inline]
     pub fn new<E: Into<BoxError>>(err: E) -> Error {
         Error { inner: err.into() }

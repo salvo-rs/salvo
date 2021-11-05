@@ -64,13 +64,13 @@ use tokio::time::{self, Sleep};
 
 use salvo_core::http::Response;
 
-// Server-sent event data type
+/// Server-sent event data type
 #[derive(Debug)]
 enum DataType {
     Text(String),
     Json(String),
 }
-
+/// SseError
 #[derive(Debug)]
 pub struct SseError;
 
@@ -200,6 +200,7 @@ impl Display for SseEvent {
     }
 }
 
+/// SseKeepAlive
 #[allow(missing_debug_implementations)]
 #[pin_project]
 pub struct SseKeepAlive<S> {
@@ -216,6 +217,7 @@ where
     S: TryStream<Ok = SseEvent> + Send + 'static,
     S::Error: StdError + Send + Sync + 'static,
 {
+    /// Create new `SseKeepAlive`.
     pub fn new(event_stream: S) -> SseKeepAlive<S> {
         let max_interval = Duration::from_secs(15);
         let alive_timer = time::sleep(max_interval);
@@ -264,6 +266,7 @@ fn write_request_headers(res: &mut Response) {
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 }
 
+/// Streaming
 pub fn streaming<S>(res: &mut Response, event_stream: S)
 where
     S: TryStream<Ok = SseEvent> + Send + 'static,

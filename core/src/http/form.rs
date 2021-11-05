@@ -1,12 +1,5 @@
-// Copyright 2016-2020 mime-multipart Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-//
-// port from https://github.com/mikedilger/mime-multipart/blob/master/src/lib.rs
-use http::header;
+//! form
+
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use std::ffi::OsStr;
@@ -16,7 +9,7 @@ use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::http::errors::ReadError;
-use crate::http::header::HeaderMap;
+use crate::http::header::{HeaderMap, CONTENT_TYPE};
 use crate::http::request::{self, Body};
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -32,6 +25,7 @@ pub struct FormData {
 }
 
 impl FormData {
+    /// Create new `FormData`.
     pub fn new() -> FormData {
         FormData {
             fields: MultiMap::new(),
@@ -63,21 +57,27 @@ pub struct FilePart {
     temp_dir: Option<PathBuf>,
 }
 impl FilePart {
+    /// Get file name.
     pub fn file_name(&self) -> Option<&str> {
         self.file_name.as_deref()
     }
+    /// Get file name mutable reference.
     pub fn file_name_mut(&mut self) -> Option<&mut String> {
         self.file_name.as_mut()
     }
+    /// Get headers.
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
+    /// Get headers mutable reference.
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
+    /// Get file path.
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+    /// Get file size.
     pub fn size(&self) -> Option<usize> {
         self.size
     }
@@ -132,8 +132,8 @@ impl Drop for FilePart {
 }
 
 /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
-    match headers.get(header::CONTENT_TYPE) {
+pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
+    match headers.get(CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
             let data = request::read_body_bytes(body).await?;
             let mut form_data = FormData::new();
@@ -143,14 +143,14 @@ pub async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData,
         Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {
             let mut form_data = FormData::new();
             if let Some(boundary) = headers
-                .get(header::CONTENT_TYPE)
+                .get(CONTENT_TYPE)
                 .and_then(|ct| ct.to_str().ok())
                 .and_then(|ct| multer::parse_boundary(ct).ok())
             {
                 let mut multipart = Multipart::new(body, boundary);
                 while let Some(mut field) = multipart.next_field().await? {
                     if let Some(name) = field.name().map(|s| s.to_owned()) {
-                        if field.headers().get(header::CONTENT_TYPE).is_some() {
+                        if field.headers().get(CONTENT_TYPE).is_some() {
                             form_data.files.insert(name, FilePart::create(&mut field).await?);
                         } else {
                             form_data.fields.insert(name, field.text().await?);

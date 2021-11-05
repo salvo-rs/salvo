@@ -1,8 +1,11 @@
+//! size limiter middleware
+
 use async_trait::async_trait;
 use salvo_core::http::errors::*;
 use salvo_core::http::HttpBody;
 use salvo_core::prelude::*;
 
+/// MaxSizeHandler
 pub struct MaxSizeHandler(u64);
 #[async_trait]
 impl Handler for MaxSizeHandler {
@@ -14,7 +17,7 @@ impl Handler for MaxSizeHandler {
         }
     }
 }
-
+/// Create a new ```MaxSizeHandler```.
 pub fn max_size(size: u64) -> MaxSizeHandler {
     MaxSizeHandler(size)
 }

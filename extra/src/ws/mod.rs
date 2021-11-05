@@ -49,14 +49,15 @@ impl Default for WsHandler {
 }
 
 impl WsHandler {
+    /// Create new `WsHandler`.
     pub fn new() -> Self {
         WsHandler { config: None }
     }
+    /// Create new `WsHandler` with config.
     pub fn with_config(config: WebSocketConfig) -> Self {
         WsHandler { config: Some(config) }
     }
 
-    // config
     /// Set the size of the internal message send queue.
     pub fn max_send_queue(mut self, max: usize) -> Self {
         self.config.get_or_insert_with(WebSocketConfig::default).max_send_queue = Some(max);
@@ -77,6 +78,7 @@ impl WsHandler {
         self
     }
 
+    /// Handle websocket request.
     pub fn handle(
         &self,
         req: &mut Request,

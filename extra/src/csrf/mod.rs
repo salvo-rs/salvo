@@ -1,3 +1,5 @@
+//! csrf middleware
+
 // port from https://github.com/malyn/tide-csrf
 
 use std::collections::HashSet;
