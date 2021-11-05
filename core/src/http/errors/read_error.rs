@@ -74,11 +74,7 @@ pub enum ReadError {
     /// EofInPart.
     #[error("EofInPart")]
     EofInPart,
-
-    /// An HTTP parsing error from a multipart section.
-    #[error("An HTTP parsing error from a multipart section: {0}")]
-    HttParse(#[from] httparse::Error),
-
+    
     /// An multer error.
     #[error("An multer error from: {0}")]
     Multer(#[from] multer::Error),

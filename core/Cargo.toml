@@ -33,7 +33,6 @@ form_urlencoded = "1"
 futures-util = { version = "0.3", default-features = false }
 headers = "0.3"
 http = "0.2"
-httparse = "1"
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
 mime = "0.3"
 mime_guess = "2"

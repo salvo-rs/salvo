@@ -237,7 +237,7 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut req: Request = Request::default();
-    /// req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// Req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
     /// assert!(!req.headers().is_empty());
     /// ```
     #[inline]
@@ -304,7 +304,7 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut request: Request = Request::default();
-    /// request.extensions_mut().insert("hello");
+    /// Request.extensions_mut().insert("hello");
     /// assert_eq!(request.extensions().get(), Some(&"hello"));
     /// ```
     #[inline]
@@ -492,15 +492,12 @@ impl Request {
         }
     }
 
-    /// read body as text from request.
+    /// Read body as text from request.
     #[inline]
     pub async fn read_text(&mut self) -> Result<&str, ReadError> {
-        match self.payload().await {
-            Ok(body) => Ok(std::str::from_utf8(body)?),
-            Err(_) => Err(ReadError::General("read text from body failed".into())),
-        }
+        self.payload().await.and_then(|body|std::str::from_utf8(body).map_err(ReadError::Utf8))
     }
-    /// read body as type `T` from request.
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_text<T>(&mut self) -> Result<T, ReadError>
     where
@@ -510,7 +507,7 @@ impl Request {
             .await
             .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
     }
-    /// read body as type `T` from request.
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
     where
@@ -521,7 +518,7 @@ impl Request {
             Err(_) => Err(ReadError::General("read json from body failed".into())),
         }
     }
-    /// read body as type `T` from request.
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError>
     where
@@ -536,7 +533,7 @@ impl Request {
         }
     }
 
-    /// read body as type `T` from request.
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read<T>(&mut self) -> Result<T, ReadError>
     where
