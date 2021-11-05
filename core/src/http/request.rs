@@ -497,7 +497,7 @@ impl Request {
     {
         self.read_text()
             .await
-            .and_then(|body| body.parse::<T>().map_err(|_|ReadError::ParseFromStr))
+            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::ParseFromStr))
     }
 
     /// Read body as type `T` from request.

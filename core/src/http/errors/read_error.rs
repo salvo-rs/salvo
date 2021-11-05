@@ -13,11 +13,11 @@ pub enum ReadError {
     /// The Hyper request did not have a valid Content-Type header.
     #[error("The Hyper request did not have a valid Content-Type header.")]
     InvalidContentType,
-    
+
     /// The Hyper request's body is empty.
     #[error("The Hyper request's body is empty.")]
     EmptyBody,
-    
+
     /// Parse error when pase from str.
     #[error("Parse error when pase from str.")]
     ParseFromStr,
