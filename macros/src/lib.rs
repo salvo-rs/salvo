@@ -30,10 +30,8 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
-    let mut empty_input = false;
     match sig.inputs.len() {
         0 => {
-            empty_input = true;
             let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
             sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
             let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
@@ -142,11 +140,6 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
 
     match sig.output {
         ReturnType::Default => {
-            if empty_input {
-                return syn::Error::new_spanned(&sig.inputs, "if no inputs privided, fn handler should return result")
-                    .to_compile_error()
-                    .into();
-            }
             (quote! {
                 #sdef
                 #[async_trait]
