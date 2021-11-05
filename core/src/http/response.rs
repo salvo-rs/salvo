@@ -122,6 +122,16 @@ impl From<hyper::Body> for Body {
     }
 }
 
+/// Control response flow.
+#[derive(Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Debug)]
+pub enum FlowState {
+    /// Default value.
+    Capturing = 0,
+    /// Skip next middlewares and handler, start to execute after middlewares.
+    Bubbling,
+    /// Skip next middlewares and handler.
+    Commited,
+}
 /// Represents an HTTP response
 pub struct Response {
     /// The response status-code.
@@ -132,7 +142,7 @@ pub struct Response {
     version: Version,
     pub(crate) cookies: CookieJar,
     pub(crate) body: Option<Body>,
-    pub(crate) flow_state: FlowState,
+    flow_state: FlowState,
 }
 impl Default for Response {
     fn default() -> Self {
@@ -174,7 +184,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
             version,
             headers,
             cookies,
-            is_committed: false,
+            flow_state: FlowState::Capturing,
         }
     }
 }
@@ -188,7 +198,7 @@ impl Response {
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
-            flow_status: FlowState::Capturing,
+            flow_state: FlowState::Capturing,
         }
     }
 
@@ -355,7 +365,7 @@ impl Response {
         let is_success = code.is_success();
         self.status_code = Some(code);
         if !is_success {
-            self.commit();
+            self.set_flow_state(FlowState::Bubbling);
         }
     }
 
@@ -378,7 +388,7 @@ impl Response {
     pub fn set_http_error(&mut self, err: HttpError) {
         self.status_code = Some(err.code);
         self.http_error = Some(err);
-        self.commit();
+        self.set_flow_state(FlowState::Bubbling);
     }
 
     /// Render serializable data as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
@@ -480,7 +490,7 @@ impl Response {
             self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
-        self.commit();
+        self.set_flow_state(FlowState::Bubbling);
     }
     /// Redirect found.
     #[inline]
@@ -491,7 +501,7 @@ impl Response {
                 .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
-        self.commit();
+        self.set_flow_state(FlowState::Bubbling);
     }
     /// Redirect other.
     #[inline]
@@ -502,10 +512,15 @@ impl Response {
                 .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse()?);
-        self.commit();
+        self.set_flow_state(FlowState::Bubbling);
         Ok(())
     }
 
+    /// Check is response is committed.
+    #[inline]
+    pub fn flow_state(&self) -> FlowState {
+        self.flow_state
+    }
     /// Salvo executes before handler and path handler in sequence, when the response is in a
     /// committed state, subsequent handlers will not be executed, and then all after
     /// handlers will be executed.
@@ -513,21 +528,18 @@ impl Response {
     /// This is a sign that the http request is completed, which can be used to process early
     /// return verification logic, such as permission verification, etc.
     #[inline]
-    pub fn commit(&mut self) {
-        if self.is_committed {
-            return;
-        }
-        for cookie in self.cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse() {
-                self.headers.append(SET_COOKIE, hv);
+    pub fn set_flow_state(&mut self, flow_state: FlowState) -> bool {
+        if self.flow_state < flow_state {
+            for cookie in self.cookies.delta() {
+                if let Ok(hv) = cookie.encoded().to_string().parse() {
+                    self.headers.append(SET_COOKIE, hv);
+                }
             }
+            self.flow_state = flow_state;
+            true
+        } else {
+            false
         }
-        self.is_committed = true;
-    }
-    /// Check is response is committed.
-    #[inline]
-    pub fn is_committed(&self) -> bool {
-        self.is_committed
     }
 }
 
@@ -625,7 +637,7 @@ mod test {
         // assert_eq!(response.header_cookies().len(), 1);
         response.cookies_mut().add(Cookie::new("money", "sh*t"));
         assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
-        response.commit();
+        response.set_flow_state(FlowState::Commited);
         // assert_eq!(response.header_cookies().len(), 2);
         assert_eq!(response.take_bytes().await.unwrap().len(), b"response body".len());
 

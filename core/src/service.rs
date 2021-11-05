@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
+use crate::http::response::FlowState;
 use crate::routing::{PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
@@ -126,15 +127,18 @@ impl HyperHandler {
                 request.params = path_state.params;
                 for handler in [&dm.befores[..], &[dm.handler]].concat() {
                     handler.handle(&mut request, &mut depot, &mut response).await;
-                    if response.is_committed() {
+                    if response.flow_state() >= FlowState::Bubbling {
                         break;
                     }
                 }
-                // Ensure these after handlers must be executed
-                for handler in &dm.afters {
-                    handler.handle(&mut request, &mut depot, &mut response).await;
+                if response.flow_state() != FlowState::Commited {
+                    response.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
+                    // Ensure these after handlers must be executed
+                    for handler in &dm.afters {
+                        handler.handle(&mut request, &mut depot, &mut response).await;
+                    }
                 }
-                response.commit();
+                response.set_flow_state(FlowState::Commited);
             } else {
                 response.set_status_code(StatusCode::NOT_FOUND);
             }
