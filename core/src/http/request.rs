@@ -237,7 +237,7 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut req: Request = Request::default();
-    /// req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// Req.headers_mut().insert(HOST, HeaderValue::from_static("world"));
     /// assert!(!req.headers().is_empty());
     /// ```
     #[inline]
@@ -304,7 +304,7 @@ impl Request {
     /// # use salvo_core::http::*;
     /// # use salvo_core::http::header::*;
     /// let mut request: Request = Request::default();
-    /// request.extensions_mut().insert("hello");
+    /// Request.extensions_mut().insert("hello");
     /// assert_eq!(request.extensions().get(), Some(&"hello"));
     /// ```
     #[inline]
@@ -447,26 +447,15 @@ impl Request {
 
     /// Get request payload.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ReadError> {
-        let ctype = self
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
-            Err(ReadError::General(String::from("failed to read data1")))
-        } else if ctype.starts_with("application/json") || ctype.starts_with("text/") {
-            let body = self.body.take();
-            self.payload
-                .get_or_try_init(|| async {
-                    match body {
-                        Some(body) => read_body_bytes(body).await,
-                        None => Err(ReadError::General(String::from("failed to read data2"))),
-                    }
-                })
-                .await
-        } else {
-            Err(ReadError::General(String::from("failed to read data3")))
-        }
+        let body = self.body.take();
+        self.payload
+            .get_or_try_init(|| async {
+                match body {
+                    Some(body) => read_body_bytes(body).await,
+                    None => Err(ReadError::EmptyBody),
+                }
+            })
+            .await
     }
 
     /// Get `FormData` reference from request.
@@ -475,32 +464,32 @@ impl Request {
             .headers()
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+            .unwrap_or_default();
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
             let body = self.body.take();
             let headers = self.headers();
             self.form_data
                 .get_or_try_init(|| async {
                     match body {
                         Some(body) => form::read_form_data(headers, body).await,
-                        None => Err(ReadError::General("empty body".into())),
+                        None => Err(ReadError::EmptyBody),
                     }
                 })
                 .await
         } else {
-            Err(ReadError::General("failed to read form data".into()))
+            Err(ReadError::NotFormData)
         }
     }
 
-    /// read body as text from request.
+    /// Read body as text from request.
     #[inline]
     pub async fn read_text(&mut self) -> Result<&str, ReadError> {
-        match self.payload().await {
-            Ok(body) => Ok(std::str::from_utf8(body)?),
-            Err(_) => Err(ReadError::General("read text from body failed".into())),
-        }
+        self.payload()
+            .await
+            .and_then(|body| std::str::from_utf8(body).map_err(ReadError::Utf8))
     }
-    /// read body as type `T` from request.
+
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_text<T>(&mut self) -> Result<T, ReadError>
     where
@@ -508,35 +497,33 @@ impl Request {
     {
         self.read_text()
             .await
-            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::Parsing(body.into())))
+            .and_then(|body| body.parse::<T>().map_err(|_|ReadError::ParseFromStr))
     }
-    /// read body as type `T` from request.
+
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
     where
         T: DeserializeOwned,
     {
-        match self.payload().await {
-            Ok(body) => Ok(serde_json::from_slice::<T>(body)?),
-            Err(_) => Err(ReadError::General("read json from body failed".into())),
-        }
+        self.payload()
+            .await
+            .and_then(|body| serde_json::from_slice::<T>(body).map_err(ReadError::SerdeJson))
     }
-    /// read body as type `T` from request.
+
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError>
     where
         T: DeserializeOwned,
     {
-        match self.form_data().await {
-            Ok(form_data) => {
-                let data = serde_json::to_value(&form_data.fields)?;
-                Ok(serde_json::from_value::<T>(data)?)
-            }
-            Err(_) => Err(ReadError::General("read data from form failed".into())),
-        }
+        self.form_data().await.and_then(|form_data| {
+            let data = serde_json::to_value(&form_data.fields)?;
+            Ok(serde_json::from_value::<T>(data)?)
+        })
     }
 
-    /// read body as type `T` from request.
+    /// Read body as type `T` from request.
     #[inline]
     pub async fn read<T>(&mut self) -> Result<T, ReadError>
     where
@@ -546,15 +533,13 @@ impl Request {
             .headers()
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/form-data") {
+            .unwrap_or_default();
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
             self.read_from_form().await
         } else if ctype.starts_with("application/json") {
             self.read_from_json().await
         } else {
-            Err(ReadError::General(String::from(
-                "failed to read data or this type is not supported",
-            )))
+            Err(ReadError::InvalidContentType)
         }
     }
 }
@@ -562,8 +547,8 @@ impl Request {
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
     hyper::body::to_bytes(body)
         .await
-        .map_err(|_| ReadError::General("read body bytes error".into()))
         .map(|d| d.to_vec())
+        .map_err(ReadError::Hyper)
 }
 
 #[cfg(test)]
