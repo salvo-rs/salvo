@@ -44,6 +44,10 @@ where
                 let fut = tokio::task::spawn_blocking(move || {
                     let mut buf = BytesMut::with_capacity(max_bytes);
                     file.seek(io::SeekFrom::Start(offset))?;
+                    // safety: it has max bytes capacity, and we don't read it
+                    unsafe {
+                        buf.set_len(max_bytes);
+                    }
 
                     file.by_ref().read_exact(&mut buf)?;
 
