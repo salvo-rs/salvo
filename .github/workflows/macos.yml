@@ -1,4 +1,4 @@
-name: CI (macOS)
+name: ci-macos
 
 on:
   pull_request:
