@@ -1,3 +1,5 @@
+#![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;

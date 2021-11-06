@@ -1,3 +1,4 @@
+//! Writer trait and it's impls.
 use async_trait::async_trait;
 use serde::Serialize;
 use serde_json::Value;

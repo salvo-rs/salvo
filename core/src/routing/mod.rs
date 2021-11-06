@@ -1,3 +1,5 @@
+//! Routing and filters
+
 pub mod filter;
 mod router;
 pub use filter::*;

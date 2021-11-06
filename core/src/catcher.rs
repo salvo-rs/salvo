@@ -1,3 +1,4 @@
+//! Catcher tarit and it's impl.
 use crate::http::errors::*;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 

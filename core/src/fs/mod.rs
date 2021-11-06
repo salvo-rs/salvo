@@ -1,3 +1,4 @@
+//! File module
 mod named_file;
 pub use named_file::*;
 
@@ -44,9 +45,8 @@ where
                 let fut = tokio::task::spawn_blocking(move || {
                     let mut buf = Vec::with_capacity(max_bytes);
                     file.seek(io::SeekFrom::Start(offset))?;
-                    let n_bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
-
-                    if n_bytes == 0 {
+                    let bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
+                    if bytes == 0 {
                         return Err(io::ErrorKind::UnexpectedEof.into());
                     }
                     Ok((file, Bytes::from(buf)))

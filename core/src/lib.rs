@@ -1,27 +1,23 @@
 //! The core lib of Savlo web server framework.
-
+#![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-/// catcher module
 pub mod catcher;
 mod depot;
 mod error;
-/// fs module
 pub mod fs;
 mod handler;
-/// http module
 pub mod http;
-/// routing module
 pub mod routing;
 mod server;
 mod service;
 #[cfg(feature = "tls")]
 mod tls;
 mod transport;
-/// writer module
 pub mod writer;
 
 #[cfg(feature = "anyhow")]
