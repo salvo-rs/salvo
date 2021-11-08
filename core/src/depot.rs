@@ -101,10 +101,10 @@ mod test {
         assert!(depot.capacity() >= 6);
 
         depot.insert("one", "ONE".to_owned());
-        assert!(depot.has("one"));
+        assert!(depot.contains_key("one"));
 
-        assert_eq!(depot.get::<String>("one"), Some(&"ONE".to_owned()));
-        assert_eq!(depot.get_mut::<String>("one"), &mut "ONE".to_owned());
+        assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
+        assert_eq!(depot.get_mut::<String>("one").unwrap(), &mut "ONE".to_owned());
     }
 
     #[test]
@@ -113,19 +113,6 @@ mod test {
         depot.insert("one", "ONE".to_owned());
 
         let depot = depot.transfer();
-        assert_eq!(depot.get::<String>("one"), &"ONE".to_owned());
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_depot_panic1() {
-        let depot = Depot::new();
-        depot.borrow::<String>("one");
-    }
-    #[test]
-    #[should_panic]
-    fn test_depot_panic2() {
-        let mut depot = Depot::new();
-        depot.remove::<String>("one");
+        assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
     }
 }

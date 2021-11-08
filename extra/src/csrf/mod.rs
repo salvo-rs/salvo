@@ -44,19 +44,19 @@ pub trait CsrfDepotExt {
 
 impl CsrfDepotExt for Depot {
     fn csrf_token(&self) -> Option<&str> {
-        self.try_borrow::<CsrfData>(DATA_KEY).map(|d| &*d.token)
+        self.get::<CsrfData>(DATA_KEY).map(|d| &*d.token)
     }
 
     fn csrf_header_name(&self) -> Option<&str> {
-        self.try_borrow::<CsrfData>(DATA_KEY).map(|d| d.header_name.as_str())
+        self.get::<CsrfData>(DATA_KEY).map(|d| d.header_name.as_str())
     }
 
     fn csrf_query_param(&self) -> Option<&str> {
-        self.try_borrow::<CsrfData>(DATA_KEY).map(|d| &*d.query_param)
+        self.get::<CsrfData>(DATA_KEY).map(|d| &*d.query_param)
     }
 
     fn csrf_field_name(&self) -> Option<&str> {
-        self.try_borrow::<CsrfData>(DATA_KEY).map(|d| &*d.field_name)
+        self.get::<CsrfData>(DATA_KEY).map(|d| &*d.field_name)
     }
 }
 

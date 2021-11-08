@@ -244,18 +244,18 @@ pub trait JwtAuthDepotExt {
 
 impl JwtAuthDepotExt for Depot {
     fn jwt_auth_token(&self) -> Option<&String> {
-        self.try_borrow(AUTH_TOKEN_KEY)
+        self.get(AUTH_TOKEN_KEY)
     }
 
     fn jwt_auth_claims<C>(&self) -> Option<&C>
     where
         C: DeserializeOwned + Sync + Send + 'static,
     {
-        self.try_borrow(AUTH_CLAIMS_KEY)
+        self.get(AUTH_CLAIMS_KEY)
     }
 
     fn jwt_auth_state(&self) -> JwtAuthState {
-        self.try_borrow(AUTH_STATE_KEY)
+        self.get(AUTH_STATE_KEY)
             .cloned()
             .unwrap_or(JwtAuthState::Unauthorized)
     }

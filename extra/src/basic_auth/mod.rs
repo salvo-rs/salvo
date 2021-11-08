@@ -46,7 +46,7 @@ pub trait BasicAuthDepotExt {
 
 impl BasicAuthDepotExt for Depot {
     fn basic_auth_username(&self) -> Option<&String> {
-        self.try_borrow(USERNAME_KEY)
+        self.get(USERNAME_KEY)
     }
 }
 
