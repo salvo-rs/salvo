@@ -333,7 +333,7 @@ pub struct CorsHandler {
     methods_header: AccessControlAllowMethods,
 }
 impl CorsHandler {
-    /// Return `HandlerBuilder` instance for build `CorsHandler`.
+    /// Returns `HandlerBuilder` instance for build `CorsHandler`.
     #[inline]
     pub fn builder() -> HandlerBuilder {
         HandlerBuilder::default()

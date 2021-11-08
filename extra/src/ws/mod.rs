@@ -322,7 +322,7 @@ impl Message {
         }
     }
 
-    /// Return the bytes of this message, if the message can contain data.
+    /// Returns the bytes of this message, if the message can contain data.
     pub fn as_bytes(&self) -> &[u8] {
         match self.inner {
             protocol::Message::Text(ref s) => s.as_bytes(),

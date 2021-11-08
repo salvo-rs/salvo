@@ -61,7 +61,7 @@ pub trait Filter: Send + Sync + 'static {
         }
     }
 
-    /// Filter ```Request``` and return false or true.
+    /// Filter ```Request``` and returns false or true.
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 

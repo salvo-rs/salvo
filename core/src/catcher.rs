@@ -4,7 +4,7 @@ use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 
 /// Catch error in current response.
 pub trait Catcher: Send + Sync + 'static {
-    /// If the current catcher caught the error, it will return true.
+    /// If the current catcher caught the error, it will returns true.
     fn catch(&self, req: &Request, res: &mut Response) -> bool;
 }
 

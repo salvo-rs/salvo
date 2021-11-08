@@ -54,7 +54,7 @@ impl Service {
         self.catchers.clone()
     }
 
-    /// Set allowed media types list and return Self for wite code chained.
+    /// Set allowed media types list and returns Self for wite code chained.
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -68,7 +68,7 @@ impl Service {
         self.allowed_media_types.clone()
     }
 
-    /// Handle ```Request``` and return ```Response```.
+    /// Handle ```Request``` and returns ```Response```.
     pub async fn handle(&self, request: Request) -> Response {
         let handler = HyperHandler {
             remote_addr: None,

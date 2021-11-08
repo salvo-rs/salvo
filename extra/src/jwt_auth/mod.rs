@@ -66,7 +66,7 @@ impl HeaderExtractor {
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and return Self.
+    /// Set cated methods list and returns Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self

@@ -29,15 +29,15 @@ pub trait CsrfDepotExt {
     /// a query parameter, or a form field.
     fn csrf_token(&self) -> Option<&str>;
 
-    /// Gets the name of the header in which to return the CSRF token,
+    /// Gets the name of the header in which to returns the CSRF token,
     /// if the CSRF token is being returned in a header.
     fn csrf_header_name(&self) -> Option<&str>;
 
-    /// Gets the name of the query param in which to return the CSRF
+    /// Gets the name of the query param in which to returns the CSRF
     /// token, if the CSRF token is being returned in a query param.
     fn csrf_query_param(&self) -> Option<&str>;
 
-    /// Gets the name of the form field in which to return the CSRF
+    /// Gets the name of the form field in which to returns the CSRF
     /// token, if the CSRF token is being returned in a form field.
     fn csrf_field_name(&self) -> Option<&str>;
 }
@@ -226,7 +226,7 @@ impl CsrfHandler {
         // body specifically) if we find a CSRF token in an earlier
         // location. And we can't use `or_else` chaining since the
         // function that searches through the form body is async. Note
-        // that if parsing the body fails then we want to return an
+        // that if parsing the body fails then we want to returns an
         // InternalServerError, hence the `?`. This is not the same as
         // what we will do later, which is convert failures to *parse* a
         // found CSRF token into Forbidden responses.

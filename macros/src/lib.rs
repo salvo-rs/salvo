@@ -1,3 +1,5 @@
+//! The macros lib of Savlo web server framework.
+//! Read more: https://salvo.rs
 #![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 extern crate proc_macro;
@@ -11,12 +13,18 @@ use syn::ReturnType;
 /// ```fn_handler``` is a pro macro to help create ```Handler``` from function easily.
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
-    let mut input = syn::parse_macro_input!(input as syn::ItemFn);
-    let attrs = &input.attrs;
-    let vis = &input.vis;
-    let sig = &mut input.sig;
-    let body = &input.block;
+    let mut item_fn = syn::parse_macro_input!(input as syn::ItemFn);
+    let attrs = &item_fn.attrs;
+    let vis = &item_fn.vis;
+    let sig = &mut item_fn.sig;
+    let body = &item_fn.block;
     let name = &sig.ident;
+    let docs = item_fn
+        .attrs
+        .iter()
+        .filter(|attr| attr.path.is_ident("doc"))
+        .cloned()
+        .collect::<Vec<_>>();
 
     let salvo = match crate_name("salvo_core").or_else(|_| crate_name("salvo")) {
         Ok(salvo) => match salvo {
@@ -129,6 +137,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let sdef = quote! {
+        #(#docs)*
         #[allow(non_camel_case_types)]
         #[derive(Debug)]
         #vis struct #name;

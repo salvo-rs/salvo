@@ -65,20 +65,20 @@ There are many ways to write function handler.
     }
     ```
 
-- Any type can be function handler's return value if it implements ```Writer```. For example &str implements ```Writer``` and it will render string as plain text:
+- Any type can be function handler's returns value if it implements ```Writer```. For example &str implements ```Writer``` and it will render string as plain text:
 
     ```rust
     #[fn_handler]
-    async fn hello_world(res: &mut Response) -> &'static str {// just return &str
+    async fn hello_world(res: &mut Response) -> &'static str {// just returns &str
         "Hello World"
     }
     ```
 
-- The more common situation is we want to return a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
+- The more common situation is we want to returns a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
   
     ```rust
     #[fn_handler]
-    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// return Result
+    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// returns Result
         Ok("Hello World")
     }
     ```
