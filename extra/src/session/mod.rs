@@ -1,11 +1,4 @@
-// fn get_session(req: &mut Request) {
-//     depot.insert_session(session_store.get_session(req))
-// }
-// fn save_session(res: &mut Response)  {
-//     session_store.save(res, depot.session());
-// }
-// router.hoop(get_session).hoop(save_session).handle(hello);
-
+//! Session supports
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::time::Duration;

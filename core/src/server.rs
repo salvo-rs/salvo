@@ -116,7 +116,7 @@ impl Server {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// use salvo_core::prelude::*;
     /// use tokio::sync::oneshot;
     ///

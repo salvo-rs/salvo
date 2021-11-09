@@ -41,6 +41,7 @@ fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
+/// Flow Control.
 pub struct FlowCtrl {
     is_ceased: bool,
     cursor: usize,
@@ -48,14 +49,18 @@ pub struct FlowCtrl {
 }
 
 impl FlowCtrl {
+    /// Create new `FlowCtrl`.
     #[inline]
     pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
         FlowCtrl { is_ceased: false, cursor: 0, handlers }
     }
+    /// Has next handler.
     #[inline]
     pub fn has_next(&self) -> bool {
         self.cursor < self.handlers.len() && self.handlers.len() > 0
     }
+
+    /// Call next handler.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(handler) = self.handlers.get(self.cursor) {
@@ -66,14 +71,18 @@ impl FlowCtrl {
             false
         }
     }
+    /// Skip all reset handlers.
     #[inline]
     pub fn skip_reset(&mut self) {
         self.cursor = self.handlers.len()
     }
+
+    /// Is flow ceased
     #[inline]
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }
+    /// Cease all fllowwing logic
     #[inline]
     pub fn cease(&mut self) {
         self.skip_reset();
