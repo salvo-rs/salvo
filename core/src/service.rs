@@ -8,9 +8,8 @@ use once_cell::sync::Lazy;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::response::FlowState;
 use crate::http::{Mime, Request, Response, StatusCode};
-use crate::routing::{PathState, Router};
+use crate::routing::{FlowCtrl, PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
@@ -123,26 +122,18 @@ impl HyperHandler {
         let router = self.router.clone();
 
         async move {
-            if let Some(dm) = router.detect(&mut req, &mut path_state, 0) {
+            if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut max_depth = 0;
-                for (depth, handler) in [&dm.befores[..], &[dm.handler]].concat() {
-                    handler.handle(&mut req, &mut depot, &mut res).await;
-                    max_depth = depth;
-                    if res.flow_state() >= FlowState::Bubbling {
-                        break;
-                    }
-                }
-                if res.flow_state() != FlowState::Commited {
-                    res.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
-                                                             // Ensure these after handlers must be executed
-                    for (depth, handler) in &dm.afters {
-                        if *depth <= max_depth {
-                            handler.handle(&mut req, &mut depot, &mut res).await;
+                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
+                while ctrl.call_next(&mut req, &mut depot, &mut res).await {
+                    if let Some(status_code) = res.status_code() {
+                        if !status_code.is_success() || status_code.is_redirection() {
+                            break;
+                        } else if ctrl.has_next() {
+                            tracing::error!("ctrl has_next should return false");
                         }
                     }
                 }
-                res.set_flow_state(FlowState::Commited);
             } else {
                 res.set_status_code(StatusCode::NOT_FOUND);
             }
@@ -225,31 +216,30 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 
 #[cfg(test)]
 mod tests {
-    use crate::http::response::FlowState;
     use crate::prelude::*;
+    use crate::routing::FlowCtrl;
 
     #[tokio::test]
     async fn test_service() {
         #[fn_handler]
         async fn before1(req: &mut Request, res: &mut Response) {
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
-                res.set_flow_state(FlowState::Bubbling);
             } else {
                 res.render_plain_text("before1");
             }
         }
         #[fn_handler]
-        async fn before2(req: &mut Request, res: &mut Response) {
+        async fn before2(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
-                res.set_flow_state(FlowState::Bubbling);
+                ctrl.skip_reset();
             } else {
                 res.render_plain_text("before2");
             }
         }
         #[fn_handler]
-        async fn before3(req: &mut Request, res: &mut Response) {
+        async fn before3(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
-                res.set_flow_state(FlowState::Bubbling);
+                ctrl.skip_reset();
             } else {
                 res.render_plain_text("before3");
             }
@@ -270,11 +260,11 @@ mod tests {
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }
-        let router = Router::with_path("level1").before(before1).after(after1).push(
-            Router::with_before(before2)
-                .after(after2)
+        let router = Router::with_path("level1").hoop(before1).hoop(after1).push(
+            Router::with_hoop(before2)
+                .hoop(after2)
                 .path("level2")
-                .push(Router::with_before(before3).after(after3).path("hello").handle(hello)),
+                .push(Router::with_hoop(before3).hoop(after3).path("hello").handle(hello)),
         );
         let service = Service::new(router);
 

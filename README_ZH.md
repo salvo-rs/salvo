@@ -129,7 +129,7 @@ Router::with_path("articles")
 然后把需要用户登录的路由写到一起， 并且使用相应的中间件验证用户是否登录：
 ```rust
 Router::with_path("articles")
-    .before(auth_check)
+    .hoop(auth_check)
     .post(list_articles)
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
@@ -145,7 +145,7 @@ Router::new()
     )
     .push(
         Router::with_path("articles")
-            .before(auth_check)
+            .hoop(auth_check)
             .post(list_articles)
             .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
     );

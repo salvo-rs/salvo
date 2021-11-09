@@ -15,6 +15,6 @@ async fn main() {
         .with_allow_methods(vec!["GET", "POST", "DELETE"])
         .build();
 
-    let router = Router::with_before(cors_handler).get(hello);
+    let router = Router::with_hoop(cors_handler).get(hello);
     Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
 }

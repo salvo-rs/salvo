@@ -18,6 +18,7 @@ pub use salvo_core::*;
     feature = "jwt_auth",
     feature = "proxy",
     feature = "serve",
+    feature = "session",
     feature = "size_limiter",
     feature = "sse",
     feature = "ws"

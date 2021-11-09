@@ -125,7 +125,7 @@ Router::with_path("articles")
 Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in: 
 ```rust
 Router::with_path("articles")
-    .before(auth_check)
+    .hoop(auth_check)
     .post(list_articles)
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
@@ -141,7 +141,7 @@ Router::new()
     )
     .push(
         Router::with_path("articles")
-            .before(auth_check)
+            .hoop(auth_check)
             .post(list_articles)
             .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
     );

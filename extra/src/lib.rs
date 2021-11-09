@@ -26,6 +26,8 @@ pub mod csrf;
 pub mod proxy;
 #[cfg(feature = "serve")]
 pub mod serve;
+#[cfg(feature = "session")]
+pub mod session;
 #[cfg(feature = "sse")]
 pub mod sse;
 #[cfg(feature = "ws")]

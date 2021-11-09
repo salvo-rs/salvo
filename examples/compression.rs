@@ -10,19 +10,19 @@ async fn main() {
         .push(Router::with_path("ws_chat").get(StaticFile::new("examples/ws_chat.rs")))
         .push(
             Router::new()
-                .after(compression::deflate())
+                .hoop(compression::deflate())
                 .path("sse_chat")
                 .get(StaticFile::new("examples/sse_chat.rs")),
         )
         .push(
             Router::new()
-                .after(compression::brotli())
+                .hoop(compression::brotli())
                 .path("todos")
                 .get(StaticFile::new("examples/todos.rs")),
         )
         .push(
             Router::new()
-                .after(compression::gzip())
+                .hoop(compression::gzip())
                 .path("examples/<*path>")
                 .get(StaticDir::new("examples/")),
         );

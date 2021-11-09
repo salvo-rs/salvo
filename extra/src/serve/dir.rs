@@ -8,11 +8,10 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
-use salvo_core::http::{errors::*, StatusCode};
-use salvo_core::http::{Request, Response};
-use salvo_core::Depot;
-use salvo_core::Handler;
-use salvo_core::Writer;
+use salvo_core::http::errors::*;
+use salvo_core::http::{Request, Response, StatusCode};
+use salvo_core::routing::FlowCtrl;
+use salvo_core::{Depot, Handler, Writer};
 
 /// Options
 #[derive(Debug, Clone)]
@@ -165,7 +164,7 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for StaticDir {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
         let base_path = if let Some((_, value)) = param {

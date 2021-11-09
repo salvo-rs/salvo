@@ -11,6 +11,7 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
+use salvo_core::routing::FlowCtrl;
 use salvo_core::{Error, Result};
 
 #[derive(Debug)]
@@ -137,7 +138,7 @@ impl ProxyHandler {
 
 #[async_trait]
 impl Handler for ProxyHandler {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
                 let response = if proxied_request
@@ -178,6 +179,10 @@ impl Handler for ProxyHandler {
             Err(e) => {
                 tracing::error!("error when build proxied request: {}", e);
             }
+        }
+        if ctrl.has_next() {
+            tracing::error!("all handlers after ProxyHandler will skipped");
+            ctrl.skip_reset();
         }
     }
 }

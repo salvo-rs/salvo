@@ -4,8 +4,8 @@ use async_trait::async_trait;
 
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
-use salvo_core::Depot;
-use salvo_core::Handler;
+use salvo_core::{Handler, Depot};
+use salvo_core::routing::FlowCtrl;
 
 use thiserror::Error;
 
@@ -92,7 +92,7 @@ impl<V> Handler for BasicAuthHandler<V>
 where
     V: BasicAuthValidator + 'static,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
@@ -100,6 +100,7 @@ where
                         if let Ok((username, password)) = self.parse_authorization(auth) {
                             if self.validator.validate(username.clone(), password) {
                                 depot.insert(USERNAME_KEY, username);
+                                ctrl.call_next(req, depot, res).await;
                                 return;
                             }
                         }
@@ -108,6 +109,7 @@ where
             }
         }
         self.ask_credentials(res);
+        ctrl.skip_reset();
     }
 }
 
@@ -130,7 +132,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .before(auth_handler)
+            .hoop(auth_handler)
             .push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
