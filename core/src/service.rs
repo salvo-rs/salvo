@@ -223,48 +223,39 @@ mod tests {
     async fn test_service() {
         #[fn_handler]
         async fn before1(req: &mut Request, res: &mut Response) {
+            res.render_plain_text("before1");
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
+                ctrl.skip_reset();
             } else {
-                res.render_plain_text("before1");
+                ctrl.call_next(req, res, ctrl);
             }
         }
         #[fn_handler]
         async fn before2(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
+            res.render_plain_text("before2");
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
                 ctrl.skip_reset();
             } else {
-                res.render_plain_text("before2");
+                ctrl.call_next(req, res, ctrl);
             }
         }
         #[fn_handler]
         async fn before3(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
+            res.render_plain_text("before3");
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
                 ctrl.skip_reset();
             } else {
-                res.render_plain_text("before3");
+                ctrl.call_next(req, res, ctrl);
             }
-        }
-        #[fn_handler]
-        async fn after1() -> &'static str {
-            "after1"
-        }
-        #[fn_handler]
-        async fn after2() -> &'static str {
-            "after2"
-        }
-        #[fn_handler]
-        async fn after3() -> &'static str {
-            "after3"
         }
         #[fn_handler]
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }
-        let router = Router::with_path("level1").hoop(before1).hoop(after1).push(
+        let router = Router::with_path("level1").hoop(before1).push(
             Router::with_hoop(before2)
-                .hoop(after2)
                 .path("level2")
-                .push(Router::with_hoop(before3).hoop(after3).path("hello").handle(hello)),
+                .push(Router::with_hoop(before3).path("hello").handle(hello)),
         );
         let service = Service::new(router);
 
@@ -278,12 +269,12 @@ mod tests {
             service.handle(req).await.take_text().await.unwrap()
         }
         let content = access(&service, "").await;
-        assert_eq!(content, "before1before2before3helloafter3after2after1");
+        assert_eq!(content, "before1before2before3hello");
         let content = access(&service, "1").await;
-        assert_eq!(content, "after1");
+        assert_eq!(content, "before1");
         let content = access(&service, "2").await;
-        assert_eq!(content, "before1after2after1");
+        assert_eq!(content, "before1before2");
         let content = access(&service, "3").await;
-        assert_eq!(content, "before1before2after3after2after1");
+        assert_eq!(content, "before1before2before3");
     }
 }
