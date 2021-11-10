@@ -2,9 +2,9 @@ use async_trait::async_trait;
 
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::errors::*;
+use salvo_core::routing::FlowCtrl;
 use salvo_core::Handler;
 use salvo_core::{Depot, Request, Response, Writer};
-use salvo_core::routing::FlowCtrl;
 
 /// StaticFile
 #[derive(Clone)]

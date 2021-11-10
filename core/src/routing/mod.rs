@@ -52,7 +52,11 @@ impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
     pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
-        FlowCtrl { is_ceased: false, cursor: 0, handlers }
+        FlowCtrl {
+            is_ceased: false,
+            cursor: 0,
+            handlers,
+        }
     }
     /// Has next handler.
     #[inline]

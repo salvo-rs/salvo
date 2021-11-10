@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::http::{Request, Response};
-use crate::Depot;
 use crate::routing::FlowCtrl;
+use crate::Depot;
 
 /// Handler trait for handle http request.
 #[async_trait]
