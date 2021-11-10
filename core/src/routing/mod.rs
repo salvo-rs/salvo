@@ -64,8 +64,8 @@ impl FlowCtrl {
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(handler) = self.handlers.get(self.cursor) {
-            handler.clone().handle(req, depot, res, self).await;
             self.cursor += 1;
+            handler.clone().handle(req, depot, res, self).await;
             true
         } else {
             false

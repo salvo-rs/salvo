@@ -358,6 +358,7 @@ where
                     }
                 }
                 depot.insert(AUTH_TOKEN_KEY, token);
+                ctrl.call_next(req, depot, res).await;
                 return;
             }
         }

@@ -320,6 +320,7 @@ impl Handler for CsrfHandler {
         // Add the CSRF cookie to the response.
         let cookie = self.build_cookie(secure_cookie, cookie.b64_string());
         res.add_cookie(cookie);
+        ctrl.call_next(req, depot, res).await;
     }
 }
 
