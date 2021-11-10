@@ -11,11 +11,11 @@ use futures_util::ready;
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
+use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, ServerConfig,
 };
-use thiserror::Error;
 use tokio_rustls::rustls::{Certificate, Error as TlsError, PrivateKey, RootCertStore};
 
 use crate::transport::Transport;
@@ -180,7 +180,8 @@ impl TlsListenerBuilder {
                 return Err(TlsListenerError::EmptyKey);
             }
 
-            let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::Pkcs8ParseError)?;
+            let mut pkcs8 =
+                pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::Pkcs8ParseError)?;
 
             if !pkcs8.is_empty() {
                 pkcs8.remove(0)
@@ -234,7 +235,10 @@ pub struct TlsListener {
 }
 
 impl TlsListener {
-    pub(crate) fn new<C>(config: C, incoming: AddrIncoming) -> Self where C: Into<Arc<ServerConfig>> {
+    pub(crate) fn new<C>(config: C, incoming: AddrIncoming) -> Self
+    where
+        C: Into<Arc<ServerConfig>>,
+    {
         TlsListener {
             config: config.into(),
             incoming,

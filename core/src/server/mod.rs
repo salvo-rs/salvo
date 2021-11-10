@@ -14,10 +14,10 @@ pub use hyper::Server;
 #[cfg(feature = "tls")]
 pub mod tls;
 
-#[cfg(feature = "tls")]
-pub use tls::TlsListener;
 #[cfg(target_os = "linux")]
 use crate::transport::LiftIo;
+#[cfg(feature = "tls")]
+pub use tls::TlsListener;
 
 /// TcpListener
 pub struct TcpListener {
