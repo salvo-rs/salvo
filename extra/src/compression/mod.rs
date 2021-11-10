@@ -110,6 +110,9 @@ impl CompressionHandler {
 impl Handler for CompressionHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
+        if ctrl.is_ceased() {
+            return;
+        }
         let content_type = res
             .headers()
             .get(CONTENT_TYPE)

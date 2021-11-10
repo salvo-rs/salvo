@@ -87,6 +87,9 @@ where
         depot.set_session(session);
 
         ctrl.call_next(req, depot, res).await;
+        if ctrl.is_ceased() {
+            return;
+        }
 
         let session = depot.take_session().expect("session should exist in depot");
         if session.is_destroyed() {
