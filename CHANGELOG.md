@@ -1,5 +1,6 @@
 ### 0.15.0
 - core: depot api changed.
+- core: change trait ```Handler``` and add ```FlowCtrl```.
 - extra: add session supports.
 
 ### 0.14.0
