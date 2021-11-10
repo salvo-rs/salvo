@@ -127,7 +127,13 @@ impl HyperHandler {
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if ctrl.has_next() {
-                    tracing::error!("ctrl has_next should return false");
+                    let allow_reset = res
+                        .status_code()
+                        .map(|code| !code.is_success() || code.is_redirection())
+                        .unwrap_or(false);
+                    if !allow_reset {
+                        tracing::error!("ctrl has_next should return false");
+                    }
                 }
             } else {
                 res.set_status_code(StatusCode::NOT_FOUND);
