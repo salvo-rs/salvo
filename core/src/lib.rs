@@ -14,10 +14,8 @@ pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
-mod server;
+pub mod server;
 mod service;
-#[cfg(feature = "tls")]
-mod tls;
 mod transport;
 pub mod writer;
 
@@ -31,9 +29,11 @@ pub use self::error::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
-pub use self::server::Server;
 #[cfg(feature = "tls")]
-pub use self::server::TlsServer;
+pub use self::server::TlsListener;
+#[cfg(target_os = "linux")]
+pub use self::server::UnixListener;
+pub use self::server::{Server, TcpListener};
 pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
@@ -49,7 +49,7 @@ pub mod prelude {
     pub use crate::routing::{filter, Router};
     pub use crate::server::Server;
     #[cfg(feature = "tls")]
-    pub use crate::server::TlsServer;
+    pub use crate::server::TlsListener;
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
