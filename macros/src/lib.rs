@@ -7,8 +7,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_quote::quote;
-use syn::{ReturnType, Ident};
 use syn::punctuated::Punctuated;
+use syn::{Ident, ReturnType};
 
 /// ```fn_handler``` is a pro macro to help create ```Handler``` from function easily.
 #[proc_macro_attribute]
@@ -40,7 +40,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
-    if sig.inputs.len() > 4  {
+    if sig.inputs.len() > 4 {
         return syn::Error::new_spanned(sig.fn_token, "too many args in handle function")
             .to_compile_error()
             .into();
@@ -66,9 +66,12 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 ctrl_ts = Some(input);
             }
             InputType::UnKnow => {
-                return syn::Error::new_spanned(&sig.inputs, "The inputs parameters must be Request, Depot, Response or FlowCtrl")
-                    .to_compile_error()
-                    .into()
+                return syn::Error::new_spanned(
+                    &sig.inputs,
+                    "The inputs parameters must be Request, Depot, Response or FlowCtrl",
+                )
+                .to_compile_error()
+                .into()
             }
             InputType::NoReferenceArg => {
                 return syn::Error::new_spanned(
@@ -168,7 +171,7 @@ fn parse_input_type(input: &syn::FnArg) -> InputType {
                     InputType::Response
                 } else if ident == "Depot" {
                     InputType::Depot
-                }else if ident == "FlowCtrl" {
+                } else if ident == "FlowCtrl" {
                     InputType::FlowCtrl
                 } else {
                     InputType::UnKnow
