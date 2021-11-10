@@ -222,30 +222,30 @@ mod tests {
     #[tokio::test]
     async fn test_service() {
         #[fn_handler]
-        async fn before1(req: &mut Request, res: &mut Response) {
+        async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render_plain_text("before1");
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
                 ctrl.skip_reset();
             } else {
-                ctrl.call_next(req, res, ctrl);
+                ctrl.call_next(req, depot, res).await;
             }
         }
         #[fn_handler]
-        async fn before2(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render_plain_text("before2");
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
                 ctrl.skip_reset();
             } else {
-                ctrl.call_next(req, res, ctrl);
+                ctrl.call_next(req, depot, res).await;
             }
         }
         #[fn_handler]
-        async fn before3(req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
+        async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render_plain_text("before3");
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
                 ctrl.skip_reset();
             } else {
-                ctrl.call_next(req, res, ctrl);
+                ctrl.call_next(req, depot, res).await;
             }
         }
         #[fn_handler]
