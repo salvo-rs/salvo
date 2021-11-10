@@ -10,15 +10,13 @@ use crate::Handler;
 pub struct Router {
     pub(crate) routers: Vec<Router>,
     pub(crate) filters: Vec<Box<dyn Filter>>,
+    pub(crate) hoops: Vec<Arc<dyn Handler>>,
     pub(crate) handler: Option<Arc<dyn Handler>>,
-    pub(crate) befores: Vec<Arc<dyn Handler>>,
-    pub(crate) afters: Vec<Arc<dyn Handler>>,
 }
 #[doc(hidden)]
 pub struct DetectMatched {
-    pub handler: (u64, Arc<dyn Handler>),
-    pub befores: Vec<(u64, Arc<dyn Handler>)>,
-    pub afters: Vec<(u64, Arc<dyn Handler>)>,
+    pub hoops: Vec<Arc<dyn Handler>>,
+    pub handler: Arc<dyn Handler>,
 }
 
 impl Default for Router {
@@ -32,9 +30,8 @@ impl Router {
     pub fn new() -> Router {
         Router {
             routers: Vec::new(),
-            befores: Vec::new(),
-            afters: Vec::new(),
             filters: Vec::new(),
+            hoops: Vec::new(),
             handler: None,
         }
     }
@@ -50,26 +47,15 @@ impl Router {
         &mut self.routers
     }
 
-    /// Get current router's before middlewares reference.
+    /// Get current router's middlewares reference.
     #[inline]
-    pub fn befores(&self) -> &Vec<Arc<dyn Handler>> {
-        &self.befores
+    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.hoops
     }
-    /// Get current router's before middlewares mutable reference.
+    /// Get current router's middlewares mutable reference.
     #[inline]
-    pub fn befores_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
-        &mut self.befores
-    }
-
-    /// Get current router's after middlewares reference.
-    #[inline]
-    pub fn afters(&self) -> &Vec<Arc<dyn Handler>> {
-        &self.afters
-    }
-    /// Get current router's after middlewares mutable reference.
-    #[inline]
-    pub fn afters_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
-        &mut self.afters
+    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.hoops
     }
 
     /// Get current router's filters reference.
@@ -84,7 +70,7 @@ impl Router {
     }
 
     /// Detect current router is matched for current request.
-    pub fn detect(&self, req: &mut Request, path_state: &mut PathState, depth: u64) -> Option<DetectMatched> {
+    pub fn detect(&self, req: &mut Request, path_state: &mut PathState) -> Option<DetectMatched> {
         for filter in &self.filters {
             if !filter.filter(req, path_state) {
                 return None;
@@ -93,14 +79,9 @@ impl Router {
         if !self.routers.is_empty() {
             let original_cursor = path_state.cursor;
             for child in &self.routers {
-                if let Some(dm) = child.detect(req, path_state, depth + 1) {
-                    let self_befores: Vec<(u64, Arc<dyn Handler>)> =
-                        self.befores.iter().map(|before| (depth, Arc::clone(before))).collect();
-                    let self_afters: Vec<(u64, Arc<dyn Handler>)> =
-                        self.afters.iter().map(|after| (depth, Arc::clone(after))).collect();
+                if let Some(dm) = child.detect(req, path_state) {
                     return Some(DetectMatched {
-                        befores: [&self_befores[..], &dm.befores[..]].concat(),
-                        afters: [&dm.afters[..], &self_afters[..]].concat(),
+                        hoops: [&self.hoops[..], &dm.hoops[..]].concat(),
                         handler: dm.handler.clone(),
                     });
                 } else {
@@ -111,19 +92,8 @@ impl Router {
         if let Some(handler) = self.handler.clone() {
             if path_state.ended() {
                 return Some(DetectMatched {
-                    befores: self
-                        .befores
-                        .clone()
-                        .iter()
-                        .map(|before| (depth, Arc::clone(before)))
-                        .collect(),
-                    afters: self
-                        .afters
-                        .clone()
-                        .iter()
-                        .map(|after| (depth, Arc::clone(after)))
-                        .collect(),
-                    handler: (depth, handler.clone()),
+                    hoops: self.hoops.clone(),
+                    handler: handler.clone(),
                 });
             }
         }
@@ -144,33 +114,18 @@ impl Router {
         self
     }
 
-    /// Add a handler as middleware, it will run before the handler in current router or it's descendants
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
-    pub fn with_before<H: Handler>(handler: H) -> Self {
-        Router::new().before(handler)
+    pub fn with_hoop<H: Handler>(handler: H) -> Self {
+        Router::new().hoop(handler)
     }
 
-    /// Add a handler as middleware, it will run before the handler in current router or it's descendants
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
-    pub fn before<H: Handler>(mut self, handler: H) -> Self {
-        self.befores.push(Arc::new(handler));
-        self
-    }
-
-    /// Add a handler as middleware, it will run after the handler in current router or it's descendants
-    /// handle the request.
-    #[inline]
-    pub fn with_after<H: Handler>(handler: H) -> Self {
-        Router::new().after(handler)
-    }
-
-    /// Add a handler as middleware, it will run after the handler in current router or it's descendants
-    /// handle the request.
-    #[inline]
-    pub fn after<H: Handler>(mut self, handler: H) -> Self {
-        self.afters.push(Arc::new(handler));
+    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
+        self.hoops.push(Arc::new(handler));
         self
     }
 
@@ -292,7 +247,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -309,7 +264,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -326,7 +281,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
         let mut req: Request = hyper::Request::builder()
@@ -335,7 +290,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_some());
     }
@@ -353,7 +308,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_none());
 
@@ -363,7 +318,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -380,7 +335,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
         let mut req: Request = hyper::Request::builder()
@@ -389,7 +344,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
         assert_eq!(path_state.params["id"], "12");
     }
@@ -407,7 +362,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
         let mut req: Request = hyper::Request::builder()
@@ -416,7 +371,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -433,7 +388,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
         let mut req: Request = hyper::Request::builder()
@@ -442,7 +397,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -455,7 +410,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
         let mut req: Request = hyper::Request::builder()
@@ -464,7 +419,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
     #[test]
@@ -476,7 +431,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
         let mut req: Request = hyper::Request::builder()
@@ -485,7 +440,7 @@ mod tests {
             .unwrap()
             .into();
         let mut path_state = PathState::new(req.uri().path());
-        let matched = router.detect(&mut req, &mut path_state, 0);
+        let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
 }

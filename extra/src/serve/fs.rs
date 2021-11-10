@@ -2,6 +2,7 @@ use async_trait::async_trait;
 
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::errors::*;
+use salvo_core::routing::FlowCtrl;
 use salvo_core::Handler;
 use salvo_core::{Depot, Request, Response, Writer};
 
@@ -25,12 +26,13 @@ impl StaticFile {
 
 #[async_trait]
 impl Handler for StaticFile {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.0.clone().build().await {
             Ok(file) => file.write(req, depot, res).await,
             Err(_) => {
                 res.set_http_error(NotFound());
             }
         }
+        ctrl.skip_reset();
     }
 }

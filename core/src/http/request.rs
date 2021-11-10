@@ -245,7 +245,7 @@ impl Request {
         &mut self.headers
     }
 
-    /// Get header with supplied name and try to parse to a 'T', return None if failed or not found.
+    /// Get header with supplied name and try to parse to a 'T', returns None if failed or not found.
     #[inline]
     pub fn get_header<T>(&self, key: &str) -> Option<T>
     where

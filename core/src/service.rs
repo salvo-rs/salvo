@@ -8,9 +8,8 @@ use once_cell::sync::Lazy;
 
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::response::FlowState;
 use crate::http::{Mime, Request, Response, StatusCode};
-use crate::routing::{PathState, Router};
+use crate::routing::{FlowCtrl, PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
@@ -54,7 +53,7 @@ impl Service {
         self.catchers.clone()
     }
 
-    /// Set allowed media types list and return Self for wite code chained.
+    /// Set allowed media types list and returns Self for wite code chained.
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -68,7 +67,7 @@ impl Service {
         self.allowed_media_types.clone()
     }
 
-    /// Handle ```Request``` and return ```Response```.
+    /// Handle ```Request``` and returns ```Response```.
     pub async fn handle(&self, request: Request) -> Response {
         let handler = HyperHandler {
             remote_addr: None,
@@ -123,26 +122,19 @@ impl HyperHandler {
         let router = self.router.clone();
 
         async move {
-            if let Some(dm) = router.detect(&mut req, &mut path_state, 0) {
+            if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut max_depth = 0;
-                for (depth, handler) in [&dm.befores[..], &[dm.handler]].concat() {
-                    handler.handle(&mut req, &mut depot, &mut res).await;
-                    max_depth = depth;
-                    if res.flow_state() >= FlowState::Bubbling {
-                        break;
+                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
+                ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                if ctrl.has_next() {
+                    let allow_reset = res
+                        .status_code()
+                        .map(|code| !code.is_success() || code.is_redirection())
+                        .unwrap_or(false);
+                    if !allow_reset {
+                        tracing::error!("ctrl has_next should return false");
                     }
                 }
-                if res.flow_state() != FlowState::Commited {
-                    res.set_flow_state(FlowState::Bubbling); // Ensure flow state is Bubbling.
-                                                             // Ensure these after handlers must be executed
-                    for (depth, handler) in &dm.afters {
-                        if *depth <= max_depth {
-                            handler.handle(&mut req, &mut depot, &mut res).await;
-                        }
-                    }
-                }
-                res.set_flow_state(FlowState::Commited);
             } else {
                 res.set_status_code(StatusCode::NOT_FOUND);
             }
@@ -225,56 +217,46 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 
 #[cfg(test)]
 mod tests {
-    use crate::http::response::FlowState;
     use crate::prelude::*;
+    use crate::routing::FlowCtrl;
 
     #[tokio::test]
     async fn test_service() {
         #[fn_handler]
-        async fn before1(req: &mut Request, res: &mut Response) {
+        async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            res.render_plain_text("before1");
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
-                res.set_flow_state(FlowState::Bubbling);
+                ctrl.skip_reset();
             } else {
-                res.render_plain_text("before1");
+                ctrl.call_next(req, depot, res).await;
             }
         }
         #[fn_handler]
-        async fn before2(req: &mut Request, res: &mut Response) {
+        async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            res.render_plain_text("before2");
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
-                res.set_flow_state(FlowState::Bubbling);
+                ctrl.skip_reset();
             } else {
-                res.render_plain_text("before2");
+                ctrl.call_next(req, depot, res).await;
             }
         }
         #[fn_handler]
-        async fn before3(req: &mut Request, res: &mut Response) {
+        async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            res.render_plain_text("before3");
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
-                res.set_flow_state(FlowState::Bubbling);
+                ctrl.skip_reset();
             } else {
-                res.render_plain_text("before3");
+                ctrl.call_next(req, depot, res).await;
             }
-        }
-        #[fn_handler]
-        async fn after1() -> &'static str {
-            "after1"
-        }
-        #[fn_handler]
-        async fn after2() -> &'static str {
-            "after2"
-        }
-        #[fn_handler]
-        async fn after3() -> &'static str {
-            "after3"
         }
         #[fn_handler]
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }
-        let router = Router::with_path("level1").before(before1).after(after1).push(
-            Router::with_before(before2)
-                .after(after2)
+        let router = Router::with_path("level1").hoop(before1).push(
+            Router::with_hoop(before2)
                 .path("level2")
-                .push(Router::with_before(before3).after(after3).path("hello").handle(hello)),
+                .push(Router::with_hoop(before3).path("hello").handle(hello)),
         );
         let service = Service::new(router);
 
@@ -288,12 +270,12 @@ mod tests {
             service.handle(req).await.take_text().await.unwrap()
         }
         let content = access(&service, "").await;
-        assert_eq!(content, "before1before2before3helloafter3after2after1");
+        assert_eq!(content, "before1before2before3hello");
         let content = access(&service, "1").await;
-        assert_eq!(content, "after1");
+        assert_eq!(content, "before1");
         let content = access(&service, "2").await;
-        assert_eq!(content, "before1after2after1");
+        assert_eq!(content, "before1before2");
         let content = access(&service, "3").await;
-        assert_eq!(content, "before1before2after3after2after1");
+        assert_eq!(content, "before1before2before3");
     }
 }

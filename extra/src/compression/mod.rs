@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
+use salvo_core::routing::FlowCtrl;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 
@@ -107,7 +108,11 @@ impl CompressionHandler {
 
 #[async_trait]
 impl Handler for CompressionHandler {
-    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        ctrl.call_next(req, depot, res).await;
+        if ctrl.is_ceased() {
+            return;
+        }
         let content_type = res
             .headers()
             .get(CONTENT_TYPE)
@@ -181,7 +186,7 @@ impl Handler for CompressionHandler {
 /// use salvo_extra::serve::StaticFile;
 ///
 /// let router = Router::new()
-///     .after(compression::gzip())
+///     .hoop(compression::gzip())
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn gzip() -> CompressionHandler {
@@ -199,7 +204,7 @@ pub fn gzip() -> CompressionHandler {
 /// use salvo_extra::serve::StaticFile;
 ///
 /// let router = Router::new()
-///     .after(compression::deflate())
+///     .hoop(compression::deflate())
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn deflate() -> CompressionHandler {
@@ -217,7 +222,7 @@ pub fn deflate() -> CompressionHandler {
 /// use salvo_extra::serve::StaticFile;
 ///
 /// let router = Router::new()
-///     .after(compression::brotli())
+///     .hoop(compression::brotli())
 ///     .get(StaticFile::new("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
@@ -239,7 +244,7 @@ mod tests {
     #[tokio::test]
     async fn test_gzip() {
         let comp_handler = gzip().with_min_length(1);
-        let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()
@@ -257,7 +262,7 @@ mod tests {
     #[tokio::test]
     async fn test_brotli() {
         let comp_handler = brotli().with_min_length(1);
-        let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()
@@ -275,7 +280,7 @@ mod tests {
     #[tokio::test]
     async fn test_deflate() {
         let comp_handler = deflate().with_min_length(1);
-        let router = Router::with_after(comp_handler).push(Router::with_path("hello").get(hello));
+        let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
         let request = hyper::Request::builder()

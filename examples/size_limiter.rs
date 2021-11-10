@@ -35,7 +35,7 @@ async fn main() {
         .get(index)
         .push(
             Router::new()
-                .before(max_size(1024 * 1024 * 10))
+                .hoop(max_size(1024 * 1024 * 10))
                 .path("limited")
                 .post(upload),
         )

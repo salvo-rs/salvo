@@ -1,4 +1,5 @@
 //! The extra lib of Savlo web server framework.
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -25,6 +26,8 @@ pub mod csrf;
 pub mod proxy;
 #[cfg(feature = "serve")]
 pub mod serve;
+#[cfg(feature = "session")]
+pub mod session;
 #[cfg(feature = "sse")]
 pub mod sse;
 #[cfg(feature = "ws")]

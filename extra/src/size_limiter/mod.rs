@@ -4,15 +4,19 @@ use async_trait::async_trait;
 use salvo_core::http::errors::*;
 use salvo_core::http::HttpBody;
 use salvo_core::prelude::*;
+use salvo_core::routing::FlowCtrl;
 
 /// MaxSizeHandler
 pub struct MaxSizeHandler(u64);
 #[async_trait]
 impl Handler for MaxSizeHandler {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
             if upper > self.0 {
                 res.set_http_error(PayloadTooLarge());
+                ctrl.skip_reset();
+            } else {
+                ctrl.call_next(req, depot, res).await;
             }
         }
     }
@@ -38,7 +42,7 @@ mod tests {
     async fn test_size_limiter() {
         let limit_handler = MaxSizeHandler(32);
         let router = Router::new()
-            .before(limit_handler)
+            .hoop(limit_handler)
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 

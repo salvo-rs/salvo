@@ -65,7 +65,7 @@ async fn user_connected(_req: &mut Request, res: &mut Response) {
     // Save the sender in our list of connected users.
     ONLINE_USERS.lock().unwrap().insert(my_id, tx);
 
-    // Convert messages into Server-Sent Events and return resulting stream.
+    // Convert messages into Server-Sent Events and returns resulting stream.
     let stream = rx.map(|msg| match msg {
         Message::UserId(my_id) => Ok::<_, salvo_core::Error>(SseEvent::default().name("user").data(my_id.to_string())),
         Message::Reply(reply) => Ok(SseEvent::default().data(reply)),

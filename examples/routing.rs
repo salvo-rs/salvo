@@ -9,7 +9,7 @@ async fn main() {
         .get(index)
         .push(
             Router::with_path("users")
-                .before(auth)
+                .hoop(auth)
                 .post(create_user)
                 .push(Router::with_path(r"<id:num>").post(update_user).delete(delete_user)),
         )

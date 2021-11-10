@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\core",
+    "\\core\\src",
+    "\\core\\src\\http",
+    "\\src"
+  ],
+  "SelectedNode": "\\core\\src\\http\\request.rs",
+  "PreviewInSolutionExplorer": false
+}

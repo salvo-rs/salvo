@@ -1,4 +1,5 @@
 //! The core lib of Savlo web server framework.
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -45,8 +46,7 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
-    pub use crate::routing::filter;
-    pub use crate::routing::Router;
+    pub use crate::routing::{filter, Router};
     pub use crate::server::Server;
     #[cfg(feature = "tls")]
     pub use crate::server::TlsServer;

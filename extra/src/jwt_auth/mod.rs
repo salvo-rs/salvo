@@ -9,10 +9,9 @@ use std::marker::PhantomData;
 
 use salvo_core::http::errors::*;
 use salvo_core::http::header::AUTHORIZATION;
-use salvo_core::http::Method;
-use salvo_core::http::{Request, Response};
-use salvo_core::Depot;
-use salvo_core::Handler;
+use salvo_core::http::{Method, Request, Response};
+use salvo_core::routing::FlowCtrl;
+use salvo_core::{Depot, Handler};
 
 /// key used to insert auth claims data to depot.
 pub const AUTH_CLAIMS_KEY: &str = "::salvo::extra::jwt_auth::auth_claims";
@@ -35,9 +34,9 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     ]
 });
 
-/// JwtExtractor
+/// JwtTokenExtractor
 #[async_trait]
-pub trait JwtExtractor: Send + Sync {
+pub trait JwtTokenExtractor: Send + Sync {
     /// Get token from request.
     async fn get_token(&self, req: &mut Request) -> Option<String>;
 }
@@ -66,14 +65,14 @@ impl HeaderExtractor {
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and return Self.
+    /// Set cated methods list and returns Self.
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
     }
 }
 #[async_trait]
-impl JwtExtractor for HeaderExtractor {
+impl JwtTokenExtractor for HeaderExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             if let Some(auth) = req.headers().get(AUTHORIZATION) {
@@ -120,7 +119,7 @@ impl FormExtractor {
     }
 }
 #[async_trait]
-impl JwtExtractor for FormExtractor {
+impl JwtTokenExtractor for FormExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             req.get_form(&self.field_name).await
@@ -163,7 +162,7 @@ impl QueryExtractor {
 }
 
 #[async_trait]
-impl JwtExtractor for QueryExtractor {
+impl JwtTokenExtractor for QueryExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             req.get_query(&self.query_name)
@@ -211,7 +210,7 @@ impl CookieExtractor {
     }
 }
 #[async_trait]
-impl JwtExtractor for CookieExtractor {
+impl JwtTokenExtractor for CookieExtractor {
     async fn get_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             req.get_cookie(&self.cookie_name).map(|c| c.value().to_owned())
@@ -244,20 +243,18 @@ pub trait JwtAuthDepotExt {
 
 impl JwtAuthDepotExt for Depot {
     fn jwt_auth_token(&self) -> Option<&String> {
-        self.try_borrow(AUTH_TOKEN_KEY)
+        self.get(AUTH_TOKEN_KEY)
     }
 
     fn jwt_auth_claims<C>(&self) -> Option<&C>
     where
         C: DeserializeOwned + Sync + Send + 'static,
     {
-        self.try_borrow(AUTH_CLAIMS_KEY)
+        self.get(AUTH_CLAIMS_KEY)
     }
 
     fn jwt_auth_state(&self) -> JwtAuthState {
-        self.try_borrow(AUTH_STATE_KEY)
-            .cloned()
-            .unwrap_or(JwtAuthState::Unauthorized)
+        self.get(AUTH_STATE_KEY).cloned().unwrap_or(JwtAuthState::Unauthorized)
     }
 }
 
@@ -267,7 +264,7 @@ pub struct JwtAuthHandler<C> {
     response_error: bool,
     claims: PhantomData<C>,
     validation: Validation,
-    extractors: Vec<Box<dyn JwtExtractor>>,
+    extractors: Vec<Box<dyn JwtTokenExtractor>>,
 }
 
 impl<C> JwtAuthHandler<C>
@@ -316,17 +313,17 @@ where
 
     /// Get extractor list reference.
     #[inline]
-    pub fn extractors(&self) -> &Vec<Box<dyn JwtExtractor>> {
+    pub fn extractors(&self) -> &Vec<Box<dyn JwtTokenExtractor>> {
         &self.extractors
     }
     /// Get extractor list mutable reference.
     #[inline]
-    pub fn extractors_mut(&mut self) -> &mut Vec<Box<dyn JwtExtractor>> {
+    pub fn extractors_mut(&mut self) -> &mut Vec<Box<dyn JwtTokenExtractor>> {
         &mut self.extractors
     }
     /// Set extractor list with new value and return Self.
     #[inline]
-    pub fn with_extractors(mut self, extractors: Vec<Box<dyn JwtExtractor>>) -> Self {
+    pub fn with_extractors(mut self, extractors: Vec<Box<dyn JwtTokenExtractor>>) -> Self {
         self.extractors = extractors;
         self
     }
@@ -347,7 +344,7 @@ impl<C> Handler for JwtAuthHandler<C>
 where
     C: DeserializeOwned + Sync + Send + 'static,
 {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         for extractor in &self.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
@@ -357,15 +354,20 @@ where
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     if self.response_error {
                         res.set_http_error(Forbidden());
+                        ctrl.skip_reset();
                     }
                 }
                 depot.insert(AUTH_TOKEN_KEY, token);
+                ctrl.call_next(req, depot, res).await;
                 return;
             }
         }
         depot.insert(AUTH_STATE_KEY, JwtAuthState::Unauthorized);
         if self.response_error {
             res.set_http_error(Unauthorized());
+            ctrl.skip_reset();
+        } else {
+            ctrl.call_next(req, depot, res).await;
         }
     }
 }
@@ -400,7 +402,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .before(auth_handler)
+            .hoop(auth_handler)
             .push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 

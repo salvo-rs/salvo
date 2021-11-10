@@ -10,7 +10,7 @@
 //!     .with_allow_origin("https://salvo.rs")
 //!     .with_allow_methods(vec!["GET", "POST", "DELETE"]).build();
 //!
-//! let router = Router::new().before(cors_handler).post(upload_file);
+//! let router = Router::new().hoop(cors_handler).post(upload_file);
 //! #[fn_handler]
 //! async fn upload_file(res: &mut Response) {
 //! }
@@ -34,6 +34,7 @@ use salvo_core::http::headers::{
     AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
 };
 use salvo_core::http::{Method, Request, Response, StatusCode};
+use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
 /// A constructed via `salvo_extra::cors::CorsHandler::builder()`.
@@ -333,7 +334,7 @@ pub struct CorsHandler {
     methods_header: AccessControlAllowMethods,
 }
 impl CorsHandler {
-    /// Return `HandlerBuilder` instance for build `CorsHandler`.
+    /// Returns `HandlerBuilder` instance for build `CorsHandler`.
     #[inline]
     pub fn builder() -> HandlerBuilder {
         HandlerBuilder::default()
@@ -431,23 +432,28 @@ impl CorsHandler {
 
 #[async_trait]
 impl Handler for CorsHandler {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let validated = self.check_request(req.method(), req.headers());
 
         match validated {
             Ok(Validated::Preflight(origin)) => {
                 self.append_preflight_headers(res.headers_mut());
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+                ctrl.call_next(req, depot, res).await;
             }
             Ok(Validated::Simple(origin)) => {
                 self.append_common_headers(res.headers_mut());
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+                ctrl.call_next(req, depot, res).await;
             }
             Err(err) => {
                 tracing::error!(error = %err, "CorsHandler validate error");
                 res.set_status_code(StatusCode::FORBIDDEN);
+                ctrl.skip_reset();
             }
-            _ => {}
+            _ => {
+                ctrl.call_next(req, depot, res).await;
+            }
         }
     }
 }
@@ -516,7 +522,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .before(cors_handler)
+            .hoop(cors_handler)
             .push(Router::with_path("hello").handle(hello));
         let service = Service::new(router);
 

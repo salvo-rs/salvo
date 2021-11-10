@@ -1,3 +1,8 @@
+### 0.15.0
+- core: depot api changed.
+- core: change trait ```Handler``` and add ```FlowCtrl```.
+- extra: add session supports.
+
 ### 0.14.0
 - core::http: Request and Response's from_hyper function removed and impl From trait now.
 - core::http: Cleanup HttpError.
