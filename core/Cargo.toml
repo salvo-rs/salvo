@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.15.1"
+version = "0.15.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
@@ -51,7 +51,7 @@ serde_json = "1"
 tempdir = "0.3"
 textnonce = "1"
 thiserror = "1"
-tokio = { version = "1.5", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
 tokio-stream = { version = "0.1", features = ["net"] }
