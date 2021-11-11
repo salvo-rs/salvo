@@ -167,7 +167,14 @@ impl TlsListenerBuilder {
     }
 
     /// Build new `TlsListener`
-    pub fn bind(mut self, addr: impl Into<SocketAddr>) -> Result<TlsListener, TlsListenerError> {
+    pub fn bind(self, addr: impl Into<SocketAddr>) -> Result<TlsListener, TlsListenerError> {
+        let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsListenerError::Hyper)?;
+        incoming.set_nodelay(true);
+        let config = self.build_config()?;
+        Ok(TlsListener::new(config, incoming))
+    }
+
+    pub(crate) fn build_config(mut self) -> Result<ServerConfig, TlsListenerError>{
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
             .map_err(|_| TlsListenerError::CertParseError)?
@@ -227,9 +234,7 @@ impl TlsListenerBuilder {
             .with_client_cert_verifier(client_auth)
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
             .map_err(TlsListenerError::InvalidKey)?;
-        let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsListenerError::Hyper)?;
-        incoming.set_nodelay(true);
-        Ok(TlsListener::new(config, incoming))
+        Ok(config)
     }
 }
 
@@ -373,28 +378,28 @@ impl AsyncWrite for TlsStream {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn file_cert_key() {
-//         TlsListener::builder()
-//             .with_key_path("../../examples/tls/key.rsa")
-//             .with_cert_path("../../examples/tls/cert.pem")
-//             .build()
-//             .unwrap();
-//     }
+    #[test]
+    fn file_cert_key() {
+        TlsListener::builder()
+            .with_key_path("../examples/tls/key.rsa")
+            .with_cert_path("../examples/tls/cert.pem")
+            .build_config()
+            .unwrap();
+    }
 
-//     #[test]
-//     fn bytes_cert_key() {
-//         let key = include_str!("../../../examples/tls/key.rsa");
-//         let cert = include_str!("../../../examples/tls/cert.pem");
+    #[test]
+    fn bytes_cert_key() {
+        let key = include_str!("../../../examples/tls/key.rsa");
+        let cert = include_str!("../../../examples/tls/cert.pem");
 
-//         TlsListener::builder()
-//             .with_key(key.as_bytes())
-//             .with_cert(cert.as_bytes())
-//             .build()
-//             .unwrap();
-//     }
-// }
+        TlsListener::builder()
+            .with_key(key.as_bytes())
+            .with_cert(cert.as_bytes())
+            .build_config()
+            .unwrap();
+    }
+}
