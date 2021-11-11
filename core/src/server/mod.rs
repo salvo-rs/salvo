@@ -216,7 +216,6 @@ mod tests {
     use serde::Serialize;
 
     use crate::prelude::*;
-    use crate::server::TcpListener;
 
     #[tokio::test]
     async fn test_server() {
