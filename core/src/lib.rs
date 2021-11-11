@@ -33,7 +33,7 @@ pub use self::routing::Router;
 pub use self::server::TlsListener;
 #[cfg(unix)]
 pub use self::server::UnixListener;
-pub use self::server::{Server, TcpListener, JoinedListener};
+pub use self::server::{JoinedListener, Server, TcpListener};
 pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
@@ -47,11 +47,11 @@ pub mod prelude {
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
-    pub use crate::server::{TcpListener, JoinedListener, Server};
     #[cfg(feature = "tls")]
     pub use crate::server::TlsListener;
     #[cfg(unix)]
     pub use crate::server::UnixListener;
+    pub use crate::server::{JoinedListener, Server, TcpListener};
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
@@ -80,7 +80,7 @@ fn new_runtime(threads: usize) -> Runtime {
 ///     "Hello World"
 /// }
 /// fn main() {
-/// 
+///
 ///    let service = Service::new(Router::new().get(hello_world));
 ///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
 ///    salvo_core::start(server);

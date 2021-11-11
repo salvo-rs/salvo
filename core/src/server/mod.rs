@@ -195,8 +195,6 @@ impl Transport for UnixStream {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use serde::Serialize;
