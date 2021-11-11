@@ -14,7 +14,10 @@ async fn main() {
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-    Server::new(router).bind(([0, 0, 0, 0], 3040)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }
 
 #[fn_handler]

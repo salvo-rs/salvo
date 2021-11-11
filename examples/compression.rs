@@ -26,5 +26,8 @@ async fn main() {
                 .path("examples/<*path>")
                 .get(StaticDir::new("examples/")),
         );
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }

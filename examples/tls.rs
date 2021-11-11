@@ -10,10 +10,10 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    Server::new(router)
-        .tls()
-        .cert_path("examples/tls/cert.pem")
-        .key_path("examples/tls/key.rsa")
+    let listener = TlsListener::builder()
+        .with_cert_path("examples/tls/cert.pem")
+        .with_key_path("examples/tls/key.rsa")
         .bind(([0, 0, 0, 0], 7878))
-        .await;
+        .unwrap();
+    Server::builder(listener).serve(Service::new(router)).await.unwrap();
 }
