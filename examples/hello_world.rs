@@ -34,7 +34,7 @@ async fn main() {
         .push(Router::with_path("hello4").get(hello_world4));
     // Server::bind(&"127.0.0.1:7878".parse().unwrap())
     //     .serve(Service::new(router))
-    //     .await;
+    //     .await.unwrap();
     Server::builder(TcpListener::bind(([0, 0, 0, 0], 7878)).unwrap())
         .serve(Service::new(router))
         .await
