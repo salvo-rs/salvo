@@ -21,6 +21,7 @@ use tokio_rustls::rustls::server::{
 use tokio_rustls::rustls::{Certificate, Error as TlsError, PrivateKey, RootCertStore};
 
 use crate::transport::Transport;
+use super::Listener;
 
 /// Represents errors that can occur building the TlsListener
 #[derive(Debug, Error)]
@@ -157,6 +158,7 @@ impl TlsListenerBuilder {
         let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
         self.client_auth = TlsClientAuth::Required(cursor);
         self
+    }
 
     /// sets the DER-encoded OCSP response
     pub fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {

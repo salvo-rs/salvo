@@ -221,7 +221,7 @@ mod tests {
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
         tokio::task::spawn(async {
-            Server::builder(TcpListener::bind(([0, 0, 0, 0], 7878)).unwrap())
+            Server::builder(TcpListener::bind(([0, 0, 0, 0], 7979)).unwrap())
                 .serve(Service::new(router))
                 .await
                 .unwrap();
