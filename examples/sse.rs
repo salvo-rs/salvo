@@ -36,5 +36,8 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::with_path("ticks").get(handle_tick);
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }

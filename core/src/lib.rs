@@ -14,10 +14,8 @@ pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
-mod server;
+pub mod server;
 mod service;
-#[cfg(feature = "tls")]
-mod tls;
 mod transport;
 pub mod writer;
 
@@ -31,9 +29,11 @@ pub use self::error::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
-pub use self::server::Server;
 #[cfg(feature = "tls")]
-pub use self::server::TlsServer;
+pub use self::server::TlsListener;
+#[cfg(unix)]
+pub use self::server::UnixListener;
+pub use self::server::{JoinedListener, Server, TcpListener};
 pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
@@ -47,9 +47,11 @@ pub mod prelude {
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
-    pub use crate::server::Server;
     #[cfg(feature = "tls")]
-    pub use crate::server::TlsServer;
+    pub use crate::server::TlsListener;
+    #[cfg(unix)]
+    pub use crate::server::UnixListener;
+    pub use crate::server::{JoinedListener, Server, TcpListener};
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
@@ -78,7 +80,9 @@ fn new_runtime(threads: usize) -> Runtime {
 ///     "Hello World"
 /// }
 /// fn main() {
-///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+///
+///    let service = Service::new(Router::new().get(hello_world));
+///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
 ///    salvo_core::start(server);
 /// }
 /// ```
@@ -95,7 +99,8 @@ pub fn start<F: Future>(future: F) {
 ///     "Hello World"
 /// }
 /// fn main() {
-///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+///    let service = Service::new(Router::new().get(hello_world));
+///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
 ///    salvo_core::start_with_threads(server, 8);
 /// }
 /// ```

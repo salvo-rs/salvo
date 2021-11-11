@@ -54,6 +54,8 @@ thiserror = "1"
 tokio = { version = "1.5", features = ["full"] }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
+tokio-stream = { version = "0.1", features = ["net"] }
+fastrand = "1.5.0"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }

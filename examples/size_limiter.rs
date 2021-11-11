@@ -40,7 +40,10 @@ async fn main() {
                 .post(upload),
         )
         .push(Router::with_path("unlimit").post(upload));
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }
 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>

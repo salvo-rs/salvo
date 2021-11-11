@@ -1,7 +1,4 @@
-// Copyright (c) 2018-2020 Sean McArthur
-// Licensed under the MIT license http://opensource.org/licenses/MIT
-//
-// port from https://github.com/seanmonstar/warp/blob/master/src/tls.rs
+//! tls module
 
 use std::fs::File;
 use std::future::Future;
@@ -16,44 +13,41 @@ use futures_util::ready;
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
+use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, ServerConfig,
 };
 use tokio_rustls::rustls::{Certificate, Error as TlsError, PrivateKey, RootCertStore};
 
+use super::Listener;
 use crate::transport::Transport;
 
-/// Represents errors that can occur building the TlsConfig
-#[derive(Debug)]
-pub(crate) enum TlsConfigError {
+/// Represents errors that can occur building the TlsListener
+#[derive(Debug, Error)]
+pub enum TlsListenerError {
+    /// Hyper error
+    #[error("hyper error")]
+    Hyper(hyper::Error),
+    /// An IO error
+    #[error("io error")]
     Io(io::Error),
     /// An Error parsing the Certificate
+    #[error("certificate parse error")]
     CertParseError,
     /// An Error parsing a Pkcs8 key
+    #[error("pkcs8 parse error")]
     Pkcs8ParseError,
     /// An Error parsing a Rsa key
+    #[error("rsa parse error")]
     RsaParseError,
     /// An error from an empty key
+    #[error("key contains no private key")]
     EmptyKey,
     /// An error from an invalid key
+    #[error("key contains an invalid key, {0}")]
     InvalidKey(TlsError),
 }
-
-impl std::fmt::Display for TlsConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TlsConfigError::Io(err) => err.fmt(f),
-            TlsConfigError::CertParseError => write!(f, "certificate parse error"),
-            TlsConfigError::Pkcs8ParseError => write!(f, "pkcs8 parse error"),
-            TlsConfigError::RsaParseError => write!(f, "rsa parse error"),
-            TlsConfigError::EmptyKey => write!(f, "key contains no private key"),
-            TlsConfigError::InvalidKey(err) => write!(f, "key contains an invalid key, {}", err),
-        }
-    }
-}
-
-impl std::error::Error for TlsConfigError {}
 
 /// Tls client authentication configuration.
 pub(crate) enum TlsClientAuth {
@@ -66,23 +60,23 @@ pub(crate) enum TlsClientAuth {
 }
 
 /// Builder to set the configuration for the Tls server.
-pub(crate) struct TlsConfigBuilder {
+pub struct TlsListenerBuilder {
     cert: Box<dyn Read + Send + Sync>,
     key: Box<dyn Read + Send + Sync>,
     client_auth: TlsClientAuth,
     ocsp_resp: Vec<u8>,
 }
 
-impl std::fmt::Debug for TlsConfigBuilder {
+impl std::fmt::Debug for TlsListenerBuilder {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        f.debug_struct("TlsConfigBuilder").finish()
+        f.debug_struct("TlsListenerBuilder").finish()
     }
 }
 
-impl TlsConfigBuilder {
-    /// Create a new TlsConfigBuilder
-    pub(crate) fn new() -> TlsConfigBuilder {
-        TlsConfigBuilder {
+impl TlsListenerBuilder {
+    /// Create a new TlsListenerBuilder
+    pub fn new() -> Self {
+        TlsListenerBuilder {
             key: Box::new(io::empty()),
             cert: Box::new(io::empty()),
             client_auth: TlsClientAuth::Off,
@@ -90,8 +84,8 @@ impl TlsConfigBuilder {
         }
     }
 
-    /// sets the Tls key via File Path, returns `TlsConfigError::IoError` if the file cannot be open
-    pub(crate) fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
+    /// sets the Tls key via File Path, returns `TlsListenerError::IoError` if the file cannot be open
+    pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -100,13 +94,13 @@ impl TlsConfigBuilder {
     }
 
     /// sets the Tls key via bytes slice
-    pub(crate) fn with_key(mut self, key: &[u8]) -> Self {
+    pub fn with_key(mut self, key: &[u8]) -> Self {
         self.key = Box::new(Cursor::new(Vec::from(key)));
         self
     }
 
     /// Specify the file path for the TLS certificate to use.
-    pub(crate) fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
         self.cert = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -115,7 +109,7 @@ impl TlsConfigBuilder {
     }
 
     /// sets the Tls certificate via bytes slice
-    pub(crate) fn with_cert(mut self, cert: &[u8]) -> Self {
+    pub fn with_cert(mut self, cert: &[u8]) -> Self {
         self.cert = Box::new(Cursor::new(Vec::from(cert)));
         self
     }
@@ -124,7 +118,7 @@ impl TlsConfigBuilder {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn with_client_auth_optional_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub fn with_client_auth_optional_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -137,7 +131,7 @@ impl TlsConfigBuilder {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn with_client_auth_optional(mut self, trust_anchor: &[u8]) -> Self {
+    pub fn with_client_auth_optional(mut self, trust_anchor: &[u8]) -> Self {
         let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
         self.client_auth = TlsClientAuth::Optional(cursor);
         self
@@ -147,7 +141,7 @@ impl TlsConfigBuilder {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn with_client_auth_required_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub fn with_client_auth_required_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
             file: None,
@@ -160,22 +154,23 @@ impl TlsConfigBuilder {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    pub(crate) fn with_client_auth_required(mut self, trust_anchor: &[u8]) -> Self {
+    pub fn with_client_auth_required(mut self, trust_anchor: &[u8]) -> Self {
         let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
         self.client_auth = TlsClientAuth::Required(cursor);
         self
     }
 
     /// sets the DER-encoded OCSP response
-    pub(crate) fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
+    pub fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
         self.ocsp_resp = Vec::from(ocsp_resp);
         self
     }
 
-    pub(crate) fn build(mut self) -> Result<ServerConfig, TlsConfigError> {
+    /// Build new `TlsListener`
+    pub fn bind(mut self, addr: impl Into<SocketAddr>) -> Result<TlsListener, TlsListenerError> {
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
-            .map_err(|_| TlsConfigError::CertParseError)?
+            .map_err(|_| TlsListenerError::CertParseError)?
             .into_iter()
             .map(Certificate)
             .collect();
@@ -183,33 +178,34 @@ impl TlsConfigBuilder {
         let key = {
             // convert it to Vec<u8> to allow reading it again if key is RSA
             let mut key_vec = Vec::new();
-            self.key.read_to_end(&mut key_vec).map_err(TlsConfigError::Io)?;
+            self.key.read_to_end(&mut key_vec).map_err(TlsListenerError::Io)?;
 
             if key_vec.is_empty() {
-                return Err(TlsConfigError::EmptyKey);
+                return Err(TlsListenerError::EmptyKey);
             }
 
-            let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsConfigError::Pkcs8ParseError)?;
+            let mut pkcs8 =
+                pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::Pkcs8ParseError)?;
 
             if !pkcs8.is_empty() {
                 pkcs8.remove(0)
             } else {
-                let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsConfigError::RsaParseError)?;
+                let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::RsaParseError)?;
 
                 if !rsa.is_empty() {
                     rsa.remove(0)
                 } else {
-                    return Err(TlsConfigError::EmptyKey);
+                    return Err(TlsListenerError::EmptyKey);
                 }
             }
         };
 
-        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, TlsConfigError> {
+        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, TlsListenerError> {
             let mut reader = BufReader::new(trust_anchor);
-            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| TlsConfigError::RsaParseError)?;
+            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| TlsListenerError::RsaParseError)?;
             let mut store = RootCertStore::empty();
             if let (0, _) = store.add_parsable_certificates(&certs) {
-                Err(TlsConfigError::CertParseError)
+                Err(TlsListenerError::CertParseError)
             } else {
                 Ok(store)
             }
@@ -227,11 +223,51 @@ impl TlsConfigBuilder {
             .with_safe_default_cipher_suites()
             .with_safe_default_kx_groups()
             .with_safe_default_protocol_versions()
-            .map_err(|_| TlsConfigError::RsaParseError)?
+            .map_err(|_| TlsListenerError::RsaParseError)?
             .with_client_cert_verifier(client_auth)
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
-            .map_err(TlsConfigError::InvalidKey)?;
-        Ok(config)
+            .map_err(TlsListenerError::InvalidKey)?;
+        let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsListenerError::Hyper)?;
+        incoming.set_nodelay(true);
+        Ok(TlsListener::new(config, incoming))
+    }
+}
+
+/// TlsListener
+pub struct TlsListener {
+    config: Arc<ServerConfig>,
+    incoming: AddrIncoming,
+}
+
+impl TlsListener {
+    pub(crate) fn new<C>(config: C, incoming: AddrIncoming) -> Self
+    where
+        C: Into<Arc<ServerConfig>>,
+    {
+        TlsListener {
+            config: config.into(),
+            incoming,
+        }
+    }
+
+    /// Returns `TlsListenerBuilder`
+    pub fn builder() -> TlsListenerBuilder {
+        TlsListenerBuilder::new()
+    }
+}
+
+impl Listener for TlsListener {}
+impl Accept for TlsListener {
+    type Conn = TlsStream;
+    type Error = io::Error;
+
+    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let pin = self.get_mut();
+        match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
+            Some(Ok(sock)) => Poll::Ready(Some(Ok(TlsStream::new(sock, pin.config.clone())))),
+            Some(Err(e)) => Poll::Ready(Some(Err(e))),
+            None => Poll::Ready(None),
+        }
     }
 }
 
@@ -265,10 +301,10 @@ enum State {
     Streaming(tokio_rustls::server::TlsStream<AddrStream>),
 }
 
-// tokio_rustls::server::TlsStream doesn't expose constructor methods,
-// so we have to TlsAcceptor::accept and handshake to have access to it
-// TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
-pub(crate) struct TlsStream {
+/// tokio_rustls::server::TlsStream doesn't expose constructor methods,
+/// so we have to TlsAcceptor::accept and handshake to have access to it
+/// TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
+pub struct TlsStream {
     state: State,
     remote_addr: SocketAddr,
 }
@@ -337,56 +373,28 @@ impl AsyncWrite for TlsStream {
     }
 }
 
-pub(crate) struct TlsAcceptor {
-    config: Arc<ServerConfig>,
-    incoming: AddrIncoming,
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-impl TlsAcceptor {
-    pub(crate) fn new(config: ServerConfig, incoming: AddrIncoming) -> TlsAcceptor {
-        TlsAcceptor {
-            config: Arc::new(config),
-            incoming,
-        }
-    }
-}
+//     #[test]
+//     fn file_cert_key() {
+//         TlsListener::builder()
+//             .with_key_path("../../examples/tls/key.rsa")
+//             .with_cert_path("../../examples/tls/cert.pem")
+//             .build()
+//             .unwrap();
+//     }
 
-impl Accept for TlsAcceptor {
-    type Conn = TlsStream;
-    type Error = io::Error;
+//     #[test]
+//     fn bytes_cert_key() {
+//         let key = include_str!("../../../examples/tls/key.rsa");
+//         let cert = include_str!("../../../examples/tls/cert.pem");
 
-    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let pin = self.get_mut();
-        match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
-            Some(Ok(sock)) => Poll::Ready(Some(Ok(TlsStream::new(sock, pin.config.clone())))),
-            Some(Err(e)) => Poll::Ready(Some(Err(e))),
-            None => Poll::Ready(None),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn file_cert_key() {
-        TlsConfigBuilder::new()
-            .with_key_path("../examples/tls/key.rsa")
-            .with_cert_path("../examples/tls/cert.pem")
-            .build()
-            .unwrap();
-    }
-
-    #[test]
-    fn bytes_cert_key() {
-        let key = include_str!("../../examples/tls/key.rsa");
-        let cert = include_str!("../../examples/tls/cert.pem");
-
-        TlsConfigBuilder::new()
-            .with_key(key.as_bytes())
-            .with_cert(cert.as_bytes())
-            .build()
-            .unwrap();
-    }
-}
+//         TlsListener::builder()
+//             .with_key(key.as_bytes())
+//             .with_cert(cert.as_bytes())
+//             .build()
+//             .unwrap();
+//     }
+// }
