@@ -46,7 +46,7 @@ size_limiter = ["salvo_extra/size_limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.15.0", default-features = false, path = "./core" }
+salvo_core = { version = "0.15.1", default-features = false, path = "./core" }
 salvo_extra = { version = "0.15.0", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
