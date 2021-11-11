@@ -100,20 +100,36 @@ where
         let pin = self.get_mut();
         if fastrand::bool() {
             match Pin::new(&mut pin.a).poll_accept(cx) {
-                Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::A(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                Poll::Ready(Some(result)) => Poll::Ready(Some(
+                    result
+                        .map(|stream| JoinedStream::A(stream))
+                        .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.b).poll_accept(cx) {
-                    Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::B(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                    Poll::Ready(Some(result)) => Poll::Ready(Some(
+                        result
+                            .map(|stream| JoinedStream::B(stream))
+                            .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                    )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
                 },
             }
         } else {
             match Pin::new(&mut pin.b).poll_accept(cx) {
-                Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::B(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                Poll::Ready(Some(result)) => Poll::Ready(Some(
+                    result
+                        .map(|stream| JoinedStream::B(stream))
+                        .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.a).poll_accept(cx) {
-                    Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::A(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                    Poll::Ready(Some(result)) => Poll::Ready(Some(
+                        result
+                            .map(|stream| JoinedStream::A(stream))
+                            .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                    )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
                 },
@@ -194,8 +210,6 @@ impl Transport for UnixStream {
         None
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

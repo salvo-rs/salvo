@@ -37,5 +37,6 @@ async fn main() {
     //     .await;
     Server::builder(TcpListener::bind(([0, 0, 0, 0], 7878)).unwrap())
         .serve(Service::new(router))
-        .await.unwrap();
+        .await
+        .unwrap();
 }

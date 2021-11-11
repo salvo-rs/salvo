@@ -16,5 +16,8 @@ async fn main() {
             host == "localhost:7878"
         })
         .get(hello_world);
-    Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(Service::new(router)).await.unwrap();
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }

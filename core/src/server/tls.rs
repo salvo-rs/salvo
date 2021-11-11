@@ -20,8 +20,8 @@ use tokio_rustls::rustls::server::{
 };
 use tokio_rustls::rustls::{Certificate, Error as TlsError, PrivateKey, RootCertStore};
 
-use crate::transport::Transport;
 use super::Listener;
+use crate::transport::Transport;
 
 /// Represents errors that can occur building the TlsListener
 #[derive(Debug, Error)]

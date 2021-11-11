@@ -19,5 +19,6 @@ async fn main() {
     tokio::try_join!(
         Server::bind(&"127.0.0.1:7979".parse().unwrap()).serve(Service::new(router1)),
         Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(Service::new(router2))
-    ).unwrap();
+    )
+    .unwrap();
 }
