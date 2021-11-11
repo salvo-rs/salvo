@@ -33,7 +33,7 @@ pub use self::routing::Router;
 pub use self::server::TlsListener;
 #[cfg(unix)]
 pub use self::server::UnixListener;
-pub use self::server::{JoinedListener, Server, TcpListener};
+pub use self::server::{JoinedListener, Listener, Server, TcpListener};
 pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
@@ -51,7 +51,7 @@ pub mod prelude {
     pub use crate::server::TlsListener;
     #[cfg(unix)]
     pub use crate::server::UnixListener;
-    pub use crate::server::{JoinedListener, Server, TcpListener};
+    pub use crate::server::{JoinedListener, Listener, Server, TcpListener};
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;

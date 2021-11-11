@@ -14,6 +14,8 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 #[cfg(unix)]
 use tokio::net::UnixStream;
 
+use crate::transport::Transport;
+
 #[cfg(feature = "tls")]
 mod tls;
 
@@ -77,6 +79,16 @@ where
         }
     }
 }
+impl<A, B> Transport for JoinedStream<A, B>
+where
+    A: AsyncWrite + AsyncRead + Send + Unpin + 'static,
+    B: AsyncWrite + AsyncRead + Send + Unpin + 'static,
+{
+    fn remote_addr(&self) -> Option<SocketAddr> {
+        None
+    }
+}
+
 /// JoinedListener
 pub struct JoinedListener<A, B> {
     a: A,
@@ -205,7 +217,7 @@ impl Accept for UnixListener {
 }
 
 #[cfg(unix)]
-impl crate::transport::Transport for UnixStream {
+impl Transport for UnixStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
         None
     }
