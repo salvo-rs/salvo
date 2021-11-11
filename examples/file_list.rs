@@ -13,5 +13,5 @@ async fn main() {
             defaults: vec!["index.html".to_owned()],
         },
     ));
-    Server::new(router).bind(([0, 0, 0, 0], 7878)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(Service::new(router)).await.unwrap();
 }

@@ -1,24 +1,23 @@
 //! Server module
 use std::io;
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-#[cfg(target_os = "linux")]
-use hyper::server::accept;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
 pub use hyper::Server;
+#[cfg(unix)]
+use tokio::net::UnixStream;
 
 #[cfg(feature = "tls")]
-pub mod tls;
+mod tls;
 
 #[cfg(feature = "tls")]
 pub use tls::TlsListener;
-#[cfg(target_os = "linux")]
-use crate::transport::LiftIo;
-
 /// TcpListener
 pub struct TcpListener {
     incoming: AddrIncoming,
@@ -43,11 +42,12 @@ impl Accept for TcpListener {
     }
 }
 
-#[cfg(target_os = "linux")]
+/// UnixListener
+#[cfg(unix)]
 pub struct UnixListener {
-    incoming: LiftIo<AddrIncoming>,
+    incoming: tokio::net::UnixListener,
 }
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 impl UnixListener {
     /// Creates a new `UnixListener` bound to the specified path.
     ///
@@ -62,20 +62,23 @@ impl UnixListener {
     where
         P: AsRef<Path>,
     {
-        let mut incoming = tokio::net::UnixListener::bind(path)?;
-        incoming.set_nodelay(true);
-        let incoming = accept::from_stream(incoming.map_ok(LiftIo).into_stream());
-        Ok(UnixListener { incoming })
+        Ok(UnixListener {
+            incoming: tokio::net::UnixListener::bind(path)?,
+        })
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 impl Accept for UnixListener {
-    type Conn = LiftIo<AddrIncoming>;
+    type Conn = UnixStream;
     type Error = io::Error;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        Pin::new(&mut self.get_mut()).poll_accept(cx)
+        match self.incoming.poll_accept(cx) {
+            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(stream))),
+            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -84,6 +87,7 @@ mod tests {
     use serde::Serialize;
 
     use crate::prelude::*;
+    use crate::server::TcpListener;
 
     #[tokio::test]
     async fn test_server() {
@@ -102,7 +106,10 @@ mod tests {
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
         tokio::task::spawn(async {
-            Server::new(router).bind(([0, 0, 0, 0], 7979)).await;
+            Server::builder(TcpListener::bind(([0, 0, 0, 0], 7878)).unwrap())
+                .serve(Service::new(router))
+                .await
+                .unwrap();
         });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

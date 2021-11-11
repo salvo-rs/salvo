@@ -31,7 +31,7 @@ pub use self::http::{Request, Response};
 pub use self::routing::Router;
 #[cfg(feature = "tls")]
 pub use self::server::TlsListener;
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 pub use self::server::UnixListener;
 pub use self::server::{Server, TcpListener};
 pub use self::service::Service;
@@ -47,9 +47,11 @@ pub mod prelude {
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
-    pub use crate::server::Server;
+    pub use crate::server::{TcpListener, Server};
     #[cfg(feature = "tls")]
     pub use crate::server::TlsListener;
+    #[cfg(unix)]
+    pub use crate::server::UnixListener;
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
@@ -78,7 +80,9 @@ fn new_runtime(threads: usize) -> Runtime {
 ///     "Hello World"
 /// }
 /// fn main() {
-///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+/// 
+///    let service = Service::new(Router::new().get(hello_world));
+///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
 ///    salvo_core::start(server);
 /// }
 /// ```
@@ -95,7 +99,8 @@ pub fn start<F: Future>(future: F) {
 ///     "Hello World"
 /// }
 /// fn main() {
-///    let server = Server::new(Router::new().get(hello_world)).bind(([0, 0, 0, 0], 7878));
+///    let service = Service::new(Router::new().get(hello_world));
+///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
 ///    salvo_core::start_with_threads(server, 8);
 /// }
 /// ```

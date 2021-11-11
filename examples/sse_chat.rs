@@ -29,7 +29,10 @@ async fn main() {
             .get(user_connected)
             .push(Router::with_path("<id>").post(chat_send)),
     );
-    Server::new(router).bind(([0, 0, 0, 0], 3232)).await;
+    Server::bind(&"127.0.0.1:7878".parse().unwrap())
+        .serve(Service::new(router))
+        .await
+        .unwrap();
 }
 
 #[derive(Debug)]
