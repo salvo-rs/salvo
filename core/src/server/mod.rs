@@ -173,7 +173,7 @@ impl UnixListener {
 }
 
 #[cfg(unix)]
-impl Listener for TcpListener {}
+impl Listener for UnixListener {}
 #[cfg(unix)]
 impl Accept for UnixListener {
     type Conn = UnixStream;
@@ -189,7 +189,7 @@ impl Accept for UnixListener {
 }
 
 #[cfg(unix)]
-impl Transport for UnixStream {
+impl crate::transport::Transport for UnixStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
         None
     }
