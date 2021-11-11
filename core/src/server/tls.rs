@@ -254,6 +254,7 @@ impl TlsListener {
     }
 }
 
+impl Listener for TlsListener {}
 impl Accept for TlsListener {
     type Conn = TlsStream;
     type Error = io::Error;

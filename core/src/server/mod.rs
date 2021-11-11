@@ -10,6 +10,7 @@ use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
 pub use hyper::Server;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 #[cfg(unix)]
 use tokio::net::UnixStream;
 
@@ -18,6 +19,109 @@ mod tls;
 
 #[cfg(feature = "tls")]
 pub use tls::TlsListener;
+
+/// Listener trait
+pub trait Listener: Accept {
+    /// Join current Listener with the other.
+    fn join<T>(self, other: T) -> JoinedListener<Self, T>
+    where
+        Self: Sized,
+    {
+        JoinedListener::new(self, other)
+    }
+}
+/// A IO stream for JoinedListener.
+pub enum JoinedStream<A, B> {
+    #[allow(missing_docs)]
+    A(A),
+    #[allow(missing_docs)]
+    B(B),
+}
+
+impl<A, B> AsyncRead for JoinedStream<A, B>
+where
+    A: AsyncRead + Send + Unpin + 'static,
+    B: AsyncRead + Send + Unpin + 'static,
+{
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        match &mut self.get_mut() {
+            JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
+            JoinedStream::B(b) => Pin::new(b).poll_read(cx, buf),
+        }
+    }
+}
+
+impl<A, B> AsyncWrite for JoinedStream<A, B>
+where
+    A: AsyncWrite + Send + Unpin + 'static,
+    B: AsyncWrite + Send + Unpin + 'static,
+{
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        match &mut self.get_mut() {
+            JoinedStream::A(a) => Pin::new(a).poll_write(cx, buf),
+            JoinedStream::B(b) => Pin::new(b).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut self.get_mut() {
+            JoinedStream::A(a) => Pin::new(a).poll_flush(cx),
+            JoinedStream::B(b) => Pin::new(b).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut self.get_mut() {
+            JoinedStream::A(a) => Pin::new(a).poll_shutdown(cx),
+            JoinedStream::B(b) => Pin::new(b).poll_shutdown(cx),
+        }
+    }
+}
+/// JoinedListener
+pub struct JoinedListener<A, B> {
+    a: A,
+    b: B,
+}
+
+impl<A, B> JoinedListener<A, B> {
+    pub(crate) fn new(a: A, b: B) -> Self {
+        JoinedListener { a, b }
+    }
+}
+impl<A, B> Accept for JoinedListener<A, B>
+where
+    A: Accept + Send + Unpin + 'static,
+    B: Accept + Send + Unpin + 'static,
+{
+    type Conn = JoinedStream<A::Conn, B::Conn>;
+    type Error = io::Error;
+
+    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let pin = self.get_mut();
+        if fastrand::bool() {
+            match Pin::new(&mut pin.a).poll_accept(cx) {
+                Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::A(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => match Pin::new(&mut pin.b).poll_accept(cx) {
+                    Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::B(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                    Poll::Ready(None) => Poll::Ready(None),
+                    Poll::Pending => Poll::Pending,
+                },
+            }
+        } else {
+            match Pin::new(&mut pin.b).poll_accept(cx) {
+                Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::B(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => match Pin::new(&mut pin.a).poll_accept(cx) {
+                    Poll::Ready(Some(result)) => Poll::Ready(Some(result.map(|stream|JoinedStream::A(stream)).map_err(|_|io::Error::from(io::ErrorKind::Other)))),
+                    Poll::Ready(None) => Poll::Ready(None),
+                    Poll::Pending => Poll::Pending,
+                },
+            }
+        }
+    }
+}
+
 /// TcpListener
 pub struct TcpListener {
     incoming: AddrIncoming,
@@ -32,7 +136,7 @@ impl TcpListener {
         Ok(TcpListener { incoming })
     }
 }
-
+impl Listener for TcpListener {}
 impl Accept for TcpListener {
     type Conn = AddrStream;
     type Error = io::Error;
@@ -69,6 +173,8 @@ impl UnixListener {
 }
 
 #[cfg(unix)]
+impl Listener for TcpListener {}
+#[cfg(unix)]
 impl Accept for UnixListener {
     type Conn = UnixStream;
     type Error = io::Error;
@@ -81,6 +187,15 @@ impl Accept for UnixListener {
         }
     }
 }
+
+#[cfg(unix)]
+impl Transport for UnixStream {
+    fn remote_addr(&self) -> Option<SocketAddr> {
+        None
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {
