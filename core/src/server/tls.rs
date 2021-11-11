@@ -174,7 +174,7 @@ impl TlsListenerBuilder {
         Ok(TlsListener::new(config, incoming))
     }
 
-    pub(crate) fn build_config(mut self) -> Result<ServerConfig, TlsListenerError>{
+    pub(crate) fn build_config(mut self) -> Result<ServerConfig, TlsListenerError> {
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
             .map_err(|_| TlsListenerError::CertParseError)?
