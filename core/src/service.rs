@@ -5,13 +5,13 @@ use std::sync::Arc;
 use futures_util::future;
 use once_cell::sync::Lazy;
 
+use crate::addr::SocketAddr;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
-use crate::addr::SocketAddr;
 
 static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(catcher::defaults::get);
 /// Service http request.

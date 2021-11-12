@@ -2,11 +2,11 @@
 use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
+use std::net::SocketAddr as StdSocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::net::SocketAddr as StdSocketAddr;
 
 use futures_util::ready;
 use hyper::server::accept::Accept;
@@ -20,8 +20,8 @@ use tokio_rustls::rustls::server::{
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
 use super::Listener;
-use crate::transport::Transport;
 use crate::addr::SocketAddr;
+use crate::transport::Transport;
 
 /// Represents errors that can occur building the TlsListener
 #[derive(Debug, Error)]
@@ -191,8 +191,7 @@ impl TlsListenerBuilder {
                 return Err(TlsError::EmptyKey);
             }
 
-            let mut pkcs8 =
-                pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsError::Pkcs8ParseError)?;
+            let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsError::Pkcs8ParseError)?;
 
             if !pkcs8.is_empty() {
                 pkcs8.remove(0)

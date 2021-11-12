@@ -1,8 +1,8 @@
 //! Server module
 use std::io;
+use std::net::SocketAddr as StdSocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::net::SocketAddr as StdSocketAddr;
 
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
@@ -10,8 +10,8 @@ use hyper::server::conn::AddrStream;
 pub use hyper::Server;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::transport::Transport;
 use crate::addr::SocketAddr;
+use crate::transport::Transport;
 
 #[cfg(feature = "rustls")]
 pub mod rustls;
