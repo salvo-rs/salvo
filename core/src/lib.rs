@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod addr;
 pub mod catcher;
 mod depot;
 mod error;
@@ -18,7 +19,6 @@ pub mod server;
 mod service;
 mod transport;
 pub mod writer;
-pub mod addr;
 
 #[cfg(feature = "anyhow")]
 pub use anyhow;
