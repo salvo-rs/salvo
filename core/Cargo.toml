@@ -18,8 +18,8 @@ all-features = true
 
 [features]
 default = []
-full = ["tls", "anyhow"]
-tls = ["tokio-rustls", "rustls-pemfile"]
+full = ["rustls", "anyhow"]
+rustls = ["tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }

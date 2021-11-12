@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
-use std::net::SocketAddr;
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
@@ -16,6 +15,7 @@ use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
+use crate::addr::SocketAddr;
 use crate::http::errors::ReadError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
@@ -49,7 +49,7 @@ pub struct Request {
 
     /// The version of the HTTP protocol used.
     version: Version,
-    remote_addr: Option<SocketAddr>,
+    pub(crate) remote_addr: Option<SocketAddr>,
 }
 
 impl Debug for Request {
@@ -205,14 +205,10 @@ impl Request {
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
-    #[inline]
-    pub(crate) fn set_remote_addr(&mut self, remote_addr: Option<SocketAddr>) {
-        self.remote_addr = remote_addr;
-    }
     /// Get request remote address.
     #[inline]
-    pub fn remote_addr(&self) -> Option<SocketAddr> {
-        self.remote_addr
+    pub fn remote_addr(&self) -> Option<&SocketAddr> {
+        self.remote_addr.as_ref()
     }
 
     /// Returns a reference to the associated header field map.
