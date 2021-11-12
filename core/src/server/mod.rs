@@ -107,10 +107,10 @@ impl<A, B> JoinedListener<A, B> {
 }
 impl<A, B> Accept for JoinedListener<A, B>
 where
-    A: Transport + Accept + Send + Unpin + 'static,
-    B: Transport + Accept + Send + Unpin + 'static,
-    A::Conn: AsyncRead + AsyncWrite,
-    B::Conn: AsyncRead + AsyncWrite,
+    A: Accept + Send + Unpin + 'static,
+    B: Accept + Send + Unpin + 'static,
+    A::Conn: Transport,
+    B::Conn: Transport,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
     type Error = io::Error;
