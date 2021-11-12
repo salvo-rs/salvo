@@ -18,6 +18,7 @@ pub mod server;
 mod service;
 mod transport;
 pub mod writer;
+pub mod addr;
 
 #[cfg(feature = "anyhow")]
 pub use anyhow;
@@ -29,7 +30,7 @@ pub use self::error::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
-#[cfg(feature = "tls")]
+#[cfg(feature = "rustls")]
 pub use self::server::TlsListener;
 #[cfg(unix)]
 pub use self::server::UnixListener;
@@ -47,7 +48,7 @@ pub mod prelude {
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "rustls")]
     pub use crate::server::TlsListener;
     #[cfg(unix)]
     pub use crate::server::UnixListener;
@@ -72,7 +73,7 @@ fn new_runtime(threads: usize) -> Runtime {
 }
 
 /// If you don't want to include tokio in your project directly,
-/// you can use this function to start server.
+/// you can use this function to run server.
 /// ```ignore
 /// use salvo_core::prelude::*;
 /// #[fn_handler]
@@ -83,15 +84,15 @@ fn new_runtime(threads: usize) -> Runtime {
 ///
 ///    let service = Service::new(Router::new().get(hello_world));
 ///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
-///    salvo_core::start(server);
+///    salvo_core::run(server);
 /// }
 /// ```
-pub fn start<F: Future>(future: F) {
-    start_with_threads(future, num_cpus::get())
+pub fn run<F: Future>(future: F) {
+    run_with_threads(future, num_cpus::get())
 }
 
 /// If you don't want to include tokio in your project directly,
-/// you can use this function to start server.
+/// you can use this function to run server.
 /// ```ignore
 /// use salvo_core::prelude::*;
 /// #[fn_handler]
@@ -101,10 +102,10 @@ pub fn start<F: Future>(future: F) {
 /// fn main() {
 ///    let service = Service::new(Router::new().get(hello_world));
 ///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
-///    salvo_core::start_with_threads(server, 8);
+///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```
-pub fn start_with_threads<F: Future>(future: F, threads: usize) {
+pub fn run_with_threads<F: Future>(future: F, threads: usize) {
     let runtime = crate::new_runtime(threads);
     let _ = runtime.block_on(async { future.await });
 }

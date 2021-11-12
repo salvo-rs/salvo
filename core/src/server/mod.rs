@@ -1,26 +1,27 @@
 //! Server module
 use std::io;
-use std::net::SocketAddr;
-#[cfg(unix)]
-use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::net::SocketAddr as StdSocketAddr;
 
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
 pub use hyper::Server;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-#[cfg(unix)]
-use tokio::net::UnixStream;
 
 use crate::transport::Transport;
+use crate::addr::SocketAddr;
 
-#[cfg(feature = "tls")]
-mod tls;
+#[cfg(feature = "rustls")]
+pub mod rustls;
+#[cfg(unix)]
+pub mod unix;
 
-#[cfg(feature = "tls")]
-pub use tls::TlsListener;
+#[cfg(feature = "rustls")]
+pub use rustls::TlsListener;
+#[cfg(unix)]
+pub use unix::UnixListener;
 
 /// Listener trait
 pub trait Listener: Accept {
@@ -32,6 +33,7 @@ pub trait Listener: Accept {
         JoinedListener::new(self, other)
     }
 }
+
 /// A IO stream for JoinedListener.
 pub enum JoinedStream<A, B> {
     #[allow(missing_docs)]
@@ -81,11 +83,14 @@ where
 }
 impl<A, B> Transport for JoinedStream<A, B>
 where
-    A: AsyncWrite + AsyncRead + Send + Unpin + 'static,
-    B: AsyncWrite + AsyncRead + Send + Unpin + 'static,
+    A: Transport + Send + Unpin + 'static,
+    B: Transport + Send + Unpin + 'static,
 {
     fn remote_addr(&self) -> Option<SocketAddr> {
-        None
+        match self {
+            JoinedStream::A(stream) => stream.remote_addr(),
+            JoinedStream::B(stream) => stream.remote_addr(),
+        }
     }
 }
 
@@ -102,8 +107,10 @@ impl<A, B> JoinedListener<A, B> {
 }
 impl<A, B> Accept for JoinedListener<A, B>
 where
-    A: Accept + Send + Unpin + 'static,
-    B: Accept + Send + Unpin + 'static,
+    A: Transport + Accept + Send + Unpin + 'static,
+    B: Transport + Accept + Send + Unpin + 'static,
+    A::Conn: AsyncRead + AsyncWrite,
+    B::Conn: AsyncRead + AsyncWrite,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
     type Error = io::Error;
@@ -155,10 +162,13 @@ pub struct TcpListener {
     incoming: AddrIncoming,
 }
 impl TcpListener {
+    /// Create `TcpListener`.
+    pub fn new(incoming: AddrIncoming) -> Self {
+        Self { incoming }
+    }
     /// Bind to socket address.
-    pub fn bind(addr: impl Into<SocketAddr>) -> Result<Self, hyper::Error> {
-        let addr = addr.into();
-        let mut incoming = AddrIncoming::bind(&addr)?;
+    pub fn bind(addr: impl Into<StdSocketAddr>) -> Result<Self, hyper::Error> {
+        let mut incoming = AddrIncoming::bind(&addr.into())?;
         incoming.set_nodelay(true);
 
         Ok(TcpListener { incoming })
@@ -171,55 +181,6 @@ impl Accept for TcpListener {
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
-    }
-}
-
-/// UnixListener
-#[cfg(unix)]
-pub struct UnixListener {
-    incoming: tokio::net::UnixListener,
-}
-#[cfg(unix)]
-impl UnixListener {
-    /// Creates a new `UnixListener` bound to the specified path.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if thread-local runtime is not set.
-    ///
-    /// The runtime is usually set implicitly when this function is called
-    /// from a future driven by a tokio runtime, otherwise runtime can be set
-    /// explicitly with [`Runtime::enter`](crate::runtime::Runtime::enter) function.
-    pub fn bind<P>(path: P) -> io::Result<UnixListener>
-    where
-        P: AsRef<Path>,
-    {
-        Ok(UnixListener {
-            incoming: tokio::net::UnixListener::bind(path)?,
-        })
-    }
-}
-
-#[cfg(unix)]
-impl Listener for UnixListener {}
-#[cfg(unix)]
-impl Accept for UnixListener {
-    type Conn = UnixStream;
-    type Error = io::Error;
-
-    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        match self.incoming.poll_accept(cx) {
-            Poll::Ready(Ok((stream, _))) => Poll::Ready(Some(Ok(stream))),
-            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-#[cfg(unix)]
-impl Transport for UnixStream {
-    fn remote_addr(&self) -> Option<SocketAddr> {
-        None
     }
 }
 

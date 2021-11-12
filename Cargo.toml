@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.15.0"
+version = "0.15.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -27,8 +27,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["extra", "tls", "anyhow"]
-tls = ["salvo_core/tls"]
+full = ["extra", "rustls", "anyhow"]
+rustls = ["salvo_core/rustls"]
 anyhow = ["salvo_core/anyhow"]
 extra = ["basic_auth", "jwt_auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size_limiter"]
 basic_auth = ["salvo_extra/basic_auth"]

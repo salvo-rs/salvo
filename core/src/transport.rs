@@ -1,7 +1,7 @@
-use std::net::SocketAddr;
-
 use hyper::server::conn::AddrStream;
 use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::addr::SocketAddr;
 
 pub trait Transport: AsyncRead + AsyncWrite {
     fn remote_addr(&self) -> Option<SocketAddr>;
@@ -9,6 +9,6 @@ pub trait Transport: AsyncRead + AsyncWrite {
 
 impl Transport for AddrStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
-        Some(self.remote_addr())
+        Some(self.remote_addr().into())
     }
 }

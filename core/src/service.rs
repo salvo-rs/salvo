@@ -1,5 +1,4 @@
 use std::future::Future;
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -12,6 +11,7 @@ use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
+use crate::addr::SocketAddr;
 
 static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(catcher::defaults::get);
 /// Service http request.
@@ -114,7 +114,7 @@ impl HyperHandler {
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
-        req.set_remote_addr(self.remote_addr);
+        req.remote_addr = self.remote_addr.clone();
         let mut res = Response::new();
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());

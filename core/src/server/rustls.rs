@@ -1,13 +1,12 @@
 //! tls module
-
 use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
-use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::net::SocketAddr as StdSocketAddr;
 
 use futures_util::ready;
 use hyper::server::accept::Accept;
@@ -18,14 +17,15 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth, ServerConfig,
 };
-use tokio_rustls::rustls::{Certificate, Error as TlsError, PrivateKey, RootCertStore};
+use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
 use super::Listener;
 use crate::transport::Transport;
+use crate::addr::SocketAddr;
 
 /// Represents errors that can occur building the TlsListener
 #[derive(Debug, Error)]
-pub enum TlsListenerError {
+pub enum TlsError {
     /// Hyper error
     #[error("hyper error")]
     Hyper(hyper::Error),
@@ -46,7 +46,7 @@ pub enum TlsListenerError {
     EmptyKey,
     /// An error from an invalid key
     #[error("key contains an invalid key, {0}")]
-    InvalidKey(TlsError),
+    InvalidKey(RustlsError),
 }
 
 /// Tls client authentication configuration.
@@ -84,7 +84,7 @@ impl TlsListenerBuilder {
         }
     }
 
-    /// sets the Tls key via File Path, returns `TlsListenerError::IoError` if the file cannot be open
+    /// sets the Tls key via File Path, returns `TlsError::IoError` if the file cannot be open
     pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key = Box::new(LazyFile {
             path: path.as_ref().into(),
@@ -167,17 +167,17 @@ impl TlsListenerBuilder {
     }
 
     /// Build new `TlsListener`
-    pub fn bind(self, addr: impl Into<SocketAddr>) -> Result<TlsListener, TlsListenerError> {
-        let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsListenerError::Hyper)?;
+    pub fn bind(self, addr: impl Into<StdSocketAddr>) -> Result<TlsListener, TlsError> {
+        let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsError::Hyper)?;
         incoming.set_nodelay(true);
         let config = self.build_config()?;
         Ok(TlsListener::new(config, incoming))
     }
 
-    pub(crate) fn build_config(mut self) -> Result<ServerConfig, TlsListenerError> {
+    pub(crate) fn build_config(mut self) -> Result<ServerConfig, TlsError> {
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
-            .map_err(|_| TlsListenerError::CertParseError)?
+            .map_err(|_| TlsError::CertParseError)?
             .into_iter()
             .map(Certificate)
             .collect();
@@ -185,34 +185,34 @@ impl TlsListenerBuilder {
         let key = {
             // convert it to Vec<u8> to allow reading it again if key is RSA
             let mut key_vec = Vec::new();
-            self.key.read_to_end(&mut key_vec).map_err(TlsListenerError::Io)?;
+            self.key.read_to_end(&mut key_vec).map_err(TlsError::Io)?;
 
             if key_vec.is_empty() {
-                return Err(TlsListenerError::EmptyKey);
+                return Err(TlsError::EmptyKey);
             }
 
             let mut pkcs8 =
-                pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::Pkcs8ParseError)?;
+                pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsError::Pkcs8ParseError)?;
 
             if !pkcs8.is_empty() {
                 pkcs8.remove(0)
             } else {
-                let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsListenerError::RsaParseError)?;
+                let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| TlsError::RsaParseError)?;
 
                 if !rsa.is_empty() {
                     rsa.remove(0)
                 } else {
-                    return Err(TlsListenerError::EmptyKey);
+                    return Err(TlsError::EmptyKey);
                 }
             }
         };
 
-        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, TlsListenerError> {
+        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, TlsError> {
             let mut reader = BufReader::new(trust_anchor);
-            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| TlsListenerError::RsaParseError)?;
+            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| TlsError::RsaParseError)?;
             let mut store = RootCertStore::empty();
             if let (0, _) = store.add_parsable_certificates(&certs) {
-                Err(TlsListenerError::CertParseError)
+                Err(TlsError::CertParseError)
             } else {
                 Ok(store)
             }
@@ -230,10 +230,10 @@ impl TlsListenerBuilder {
             .with_safe_default_cipher_suites()
             .with_safe_default_kx_groups()
             .with_safe_default_protocol_versions()
-            .map_err(|_| TlsListenerError::RsaParseError)?
+            .map_err(|_| TlsError::RsaParseError)?
             .with_client_cert_verifier(client_auth)
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
-            .map_err(TlsListenerError::InvalidKey)?;
+            .map_err(TlsError::InvalidKey)?;
         Ok(config)
     }
 }
@@ -245,7 +245,8 @@ pub struct TlsListener {
 }
 
 impl TlsListener {
-    pub(crate) fn new<C>(config: C, incoming: AddrIncoming) -> Self
+    /// Create new `TlsListener`.
+    pub fn new<C>(config: C, incoming: AddrIncoming) -> Self
     where
         C: Into<Arc<ServerConfig>>,
     {
@@ -315,17 +316,17 @@ pub struct TlsStream {
 }
 impl Transport for TlsStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
-        Some(self.remote_addr)
+        Some(self.remote_addr.clone())
     }
 }
 
 impl TlsStream {
-    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> TlsStream {
+    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
         let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
         TlsStream {
             state: State::Handshaking(accept),
-            remote_addr,
+            remote_addr: remote_addr.into(),
         }
     }
 }
