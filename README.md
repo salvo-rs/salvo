@@ -18,11 +18,11 @@
 </p>
 </div>
 
-Salvo is a simple but powerful web server framework written in Rust.
+Salvo is a powerful and simplest web server framework in Rust world.
 ## 🎯 Features
-  - Base on hyper, tokio and async supported;
+  - Base on hyper, tokio and async supported, use hyper's Server directly;
   - Websocket supported;
-  - Middleware is handler and support executed before or after handle;
+  - Middleware is handler and support executed before or after handler;
   - Easy to use routing system, routers can be nested, and you can add middlewares on any routers;
   - Multipart form supported, handle files upload is very simple;
   - Serve a static virtual directory from many physical directories;
