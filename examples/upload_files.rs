@@ -35,10 +35,7 @@ async fn main() {
 
     create_dir_all("temp").unwrap();
     let router = Router::new().get(index).post(upload);
-    Server::bind(&"127.0.0.1:7878".parse().unwrap())
-        .serve(Service::new(router))
-        .await
-        .unwrap();
+    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
 }
 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>

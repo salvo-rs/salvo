@@ -167,7 +167,18 @@ impl TlsListenerBuilder {
     }
 
     /// Build new `TlsListener`
-    pub fn bind(self, addr: impl Into<StdSocketAddr>) -> Result<TlsListener, TlsError> {
+    pub fn bind<A>(self, addr: A) -> TlsListener
+    where
+        A: Into<StdSocketAddr>,
+    {
+        self.try_bind(addr).unwrap()
+    }
+
+    /// Try to build new `TlsListener`
+    pub fn try_bind<A>(self, addr: A) -> Result<TlsListener, TlsError>
+    where
+        A: Into<StdSocketAddr>,
+    {
         let mut incoming = AddrIncoming::bind(&addr.into()).map_err(TlsError::Hyper)?;
         incoming.set_nodelay(true);
         let config = self.build_config()?;

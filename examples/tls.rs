@@ -13,7 +13,6 @@ async fn main() {
     let listener = TlsListener::builder()
         .with_cert_path("examples/tls/cert.pem")
         .with_key_path("examples/tls/key.rsa")
-        .bind(([0, 0, 0, 0], 7878))
-        .unwrap();
-    Server::builder(listener).serve(Service::new(router)).await.unwrap();
+        .bind(([0, 0, 0, 0], 7878));
+    Server::new(listener).serve(router).await;
 }

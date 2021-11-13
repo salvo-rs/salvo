@@ -7,7 +7,6 @@ use std::task::{Context, Poll};
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
-pub use hyper::Server;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::addr::SocketAddr;
@@ -105,6 +104,14 @@ impl<A, B> JoinedListener<A, B> {
         JoinedListener { a, b }
     }
 }
+impl<A, B> Listener for JoinedListener<A, B>
+where
+    A: Accept + Send + Unpin + 'static,
+    B: Accept + Send + Unpin + 'static,
+    A::Conn: Transport,
+    B::Conn: Transport,
+{
+}
 impl<A, B> Accept for JoinedListener<A, B>
 where
     A: Accept + Send + Unpin + 'static,
@@ -167,11 +174,19 @@ impl TcpListener {
         Self { incoming }
     }
     /// Bind to socket address.
-    pub fn bind(addr: impl Into<StdSocketAddr>) -> Result<Self, hyper::Error> {
+    pub fn bind(addr: impl Into<StdSocketAddr>) -> Self {
+        Self::try_bind(addr).unwrap()
+    }
+    /// Try to bind to socket address.
+    pub fn try_bind(addr: impl Into<StdSocketAddr>) -> Result<Self, hyper::Error> {
         let mut incoming = AddrIncoming::bind(&addr.into())?;
         incoming.set_nodelay(true);
 
         Ok(TcpListener { incoming })
+    }
+    pub fn tls(self, config: rustls::TlsConfig) -> TlsListener {
+        let Self { incoming } = self;
+        TlsListener::new(config, incoming)
     }
 }
 impl Listener for TcpListener {}
@@ -207,10 +222,7 @@ mod tests {
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
         tokio::task::spawn(async {
-            Server::builder(TcpListener::bind(([0, 0, 0, 0], 7979)).unwrap())
-                .serve(Service::new(router))
-                .await
-                .unwrap();
+            Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).serve(router).await;
         });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

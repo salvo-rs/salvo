@@ -15,7 +15,8 @@ pub mod fs;
 mod handler;
 pub mod http;
 pub mod routing;
-pub mod server;
+mod server;
+pub mod listener;
 mod service;
 mod transport;
 pub mod writer;
@@ -31,10 +32,11 @@ pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
 #[cfg(feature = "rustls")]
-pub use self::server::TlsListener;
+pub use self::listener::TlsListener;
 #[cfg(unix)]
-pub use self::server::UnixListener;
-pub use self::server::{JoinedListener, Listener, Server, TcpListener};
+pub use self::listener::UnixListener;
+pub use self::listener::{JoinedListener, Listener, TcpListener};
+pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::Writer;
 pub use async_trait::async_trait;
@@ -49,10 +51,11 @@ pub mod prelude {
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
     #[cfg(feature = "rustls")]
-    pub use crate::server::TlsListener;
+    pub use crate::listener::TlsListener;
     #[cfg(unix)]
-    pub use crate::server::UnixListener;
-    pub use crate::server::{JoinedListener, Listener, Server, TcpListener};
+    pub use crate::listener::UnixListener;
+    pub use crate::listener::{JoinedListener, Listener, TcpListener};
+    pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::*;
     pub use crate::Handler;
@@ -82,8 +85,8 @@ fn new_runtime(threads: usize) -> Runtime {
 /// }
 /// fn main() {
 ///
-///    let service = Service::new(Router::new().get(hello_world));
-///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
+///    let router = Router::new().get(hello_world);
+///    let server = Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router);
 ///    salvo_core::run(server);
 /// }
 /// ```
@@ -100,8 +103,8 @@ pub fn run<F: Future>(future: F) {
 ///     "Hello World"
 /// }
 /// fn main() {
-///    let service = Service::new(Router::new().get(hello_world));
-///    let server = Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service);
+///    let service = Router::new().get(hello_world);
+///    let server = Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```
