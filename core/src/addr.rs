@@ -1,6 +1,6 @@
 //! addr module
-use std::fmt::{self, Display, Formatter};\
-cfg[unix]
+use std::fmt::{self, Display, Formatter};
+#[cfg(unix)]
 use std::sync::Arc;
 
 /// Network socket address
