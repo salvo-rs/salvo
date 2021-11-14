@@ -13,7 +13,9 @@ async fn main() {
     let router = Router::new().get(hello_world);
     let catcher: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
     let service = Service::new(router).with_catchers(catcher);
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(service).await;
+    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878)))
+        .serve(service)
+        .await;
 }
 
 struct Handle404;
