@@ -32,7 +32,7 @@ pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::Router;
 #[cfg(feature = "rustls")]
-pub use self::listener::TlsListener;
+pub use self::listener::RustlsListener;
 #[cfg(unix)]
 pub use self::listener::UnixListener;
 pub use self::listener::{JoinedListener, Listener, TcpListener};
@@ -51,7 +51,7 @@ pub mod prelude {
     pub use crate::http::{Request, Response, StatusCode};
     pub use crate::routing::{filter, Router};
     #[cfg(feature = "rustls")]
-    pub use crate::listener::TlsListener;
+    pub use crate::listener::RustlsListener;
     #[cfg(unix)]
     pub use crate::listener::UnixListener;
     pub use crate::listener::{JoinedListener, Listener, TcpListener};

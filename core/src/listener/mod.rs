@@ -4,6 +4,7 @@ use std::net::SocketAddr as StdSocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use futures_util::TryStream;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
@@ -18,7 +19,7 @@ pub mod rustls;
 pub mod unix;
 
 #[cfg(feature = "rustls")]
-pub use rustls::TlsListener;
+pub use rustls::RustlsListener;
 #[cfg(unix)]
 pub use unix::UnixListener;
 
@@ -184,9 +185,13 @@ impl TcpListener {
 
         Ok(TcpListener { incoming })
     }
-    pub fn tls(self, config: rustls::TlsConfig) -> TlsListener {
-        let Self { incoming } = self;
-        TlsListener::new(config, incoming)
+
+    #[cfg(feature = "rustls")]
+    pub fn rustls<C>(self, config: C) -> RustlsListener<C>
+    where
+        C: TryStream<Ok = tokio_rustls::rustls::server::ServerConfig, Error = io::Error>,
+    {
+        RustlsListener::new(config, self.incoming)
     }
 }
 impl Listener for TcpListener {}
@@ -196,96 +201,5 @@ impl Accept for TcpListener {
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use serde::Serialize;
-
-    use crate::prelude::*;
-
-    #[tokio::test]
-    async fn test_server() {
-        #[fn_handler]
-        async fn hello_world() -> Result<&'static str, ()> {
-            Ok("Hello World")
-        }
-        #[fn_handler]
-        async fn json(res: &mut Response) {
-            #[derive(Serialize, Debug)]
-            struct User {
-                name: String,
-            }
-            res.render_json(&User { name: "jobs".into() });
-        }
-        let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
-
-        tokio::task::spawn(async {
-            Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).serve(router).await;
-        });
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        let client = reqwest::Client::new();
-        let result = client
-            .get("http://127.0.0.1:7979")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert_eq!(result, "Hello World");
-
-        let client = reqwest::Client::new();
-        let result = client
-            .get("http://127.0.0.1:7979/json")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert_eq!(result, r#"{"name":"jobs"}"#);
-
-        let result = client
-            .get("http://127.0.0.1:7979/not_exist")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert!(result.contains("Not Found"));
-        let result = client
-            .get("http://127.0.0.1:7979/not_exist")
-            .header("accept", "application/json")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert!(result.contains(r#""code":404"#));
-        let result = client
-            .get("http://127.0.0.1:7979/not_exist")
-            .header("accept", "text/plain")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert!(result.contains("code:404"));
-        let result = client
-            .get("http://127.0.0.1:7979/not_exist")
-            .header("accept", "application/xml")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        assert!(result.contains("<code>404</code>"));
     }
 }
