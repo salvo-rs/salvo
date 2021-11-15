@@ -4,7 +4,7 @@ use std::net::SocketAddr as StdSocketAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures_util::TryStream;
+use futures_util::Stream;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
@@ -186,10 +186,12 @@ impl TcpListener {
         Ok(TcpListener { incoming })
     }
 
+    /// Create `RustlsListener` from current TcpListener.
     #[cfg(feature = "rustls")]
     pub fn rustls<C>(self, config: C) -> RustlsListener<C>
     where
-        C: TryStream<Ok = tokio_rustls::rustls::server::ServerConfig, Error = io::Error>,
+        C: Stream,
+        C::Item: Into<std::sync::Arc<tokio_rustls::rustls::server::ServerConfig>>,
     {
         RustlsListener::new(config, self.incoming)
     }

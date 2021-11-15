@@ -7,9 +7,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::{ready, stream, Stream, TryStream};
+use futures_util::{ready, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
+use pin_project_lite::pin_project;
 use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -64,7 +65,6 @@ pub struct RustlsConfig {
     key: Box<dyn Read + Send + Sync>,
     client_auth: TlsClientAuth,
     ocsp_resp: Vec<u8>,
-    server_config: Result<ServerConfig, Error>,
 }
 
 impl std::fmt::Debug for RustlsConfig {
@@ -160,94 +160,95 @@ impl RustlsConfig {
         self
     }
 
-    /// sets the DER-encoded OCSP response
+    /// Sets the DER-encoded OCSP response
     pub fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
         self.ocsp_resp = Vec::from(ocsp_resp);
         self
     }
-    pub(crate) fn server_config(mut self) -> &Result<Arc<ServerConfig>, Error> {
-        self.server_config.get_or_init(|| {
-            let mut cert_rdr = BufReader::new(self.cert);
-            let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
-                .map_err(|_| Error::CertParseError)?
-                .into_iter()
-                .map(Certificate)
-                .collect();
+    /// Build ServerConfig
+    pub fn build_server_config(mut self) -> Result<ServerConfig, Error> {
+        let mut cert_rdr = BufReader::new(self.cert);
+        let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
+            .map_err(|_| Error::CertParseError)?
+            .into_iter()
+            .map(Certificate)
+            .collect();
 
-            let key = {
-                // convert it to Vec<u8> to allow reading it again if key is RSA
-                let mut key_vec = Vec::new();
-                self.key.read_to_end(&mut key_vec).map_err(Error::Io)?;
+        let key = {
+            // convert it to Vec<u8> to allow reading it again if key is RSA
+            let mut key_vec = Vec::new();
+            self.key.read_to_end(&mut key_vec).map_err(Error::Io)?;
 
-                if key_vec.is_empty() {
-                    return Err(Error::EmptyKey);
-                }
-
-                let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| Error::Pkcs8ParseError)?;
-
-                if !pkcs8.is_empty() {
-                    pkcs8.remove(0)
-                } else {
-                    let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| Error::RsaParseError)?;
-
-                    if !rsa.is_empty() {
-                        rsa.remove(0)
-                    } else {
-                        return Err(Error::EmptyKey);
-                    }
-                }
-            };
-
-            fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, Error> {
-                let mut reader = BufReader::new(trust_anchor);
-                let certs = rustls_pemfile::certs(&mut reader).map_err(|_| Error::RsaParseError)?;
-                let mut store = RootCertStore::empty();
-                if let (0, _) = store.add_parsable_certificates(&certs) {
-                    Err(Error::CertParseError)
-                } else {
-                    Ok(store)
-                }
+            if key_vec.is_empty() {
+                return Err(Error::EmptyKey);
             }
 
-            let client_auth = match self.client_auth {
-                TlsClientAuth::Off => NoClientAuth::new(),
-                TlsClientAuth::Optional(trust_anchor) => {
-                    AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?)
-                }
-                TlsClientAuth::Required(trust_anchor) => {
-                    AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?)
-                }
-            };
+            let mut pkcs8 = pkcs8_private_keys(&mut key_vec.as_slice()).map_err(|_| Error::Pkcs8ParseError)?;
 
-            let config = ServerConfig::builder()
-                .with_safe_default_cipher_suites()
-                .with_safe_default_kx_groups()
-                .with_safe_default_protocol_versions()
-                .map_err(|_| Error::RsaParseError)?
-                .with_client_cert_verifier(client_auth)
-                .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
-                .map_err(Error::InvalidKey)?;
-            Ok(Arc::new(config))
-        })
+            if !pkcs8.is_empty() {
+                pkcs8.remove(0)
+            } else {
+                let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| Error::RsaParseError)?;
+
+                if !rsa.is_empty() {
+                    rsa.remove(0)
+                } else {
+                    return Err(Error::EmptyKey);
+                }
+            }
+        };
+
+        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, Error> {
+            let mut reader = BufReader::new(trust_anchor);
+            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| Error::RsaParseError)?;
+            let mut store = RootCertStore::empty();
+            if let (0, _) = store.add_parsable_certificates(&certs) {
+                Err(Error::CertParseError)
+            } else {
+                Ok(store)
+            }
+        }
+
+        let client_auth = match self.client_auth {
+            TlsClientAuth::Off => NoClientAuth::new(),
+            TlsClientAuth::Optional(trust_anchor) => {
+                AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?)
+            }
+            TlsClientAuth::Required(trust_anchor) => AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?),
+        };
+
+        let config = ServerConfig::builder()
+            .with_safe_default_cipher_suites()
+            .with_safe_default_kx_groups()
+            .with_safe_default_protocol_versions()
+            .map_err(|_| Error::RsaParseError)?
+            .with_client_cert_verifier(client_auth)
+            .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
+            .map_err(Error::InvalidKey)?;
+        Ok(config)
     }
 }
-impl Stream for RustlsConfig {
-    type Item = Result<ServerConfig, io::Error>;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        futures_util::future::ready(self.server_config())
-    }
-}
+// impl Stream for RustlsConfig {
+//     type Item = Result<ServerConfig, io::Error>;
+//     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+//         futures_util::future::ready(self.server_config())
+//     }
+// }
 
-/// RustlsListener
-pub struct RustlsListener<C> {
-    config_stream: C,
-    incoming: AddrIncoming,
-    server_config: Option<Arc<ServerConfig>>,
+pin_project! {
+    /// RustlsListener
+    pub struct RustlsListener<C> {
+        #[pin]
+        config_stream: C,
+        incoming: AddrIncoming,
+        server_config: Option<Arc<ServerConfig>>,
+    }
 }
 
 impl<C> RustlsListener<C>
 where
-    C: TryStream<Ok = ServerConfig, Error = io::Error>,
+    C: Stream,
+    C::Item: Into<Arc<ServerConfig>>
 {
     /// Create new `RustlsListener`.
     pub fn new(config_stream: C, incoming: AddrIncoming) -> Self {
@@ -259,27 +260,30 @@ where
     }
 }
 
-impl<C> Listener for RustlsListener<C> where C: TryStream<Ok = ServerConfig, Error = io::Error> {}
+impl<C> Listener for RustlsListener<C>
+where
+    C: Stream,
+    C::Item: Into<Arc<ServerConfig>>,
+{
+}
 impl<C> Accept for RustlsListener<C>
 where
-    C: TryStream<Ok = ServerConfig, Error = io::Error>,
+    C: Stream,
+    C::Item: Into<Arc<ServerConfig>>,
 {
     type Conn = RustlsStream;
     type Error = io::Error;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let pin = self.get_mut();
-        if let Poll::Ready(result) = Pin::new(&mut pin.config_stream).poll_next() {
-            match result {
-                Ok(config) => {
-                    self.server_config = Arc::new(config);
-                }
-                Err(e) => return Poll::Ready(Some(Err(e))),
+        let this = self.project();
+        if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
+            if let Some(config) = result {
+                *this.server_config = Some(config.into());
             }
         }
-        match self.server_config.clone() {
-            Some(server_config) => match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
-                Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, pin.config.clone())))),
+        match this.server_config.clone() {
+            Some(server_config) => match ready!(Pin::new(this.incoming).poll_accept(cx)) {
+                Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, server_config)))),
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 None => Poll::Ready(None),
             },
@@ -402,7 +406,7 @@ mod tests {
         RustlsConfig::new()
             .with_key_path("../examples/tls/key.rsa")
             .with_cert_path("../examples/tls/cert.pem")
-            .build_config()
+            .build_server_config()
             .unwrap();
     }
 
@@ -414,7 +418,7 @@ mod tests {
         RustlsConfig::new()
             .with_key(key.as_bytes())
             .with_cert(cert.as_bytes())
-            .build_config()
+            .build_server_config()
             .unwrap();
     }
 }
