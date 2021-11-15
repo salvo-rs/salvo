@@ -7,7 +7,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::{ready, Stream};
+use futures_util::future::Ready;
+use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use pin_project_lite::pin_project;
@@ -166,7 +167,7 @@ impl RustlsConfig {
         self
     }
     /// ServerConfig
-    pub fn build_server_config(mut self) -> Result<Arc<ServerConfig>, Error> {
+    pub fn build_server_config(mut self) -> Result<ServerConfig, Error> {
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
             .map_err(|_| Error::CertParseError)?
@@ -225,7 +226,7 @@ impl RustlsConfig {
             .with_client_cert_verifier(client_auth)
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
             .map_err(Error::InvalidKey)?;
-        Ok(Arc::new(config))
+        Ok(config)
     }
 }
 
@@ -239,13 +240,39 @@ pin_project! {
     }
 }
 
+impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
+    /// Create new RustlsListener with RustlsConfig.
+    pub fn with_rustls_config(
+        config: RustlsConfig,
+        incoming: AddrIncoming,
+    ) -> Result<RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>>, Error> {
+        let config = config.build_server_config()?;
+        let stream = futures_util::stream::once(futures_util::future::ready(Arc::new(config)));
+        Ok(RustlsListener::with_config_stream(stream, incoming))
+    }
+    /// Create new RustlsListener with ServerConfig.
+    pub fn with_server_config(
+        config: impl Into<Arc<ServerConfig>>,
+        incoming: AddrIncoming,
+    ) -> RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
+        let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
+        RustlsListener::with_config_stream(stream, incoming)
+    }
+}
+
+impl From<RustlsConfig> for Arc<ServerConfig> {
+    fn from(rustls_config: RustlsConfig) -> Self {
+        rustls_config.build_server_config().unwrap().into()
+    }
+}
+
 impl<C> RustlsListener<C>
 where
     C: Stream,
     C::Item: Into<Arc<ServerConfig>>,
 {
-    /// Create new `RustlsListener`.
-    pub fn new(config_stream: C, incoming: AddrIncoming) -> Self {
+    /// Create new RustlsListener with config stream.
+    pub fn with_config_stream(config_stream: C, incoming: AddrIncoming) -> Self {
         RustlsListener {
             config_stream,
             incoming,
