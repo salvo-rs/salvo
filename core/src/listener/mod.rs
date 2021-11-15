@@ -169,15 +169,13 @@ pub struct TcpListener {
     incoming: AddrIncoming,
 }
 impl TcpListener {
-    /// Create `TcpListener`.
-    pub fn new(incoming: AddrIncoming) -> Self {
-        Self { incoming }
-    }
     /// Bind to socket address.
+    #[inline]
     pub fn bind(addr: impl Into<StdSocketAddr>) -> Self {
         Self::try_bind(addr).unwrap()
     }
     /// Try to bind to socket address.
+    #[inline]
     pub fn try_bind(addr: impl Into<StdSocketAddr>) -> Result<Self, hyper::Error> {
         let mut incoming = AddrIncoming::bind(&addr.into())?;
         incoming.set_nodelay(true);

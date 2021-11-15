@@ -2,6 +2,7 @@
 use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
+use std::net::SocketAddr as StdSocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -76,6 +77,7 @@ impl std::fmt::Debug for RustlsConfig {
 
 impl RustlsConfig {
     /// Create new `RustlsConfig`
+    #[inline]
     pub fn new() -> Self {
         RustlsConfig {
             key: Box::new(io::empty()),
@@ -86,6 +88,7 @@ impl RustlsConfig {
     }
 
     /// sets the Tls key via File Path, returns `Error::IoError` if the file cannot be open
+    #[inline]
     pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key = Box::new(LazyFile {
             path: path.as_ref().into(),
@@ -95,12 +98,14 @@ impl RustlsConfig {
     }
 
     /// sets the Tls key via bytes slice
+    #[inline]
     pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = Box::new(Cursor::new(key.into()));
         self
     }
 
     /// Specify the file path for the TLS certificate to use.
+    #[inline]
     pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
         self.cert = Box::new(LazyFile {
             path: path.as_ref().into(),
@@ -110,6 +115,7 @@ impl RustlsConfig {
     }
 
     /// sets the Tls certificate via bytes slice
+    #[inline]
     pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = Box::new(Cursor::new(cert.into()));
         self
@@ -119,6 +125,7 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
+    #[inline]
     pub fn with_client_auth_optional_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
@@ -142,6 +149,7 @@ impl RustlsConfig {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
+    #[inline]
     pub fn with_client_auth_required_path(mut self, path: impl AsRef<Path>) -> Self {
         let file = Box::new(LazyFile {
             path: path.as_ref().into(),
@@ -155,6 +163,7 @@ impl RustlsConfig {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
+    #[inline]
     pub fn with_client_auth_required(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
         let cursor = Box::new(Cursor::new(trust_anchor.into()));
         self.client_auth = TlsClientAuth::Required(cursor);
@@ -162,6 +171,7 @@ impl RustlsConfig {
     }
 
     /// Sets the DER-encoded OCSP response
+    #[inline]
     pub fn with_ocsp_resp(mut self, ocsp_resp: impl Into<Vec<u8>>) -> Self {
         self.ocsp_resp = ocsp_resp.into();
         self
@@ -239,24 +249,56 @@ pin_project! {
         server_config: Option<Arc<ServerConfig>>,
     }
 }
+/// RustlsListener
+pub struct RustlsListenerBuilder<C> {
+    config_stream: C,
+}
+impl<C> RustlsListenerBuilder<C>
+where
+    C: Stream,
+    C::Item: Into<Arc<ServerConfig>>,
+{
+    /// Bind to socket address.
+    #[inline]
+    pub fn bind(self, addr: impl Into<StdSocketAddr>) -> RustlsListener<C> {
+        self.try_bind(addr).unwrap()
+    }
+    /// Try to bind to socket address.
+    #[inline]
+    pub fn try_bind(self, addr: impl Into<StdSocketAddr>) -> Result<RustlsListener<C>, hyper::Error> {
+        let mut incoming = AddrIncoming::bind(&addr.into())?;
+        incoming.set_nodelay(true);
+
+        Ok(RustlsListener {
+            config_stream: self.config_stream,
+            incoming,
+            server_config: None,
+        })
+    }
+}
 
 impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
-    /// Create new RustlsListener with RustlsConfig.
-    pub fn with_rustls_config(
-        config: RustlsConfig,
-        incoming: AddrIncoming,
-    ) -> Result<RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>>, Error> {
-        let config = config.build_server_config()?;
-        let stream = futures_util::stream::once(futures_util::future::ready(Arc::new(config)));
-        Ok(RustlsListener::with_config_stream(stream, incoming))
+    /// Create new RustlsListenerBuilder with RustlsConfig.
+    #[inline]
+    pub fn with_rustls_config(config: RustlsConfig) -> RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
+        Self::try_with_rustls_config(config).unwrap()
     }
-    /// Create new RustlsListener with ServerConfig.
+    /// Try to create new RustlsListenerBuilder with RustlsConfig.
+    #[inline]
+    pub fn try_with_rustls_config(
+        config: RustlsConfig,
+    ) -> Result<RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>>, Error> {
+        let config = config.build_server_config()?;
+        let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
+        Ok(Self::with_config_stream(stream))
+    }
+    /// Create new RustlsListenerBuilder with ServerConfig.
+    #[inline]
     pub fn with_server_config(
         config: impl Into<Arc<ServerConfig>>,
-        incoming: AddrIncoming,
-    ) -> RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
+    ) -> RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
         let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
-        RustlsListener::with_config_stream(stream, incoming)
+        Self::with_config_stream(stream)
     }
 }
 
@@ -272,12 +314,9 @@ where
     C::Item: Into<Arc<ServerConfig>>,
 {
     /// Create new RustlsListener with config stream.
-    pub fn with_config_stream(config_stream: C, incoming: AddrIncoming) -> Self {
-        RustlsListener {
-            config_stream,
-            incoming,
-            server_config: None,
-        }
+    #[inline]
+    pub fn with_config_stream(config_stream: C) -> RustlsListenerBuilder<C> {
+        RustlsListenerBuilder { config_stream }
     }
 }
 
