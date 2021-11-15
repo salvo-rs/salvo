@@ -19,10 +19,11 @@ pub struct UnixListener {
 }
 #[cfg(unix)]
 impl UnixListener {
-    pub fn bind<P>(path: P) {
-        Self::bind(path).unwrap()
+    /// Creates a new `UnixListener` bind to the specified path.
+    pub fn bind(path: impl AsRef<Path>) -> UnixListener {
+        Self::try_bind(path).unwrap()
     }
-    /// Creates a new `UnixListener` bound to the specified path.
+    /// Creates a new `UnixListener` bind to the specified path.
     ///
     /// # Panics
     ///
@@ -30,10 +31,7 @@ impl UnixListener {
     ///
     /// The runtime is usually set implicitly when this function is called
     /// from a future driven by a tokio runtime.
-    pub fn try_bind<P>(path: P) -> io::Result<UnixListener>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn try_bind(path: impl AsRef<Path>) -> io::Result<UnixListener> {
         Ok(UnixListener {
             incoming: tokio::net::UnixListener::bind(path)?,
         })
