@@ -21,6 +21,7 @@ async fn main() {
             .with_cert_path("examples/tls/cert.pem")
             .with_key_path("examples/tls/key.rsa"),
         incoming,
-    ).unwrap();
+    )
+    .unwrap();
     Server::new(listener).serve(router).await;
 }
