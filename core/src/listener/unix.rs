@@ -32,7 +32,7 @@ impl UnixListener {
     ///
     /// The runtime is usually set implicitly when this function is called
     /// from a future driven by a tokio runtime.
-     #[inline]
+    #[inline]
     pub fn try_bind(path: impl AsRef<Path>) -> io::Result<UnixListener> {
         Ok(UnixListener {
             incoming: tokio::net::UnixListener::bind(path)?,
