@@ -1,3 +1,7 @@
+### 0.16.0
+- RustlsListener hot reload supported.
+- Create a new Server API simpler than hyper's Server API.
+
 ### 0.15.0
 - core: Use hyper Server and remove TlsServer. Add TlsListener, TcpListener, UnixListener, JoinedListener.
 - core: depot api changed.

@@ -27,8 +27,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["extra", "tls", "anyhow"]
-tls = ["salvo_core/tls"]
+full = ["extra", "rustls", "anyhow"]
+rustls = ["salvo_core/rustls"]
 anyhow = ["salvo_core/anyhow"]
 extra = ["basic_auth", "jwt_auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size_limiter"]
 basic_auth = ["salvo_extra/basic_auth"]
@@ -46,8 +46,8 @@ size_limiter = ["salvo_extra/size_limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.15.2", default-features = false, path = "./core" }
-salvo_extra = { version = "0.15.0", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.16.0", default-features = false, path = "./core" }
+salvo_extra = { version = "0.16.0", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 futures-util = { version = "0.3", default-features = false }
