@@ -18,11 +18,11 @@
 </p>
 </div>
 
-Salvo is a simple but powerful web server framework written in Rust.
+Salvo is a powerful and simplest web server framework in Rust world.
 ## 🎯 Features
   - Base on hyper, tokio and async supported;
   - Websocket supported;
-  - Middleware is handler and support executed before or after handle;
+  - Middleware is handler and support executed before or after handler;
   - Easy to use routing system, routers can be nested, and you can add middlewares on any routers;
   - Multipart form supported, handle files upload is very simple;
   - Serve a static virtual directory from many physical directories;
@@ -40,7 +40,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { version = "0.15", features = ["full"] }
+salvo = { version = "0.16", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -94,8 +94,8 @@ async fn hello_world() -> &'static str {
 }
 #[tokio::main]
 async fn main() {
-    let service = Service::new(Router::new().get(hello_world));
-    Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service).await.unwrap();
+    let router = Router::new().get(hello_world);
+    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
 }
 ```
 

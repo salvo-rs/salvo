@@ -4,7 +4,7 @@ version = "0.16.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
-Salvo is a simple but powerful web server framework written in Rust.
+Salvo is a powerful and simplest web server framework in Rust world.
 """
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
@@ -56,6 +56,7 @@ tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
 tokio-stream = { version = "0.1", features = ["net"] }
 fastrand = "1.5.0"
+pin-project-lite = "0.2.7"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }

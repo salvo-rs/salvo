@@ -1,11 +1,11 @@
 use std::future::Future;
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use futures_util::future;
 use once_cell::sync::Lazy;
 
+use crate::addr::SocketAddr;
 use crate::catcher;
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
@@ -103,6 +103,12 @@ where
     }
 }
 
+impl From<Router> for Service {
+    fn from(router: Router) -> Self {
+        Service::new(router)
+    }
+}
+
 #[doc(hidden)]
 pub struct HyperHandler {
     pub(crate) remote_addr: Option<SocketAddr>,
@@ -114,7 +120,7 @@ impl HyperHandler {
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
-        req.set_remote_addr(self.remote_addr);
+        req.remote_addr = self.remote_addr.clone();
         let mut res = Response::new();
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
