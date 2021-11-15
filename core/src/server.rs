@@ -113,7 +113,7 @@ mod tests {
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
         tokio::task::spawn(async {
-            Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+            Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).serve(router).await;
         });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
