@@ -1,3 +1,4 @@
+use salvo::listener::rustls::RustlsConfig;
 use salvo::prelude::*;
 
 #[fn_handler]
@@ -10,10 +11,9 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    let listener = TlsListener::builder()
+    let config = RustlsConfig::new()
         .with_cert_path("examples/tls/cert.pem")
-        .with_key_path("examples/tls/key.rsa")
-        .bind(([0, 0, 0, 0], 7878))
-        .unwrap();
-    Server::builder(listener).serve(Service::new(router)).await.unwrap();
+        .with_key_path("examples/tls/key.rsa");
+    let listener = RustlsListener::with_rustls_config(config).bind(([0, 0, 0, 0], 7878));
+    Server::new(listener).serve(router).await;
 }

@@ -1,4 +1,4 @@
-use salvo::{prelude::*, Service};
+use salvo::prelude::*;
 use tower::limit::ConcurrencyLimit;
 
 #[fn_handler]

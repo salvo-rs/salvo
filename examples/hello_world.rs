@@ -1,5 +1,4 @@
 use salvo::prelude::*;
-use salvo::server::TcpListener;
 
 #[fn_handler]
 async fn hello_world() -> &'static str {
@@ -32,11 +31,5 @@ async fn main() {
         .push(Router::with_path("hello2").get(hello_world2))
         .push(Router::with_path("hello3").get(hello_world3))
         .push(Router::with_path("hello4").get(hello_world4));
-    // Server::bind(&"127.0.0.1:7878".parse().unwrap())
-    //     .serve(Service::new(router))
-    //     .await.unwrap();
-    Server::builder(TcpListener::bind(([0, 0, 0, 0], 7878)).unwrap())
-        .serve(Service::new(router))
-        .await
-        .unwrap();
+    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
 }

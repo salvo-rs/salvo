@@ -42,7 +42,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.15", features = ["full"] }
+salvo = { version = "0.16", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -97,8 +97,8 @@ async fn hello_world() -> &'static str {
 }
 #[tokio::main]
 async fn main() {
-    let service = Service::new(Router::new().get(hello_world));
-    Server::bind(&"127.0.0.1:7878".parse().unwrap()).serve(service).await.unwrap();
+    let router = Router::new().get(hello_world);
+    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
 }
 ```
 

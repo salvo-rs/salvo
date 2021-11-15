@@ -103,6 +103,12 @@ where
     }
 }
 
+impl From<Router> for Service {
+    fn from(router: Router) -> Self {
+        Service::new(router)
+    }
+}
+
 #[doc(hidden)]
 pub struct HyperHandler {
     pub(crate) remote_addr: Option<SocketAddr>,
