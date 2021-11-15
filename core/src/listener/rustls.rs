@@ -94,8 +94,8 @@ impl RustlsConfig {
     }
 
     /// sets the Tls key via bytes slice
-    pub fn with_key(mut self, key: &[u8]) -> Self {
-        self.key = Box::new(Cursor::new(Vec::from(key)));
+    pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
+        self.key = Box::new(Cursor::new(key.into()));
         self
     }
 
@@ -109,8 +109,8 @@ impl RustlsConfig {
     }
 
     /// sets the Tls certificate via bytes slice
-    pub fn with_cert(mut self, cert: &[u8]) -> Self {
-        self.cert = Box::new(Cursor::new(Vec::from(cert)));
+    pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
+        self.cert = Box::new(Cursor::new(cert.into()));
         self
     }
 
@@ -131,8 +131,8 @@ impl RustlsConfig {
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
-    pub fn with_client_auth_optional(mut self, trust_anchor: &[u8]) -> Self {
-        let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
+    pub fn with_client_auth_optional(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
+        let cursor = Box::new(Cursor::new(trust_anchor.into()));
         self.client_auth = TlsClientAuth::Optional(cursor);
         self
     }
@@ -154,19 +154,19 @@ impl RustlsConfig {
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
-    pub fn with_client_auth_required(mut self, trust_anchor: &[u8]) -> Self {
-        let cursor = Box::new(Cursor::new(Vec::from(trust_anchor)));
+    pub fn with_client_auth_required(mut self, trust_anchor: impl Into<Vec<u8>>) -> Self {
+        let cursor = Box::new(Cursor::new(trust_anchor.into()));
         self.client_auth = TlsClientAuth::Required(cursor);
         self
     }
 
     /// Sets the DER-encoded OCSP response
-    pub fn with_ocsp_resp(mut self, ocsp_resp: &[u8]) -> Self {
-        self.ocsp_resp = Vec::from(ocsp_resp);
+    pub fn with_ocsp_resp(mut self, ocsp_resp: impl Into<Vec<u8>>) -> Self {
+        self.ocsp_resp = ocsp_resp.into();
         self
     }
-    /// Build ServerConfig
-    pub fn build_server_config(mut self) -> Result<ServerConfig, Error> {
+    /// ServerConfig
+    pub fn build_server_config(mut self) -> Result<Arc<ServerConfig>, Error> {
         let mut cert_rdr = BufReader::new(self.cert);
         let cert_chain = rustls_pemfile::certs(&mut cert_rdr)
             .map_err(|_| Error::CertParseError)?
@@ -225,15 +225,9 @@ impl RustlsConfig {
             .with_client_cert_verifier(client_auth)
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
             .map_err(Error::InvalidKey)?;
-        Ok(config)
+        Ok(Arc::new(config))
     }
 }
-// impl Stream for RustlsConfig {
-//     type Item = Result<ServerConfig, io::Error>;
-//     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-//         futures_util::future::ready(self.server_config())
-//     }
-// }
 
 pin_project! {
     /// RustlsListener
@@ -248,7 +242,7 @@ pin_project! {
 impl<C> RustlsListener<C>
 where
     C: Stream,
-    C::Item: Into<Arc<ServerConfig>>
+    C::Item: Into<Arc<ServerConfig>>,
 {
     /// Create new `RustlsListener`.
     pub fn new(config_stream: C, incoming: AddrIncoming) -> Self {

@@ -11,10 +11,11 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    let listener = TcpListener::bind(([0, 0, 0, 0], 7878)).rustls(async {
+    let listener = TcpListener::bind(([0, 0, 0, 0], 7878)).rustls(
         RustlsConfig::new()
             .with_cert_path("examples/tls/cert.pem")
             .with_key_path("examples/tls/key.rsa")
-    });
+            .build_server_config().unwrap(),
+    );
     Server::new(listener).serve(router).await;
 }
