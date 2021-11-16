@@ -24,6 +24,7 @@ use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
 /// Represents errors that can occur building the RustlsListener
+#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 #[derive(Debug, Error)]
 pub enum Error {
     /// Hyper error
@@ -60,6 +61,7 @@ pub(crate) enum TlsClientAuth {
 }
 
 /// Builder to set the configuration for the Tls server.
+#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 pub struct RustlsConfig {
     cert: Box<dyn Read + Send + Sync>,
     key: Box<dyn Read + Send + Sync>,
@@ -240,6 +242,7 @@ impl RustlsConfig {
 
 pin_project! {
     /// RustlsListener
+    #[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
     pub struct RustlsListener<C> {
         #[pin]
         config_stream: C,
@@ -248,6 +251,7 @@ pin_project! {
     }
 }
 /// RustlsListener
+#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 pub struct RustlsListenerBuilder<C> {
     config_stream: C,
 }
@@ -383,6 +387,7 @@ enum State {
 /// tokio_rustls::server::TlsStream doesn't expose constructor methods,
 /// so we have to TlsAcceptor::accept and handshake to have access to it
 /// RustlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
+#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 pub struct RustlsStream {
     state: State,
     remote_addr: SocketAddr,
