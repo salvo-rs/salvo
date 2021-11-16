@@ -19,7 +19,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth};
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
-use super::{Listener, IntoAddrIncoming};
+use super::{IntoAddrIncoming, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
