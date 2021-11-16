@@ -64,9 +64,16 @@ impl FlowCtrl {
         self.cursor < self.handlers.len() && !self.handlers.is_empty()
     }
 
-    /// Call next handler.
+    /// Call next handler. If get next handle and executed, return true, otherwise return false.
+    /// If resposne's statuse code is not success or is redirection, all reset handlers will skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
+        if let Some(code) = res.status_code() {
+            if code.is_redirection() || !code.is_success() {
+                self.skip_reset();
+                return false;
+            }
+        }
         if let Some(handler) = self.handlers.get(self.cursor) {
             self.cursor += 1;
             handler.clone().handle(req, depot, res, self).await;
