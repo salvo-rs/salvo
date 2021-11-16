@@ -261,18 +261,15 @@ where
 {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(self, addr: impl Into<StdSocketAddr>) -> RustlsListener<C> {
-        self.try_bind(addr).unwrap()
+    pub fn bind(self, incoming: impl IntoAddrIncoming) -> RustlsListener<C> {
+        self.try_bind(incoming).unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
-    pub fn try_bind(self, addr: impl Into<StdSocketAddr>) -> Result<RustlsListener<C>, hyper::Error> {
-        let mut incoming = AddrIncoming::bind(&addr.into())?;
-        incoming.set_nodelay(true);
-
+    pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<RustlsListener<C>, hyper::Error> {
         Ok(RustlsListener {
             config_stream: self.config_stream,
-            incoming,
+            incoming: incoming.into(),
             server_config: None,
         })
     }

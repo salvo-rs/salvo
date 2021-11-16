@@ -171,16 +171,15 @@ pub struct TcpListener {
 impl TcpListener {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(addr: impl Into<StdSocketAddr>) -> Self {
+    pub fn bind(incoming: impl IntoAddrIncoming) -> Self {
         Self::try_bind(addr).unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
-    pub fn try_bind(addr: impl Into<StdSocketAddr>) -> Result<Self, hyper::Error> {
-        let mut incoming = AddrIncoming::bind(&addr.into())?;
-        incoming.set_nodelay(true);
-
-        Ok(TcpListener { incoming })
+    pub fn try_bind(incoming: impl IntoAddrIncoming) -> Result<Self, hyper::Error> {
+        Ok(TcpListener {
+            incoming: incoming.into(),
+        })
     }
 }
 impl Listener for TcpListener {}
@@ -190,5 +189,27 @@ impl Accept for TcpListener {
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
+    }
+}
+
+/// IntoAddrIncoming
+pub trait IntoAddrIncoming {
+    /// Convert into AddrIncoming
+    fn into_incoming() -> AddrIncoming;
+}
+
+impl IntoAddrIncoming for StdSocketAddr {
+    #[inline]
+    fn into_incoming() -> AddrIncoming {
+        let mut incoming = AddrIncoming::bind(&addr.into())?;
+        incoming.set_nodelay(true);
+        incoming
+    }
+}
+
+impl IntoAddrIncoming for AddrIncoming {
+    #[inline]
+    fn into_incoming() -> AddrIncoming {
+        self
     }
 }
