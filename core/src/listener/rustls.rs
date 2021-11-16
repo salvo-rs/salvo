@@ -19,7 +19,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth};
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
-use super::{IntoAddrIncoming, Listener};
+use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
@@ -351,31 +351,6 @@ where
                 "faild to load rustls server config",
             )))),
         }
-    }
-}
-
-struct LazyFile {
-    path: PathBuf,
-    file: Option<File>,
-}
-
-impl LazyFile {
-    fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.file.is_none() {
-            self.file = Some(File::open(&self.path)?);
-        }
-
-        self.file.as_mut().unwrap().read(buf)
-    }
-}
-
-impl Read for LazyFile {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.lazy_read(buf).map_err(|err| {
-            let kind = err.kind();
-            tracing::error!(path = ?self.path, error = ?err, "error reading file");
-            io::Error::new(kind, format!("error reading file ({:?}): {}", self.path.display(), err))
-        })
     }
 }
 

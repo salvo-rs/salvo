@@ -1,6 +1,9 @@
 //! Server module
-use std::io;
+use std::fs::File;
+use std::future::Future;
+use std::io::{self, BufReader, Cursor, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -12,11 +15,15 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
+#[cfg(feature = "native_tls")]
+pub mod native_tls;
 #[cfg(feature = "rustls")]
 pub mod rustls;
 #[cfg(unix)]
 pub mod unix;
 
+#[cfg(feature = "native_tls")]
+pub use native_tls::NativeTlsListener;
 #[cfg(feature = "rustls")]
 pub use rustls::RustlsListener;
 #[cfg(unix)]
@@ -231,5 +238,29 @@ impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
         let mut incoming = AddrIncoming::bind(&self.into()).expect("failed to create AddrIncoming");
         incoming.set_nodelay(true);
         incoming
+    }
+}
+
+pub(crate) struct LazyFile {
+    path: PathBuf,
+    file: Option<File>,
+}
+
+impl LazyFile {
+    fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.file.is_none() {
+            self.file = Some(File::open(&self.path)?);
+        }
+
+        self.file.as_mut().unwrap().read(buf)
+    }
+}
+impl Read for LazyFile {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.lazy_read(buf).map_err(|err| {
+            let kind = err.kind();
+            tracing::error!(path = ?self.path, error = ?err, "error reading file");
+            io::Error::new(kind, format!("error reading file ({:?}): {}", self.path.display(), err))
+        })
     }
 }
