@@ -31,5 +31,5 @@ async fn main() {
         .push(Router::with_path("hello2").get(hello_world2))
         .push(Router::with_path("hello3").get(hello_world3))
         .push(Router::with_path("hello4").get(hello_world4));
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }

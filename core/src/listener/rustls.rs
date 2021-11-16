@@ -2,7 +2,6 @@
 use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
-use std::net::SocketAddr as StdSocketAddr;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -22,7 +21,7 @@ use tokio_rustls::rustls::server::{
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
-use super::Listener;
+use super::{Listener, IntoAddrIncoming};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
@@ -269,7 +268,7 @@ where
     pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<RustlsListener<C>, hyper::Error> {
         Ok(RustlsListener {
             config_stream: self.config_stream,
-            incoming: incoming.into(),
+            incoming: incoming.into_incoming(),
             server_config: None,
         })
     }
