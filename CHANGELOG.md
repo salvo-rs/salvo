@@ -1,3 +1,6 @@
+### 0.16.1
+  - Add trait IntoAddrIncoming.
+
 ### 0.16.0
 - RustlsListener hot reload supported.
 - Create a new Server API simpler than hyper's Server API.
