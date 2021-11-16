@@ -14,6 +14,6 @@ async fn main() {
     let config = RustlsConfig::new()
         .with_cert_path("examples/tls/cert.pem")
         .with_key_path("examples/tls/key.rsa");
-    let listener = RustlsListener::with_rustls_config(config).bind(([0, 0, 0, 0], 7878));
+    let listener = RustlsListener::with_rustls_config(config).bind("0.0.0.0:7878");
     Server::new(listener).serve(router).await;
 }

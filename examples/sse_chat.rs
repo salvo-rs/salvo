@@ -29,7 +29,7 @@ async fn main() {
             .get(user_connected)
             .push(Router::with_path("<id>").post(chat_send)),
     );
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 
 #[derive(Debug)]

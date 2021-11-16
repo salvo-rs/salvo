@@ -86,7 +86,7 @@ fn new_runtime(threads: usize) -> Runtime {
 /// fn main() {
 ///
 ///    let router = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router);
+///    let server = Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router);
 ///    salvo_core::run(server);
 /// }
 /// ```
@@ -104,7 +104,7 @@ pub fn run<F: Future>(future: F) {
 /// }
 /// fn main() {
 ///    let service = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+///    let server = Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```

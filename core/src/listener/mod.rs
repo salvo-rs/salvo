@@ -1,6 +1,6 @@
 //! Server module
 use std::io;
-use std::net::SocketAddr as StdSocketAddr;
+use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -172,13 +172,13 @@ impl TcpListener {
     /// Bind to socket address.
     #[inline]
     pub fn bind(incoming: impl IntoAddrIncoming) -> Self {
-        Self::try_bind(addr).unwrap()
+        Self::try_bind(incoming).unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
     pub fn try_bind(incoming: impl IntoAddrIncoming) -> Result<Self, hyper::Error> {
         Ok(TcpListener {
-            incoming: incoming.into(),
+            incoming: incoming.into_incoming(),
         })
     }
 }
@@ -195,13 +195,13 @@ impl Accept for TcpListener {
 /// IntoAddrIncoming
 pub trait IntoAddrIncoming {
     /// Convert into AddrIncoming
-    fn into_incoming() -> AddrIncoming;
+    fn into_incoming(self) -> AddrIncoming;
 }
 
 impl IntoAddrIncoming for StdSocketAddr {
     #[inline]
-    fn into_incoming() -> AddrIncoming {
-        let mut incoming = AddrIncoming::bind(&addr.into())?;
+    fn into_incoming(self) -> AddrIncoming {
+        let mut incoming = AddrIncoming::bind(&self.into()).unwrap();
         incoming.set_nodelay(true);
         incoming
     }
@@ -209,7 +209,27 @@ impl IntoAddrIncoming for StdSocketAddr {
 
 impl IntoAddrIncoming for AddrIncoming {
     #[inline]
-    fn into_incoming() -> AddrIncoming {
+    fn into_incoming(self) -> AddrIncoming {
         self
+    }
+}
+
+impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
+    fn into_incoming(self) -> AddrIncoming {
+        for addr in self.to_socket_addrs().expect("failed to create AddrIncoming") {
+            if let Ok(mut incoming) = AddrIncoming::bind(&addr) {
+                incoming.set_nodelay(true);
+                return incoming;
+            }
+        }
+        panic!("failed to create AddrIncoming");
+    }
+}
+
+impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
+    fn into_incoming(self) -> AddrIncoming {
+        let mut incoming = AddrIncoming::bind(&self.into()).expect("failed to create AddrIncoming");
+        incoming.set_nodelay(true);
+        incoming
     }
 }

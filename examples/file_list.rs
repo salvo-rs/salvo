@@ -13,5 +13,5 @@ async fn main() {
             defaults: vec!["index.html".to_owned()],
         },
     ));
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
