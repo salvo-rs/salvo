@@ -14,7 +14,7 @@ async fn main() {
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 
 #[fn_handler]

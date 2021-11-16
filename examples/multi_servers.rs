@@ -17,7 +17,7 @@ async fn main() {
     let router2 = Router::new().get(hello_world2);
 
     tokio::try_join!(
-        Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).try_serve(router1),
+        Server::new(TcpListener::bind("0.0.0.0:7878")).try_serve(router1),
         Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).try_serve(router2),
     )
     .unwrap();

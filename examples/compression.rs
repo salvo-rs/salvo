@@ -26,5 +26,5 @@ async fn main() {
                 .path("examples/<*path>")
                 .get(StaticDir::new("examples/")),
         );
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }

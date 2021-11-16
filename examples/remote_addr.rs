@@ -10,5 +10,5 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(index);
-    Server::new(TcpListener::bind(([0, 0, 0, 0], 7878))).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
