@@ -220,6 +220,7 @@ Your can find more examples in [examples](./examples/) folder:
 - [size_limiter.rs](./examples/size_limiter.rs)
 - [sse_chat.rs](./examples/sse_chat.rs)
 - [sse.rs](./examples/sse.rs)
+- [tls_reload.rs](./examples/tls_reload.rs)
 - [tls.rs](./examples/tls.rs)
 - [todos.rs](./examples/todos.rs)
 - [unix_socket.rs](./examples/unix_socket.rs)
