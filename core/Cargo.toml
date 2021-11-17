@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.16.1"
+version = "0.16.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
@@ -20,7 +20,6 @@ all-features = true
 default = []
 full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile"]
-native-tls = ["tokio-native-tls"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
@@ -55,7 +54,6 @@ tempdir = "0.3"
 textnonce = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
-tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"

@@ -45,8 +45,6 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::errors::*;
     pub use crate::http::{Request, Response, StatusCode};
-    #[cfg(feature = "native-tls")]
-    pub use crate::listener::NativeTlsListener;
     #[cfg(feature = "rustls")]
     pub use crate::listener::RustlsListener;
     #[cfg(unix)]

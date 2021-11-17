@@ -14,15 +14,11 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-#[cfg(feature = "native-tls")]
-pub mod native_tls;
 #[cfg(feature = "rustls")]
 pub mod rustls;
 #[cfg(unix)]
 pub mod unix;
 
-#[cfg(feature = "native-tls")]
-pub use native_tls::NativeTlsListener;
 #[cfg(feature = "rustls")]
 pub use rustls::RustlsListener;
 #[cfg(unix)]

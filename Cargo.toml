@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.16.1"
+version = "0.16.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -27,9 +27,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["extra", "rustls", "anyhow", "native-tls"]
+full = ["extra", "rustls", "anyhow"]
 rustls = ["salvo_core/rustls"]
-native-tls = ["salvo_core/native-tls"]
 anyhow = ["salvo_core/anyhow"]
 extra = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size-limiter"]
 basic-auth = ["salvo_extra/basic-auth"]
@@ -47,8 +46,8 @@ size-limiter = ["salvo_extra/size-limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.16.1", default-features = false, path = "./core" }
-salvo_extra = { version = "0.16.0", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.16.2", default-features = false, path = "./core" }
+salvo_extra = { version = "0.16.2", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 async-stream = "0.3"

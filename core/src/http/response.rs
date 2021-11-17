@@ -282,6 +282,11 @@ impl Response {
     ///
     /// `write_back` consumes the `Response`.
     pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
+        for cookie in self.cookies.delta() {
+            if let Ok(hv) = cookie.encoded().to_string().parse() {
+                self.headers.append(SET_COOKIE, hv);
+            }
+        }
         *res.headers_mut() = self.headers;
 
         // Default to a 404 if no response code was set
