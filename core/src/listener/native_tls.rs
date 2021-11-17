@@ -1,10 +1,8 @@
 //! tls module
-use std::fs::File;
 use std::future::Future;
-use std::io::{self, BufReader, Cursor, Read};
-use std::path::{Path, PathBuf};
+use std::io::{self, Cursor, Read};
+use std::path::Path;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::Ready;
@@ -12,11 +10,9 @@ use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use pin_project_lite::pin_project;
-use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
-use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
-use tokio_native_tls::{TlsAcceptor as AsyncTlsAcceptor, TlsStream};
+use tokio_native_tls::TlsAcceptor as AsyncTlsAcceptor;
 
 use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
@@ -67,7 +63,7 @@ impl NativeTlsConfig {
         self
     }
     #[inline]
-    pub fn identity(&self) -> Result<Identity, io::Error> {
+    pub fn identity(mut self) -> Result<Identity, io::Error> {
         let mut pkcs12 = Vec::new();
         self.pkcs12
             .read_to_end(&mut pkcs12)
@@ -83,6 +79,7 @@ pin_project! {
         #[pin]
         config_stream: C,
         incoming: AddrIncoming,
+        #[pin]
         acceptor: Option<AsyncTlsAcceptor>,
     }
 }
@@ -162,39 +159,104 @@ where
     C: Stream,
     C::Item: Into<Identity>,
 {
-    type Conn = TlsStream<std::net::TcpStream>;
+    type Conn = NativeTlsStream;
     type Error = io::Error;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let this = self.project();
+        let mut this = self.project();
         if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
             if let Some(identity) = result {
                 let identity = identity.into();
-                self.acceptor = Some(
+                *this.acceptor = Some(
                     TlsAcceptor::new(identity)
                         .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
                         .into(),
                 );
             }
         }
-        match &self.acceptor {
-            Some(acceptor) => match ready!(Pin::new(this.incoming).poll_accept(cx)) {
-                Some(stream) => match stream {
-                    Ok(stream) => match Pin::new(&acceptor.accept(stream)).poll() {
-                        Ok(stream) => Poll::Ready(Some(Ok(stream.into()))),
-                        Err(_) => Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "acceptor is none")))),
-                    },
-                    Err(e) => Poll::Ready(Some(Err(e))),
-                },
-                None => Poll::Ready(None),
-            },
-            None => Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "acceptor is none")))),
+        if let Some(acceptor) = this.acceptor.get_mut() {
+            match ready!(Pin::new(this.incoming).poll_accept(cx)) {
+                Some(Ok(sock)) => Poll::Ready(Some(Ok(NativeTlsStream::new(
+                    sock.remote_addr().into(),
+                    Box::pin(acceptor.accept(sock)),
+                )))),
+                Some(Err(e)) => Poll::Ready(Some(Err(e))),
+                _ => Poll::Ready(None),
+            }
+        } 
+        else {
+            Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "acceptor is none"))))
         }
     }
 }
 
-impl Transport for TlsStream<AddrStream> {
+enum NativeTlsState {
+    Accept(AsyncTlsAcceptor),
+    Streaming(tokio_rustls::server::TlsStream<AddrStream>),
+}
+pin_project! {
+    #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
+    pub struct NativeTlsStream {
+        #[pin]
+        inner_future: Pin<Box<dyn Future<Output=Result<tokio_native_tls::TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>>>,
+        remote_addr: SocketAddr,
+    }
+}
+impl Transport for NativeTlsStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
-        self.remote_addr()
+        Some(self.remote_addr.clone())
+    }
+}
+
+impl NativeTlsStream {
+    fn new(
+        remote_addr: SocketAddr,
+        inner_future: impl Future<Output = Result<tokio_native_tls::TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>
+            + 'static,
+    ) -> Self {
+        NativeTlsStream {
+            inner_future: Box::pin(inner_future),
+            remote_addr,
+        }
+    }
+}
+
+impl AsyncRead for NativeTlsStream {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
+        let this = self.project();
+        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
+            Pin::new(&mut stream).poll_read(cx, buf)
+        } else {
+            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+        }
+    }
+}
+
+impl AsyncWrite for NativeTlsStream {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        let this = self.project();
+        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
+            Pin::new(&mut stream).poll_write(cx, buf)
+        } else {
+            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = self.project();
+        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
+            Pin::new(&mut stream).poll_flush(cx)
+        } else {
+            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = self.project();
+        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
+            Pin::new(&mut stream).poll_shutdown(cx)
+        } else {
+            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+        }
     }
 }

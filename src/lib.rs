@@ -15,7 +15,7 @@ pub use salvo_core::*;
     feature = "compression",
     feature = "cors",
     feature = "csrf",
-    feature = "jwt_auth",
+    feature = "jwt-auth",
     feature = "proxy",
     feature = "serve",
     feature = "session",
