@@ -1,4 +1,5 @@
 //! basic auth middleware
+use std::future::Future;
 
 use async_trait::async_trait;
 
@@ -24,17 +25,29 @@ pub enum Error {
 }
 
 /// BasicAuthValidator
+#[async_trait]
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
-    fn validate(&self, username: String, password: String) -> bool;
+    #[must_use = "validate future must be used"]
+    async fn validate(&self, username: &str, password: &str) -> bool;
 }
-impl<F> BasicAuthValidator for F
+
+// #[async_trait]
+// impl<F> BasicAuthValidator for F
+// where
+//     F: Fn(&str, &str) -> bool + Send + Sync,
+// {
+//     async fn validate(&self, username: &str, password: &str) -> bool {
+//         self(username, password)
+//     }
+// }
+#[async_trait]
+impl<'a, F> BasicAuthValidator for F
 where
-    F: Send + Sync,
-    F: Fn(String, String) -> bool,
+    F: Fn(&'a str, &'a str) -> (impl Future<Output = bool>  + Send + Sync) +  Send + Sync,
 {
-    fn validate(&self, username: String, password: String) -> bool {
-        self(username, password)
+    async fn validate(&self, username: &str, password: &str) -> bool {
+        self(username, password).await
     }
 }
 
@@ -98,7 +111,7 @@ where
                 if auth.starts_with("Basic") {
                     if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
                         if let Ok((username, password)) = self.parse_authorization(auth) {
-                            if self.validator.validate(username.clone(), password) {
+                            if self.validator.validate(&username, &password).await {
                                 depot.insert(USERNAME_KEY, username);
                                 ctrl.call_next(req, depot, res).await;
                                 return;
