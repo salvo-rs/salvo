@@ -1,3 +1,7 @@
+### 0.16.2
+  - Fix cookie not write bug.
+  - rename all features name, repalce '_' with '-'.
+
 ### 0.16.1
   - Add trait IntoAddrIncoming.
 
