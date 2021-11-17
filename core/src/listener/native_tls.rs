@@ -183,8 +183,7 @@ where
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 _ => Poll::Ready(None),
             }
-        } 
-        else {
+        } else {
             Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "acceptor is none"))))
         }
     }
