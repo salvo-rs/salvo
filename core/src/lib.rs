@@ -30,11 +30,7 @@ pub use self::depot::Depot;
 pub use self::error::Error;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
-#[cfg(feature = "rustls")]
-pub use self::listener::RustlsListener;
-#[cfg(unix)]
-pub use self::listener::UnixListener;
-pub use self::listener::{JoinedListener, Listener, TcpListener};
+pub use self::listener::Listener;
 pub use self::routing::Router;
 pub use self::server::Server;
 pub use self::service::Service;
