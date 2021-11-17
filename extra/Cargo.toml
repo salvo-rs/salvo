@@ -18,13 +18,13 @@ all-features = true
 
 [features]
 default = ["full"]
-full = ["basic_auth", "jwt_auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "session", "size_limiter"]
-basic_auth = ["base64", "thiserror"]
-jwt_auth = ["cookie", "jsonwebtoken", "once_cell"]
+full = ["basic-auth", "jwt_auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "session", "size-limiter"]
+basic-auth = ["base64", "thiserror"]
+jwt-auth = ["cookie", "jsonwebtoken", "once_cell"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
 csrf = ["csrflib", "hkdf", "sha2", "time"]
-size_limiter = []
+size-limiter = []
 proxy = ["hyper", "hyper-rustls/webpki-tokio"]
 serve = ["chrono", "mime", "percent-encoding", "tokio"]
 session = ["async-session", "cookie"]
@@ -57,7 +57,7 @@ thiserror = { version = "1", optional = true }
 time = { version = "0.2", optional = true }
 tokio = { version = "1", features = ["fs", "sync", "time"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
-tokio-tungstenite = { version = "0.15", default-features = false, optional = true }
+tokio-tungstenite = { version = "0.16", default-features = false, optional = true }
 tokio-util = { version = "0.6", features = ["io"], optional = true }
 tracing = { version = "0.1" }
 

@@ -1,9 +1,8 @@
 //! Server module
 use std::fs::File;
-use std::future::Future;
-use std::io::{self, BufReader, Cursor, Read};
+use std::io::{self, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
