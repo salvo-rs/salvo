@@ -11,9 +11,9 @@
 extern crate serde_derive;
 extern crate serde;
 
-#[cfg(feature = "basic_auth")]
+#[cfg(feature = "basic-auth")]
 pub mod basic_auth;
-#[cfg(feature = "jwt_auth")]
+#[cfg(feature = "jwt-auth")]
 pub mod jwt_auth;
 
 #[cfg(feature = "compression")]
@@ -33,5 +33,5 @@ pub mod sse;
 #[cfg(feature = "ws")]
 pub mod ws;
 
-#[cfg(feature = "size_limiter")]
+#[cfg(feature = "size-limiter")]
 pub mod size_limiter;

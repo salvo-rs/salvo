@@ -1,8 +1,7 @@
 //! tls module
-use std::fs::File;
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -19,7 +18,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth};
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
 
-use super::{IntoAddrIncoming, Listener};
+use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
@@ -340,46 +339,22 @@ where
                 *this.server_config = Some(config.into());
             }
         }
-        match this.server_config.clone() {
-            Some(server_config) => match ready!(Pin::new(this.incoming).poll_accept(cx)) {
+        if let Some(server_config) = this.server_config.clone() {
+            match ready!(Pin::new(this.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, server_config)))),
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 None => Poll::Ready(None),
-            },
-            None => Poll::Ready(Some(Err(io::Error::new(
+            }
+        } else {
+            Poll::Ready(Some(Err(io::Error::new(
                 io::ErrorKind::Other,
                 "faild to load rustls server config",
-            )))),
+            ))))
         }
     }
 }
 
-struct LazyFile {
-    path: PathBuf,
-    file: Option<File>,
-}
-
-impl LazyFile {
-    fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.file.is_none() {
-            self.file = Some(File::open(&self.path)?);
-        }
-
-        self.file.as_mut().unwrap().read(buf)
-    }
-}
-
-impl Read for LazyFile {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.lazy_read(buf).map_err(|err| {
-            let kind = err.kind();
-            tracing::error!(path = ?self.path, error = ?err, "error reading file");
-            io::Error::new(kind, format!("error reading file ({:?}): {}", self.path.display(), err))
-        })
-    }
-}
-
-enum State {
+enum RustlsState {
     Handshaking(tokio_rustls::Accept<AddrStream>),
     Streaming(tokio_rustls::server::TlsStream<AddrStream>),
 }
@@ -389,7 +364,7 @@ enum State {
 /// RustlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
 #[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 pub struct RustlsStream {
-    state: State,
+    state: RustlsState,
     remote_addr: SocketAddr,
 }
 impl Transport for RustlsStream {
@@ -403,7 +378,7 @@ impl RustlsStream {
         let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
         RustlsStream {
-            state: State::Handshaking(accept),
+            state: RustlsState::Handshaking(accept),
             remote_addr: remote_addr.into(),
         }
     }
@@ -413,15 +388,15 @@ impl AsyncRead for RustlsStream {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let pin = self.get_mut();
         match pin.state {
-            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+            RustlsState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
                 Ok(mut stream) => {
                     let result = Pin::new(&mut stream).poll_read(cx, buf);
-                    pin.state = State::Streaming(stream);
+                    pin.state = RustlsState::Streaming(stream);
                     result
                 }
                 Err(err) => Poll::Ready(Err(err)),
             },
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+            RustlsState::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
         }
     }
 }
@@ -430,29 +405,29 @@ impl AsyncWrite for RustlsStream {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let pin = self.get_mut();
         match pin.state {
-            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+            RustlsState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
                 Ok(mut stream) => {
                     let result = Pin::new(&mut stream).poll_write(cx, buf);
-                    pin.state = State::Streaming(stream);
+                    pin.state = RustlsState::Streaming(stream);
                     result
                 }
                 Err(err) => Poll::Ready(Err(err)),
             },
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+            RustlsState::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
         }
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
-            State::Handshaking(_) => Poll::Ready(Ok(())),
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
+            RustlsState::Handshaking(_) => Poll::Ready(Ok(())),
+            RustlsState::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
         }
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
-            State::Handshaking(_) => Poll::Ready(Ok(())),
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+            RustlsState::Handshaking(_) => Poll::Ready(Ok(())),
+            RustlsState::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
         }
     }
 }

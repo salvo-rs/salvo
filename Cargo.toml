@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.16.1"
+version = "0.16.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -30,9 +30,9 @@ default = []
 full = ["extra", "rustls", "anyhow"]
 rustls = ["salvo_core/rustls"]
 anyhow = ["salvo_core/anyhow"]
-extra = ["basic_auth", "jwt_auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size_limiter"]
-basic_auth = ["salvo_extra/basic_auth"]
-jwt_auth = ["salvo_extra/jwt_auth"]
+extra = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size-limiter"]
+basic-auth = ["salvo_extra/basic-auth"]
+jwt-auth = ["salvo_extra/jwt-auth"]
 compression = ["salvo_extra/compression"]
 cors = ["salvo_extra/cors"]
 csrf = ["salvo_extra/csrf"]
@@ -40,14 +40,14 @@ proxy = ["salvo_extra/proxy"]
 serve = ["salvo_extra/serve"]
 sse = ["salvo_extra/sse"]
 ws = ["salvo_extra/ws"]
-size_limiter = ["salvo_extra/size_limiter"]
+size-limiter = ["salvo_extra/size-limiter"]
 
 [workspace]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.16.1", default-features = false, path = "./core" }
-salvo_extra = { version = "0.16.0", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.16.2", default-features = false, path = "./core" }
+salvo_extra = { version = "0.16.2", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 async-stream = "0.3"
