@@ -57,63 +57,41 @@ impl Writer for String {
     }
 }
 
-/// Write text content to response as text content. It will set ```content-type``` to ```text/plain; charset=utf-8```.
-pub struct PlainText<T>(T);
-#[async_trait]
-impl<T> Writer for PlainText<T>
-where
-    T: AsRef<str> + Send,
-{
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(
-            HeaderValue::from_static("text/plain; charset=utf-8"),
-            self.0.as_ref().as_bytes(),
-        );
-    }
+/// Write text content to response as text content. 
+pub enum Text<C> {
+    /// It will set ```content-type``` to ```text/plain; charset=utf-8```.
+    Plain(C),
+    /// It will set ```content-type``` to ```application/json; charset=utf-8```.
+    Json(C),
+    /// It will set ```content-type``` to ```text/html; charset=utf-8```.
+    Html(C),
 }
-
-/// Write text content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
-pub struct JsonText<T>(T);
 #[async_trait]
-impl<T> Writer for JsonText<T>
+impl<C> Writer for Text<C>
 where
-    T: AsRef<str> + Send,
+    C: AsRef<str> + Send,
 {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        match serde_json::from_str::<Value>(self.0.as_ref()) {
-            Ok(_) => {
-                res.render_binary(
-                    HeaderValue::from_static("application/json; charset=utf-8"),
-                    self.0.as_ref().as_bytes(),
-                );
-            }
-            Err(e) => {
-                tracing::error!(error = ?e, "JsonText write error");
-                res.set_http_error(InternalServerError());
-            }
-        }
-    }
-}
-
-/// Write text content to response as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
-pub struct HtmlText<T>(T);
-#[async_trait]
-impl<T> Writer for HtmlText<T>
-where
-    T: AsRef<str> + Send,
-{
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(
-            HeaderValue::from_static("text/html; charset=utf-8"),
-            self.0.as_ref().as_bytes(),
-        );
+        let (ctype, content) = match self {
+            Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
+            Self::Json(content) => {
+                if let Err(e) = serde_json::from_str::<Value>(content.as_ref()) {
+                    tracing::error!(error = ?e, "invalid json format");
+                    res.set_http_error(InternalServerError());
+                    return;
+                }
+                (HeaderValue::from_static("application/json; charset=utf-8"), content)
+            },
+            Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
+        };
+        res.render_binary(ctype, content.as_ref().as_bytes());
     }
 }
 
 /// Write serializable content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
-pub struct JsonContent<T>(T);
+pub struct Json<T>(T);
 #[async_trait]
-impl<T> Writer for JsonContent<T>
+impl<T> Writer for Json<T>
 where
     T: Serialize + Send,
 {
@@ -179,8 +157,8 @@ mod tests {
     #[tokio::test]
     async fn test_write_plain_text() {
         #[fn_handler]
-        async fn test() -> PlainText<&'static str> {
-            PlainText("hello")
+        async fn test() -> Text<&'static str> {
+            Text::Plain("hello")
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
@@ -194,8 +172,8 @@ mod tests {
     #[tokio::test]
     async fn test_write_json_text() {
         #[fn_handler]
-        async fn test() -> JsonText<&'static str> {
-            JsonText(r#"{"hello": "world"}"#)
+        async fn test() -> Text<&'static str> {
+            Text::Json(r#"{"hello": "world"}"#)
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
@@ -212,8 +190,8 @@ mod tests {
     #[tokio::test]
     async fn test_write_json_text_error() {
         #[fn_handler]
-        async fn test() -> JsonText<&'static str> {
-            JsonText(r#"{"hello": "world}"#)
+        async fn test() -> Text<&'static str> {
+            Text::Json(r#"{"hello": "world}"#)
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
@@ -230,8 +208,8 @@ mod tests {
             name: String,
         }
         #[fn_handler]
-        async fn test() -> JsonContent<User> {
-            JsonContent(User { name: "jobs".into() })
+        async fn test() -> Json<User> {
+            Json(User { name: "jobs".into() })
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
@@ -248,8 +226,8 @@ mod tests {
     #[tokio::test]
     async fn test_write_html_text() {
         #[fn_handler]
-        async fn test() -> HtmlText<&'static str> {
-            HtmlText("<html><body>hello</body></html>")
+        async fn test() -> Text<&'static str> {
+            Text::Html("<html><body>hello</body></html>")
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
