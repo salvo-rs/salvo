@@ -1,4 +1,4 @@
-use salvo::extra::basic_auth::BasicAuthHandler;
+use salvo::extra::basic_auth::{BasicAuthValidator, BasicAuthHandler};
 use salvo::extra::serve::StaticDir;
 use salvo::prelude::*;
 
@@ -6,7 +6,7 @@ use salvo::prelude::*;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let auth_handler = BasicAuthHandler::new(validate);
+    let auth_handler = BasicAuthHandler::new(Validator);
 
     let router = Router::new()
         .hoop(auth_handler)
@@ -14,6 +14,10 @@ async fn main() {
     Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 
-async fn validate(username: &str, password: &str) -> bool {
-    username == "root" && password == "pwd"
+struct Validator;
+#[async_trait]
+impl BasicAuthValidator for Validator {
+    async fn validate(&self, username: &str, password: &str) -> bool {
+        username == "root" && password == "pwd"
+    }
 }

@@ -1,6 +1,4 @@
 //! basic auth middleware
-use std::future::Future;
-
 use async_trait::async_trait;
 
 use salvo_core::http::header::AUTHORIZATION;
@@ -31,26 +29,6 @@ pub trait BasicAuthValidator: Send + Sync {
     #[must_use = "validate future must be used"]
     async fn validate(&self, username: &str, password: &str) -> bool;
 }
-
-// #[async_trait]
-// impl<F> BasicAuthValidator for F
-// where
-//     F: Fn(&str, &str) -> bool + Send + Sync,
-// {
-//     async fn validate(&self, username: &str, password: &str) -> bool {
-//         self(username, password)
-//     }
-// }
-#[async_trait]
-impl<'a, F> BasicAuthValidator for F
-where
-    F: Fn(&'a str, &'a str) -> (impl Future<Output = bool>  + Send + Sync) +  Send + Sync,
-{
-    async fn validate(&self, username: &str, password: &str) -> bool {
-        self(username, password).await
-    }
-}
-
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
     /// Get basic auth username reference.
