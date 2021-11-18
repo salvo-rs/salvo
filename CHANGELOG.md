@@ -1,3 +1,10 @@
+### 0.16.4
+- Add keys to Depot debug message
+- Response will set default http error when set status_code if it is error code.
+- 
+### 0.16.3
+- BasicAuthValidator async validate function
+
 ### 0.16.2
   - Fix cookie not write bug.
   - rename all features name, repalce '_' with '-'.
