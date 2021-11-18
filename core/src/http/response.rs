@@ -353,6 +353,9 @@ impl Response {
     #[inline]
     pub fn set_status_code(&mut self, code: StatusCode) {
         self.status_code = Some(code);
+        if !code.is_success() {
+            self.http_error = HttpError::from_code(code);
+        }
     }
 
     /// Get content type.
