@@ -73,6 +73,11 @@ impl std::fmt::Debug for RustlsConfig {
         f.debug_struct("RustlsConfig").finish()
     }
 }
+impl Default for RustlsConfig {
+    fn default() -> Self {
+        RustlsConfig::new()
+    }
+}
 
 impl RustlsConfig {
     /// Create new `RustlsConfig`

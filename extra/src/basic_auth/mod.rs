@@ -1,5 +1,4 @@
 //! basic auth middleware
-
 use async_trait::async_trait;
 
 use salvo_core::http::header::AUTHORIZATION;
@@ -24,20 +23,12 @@ pub enum Error {
 }
 
 /// BasicAuthValidator
+#[async_trait]
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
-    fn validate(&self, username: String, password: String) -> bool;
+    #[must_use = "validate future must be used"]
+    async fn validate(&self, username: &str, password: &str) -> bool;
 }
-impl<F> BasicAuthValidator for F
-where
-    F: Send + Sync,
-    F: Fn(String, String) -> bool,
-{
-    fn validate(&self, username: String, password: String) -> bool {
-        self(username, password)
-    }
-}
-
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
     /// Get basic auth username reference.
@@ -98,7 +89,7 @@ where
                 if auth.starts_with("Basic") {
                     if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
                         if let Ok((username, password)) = self.parse_authorization(auth) {
-                            if self.validator.validate(username.clone(), password) {
+                            if self.validator.validate(&username, &password).await {
                                 depot.insert(USERNAME_KEY, username);
                                 ctrl.call_next(req, depot, res).await;
                                 return;
@@ -121,10 +112,16 @@ mod tests {
 
     use super::*;
 
+    struct Validator;
+    #[async_trait]
+    impl BasicAuthValidator for Validator {
+        async fn validate(&self, username: &str, password: &str) -> bool {
+            username == "root" && password == "pwd"
+        }
+    }
     #[tokio::test]
     async fn test_basic_auth() {
-        let auth_handler =
-            BasicAuthHandler::new(|username, password| -> bool { username == "root" && password == "pwd" });
+        let auth_handler = BasicAuthHandler::new(Validator);
 
         #[fn_handler]
         async fn hello() -> &'static str {
