@@ -112,10 +112,16 @@ mod tests {
 
     use super::*;
 
+    struct Validator;
+    #[async_trait]
+    impl BasicAuthValidator for Validator {
+        async fn validate(&self, username: &str, password: &str) -> bool {
+            username == "root" && password == "pwd"
+        }
+    }
     #[tokio::test]
     async fn test_basic_auth() {
-        let auth_handler =
-            BasicAuthHandler::new(|username, password| -> bool { username == "root" && password == "pwd" });
+        let auth_handler = BasicAuthHandler::new(Validator);
 
         #[fn_handler]
         async fn hello() -> &'static str {
