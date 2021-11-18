@@ -1,3 +1,6 @@
+### 0.16.3
+- BasicAuthValidator async validate function
+
 ### 0.16.2
   - Fix cookie not write bug.
   - rename all features name, repalce '_' with '-'.
