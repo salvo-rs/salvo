@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use crate::{Depot, Request, Response, Writer};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
+const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
 
 fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
@@ -49,7 +50,7 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         summary
             .map(|summary| format!("<h3>{}</h3>", summary))
             .unwrap_or_default(),
-        detail.map(|detail| format!("<p>{}</p>", detail)).unwrap_or_default(),
+        format!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }
 fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
@@ -58,7 +59,7 @@ fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or("there is no more detailed explanation")
+        detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
 fn error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
@@ -67,7 +68,7 @@ fn error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Opti
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or("there is no more detailed explanation")
+        detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
 fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
@@ -76,7 +77,7 @@ fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option
         code.as_u16(),
         name,
         summary.unwrap_or(name),
-        detail.unwrap_or("there is no more detailed explanation")
+        detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
 
