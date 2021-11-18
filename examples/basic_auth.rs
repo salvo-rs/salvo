@@ -1,4 +1,4 @@
-use salvo::extra::basic_auth::{BasicAuthValidator, BasicAuthHandler};
+use salvo::extra::basic_auth::{BasicAuthHandler, BasicAuthValidator};
 use salvo::extra::serve::StaticDir;
 use salvo::prelude::*;
 
