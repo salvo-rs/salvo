@@ -87,7 +87,7 @@ impl Depot {
 
 impl fmt::Debug for Depot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Depot").finish()
+        f.debug_struct("Depot").field("keys", &self.data.keys()).finish()
     }
 }
 

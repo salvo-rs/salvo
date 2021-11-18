@@ -13,8 +13,8 @@ use salvo_core::http::{Method, Request, Response};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
-/// key used to insert auth claims data to depot.
-pub const AUTH_CLAIMS_KEY: &str = "::salvo::extra::jwt_auth::auth_claims";
+/// key used to insert auth decoded data to depot.
+pub const AUTH_DATA_KEY: &str = "::salvo::extra::jwt_auth::auth_data";
 /// key used to insert auth state data to depot.
 pub const AUTH_STATE_KEY: &str = "::salvo::extra::jwt_auth::auth_state";
 /// key used to insert auth token data to depot.
@@ -233,8 +233,8 @@ pub enum JwtAuthState {
 pub trait JwtAuthDepotExt {
     /// get jwt auth token reference from depot.
     fn jwt_auth_token(&self) -> Option<&String>;
-    /// get jwt auth claims from depot.
-    fn jwt_auth_claims<C>(&self) -> Option<&C>
+    /// get jwt auth decoded data from depot.
+    fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Sync + Send + 'static;
     /// get jwt auth state from depot.
@@ -246,11 +246,11 @@ impl JwtAuthDepotExt for Depot {
         self.get(AUTH_TOKEN_KEY)
     }
 
-    fn jwt_auth_claims<C>(&self) -> Option<&C>
+    fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Sync + Send + 'static,
     {
-        self.get(AUTH_CLAIMS_KEY)
+        self.get(AUTH_DATA_KEY)
     }
 
     fn jwt_auth_state(&self) -> JwtAuthState {
@@ -348,7 +348,7 @@ where
         for extractor in &self.extractors {
             if let Some(token) = extractor.get_token(req).await {
                 if let Ok(data) = self.decode(&token) {
-                    depot.insert(AUTH_CLAIMS_KEY, data);
+                    depot.insert(AUTH_DATA_KEY, data);
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Authorized);
                 } else {
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Forbidden);
