@@ -138,7 +138,7 @@ impl HyperHandler {
                         .map(|code| !code.is_success() || code.is_redirection())
                         .unwrap_or(false);
                     if !allow_reset {
-                        tracing::error!("ctrl has_next should return false");
+                        tracing::error!(url = ?req.uri(), "FlowCtrl has_next should return false");
                     }
                 }
             } else {
