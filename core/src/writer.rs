@@ -57,7 +57,7 @@ impl Writer for String {
     }
 }
 
-/// Write text content to response as text content. 
+/// Write text content to response as text content.
 pub enum Text<C> {
     /// It will set ```content-type``` to ```text/plain; charset=utf-8```.
     Plain(C),
@@ -81,7 +81,7 @@ where
                     return;
                 }
                 (HeaderValue::from_static("application/json; charset=utf-8"), content)
-            },
+            }
             Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
         };
         res.render_binary(ctype, content.as_ref().as_bytes());
