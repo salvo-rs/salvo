@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.16.2"
+version = "0.16.3"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -46,8 +46,8 @@ size-limiter = ["salvo_extra/size-limiter"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.16.2", default-features = false, path = "./core" }
-salvo_extra = { version = "0.16.2", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.16.3", default-features = false, path = "./core" }
+salvo_extra = { version = "0.16.3", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 async-stream = "0.3"
@@ -60,7 +60,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"
 tracing-log = "0.1"
-tracing-subscriber = "0.3.0"
+tracing-subscriber = "0.3"
 tower = { version = "0.4", features = ["limit"] }
 hyper = { version = "0.14", features = ["server"] }
 
