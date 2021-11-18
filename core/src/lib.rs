@@ -50,7 +50,7 @@ pub mod prelude {
     #[cfg(unix)]
     pub use crate::listener::UnixListener;
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
-    pub use crate::routing::{filter, Router};
+    pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::*;
