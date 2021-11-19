@@ -207,7 +207,7 @@ pub trait IntoAddrIncoming {
 impl IntoAddrIncoming for StdSocketAddr {
     #[inline]
     fn into_incoming(self) -> AddrIncoming {
-        let mut incoming = AddrIncoming::bind(&self.into()).unwrap();
+        let mut incoming = AddrIncoming::bind(&self).unwrap();
         incoming.set_nodelay(true);
         incoming
     }
