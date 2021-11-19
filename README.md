@@ -100,7 +100,7 @@ async fn main() {
 ```
 
 ### Middleware
-There is no difference between Handler and Middleware, Middleware is just Handler.
+There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!***
 ### Tree-like routing system
 
 Normally we write routing like this：
