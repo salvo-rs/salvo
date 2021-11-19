@@ -18,7 +18,7 @@
 </p>
 </div>
 
-Salvo is a powerful and simplest web server framework in Rust world.
+Salvo is a powerful and simplest web server framework in Rust world. 
 ## 🎯 Features
   - Base on hyper, tokio and async supported;
   - Websocket supported;
@@ -28,7 +28,7 @@ Salvo is a powerful and simplest web server framework in Rust world.
   - Serve a static virtual directory from many physical directories;
 
 ## ⚡️ Quick start
-You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples) or read docs [here](https://docs.rs/salvo/).
+You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples), or view [offical website](https://salvo.rs/book).
 
 Create a new rust project:
 
@@ -46,42 +46,14 @@ tokio = { version = "1", features = ["full"] }
 
 Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
 
-```rust
+``` rust
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello_world(res: &mut Response) {
     res.render_plain_text("Hello World");
 }
 ```
-
-There are many ways to write function handler.
-- You can omit function arguments if they do not used, like ```_req```, ```_depot``` in this example:
-
-    ``` rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) {
-        res.render_plain_text("Hello World");
-    }
-    ```
-
-- Any type can be function handler's returns value if it implements ```Writer```. For example &str implements ```Writer``` and it will render string as plain text:
-
-    ```rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) -> &'static str {// just returns &str
-        "Hello World"
-    }
-    ```
-
-- The more common situation is we want to returns a ```Result<T, E>``` to implify error handling. If ```T``` and ```E``` implements ```Writer```, ```Result<T, E>``` can be function handler's return type:
-  
-    ```rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {// returns Result
-        Ok("Hello World")
-    }
-    ```
 
 In the ```main``` function, we need to create a root Router first, and then create a server and call it's ```bind``` function:
 
@@ -148,18 +120,7 @@ Router::new()
 
 ```<id>``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
 
-For numeric characters there is an easier way to use ```<id:num>```, the specific writing is:
-- ```<id:num>```, matches any number of numeric characters;
-- ```<id:num[10]>```, only matches a certain number of numeric characters, where 10 means that the match only matches 10 numeric characters;
-- ```<id:num(..10)>```, means matching 1 to 9 numeric characters;
-- ```<id:num(3..10)>```, means matching 3 to 9 numeric characters;
-- ```<id:num(..=10)>```, means matching 1 to 10 numeric characters;
-- ```<id:num(3..=10)>```, means match 3 to 10 numeric characters;
-- ```<id:num(10..)>```, means to match at least 10 numeric characters.
-
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
-
-It is allowed to combine multiple expressions to match the same path segment, such as ```/articles/article_<id:num>/```. 
 
 ### File upload
 We can get file async by the function ```get_file``` in ```Request```:
@@ -177,31 +138,6 @@ async fn upload(req: &mut Request, res: &mut Response) {
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
-    }
-}
-```
-
-Multiple files also very simple:
-
-```rust
-#[fn_handler]
-async fn upload(req: &mut Request, res: &mut Response) {
-    let files = req.get_files("files").await;
-    if let Some(files) = files {
-        let mut msgs = Vec::with_capacity(files.len());
-        for file in files {
-            let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
-            if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-                res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
-            } else {
-                msgs.push(dest);
-            }
-        }
-        res.render_plain_text(&format!("Files uploaded:\n\n{}", msgs.join("\n")));
-    } else {
-        res.set_status_code(StatusCode::BAD_REQUEST);
-        res.render_plain_text("file not found in request");
     }
 }
 ```

@@ -18,7 +18,7 @@
 </p>
 </div>
 
-Salvo 是一个极其简单易用却又功能强大的 Rust Web 后端框架. 目标是让 Rust 下的 Web 后端开发能像 Go 等其他语言里的一样简单.
+Salvo 是一个极其简单易用却又功能强大的 Rust Web 后端框架. 仅仅需要基本的 Rust 基础即可写成功能强大的后端服务器, 我们的目标是: 编码很简单, 功能不缺失, 性能有保障.
 
 ## 🎯 功能特色
   - 基于hyper, tokio 的异步 Web 后端框架;
@@ -29,7 +29,7 @@ Salvo 是一个极其简单易用却又功能强大的 Rust Web 后端框架. �
   - 支持从多个本地目录映射成一个虚拟目录提供服务.
 
 ## ⚡️ 快速开始
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples),  或者[访问网站](https://salvo.rs).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples),  或者访问[官网](https://salvo.rs).
 
 
 创建一个全新的项目:
@@ -54,51 +54,6 @@ use salvo::prelude::*;
 #[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render_plain_text("Hello World");
-}
-```
-
-对于 fn_handler, 可以根据需求和喜好有不同种写法.
-
-- 可以将一些没有用到的参数省略掉, 比如这里的 ```_req```, ```_depot```.
-
-    ``` rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) {
-        res.render_plain_text("Hello World");
-    }
-    ```
-
-- 对于任何实现 Writer 的类型都是可以直接作为函数返回值. 比如, ```&str``` 实现了 ```Writer```, 会直接按纯文本输出:
-
-    ```rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) -> &'static str {
-        "Hello World"
-    }
-    ```
-
-- 更常见的情况是, 我们需要通过返回一个 ```Result<T, E>``` 来简化程序中的错误处理. 如果 ```Result<T, E>``` 中 ```T``` 和 ```E``` 都实现 ```Writer```, 则 ```Result<T, E>``` 可以直接作为函数返回类型:
-
-    ```rust
-    #[fn_handler]
-    async fn hello_world(res: &mut Response) -> Result<&'static str, ()> {
-        Ok("Hello World")
-    }
-    ```
-
-在 ```main``` 函数中, 我们需要首先创建一个根路由, 然后创建一个 Server 并且调用它的 ```bind``` 函数:
-
-```rust
-use salvo::prelude::*;
-
-#[fn_handler]
-async fn hello_world() -> &'static str {
-    "Hello World"
-}
-#[tokio::main]
-async fn main() {
-    let router = Router::new().get(hello_world);
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 ```
 
@@ -152,18 +107,7 @@ Router::new()
 
 ```<id>```匹配了路径中的一个片段, 正常情况下文章的 ```id``` 只是一个数字, 这是我们可以使用正则表达式限制 ```id``` 的匹配规则, ```r"<id:/\d+/>"```. 
 
-对于这种数字类型, 还有一种更简单的方法是使用  ```<id:num>```, 具体写法为:
-- ```<id:num>```， 匹配任意多个数字字符;
-- ```<id:num[10]>```， 只匹配固定特定数量的数字字符，这里的 10 代表匹配仅仅匹配 10 个数字字符;
-- ```<id:num(..10)>```, 代表匹配 1 到 9 个数字字符;
-- ```<id:num(3..10)>```, 代表匹配 3 到 9 个数字字符;
-- ```<id:num(..=10)>```, 代表匹配 1 到 10 个数字字符;
-- ```<id:num(3..=10)>```, 代表匹配 3 到 10 个数字字符;
-- ```<id:num(10..)>```, 代表匹配至少 10 个数字字符.
-
 还可以通过 ```<*>``` 或者 ```<**>``` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: ```<**file_path>```.
-
-允许组合使用多个表达式匹配同一个路径片段, 比如 ```/articles/article_<id:num>/```.
 
 ### 文件上传
 可以通过 Request 中的 get_file 异步获取上传的文件:
@@ -181,31 +125,6 @@ async fn upload(req: &mut Request, res: &mut Response) {
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
-    }
-}
-```
-
-多文件上传也是非常容易处理的:
-
-```rust
-#[fn_handler]
-async fn upload(req: &mut Request, res: &mut Response) {
-    let files = req.get_files("files").await;
-    if let Some(files) = files {
-        let mut msgs = Vec::with_capacity(files.len());
-        for file in files {
-            let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
-            if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-                res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
-            } else {
-                msgs.push(dest);
-            }
-        }
-        res.render_plain_text(&format!("Files uploaded:\n\n{}", msgs.join("\n")));
-    } else {
-        res.set_status_code(StatusCode::BAD_REQUEST);
-        res.render_plain_text("file not found in request");
     }
 }
 ```
