@@ -98,12 +98,12 @@ async fn hello_world() -> &'static str {
 #[tokio::main]
 async fn main() {
     let router = Router::new().get(hello_world);
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 ```
 
 ### 中间件
-Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处.
+Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
 
 ### 树状路由系统
 
@@ -211,28 +211,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 ```
 
 ### 更多示例
-您可以从 [examples](./examples/) 文件夹下查看更多示例代码:
-- [basic_auth.rs](./examples/basic_auth.rs)
-- [compression.rs](./examples/compression.rs)
-- [custom_error_page.rs](./examples/custom_error_page.rs)
-- [custom_filter.rs](./examples/custom_filter.rs)
-- [file_list.rs](./examples/file_list.rs)
-- [handle_error.rs](./examples/custom_filter.rs)
-- [proxy.rs](./examples/proxy.rs)
-- [remote_addr.rs](./examples/remote_addr.rs)
-- [routing.rs](./examples/routing.rs)
-- [size_limiter.rs](./examples/size_limiter.rs)
-- [sse_chat.rs](./examples/sse_chat.rs)
-- [sse.rs](./examples/sse.rs)
-- [tls_reload.rs](./examples/tls_reload.rs)
-- [tls.rs](./examples/tls.rs)
-- [todos.rs](./examples/todos.rs)
-- [unix_socket.rs](./examples/unix_socket.rs)
-- [ws_chat.rs](./examples/ws_chat.rs)
-- [ws.rs](./examples/ws.rs)
-- [work_with_tower.rs](./examples/work_with_tower.rs)
-
-您可以通过以下命令运行这些示例：
+您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
 ```
 cargo run --example basic_auth

@@ -7,7 +7,9 @@ async fn main() {
 
     let auth_handler = BasicAuthHandler::new(Validator);
     tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(Router::with_hoop(auth_handler).handle(hello)).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
+        .serve(Router::with_hoop(auth_handler).handle(hello))
+        .await;
 }
 #[fn_handler]
 async fn hello() -> &'static str {
