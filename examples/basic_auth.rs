@@ -1,5 +1,4 @@
 use salvo::extra::basic_auth::{BasicAuthHandler, BasicAuthValidator};
-use salvo::extra::serve::StaticDir;
 use salvo::prelude::*;
 
 #[tokio::main]
@@ -7,11 +6,12 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let auth_handler = BasicAuthHandler::new(Validator);
-
-    let router = Router::new()
-        .hoop(auth_handler)
-        .get(StaticDir::new(vec!["examples/static/boy", "examples/static/girl"]));
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(Router::with_hoop(auth_handler).handle(hello)).await;
+}
+#[fn_handler]
+async fn hello() -> &'static str {
+    "Hello"
 }
 
 struct Validator;

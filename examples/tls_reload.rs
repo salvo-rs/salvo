@@ -19,7 +19,8 @@ async fn main() {
             tokio::time::sleep(Duration::from_secs(60)).await;
         }
     })
-    .bind("0.0.0.0:7878");
+    .bind("127.0.0.1:7878");
+    tracing::info!("Listening on http://127.0.0.1:7878");
     Server::new(listener).serve(router).await;
 }
 

@@ -55,7 +55,7 @@ where
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
     ///     let router = Router::new().get(hello_world);
-    ///     let server = Server::new(TcpListener::bind("0.0.0.0:7878")).serve_with_graceful_shutdown(router, async {
+    ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     });
     ///
