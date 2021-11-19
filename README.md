@@ -207,28 +207,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 ```
 
 ### More Examples
-Your can find more examples in [examples](./examples/) folder:
-- [basic_auth.rs](./examples/basic_auth.rs)
-- [compression.rs](./examples/compression.rs)
-- [custom_error_page.rs](./examples/custom_error_page.rs)
-- [custom_filter.rs](./examples/custom_filter.rs)
-- [file_list.rs](./examples/file_list.rs)
-- [handle_error.rs](./examples/custom_filter.rs)
-- [proxy.rs](./examples/proxy.rs)
-- [remote_addr.rs](./examples/remote_addr.rs)
-- [routing.rs](./examples/routing.rs)
-- [size_limiter.rs](./examples/size_limiter.rs)
-- [sse_chat.rs](./examples/sse_chat.rs)
-- [sse.rs](./examples/sse.rs)
-- [tls_reload.rs](./examples/tls_reload.rs)
-- [tls.rs](./examples/tls.rs)
-- [todos.rs](./examples/todos.rs)
-- [unix_socket.rs](./examples/unix_socket.rs)
-- [ws_chat.rs](./examples/ws_chat.rs)
-- [ws.rs](./examples/ws.rs)
-- [work_with_tower.rs](./examples/work_with_tower.rs)
-
-You can run these examples with the following command:
+Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
 cargo run --example basic_auth
