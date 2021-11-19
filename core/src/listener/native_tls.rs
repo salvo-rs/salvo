@@ -9,10 +9,10 @@ use futures_util::future::Ready;
 use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
-use tokio_native_tls::native_tls::{Identity, MidHandshakeTlsStream, TlsAcceptor, HandshakeError};
-use tokio_native_tls::AllowStd;
 use pin_project_lite::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
+use tokio_native_tls::{TlsAcceptor as AsyncTlsAcceptor, TlsStream};
 
 use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
@@ -62,6 +62,8 @@ impl NativeTlsConfig {
         self.password = password.into();
         self
     }
+
+    /// generate identity
     #[inline]
     pub fn identity(mut self) -> Result<Identity, io::Error> {
         let mut pkcs12 = Vec::new();
@@ -79,8 +81,7 @@ pin_project! {
         #[pin]
         config_stream: C,
         incoming: AddrIncoming,
-        #[pin]
-        acceptor: Option<TlsAcceptor>,
+        acceptor: Option<AsyncTlsAcceptor>,
     }
 }
 /// NativeTlsListener
@@ -163,31 +164,23 @@ where
     type Error = io::Error;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let mut this = self.project();
+        let this = self.project();
         if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
             if let Some(identity) = result {
-                if let Ok(acceptor) = TlsAcceptor::new(identity.into()) {
-                    *this.acceptor = Some(acceptor);
-                } else {
-                    return Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "create acceptor failed"))))
-                }
+                let identity = identity.into();
+                *this.acceptor = Some(
+                    TlsAcceptor::new(identity)
+                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
+                        .into(),
+                );
             }
         }
-        if let Some(acceptor) = this.acceptor.get_mut() {
+        if let Some(acceptor) = this.acceptor {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
-                Some(Ok(stream)) => {
-                    let remote_addr: SocketAddr = stream.remote_addr().into();
-                    match acceptor.accept(stream.into_inner()) {
-                        Ok(stream) => {
-                            let stream = NativeTlsStream::new(remote_addr, NativeTlsState::Done(stream));
-                            Poll::Ready(Some(Ok(stream)))
-                        }
-                        Err(HandshakeError::WouldBlock(stream)) => {
-                            let stream = NativeTlsStream::new(remote_addr, NativeTlsState::Mid(stream));
-                            Poll::Ready(Some(Ok(stream)))
-                        }
-                        Err(HandshakeError::Failure(e)) => Poll::Ready(Some(Err(e))),
-                    }
+                Some(Ok(sock)) => {
+                    let acceptor = acceptor.clone();
+                    let stream = NativeTlsStream::new(sock.remote_addr().into(), async move { acceptor.accept(sock).await });
+                    Poll::Ready(Some(Ok(stream)))
                 }
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 _ => Poll::Ready(None),
@@ -198,15 +191,14 @@ where
     }
 }
 
-enum NativeTlsState {
-    Mid(tokio_rustls::Accept<AddrStream>),
-    Done(tokio_rustls::server::TlsStream<AddrStream>),
-}
-
-#[cfg_attr(docsrs, doc(cfg(feature = "native-tls")))]
-pub struct NativeTlsStream {
-    state: NativeTlsState,
-    remote_addr: SocketAddr,
+pin_project! {
+    /// NativeTlsStream
+    #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
+    pub struct NativeTlsStream {
+        #[pin]
+        inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>>>,
+        remote_addr: SocketAddr,
+    }
 }
 impl Transport for NativeTlsStream {
     fn remote_addr(&self) -> Option<SocketAddr> {
@@ -215,8 +207,14 @@ impl Transport for NativeTlsStream {
 }
 
 impl NativeTlsStream {
-    fn new(remote_addr: SocketAddr, state: NativeTlsState) -> Self {
-        NativeTlsStream { state, remote_addr }
+    fn new(
+        remote_addr: SocketAddr,
+        inner_future: impl Future<Output = Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + 'static,
+    ) -> Self {
+        NativeTlsStream {
+            inner_future: Box::pin(inner_future),
+            remote_addr,
+        }
     }
 }
 
