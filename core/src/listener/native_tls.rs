@@ -179,7 +179,8 @@ where
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => {
                     let acceptor = acceptor.clone();
-                    let stream = NativeTlsStream::new(sock.remote_addr().into(), async move { acceptor.accept(sock).await });
+                    let stream =
+                        NativeTlsStream::new(sock.remote_addr().into(), async move { acceptor.accept(sock).await });
                     Poll::Ready(Some(Ok(stream)))
                 }
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
