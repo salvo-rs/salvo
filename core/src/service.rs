@@ -224,7 +224,6 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use crate::routing::FlowCtrl;
 
     #[tokio::test]
     async fn test_service() {

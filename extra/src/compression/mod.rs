@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
-use salvo_core::routing::FlowCtrl;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 

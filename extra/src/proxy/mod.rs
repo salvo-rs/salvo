@@ -11,7 +11,6 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
-use salvo_core::routing::FlowCtrl;
 use salvo_core::{Error, Result};
 
 #[derive(Debug)]

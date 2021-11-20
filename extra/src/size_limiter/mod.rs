@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use salvo_core::http::errors::*;
 use salvo_core::http::HttpBody;
 use salvo_core::prelude::*;
-use salvo_core::routing::FlowCtrl;
 
 /// MaxSizeHandler
 pub struct MaxSizeHandler(u64);
