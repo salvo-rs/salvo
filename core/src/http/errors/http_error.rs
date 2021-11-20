@@ -29,12 +29,16 @@ fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Optio
         color: var(--text-color);
         text-align: center;
     }}
-    footer{{text-align:center;font-size:12px;}}
+    footer{{text-align:center;}}
     @media (prefers-color-scheme: dark) {{
         :root {{
             --bg-color: #222;
             --text-color: #ddd;
         }}
+        a:link {{ color: red; }}
+        a:visited {{ color: #a8aeff; }}
+        a:hover {{color: #a8aeff;}}
+        a:active {{color: #a8aeff;}}
     }}
     </style>
 </head>
@@ -200,7 +204,7 @@ macro_rules! default_errors {
                 HttpError {
                     code: $code,
                     name: $name.into(),
-                    summary: None,
+                    summary: Some($summary.into()),
                     detail: None,
                 }
             }
