@@ -117,7 +117,10 @@ mod tests {
     }
     #[tokio::test]
     async fn test_addr_ipv6() {
-        let ipv6 = std::net::SocketAddr::new(std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 65535, 0, 1)), 8080);
+        let ipv6 = std::net::SocketAddr::new(
+            std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 65535, 0, 1)),
+            8080,
+        );
         let ipv6: SocketAddr = ipv6.into();
         assert!(!ipv6.is_ipv4());
         assert!(ipv6.is_ipv6());
