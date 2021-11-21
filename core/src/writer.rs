@@ -183,20 +183,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_write_json_text_error() {
-        #[fn_handler]
-        async fn test() -> Text<&'static str> {
-            Text::Json(r#"{"hello": "world}"#)
-        }
-
-        let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let response = access(&service).await;
-        assert_eq!(response.status_code().unwrap(), 500);
-    }
-
-    #[tokio::test]
     async fn test_write_json_content() {
         #[derive(Serialize, Debug)]
         struct User {
