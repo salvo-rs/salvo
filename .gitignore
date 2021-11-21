@@ -5,6 +5,7 @@
 /site/public
 /.vscode
 **/target
+/.vs
 examples/_*.rs
 cobertura.xml
 debug.log
