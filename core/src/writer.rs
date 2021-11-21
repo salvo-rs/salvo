@@ -1,7 +1,6 @@
 //! Writer trait and it's impls.
 use async_trait::async_trait;
 use serde::Serialize;
-use serde_json::Value;
 
 use crate::http::errors::*;
 use crate::http::header::HeaderValue;
@@ -65,6 +64,8 @@ pub enum Text<C> {
     Json(C),
     /// It will set ```content-type``` to ```text/html; charset=utf-8```.
     Html(C),
+    /// It will set ```content-type``` to ```application/xml; charset=utf-8```.
+    Xml(C),
 }
 #[async_trait]
 impl<C> Writer for Text<C>
@@ -74,15 +75,9 @@ where
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
-            Self::Json(content) => {
-                if let Err(e) = serde_json::from_str::<Value>(content.as_ref()) {
-                    tracing::error!(error = ?e, "invalid json format");
-                    res.set_http_error(InternalServerError());
-                    return;
-                }
-                (HeaderValue::from_static("application/json; charset=utf-8"), content)
-            }
+            Self::Json(content) => (HeaderValue::from_static("application/json; charset=utf-8"), content),
             Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
+            Self::Xml(content) => (HeaderValue::from_static("application/xml; charset=utf-8"), content),
         };
         res.render_binary(ctype, content.as_ref().as_bytes());
     }
@@ -185,20 +180,6 @@ mod tests {
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
         );
-    }
-
-    #[tokio::test]
-    async fn test_write_json_text_error() {
-        #[fn_handler]
-        async fn test() -> Text<&'static str> {
-            Text::Json(r#"{"hello": "world}"#)
-        }
-
-        let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let response = access(&service).await;
-        assert_eq!(response.status_code().unwrap(), 500);
     }
 
     #[tokio::test]
