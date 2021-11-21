@@ -428,7 +428,7 @@ impl Response {
         self.write_body_bytes(data);
     }
 
-    /// Write bytes data.
+    /// Write bytes data to body.
     #[inline]
     pub fn write_body_bytes(&mut self, data: &[u8]) {
         if let Some(body) = self.body_mut() {
