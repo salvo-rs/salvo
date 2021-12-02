@@ -188,10 +188,7 @@ impl HttpError {
 #[async_trait]
 impl Writer for HttpError {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_code(self.code);
-        let format = crate::http::guess_accept_mime(req, None);
-        let (format, data) = self.as_bytes(&format);
-        res.render_binary(format.to_string().parse().unwrap(), &data);
+        res.set_http_error(self);
     }
 }
 

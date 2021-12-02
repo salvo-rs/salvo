@@ -184,7 +184,7 @@ impl HyperHandler {
             }
             if res.body.is_none() && has_error {
                 for catcher in catchers.iter().chain(DEFAULT_CATCHERS.iter()) {
-                    if catcher.catch(&req, &mut res) {
+                    if catcher.catch(&req, &depot, &mut res) {
                         break;
                     }
                 }

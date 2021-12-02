@@ -5,7 +5,7 @@ use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 /// Catch error in current response.
 pub trait Catcher: Send + Sync + 'static {
     /// If the current catcher caught the error, it will returns true.
-    fn catch(&self, req: &Request, res: &mut Response) -> bool;
+    fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
 }
 
 /// Default implementation of Catcher.
@@ -17,7 +17,7 @@ impl CatcherImpl {
     }
 }
 impl Catcher for CatcherImpl {
-    fn catch(&self, req: &Request, res: &mut Response) -> bool {
+    fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if status != self.0.code {
             return false;
