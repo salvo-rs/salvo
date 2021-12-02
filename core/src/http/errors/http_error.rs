@@ -3,87 +3,8 @@ use std::fmt;
 
 use async_trait::async_trait;
 use http::StatusCode;
-use mime::Mime;
-use once_cell::sync::Lazy;
 
 use crate::{Depot, Request, Response, Writer};
-
-static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
-const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
-
-fn error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>{0}: {1}</title>
-    <style>
-    :root {{
-        --bg-color: #fff;
-        --text-color: #222;
-    }}
-    body {{
-        background: var(--bg-color);
-        color: var(--text-color);
-        text-align: center;
-    }}
-    footer{{text-align:center;}}
-    @media (prefers-color-scheme: dark) {{
-        :root {{
-            --bg-color: #222;
-            --text-color: #ddd;
-        }}
-        a:link {{ color: red; }}
-        a:visited {{ color: #a8aeff; }}
-        a:hover {{color: #a8aeff;}}
-        a:active {{color: #a8aeff;}}
-    }}
-    </style>
-</head>
-<body>
-    <div>
-        <h1>{0}: {1}</h1>{2}{3}<hr />
-        <footer><a href="https://salvo.rs" target="_blank">salvo</a></footer>
-    </div>
-</body>
-</html>"#,
-        code.as_u16(),
-        name,
-        summary
-            .map(|summary| format!("<h3>{}</h3>", summary))
-            .unwrap_or_default(),
-        format!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
-    )
-}
-fn error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
-    format!(
-        r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
-        code.as_u16(),
-        name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
-    )
-}
-fn error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
-    format!(
-        "code:{},\nname:{},\nsummary:{},\ndetail:{}",
-        code.as_u16(),
-        name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
-    )
-}
-fn error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
-    format!(
-        "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
-        code.as_u16(),
-        name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
-    )
-}
 
 /// Resut type with `HttpError` has it's error type.
 pub type HttpResult<T> = Result<T, HttpError>;
@@ -169,25 +90,10 @@ impl HttpError {
             _ => None,
         }
     }
-    /// Get bytes for write to response.
-    pub fn as_bytes(&self, prefer_format: &Mime) -> (Mime, Vec<u8>) {
-        let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
-            "text/html".parse().unwrap()
-        } else {
-            prefer_format.clone()
-        };
-        let content = match format.subtype().as_ref() {
-            "plain" => error_plain(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
-            "json" => error_json(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
-            "xml" => error_xml(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
-            _ => error_html(self.code, &self.name, self.summary.as_deref(), self.detail.as_deref()),
-        };
-        (format, content.as_bytes().to_owned())
-    }
 }
 #[async_trait]
 impl Writer for HttpError {
-    async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_http_error(self);
     }
 }
