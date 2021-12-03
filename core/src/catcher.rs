@@ -95,30 +95,10 @@ pub fn http_error_bytes(err: &HttpError, prefer_format: &Mime) -> (Mime, Vec<u8>
         prefer_format.clone()
     };
     let content = match format.subtype().as_ref() {
-        "plain" => http_error_plain(
-            err.code,
-            &err.name,
-            err.summary.as_deref(),
-            err.detail.as_deref(),
-        ),
-        "json" => http_error_json(
-            err.code,
-            &err.name,
-            err.summary.as_deref(),
-            err.detail.as_deref(),
-        ),
-        "xml" => http_error_xml(
-            err.code,
-            &err.name,
-            err.summary.as_deref(),
-            err.detail.as_deref(),
-        ),
-        _ => http_error_html(
-            err.code,
-            &err.name,
-            err.summary.as_deref(),
-            err.detail.as_deref(),
-        ),
+        "plain" => http_error_plain(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "json" => http_error_json(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "xml" => http_error_xml(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        _ => http_error_html(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
     };
     (format, content.as_bytes().to_owned())
 }
