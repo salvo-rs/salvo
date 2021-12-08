@@ -19,7 +19,7 @@ async fn main() {
 
 struct Handle404;
 impl Catcher for Handle404 {
-    fn catch(&self, _req: &Request, res: &mut Response) -> bool {
+    fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
             res.render_plain_text("Custom 404 Error Page");
             true
