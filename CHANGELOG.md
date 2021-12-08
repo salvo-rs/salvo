@@ -1,3 +1,6 @@
+### 0.16.6
+- improve http error catch.
+
 ### 0.16.5
 - nativeTls supported.
 
