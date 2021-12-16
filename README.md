@@ -28,7 +28,7 @@ Salvo is a powerful and simplest web server framework in Rust world.
   - Serve a static virtual directory from many physical directories;
 
 ## ⚡️ Quick start
-You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples), or view [offical website](https://salvo.rs/book).
+You can view samples [here](https://github.com/salvo-rs/salvo/tree/master/examples), or view [offical website](https://salvo.rs/book/quick-start/hello_world/).
 
 Create a new rust project:
 
