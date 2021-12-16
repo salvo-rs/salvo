@@ -29,7 +29,7 @@ Salvo 是一个极其简单易用却又功能强大的 Rust Web 后端框架. �
   - 支持从多个本地目录映射成一个虚拟目录提供服务.
 
 ## ⚡️ 快速开始
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/master/examples),  或者访问[官网](https://salvo.rs/book/quick-start/hello_world/).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs/book/quick-start/hello_world/).
 
 
 创建一个全新的项目:
