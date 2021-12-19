@@ -18,7 +18,7 @@ all-features = true
 
 [features]
 default = ["full"]
-full = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "session", "size-limiter"]
+full = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "session", "size-limiter", "logging"]
 basic-auth = ["base64", "thiserror"]
 jwt-auth = ["cookie", "jsonwebtoken", "once_cell"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
@@ -30,6 +30,7 @@ serve = ["chrono", "mime", "percent-encoding", "tokio"]
 session = ["async-session", "cookie"]
 sse = ["futures-util", "pin-project", "tokio"]
 ws = ["futures-util", "tokio", "tokio-tungstenite"]
+logging = []
 
 [dependencies]
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
