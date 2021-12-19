@@ -1,17 +1,17 @@
-use async_trait::async_trait;
-use chrono::prelude::*;
-use percent_encoding::{utf8_percent_encode, CONTROLS};
-use serde_json::json;
 use std::collections::HashMap;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use chrono::prelude::*;
+use percent_encoding::{utf8_percent_encode, CONTROLS};
+use salvo_core::async_trait;
 use salvo_core::fs::NamedFile;
 use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler, Writer};
+use serde_json::json;
 
 /// Options
 #[derive(Debug, Clone)]

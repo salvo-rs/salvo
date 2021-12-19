@@ -1,12 +1,13 @@
 //! jwt auth middleware
 
-use async_trait::async_trait;
+use std::marker::PhantomData;
+
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
-use std::marker::PhantomData;
 
+use salvo_core::async_trait;
 use salvo_core::http::errors::*;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Method, Request, Response};

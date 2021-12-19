@@ -28,7 +28,7 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
 
-use async_trait::async_trait;
+use salvo_core::async_trait;
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::headers::{
     AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,

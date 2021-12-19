@@ -1,5 +1,4 @@
-use async_trait::async_trait;
-
+use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::errors::*;
 use salvo_core::routing::FlowCtrl;

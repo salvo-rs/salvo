@@ -4,10 +4,10 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::sync::Mutex;
 
-use async_trait::async_trait;
 use hyper::{Client, Uri};
 use hyper_rustls::HttpsConnector;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
