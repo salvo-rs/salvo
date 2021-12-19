@@ -1,12 +1,13 @@
 //! Compress the body of a response.
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
-use async_trait::async_trait;
+use tokio_stream::{self, StreamExt};
+use tokio_util::io::{ReaderStream, StreamReader};
+
+use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
-use tokio_stream::{self, StreamExt};
-use tokio_util::io::{ReaderStream, StreamReader};
 
 /// CompressionAlgo
 #[derive(Clone, Copy, Debug)]

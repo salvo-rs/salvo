@@ -1,6 +1,5 @@
 //! basic auth middleware
-use async_trait::async_trait;
-
+use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;

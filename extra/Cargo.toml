@@ -34,7 +34,6 @@ ws = ["futures-util", "tokio", "tokio-tungstenite"]
 [dependencies]
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { version = "3", optional = true }
-async-trait = { version = "0.1" }
 base64 = { version = "0.13", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.15", features = ["percent-encode", "signed"], optional = true }
