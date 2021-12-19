@@ -32,6 +32,8 @@ pub mod session;
 pub mod sse;
 #[cfg(feature = "ws")]
 pub mod ws;
+#[cfg(feature = "logging")]
+pub mod logging;
 
 #[cfg(feature = "size-limiter")]
 pub mod size_limiter;
