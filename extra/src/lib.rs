@@ -22,6 +22,8 @@ pub mod compression;
 pub mod cors;
 #[cfg(feature = "csrf")]
 pub mod csrf;
+#[cfg(feature = "logging")]
+pub mod logging;
 #[cfg(feature = "proxy")]
 pub mod proxy;
 #[cfg(feature = "serve")]
@@ -32,8 +34,6 @@ pub mod session;
 pub mod sse;
 #[cfg(feature = "ws")]
 pub mod ws;
-#[cfg(feature = "logging")]
-pub mod logging;
 
 #[cfg(feature = "size-limiter")]
 pub mod size_limiter;

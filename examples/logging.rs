@@ -1,5 +1,5 @@
-use salvo::prelude::*;
 use salvo::extra::logging::LogHandler;
+use salvo::prelude::*;
 
 #[fn_handler]
 async fn hello_world() -> &'static str {
@@ -26,7 +26,8 @@ async fn hello_world4(_req: &mut Request, _depot: &mut Depot, res: &mut Response
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().hoop(LogHandler)
+    let router = Router::new()
+        .hoop(LogHandler)
         .get(hello_world)
         .push(Router::with_path("hello1").get(hello_world1))
         .push(Router::with_path("hello2").get(hello_world2))
