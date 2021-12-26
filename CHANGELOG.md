@@ -1,3 +1,6 @@
+### 0.16.7
+- add logging middleware
+
 ### 0.16.6
 - improve http error catch.
 
