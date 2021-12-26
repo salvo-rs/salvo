@@ -21,6 +21,7 @@ pub use salvo_core::*;
     feature = "session",
     feature = "size_limiter",
     feature = "sse",
-    feature = "ws"
+    feature = "ws",
+    feature = "logging"
 ))]
 pub use salvo_extra as extra;

@@ -22,6 +22,8 @@ pub mod compression;
 pub mod cors;
 #[cfg(feature = "csrf")]
 pub mod csrf;
+#[cfg(feature = "logging")]
+pub mod logging;
 #[cfg(feature = "proxy")]
 pub mod proxy;
 #[cfg(feature = "serve")]
