@@ -5,7 +5,7 @@ use std::fmt;
 use std::sync::Mutex;
 
 use hyper::{Client, Uri};
-use hyper_rustls::HttpsConnector;
+use hyper_rustls::HttpsConnectorBuilder;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
@@ -146,7 +146,14 @@ impl Handler for ProxyHandler {
                     .map(|s| s == &Scheme::HTTPS)
                     .unwrap_or(false)
                 {
-                    let client = Client::builder().build::<_, hyper::Body>(HttpsConnector::with_webpki_roots());
+                    let client = Client::builder().build::<_, hyper::Body>(
+                        HttpsConnectorBuilder::new()
+                            .with_webpki_roots()
+                            .https_or_http()
+                            .enable_http1()
+                            .enable_http2()
+                            .build(),
+                    );
                     client.request(proxied_request).await
                 } else {
                     let client = Client::new();

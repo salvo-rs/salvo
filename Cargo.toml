@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.16.7"
+version = "0.16.8"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -47,8 +47,8 @@ logging = ["salvo_extra/logging"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.16.7", default-features = false, path = "./core" }
-salvo_extra = { version = "0.16.7", default-features = false, optional = true, path = "./extra" }
+salvo_core = { version = "0.16.8", default-features = false, path = "./core" }
+salvo_extra = { version = "0.16.8", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 async-stream = "0.3"

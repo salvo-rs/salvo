@@ -169,7 +169,7 @@ impl CsrfHandler {
     }
 
     fn build_cookie(&self, secure: bool, cookie_value: String) -> Cookie<'static> {
-        let expires = time::OffsetDateTime::now_utc() + self.ttl;
+        let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
         let mut cookie = Cookie::build(self.cookie_name.clone(), cookie_value)
             .http_only(true)
             .same_site(SameSite::Strict)

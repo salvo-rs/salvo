@@ -1,3 +1,6 @@
+### 0.16.8
+- update dependencies
+
 ### 0.16.7
 - add logging middleware
 
