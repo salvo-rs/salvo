@@ -37,12 +37,12 @@ async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", 
 async-session = { version = "3", optional = true }
 base64 = { version = "0.13", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
-cookie = { version = "0.15", features = ["percent-encode", "signed"], optional = true }
+cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 csrflib = { version = "0.4", optional = true, package = "csrf" }
 futures-util = { version = "0.3", default-features = false, optional = true }
-hkdf = { version = "0.11", optional = true }
+hkdf = { version = "0.12", optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
-hyper-rustls = { version = "0.22", default-features = false, optional = true }
+hyper-rustls = { version = "0.23", default-features = false, optional = true }
 jsonwebtoken = { version = "7", optional = true }
 mime = { version = "0.3", optional = true }
 once_cell = { version = "1", optional = true }
@@ -52,9 +52,8 @@ salvo_core = { version = "0.16", default-features = false, path = "../core" }
 serde = { version = "1" }
 serde_derive = { version = "1" }
 serde_json = { version = "1" }
-sha2 = { version = "0.9", optional = true }
+sha2 = { version = "0.10", optional = true }
 thiserror = { version = "1", optional = true }
-time = { version = "0.2", optional = true }
 tokio = { version = "1", features = ["fs", "sync", "time"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.16", default-features = false, optional = true }

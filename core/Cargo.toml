@@ -28,7 +28,7 @@ async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", 
 async-trait = "0.1"
 bitflags = "1"
 bytes = "1"
-cookie = { version = "0.15", features = ["percent-encode"] }
+cookie = { version = "0.16", features = ["percent-encode"] }
 encoding_rs = "0.8"
 fastrand = "1.5"
 form_urlencoded = "1"
