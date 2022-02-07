@@ -43,7 +43,7 @@ futures-util = { version = "0.3", default-features = false, optional = true }
 hkdf = { version = "0.12", optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
 hyper-rustls = { version = "0.23", features = ["http1", "http2"], optional = true }
-jsonwebtoken = { version = "7", optional = true }
+jsonwebtoken = { version = "8", optional = true }
 mime = { version = "0.3", optional = true }
 once_cell = { version = "1", optional = true }
 percent-encoding = { version = "2", optional = true }
