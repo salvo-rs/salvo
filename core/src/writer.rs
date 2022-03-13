@@ -98,7 +98,7 @@ where
 }
 
 /// Write serializable content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
-pub struct Json<T>(T);
+pub struct Json<T>(pub T);
 #[async_trait]
 impl<T> Piece for Json<T>
 where
