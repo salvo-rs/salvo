@@ -134,7 +134,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
-            res.render(Text::Plain("Ok");
+            res.render("Ok");
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
