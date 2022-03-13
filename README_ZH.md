@@ -121,7 +121,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
-            res.render(Text::Plain("Ok");
+            res.render("Ok");
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
