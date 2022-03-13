@@ -2,10 +2,12 @@
 
 // port from https://github.com/malyn/tide-csrf
 
+pub mod core;
+
 use std::collections::HashSet;
 use std::time::Duration;
 
-use csrflib::{
+use self::core::{
     AesGcmCsrfProtection, CsrfCookie, CsrfProtection, CsrfToken, UnencryptedCsrfCookie, UnencryptedCsrfToken,
 };
 use salvo_core::http::cookie::{Cookie, Expiration, SameSite};

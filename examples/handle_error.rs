@@ -5,7 +5,7 @@ struct CustomError;
 #[async_trait]
 impl Writer for CustomError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_plain_text("custom error");
+        res.render(Text::Plain("custom error"));
         res.set_http_error(InternalServerError());
     }
 }

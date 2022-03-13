@@ -41,7 +41,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.16", features = ["full"] }
+salvo = { version = "0.17", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -52,7 +52,7 @@ use salvo::prelude::*;
 
 #[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-    res.render_plain_text("Hello World");
+    res.render(Text::Plain("Hello World"));
 }
 ```
 
@@ -120,7 +120,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
-            res.render_plain_text("Ok");
+            res.render(Text::Plain("Ok");
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
@@ -145,7 +145,8 @@ Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=test&runid=1922b097-2d7f-413c-be21-9571c8302734&hw=ph&test=query&l=zik0zj-e6&a=2](https://www.techempower.com/benchmarks/#section=test&runid=1922b097-2d7f-413c-be21-9571c8302734&hw=ph&test=query&l=zik0zj-e6&a=2)
+[https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
+[![techempower](assets/tp.jpg)](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
 
 ## 🩸 贡献
 

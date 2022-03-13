@@ -39,7 +39,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             req.get_form::<String>("password").await.unwrap_or_default(),
         );
         if !validate(&username, &password) {
-            res.render_html_text(LOGIN_HTML);
+            res.render(Text::Html(LOGIN_HTML));
             return Ok(());
         }
         let exp = Utc::now() + Duration::days(14);
@@ -57,10 +57,10 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
                 let data = depot.jwt_auth_data::<crate::JwtClaims>().unwrap();
-                res.render_plain_text(&format!("Hi {}, have logged in successfully!", data.claims.username));
+                res.render(Text::Plain(format!("Hi {}, have logged in successfully!", data.claims.username)));
             }
             JwtAuthState::Unauthorized => {
-                res.render_html_text(LOGIN_HTML);
+                res.render(Text::Html(LOGIN_HTML));
             }
             JwtAuthState::Forbidden => {
                 res.set_http_error(Forbidden());

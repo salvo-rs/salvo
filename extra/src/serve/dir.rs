@@ -11,6 +11,7 @@ use salvo_core::http::errors::*;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler, Writer};
+use salvo_core::writer::Text;
 use serde_json::json;
 
 /// Options
@@ -227,8 +228,7 @@ impl Handler for StaticDir {
                 if !self.options.dot_files
                     && path
                         .file_name()
-                        .map(|s| s.to_str())
-                        .flatten()
+                        .and_then(|s| s.to_str())
                         .map(|s| s.starts_with('.'))
                         .unwrap_or(false)
                 {
@@ -261,10 +261,10 @@ impl Handler for StaticDir {
         let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
         res.set_status_code(StatusCode::OK);
         match format.subtype().as_ref() {
-            "plain" => res.render_plain_text(&list_text(&root)),
-            "json" => res.render_json_text(&list_json(&root)),
-            "xml" => res.render_xml_text(&list_xml(&root)),
-            _ => res.render_html_text(&list_html(&root)),
+            "plain" => res.render(Text::Plain(list_text(&root))),
+            "json" => res.render(Text::Json(list_json(&root))),
+            "xml" => res.render(Text::Xml(list_xml(&root))),
+            _ => res.render(Text::Html(list_html(&root))),
         }
     }
 }

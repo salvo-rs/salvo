@@ -94,7 +94,7 @@ fn user_message(my_id: usize, msg: &str) {
 
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render_html_text(INDEX_HTML);
+    res.render(Text::Html(INDEX_HTML));
 }
 
 static INDEX_HTML: &str = r#"

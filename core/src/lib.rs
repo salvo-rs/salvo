@@ -34,7 +34,7 @@ pub use self::listener::Listener;
 pub use self::routing::Router;
 pub use self::server::Server;
 pub use self::service::Service;
-pub use self::writer::Writer;
+pub use self::writer::{Piece, Writer};
 pub use async_trait::async_trait;
 pub use salvo_macros::fn_handler;
 /// Result type wich has salvo::Error as it's error type.

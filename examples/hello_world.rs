@@ -10,15 +10,15 @@ async fn hello_world1() -> Result<&'static str, ()> {
 }
 #[fn_handler]
 async fn hello_world2(res: &mut Response) {
-    res.render_plain_text("Hello World2");
+    res.render(Text::Plain("Hello World2"));
 }
 #[fn_handler]
 async fn hello_world3(_req: &mut Request, res: &mut Response) {
-    res.render_plain_text("Hello World3");
+    res.render(Text::Plain("Hello World3"));
 }
 #[fn_handler]
 async fn hello_world4(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-    res.render_plain_text("Hello World4");
+    res.render(Text::Plain("Hello World4"));
 }
 
 #[tokio::main]

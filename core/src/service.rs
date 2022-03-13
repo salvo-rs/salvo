@@ -229,7 +229,7 @@ mod tests {
     async fn test_service() {
         #[fn_handler]
         async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-            res.render_plain_text("before1");
+            res.render(Text::Plain("before1"));
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
                 ctrl.skip_reset();
             } else {
@@ -238,7 +238,7 @@ mod tests {
         }
         #[fn_handler]
         async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-            res.render_plain_text("before2");
+            res.render(Text::Plain("before2"));
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
                 ctrl.skip_reset();
             } else {
@@ -247,7 +247,7 @@ mod tests {
         }
         #[fn_handler]
         async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-            res.render_plain_text("before3");
+            res.render(Text::Plain("before3"));
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
                 ctrl.skip_reset();
             } else {

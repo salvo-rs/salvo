@@ -330,6 +330,7 @@ impl Message {
             protocol::Message::Ping(ref v) => v,
             protocol::Message::Pong(ref v) => v,
             protocol::Message::Close(_) => &[],
+            protocol::Message::Frame(ref v) => v.payload(),
         }
     }
 

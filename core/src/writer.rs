@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::http::errors::*;
-use crate::http::header::HeaderValue;
+use crate::http::header::{CONTENT_TYPE, HeaderValue};
 use crate::http::{Request, Response};
 use crate::Depot;
 
@@ -15,11 +15,6 @@ pub trait Writer {
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
-#[allow(clippy::unit_arg)]
-#[async_trait]
-impl Writer for () {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, _res: &mut Response) {}
-}
 #[async_trait]
 impl<T, E> Writer for Result<T, E>
 where
@@ -37,22 +32,37 @@ where
         }
     }
 }
-#[async_trait]
-impl<'a> Writer for &'a str {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), self.as_bytes());
-    }
+
+/// Piece is used to write data to response.
+pub trait Piece {
+    /// Render data to ```Respone```.
+    fn render(self, res: &mut Response);
 }
 #[async_trait]
-impl<'a> Writer for &'a String {
+impl<P> Writer for P where P: Piece + Sized + Send{
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        (&**self).write(_req, _depot, res).await;
+        self.render(res)
     }
 }
-#[async_trait]
-impl Writer for String {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        (&*self).write(_req, _depot, res).await;
+
+#[allow(clippy::unit_arg)]
+impl Piece for () {
+    fn render(self, _res: &mut Response) {}
+}
+impl<'a> Piece for &'a str {
+    fn render(self, res: &mut Response) {
+        res.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.write_body_bytes(self.as_bytes());
+    }
+}
+impl<'a> Piece for &'a String {
+    fn render(self, res: &mut Response) {
+        (&**self).render(res);
+    }
+}
+impl Piece for String {
+    fn render(self, res: &mut Response) {
+        (&*self).render(res);
     }
 }
 
@@ -67,33 +77,34 @@ pub enum Text<C> {
     /// It will set ```content-type``` to ```application/xml; charset=utf-8```.
     Xml(C),
 }
-#[async_trait]
-impl<C> Writer for Text<C>
+impl<C> Piece for Text<C>
 where
     C: AsRef<str> + Send,
 {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    fn render(self, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
             Self::Json(content) => (HeaderValue::from_static("application/json; charset=utf-8"), content),
             Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
             Self::Xml(content) => (HeaderValue::from_static("application/xml; charset=utf-8"), content),
         };
-        res.render_binary(ctype, content.as_ref().as_bytes());
+        res.headers_mut().insert(CONTENT_TYPE, ctype);
+        res.write_body_bytes(content.as_ref().as_bytes());
     }
 }
 
 /// Write serializable content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
 pub struct Json<T>(T);
 #[async_trait]
-impl<T> Writer for Json<T>
+impl<T> Piece for Json<T>
 where
     T: Serialize + Send,
 {
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {
-                res.render_binary(HeaderValue::from_static("application/json; charset=utf-8"), &bytes);
+                res.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"));
+                res.write_body_bytes(&bytes);
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");

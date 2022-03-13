@@ -102,7 +102,7 @@ impl FilePart {
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
             file_name
                 .as_deref()
-                .and_then(|f| get_extension_from_filename(f))
+                .and_then(get_extension_from_filename)
                 .unwrap_or("unknown")
         ));
         let mut file = File::create(&path).await?;

@@ -103,7 +103,7 @@ async fn user_disconnected(my_id: usize) {
 
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render_html_text(INDEX_HTML);
+    res.render(Text::Html(INDEX_HTML));
 }
 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>

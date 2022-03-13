@@ -1,3 +1,6 @@
+### 0.17.0
+- add piece
+
 ### 0.16.8
 - update dependencies
 

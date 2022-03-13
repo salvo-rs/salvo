@@ -5,7 +5,7 @@ use salvo::prelude::*;
 
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render_html_text(INDEX_HTML);
+    res.render(Text::Html(INDEX_HTML));
 }
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
@@ -13,16 +13,17 @@ async fn upload(req: &mut Request, res: &mut Response) {
     if let Some(file) = file {
         let dest = format!("temp/{}", file.file_name().unwrap_or_else(|| "file".into()));
         println!("{}", dest);
-        if let Err(e) = std::fs::copy(&file.path(), Path::new(&dest)) {
+        let info = if let Err(e) = std::fs::copy(&file.path(), Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-            res.render_plain_text(&format!("file not found in request: {}", e.to_string()));
+            format!("file not found in request: {}", e.to_string())
         } else {
-            res.render_plain_text(&format!("File uploaded to {}", dest));
-        }
+            format!("File uploaded to {}", dest)
+        };
+        res.render(Text::Plain(info));
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
-        res.render_plain_text("file not found in request");
-    }
+        res.render(Text::Plain("file not found in request"));
+    };
 }
 
 #[tokio::main]

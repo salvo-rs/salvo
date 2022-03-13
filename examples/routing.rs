@@ -39,37 +39,37 @@ async fn main() {
 
 #[fn_handler]
 async fn admin(res: &mut Response) {
-    res.render_plain_text("Admin page");
+    res.render(Text::Plain("Admin page"));
 }
 #[fn_handler]
 async fn debug(res: &mut Response) {
-    res.render_plain_text("Debug page");
+    res.render(Text::Plain("Debug page"));
 }
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render_plain_text("Hello world!");
+    res.render(Text::Plain("Hello world!"));
 }
 #[fn_handler]
 async fn auth(res: &mut Response) {
-    res.render_plain_text("user has authed\n\n");
+    res.render(Text::Plain("user has authed\n\n"));
 }
 #[fn_handler]
 async fn list_users(res: &mut Response) {
-    res.render_plain_text("list users");
+    res.render(Text::Plain("list users"));
 }
 #[fn_handler]
 async fn show_user(res: &mut Response) {
-    res.render_plain_text("show user");
+    res.render(Text::Plain("show user"));
 }
 #[fn_handler]
 async fn create_user(res: &mut Response) {
-    res.render_plain_text("user created");
+    res.render(Text::Plain("user created"));
 }
 #[fn_handler]
 async fn update_user(res: &mut Response) {
-    res.render_plain_text("user updated");
+    res.render(Text::Plain("user updated"));
 }
 #[fn_handler]
 async fn delete_user(res: &mut Response) {
-    res.render_plain_text("user deleted");
+    res.render(Text::Plain("user deleted"));
 }
