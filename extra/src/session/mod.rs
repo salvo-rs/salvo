@@ -136,8 +136,7 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let cookie = req.cookies().get(&self.cookie_name);
-        let cookie_value = cookie
-            .and_then(|cookie| self.verify_signature(cookie.value()).ok());
+        let cookie_value = cookie.and_then(|cookie| self.verify_signature(cookie.value()).ok());
 
         let mut session = self.load_or_create(cookie_value).await;
 

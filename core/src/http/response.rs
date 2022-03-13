@@ -397,7 +397,10 @@ impl Response {
 
     /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
     #[inline]
-    pub fn render<P>(&mut self, piece: P) where P: Piece {
+    pub fn render<P>(&mut self, piece: P)
+    where
+        P: Piece,
+    {
         piece.render(self)
     }
 

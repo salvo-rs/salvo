@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 
 use crate::http::errors::*;
-use crate::http::header::{CONTENT_TYPE, HeaderValue};
+use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::{Request, Response};
 use crate::Depot;
 
@@ -39,7 +39,10 @@ pub trait Piece {
     fn render(self, res: &mut Response);
 }
 #[async_trait]
-impl<P> Writer for P where P: Piece + Sized + Send{
+impl<P> Writer for P
+where
+    P: Piece + Sized + Send,
+{
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         self.render(res)
     }
@@ -51,7 +54,8 @@ impl Piece for () {
 }
 impl<'a> Piece for &'a str {
     fn render(self, res: &mut Response) {
-        res.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
         res.write_body_bytes(self.as_bytes());
     }
 }
@@ -103,7 +107,10 @@ where
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {
-                res.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"));
+                res.headers_mut().insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/json; charset=utf-8"),
+                );
                 res.write_body_bytes(&bytes);
             }
             Err(e) => {

@@ -2,8 +2,8 @@
 //! port from https://raw.githubusercontent.com/heartsucker/rust-csrf/master/src/core.rs
 
 use std::error::Error;
-use std::io::Cursor;
 use std::fmt;
+use std::io::Cursor;
 
 use aead::{generic_array::GenericArray, Aead, NewAead};
 use aes_gcm::Aes256Gcm;
@@ -127,10 +127,7 @@ pub struct UnencryptedCsrfCookie {
 impl UnencryptedCsrfCookie {
     /// Create a new unenrypted cookie.
     pub fn new(expires: i64, token: Vec<u8>) -> Self {
-        UnencryptedCsrfCookie {
-            expires,
-            token,
-        }
+        UnencryptedCsrfCookie { expires, token }
     }
 
     /// Retrieve the token value as bytes.
@@ -142,11 +139,7 @@ impl UnencryptedCsrfCookie {
 /// The base trait that allows a developer to add CSRF protection to an application.
 pub trait CsrfProtection: Send + Sync {
     /// Given a nonce and a time to live (TTL), create a cookie to send to the end user.
-    fn generate_cookie(
-        &self,
-        token_value: &[u8; 64],
-        ttl_seconds: i64,
-    ) -> Result<CsrfCookie, CsrfError>;
+    fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError>;
 
     /// Given a nonce, create a token to send to the end user.
     fn generate_token(&self, token_value: &[u8; 64]) -> Result<CsrfToken, CsrfError>;
@@ -159,11 +152,7 @@ pub trait CsrfProtection: Send + Sync {
 
     /// Given a token pair that has been parsed, decoded, decrypted, and verified, return whether
     /// or not the token matches the cookie and they have not expired.
-    fn verify_token_pair(
-        &self,
-        token: &UnencryptedCsrfToken,
-        cookie: &UnencryptedCsrfCookie,
-    ) -> bool {
+    fn verify_token_pair(&self, token: &UnencryptedCsrfToken, cookie: &UnencryptedCsrfCookie) -> bool {
         let tokens_match = token.token == cookie.token;
         if !tokens_match {
             tracing::debug!(
@@ -176,10 +165,7 @@ pub trait CsrfProtection: Send + Sync {
         let now = Utc::now().timestamp();
         let not_expired = cookie.expires > now;
         if !not_expired {
-            tracing::debug!(
-                "Cookie expired. Expiration: {}, Current time: {}",
-                cookie.expires, now
-            );
+            tracing::debug!("Cookie expired. Expiration: {}, Current time: {}", cookie.expires, now);
         }
 
         tokens_match && not_expired
@@ -210,10 +196,7 @@ pub trait CsrfProtection: Send + Sync {
             }
         };
 
-        match (
-            self.generate_token(&token),
-            self.generate_cookie(&token, ttl_seconds),
-        ) {
+        match (self.generate_token(&token), self.generate_cookie(&token, ttl_seconds)) {
             (Ok(t), Ok(c)) => Ok((t, c)),
             _ => Err(CsrfError::ValidationFailure),
         }
@@ -237,11 +220,7 @@ impl HmacCsrfProtection {
 }
 
 impl CsrfProtection for HmacCsrfProtection {
-    fn generate_cookie(
-        &self,
-        token_value: &[u8; 64],
-        ttl_seconds: i64,
-    ) -> Result<CsrfCookie, CsrfError> {
+    fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError> {
         let expires = (Utc::now() + Duration::seconds(ttl_seconds)).timestamp();
         let mut expires_bytes = [0u8; 8];
         (&mut expires_bytes[..])
@@ -290,9 +269,7 @@ impl CsrfProtection for HmacCsrfProtection {
         }
 
         let mut cur = Cursor::new(&cookie[32..40]);
-        let expires = cur
-            .read_i64::<BigEndian>()
-            .map_err(|_| CsrfError::InternalError)?;
+        let expires = cur.read_i64::<BigEndian>().map_err(|_| CsrfError::InternalError)?;
         Ok(UnencryptedCsrfCookie::new(expires, cookie[40..].to_vec()))
     }
 
@@ -332,11 +309,7 @@ impl AesGcmCsrfProtection {
 }
 
 impl CsrfProtection for AesGcmCsrfProtection {
-    fn generate_cookie(
-        &self,
-        token_value: &[u8; 64],
-        ttl_seconds: i64,
-    ) -> Result<CsrfCookie, CsrfError> {
+    fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError> {
         let expires = (Utc::now() + Duration::seconds(ttl_seconds)).timestamp();
         let mut expires_bytes = [0u8; 8];
         (&mut expires_bytes[..])
@@ -405,13 +378,8 @@ impl CsrfProtection for AesGcmCsrfProtection {
         })?;
 
         let mut cur = Cursor::new(&plaintext[32..40]);
-        let expires = cur
-            .read_i64::<BigEndian>()
-            .map_err(|_| CsrfError::InternalError)?;
-        Ok(UnencryptedCsrfCookie::new(
-            expires,
-            plaintext[40..].to_vec(),
-        ))
+        let expires = cur.read_i64::<BigEndian>().map_err(|_| CsrfError::InternalError)?;
+        Ok(UnencryptedCsrfCookie::new(expires, plaintext[40..].to_vec()))
     }
 
     fn parse_token(&self, token: &[u8]) -> Result<UnencryptedCsrfToken, CsrfError> {
@@ -453,11 +421,7 @@ impl ChaCha20Poly1305CsrfProtection {
 }
 
 impl CsrfProtection for ChaCha20Poly1305CsrfProtection {
-    fn generate_cookie(
-        &self,
-        token_value: &[u8; 64],
-        ttl_seconds: i64,
-    ) -> Result<CsrfCookie, CsrfError> {
+    fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError> {
         let expires = (Utc::now() + Duration::seconds(ttl_seconds)).timestamp();
         let mut expires_bytes = [0u8; 8];
         (&mut expires_bytes[..])
@@ -526,13 +490,8 @@ impl CsrfProtection for ChaCha20Poly1305CsrfProtection {
         })?;
 
         let mut cur = Cursor::new(&plaintext[32..40]);
-        let expires = cur
-            .read_i64::<BigEndian>()
-            .map_err(|_| CsrfError::InternalError)?;
-        Ok(UnencryptedCsrfCookie::new(
-            expires,
-            plaintext[40..].to_vec(),
-        ))
+        let expires = cur.read_i64::<BigEndian>().map_err(|_| CsrfError::InternalError)?;
+        Ok(UnencryptedCsrfCookie::new(expires, plaintext[40..].to_vec()))
     }
 
     fn parse_token(&self, token: &[u8]) -> Result<UnencryptedCsrfToken, CsrfError> {
@@ -573,11 +532,7 @@ impl MultiCsrfProtection {
 }
 
 impl CsrfProtection for MultiCsrfProtection {
-    fn generate_cookie(
-        &self,
-        token_value: &[u8; 64],
-        ttl_seconds: i64,
-    ) -> Result<CsrfCookie, CsrfError> {
+    fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError> {
         self.current.generate_cookie(token_value, ttl_seconds)
     }
 
@@ -605,7 +560,7 @@ impl CsrfProtection for MultiCsrfProtection {
             Err(_) => {
                 for protection in self.previous.iter() {
                     if let Ok(token) = protection.parse_token(token) {
-                        return Ok(token)
+                        return Ok(token);
                     }
                 }
             }
@@ -613,7 +568,6 @@ impl CsrfProtection for MultiCsrfProtection {
         Err(CsrfError::ValidationFailure)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -782,10 +736,7 @@ mod tests {
                             .expect("couldn't generate token/cookie pair");
                         pairs.push(pair);
 
-                        let protect = MultiCsrfProtection::new(
-                            Box::new(protect_1),
-                            vec![Box::new(protect_2)],
-                        );
+                        let protect = MultiCsrfProtection::new(Box::new(protect_1), vec![Box::new(protect_2)]);
                         let pair = protect
                             .generate_token_pair(None, 300)
                             .expect("couldn't generate token/cookie pair");
@@ -810,11 +761,7 @@ mod tests {
             };
         }
 
-        test_cases!(
-            AesGcmCsrfProtection,
-            AesGcmCsrfProtection,
-            aesgcm_then_aesgcm
-        );
+        test_cases!(AesGcmCsrfProtection, AesGcmCsrfProtection, aesgcm_then_aesgcm);
 
         test_cases!(
             ChaCha20Poly1305CsrfProtection,
