@@ -57,7 +57,7 @@ fn http_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: 
         summary
             .map(|summary| format!("<h3>{}</h3>", summary))
             .unwrap_or_default(),
-        format!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
+        format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }
 fn http_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {

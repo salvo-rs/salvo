@@ -47,7 +47,7 @@ logging = ["salvo_extra/logging"]
 members = [".", "core", "extra", "macros"]
 
 [dependencies]
-salvo_core = { version = "0.17.0", default-features = false, path = "./core" }
+salvo_core = { version = "0.17.2", default-features = false, path = "./core" }
 salvo_extra = { version = "0.17.2", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]

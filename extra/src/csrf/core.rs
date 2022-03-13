@@ -50,7 +50,7 @@ impl CsrfToken {
     /// Create a new token from the given bytes.
     pub fn new(bytes: Vec<u8>) -> Self {
         // TODO make this return a Result and check that bytes is long enough
-        CsrfToken { bytes: bytes }
+        CsrfToken { bytes }
     }
 
     /// Retrieve the CSRF token as a base64 encoded string.
@@ -79,7 +79,7 @@ impl CsrfCookie {
     /// Create a new cookie from the given token bytes.
     pub fn new(bytes: Vec<u8>) -> Self {
         // TODO make this return a Result and check that bytes is long enough
-        CsrfCookie { bytes: bytes }
+        CsrfCookie { bytes }
     }
 
     /// Get the base64 value of this cookie.
@@ -102,7 +102,7 @@ pub struct UnencryptedCsrfToken {
 impl UnencryptedCsrfToken {
     /// Create a new unenrypted token.
     pub fn new(token: Vec<u8>) -> Self {
-        UnencryptedCsrfToken { token: token }
+        UnencryptedCsrfToken { token }
     }
 
     /// Retrieve the token value as bytes.
@@ -128,8 +128,8 @@ impl UnencryptedCsrfCookie {
     /// Create a new unenrypted cookie.
     pub fn new(expires: i64, token: Vec<u8>) -> Self {
         UnencryptedCsrfCookie {
-            expires: expires,
-            token: token,
+            expires,
+            token,
         }
     }
 
@@ -201,7 +201,7 @@ pub trait CsrfProtection: Send + Sync {
         ttl_seconds: i64,
     ) -> Result<(CsrfToken, CsrfCookie), CsrfError> {
         let token = match previous_token_value {
-            Some(ref previous) => *previous.clone(),
+            Some(previous) => *previous,
             None => {
                 tracing::debug!("Generating new CSRF token.");
                 let mut token = [0; 64];
@@ -228,7 +228,7 @@ pub struct HmacCsrfProtection {
 impl HmacCsrfProtection {
     /// Given an HMAC key, return an `HmacCsrfProtection` instance.
     pub fn from_key(hmac_key: [u8; 32]) -> Self {
-        HmacCsrfProtection { hmac_key: hmac_key }
+        HmacCsrfProtection { hmac_key }
     }
 
     fn hmac(&self) -> Hmac<Sha256> {
@@ -322,7 +322,7 @@ pub struct AesGcmCsrfProtection {
 impl AesGcmCsrfProtection {
     /// Given an AES256 key, return an `AesGcmCsrfProtection` instance.
     pub fn from_key(aead_key: [u8; 32]) -> Self {
-        AesGcmCsrfProtection { aead_key: aead_key }
+        AesGcmCsrfProtection { aead_key }
     }
 
     fn aead(&self) -> Aes256Gcm {
@@ -359,7 +359,7 @@ impl CsrfProtection for AesGcmCsrfProtection {
             .map_err(|_| CsrfError::EncryptionFailure)?;
 
         let mut transport = [0; 132];
-        transport[0..12].copy_from_slice(&nonce);
+        transport[0..12].copy_from_slice(nonce);
         transport[12..].copy_from_slice(&ciphertext);
 
         Ok(CsrfCookie::new(transport.to_vec()))
@@ -381,7 +381,7 @@ impl CsrfProtection for AesGcmCsrfProtection {
             .map_err(|_| CsrfError::EncryptionFailure)?;
 
         let mut transport = [0; 124];
-        transport[0..12].copy_from_slice(&nonce);
+        transport[0..12].copy_from_slice(nonce);
         transport[12..].copy_from_slice(&ciphertext);
 
         Ok(CsrfToken::new(transport.to_vec()))
@@ -443,7 +443,7 @@ pub struct ChaCha20Poly1305CsrfProtection {
 impl ChaCha20Poly1305CsrfProtection {
     /// Given a key, return a `ChaCha20Poly1305CsrfProtection` instance.
     pub fn from_key(aead_key: [u8; 32]) -> Self {
-        ChaCha20Poly1305CsrfProtection { aead_key: aead_key }
+        ChaCha20Poly1305CsrfProtection { aead_key }
     }
 
     fn aead(&self) -> ChaCha20Poly1305 {
@@ -480,7 +480,7 @@ impl CsrfProtection for ChaCha20Poly1305CsrfProtection {
             .map_err(|_| CsrfError::EncryptionFailure)?;
 
         let mut transport = [0; 132];
-        transport[0..12].copy_from_slice(&nonce);
+        transport[0..12].copy_from_slice(nonce);
         transport[12..].copy_from_slice(&ciphertext);
 
         Ok(CsrfCookie::new(transport.to_vec()))
@@ -502,7 +502,7 @@ impl CsrfProtection for ChaCha20Poly1305CsrfProtection {
             .map_err(|_| CsrfError::EncryptionFailure)?;
 
         let mut transport = [0; 124];
-        transport[0..12].copy_from_slice(&nonce);
+        transport[0..12].copy_from_slice(nonce);
         transport[12..].copy_from_slice(&ciphertext);
 
         Ok(CsrfToken::new(transport.to_vec()))
@@ -587,12 +587,11 @@ impl CsrfProtection for MultiCsrfProtection {
 
     fn parse_cookie(&self, cookie: &[u8]) -> Result<UnencryptedCsrfCookie, CsrfError> {
         match self.current.parse_cookie(cookie) {
-            ok @ Ok(_) => return ok,
+            Ok(token) => return Ok(token),
             Err(_) => {
                 for protection in self.previous.iter() {
-                    match protection.parse_cookie(cookie) {
-                        ok @ Ok(_) => return ok,
-                        Err(_) => (),
+                    if let Ok(token) = protection.parse_cookie(cookie) {
+                        return Ok(token);
                     }
                 }
             }
@@ -602,12 +601,11 @@ impl CsrfProtection for MultiCsrfProtection {
 
     fn parse_token(&self, token: &[u8]) -> Result<UnencryptedCsrfToken, CsrfError> {
         match self.current.parse_token(token) {
-            ok @ Ok(_) => return ok,
+            Ok(token) => return Ok(token),
             Err(_) => {
                 for protection in self.previous.iter() {
-                    match protection.parse_token(token) {
-                        ok @ Ok(_) => return ok,
-                        Err(_) => (),
+                    if let Ok(token) = protection.parse_token(token) {
+                        return Ok(token)
                     }
                 }
             }

@@ -228,8 +228,7 @@ impl Handler for StaticDir {
                 if !self.options.dot_files
                     && path
                         .file_name()
-                        .map(|s| s.to_str())
-                        .flatten()
+                        .and_then(|s| s.to_str())
                         .map(|s| s.starts_with('.'))
                         .unwrap_or(false)
                 {
