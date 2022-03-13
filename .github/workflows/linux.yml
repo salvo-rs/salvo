@@ -14,7 +14,7 @@ jobs:
       matrix:
         version:
           - stable
-          - nightly
+          # - nightly
 
     name: ${{ matrix.version }} - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
