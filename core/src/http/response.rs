@@ -23,6 +23,7 @@ pub use http::response::Parts;
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING};
 use crate::http::StatusCode;
+use crate::Piece;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
@@ -394,38 +395,10 @@ impl Response {
         }
     }
 
-    /// Render text as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
-    pub fn render_json_text(&mut self, data: &str) {
-        self.headers.insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_static("application/json; charset=utf-8"),
-        );
-        self.set_body(Some(Body::Bytes(BytesMut::from(data))));
-    }
-
     /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
     #[inline]
-    pub fn render_html_text(&mut self, data: &str) {
-        self.render_binary(HeaderValue::from_static("text/html; charset=utf-8"), data.as_bytes());
-    }
-    /// Render plain text content. It will set ```content-type``` to ```text/plain; charset=utf-8```.
-    #[inline]
-    pub fn render_plain_text(&mut self, data: &str) {
-        self.render_binary(HeaderValue::from_static("text/plain; charset=utf-8"), data.as_bytes());
-    }
-    /// Render text as xml content. It will set ```content-type``` to ```text/xml; charset=utf-8```.
-    #[inline]
-    pub fn render_xml_text(&mut self, data: &str) {
-        self.render_binary(HeaderValue::from_static("text/xml; charset=utf-8"), data.as_bytes());
-    }
-    /// RenderBinary renders store from memory (which could be a file that has not been written,
-    /// the output from some function, or bytes streamed from somewhere else, as long
-    /// it implements io.Reader).  When called directly on something generated or
-    /// streamed, modtime should mostly likely be time.Now().
-    #[inline]
-    pub fn render_binary(&mut self, content_type: HeaderValue, data: &[u8]) {
-        self.headers.insert(header::CONTENT_TYPE, content_type);
-        self.write_body_bytes(data);
+    pub fn render<P>(&mut self, piece: P) where P: Piece {
+        piece.render(self)
     }
 
     /// Write bytes data to body.

@@ -52,7 +52,7 @@ use salvo::prelude::*;
 
 #[fn_handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-    res.render_plain_text("Hello World");
+    res.render(Text::Plain("Hello World"));
 }
 ```
 
@@ -120,7 +120,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
-            res.render_plain_text("Ok");
+            res.render(Text::Plain("Ok");
         }
     } else {
         res.set_status_code(StatusCode::BAD_REQUEST);
