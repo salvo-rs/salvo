@@ -392,7 +392,6 @@ mod tests {
         let mut res = Response::new();
         super::streaming(&mut res, event_stream);
         let text = res.take_text().await.unwrap();
-        print!("=============text{text}");
         assert!(text.contains("retry:1020"));
 
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
@@ -401,7 +400,6 @@ mod tests {
         let mut res = Response::new();
         super::streaming(&mut res, event_stream);
         let text = res.take_text().await.unwrap();
-        print!("=============text2{text}");
         assert!(text.contains("retry:1001"));
     }
 
