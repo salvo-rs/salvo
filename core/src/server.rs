@@ -108,7 +108,7 @@ mod tests {
             struct User {
                 name: String,
             }
-            res.render_json(&User { name: "jobs".into() });
+            res.render(Json(User { name: "jobs".into() }));
         }
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 

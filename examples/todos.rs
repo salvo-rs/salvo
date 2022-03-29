@@ -28,7 +28,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         .skip(opts.offset.unwrap_or(0))
         .take(opts.limit.unwrap_or(std::usize::MAX))
         .collect();
-    res.render_json(&todos);
+    res.render(Json(todos));
 }
 
 #[fn_handler]

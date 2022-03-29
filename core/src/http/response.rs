@@ -380,21 +380,6 @@ impl Response {
         self.http_error = Some(err);
     }
 
-    /// Render serializable data as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
-    pub fn render_json<T: Serialize>(&mut self, data: &T) {
-        let mut cache = Cache::with_capacity(128);
-        match serde_json::to_writer(&mut cache, data) {
-            Ok(_) => {
-                self.headers.insert(
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_static("application/json; charset=utf-8"),
-                );
-                self.set_body(Some(Body::Bytes(cache.into_inner())));
-            }
-            Err(_) => self.set_http_error(InternalServerError().with_summary("error when serialize object to json")),
-        }
-    }
-
     /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
     #[inline]
     pub fn render<P>(&mut self, piece: P)
