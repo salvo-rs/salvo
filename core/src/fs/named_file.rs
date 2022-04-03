@@ -126,7 +126,9 @@ impl NamedFileBuilder {
         let file = File::open(&path).await.map_err(crate::Error::new)?;
         let content_type = content_type.unwrap_or_else(|| {
             let ct = from_path(&path).first_or_octet_stream();
-            if ct.type_() == mime::TEXT && ct.get_param(mime::CHARSET).is_none() {
+            let ftype = ct.type_();
+            let stype = ct.subtype();
+            if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT) && ct.get_param(mime::CHARSET).is_none() {
                 //TODO: auto detect charset
                 format!("{}; charset=utf-8", ct).parse::<mime::Mime>().unwrap_or(ct)
             } else {
@@ -139,7 +141,7 @@ impl NamedFileBuilder {
                     "attachment"
                 } else {
                     match content_type.type_() {
-                        mime::IMAGE | mime::TEXT | mime::VIDEO => "inline",
+                        mime::IMAGE | mime::TEXT | mime::VIDEO | mime::JAVASCRIPT | mime::JSON => "inline",
                         _ => "attachment",
                     }
                 };
