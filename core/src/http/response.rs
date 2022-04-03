@@ -3,19 +3,17 @@
 use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug};
-use std::io::{self, Write};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
 use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use encoding_rs::{Encoding, UTF_8};
 use futures_util::stream::{Stream, StreamExt, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 use tokio::io::{AsyncReadExt, BufReader};
 
 pub use http::response::Parts;
@@ -477,29 +475,6 @@ impl Debug for Response {
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Debug::fmt(self, f)
-    }
-}
-
-pub(crate) struct Cache(BytesMut);
-
-impl Cache {
-    pub(crate) fn with_capacity(size: usize) -> Self {
-        Cache(BytesMut::with_capacity(size))
-    }
-
-    pub(crate) fn into_inner(self) -> BytesMut {
-        self.0
-    }
-}
-
-impl Write for Cache {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.put(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
     }
 }
 
