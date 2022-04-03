@@ -142,8 +142,8 @@ impl NamedFileBuilder {
                 let disposition_type = if attached_filename.is_some() {
                     "attachment"
                 } else {
-                    match content_type.type_() {
-                        mime::IMAGE | mime::TEXT | mime::VIDEO | mime::JAVASCRIPT | mime::JSON => "inline",
+                    match (content_type.type_(), content_type.subtype()) {
+                        (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _) | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
                         _ => "attachment",
                     }
                 };
