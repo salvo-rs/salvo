@@ -128,7 +128,9 @@ impl NamedFileBuilder {
             let ct = from_path(&path).first_or_octet_stream();
             let ftype = ct.type_();
             let stype = ct.subtype();
-            if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT) && ct.get_param(mime::CHARSET).is_none() {
+            if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT)
+                && ct.get_param(mime::CHARSET).is_none()
+            {
                 //TODO: auto detect charset
                 format!("{}; charset=utf-8", ct).parse::<mime::Mime>().unwrap_or(ct)
             } else {
