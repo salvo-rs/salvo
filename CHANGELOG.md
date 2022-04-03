@@ -1,3 +1,6 @@
+### 0.18.0
+- remove Response::render_json
+
 ### 0.17.3
 - add piece
 
