@@ -207,7 +207,7 @@ impl NamedFile {
     /// ```
     /// use salvo_core::fs::NamedFile;
     /// # async fn open() {
-    ///     let file = NamedFile::open("foo.txt".into()).await;
+    ///     let file = NamedFile::open("foo.txt").await;
     /// # }
     /// ```
     #[inline]
@@ -229,7 +229,7 @@ impl NamedFile {
     /// # use std::io;
     /// # use salvo_core::fs::NamedFile;
     /// # async fn path() {
-    ///     let file = NamedFile::open("test.txt".into()).await.unwrap();
+    ///     let file = NamedFile::open("test.txt").await.unwrap();
     ///     assert_eq!(file.path().as_os_str(), "foo.txt");
     /// # }
     /// ```

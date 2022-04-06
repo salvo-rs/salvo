@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::errors::*;
@@ -11,8 +13,8 @@ pub struct StaticFile(NamedFileBuilder);
 
 impl StaticFile {
     /// Create a new `StaticFile`.
-    pub fn new(path: impl Into<String>) -> Self {
-        StaticFile(NamedFile::builder(path.into().into()))
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        StaticFile(NamedFile::builder(path))
     }
 
     /// During the file chunk read, the maximum read size at one time will affect the

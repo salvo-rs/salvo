@@ -48,7 +48,7 @@ members = [".", "core", "extra", "macros"]
 
 [dependencies]
 salvo_core = { version = "0.18.2", default-features = false, path = "./core" }
-salvo_extra = { version = "0.18.0", default-features = false, optional = true, path = "./extra" }
+salvo_extra = { version = "0.18.2", default-features = false, optional = true, path = "./extra" }
 
 [dev-dependencies]
 async-stream = "0.3"
