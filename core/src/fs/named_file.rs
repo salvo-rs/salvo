@@ -186,9 +186,9 @@ impl NamedFileBuilder {
 impl NamedFile {
     /// Create new `NamedFileBuilder`.
     #[inline]
-    pub fn builder(path: PathBuf) -> NamedFileBuilder {
+    pub fn builder<P: AsRef<Path>>(path: P) -> NamedFileBuilder {
         NamedFileBuilder {
-            path,
+            path: path.as_ref().into(),
             attached_filename: None,
             disposition_type: None,
             content_type: None,
@@ -210,7 +210,7 @@ impl NamedFile {
     /// # }
     /// ```
     #[inline]
-    pub async fn open(path: PathBuf) -> crate::Result<NamedFile> {
+    pub async fn open<P: AsRef<Path>>(path: P) -> crate::Result<NamedFile> {
         Self::builder(path).build().await
     }
 
