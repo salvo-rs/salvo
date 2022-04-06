@@ -143,7 +143,8 @@ impl NamedFileBuilder {
                     "attachment"
                 } else {
                     match (content_type.type_(), content_type.subtype()) {
-                        (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _) | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
+                        (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
+                        | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
                         _ => "attachment",
                     }
                 };
