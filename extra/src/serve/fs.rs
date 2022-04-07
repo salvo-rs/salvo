@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
@@ -13,7 +13,7 @@ pub struct StaticFile(NamedFileBuilder);
 
 impl StaticFile {
     /// Create a new `StaticFile`.
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
         StaticFile(NamedFile::builder(path))
     }
 
