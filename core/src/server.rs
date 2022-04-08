@@ -48,7 +48,7 @@ where
     ///
     /// #[fn_handler]
     /// async fn hello_world(res: &mut Response) {
-    ///     res.render(Text::Plain("Hello World!");
+    ///     res.render("Hello World!");
     /// }
     ///
     /// #[tokio::main]

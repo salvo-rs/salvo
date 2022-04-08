@@ -1,5 +1,5 @@
 //! The macros lib of Savlo web server framework.
-//! Read more: https://salvo.rs
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 extern crate proc_macro;
