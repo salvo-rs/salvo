@@ -1,0 +1,69 @@
+name: release
+on:
+  push:
+    branches:
+      - release
+    paths:
+      - "**/Cargo.toml"
+      - ".github/workflows/release.yml"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        package:
+          - crate: salvo-macros
+            path: macros
+          - crate: salvo-core
+            path: core
+          - crate: salvo-extra
+            path: extra
+          - crate: salvo
+            path: ""
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get latest version
+        working-directory: ${{ matrix.package.path }}
+        run: echo LASTEST_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
+
+      - name: Check published version
+        run: echo PUBLISHED_VERSION=$(cargo search ${{ matrix.package.crate }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
+
+      - name: Auto tag lastest version
+        uses: Klemensas/action-autotag@stable
+        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        with:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          tag_prefix: "v"
+          version: "${{ env.LASTEST_VERSION }}"
+
+      - name: Cargo login
+        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        run: cargo login ${{ secrets.CRATES_TOKEN }}
+
+      - name: Cargo package
+        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        working-directory: ${{ matrix.package.path }}
+        run: |
+          echo "Latest version: $LASTEST_VERSION"
+          echo "Published version: $PUBLISHED_VERSION"
+          echo "Cargo Packaging..."
+          cargo package
+
+      - name: Publish ${{ matrix.package.name }}
+        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        working-directory: ${{ matrix.package.path }}
+        run: |
+          echo "Cargo Publishing..."
+          cargo publish --no-verify
+          echo "New version $LASTEST_VERSION has published"
