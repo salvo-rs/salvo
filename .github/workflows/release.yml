@@ -8,6 +8,35 @@ on:
       - ".github/workflows/release.yml"
 
 jobs:
+  git-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get releasing version
+        run: echo NEXT_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
+
+      - name: Check published version
+        run: echo PREV_VERSION=$(cargo search salvo --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
+
+      - name: Auto tag lastest version
+        uses: bullrich/commit-autotag@main
+        if: env.NEXT_VERSION != env.PREV_VERSION
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          strategy: regex
+          root: "Cargo.toml"
+          regex_pattern: "version\\s*=\\s*\"([0-9\\.]+)\""
+          tag_prefix: "v"
+          # version: "${{ env.NEXT_VERSION }}"
+
   publish:
     runs-on: ubuntu-latest
     strategy:
@@ -32,45 +61,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Get latest version
+      - name: Get releasing version
         working-directory: ${{ matrix.package.path }}
-        run: echo LASTEST_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
+        run: echo NEXT_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
 
       - name: Check published version
-        run: echo PUBLISHED_VERSION=$(cargo search ${{ matrix.package.crate }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
-
-      - name: Auto tag lastest version
-        uses: Klemensas/action-autotag@stable
-        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
-        with:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          tag_prefix: "v"
-          version: "${{ env.LASTEST_VERSION }}"
-      
-      - name: Auto release github package
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          draft: true
+        run: echo PREV_VERSION=$(cargo search ${{ matrix.package.crate }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
 
       - name: Cargo login
-        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        if: env.NEXT_VERSION != env.PREV_VERSION
         run: cargo login ${{ secrets.CRATES_TOKEN }}
 
       - name: Cargo package
-        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        if: env.NEXT_VERSION != env.PREV_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
-          echo "Latest version: $LASTEST_VERSION"
-          echo "Published version: $PUBLISHED_VERSION"
+          echo "Releasing version: $NEXT_VERSION"
+          echo "Published version: $PREV_VERSION"
           echo "Cargo Packaging..."
           cargo package
 
       - name: Publish ${{ matrix.package.name }}
-        if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
+        if: env.NEXT_VERSION != env.PREV_VERSION
         working-directory: ${{ matrix.package.path }}
         run: |
           echo "Cargo Publishing..."
           cargo publish --no-verify
-          echo "New version $LASTEST_VERSION has published"
+          echo "New version $NEXT_VERSION has published"
