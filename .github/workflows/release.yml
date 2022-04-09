@@ -46,6 +46,13 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           tag_prefix: "v"
           version: "${{ env.LASTEST_VERSION }}"
+      
+      - name: Auto release github package
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          draft: true
 
       - name: Cargo login
         if: env.LASTEST_VERSION != env.PUBLISHED_VERSION
