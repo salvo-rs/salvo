@@ -2,16 +2,16 @@
 <img alt="Savlo" src="assets/logo.svg" />
 <p>
 
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo//workflows/ci-macos/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=master&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo//workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
+[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
 <br>
 [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 [![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![Rust Version](https://img.shields.io/badge/rust-1.56%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
 <br>
-[![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/master/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
+[![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
 [![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs)](https://salvo.rs)
 ![License](https://img.shields.io/crates/l/salvo.svg)

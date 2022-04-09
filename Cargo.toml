@@ -19,7 +19,7 @@ autoexamples = true
 all-features = true
 
 [badges]
-codecov = { repository = "salvo-rs/salvo", branch = "master", service = "github" }
+codecov = { repository = "salvo-rs/salvo", branch = "main", service = "github" }
 
 [lib]
 name = "salvo"

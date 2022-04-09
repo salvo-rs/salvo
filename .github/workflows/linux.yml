@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build_and_test:
@@ -56,13 +56,13 @@ jobs:
           args: --all --all-features --no-fail-fast -- --nocapture
 
       - name: Generate coverage file
-        if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'push')
+        if: matrix.version == 'stable' && (github.ref == 'refs/heads/main' || github.event_name == 'push')
         run: |
           cargo install cargo-tarpaulin
           cargo tarpaulin --workspace --out Xml
 
       - name: Upload to codecov
-        if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'push')
+        if: matrix.version == 'stable' && (github.ref == 'refs/heads/main' || github.event_name == 'push')
         uses: codecov/codecov-action@v1
         with:
           file: cobertura.xml
