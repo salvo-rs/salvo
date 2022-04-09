@@ -387,12 +387,12 @@ mod tests {
     #[tokio::test]
     async fn test_sse_retry() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
-            SseEvent::default().retry(std::time::Duration::from_secs_f32(1.02)),
+            SseEvent::default().retry(std::time::Duration::from_secs_f32(1.0)),
         )]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream);
         let text = res.take_text().await.unwrap();
-        assert!(text.contains("retry:1020"));
+        assert!(text.contains("retry:1000"));
 
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
             SseEvent::default().retry(std::time::Duration::from_secs_f32(1.001)),

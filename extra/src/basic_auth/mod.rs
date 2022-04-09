@@ -69,9 +69,8 @@ where
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
         let auth = base64::decode(authorization.as_ref())?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();
-        let parts: Vec<&str> = auth.splitn(2, ':').collect();
-        if parts.len() == 2 {
-            Ok((parts[0].to_owned(), parts[1].to_owned()))
+        if let Some((username, password)) = auth.split_once(':') {
+            Ok((username.to_owned(), password.to_owned()))
         } else {
             Err(Error::ParseHttpHeader)
         }
@@ -86,7 +85,7 @@ where
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 if auth.starts_with("Basic") {
-                    if let Some(auth) = auth.splitn(2, ' ').collect::<Vec<&str>>().pop() {
+                    if let Some((_, auth)) = auth.split_once(' ') {
                         if let Ok((username, password)) = self.parse_authorization(auth) {
                             if self.validator.validate(&username, &password).await {
                                 depot.insert(USERNAME_KEY, username);

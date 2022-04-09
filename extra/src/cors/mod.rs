@@ -486,11 +486,8 @@ pub trait IntoOrigin {
 
 impl<'a> IntoOrigin for &'a str {
     fn into_origin(self) -> Origin {
-        let mut parts = self.splitn(2, "://");
-        let scheme = parts.next().expect("missing scheme");
-        let rest = parts.next().expect("missing scheme");
-
-        Origin::try_from_parts(scheme, rest, None).expect("invalid Origin")
+        let (scheme, rest) = self.split_once("://").expect("bad url format");
+        Origin::try_from_parts(scheme, rest, None).expect("invalid origin")
     }
 }
 
