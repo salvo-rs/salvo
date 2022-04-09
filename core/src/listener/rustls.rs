@@ -213,17 +213,6 @@ impl RustlsConfig {
             }
         };
 
-        fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, Error> {
-            let mut reader = BufReader::new(trust_anchor);
-            let certs = rustls_pemfile::certs(&mut reader).map_err(|_| Error::RsaParseError)?;
-            let mut store = RootCertStore::empty();
-            if let (0, _) = store.add_parsable_certificates(&certs) {
-                Err(Error::CertParseError)
-            } else {
-                Ok(store)
-            }
-        }
-
         let client_auth = match self.client_auth {
             TlsClientAuth::Off => NoClientAuth::new(),
             TlsClientAuth::Optional(trust_anchor) => {
@@ -241,6 +230,17 @@ impl RustlsConfig {
             .with_single_cert_with_ocsp_and_sct(cert_chain, PrivateKey(key), self.ocsp_resp, Vec::new())
             .map_err(Error::InvalidKey)?;
         Ok(config)
+    }
+}
+
+fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, Error> {
+    let mut reader = BufReader::new(trust_anchor);
+    let certs = rustls_pemfile::certs(&mut reader).map_err(|_| Error::RsaParseError)?;
+    let mut store = RootCertStore::empty();
+    if let (0, _) = store.add_parsable_certificates(&certs) {
+        Err(Error::CertParseError)
+    } else {
+        Ok(store)
     }
 }
 
@@ -280,6 +280,11 @@ where
     }
 }
 
+impl<C> RustlsListener<C> {
+    pub fn local_addr(&self) -> SocketAddr {
+        self.incoming.local_addr().into()
+    }
+}
 impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
     /// Create new RustlsListenerBuilder with RustlsConfig.
     #[inline]
@@ -439,26 +444,84 @@ impl AsyncWrite for RustlsStream {
 
 #[cfg(test)]
 mod tests {
+    use http::Request;
+    use hyper::client::conn::handshake;
+    use hyper::Body;
+    use tokio::net::TcpStream;
+    use tokio_rustls::rustls::{ClientConfig, ServerName};
+    use tokio_rustls::TlsConnector;
+    use tower::{Service, ServiceExt};
+
+    use crate::prelude::*;
+
     use super::*;
 
     #[test]
-    fn file_cert_key() {
+    fn test_file_cert_key() {
         RustlsConfig::new()
-            .with_key_path("../examples/tls/key.rsa")
-            .with_cert_path("../examples/tls/cert.pem")
+            .with_key_path("../examples/certs/end.rsa")
+            .with_cert_path("../examples/certs/end.cert")
             .build_server_config()
             .unwrap();
     }
 
     #[test]
-    fn bytes_cert_key() {
-        let key = include_str!("../../../examples/tls/key.rsa");
-        let cert = include_str!("../../../examples/tls/cert.pem");
+    fn test_bytes_cert_key() {
+        let key = include_str!("../../../examples/certs/end.rsa");
+        let cert = include_str!("../../../examples/certs/end.cert");
 
         RustlsConfig::new()
             .with_key(key.as_bytes())
             .with_cert(cert.as_bytes())
             .build_server_config()
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_rustls_listener() {
+        #[fn_handler]
+        async fn hello_world() -> Result<&'static str, ()> {
+            Ok("Hello World")
+        }
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7979));
+        let listener = RustlsListener::with_rustls_config(
+            RustlsConfig::new()
+                .with_key_path("../examples/certs/end.rsa")
+                .with_cert_path("../examples/certs/end.cert"),
+        )
+        .bind(addr);
+        let router = Router::new().get(hello_world);
+        tokio::task::spawn(async {
+            Server::new(listener).serve(router).await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let stream = TcpStream::connect(addr).await.unwrap();
+        let trust_anchor = include_bytes!("../../../examples/certs/end.chain");
+        let client_config = ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())
+            .with_no_client_auth();
+        let connector = TlsConnector::from(Arc::new(client_config));
+        let tls_stream = connector
+            .connect(ServerName::try_from("testserver.com").unwrap(), stream)
+            .await
+            .unwrap();
+        let (mut send_request, connection) = handshake(tls_stream).await.unwrap();
+        let _task = tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        let (_parts, body) = send_request
+            .ready()
+            .await
+            .unwrap()
+            .call(Request::new(Body::empty()))
+            .await
+            .unwrap()
+            .into_parts();
+        let body = hyper::body::to_bytes(body).await.unwrap();
+
+        assert_eq!(&body[..], b"Hello World");
     }
 }

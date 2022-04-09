@@ -307,3 +307,19 @@ where
         cookie.set_value(new_value);
     }
 }
+
+#[test]
+fn test_session_data() {
+    let handler = SessionHandler::new(async_session::CookieStore, b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab")
+        .with_cookie_domain("test.domain")
+        .with_cookie_name("test_cookie")
+        .with_cookie_path("/abc")
+        .with_same_site_policy(SameSite::Strict)
+        .with_session_ttl(Some(Duration::from_secs(30)));
+    assert_eq!(handler.cookie_domain, Some("test.domain".into()));
+    assert_eq!(handler.cookie_name, "test_cookie");
+    assert_eq!(handler.cookie_path, "/abc");
+    assert_eq!(handler.same_site_policy, SameSite::Strict);
+    assert_eq!(handler.session_ttl, Some(Duration::from_secs(30)));
+    assert!(handler.key == Key::from(b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab"));
+}

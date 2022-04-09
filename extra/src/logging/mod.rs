@@ -58,3 +58,34 @@ impl Handler for LogHandler {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::prelude::*;
+    use tracing_test::traced_test;
+
+    use super::*;
+
+    #[tokio::test]
+    #[traced_test]
+    async fn test_log() {
+        #[fn_handler]
+        async fn hello() -> &'static str {
+            "hello"
+        }
+
+        let router = Router::new()
+            .hoop(LogHandler)
+            .push(Router::with_path("hello").get(hello));
+        let service = Service::new(router);
+
+        let req: Request = hyper::Request::builder()
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        service.handle(req).await.take_text().await.unwrap();
+        assert!(logs_contain("duration"));
+    }
+}

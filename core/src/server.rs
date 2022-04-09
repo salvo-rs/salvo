@@ -37,6 +37,7 @@ where
     {
         HyperServer::builder(self.listener).serve(service.into()).await
     }
+
     /// Serve with graceful shutdown signal.
     ///
     /// # Example

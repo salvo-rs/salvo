@@ -511,8 +511,8 @@ mod test {
     #[tokio::test]
     async fn test_body_stream2() {
         let mut body = Body::Stream(Box::pin(iter(vec![
-            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("hello").freeze()),
-            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" world").freeze()),
+            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("Hello").freeze()),
+            Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" World").freeze()),
         ])));
 
         let mut result = bytes::BytesMut::new();
@@ -520,7 +520,7 @@ mod test {
             result.extend_from_slice(&data)
         }
 
-        assert_eq!("hello world", &result)
+        assert_eq!("Hello World", &result)
     }
     #[tokio::test]
     async fn test_others() {
