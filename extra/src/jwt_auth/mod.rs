@@ -79,7 +79,7 @@ impl JwtTokenExtractor for HeaderExtractor {
             if let Some(auth) = req.headers().get(AUTHORIZATION) {
                 if let Ok(auth) = auth.to_str() {
                     if auth.starts_with("Bearer") {
-                        return auth.split_once(' ').map(|(_, token)|token.to_owned());
+                        return auth.split_once(' ').map(|(_, token)| token.to_owned());
                     }
                 }
             }
