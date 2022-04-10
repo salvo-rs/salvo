@@ -27,8 +27,10 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["extra", "rustls", "anyhow"]
+full = ["extra", "rustls", "native-tls", "unix", "anyhow"]
+native-tls = ["salvo_core/native-tls"]
 rustls = ["salvo_core/rustls"]
+unix = ["salvo_core/unix"]
 anyhow = ["salvo_core/anyhow"]
 extra = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "proxy", "serve", "sse", "ws", "size-limiter", "logging"]
 basic-auth = ["salvo_extra/basic-auth"]

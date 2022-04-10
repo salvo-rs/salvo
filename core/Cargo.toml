@@ -21,6 +21,7 @@ default = []
 full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile"]
 native-tls = ["tokio-native-tls"]
+unix = []
 
 [dependencies]
 anyhow = { version = "1", optional = true }

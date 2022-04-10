@@ -469,8 +469,8 @@ mod tests {
     #[tokio::test]
     async fn test_rustls_listener() {
         #[fn_handler]
-        async fn hello_world() -> Result<&'static str, ()> {
-            Ok("Hello World")
+        async fn hello_world() -> &'static str {
+            "Hello World"
         }
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
         let listener = RustlsListener::with_rustls_config(
