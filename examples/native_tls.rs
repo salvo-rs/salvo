@@ -1,4 +1,4 @@
-use salvo::listener::native_tls::{NativeTlsListener, NativeTlsConfig};
+use salvo::listener::native_tls::{NativeTlsConfig, NativeTlsListener};
 use salvo::prelude::*;
 
 #[fn_handler]
