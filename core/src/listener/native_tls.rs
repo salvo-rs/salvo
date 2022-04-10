@@ -136,7 +136,12 @@ impl From<NativeTlsConfig> for Identity {
         config.identity().unwrap()
     }
 }
-
+impl<C> NativeTlsListener<C> {
+    /// Get local address
+    pub fn local_addr(&self) -> SocketAddr {
+        self.incoming.local_addr().into()
+    }
+}
 impl<C> NativeTlsListener<C>
 where
     C: Stream,
@@ -197,7 +202,7 @@ pin_project! {
     #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
     pub struct NativeTlsStream {
         #[pin]
-        inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>>>,
+        inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + Send>>,
         remote_addr: SocketAddr,
     }
 }
@@ -210,7 +215,9 @@ impl Transport for NativeTlsStream {
 impl NativeTlsStream {
     fn new(
         remote_addr: SocketAddr,
-        inner_future: impl Future<Output = Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + 'static,
+        inner_future: impl Future<Output = Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>
+            + Send
+            + 'static,
     ) -> Self {
         NativeTlsStream {
             inner_future: Box::pin(inner_future),
@@ -256,5 +263,63 @@ impl AsyncWrite for NativeTlsStream {
         } else {
             Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use http::Request;
+    use hyper::client::conn::handshake;
+    use hyper::Body;
+    use tokio::net::TcpStream;
+    use tower::{Service, ServiceExt};
+
+    use super::*;
+    use crate::prelude::*;
+
+    #[tokio::test]
+    async fn test_native_tls_listener() {
+        #[fn_handler]
+        async fn hello_world() -> Result<&'static str, ()> {
+            Ok("Hello World")
+        }
+        let addr = "127.0.0.1:7879";
+        let listener = NativeTlsListener::with_config(
+            NativeTlsConfig::new()
+                .with_pkcs12(include_bytes!("../../../examples/certs/identity.p12").to_vec())
+                .with_password("mypass"),
+        )
+        .bind(addr);
+        let router = Router::new().get(hello_world);
+        let server = tokio::task::spawn(async {
+            Server::new(listener).serve(router).await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let stream = TcpStream::connect(addr).await.unwrap();
+        let connector = tokio_native_tls::TlsConnector::from(
+            tokio_native_tls::native_tls::TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .build()
+                .unwrap(),
+        );
+        let tls_stream = connector.connect(addr, stream).await.unwrap();
+        let (mut send_request, connection) = handshake(tls_stream).await.unwrap();
+        let _task = tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        let (_parts, body) = send_request
+            .ready()
+            .await
+            .unwrap()
+            .call(Request::new(Body::empty()))
+            .await
+            .unwrap()
+            .into_parts();
+        let body = hyper::body::to_bytes(body).await.unwrap();
+        server.abort();
+
+        assert_eq!(&body[..], b"Hello World");
     }
 }

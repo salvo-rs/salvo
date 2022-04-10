@@ -113,7 +113,7 @@ mod tests {
         }
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
 
-        tokio::task::spawn(async {
+        let server = tokio::task::spawn(async {
             Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).serve(router).await;
         });
 
@@ -179,5 +179,6 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("<code>404</code>"));
+        server.abort();
     }
 }

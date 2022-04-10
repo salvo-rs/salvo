@@ -281,6 +281,7 @@ where
 }
 
 impl<C> RustlsListener<C> {
+    /// Get local address
     pub fn local_addr(&self) -> SocketAddr {
         self.incoming.local_addr().into()
     }
@@ -465,25 +466,13 @@ mod tests {
             .unwrap();
     }
 
-    #[test]
-    fn test_bytes_cert_key() {
-        let key = include_str!("../../../examples/certs/end.rsa");
-        let cert = include_str!("../../../examples/certs/end.cert");
-
-        RustlsConfig::new()
-            .with_key(key.as_bytes())
-            .with_cert(cert.as_bytes())
-            .build_server_config()
-            .unwrap();
-    }
-
     #[tokio::test]
     async fn test_rustls_listener() {
         #[fn_handler]
         async fn hello_world() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7979));
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
         let listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
                 .with_key_path("../examples/certs/end.rsa")
@@ -491,7 +480,7 @@ mod tests {
         )
         .bind(addr);
         let router = Router::new().get(hello_world);
-        tokio::task::spawn(async {
+        let server = tokio::task::spawn(async {
             Server::new(listener).serve(router).await;
         });
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -521,6 +510,7 @@ mod tests {
             .unwrap()
             .into_parts();
         let body = hyper::body::to_bytes(body).await.unwrap();
+        server.abort();
 
         assert_eq!(&body[..], b"Hello World");
     }

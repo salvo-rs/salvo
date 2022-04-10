@@ -96,3 +96,46 @@ impl AsyncWrite for UnixStream {
         Pin::new(&mut self.get_mut().inner_stream).poll_shutdown(cx)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use http::Request;
+    use hyper::client::conn::handshake;
+    use hyper::Body;
+    use tower::{Service, ServiceExt};
+
+    use crate::prelude::*;
+
+    #[tokio::test]
+    async fn test_unix_listener() {
+        #[fn_handler]
+        async fn hello_world() -> Result<&'static str, ()> {
+            Ok("Hello World")
+        }
+        let listener = UnixListener::bind("/tmp/salvo.sock");
+        let router = Router::new().get(hello_world);
+        let server = tokio::task::spawn(async {
+            Server::new(listener).serve(router).await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let stream = tokio::net::UnixStream::connect("/tmp/salvo.sock").await.unwrap();
+        let (mut send_request, connection) = handshake(stream).await.unwrap();
+        let _task = tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        let (_parts, body) = send_request
+            .ready()
+            .await
+            .unwrap()
+            .call(Request::new(Body::empty()))
+            .await
+            .unwrap()
+            .into_parts();
+        let body = hyper::body::to_bytes(body).await.unwrap();
+        server.abort();
+
+        assert_eq!(&body[..], b"Hello World");
+    }
+}
