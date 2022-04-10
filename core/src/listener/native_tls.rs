@@ -81,7 +81,7 @@ pin_project! {
         #[pin]
         config_stream: C,
         incoming: AddrIncoming,
-        acceptor: Option<AsyncTlsAcceptor>,
+        identity: Option<Identity>,
     }
 }
 /// NativeTlsListener
@@ -104,7 +104,7 @@ where
         Ok(NativeTlsListener {
             config_stream: self.config_stream,
             incoming: incoming.into_incoming(),
-            acceptor: None,
+            identity: None,
         })
     }
 }
@@ -173,19 +173,13 @@ where
         if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
             if let Some(identity) = result {
                 let identity = identity.into();
-                *this.acceptor = Some(
-                    TlsAcceptor::new(identity)
-                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
-                        .into(),
-                );
+                *this.identity = Some(identity);
             }
         }
-        if let Some(acceptor) = this.acceptor {
+        if let Some(identity) = this.identity {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => {
-                    let acceptor = acceptor.clone();
-                    let stream =
-                        NativeTlsStream::new(sock.remote_addr().into(), async move { acceptor.accept(sock).await });
+                    let stream = NativeTlsStream::new(sock.remote_addr().into(), sock, identity.clone())?;
                     Poll::Ready(Some(Ok(stream)))
                 }
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
@@ -201,8 +195,11 @@ pin_project! {
     /// NativeTlsStream
     #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
     pub struct NativeTlsStream {
+        // #[pin]
+        // acceptor: Pin<Box<AsyncTlsAcceptor>>,
         #[pin]
         inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + Send>>,
+        inner_stream: Option<TlsStream<AddrStream>>,
         remote_addr: SocketAddr,
     }
 }
@@ -213,24 +210,27 @@ impl Transport for NativeTlsStream {
 }
 
 impl NativeTlsStream {
-    fn new(
-        remote_addr: SocketAddr,
-        inner_future: impl Future<Output = Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>>
-            + Send
-            + 'static,
-    ) -> Self {
-        NativeTlsStream {
-            inner_future: Box::pin(inner_future),
+    fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, io::Error> {
+        let acceptor: AsyncTlsAcceptor = TlsAcceptor::new(identity)
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
+            .into();
+        Ok(NativeTlsStream {
+            // acceptor: Box::pin(acceptor),
+            inner_future: Box::pin(async move { acceptor.accept(stream).await }),
+            inner_stream: None,
             remote_addr,
-        }
+        })
     }
 }
 
 impl AsyncRead for NativeTlsStream {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
-        let this = self.project();
-        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
-            Pin::new(&mut stream).poll_read(cx, buf)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_read(cx, buf)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
         } else {
             Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
         }
@@ -239,88 +239,92 @@ impl AsyncRead for NativeTlsStream {
 
 impl AsyncWrite for NativeTlsStream {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
-        let this = self.project();
-        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
-            Pin::new(&mut stream).poll_write(cx, buf)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_write(cx, buf)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
         } else {
             Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let this = self.project();
-        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
-            Pin::new(&mut stream).poll_flush(cx)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_flush(cx)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
         } else {
             Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
         }
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let this = self.project();
-        if let Ok(mut stream) = ready!(this.inner_future.poll(cx)) {
-            Pin::new(&mut stream).poll_shutdown(cx)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_shutdown(cx)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_shutdown(cx)
         } else {
             Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
         }
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use http::Request;
-//     use hyper::client::conn::handshake;
-//     use hyper::Body;
-//     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-//     use tokio::net::TcpStream;
-//     use tokio_native_tls::native_tls::TlsConnector;
-//     use tower::{Service, ServiceExt};
+#[cfg(test)]
+mod tests {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpStream;
 
-//     use super::*;
-//     use crate::prelude::*;
+    use super::*;
+    use crate::prelude::*;
 
-//     #[tokio::test]
-//     async fn test_native_tls_listener() {
-//         #[fn_handler]
-//         async fn hello_world() -> &'static str {
-//             "Hello World"
-//         }
-//         let addr = "127.0.0.1:7879";
-//         let listener = NativeTlsListener::with_config(
-//             NativeTlsConfig::new()
-//                 .with_pkcs12(include_bytes!("../../../examples/certs/identity.p12").to_vec())
-//                 .with_password("mypass"),
-//         )
-//         .bind(addr);
-//         let router = Router::new().get(hello_world);
-//         let server = tokio::task::spawn(async {
-//             Server::new(listener).serve(router).await;
-//         });
-//         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    #[tokio::test]
+    async fn test_native_tls_listener() {
+        #[fn_handler]
+        async fn hello_world() -> &'static str {
+            "Hello World"
+        }
+        let addr = "127.0.0.1:7879";
+        let listener = NativeTlsListener::with_config(
+            NativeTlsConfig::new()
+                .with_pkcs12(include_bytes!("../../../examples/certs/identity.p12").to_vec())
+                .with_password("mypass"),
+        )
+        .bind(addr);
+        let router = Router::new().get(hello_world);
+        let server = tokio::task::spawn(async {
+            Server::new(listener).serve(router).await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-//         let socket = TcpStream::connect(&addr).await.unwrap();
-//         let cx = tokio_native_tls::TlsConnector::from(
-//             tokio_native_tls::native_tls::TlsConnector::builder()
-//                 .danger_accept_invalid_certs(true)
-//                 .build()
-//                 .unwrap(),
-//         );
-//         let mut socket = cx.connect(addr, socket).await.unwrap();
-//         socket
-//             .write_all(
-//                 "\
-//                  GET / HTTP/1.0\r\n\
-//                  Host: 127.0.0.1\r\n\
-//                  \r\n\
-//                  "
-//                 .as_bytes(),
-//             )
-//             .await
-//             .unwrap();
-//         let mut data = Vec::new();
-//         socket.read_to_end(&mut data).await.unwrap();
-//         server.abort();
+        let socket = TcpStream::connect(&addr).await.unwrap();
+        let cx = tokio_native_tls::TlsConnector::from(
+            tokio_native_tls::native_tls::TlsConnector::builder()
+                .danger_accept_invalid_certs(true)
+                .build()
+                .unwrap(),
+        );
+        let mut socket = cx.connect(addr, socket).await.unwrap();
+        socket
+            .write_all(
+                "\
+                 GET / HTTP/1.0\r\n\
+                 Host: 127.0.0.1\r\n\
+                 \r\n\
+                 "
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+        let mut data = Vec::new();
+        socket.read_to_end(&mut data).await.unwrap();
+        server.abort();
 
-//         assert_eq!(String::from_utf8_lossy(&data[..]), "Hello World");
-//     }
-// }
+        assert!(String::from_utf8_lossy(&data[..]).contains("Hello World"));
+    }
+}
