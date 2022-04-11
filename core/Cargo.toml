@@ -63,4 +63,3 @@ tracing = "0.1"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }
-tower = { version = "0.4", features = ["util"] }

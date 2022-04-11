@@ -1,4 +1,5 @@
 //! UnixListener module
+use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
@@ -57,6 +58,14 @@ impl Accept for UnixListener {
         }
     }
 }
+impl Future for UnixListener {
+    type Output = Option<Result<UnixStream, io::Error>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.poll_accept(cx)
+    }
+}
+
 /// UnixStream
 pub struct UnixStream {
     inner_stream: tokio::net::UnixStream,
@@ -99,43 +108,22 @@ impl AsyncWrite for UnixStream {
 
 #[cfg(test)]
 mod tests {
-    use http::Request;
-    use hyper::client::conn::handshake;
-    use hyper::Body;
-    use tower::{Service, ServiceExt};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use crate::prelude::*;
 
     #[tokio::test]
     async fn test_unix_listener() {
-        #[fn_handler]
-        async fn hello_world() -> Result<&'static str, ()> {
-            Ok("Hello World")
-        }
-        let listener = UnixListener::bind("/tmp/salvo.sock");
-        let router = Router::new().get(hello_world);
-        let server = tokio::task::spawn(async {
-            Server::new(listener).serve(router).await;
-        });
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        let sock_file = "/tmp/test-salvo.sock";
+        let listener = UnixListener::bind(sock_file);
 
-        let stream = tokio::net::UnixStream::connect("/tmp/salvo.sock").await.unwrap();
-        let (mut send_request, connection) = handshake(stream).await.unwrap();
-        let _task = tokio::spawn(async move {
-            let _ = connection.await;
+        tokio::spawn(async move {
+            let mut stream = tokio::net::UnixStream::connect(sock_file).await.unwrap();
+            stream.write_i32(518).await.unwrap();
         });
 
-        let (_parts, body) = send_request
-            .ready()
-            .await
-            .unwrap()
-            .call(Request::new(Body::empty()))
-            .await
-            .unwrap()
-            .into_parts();
-        let body = hyper::body::to_bytes(body).await.unwrap();
-        server.abort();
-
-        assert_eq!(&body[..], b"Hello World");
+        let mut stream = listener.await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 518);
+        std::fs::remove_file(sock_file).unwrap();
     }
 }

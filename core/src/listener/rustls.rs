@@ -350,9 +350,9 @@ where
                 *this.server_config = Some(config.into());
             }
         }
-        if let Some(server_config) = this.server_config.clone() {
+        if let Some(server_config) = &this.server_config {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
-                Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, server_config)))),
+                Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, server_config.clone())))),
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 None => Poll::Ready(None),
             }
@@ -362,6 +362,17 @@ where
                 "faild to load rustls server config",
             ))))
         }
+    }
+}
+impl<C> Future for RustlsListener<C>
+where
+    C: Stream,
+    C::Item: Into<Arc<ServerConfig>>,
+{
+    type Output = Option<Result<RustlsStream, io::Error>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.poll_accept(cx)
     }
 }
 
@@ -445,15 +456,10 @@ impl AsyncWrite for RustlsStream {
 
 #[cfg(test)]
 mod tests {
-    use http::Request;
-    use hyper::client::conn::handshake;
-    use hyper::Body;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
     use tokio_rustls::rustls::{ClientConfig, ServerName};
     use tokio_rustls::TlsConnector;
-    use tower::{Service, ServiceExt};
-
-    use crate::prelude::*;
 
     use super::*;
 
@@ -468,10 +474,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        #[fn_handler]
-        async fn hello_world() -> &'static str {
-            "Hello World"
-        }
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
         let listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
@@ -479,39 +481,23 @@ mod tests {
                 .with_cert_path("../examples/certs/end.cert"),
         )
         .bind(addr);
-        let router = Router::new().get(hello_world);
-        let server = tokio::task::spawn(async {
-            Server::new(listener).serve(router).await;
-        });
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let stream = TcpStream::connect(addr).await.unwrap();
-        let trust_anchor = include_bytes!("../../../examples/certs/end.chain");
-        let client_config = ClientConfig::builder()
-            .with_safe_defaults()
-            .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())
-            .with_no_client_auth();
-        let connector = TlsConnector::from(Arc::new(client_config));
-        let tls_stream = connector
-            .connect(ServerName::try_from("testserver.com").unwrap(), stream)
-            .await
-            .unwrap();
-        let (mut send_request, connection) = handshake(tls_stream).await.unwrap();
-        let _task = tokio::spawn(async move {
-            let _ = connection.await;
+        tokio::spawn(async move {
+            let stream = TcpStream::connect(addr).await.unwrap();
+            let trust_anchor = include_bytes!("../../../examples/certs/end.chain");
+            let client_config = ClientConfig::builder()
+                .with_safe_defaults()
+                .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())
+                .with_no_client_auth();
+            let connector = TlsConnector::from(Arc::new(client_config));
+            let mut tls_stream = connector
+                .connect(ServerName::try_from("testserver.com").unwrap(), stream)
+                .await
+                .unwrap();
+            tls_stream.write_i32(518).await.unwrap();
         });
 
-        let (_parts, body) = send_request
-            .ready()
-            .await
-            .unwrap()
-            .call(Request::new(Body::empty()))
-            .await
-            .unwrap()
-            .into_parts();
-        let body = hyper::body::to_bytes(body).await.unwrap();
-        server.abort();
-
-        assert_eq!(&body[..], b"Hello World");
+        let mut stream = listener.await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 518);
     }
 }

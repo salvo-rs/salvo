@@ -190,6 +190,17 @@ where
         }
     }
 }
+impl<C> Future for NativeTlsListener<C>
+where
+    C: Stream,
+    C::Item: Into<Identity>,
+{
+    type Output = Option<Result<NativeTlsStream, io::Error>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.poll_accept(cx)
+    }
+}
 
 pin_project! {
     /// NativeTlsStream
@@ -281,14 +292,9 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    use crate::prelude::*;
 
     #[tokio::test]
     async fn test_native_tls_listener() {
-        #[fn_handler]
-        async fn hello_world() -> &'static str {
-            "Hello World"
-        }
         let addr = "127.0.0.1:7879";
         let listener = NativeTlsListener::with_config(
             NativeTlsConfig::new()
@@ -296,35 +302,19 @@ mod tests {
                 .with_password("mypass"),
         )
         .bind(addr);
-        let router = Router::new().get(hello_world);
-        let server = tokio::task::spawn(async {
-            Server::new(listener).serve(router).await;
+        tokio::spawn(async move {
+            let stream = TcpStream::connect(addr).await.unwrap();
+            let connector = tokio_native_tls::TlsConnector::from(
+                tokio_native_tls::native_tls::TlsConnector::builder()
+                    .danger_accept_invalid_certs(true)
+                    .build()
+                    .unwrap(),
+            );
+            let mut tls_stream = connector.connect(addr, stream).await.unwrap();
+            tls_stream.write_i32(518).await.unwrap();
         });
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let socket = TcpStream::connect(&addr).await.unwrap();
-        let cx = tokio_native_tls::TlsConnector::from(
-            tokio_native_tls::native_tls::TlsConnector::builder()
-                .danger_accept_invalid_certs(true)
-                .build()
-                .unwrap(),
-        );
-        let mut socket = cx.connect(addr, socket).await.unwrap();
-        socket
-            .write_all(
-                "\
-                 GET / HTTP/1.0\r\n\
-                 Host: 127.0.0.1\r\n\
-                 \r\n\
-                 "
-                .as_bytes(),
-            )
-            .await
-            .unwrap();
-        let mut data = Vec::new();
-        socket.read_to_end(&mut data).await.unwrap();
-        server.abort();
-
-        assert!(String::from_utf8_lossy(&data[..]).contains("Hello World"));
+        let mut stream = listener.await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 518);
     }
 }
