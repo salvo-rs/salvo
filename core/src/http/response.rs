@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 use std::error::Error as StdError;
-use std::fmt::{self, Debug};
+use std::fmt;
 use std::pin::Pin;
 use std::task::{self, Poll};
 
@@ -461,7 +461,7 @@ impl Response {
     }
 }
 
-impl Debug for Response {
+impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
@@ -474,7 +474,7 @@ impl Debug for Response {
 
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Debug::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
 

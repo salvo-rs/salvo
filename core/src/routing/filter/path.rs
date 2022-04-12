@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::{self, Debug};
+use std::fmt;
 use std::sync::Arc;
 
 use once_cell::sync::Lazy;
@@ -10,7 +10,7 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 /// PathPart
-pub trait PathPart: Send + Sync + Debug {
+pub trait PathPart: Send + Sync + fmt::Debug {
     /// Detect is that path matched.
     fn detect(&self, state: &mut PathState) -> bool;
 }
@@ -583,9 +583,9 @@ pub struct PathFilter {
     path_parts: Vec<Box<dyn PathPart>>,
 }
 
-impl Debug for PathFilter {
+impl fmt::Debug for PathFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{{ raw_value: '{}'}}", &self.raw_value)
+        write!(f, "{}", &self.raw_value)
     }
 }
 impl Filter for PathFilter {

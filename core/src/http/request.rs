@@ -1,7 +1,7 @@
 //! Http response.
 
 use std::collections::HashMap;
-use std::fmt::{self, Debug};
+use std::fmt;
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
@@ -52,7 +52,7 @@ pub struct Request {
     pub(crate) remote_addr: Option<SocketAddr>,
 }
 
-impl Debug for Request {
+impl fmt::Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Request")
             .field("method", self.method())

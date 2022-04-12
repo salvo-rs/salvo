@@ -1,4 +1,4 @@
-// use std::fmt::{self, Debug};
+use std::fmt;
 use std::sync::Arc;
 
 use super::filter;
@@ -226,6 +226,54 @@ impl Router {
     }
 }
 
+static SYMBOL_DOWN: &str = "│";
+static SYMBOL_TEE: &str = "├";
+static SYMBOL_ELL: &str = "└";
+static SYMBOL_RIGHT: &str = "─";
+impl fmt::Debug for Router {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn print(f: &mut fmt::Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
+            let mut path = "".to_owned();
+            let mut others = Vec::with_capacity(router.filters.len());
+            if router.filters.is_empty() {
+                path = "!NULL!".to_owned();
+            } else {
+                for filter in &router.filters {
+                    let info = format!("{:?}", filter);
+                    if info.starts_with('[') && info.ends_with(']') && info.len() > 2 {
+                        others.push(info[1..info.len() - 1].to_owned());
+                    } else if path.is_empty() {
+                        path = info;
+                    }
+                }
+            }
+            let cp = if last {
+                format!("{}{}{}{}", prefix, SYMBOL_ELL, SYMBOL_RIGHT, SYMBOL_RIGHT)
+            } else {
+                format!("{}{}{}{}", prefix, SYMBOL_TEE, SYMBOL_RIGHT, SYMBOL_RIGHT)
+            };
+            if !others.is_empty() {
+                writeln!(f, "{}{}[{}]", cp, path, others.join(","))?;
+            } else {
+                writeln!(f, "{}{}", cp, path)?;
+            }
+            let routers = router.routers();
+            if !routers.is_empty() {
+                let np = if last {
+                    format!("{}    ", prefix)
+                } else {
+                    format!("{}{}   ", prefix, SYMBOL_DOWN)
+                };
+                for (i, router) in routers.iter().enumerate() {
+                    print(f, &np, i == routers.len() - 1, router)?;
+                }
+            }
+            Ok(())
+        }
+        print(f, "", true, self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PathState, Router};
@@ -235,6 +283,48 @@ mod tests {
 
     #[fn_handler]
     async fn fake_handler(_res: &mut Response) {}
+    #[test]
+    fn test_router_debug() {
+        let router = Router::default()
+            .push(
+                Router::with_path("users")
+                    .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler)))
+                    .push(
+                        Router::with_path("<id>/articles/<aid>")
+                            .get(fake_handler)
+                            .delete(fake_handler),
+                    ),
+            )
+            .push(
+                Router::with_path("articles")
+                    .push(
+                        Router::with_path("<id>/authors/<aid>")
+                            .get(fake_handler)
+                            .delete(fake_handler),
+                    )
+                    .push(Router::with_path("<id>").get(fake_handler).delete(fake_handler)),
+            );
+        println!("{:?}", router);
+        assert_eq!(
+            format!("{:?}", router),
+            r#"└──!NULL!
+    ├──users
+    │   ├──<id>
+    │   │   └──emails
+    │   │       └──[GET]
+    │   └──<id>/articles/<aid>
+    │       ├──[GET]
+    │       └──[DELETE]
+    └──articles
+        ├──<id>/authors/<aid>
+        │   ├──[GET]
+        │   └──[DELETE]
+        └──<id>
+            ├──[GET]
+            └──[DELETE]
+"#
+        );
+    }
     #[test]
     fn test_router_detect1() {
         let router = Router::default().push(

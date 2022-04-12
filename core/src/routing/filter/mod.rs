@@ -4,6 +4,8 @@ mod method;
 mod opts;
 mod path;
 
+use std::fmt;
+
 use self::opts::*;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
@@ -12,7 +14,7 @@ pub use method::*;
 pub use path::*;
 
 /// Fiter trait for filter request.
-pub trait Filter: Send + Sync + 'static {
+pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Create a new filter use ```And``` filter.
     fn and<F>(self, other: F) -> And<Self, F>
     where
@@ -77,6 +79,12 @@ where
     #[inline]
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool {
         self.0(req, path)
+    }
+}
+
+impl<F> fmt::Debug for FnFilter<F> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[fn]")
     }
 }
 
