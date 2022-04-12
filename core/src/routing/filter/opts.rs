@@ -51,7 +51,6 @@ impl<T, F> fmt::Debug for OrElse<T, F> {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct And<T, U> {
     pub(super) first: T,
@@ -93,7 +92,6 @@ where
         }
     }
 }
-
 
 impl<T, F> fmt::Debug for AndThen<T, F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
