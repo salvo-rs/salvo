@@ -304,7 +304,6 @@ mod tests {
                     )
                     .push(Router::with_path("<id>").get(fake_handler).delete(fake_handler)),
             );
-        println!("{:?}", router);
         assert_eq!(
             format!("{:?}", router),
             r#"└──!NULL!
