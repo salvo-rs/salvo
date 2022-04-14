@@ -47,7 +47,7 @@ where
 
 impl<T, F> fmt::Debug for OrElse<T, F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[or_else]")
+        write!(f, "opt:or_else")
     }
 }
 
@@ -95,6 +95,6 @@ where
 
 impl<T, F> fmt::Debug for AndThen<T, F> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[and_then]")
+        write!(f, "opt:and_then")
     }
 }

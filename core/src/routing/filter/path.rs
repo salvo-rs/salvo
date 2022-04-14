@@ -585,7 +585,7 @@ pub struct PathFilter {
 
 impl fmt::Debug for PathFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.raw_value)
+        write!(f, "path:{}", &self.raw_value)
     }
 }
 impl Filter for PathFilter {

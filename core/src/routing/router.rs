@@ -240,10 +240,13 @@ impl fmt::Debug for Router {
             } else {
                 for filter in &router.filters {
                     let info = format!("{:?}", filter);
-                    if info.starts_with('[') && info.ends_with(']') && info.len() > 2 {
-                        others.push(info[1..info.len() - 1].to_owned());
-                    } else if path.is_empty() {
-                        path = info;
+                    if info.starts_with("path:") {
+                        path = info.split_once(':').unwrap().1.to_owned();
+                    } else {
+                        let mut parts = info.splitn(2, ':').collect::<Vec<_>>();
+                        if !parts.is_empty() {
+                            others.push(parts.pop().unwrap().to_owned());
+                        }
                     }
                 }
             }
