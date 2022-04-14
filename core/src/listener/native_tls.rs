@@ -289,7 +289,7 @@ mod tests {
         C::Item: Into<Identity>,
     {
         type Item = Result<NativeTlsStream, io::Error>;
-    
+
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }

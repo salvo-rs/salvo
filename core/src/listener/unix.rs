@@ -108,7 +108,7 @@ mod tests {
 
     impl Stream for UnixListener {
         type Item = Result<UnixStream, io::Error>;
-    
+
         fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
             self.poll_accept(cx)
         }
