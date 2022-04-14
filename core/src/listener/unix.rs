@@ -1,5 +1,4 @@
 //! UnixListener module
-use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::pin::Pin;
@@ -101,15 +100,17 @@ impl AsyncWrite for UnixStream {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use crate::prelude::*;
+    use super::*;
 
     impl Stream for UnixListener {
         type Item = Result<UnixStream, io::Error>;
     
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }
     }
