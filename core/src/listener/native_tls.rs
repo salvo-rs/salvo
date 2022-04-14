@@ -190,17 +190,6 @@ where
         }
     }
 }
-impl<C> Future for NativeTlsListener<C>
-where
-    C: Stream,
-    C::Item: Into<Identity>,
-{
-    type Output = Option<Result<NativeTlsStream, io::Error>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.poll_accept(cx)
-    }
-}
 
 pin_project! {
     /// NativeTlsStream
@@ -288,15 +277,28 @@ impl AsyncWrite for NativeTlsStream {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
 
+    impl<C> Stream for NativeTlsListener<C>
+    where
+        C: Stream,
+        C::Item: Into<Identity>,
+    {
+        type Item = Result<NativeTlsStream, io::Error>;
+    
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.poll_accept(cx)
+        }
+    }
+
     #[tokio::test]
     async fn test_native_tls_listener() {
         let addr = "127.0.0.1:7879";
-        let listener = NativeTlsListener::with_config(
+        let mut listener = NativeTlsListener::with_config(
             NativeTlsConfig::new()
                 .with_pkcs12(include_bytes!("../../../examples/certs/identity.p12").to_vec())
                 .with_password("mypass"),
@@ -314,7 +316,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let mut stream = listener.await.unwrap().unwrap();
+        let mut stream = listener.next().await.unwrap().unwrap();
         assert_eq!(stream.read_i32().await.unwrap(), 518);
     }
 }

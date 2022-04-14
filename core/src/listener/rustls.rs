@@ -364,17 +364,6 @@ where
         }
     }
 }
-impl<C> Future for RustlsListener<C>
-where
-    C: Stream,
-    C::Item: Into<Arc<ServerConfig>>,
-{
-    type Output = Option<Result<RustlsStream, io::Error>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.poll_accept(cx)
-    }
-}
 
 enum RustlsState {
     Handshaking(tokio_rustls::Accept<AddrStream>),
@@ -456,6 +445,7 @@ impl AsyncWrite for RustlsStream {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
     use tokio_rustls::rustls::{ClientConfig, ServerName};
@@ -463,6 +453,16 @@ mod tests {
 
     use super::*;
 
+    impl<C> Stream for RustlsListener<C>
+    where
+        C: Stream,
+        C::Item: Into<Arc<ServerConfig>>,
+    {
+        type Item = Result<RustlsStream, io::Error>;
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.poll_accept(cx)
+        }
+    }
     #[test]
     fn test_file_cert_key() {
         RustlsConfig::new()
@@ -475,7 +475,7 @@ mod tests {
     #[tokio::test]
     async fn test_rustls_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
-        let listener = RustlsListener::with_rustls_config(
+        let mut listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
                 .with_key_path("../examples/certs/end.rsa")
                 .with_cert_path("../examples/certs/end.cert"),
@@ -497,7 +497,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let mut stream = listener.await.unwrap().unwrap();
+        let mut stream = listener.next().await.unwrap().unwrap();
         assert_eq!(stream.read_i32().await.unwrap(), 518);
     }
 }

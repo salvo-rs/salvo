@@ -58,13 +58,6 @@ impl Accept for UnixListener {
         }
     }
 }
-impl Future for UnixListener {
-    type Output = Option<Result<UnixStream, io::Error>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.poll_accept(cx)
-    }
-}
 
 /// UnixStream
 pub struct UnixStream {
@@ -108,21 +101,29 @@ impl AsyncWrite for UnixStream {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use crate::prelude::*;
 
+    impl Stream for UnixListener {
+        type Item = Result<UnixStream, io::Error>;
+    
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
+            self.poll_accept(cx)
+        }
+    }
     #[tokio::test]
     async fn test_unix_listener() {
         let sock_file = "/tmp/test-salvo.sock";
-        let listener = UnixListener::bind(sock_file);
+        let mut listener = UnixListener::bind(sock_file);
 
         tokio::spawn(async move {
             let mut stream = tokio::net::UnixStream::connect(sock_file).await.unwrap();
             stream.write_i32(518).await.unwrap();
         });
 
-        let mut stream = listener.await.unwrap().unwrap();
+        let mut stream = listener.next().await.unwrap().unwrap();
         assert_eq!(stream.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }

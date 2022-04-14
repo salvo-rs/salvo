@@ -263,3 +263,65 @@ impl Read for LazyFile {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use futures_util::{Stream, StreamExt};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpStream;
+
+    use super::*;
+
+    impl Stream for TcpListener {
+        type Item = Result<AddrStream, io::Error>;
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.poll_accept(cx)
+        }
+    }
+
+    impl<A, B> Stream for JoinedListener<A, B>
+    where
+        A: Accept + Send + Unpin + 'static,
+        B: Accept + Send + Unpin + 'static,
+        A::Conn: Transport,
+        B::Conn: Transport,
+    {
+        type Item = Result<JoinedStream<A::Conn, B::Conn>, io::Error>;
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.poll_accept(cx)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_tcp_listener() {
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
+
+        let mut listener = TcpListener::bind(addr);
+        tokio::spawn(async move {
+            let mut stream = TcpStream::connect(addr).await.unwrap();
+            stream.write_i32(150).await.unwrap();
+        });
+
+        let mut stream = listener.next().await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 150);
+    }
+
+    #[tokio::test]
+    async fn test_joined_listener() {
+        let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
+        let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
+
+        let mut listener = TcpListener::bind(addr1).join(TcpListener::bind(addr2));
+        tokio::spawn(async move {
+            let mut stream = TcpStream::connect(addr1).await.unwrap();
+            stream.write_i32(50).await.unwrap();
+
+            let mut stream = TcpStream::connect(addr2).await.unwrap();
+            stream.write_i32(100).await.unwrap();
+        });
+        let mut stream = listener.next().await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 50);
+        let mut stream = listener.next().await.unwrap().unwrap();
+        assert_eq!(stream.read_i32().await.unwrap(), 100);
+    }
+}
