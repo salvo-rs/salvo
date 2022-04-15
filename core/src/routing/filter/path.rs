@@ -266,8 +266,9 @@ impl PathPart for RegexPart {
             let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
             let cap = self.regex.captures(segment).and_then(|caps| caps.get(0));
             if let Some(cap) = cap {
-                state.params.insert(self.name.clone(), cap.as_str().to_owned());
-                state.cursor += segment.len();
+                let cap = cap.as_str().to_owned();
+                state.cursor += cap.len();
+                state.params.insert(self.name.clone(), cap);
                 true
             } else {
                 false
