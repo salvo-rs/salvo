@@ -69,9 +69,9 @@ impl NativeTlsConfig {
         let mut pkcs12 = Vec::new();
         self.pkcs12
             .read_to_end(&mut pkcs12)
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         Identity::from_pkcs12(&pkcs12, &self.password)
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
     }
 }
 
@@ -212,7 +212,7 @@ impl Transport for NativeTlsStream {
 impl NativeTlsStream {
     fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, io::Error> {
         let acceptor: AsyncTlsAcceptor = TlsAcceptor::new(identity)
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
             .into();
         Ok(NativeTlsStream {
             // acceptor: Box::pin(acceptor),

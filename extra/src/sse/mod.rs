@@ -248,8 +248,8 @@ where
     pub fn streaming(self, res: &mut Response) {
         write_request_headers(res);
         let body_stream = self
-            .map_err(|error| {
-                tracing::error!("sse stream error: {}", error);
+            .map_err(|e| {
+                tracing::error!("sse stream error: {}", e);
                 SseError
             })
             .into_stream()
@@ -274,8 +274,8 @@ where
 {
     write_request_headers(res);
     let body_stream = event_stream
-        .map_err(|error| {
-            tracing::error!("sse stream error: {}", error);
+        .map_err(|e| {
+            tracing::error!("sse stream error: {}", e);
             SseError
         })
         .into_stream()
