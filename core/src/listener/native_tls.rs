@@ -70,8 +70,7 @@ impl NativeTlsConfig {
         self.pkcs12
             .read_to_end(&mut pkcs12)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        Identity::from_pkcs12(&pkcs12, &self.password)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+        Identity::from_pkcs12(&pkcs12, &self.password).map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
     }
 }
 
