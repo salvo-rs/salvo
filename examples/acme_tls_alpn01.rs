@@ -14,7 +14,7 @@ async fn main() {
     let listener = AcmeListener::builder()
         .cache_path("acme/letsencrypt")
         .add_domain("acme-tls-alpn01.salvo.rs")
-        .bind("0.0.0.0:443")
+        .bind("127.0.0.1:443")
         .await;
     tracing::info!("Listening on https://0.0.0.0:443");
     Server::new(listener).serve(router).await;
