@@ -22,13 +22,16 @@ full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile"]
 native-tls = ["tokio-native-tls"]
 unix = []
+acme = ["base64", "chrono", "hyper/client", "hyper-rustls", "rcgen", "reqwest", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"] }
 async-trait = "0.1"
+base64 = { version = "0.13", optional = true }
 bitflags = "1"
 bytes = "1"
+chrono = { version = "0.4.19", optional = true }
 cookie = { version = "0.16", features = ["percent-encode"] }
 encoding_rs = "0.8"
 fastrand = "1.5"
@@ -37,17 +40,23 @@ futures-util = { version = "0.3", default-features = false }
 headers = "0.3"
 http = "0.2"
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+hyper-rustls = { version = "0.23.0", optional = true }
+hyper_serde = "0.13.0"
 mime = "0.3"
 mime_guess = "2"
 multer = "2"
 multimap = { version = "0.8", features = ["serde"] }
 num_cpus = "1"
 once_cell = "1"
+parking_lot = "0.12.0"
 percent-encoding = "2"
 pin-project-lite = "0.2"
 pin-utils = "0.1"
-rand = "0.8"
+rand = { version = "0.8", optional = true }
+rcgen = { version = "0.9.1", optional = true }
 regex = "1"
+reqwest = { version = "0.11.10", optional = true }
+ring = { version = "0.16.20", optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
 salvo_macros = { version = "0.18", path = "../macros" }
 serde = { version = "1", features = ["derive"] }
@@ -57,9 +66,10 @@ textnonce = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tokio-native-tls = { version = "0.3", optional = true }
-tokio-rustls = { version = "0.23", optional = true }
+tokio-rustls = { version = "0.23.3", optional = true }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"
+x509-parser = { version = "0.13", optional = true }
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }

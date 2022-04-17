@@ -1,0 +1,442 @@
+//! ACME supports.
+//!
+//! Reference: <https://datatracker.ietf.org/doc/html/rfc8555>
+//! Reference: <https://datatracker.ietf.org/doc/html/rfc8737>
+
+pub mod cache;
+mod client;
+mod config;
+mod issuer;
+mod jose;
+mod key_pair;
+mod resolver;
+
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::io::{self, Result as IoResult};
+use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::{Arc, Weak};
+use std::task::{Context, Poll};
+use std::time::{Duration, UNIX_EPOCH};
+
+use async_trait::async_trait;
+use client::AcmeClient;
+use futures_util::ready;
+use futures_util::Future;
+use hyper::server::accept::Accept;
+use hyper::server::conn::{AddrIncoming, AddrStream};
+use parking_lot::RwLock;
+use resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
+use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_rustls::rustls::server::ServerConfig;
+use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
+use tokio_rustls::rustls::{PrivateKey};
+use x509_parser::prelude::{FromDer, X509Certificate};
+
+use crate::addr::SocketAddr;
+use crate::http::StatusCode;
+use crate::listener::{IntoAddrIncoming, Listener};
+use crate::routing::FlowCtrl;
+use crate::transport::Transport;
+use crate::{Depot, Handler, Request, Response, Router};
+use cache::AcmeCache;
+pub use config::{AcmeConfig, AcmeConfigBuilder};
+
+/// Letsencrypt production directory url
+pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";
+/// Letsencrypt stagging directory url
+pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt.org/directory";
+
+/// Well known acme challenge path
+pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
+
+/// HTTP-01 challenge
+const CHALLENGE_TYPE_HTTP_01: &str = "http-01";
+
+/// TLS-ALPN-01 challenge
+const CHALLENGE_TYPE_TLS_ALPN_01: &str = "tls-alpn-01";
+
+/// Challenge type
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ChallengeType {
+    /// HTTP-01 challenge
+    ///
+    /// Reference: <https://letsencrypt.org/docs/challenge-types/#http-01-challenge>
+    Http01,
+    /// TLS-ALPN-01
+    ///
+    /// Reference: <https://letsencrypt.org/docs/challenge-types/#tls-alpn-01>
+    TlsAlpn01,
+}
+impl fmt::Display for ChallengeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChallengeType::Http01 => f.write_str(CHALLENGE_TYPE_HTTP_01),
+            ChallengeType::TlsAlpn01 => f.write_str(CHALLENGE_TYPE_TLS_ALPN_01),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Directory {
+    pub(crate) new_nonce: String,
+    pub(crate) new_account: String,
+    pub(crate) new_order: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Identifier {
+    #[serde(rename = "type")]
+    pub(crate) kind: String,
+    pub(crate) value: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Problem {
+    pub(crate) detail: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct Challenge {
+    #[serde(rename = "type")]
+    pub(crate) kind: String,
+    pub(crate) url: String,
+    pub(crate) token: String,
+}
+
+/// Handler for `HTTP-01` challenge.
+pub struct Http01Handler {
+    pub(crate) keys: Arc<RwLock<HashMap<String, String>>>,
+}
+
+#[async_trait]
+impl Handler for Http01Handler {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+        if let Some(token) = req.params().get("token") {
+            let keys = self.keys.read();
+            if let Some(value) = keys.get(token) {
+                res.render(value);
+            }
+        } else {
+            res.set_status_code(StatusCode::NOT_FOUND);
+        }
+    }
+}
+
+/// A wrapper around an underlying listener which implements the ACME.
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
+pub struct AcmeListener {
+    incoming: AddrIncoming,
+    server_config: Arc<ServerConfig>,
+}
+
+impl AcmeListener {
+    /// Create `AcmeListenerBuilder`
+    pub fn builder() -> AcmeListenerBuilder {
+        AcmeListenerBuilder::new()
+    }
+}
+/// AcmeListenerBuilder
+pub struct AcmeListenerBuilder {
+    config_builder: AcmeConfigBuilder,
+    check_duration: Duration,
+}
+impl AcmeListenerBuilder {
+    fn new() -> Self {
+        let config_builder = AcmeConfig::builder();
+        Self {
+            config_builder,
+            check_duration: Duration::from_secs(10 * 60),
+        }
+    }
+
+    /// Sets the directory.
+    ///
+    /// Defaults to lets encrypt.
+    #[must_use]
+    pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            config_builder: self.config_builder.directory(name, url),
+            ..self
+        }
+    }
+
+    /// Set domains.
+    #[must_use]
+    pub fn domains(self, domains: impl Into<HashSet<String>>) -> Self {
+        Self {
+            config_builder: self.config_builder.domains(domains),
+            ..self
+        }
+    }
+    /// Add a domain.
+    #[must_use]
+    pub fn add_domain(self, domain: impl Into<String>) -> Self {
+        Self {
+            config_builder: self.config_builder.add_domain(domain),
+            ..self
+        }
+    }
+
+    /// Add contact emails for the ACME account.
+    #[must_use]
+    pub fn contacts(self, contacts: impl Into<HashSet<String>>) -> Self {
+        Self {
+            config_builder: self.config_builder.contacts(contacts.into()),
+            ..self
+        }
+    }
+    /// Add a contact email for the ACME account.
+    #[must_use]
+    pub fn add_contact(self, contact: impl Into<String>) -> Self {
+        Self {
+            config_builder: self.config_builder.add_contact(contact.into()),
+            ..self
+        }
+    }
+
+    /// Create an handler for HTTP-01 challenge
+    #[inline]
+    pub fn http01_challege(self, router: &mut Router) -> Self {
+        let config_builder = self.config_builder.http01_challege();
+        if let Some(keys_for_http01) = &config_builder.keys_for_http01 {
+            let handler = Http01Handler {
+                keys: keys_for_http01.clone(),
+            };
+            router
+                .routers
+                .push(Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).handle(handler));
+        } else {
+            panic!("`HTTP-01` challage's key should not none");
+        }
+        Self { config_builder, ..self }
+    }
+    /// Create an handler for HTTP-01 challenge
+    #[inline]
+    pub fn tls_alpn01_challege(self) -> Self {
+        Self {
+            config_builder: self.config_builder.tls_alpn01_challege(),
+            ..self
+        }
+    }
+
+    /// Sets the cache path for caching certificates.
+    ///
+    /// This is not a necessary option. If you do not configure the cache path,
+    /// the obtained certificate will be stored in memory and will need to be
+    /// obtained again when the server is restarted next time.
+    #[must_use]
+    #[inline]
+    pub fn cache_path(self, path: impl Into<PathBuf>) -> Self {
+        Self {
+            config_builder: self.config_builder.cache_path(path),
+            ..self
+        }
+    }
+
+    /// Consumes this builder and returns a [`AcmeListener`] object.
+    #[inline]
+    pub async fn bind(self, incoming: impl IntoAddrIncoming) -> AcmeListener {
+        self.try_bind(incoming).await.unwrap()
+    }
+    /// Consumes this builder and returns a [`Result<AcmeListener, std::io::Error>`] object.
+    pub async fn try_bind(self, incoming: impl IntoAddrIncoming) -> IoResult<AcmeListener> {
+        let Self {
+            config_builder,
+            check_duration,
+        } = self;
+        let acme_config = config_builder.build()?;
+
+        let mut client = AcmeClient::try_new(
+            &acme_config.directory_url,
+            acme_config.key_pair.clone(),
+            acme_config.contacts.clone(),
+        )
+        .await?;
+
+        let mut cached_pkey = None;
+        let mut cached_cert = None;
+        if let Some(cache_path) = &acme_config.cache_path {
+            let pkey_data = cache_path
+                .read_pkey_pem(&acme_config.directory_name, &acme_config.domains)
+                .await?;
+            if let Some(pkey_data) = pkey_data {
+                tracing::debug!("load private key from cache");
+                match rustls_pemfile::pkcs8_private_keys(&mut pkey_data.as_slice()) {
+                    Ok(pkey) => cached_pkey = pkey.into_iter().next(),
+                    Err(err) => {
+                        tracing::warn!("failed to parse cached private key: {}", err)
+                    }
+                };
+            }
+            let cert_data = cache_path
+                .read_cert_pem(&acme_config.directory_name, &acme_config.domains)
+                .await?;
+            if let Some(cert_data) = cert_data {
+                tracing::debug!("load certificate from cache");
+                match rustls_pemfile::certs(&mut cert_data.as_slice()) {
+                    Ok(cert) => cached_cert = Some(cert),
+                    Err(err) => {
+                        tracing::warn!("failed to parse cached tls certificates: {}", err)
+                    }
+                };
+            }
+        };
+
+        let cert_resolver = Arc::new(ResolveServerCert::default());
+        if let (Some(cached_cert), Some(cached_pkey)) = (cached_cert, cached_pkey) {
+            let certs = cached_cert
+                .into_iter()
+                .map(tokio_rustls::rustls::Certificate)
+                .collect::<Vec<_>>();
+
+            let expires_at = match certs
+                .first()
+                .and_then(|cert| X509Certificate::from_der(cert.as_ref()).ok())
+                .map(|(_, cert)| cert.validity().not_after.timestamp())
+                .map(|timestamp| UNIX_EPOCH + Duration::from_secs(timestamp as u64))
+            {
+                Some(expires_at) => chrono::DateTime::<chrono::Utc>::from(expires_at).to_string(),
+                None => "unknown".to_string(),
+            };
+
+            tracing::debug!(expires_at = expires_at.as_str(), "using cached tls certificates");
+            *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
+                certs,
+                any_ecdsa_type(&PrivateKey(cached_pkey)).unwrap(),
+            )));
+        }
+
+        let weak_cert_resolver = Arc::downgrade(&cert_resolver);
+        let mut server_config = ServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_cert_resolver(cert_resolver);
+
+        server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+
+        if acme_config.challenge_type == ChallengeType::TlsAlpn01 {
+            server_config.alpn_protocols.push(ACME_TLS_ALPN_NAME.to_vec());
+        }
+
+        let listener = AcmeListener {
+            incoming: incoming.into_incoming(),
+            server_config: Arc::new(server_config),
+        };
+
+        tokio::spawn(async move {
+            while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
+                if cert_resolver.is_expired() {
+                    if let Err(err) = issuer::issue_cert(&mut client, &acme_config, &cert_resolver).await {
+                        tracing::error!(error = %err, "failed to issue certificate");
+                    }
+                }
+                tokio::time::sleep(check_duration).await;
+            }
+        });
+
+        Ok(listener)
+    }
+}
+
+impl Listener for AcmeListener {}
+
+#[async_trait::async_trait]
+impl Accept for AcmeListener {
+    type Conn = AcmeStream;
+    type Error = io::Error;
+
+    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let this = self.get_mut();
+        match ready!(Pin::new(&mut this.incoming).poll_accept(cx)) {
+            Some(Ok(stream)) => Poll::Ready(Some(Ok(AcmeStream::new(stream, this.server_config.clone())))),
+            Some(Err(e)) => Poll::Ready(Some(Err(e))),
+            None => Poll::Ready(None),
+        }
+    }
+}
+
+
+enum AcmeState {
+    Handshaking(tokio_rustls::Accept<AddrStream>),
+    Streaming(tokio_rustls::server::TlsStream<AddrStream>),
+}
+
+/// tokio_rustls::server::TlsStream doesn't expose constructor methods,
+/// so we have to TlsAcceptor::accept and handshake to have access to it
+/// AcmeStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
+#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
+pub struct AcmeStream {
+    state: AcmeState,
+    remote_addr: SocketAddr,
+}
+impl Transport for AcmeStream {
+    fn remote_addr(&self) -> Option<SocketAddr> {
+        Some(self.remote_addr.clone())
+    }
+}
+
+impl AcmeStream {
+    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
+        let remote_addr = stream.remote_addr();
+        let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
+        AcmeStream {
+            state: AcmeState::Handshaking(accept),
+            remote_addr: remote_addr.into(),
+        }
+    }
+}
+
+impl AsyncRead for AcmeStream {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
+        let pin = self.get_mut();
+        match pin.state {
+            AcmeState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_read(cx, buf);
+                    pin.state = AcmeState::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            AcmeState::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for AcmeStream {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        let pin = self.get_mut();
+        match pin.state {
+            AcmeState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_write(cx, buf);
+                    pin.state = AcmeState::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            AcmeState::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.state {
+            AcmeState::Handshaking(_) => Poll::Ready(Ok(())),
+            AcmeState::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.state {
+            AcmeState::Handshaking(_) => Poll::Ready(Ok(())),
+            AcmeState::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
+}
