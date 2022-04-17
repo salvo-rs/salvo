@@ -14,22 +14,22 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
+pub mod acme;
 #[cfg(feature = "native-tls")]
 pub mod native_tls;
 #[cfg(feature = "rustls")]
 pub mod rustls;
 #[cfg(unix)]
 pub mod unix;
-pub mod acme;
 
+#[cfg(feature = "acme")]
+pub use acme::AcmeListener;
 #[cfg(feature = "native-tls")]
 pub use native_tls::NativeTlsListener;
 #[cfg(feature = "rustls")]
 pub use rustls::RustlsListener;
 #[cfg(unix)]
 pub use unix::UnixListener;
-#[cfg(feature = "acme")]
-pub use acme::AcmeListener;
 
 /// Listener trait
 pub trait Listener: Accept {

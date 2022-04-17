@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
-use tokio_rustls::rustls::{PrivateKey};
+use tokio_rustls::rustls::PrivateKey;
 use x509_parser::prelude::{FromDer, X509Certificate};
 
 use crate::addr::SocketAddr;
@@ -361,7 +361,6 @@ impl Accept for AcmeListener {
         }
     }
 }
-
 
 enum AcmeState {
     Handshaking(tokio_rustls::Accept<AddrStream>),

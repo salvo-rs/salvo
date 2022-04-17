@@ -123,7 +123,8 @@ pub(crate) async fn request(
         .method(Method::POST)
         .uri(uri.parse::<Uri>().unwrap())
         .header("content-type", "application/jose+json")
-        .body(body.into()).unwrap();
+        .body(body.into())
+        .unwrap();
 
     tracing::debug!(uri = %uri, "http request");
 
@@ -156,8 +157,7 @@ where
     let data = hyper::body::to_bytes(res)
         .await
         .map_err(|_| IoError::new(ErrorKind::Other, "failed to read response"))?;
-    serde_json::from_slice(data.as_ref())
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("bad response: {}", e)))
+    serde_json::from_slice(data.as_ref()).map_err(|e| IoError::new(ErrorKind::Other, format!("bad response: {}", e)))
 }
 
 pub(crate) fn key_authorization(key: &KeyPair, token: &str) -> IoResult<String> {

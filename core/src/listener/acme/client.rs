@@ -5,7 +5,7 @@ use std::{
 
 use base64::URL_SAFE_NO_PAD;
 use bytes::Bytes;
-use http::{header};
+use http::header;
 use hyper::{client::HttpConnector, Client};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use serde::{Deserialize, Serialize};
