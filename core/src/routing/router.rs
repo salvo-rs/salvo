@@ -559,8 +559,7 @@ mod tests {
     }
     #[test]
     fn test_router_detect12() {
-        let router =
-            Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").handle(fake_handler));
+        let router = Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").handle(fake_handler));
 
         let mut req: Request = hyper::Request::builder()
             .uri("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I")
