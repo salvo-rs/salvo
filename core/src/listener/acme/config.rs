@@ -156,6 +156,7 @@ impl AcmeConfigBuilder {
             contacts,
             challenge_type,
             cache_path,
+            keys_for_http01,
             ..
         } = self;
 
@@ -166,11 +167,8 @@ impl AcmeConfigBuilder {
             contacts: contacts.into_iter().collect(),
             key_pair: Arc::new(KeyPair::generate()?),
             challenge_type: challenge_type,
-            keys_for_http01: match challenge_type {
-                ChallengeType::Http01 => Some(Default::default()),
-                ChallengeType::TlsAlpn01 => None,
-            },
-            cache_path: cache_path,
+            cache_path,
+            keys_for_http01,
         })
     }
 }
