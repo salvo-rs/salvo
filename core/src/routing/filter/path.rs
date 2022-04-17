@@ -3,8 +3,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use regex::Regex;
-use std::sync::RwLock;
 
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
@@ -487,9 +487,7 @@ impl PathParser {
                                 self.offset
                             ));
                         };
-                        let builders = PART_BUILDERS
-                            .read()
-                            .map_err(|_| "read PART_BUILDERS failed".to_owned())?;
+                        let builders = PART_BUILDERS.read();
                         let builder = builders
                             .get(&sign)
                             .ok_or_else(|| format!("PART_BUILDERS does not contains fn part with sign {}", sign))?
@@ -612,14 +610,13 @@ impl PathFilter {
     where
         B: PartBuilder + 'static,
     {
-        PART_BUILDERS.write().unwrap().insert(name, Arc::new(Box::new(builder)));
+        let mut builders = PART_BUILDERS.write();
+        builders.insert(name, Arc::new(Box::new(builder)));
     }
     /// Register new path part regex.
     pub fn register_path_part_regex<B>(name: String, regex: Regex) {
-        PART_BUILDERS
-            .write()
-            .unwrap()
-            .insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
+        let mut builders = PART_BUILDERS.write();
+        builders.insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {

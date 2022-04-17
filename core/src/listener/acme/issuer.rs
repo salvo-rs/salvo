@@ -67,8 +67,8 @@ pub(crate) async fn issue_cert(
                 match config.challenge_type {
                     ChallengeType::Http01 => {
                         if let Some(keys) = &config.keys_for_http01 {
-                            let mut keys = keys.write();
                             let key_authorization = jose::key_authorization(&config.key_pair, &challenge.token)?;
+                            let mut keys = keys.write();
                             keys.insert(challenge.token.to_string(), key_authorization);
                         }
                     }
