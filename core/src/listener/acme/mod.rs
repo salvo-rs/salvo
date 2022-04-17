@@ -358,7 +358,7 @@ impl Accept for AcmeListener {
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.get_mut();
         match ready!(Pin::new(&mut this.incoming).poll_accept(cx)) {
-            Some(Ok(stream)) => Poll::Ready(Some(Ok(AcmeStream::new(stream, this.server_config.clone())))),
+            Some(Ok(sock)) => Poll::Ready(Some(Ok(AcmeStream::new(sock, this.server_config.clone())))),
             Some(Err(e)) => Poll::Ready(Some(Err(e))),
             None => Poll::Ready(None),
         }
