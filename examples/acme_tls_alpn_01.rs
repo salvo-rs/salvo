@@ -12,6 +12,7 @@ async fn main() {
 
     let router = Router::new().get(hello_world);
     let listener = AcmeListener::builder()
+        .cache_path("acme/letsencrypt")
         .add_domain("acme-tls-alpn01.salvo.rs")
         .bind("0.0.0.0:443")
         .await;
