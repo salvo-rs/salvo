@@ -7,7 +7,7 @@ async fn hello_world() -> &'static str {
 }
 
 #[tokio::main]
-async fn main()  {
+async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
