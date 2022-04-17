@@ -91,7 +91,7 @@ where
     async fn read_pkey_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
-            "{}{}-{}",
+            "{}{}-{}.pem",
             PKEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -108,7 +108,7 @@ where
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
-            "{}{}-{}",
+            "{}{}-{}.pem",
             PKEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -119,7 +119,7 @@ where
     async fn read_cert_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
-            "{}{}-{}",
+            "{}{}-{}.pem",
             CERT_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -136,7 +136,7 @@ where
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
-            "{}{}-{}",
+            "{}{}-{}.pem",
             CERT_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
