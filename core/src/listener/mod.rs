@@ -14,6 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
+#[cfg(feature = "acme")]
 pub mod acme;
 #[cfg(feature = "native-tls")]
 pub mod native_tls;
