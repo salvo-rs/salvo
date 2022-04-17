@@ -12,6 +12,7 @@ async fn main() {
 
     let mut router = Router::new().get(hello_world);
     let listener = AcmeListener::builder()
+        // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
         .cache_path("acme/letsencrypt")
         .add_domain("acme-http01.salvo.rs")
         .http01_challege(&mut router)
