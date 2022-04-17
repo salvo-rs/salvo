@@ -36,7 +36,7 @@ use tokio_rustls::rustls::PrivateKey;
 use x509_parser::prelude::{FromDer, X509Certificate};
 
 use crate::addr::SocketAddr;
-use crate::http::StatusCode;
+use crate::http::errors::NotFound;
 use crate::listener::{IntoAddrIncoming, Listener};
 use crate::routing::FlowCtrl;
 use crate::transport::Transport;
@@ -124,10 +124,12 @@ impl Handler for Http01Handler {
             let keys = self.keys.read();
             if let Some(value) = keys.get(token) {
                 res.render(value);
+            } else {
+                tracing::debug!(token = %token, "keys not found for token");
+                res.render(token);
             }
-        } else {
-            res.set_status_code(StatusCode::NOT_FOUND);
         }
+        res.set_http_error(NotFound().with_summary("token is not provide"));
     }
 }
 

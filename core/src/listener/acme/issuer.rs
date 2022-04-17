@@ -37,7 +37,14 @@ async fn check_before_issue(config: &AcmeConfig) -> IoResult<()> {
             .await
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         if &body_bytes != fake_token.as_bytes() {
-            return Err(io::Error::new(io::ErrorKind::Other, "token is not equal"));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "token is not equal, origin: {}  getted: {}",
+                    fake_token,
+                    String::from_utf8_lossy(&body_bytes)
+                ),
+            ));
         }
     }
     Ok(())
