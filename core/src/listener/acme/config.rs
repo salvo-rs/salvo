@@ -28,6 +28,7 @@ pub struct AcmeConfig {
 
 impl AcmeConfig {
     /// Create an ACME configuration builder.
+    #[inline]
     pub fn builder() -> AcmeConfigBuilder {
         AcmeConfigBuilder::new()
     }
@@ -46,6 +47,7 @@ impl Debug for AcmeConfig {
 }
 
 /// ACME configuration builder
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeConfigBuilder {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,
@@ -72,7 +74,7 @@ impl AcmeConfigBuilder {
     /// Sets the directory url.
     ///
     /// Defaults to lets encrypt production.
-    #[must_use]
+    #[inline]
     pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             directory_name: name.into(),
@@ -82,33 +84,33 @@ impl AcmeConfigBuilder {
     }
 
     /// Set domains.
-    #[must_use]
+    #[inline]
     pub fn domains(mut self, domains: impl Into<HashSet<String>>) -> Self {
         self.domains = domains.into();
         self
     }
     /// Add a domain.
-    #[must_use]
+    #[inline]
     pub fn add_domain(mut self, domain: impl Into<String>) -> Self {
         self.domains.insert(domain.into());
         self
     }
 
     /// Set contact email for the ACME account.
-    #[must_use]
+    #[inline]
     pub fn contacts(mut self, contacts: impl Into<HashSet<String>>) -> Self {
         self.contacts = contacts.into();
         self
     }
     /// Add a contact email for the ACME account.
-    #[must_use]
+    #[inline]
     pub fn add_contact(mut self, contact: impl Into<String>) -> Self {
         self.contacts.insert(contact.into());
         self
     }
 
     /// Sets the challenge type Http01
-    #[must_use]
+    #[inline]
     pub fn http01_challege(self) -> Self {
         Self {
             challenge_type: ChallengeType::Http01,
@@ -117,7 +119,7 @@ impl AcmeConfigBuilder {
         }
     }
     /// Sets the challenge type TlsAlpn01
-    #[must_use]
+    #[inline]
     pub fn tls_alpn01_challege(self) -> Self {
         Self {
             challenge_type: ChallengeType::TlsAlpn01,
@@ -131,7 +133,7 @@ impl AcmeConfigBuilder {
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be
     /// obtained again when the server is restarted next time.
-    #[must_use]
+    #[inline]
     pub fn cache_path(self, path: impl Into<PathBuf>) -> Self {
         Self {
             cache_path: Some(path.into()),

@@ -53,9 +53,11 @@ pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt
 pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
 
 /// HTTP-01 challenge
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 const CHALLENGE_TYPE_HTTP_01: &str = "http-01";
 
 /// TLS-ALPN-01 challenge
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 const CHALLENGE_TYPE_TLS_ALPN_01: &str = "tls-alpn-01";
 
 /// Challenge type
@@ -111,7 +113,7 @@ pub(crate) struct Challenge {
 }
 
 /// Handler for `HTTP-01` challenge.
-pub struct Http01Handler {
+pub(crate) struct Http01Handler {
     pub(crate) keys: Arc<RwLock<HashMap<String, String>>>,
 }
 
@@ -143,11 +145,13 @@ impl AcmeListener {
     }
 }
 /// AcmeListenerBuilder
+#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeListenerBuilder {
     config_builder: AcmeConfigBuilder,
     check_duration: Duration,
 }
 impl AcmeListenerBuilder {
+    #[inline]
     fn new() -> Self {
         let config_builder = AcmeConfig::builder();
         Self {
@@ -159,7 +163,7 @@ impl AcmeListenerBuilder {
     /// Sets the directory.
     ///
     /// Defaults to lets encrypt.
-    #[must_use]
+    #[inline]
     pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.directory(name, url),
@@ -168,7 +172,7 @@ impl AcmeListenerBuilder {
     }
 
     /// Set domains.
-    #[must_use]
+    #[inline]
     pub fn domains(self, domains: impl Into<HashSet<String>>) -> Self {
         Self {
             config_builder: self.config_builder.domains(domains),
@@ -176,7 +180,7 @@ impl AcmeListenerBuilder {
         }
     }
     /// Add a domain.
-    #[must_use]
+    #[inline]
     pub fn add_domain(self, domain: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.add_domain(domain),
@@ -185,7 +189,7 @@ impl AcmeListenerBuilder {
     }
 
     /// Add contact emails for the ACME account.
-    #[must_use]
+    #[inline]
     pub fn contacts(self, contacts: impl Into<HashSet<String>>) -> Self {
         Self {
             config_builder: self.config_builder.contacts(contacts.into()),
@@ -193,7 +197,7 @@ impl AcmeListenerBuilder {
         }
     }
     /// Add a contact email for the ACME account.
-    #[must_use]
+    #[inline]
     pub fn add_contact(self, contact: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.add_contact(contact.into()),
@@ -231,7 +235,6 @@ impl AcmeListenerBuilder {
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be
     /// obtained again when the server is restarted next time.
-    #[must_use]
     #[inline]
     pub fn cache_path(self, path: impl Into<PathBuf>) -> Self {
         Self {
