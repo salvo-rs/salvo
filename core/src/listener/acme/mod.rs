@@ -125,11 +125,12 @@ impl Handler for Http01Handler {
             if let Some(value) = keys.get(token) {
                 res.render(value);
             } else {
-                tracing::debug!(token = %token, "keys not found for token");
+                tracing::error!(token = %token, "keys not found for token");
                 res.render(token);
             }
+        } else {
+            res.set_http_error(NotFound().with_summary("token is not provide"));
         }
-        res.set_http_error(NotFound().with_summary("token is not provide"));
     }
 }
 

@@ -1,4 +1,4 @@
-use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,53 +10,13 @@ use super::cache::AcmeCache;
 use super::client::AcmeClient;
 use super::config::AcmeConfig;
 use super::resolver::ResolveServerCert;
-use super::{jose, ChallengeType, WELL_KNOWN_PATH};
-
-async fn check_before_issue(config: &AcmeConfig) -> IoResult<()> {
-    let fake_token: String = (0..16).map(|_| fastrand::alphanumeric()).collect();
-    for domain in &config.domains {
-        let url = match config.challenge_type {
-            ChallengeType::Http01 => {
-                format!("http://{}{}/{}", domain, WELL_KNOWN_PATH, fake_token)
-            }
-            ChallengeType::TlsAlpn01 => {
-                format!("https://{}{}/{}", domain, WELL_KNOWN_PATH, fake_token)
-            }
-        };
-
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        let body_bytes = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
-            .bytes()
-            .await
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        if &body_bytes != fake_token.as_bytes() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "token is not equal, origin: {}  getted: {}",
-                    fake_token,
-                    String::from_utf8_lossy(&body_bytes)
-                ),
-            ));
-        }
-    }
-    Ok(())
-}
+use super::{jose, ChallengeType};
 
 pub(crate) async fn issue_cert(
     client: &mut AcmeClient,
     config: &AcmeConfig,
     resolver: &ResolveServerCert,
 ) -> IoResult<()> {
-    tracing::debug!("check before issue certificate");
-    check_before_issue(config).await?;
     tracing::debug!("issue certificate");
     let order_res = client.new_order(&config.domains).await?;
     // trigger challenge
