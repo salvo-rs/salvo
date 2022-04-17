@@ -84,7 +84,7 @@ mod test {
     #[tokio::test]
     async fn test_chunk_read() {
         const SIZE: u64 = 1024 * 1024 * 5;
-        let mock = Cursor::new((0..SIZE).map(|_| fastrand::u8()).collect::<Vec<_>>());
+        let mock = Cursor::new((0..SIZE).map(|_| fastrand::u8(..)).collect::<Vec<_>>());
 
         let mut chunk = FileChunk {
             chunk_size: SIZE,
