@@ -58,19 +58,19 @@ pub(crate) async fn issue_cert(
     tracing::debug!("check before issue certificate");
     check_before_issue(config).await?;
     tracing::debug!("issue certificate");
-    let order_resp = client.new_order(&config.domains).await?;
+    let order_res = client.new_order(&config.domains).await?;
     // trigger challenge
     let mut valid = false;
     for i in 1..5 {
         let mut all_valid = true;
-        for auth_url in &order_resp.authorizations {
-            let resp = client.fetch_authorization(auth_url).await?;
-            if resp.status == "valid" {
+        for auth_url in &order_res.authorizations {
+            let res = client.fetch_authorization(auth_url).await?;
+            if res.status == "valid" {
                 continue;
             }
             all_valid = false;
-            if resp.status == "pending" {
-                let challenge = resp.find_challenge(config.challenge_type)?;
+            if res.status == "pending" {
+                let challenge = res.find_challenge(config.challenge_type)?;
                 match config.challenge_type {
                     ChallengeType::Http01 => {
                         if let Some(keys) = &config.keys_for_http01 {
@@ -82,23 +82,24 @@ pub(crate) async fn issue_cert(
                     ChallengeType::TlsAlpn01 => {
                         let key_authorization_sha256 =
                             jose::key_authorization_sha256(&config.key_pair, &challenge.token)?;
-                        let auth_key = gen_acme_cert(&resp.identifier.value, key_authorization_sha256.as_ref())?;
+                        let auth_key = gen_acme_cert(&res.identifier.value, key_authorization_sha256.as_ref())?;
                         resolver
                             .acme_keys
                             .write()
-                            .insert(resp.identifier.value.to_string(), Arc::new(auth_key));
+                            .insert(res.identifier.value.to_string(), Arc::new(auth_key));
                     }
                 }
                 client
-                    .trigger_challenge(&resp.identifier.value, config.challenge_type, &challenge.url)
+                    .trigger_challenge(&res.identifier.value, config.challenge_type, &challenge.url)
                     .await?;
-            } else if resp.status == "invalid" {
+            } else if res.status == "invalid" {
+                tracing::error!(res = ?res, "unable to authorize");
                 return Err(IoError::new(
                     ErrorKind::Other,
                     format!(
                         "unable to authorize `{}`: {}",
-                        resp.identifier.value,
-                        resp.error.as_ref().map(|problem| &*problem.detail).unwrap_or("unknown")
+                        res.identifier.value,
+                        res.error.as_ref().map(|problem| &*problem.detail).unwrap_or("unknown")
                     ),
                 ));
             }
@@ -122,13 +123,13 @@ pub(crate) async fn issue_cert(
     let csr = cert
         .serialize_request_der()
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to serialize request der {}", e)))?;
-    let order_resp = client.send_csr(&order_resp.finalize, &csr).await?;
-    if order_resp.status == "invalid" {
+    let order_res = client.send_csr(&order_res.finalize, &csr).await?;
+    if order_res.status == "invalid" {
         return Err(IoError::new(
             ErrorKind::Other,
             format!(
                 "failed to request certificate: {}",
-                order_resp
+                order_res
                     .error
                     .as_ref()
                     .map(|problem| &*problem.detail)
@@ -136,22 +137,22 @@ pub(crate) async fn issue_cert(
             ),
         ));
     }
-    if order_resp.status != "valid" {
+    if order_res.status != "valid" {
         return Err(IoError::new(
             ErrorKind::Other,
             format!(
                 "failed to request certificate: unexpected status `{}`",
-                order_resp.status
+                order_res.status
             ),
         ));
     }
     // download certificate
     let cert_pem = client
         .obtain_certificate(
-            &*order_resp
+            &*order_res
                 .certificate
                 .as_ref()
-                .ok_or_else(|| IoError::new(ErrorKind::Other, "invalid response: missing `certificate` url"))?,
+                .ok_or_else(|| IoError::new(ErrorKind::Other, "invalid resonse: missing `certificate` url"))?,
         )
         .await?
         .as_ref()
