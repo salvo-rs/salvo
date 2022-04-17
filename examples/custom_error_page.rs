@@ -13,8 +13,8 @@ async fn main() {
     let router = Router::new().get(hello_world);
     let catcher: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
     let service = Service::new(router).with_catchers(catcher);
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(service).await;
+    tracing::info!("Listening on http://0.0.0.0:7878");
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(service).await;
 }
 
 struct Handle404;

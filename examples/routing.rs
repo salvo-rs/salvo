@@ -33,8 +33,8 @@ async fn main() {
             }
         });
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    tracing::info!("Listening on http://0.0.0.0:7878");
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 
 #[fn_handler]

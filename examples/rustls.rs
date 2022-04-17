@@ -14,7 +14,7 @@ async fn main() {
     let config = RustlsConfig::new()
         .with_cert_path("examples/certs/end.cert")
         .with_key_path("examples/certs/end.rsa");
-    tracing::info!("Listening on https://127.0.0.1:7878");
-    let listener = RustlsListener::with_rustls_config(config).bind("127.0.0.1:7878");
+    tracing::info!("Listening on https://0.0.0.0:7878");
+    let listener = RustlsListener::with_rustls_config(config).bind("0.0.0.0:7878");
     Server::new(listener).serve(router).await;
 }

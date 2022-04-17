@@ -16,7 +16,7 @@ async fn main() {
             .with_pkcs12(include_bytes!("certs/identity.p12").to_vec())
             .with_password("mypass"),
     )
-    .bind("127.0.0.1:7878");
-    tracing::info!("Listening on https://127.0.0.1:7878");
+    .bind("0.0.0.0:7878");
+    tracing::info!("Listening on https://0.0.0.0:7878");
     Server::new(listener).serve(router).await;
 }

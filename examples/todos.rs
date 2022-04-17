@@ -14,8 +14,8 @@ async fn main() {
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    tracing::info!("Listening on http://0.0.0.0:7878");
+    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
 }
 
 #[fn_handler]
@@ -124,7 +124,7 @@ mod tests {
     async fn test_create() {
         let client = Client::new();
         let resp = client
-            .post("https://127.0.0.1:7878/todos")
+            .post("https://0.0.0.0:7878/todos")
             .json(&test_todo)
             .send()
             .await?;
@@ -136,7 +136,7 @@ mod tests {
     async fn test_create_conflict() {
         let client = Client::new();
         let resp = client
-            .post("https://127.0.0.1:7878/todos")
+            .post("https://0.0.0.0:7878/todos")
             .json(&test_todo)
             .send()
             .await?;
