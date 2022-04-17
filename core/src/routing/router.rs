@@ -555,7 +555,6 @@ mod tests {
             .into();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
-        println!("=====matched : {}", matched.is_some());
         assert!(matched.is_some());
     }
 }
