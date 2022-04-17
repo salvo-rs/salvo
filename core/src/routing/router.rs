@@ -540,7 +540,7 @@ mod tests {
         let router =
             Router::new().push(Router::with_path(r"avatars/<width:/\d+/>x<height:/\d+/>.<ext>").handle(fake_handler));
         let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/320x320f.webp")
+            .uri("http://local.host/avatars/321x641f.webp")
             .body(hyper::Body::empty())
             .unwrap()
             .into();
@@ -549,7 +549,7 @@ mod tests {
         assert!(matched.is_none());
 
         let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/320x320.webp")
+            .uri("http://local.host/avatars/320x640.webp")
             .body(hyper::Body::empty())
             .unwrap()
             .into();

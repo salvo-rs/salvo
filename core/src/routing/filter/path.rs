@@ -286,7 +286,7 @@ impl PathPart for ConstPart {
             return false;
         }
         let segment = url_path.splitn(2, '/').collect::<Vec<_>>()[0];
-        if segment.contains(&self.0) {
+        if segment.starts_with(&self.0) {
             state.cursor += self.0.len();
             true
         } else {
