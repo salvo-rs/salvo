@@ -1,6 +1,6 @@
 //! Server module
 use std::fs::File;
-use std::io::{self, Read, Error as IoError, ErrorKind};
+use std::io::{self, Error as IoError, ErrorKind, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -137,16 +137,12 @@ where
         if fastrand::bool() {
             match Pin::new(&mut pin.a).poll_accept(cx) {
                 Poll::Ready(Some(result)) => Poll::Ready(Some(
-                    result
-                        .map(JoinedStream::A)
-                        .map_err(|_| IoError::from(ErrorKind::Other)),
+                    result.map(JoinedStream::A).map_err(|_| IoError::from(ErrorKind::Other)),
                 )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.b).poll_accept(cx) {
                     Poll::Ready(Some(result)) => Poll::Ready(Some(
-                        result
-                            .map(JoinedStream::B)
-                            .map_err(|_| IoError::from(ErrorKind::Other)),
+                        result.map(JoinedStream::B).map_err(|_| IoError::from(ErrorKind::Other)),
                     )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
@@ -155,16 +151,12 @@ where
         } else {
             match Pin::new(&mut pin.b).poll_accept(cx) {
                 Poll::Ready(Some(result)) => Poll::Ready(Some(
-                    result
-                        .map(JoinedStream::B)
-                        .map_err(|_| IoError::from(ErrorKind::Other)),
+                    result.map(JoinedStream::B).map_err(|_| IoError::from(ErrorKind::Other)),
                 )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.a).poll_accept(cx) {
                     Poll::Ready(Some(result)) => Poll::Ready(Some(
-                        result
-                            .map(JoinedStream::A)
-                            .map_err(|_| IoError::from(ErrorKind::Other)),
+                        result.map(JoinedStream::A).map_err(|_| IoError::from(ErrorKind::Other)),
                     )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
