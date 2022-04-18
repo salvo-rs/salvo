@@ -1,6 +1,6 @@
 //! tls module
 use std::future::Future;
-use std::io::{self, Cursor, Read, Error as IoError, ErrorKind};
+use std::io::{self, Cursor, Error as IoError, ErrorKind, Read};
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};

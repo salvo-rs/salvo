@@ -13,7 +13,7 @@ mod resolver;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
-use std::io::{self, Result as IoResult, Error as IoError};
+use std::io::{self, Error as IoError, Result as IoResult};
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};

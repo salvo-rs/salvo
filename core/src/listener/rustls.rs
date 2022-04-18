@@ -1,6 +1,6 @@
 //! tls module
 use std::future::Future;
-use std::io::{self, BufReader, Cursor, Read, Error as IoError};
+use std::io::{self, BufReader, Cursor, Error as IoError, Read};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use hyper::server::conn::{AddrIncoming, AddrStream};
 use pin_project_lite::pin_project;
 use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, ErrorKind};
+use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth};
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};

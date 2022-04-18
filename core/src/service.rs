@@ -1,7 +1,7 @@
 use std::future::Future;
+use std::io::Error as IoError;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::io::Error as IoError;
 
 use futures_util::future;
 use once_cell::sync::Lazy;
