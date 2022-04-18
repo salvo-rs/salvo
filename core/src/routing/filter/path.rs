@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Formatter};
 use std::sync::Arc;
 
 use once_cell::sync::Lazy;
@@ -133,7 +133,7 @@ struct CharPart<C> {
     max_width: Option<usize>,
 }
 impl<C> fmt::Debug for CharPart<C> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "CharPart {{ name: {:?}, min_width: {:?}, max_width: {:?} }}",
@@ -583,7 +583,7 @@ pub struct PathFilter {
 }
 
 impl fmt::Debug for PathFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "path:{}", &self.raw_value)
     }
 }

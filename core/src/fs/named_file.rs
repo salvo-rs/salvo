@@ -123,7 +123,7 @@ impl NamedFileBuilder {
             flags,
         } = self;
 
-        let file = File::open(&path).await.map_err(crate::Error::new)?;
+        let file = File::open(&path).await?;
         let content_type = content_type.unwrap_or_else(|| {
             let ct = from_path(&path).first_or_octet_stream();
             let ftype = ct.type_();
@@ -162,11 +162,17 @@ impl NamedFileBuilder {
                 }
             })
         });
-        let content_disposition = content_disposition.parse::<HeaderValue>().map_err(crate::Error::new)?;
-        let metadata = file.metadata().await.map_err(crate::Error::new)?;
+        let content_disposition = content_disposition
+            .parse::<HeaderValue>()
+            .map_err(|e| crate::Error::custom("parse", e))?;
+        let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
-            Some(content_encoding) => Some(content_encoding.parse::<HeaderValue>().map_err(crate::Error::new)?),
+            Some(content_encoding) => Some(
+                content_encoding
+                    .parse::<HeaderValue>()
+                    .map_err(|e| crate::Error::custom("parse", e))?,
+            ),
             None => None,
         };
 

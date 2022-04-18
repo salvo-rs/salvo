@@ -202,7 +202,7 @@ impl Handler for StaticDir {
                         if let Ok(named_file) = builder.build().await {
                             named_file.write(req, depot, res).await;
                         } else {
-                            res.set_http_error(InternalServerError().with_summary("file read error"));
+                            res.set_status_error(InternalServerError().with_summary("file read error"));
                         }
                         return;
                     }
@@ -232,19 +232,19 @@ impl Handler for StaticDir {
                         .map(|s| s.starts_with('.'))
                         .unwrap_or(false)
                 {
-                    res.set_http_error(NotFound());
+                    res.set_status_error(NotFound());
                     return;
                 }
                 if let Ok(named_file) = NamedFile::open(path).await {
                     named_file.write(req, depot, res).await;
                 } else {
-                    res.set_http_error(InternalServerError().with_summary("file read error"));
+                    res.set_status_error(InternalServerError().with_summary("file read error"));
                 }
                 return;
             }
         }
         if !path_exist || !self.options.listing {
-            res.set_http_error(NotFound());
+            res.set_status_error(NotFound());
             return;
         }
         let format = req.frist_accept().unwrap_or(mime::TEXT_HTML);

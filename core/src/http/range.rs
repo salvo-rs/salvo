@@ -6,7 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 // ported from actix-files
 
-use crate::http::errors::ReadError;
+use crate::http::errors::ParseError;
 
 /// HTTP Range header representation.
 #[derive(Debug, Clone, Copy)]
@@ -25,12 +25,12 @@ impl HttpRange {
     ///
     /// `header` is HTTP Range header (e.g. `bytes=bytes=0-9`).
     /// `size` is full size of response (file).
-    pub fn parse(header: &str, size: u64) -> Result<Vec<HttpRange>, ReadError> {
+    pub fn parse(header: &str, size: u64) -> Result<Vec<HttpRange>, ParseError> {
         if header.is_empty() {
             return Ok(Vec::new());
         }
         if !header.starts_with(PREFIX) {
-            return Err(ReadError::InvalidRange);
+            return Err(ParseError::InvalidRange);
         }
 
         let size_sig = size as i64;
@@ -94,12 +94,12 @@ impl HttpRange {
                 }
             })
             .collect::<Result<_, _>>()
-            .map_err(|_| ReadError::InvalidRange)?;
+            .map_err(|_| ParseError::InvalidRange)?;
 
         let ranges: Vec<HttpRange> = all_ranges.into_iter().flatten().collect();
 
         if no_overlap && ranges.is_empty() {
-            return Err(ReadError::InvalidRange);
+            return Err(ParseError::InvalidRange);
         }
 
         Ok(ranges)

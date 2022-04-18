@@ -27,6 +27,7 @@
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::error::Error as StdError;
+use std::fmt::{self, Display, Formatter};
 
 use salvo_core::async_trait;
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
@@ -296,13 +297,13 @@ enum Forbidden {
 }
 
 impl ::std::fmt::Debug for Forbidden {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
         f.debug_tuple("CorsForbidden").field(&self).finish()
     }
 }
 
-impl ::std::fmt::Display for Forbidden {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl Display for Forbidden {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let detail = match self {
             Forbidden::Origin => "origin not allowed",
             Forbidden::Method => "request-method not allowed",

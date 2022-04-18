@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Formatter};
 
 use crate::http::{Method, Request};
 use crate::routing::{Filter, PathState};
@@ -15,7 +15,7 @@ impl Filter for MethodFilter {
 }
 
 impl fmt::Debug for MethodFilter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "method:{:?}", self.0)
     }
 }

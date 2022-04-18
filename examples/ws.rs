@@ -4,7 +4,7 @@ use salvo::extra::ws::WsHandler;
 use salvo::prelude::*;
 
 #[fn_handler]
-async fn connect(req: &mut Request, res: &mut Response) -> Result<(), HttpError> {
+async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let fut = WsHandler::new().handle(req, res)?;
     let fut = async move {
         if let Some(ws) = fut.await {

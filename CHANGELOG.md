@@ -42,7 +42,7 @@
 
 ### 0.14.0
 - core::http: Request and Response's from_hyper function removed and impl From trait now.
-- core::http: Cleanup HttpError.
+- core::http: Cleanup StatusError.
 - core::http: Use FlowState to control write data to response.
 - core: remove impl Handler for tuple.
 - extra::baisc_auth: 

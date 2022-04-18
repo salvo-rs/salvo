@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Formatter};
 
 use crate::http::Request;
 use crate::routing::{Filter, PathState};
@@ -46,7 +46,7 @@ where
 }
 
 impl<T, F> fmt::Debug for OrElse<T, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "opt:or_else")
     }
 }
@@ -94,7 +94,7 @@ where
 }
 
 impl<T, F> fmt::Debug for AndThen<T, F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "opt:and_then")
     }
 }

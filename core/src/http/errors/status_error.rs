@@ -1,17 +1,17 @@
 use std::error::Error as StdError;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
 use http::StatusCode;
 
 use crate::{Depot, Request, Response, Writer};
 
-/// Resut type with `HttpError` has it's error type.
-pub type HttpResult<T> = Result<T, HttpError>;
+/// Resut type with `StatusError` has it's error type.
+pub type HttpResult<T> = Result<T, StatusError>;
 
-/// HttpError contains http error information.
+/// StatusError contains http error information.
 #[derive(Debug)]
-pub struct HttpError {
+pub struct StatusError {
     /// Http error status code.
     pub code: StatusCode,
     /// Http error name.
@@ -21,7 +21,7 @@ pub struct HttpError {
     /// Detail information about http error.
     pub detail: Option<String>,
 }
-impl HttpError {
+impl StatusError {
     /// Set summary field and returns Self.
     pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
         self.summary = Some(summary.into());
@@ -34,19 +34,19 @@ impl HttpError {
     }
 }
 
-impl StdError for HttpError {}
+impl StdError for StatusError {}
 
-impl fmt::Display for HttpError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for StatusError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "name: {}", &self.name)?;
         write!(f, "summary: {:?}", &self.summary)?;
         write!(f, "detail: {:?}", &self.detail)?;
         Ok(())
     }
 }
-impl HttpError {
-    /// Create new `HttpError` with code. If code is not error, it will be `None`.
-    pub fn from_code(code: StatusCode) -> Option<HttpError> {
+impl StatusError {
+    /// Create new `StatusError` with code. If code is not error, it will be `None`.
+    pub fn from_code(code: StatusCode) -> Option<StatusError> {
         match code {
             StatusCode::BAD_REQUEST => Some(BadRequest()),
             StatusCode::UNAUTHORIZED => Some(Unauthorized()),
@@ -92,19 +92,19 @@ impl HttpError {
     }
 }
 #[async_trait]
-impl Writer for HttpError {
+impl Writer for StatusError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(self);
+        res.set_status_error(self);
     }
 }
 
 macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {
         $(
-            /// Create a new `HttpError`.
+            /// Create a new `StatusError`.
             #[allow(non_snake_case)]
-            pub fn $sname() -> HttpError {
-                HttpError {
+            pub fn $sname() -> StatusError {
+                StatusError {
                     code: $code,
                     name: $name.into(),
                     summary: Some($summary.into()),

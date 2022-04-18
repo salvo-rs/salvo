@@ -15,6 +15,7 @@ use salvo_core::http::headers::HeaderName;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};
 use salvo_core::prelude::*;
+use salvo_core::Error;
 
 /// key used to save csrf data to depot.
 pub const DATA_KEY: &str = "::salvo::extra::csrf::data";
@@ -222,7 +223,7 @@ impl CsrfHandler {
             })
     }
 
-    async fn find_csrf_token(&self, req: &mut Request) -> Result<UnencryptedCsrfToken, salvo_core::Error> {
+    async fn find_csrf_token(&self, req: &mut Request) -> Result<UnencryptedCsrfToken, Error> {
         // A bit of a strange flow here (with an early exit as well),
         // because we do not want to do the expensive parsing (form,
         // body specifically) if we find a CSRF token in an earlier
@@ -239,9 +240,11 @@ impl CsrfHandler {
         } else if let Some(csrf_token) = self.find_csrf_token_in_form(req).await {
             csrf_token
         } else {
-            return Err(salvo_core::Error::new("not found"));
+            return Err(Error::custom("csrf", "not found"));
         };
-        self.protect.parse_token(&csrf_token).map_err(salvo_core::Error::new)
+        self.protect
+            .parse_token(&csrf_token)
+            .map_err(|e| Error::custom("csrf", e))
     }
 
     fn find_csrf_token_in_header(&self, req: &Request) -> Option<Vec<u8>> {

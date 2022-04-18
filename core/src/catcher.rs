@@ -14,7 +14,7 @@ pub trait Catcher: Send + Sync + 'static {
     /// If the current catcher caught the error, it will returns true.
     fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
 }
-fn http_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -60,7 +60,7 @@ fn http_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: 
         format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }
-fn http_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
         code.as_u16(),
@@ -69,7 +69,7 @@ fn http_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: 
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
-fn http_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "code:{},\nname:{},\nsummary:{},\ndetail:{}",
         code.as_u16(),
@@ -78,7 +78,7 @@ fn http_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail:
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
-fn http_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
         code.as_u16(),
@@ -87,18 +87,18 @@ fn http_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: O
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
-/// Create bytes from `HttpError`.
-pub fn http_error_bytes(err: &HttpError, prefer_format: &Mime) -> (Mime, Vec<u8>) {
+/// Create bytes from `StatusError`.
+pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec<u8>) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
         "text/html".parse().unwrap()
     } else {
         prefer_format.clone()
     };
     let content = match format.subtype().as_ref() {
-        "plain" => http_error_plain(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        "json" => http_error_json(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        "xml" => http_error_xml(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        _ => http_error_html(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "plain" => status_error_plain(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "json" => status_error_json(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "xml" => status_error_xml(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        _ => status_error_html(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
     };
     (format, content.as_bytes().to_owned())
 }
@@ -117,10 +117,10 @@ impl Catcher for CatcherImpl {
             return false;
         }
         let format = guess_accept_mime(req, None);
-        let (format, data) = if res.http_error.is_some() {
-            http_error_bytes(res.http_error.as_ref().unwrap(), &format)
+        let (format, data) = if res.status_error.is_some() {
+            status_error_bytes(res.status_error.as_ref().unwrap(), &format)
         } else {
-            http_error_bytes(&crate::http::errors::HttpError::from_code(self.0).unwrap(), &format)
+            status_error_bytes(&crate::http::errors::StatusError::from_code(self.0).unwrap(), &format)
         };
         res.headers_mut()
             .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());

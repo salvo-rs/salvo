@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Formatter};
 use std::sync::Arc;
 
 use super::filter;
@@ -231,8 +231,8 @@ static SYMBOL_TEE: &str = "├";
 static SYMBOL_ELL: &str = "└";
 static SYMBOL_RIGHT: &str = "─";
 impl fmt::Debug for Router {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn print(f: &mut fmt::Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        fn print(f: &mut Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
             let mut path = "".to_owned();
             let mut others = Vec::with_capacity(router.filters.len());
             if router.filters.is_empty() {

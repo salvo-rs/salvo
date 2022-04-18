@@ -1,4 +1,4 @@
-use std::io;
+use std::io::Error as IoError;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
@@ -7,9 +7,9 @@ use thiserror::Error;
 use crate::http::errors::*;
 use crate::{Depot, Request, Response, Writer};
 
-/// ReadError, errors happened when read data from http request.
+/// ParseError, errors happened when read data from http request.
 #[derive(Error, Debug)]
-pub enum ReadError {
+pub enum ParseError {
     /// The Hyper request did not have a valid Content-Type header.
     #[error("The Hyper request did not have a valid Content-Type header.")]
     InvalidContentType,
@@ -40,7 +40,7 @@ pub enum ReadError {
 
     /// An I/O error.
     #[error("An I/O error: {}", _0)]
-    Io(#[from] io::Error),
+    Io(#[from] IoError),
 
     /// An error was returned from hyper.
     #[error("An error was returned from hyper: {0}")]
@@ -56,9 +56,9 @@ pub enum ReadError {
 }
 
 #[async_trait]
-impl Writer for ReadError {
+impl Writer for ParseError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_http_error(
+        res.set_status_error(
             InternalServerError()
                 .with_summary("http read error happened")
                 .with_detail("there is no more detailed explanation."),
@@ -76,7 +76,7 @@ mod tests {
         let mut res = Response::default();
         let mut req = Request::default();
         let mut depot = Depot::new();
-        let err = ReadError::EmptyBody;
+        let err = ParseError::EmptyBody;
         err.write(&mut req, &mut depot, &mut res).await;
     }
 }

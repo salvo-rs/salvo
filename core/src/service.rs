@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::io::Error as IoError;
 
 use futures_util::future;
 use once_cell::sync::Lazy;
@@ -83,7 +84,7 @@ where
     T: Transport,
 {
     type Response = HyperHandler;
-    type Error = std::io::Error;
+    type Error = IoError;
 
     // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;

@@ -4,7 +4,7 @@ pub use named_file::*;
 
 use std::cmp;
 use std::future::Future;
-use std::io::{self, Read, Seek};
+use std::io::{self, Error as IoError, ErrorKind, Read, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -14,7 +14,7 @@ use futures_util::stream::Stream;
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),
-    Future(tokio::task::JoinHandle<Result<(T, Bytes), io::Error>>),
+    Future(tokio::task::JoinHandle<Result<(T, Bytes), IoError>>),
 }
 
 /// FileChunk
@@ -30,7 +30,7 @@ impl<T> Stream for FileChunk<T>
 where
     T: Read + Seek + Unpin + Send + 'static,
 {
-    type Item = Result<Bytes, io::Error>;
+    type Item = Result<Bytes, IoError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if self.chunk_size == self.read_size {
@@ -47,7 +47,7 @@ where
                     file.seek(io::SeekFrom::Start(offset))?;
                     let bytes = file.by_ref().take(max_bytes as u64).read_to_end(&mut buf)?;
                     if bytes == 0 {
-                        return Err(io::ErrorKind::UnexpectedEof.into());
+                        return Err(ErrorKind::UnexpectedEof.into());
                     }
                     Ok((file, Bytes::from(buf)))
                 });
@@ -56,8 +56,8 @@ where
                 self.poll_next(cx)
             }
             ChunkedState::Future(ref mut fut) => {
-                let (file, bytes) = ready!(Pin::new(fut).poll(cx))
-                    .map_err(|_| io::Error::new(io::ErrorKind::Other, "BlockingErr"))??;
+                let (file, bytes) =
+                    ready!(Pin::new(fut).poll(cx)).map_err(|_| IoError::new(ErrorKind::Other, "BlockingErr"))??;
                 self.state = ChunkedState::File(Some(file));
 
                 self.offset += bytes.len() as u64;

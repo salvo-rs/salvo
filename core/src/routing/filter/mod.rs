@@ -4,7 +4,7 @@ mod method;
 mod opts;
 mod path;
 
-use std::fmt;
+use std::fmt::{self, Formatter};
 
 use self::opts::*;
 use crate::http::{Method, Request};
@@ -83,7 +83,7 @@ where
 }
 
 impl<F> fmt::Debug for FnFilter<F> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "fn:fn")
     }
 }

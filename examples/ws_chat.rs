@@ -30,7 +30,7 @@ async fn main() {
 }
 
 #[fn_handler]
-async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), HttpError> {
+async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let fut = WsHandler::new().handle(req, res)?;
     let fut = async move {
         if let Some(ws) = fut.await {

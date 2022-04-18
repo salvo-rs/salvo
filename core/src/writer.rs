@@ -53,6 +53,7 @@ impl Piece for () {
     fn render(self, _res: &mut Response) {}
 }
 impl<'a> Piece for &'a str {
+    #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut()
             .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
@@ -60,11 +61,13 @@ impl<'a> Piece for &'a str {
     }
 }
 impl<'a> Piece for &'a String {
+    #[inline]
     fn render(self, res: &mut Response) {
         (&**self).render(res);
     }
 }
 impl Piece for String {
+    #[inline]
     fn render(self, res: &mut Response) {
         (&*self).render(res);
     }
@@ -115,7 +118,7 @@ where
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");
-                res.set_http_error(InternalServerError());
+                res.set_status_error(InternalServerError());
             }
         }
     }

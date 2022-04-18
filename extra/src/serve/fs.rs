@@ -31,7 +31,7 @@ impl Handler for StaticFile {
         match self.0.clone().build().await {
             Ok(file) => file.write(req, depot, res).await,
             Err(_) => {
-                res.set_http_error(NotFound());
+                res.set_status_error(NotFound());
             }
         }
         ctrl.skip_reset();

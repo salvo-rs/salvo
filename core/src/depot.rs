@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Formatter};
 
 /// Depot if for store temp data of current request. Each handler can read or write data to it.
 #[derive(Default)]
@@ -86,7 +86,7 @@ impl Depot {
 }
 
 impl fmt::Debug for Depot {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Depot").field("keys", &self.data.keys()).finish()
     }
 }

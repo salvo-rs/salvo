@@ -1,6 +1,6 @@
 //! tls module
 use std::future::Future;
-use std::io::{self, Cursor, Read};
+use std::io::{self, Cursor, Read, Error as IoError, ErrorKind};
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -65,12 +65,12 @@ impl NativeTlsConfig {
 
     /// generate identity
     #[inline]
-    pub fn identity(mut self) -> Result<Identity, io::Error> {
+    pub fn identity(mut self) -> Result<Identity, IoError> {
         let mut pkcs12 = Vec::new();
         self.pkcs12
             .read_to_end(&mut pkcs12)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        Identity::from_pkcs12(&pkcs12, &self.password).map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        Identity::from_pkcs12(&pkcs12, &self.password).map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 
@@ -118,7 +118,7 @@ impl NativeTlsListener<stream::Once<Ready<Identity>>> {
     #[inline]
     pub fn try_with_config(
         config: NativeTlsConfig,
-    ) -> Result<NativeTlsListenerBuilder<stream::Once<Ready<Identity>>>, io::Error> {
+    ) -> Result<NativeTlsListenerBuilder<stream::Once<Ready<Identity>>>, IoError> {
         let identity = config.identity()?;
         Ok(Self::with_identity(identity))
     }
@@ -165,7 +165,7 @@ where
     C::Item: Into<Identity>,
 {
     type Conn = NativeTlsStream;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
@@ -185,7 +185,7 @@ where
                 _ => Poll::Ready(None),
             }
         } else {
-            Poll::Ready(Some(Err(io::Error::new(io::ErrorKind::Other, "acceptor is none"))))
+            Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, "acceptor is none"))))
         }
     }
 }
@@ -209,9 +209,9 @@ impl Transport for NativeTlsStream {
 }
 
 impl NativeTlsStream {
-    fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, io::Error> {
+    fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, IoError> {
         let acceptor: AsyncTlsAcceptor = TlsAcceptor::new(identity)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?
             .into();
         Ok(NativeTlsStream {
             // acceptor: Box::pin(acceptor),
@@ -231,7 +231,7 @@ impl AsyncRead for NativeTlsStream {
             *this.inner_stream = Some(stream);
             Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
         } else {
-            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
     }
 }
@@ -245,7 +245,7 @@ impl AsyncWrite for NativeTlsStream {
             *this.inner_stream = Some(stream);
             Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
         } else {
-            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
     }
 
@@ -257,7 +257,7 @@ impl AsyncWrite for NativeTlsStream {
             *this.inner_stream = Some(stream);
             Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
         } else {
-            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
     }
 
@@ -269,7 +269,7 @@ impl AsyncWrite for NativeTlsStream {
             *this.inner_stream = Some(stream);
             Pin::new(this.inner_stream.as_mut().unwrap()).poll_shutdown(cx)
         } else {
-            Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, "native tls error")))
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
     }
 }
@@ -287,7 +287,7 @@ mod tests {
         C: Stream,
         C::Item: Into<Identity>,
     {
-        type Item = Result<NativeTlsStream, io::Error>;
+        type Item = Result<NativeTlsStream, IoError>;
 
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)

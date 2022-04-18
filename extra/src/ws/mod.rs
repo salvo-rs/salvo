@@ -5,7 +5,7 @@
 //! Websocket
 
 use std::borrow::Cow;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -17,7 +17,7 @@ use hyper::upgrade::OnUpgrade;
 use salvo_core::http::errors::*;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
-use salvo_core::http::{HttpError, StatusCode};
+use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
@@ -83,7 +83,7 @@ impl WsHandler {
         &self,
         req: &mut Request,
         res: &mut Response,
-    ) -> Result<impl Future<Output = Option<WebSocket>>, HttpError> {
+    ) -> Result<impl Future<Output = Option<WebSocket>>, StatusError> {
         let req_headers = req.headers();
         let matched = req_headers
             .typed_get::<Connection>()
@@ -178,7 +178,7 @@ impl Stream for WebSocket {
             Some(Ok(item)) => Poll::Ready(Some(Ok(Message { inner: item }))),
             Some(Err(e)) => {
                 tracing::debug!("websocket poll error: {}", e);
-                Poll::Ready(Some(Err(Error::new(e))))
+                Poll::Ready(Some(Err(Error::custom("", e))))
             }
             None => {
                 tracing::debug!("websocket closed");
@@ -194,7 +194,7 @@ impl Sink<Message> for WebSocket {
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_ready(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::new(e))),
+            Err(e) => Poll::Ready(Err(Error::custom("websocket", e))),
         }
     }
 
@@ -203,7 +203,7 @@ impl Sink<Message> for WebSocket {
             Ok(()) => Ok(()),
             Err(e) => {
                 tracing::debug!("websocket start_send error: {}", e);
-                Err(Error::new(e))
+                Err(Error::custom("websocket", e))
             }
         }
     }
@@ -211,23 +211,23 @@ impl Sink<Message> for WebSocket {
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_flush(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::new(e))),
+            Err(e) => Poll::Ready(Err(Error::custom("websocket", e))),
         }
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_close(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
-            Err(err) => {
-                tracing::debug!("websocket close error: {}", err);
-                Poll::Ready(Err(Error::new(err)))
+            Err(e) => {
+                tracing::debug!("websocket close error: {}", e);
+                Poll::Ready(Err(Error::custom("websocket", e)))
             }
         }
     }
 }
 
 impl fmt::Debug for WebSocket {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("WebSocket").finish()
     }
 }
@@ -341,7 +341,7 @@ impl Message {
 }
 
 impl fmt::Debug for Message {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)
     }
 }
@@ -357,8 +357,8 @@ impl Into<Vec<u8>> for Message {
 #[derive(Debug)]
 pub struct MissingConnectionUpgrade;
 
-impl ::std::fmt::Display for MissingConnectionUpgrade {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl Display for MissingConnectionUpgrade {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Connection header did not include 'upgrade'")
     }
 }

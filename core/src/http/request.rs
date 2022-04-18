@@ -1,7 +1,7 @@
 //! Http response.
 
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Formatter};
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
@@ -16,7 +16,7 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::ReadError;
+use crate::http::errors::ParseError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
@@ -53,7 +53,7 @@ pub struct Request {
 }
 
 impl fmt::Debug for Request {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Request")
             .field("method", self.method())
             .field("uri", self.uri())
@@ -442,20 +442,20 @@ impl Request {
     }
 
     /// Get request payload.
-    pub async fn payload(&mut self) -> Result<&Vec<u8>, ReadError> {
+    pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
         self.payload
             .get_or_try_init(|| async {
                 match body {
                     Some(body) => read_body_bytes(body).await,
-                    None => Err(ReadError::EmptyBody),
+                    None => Err(ParseError::EmptyBody),
                 }
             })
             .await
     }
 
     /// Get `FormData` reference from request.
-    pub async fn form_data(&mut self) -> Result<&FormData, ReadError> {
+    pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
             .headers()
             .get(header::CONTENT_TYPE)
@@ -468,48 +468,48 @@ impl Request {
                 .get_or_try_init(|| async {
                     match body {
                         Some(body) => form::read_form_data(headers, body).await,
-                        None => Err(ReadError::EmptyBody),
+                        None => Err(ParseError::EmptyBody),
                     }
                 })
                 .await
         } else {
-            Err(ReadError::NotFormData)
+            Err(ParseError::NotFormData)
         }
     }
 
     /// Read body as text from request.
     #[inline]
-    pub async fn read_text(&mut self) -> Result<&str, ReadError> {
+    pub async fn read_text(&mut self) -> Result<&str, ParseError> {
         self.payload()
             .await
-            .and_then(|body| std::str::from_utf8(body).map_err(ReadError::Utf8))
+            .and_then(|body| std::str::from_utf8(body).map_err(ParseError::Utf8))
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_text<T>(&mut self) -> Result<T, ReadError>
+    pub async fn read_from_text<T>(&mut self) -> Result<T, ParseError>
     where
         T: FromStr,
     {
         self.read_text()
             .await
-            .and_then(|body| body.parse::<T>().map_err(|_| ReadError::ParseFromStr))
+            .and_then(|body| body.parse::<T>().map_err(|_| ParseError::ParseFromStr))
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_json<T>(&mut self) -> Result<T, ReadError>
+    pub async fn read_from_json<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
         self.payload()
             .await
-            .and_then(|body| serde_json::from_slice::<T>(body).map_err(ReadError::SerdeJson))
+            .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson))
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_form<T>(&mut self) -> Result<T, ReadError>
+    pub async fn read_from_form<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -521,7 +521,7 @@ impl Request {
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read<T>(&mut self) -> Result<T, ReadError>
+    pub async fn read<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -535,16 +535,16 @@ impl Request {
         } else if ctype.starts_with("application/json") {
             self.read_from_json().await
         } else {
-            Err(ReadError::InvalidContentType)
+            Err(ParseError::InvalidContentType)
         }
     }
 }
 
-pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ReadError> {
+pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ParseError> {
     hyper::body::to_bytes(body)
         .await
         .map(|d| d.to_vec())
-        .map_err(ReadError::Hyper)
+        .map_err(ParseError::Hyper)
 }
 
 #[cfg(test)]

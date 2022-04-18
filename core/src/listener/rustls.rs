@@ -1,6 +1,6 @@
 //! tls module
 use std::future::Future;
-use std::io::{self, BufReader, Cursor, Read};
+use std::io::{self, BufReader, Cursor, Read, Error as IoError};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use hyper::server::conn::{AddrIncoming, AddrStream};
 use pin_project_lite::pin_project;
 use rustls_pemfile::{self, pkcs8_private_keys, rsa_private_keys};
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, ErrorKind};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth};
 use tokio_rustls::rustls::{Certificate, Error as RustlsError, PrivateKey, RootCertStore};
@@ -31,7 +31,7 @@ pub enum Error {
     Hyper(hyper::Error),
     /// An IO error
     #[error("io error")]
-    Io(io::Error),
+    Io(IoError),
     /// An Error parsing the Certificate
     #[error("certificate parse error")]
     CertParseError,
@@ -341,7 +341,7 @@ where
     C::Item: Into<Arc<ServerConfig>>,
 {
     type Conn = RustlsStream;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
@@ -357,8 +357,8 @@ where
                 None => Poll::Ready(None),
             }
         } else {
-            Poll::Ready(Some(Err(io::Error::new(
-                io::ErrorKind::Other,
+            Poll::Ready(Some(Err(IoError::new(
+                ErrorKind::Other,
                 "faild to load rustls server config",
             ))))
         }
@@ -458,7 +458,7 @@ mod tests {
         C: Stream,
         C::Item: Into<Arc<ServerConfig>>,
     {
-        type Item = Result<RustlsStream, io::Error>;
+        type Item = Result<RustlsStream, IoError>;
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }

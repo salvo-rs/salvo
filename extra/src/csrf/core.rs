@@ -2,7 +2,7 @@
 //! port from https://raw.githubusercontent.com/heartsucker/rust-csrf/master/src/core.rs
 
 use std::error::Error;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
 
 use aead::{generic_array::GenericArray, Aead, NewAead};
@@ -30,8 +30,8 @@ pub enum CsrfError {
 
 impl Error for CsrfError {}
 
-impl fmt::Display for CsrfError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for CsrfError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             CsrfError::InternalError => write!(f, "CSRF library error"),
             CsrfError::ValidationFailure => write!(f, "CSRF validation failed"),

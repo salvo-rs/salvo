@@ -1,6 +1,6 @@
 //! Server module
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Error as IoError, ErrorKind};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -130,7 +130,7 @@ where
     B::Conn: Transport,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let pin = self.get_mut();
@@ -139,14 +139,14 @@ where
                 Poll::Ready(Some(result)) => Poll::Ready(Some(
                     result
                         .map(JoinedStream::A)
-                        .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                        .map_err(|_| IoError::from(ErrorKind::Other)),
                 )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.b).poll_accept(cx) {
                     Poll::Ready(Some(result)) => Poll::Ready(Some(
                         result
                             .map(JoinedStream::B)
-                            .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                            .map_err(|_| IoError::from(ErrorKind::Other)),
                     )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
@@ -157,14 +157,14 @@ where
                 Poll::Ready(Some(result)) => Poll::Ready(Some(
                     result
                         .map(JoinedStream::B)
-                        .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                        .map_err(|_| IoError::from(ErrorKind::Other)),
                 )),
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => match Pin::new(&mut pin.a).poll_accept(cx) {
                     Poll::Ready(Some(result)) => Poll::Ready(Some(
                         result
                             .map(JoinedStream::A)
-                            .map_err(|_| io::Error::from(io::ErrorKind::Other)),
+                            .map_err(|_| IoError::from(ErrorKind::Other)),
                     )),
                     Poll::Ready(None) => Poll::Ready(None),
                     Poll::Pending => Poll::Pending,
@@ -195,7 +195,7 @@ impl TcpListener {
 impl Listener for TcpListener {}
 impl Accept for TcpListener {
     type Conn = AddrStream;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
@@ -263,7 +263,7 @@ impl Read for LazyFile {
         self.lazy_read(buf).map_err(|e| {
             let kind = e.kind();
             tracing::error!(path = ?self.path, error = ?e, "error reading file");
-            io::Error::new(kind, format!("error reading file ({:?}): {}", self.path.display(), e))
+            IoError::new(kind, format!("error reading file ({:?}): {}", self.path.display(), e))
         })
     }
 }
@@ -277,7 +277,7 @@ mod tests {
     use super::*;
 
     impl Stream for TcpListener {
-        type Item = Result<AddrStream, io::Error>;
+        type Item = Result<AddrStream, IoError>;
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }
@@ -290,7 +290,7 @@ mod tests {
         A::Conn: Transport,
         B::Conn: Transport,
     {
-        type Item = Result<JoinedStream<A::Conn, B::Conn>, io::Error>;
+        type Item = Result<JoinedStream<A::Conn, B::Conn>, IoError>;
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }

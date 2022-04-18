@@ -7,7 +7,7 @@ pub mod request;
 pub mod response;
 
 pub use cookie;
-pub use errors::{HttpError, ReadError};
+pub use errors::{StatusError, ParseError};
 pub use headers;
 pub use http::method::Method;
 pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};

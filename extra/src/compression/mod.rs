@@ -1,4 +1,5 @@
 //! Compress the body of a response.
+use std::io::{Error as IoError, ErrorKind};
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
 use tokio_stream::{self, StreamExt};
@@ -134,7 +135,7 @@ impl Handler for CompressionHandler {
                         res.set_body(Some(Body::Bytes(body)));
                         return;
                     }
-                    let reader = StreamReader::new(tokio_stream::once(Result::<_, std::io::Error>::Ok(body)));
+                    let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(body)));
                     match self.algo {
                         CompressionAlgo::Gzip => {
                             let stream = ReaderStream::new(GzipEncoder::new(reader));
@@ -151,7 +152,7 @@ impl Handler for CompressionHandler {
                     }
                 }
                 Body::Stream(body) => {
-                    let body = body.map(|item| item.map_err(|_| std::io::ErrorKind::Other));
+                    let body = body.map(|item| item.map_err(|_| ErrorKind::Other));
                     let reader = StreamReader::new(body);
                     match self.algo {
                         CompressionAlgo::Gzip => {

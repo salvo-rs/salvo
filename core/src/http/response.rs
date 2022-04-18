@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 use std::error::Error as StdError;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
@@ -14,7 +14,7 @@ use futures_util::stream::{Stream, StreamExt, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
 use serde::de::DeserializeOwned;
-use tokio::io::{AsyncReadExt, BufReader};
+use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
 
 pub use http::response::Parts;
 
@@ -41,7 +41,7 @@ impl Body {
     /// Take body as deserialize it to type `T` instance.
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         let full = self.take_bytes().await?;
-        serde_json::from_slice(&full).map_err(crate::Error::new)
+        serde_json::from_slice(&full).map_err(crate::Error::SerdeJson)
     }
     /// Take body as text.
     pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
@@ -52,19 +52,19 @@ impl Body {
                 "gzip" => {
                     let mut reader = GzipDecoder::new(BufReader::new(full.as_ref()));
                     let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    reader.read_to_end(&mut buf).await?;
                     full = Bytes::from(buf);
                 }
                 "deflate" => {
                     let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
                     let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    reader.read_to_end(&mut buf).await?;
                     full = Bytes::from(buf);
                 }
                 "br" => {
                     let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
                     let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await.map_err(crate::Error::new)?;
+                    reader.read_to_end(&mut buf).await?;
                     full = Bytes::from(buf);
                 }
                 _ => {
@@ -76,7 +76,7 @@ impl Body {
         if let Cow::Owned(s) = text {
             return Ok(s);
         }
-        String::from_utf8(full.to_vec()).map_err(crate::Error::new)
+        String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
     }
     /// Take all body bytes.
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
@@ -86,7 +86,7 @@ impl Body {
             Self::Stream(stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {
-                    bytes.extend(chunk.map_err(crate::Error::new)?);
+                    bytes.extend(chunk?);
                 }
                 bytes.freeze()
             }
@@ -124,7 +124,7 @@ impl From<hyper::Body> for Body {
 /// Represents an HTTP response
 pub struct Response {
     status_code: Option<StatusCode>,
-    pub(crate) http_error: Option<HttpError>,
+    pub(crate) status_error: Option<StatusError>,
     headers: HeaderMap,
     version: Version,
     pub(crate) cookies: CookieJar,
@@ -165,7 +165,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
 
         Response {
             status_code: Some(status),
-            http_error: None,
+            status_error: None,
             body: Some(body.into()),
             version,
             headers,
@@ -178,7 +178,7 @@ impl Response {
     pub fn new() -> Response {
         Response {
             status_code: None,
-            http_error: None,
+            status_error: None,
             body: None,
             version: Version::default(),
             headers: HeaderMap::new(),
@@ -238,7 +238,7 @@ impl Response {
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         match &mut self.body {
             Some(body) => body.take_json().await,
-            None => Err(crate::Error::new("body is none")),
+            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
         }
     }
     /// Take body as ```String``` from response.
@@ -264,14 +264,14 @@ impl Response {
                 )
                 .await
             }
-            None => Err(crate::Error::new("body is none")),
+            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
         }
     }
     /// Take body bytes from response.
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         match &mut self.body {
             Some(body) => body.take_bytes().await,
-            None => Err(crate::Error::new("body is none")),
+            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
         }
     }
 
@@ -353,7 +353,7 @@ impl Response {
     pub fn set_status_code(&mut self, code: StatusCode) {
         self.status_code = Some(code);
         if !code.is_success() {
-            self.http_error = HttpError::from_code(code);
+            self.status_error = StatusError::from_code(code);
         }
     }
 
@@ -366,16 +366,16 @@ impl Response {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get http error if exists, only exists after use `set_http_error` set http error.
+    /// Get http error if exists, only exists after use `set_status_error` set http error.
     #[inline]
-    pub fn http_error(&self) -> Option<&HttpError> {
-        self.http_error.as_ref()
+    pub fn status_error(&self) -> Option<&StatusError> {
+        self.status_error.as_ref()
     }
     /// Set http error.
     #[inline]
-    pub fn set_http_error(&mut self, err: HttpError) {
+    pub fn set_status_error(&mut self, err: StatusError) {
         self.status_code = Some(err.code);
-        self.http_error = Some(err);
+        self.status_error = Some(err);
     }
 
     /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
@@ -462,7 +462,7 @@ impl Response {
 }
 
 impl fmt::Debug for Response {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(
             f,
             "HTTP/1.1 {}\n{:?}",
@@ -472,8 +472,8 @@ impl fmt::Debug for Response {
     }
 }
 
-impl fmt::Display for Response {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Response {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
 }

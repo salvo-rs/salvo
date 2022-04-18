@@ -12,8 +12,8 @@ mod key_pair;
 mod resolver;
 
 use std::collections::{HashMap, HashSet};
-use std::fmt;
-use std::io::{self, Result as IoResult};
+use std::fmt::{self, Display, Formatter};
+use std::io::{self, Result as IoResult, Error as IoError};
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
@@ -73,8 +73,8 @@ pub enum ChallengeType {
     /// Reference: <https://letsencrypt.org/docs/challenge-types/#tls-alpn-01>
     TlsAlpn01,
 }
-impl fmt::Display for ChallengeType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for ChallengeType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ChallengeType::Http01 => f.write_str(CHALLENGE_TYPE_HTTP_01),
             ChallengeType::TlsAlpn01 => f.write_str(CHALLENGE_TYPE_TLS_ALPN_01),
@@ -129,7 +129,7 @@ impl Handler for Http01Handler {
                 res.render(token);
             }
         } else {
-            res.set_http_error(NotFound().with_summary("token is not provide"));
+            res.set_status_error(NotFound().with_summary("token is not provide"));
         }
     }
 }
@@ -251,7 +251,7 @@ impl AcmeListenerBuilder {
     pub async fn bind(self, incoming: impl IntoAddrIncoming) -> AcmeListener {
         self.try_bind(incoming).await.unwrap()
     }
-    /// Consumes this builder and returns a [`Result<AcmeListener, std::io::Error>`] object.
+    /// Consumes this builder and returns a [`Result<AcmeListener, std::IoError>`] object.
     pub async fn try_bind(self, incoming: impl IntoAddrIncoming) -> IoResult<AcmeListener> {
         let Self {
             config_builder,
@@ -356,7 +356,7 @@ impl Listener for AcmeListener {}
 #[async_trait::async_trait]
 impl Accept for AcmeListener {
     type Conn = AcmeStream;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.get_mut();

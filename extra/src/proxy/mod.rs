@@ -1,7 +1,7 @@
 //! ProxyHandler.
 #![allow(clippy::mutex_atomic)]
 use std::convert::TryFrom;
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 use std::sync::Mutex;
 
 use hyper::{Client, Uri};
@@ -24,8 +24,8 @@ impl MsgError {
     }
 }
 
-impl fmt::Display for MsgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for MsgError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.msg)
     }
 }
@@ -79,13 +79,13 @@ impl ProxyHandler {
             self.upstreams.get(0)
         } else {
             tracing::error!("upstreams is empty");
-            return Err(salvo_core::Error::new(MsgError::new("upstreams is empty")));
+            return Err(Error::custom("", MsgError::new("upstreams is empty")));
         }
         .map(|s| &**s)
         .unwrap_or_default();
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
-            return Err(salvo_core::Error::new(MsgError::new("upstreams is empty")));
+            return Err(Error::custom("", MsgError::new("upstreams is empty")));
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
@@ -101,7 +101,7 @@ impl ProxyHandler {
         } else {
             format!("{}/{}", upstream.trim_end_matches('/'), encode_url_path(rest))
         };
-        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::new)?;
+        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(|e| Error::custom("", e))?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
             if key.as_str() != "host" {
@@ -131,7 +131,7 @@ impl ProxyHandler {
         // }
         build
             .body(req.take_body().unwrap_or_default())
-            .map_err(salvo_core::Error::new)
+            .map_err(|e| salvo_core::Error::custom("", e))
     }
 }
 

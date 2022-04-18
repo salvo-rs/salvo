@@ -45,7 +45,7 @@ impl Listener for UnixListener {}
 #[cfg(unix)]
 impl Accept for UnixListener {
     type Conn = UnixStream;
-    type Error = io::Error;
+    type Error = IoError;
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         match self.incoming.poll_accept(cx) {
@@ -108,7 +108,7 @@ mod tests {
     use super::*;
 
     impl Stream for UnixListener {
-        type Item = Result<UnixStream, io::Error>;
+        type Item = Result<UnixStream, IoError>;
 
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)

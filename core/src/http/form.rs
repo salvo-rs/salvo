@@ -8,7 +8,7 @@ use tempdir::TempDir;
 use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use crate::http::errors::ReadError;
+use crate::http::errors::ParseError;
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
 use crate::http::request::{self, Body};
 
@@ -89,7 +89,7 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
-    pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ReadError> {
+    pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
         // Setup a file to capture the contents.
         let mut path = tokio::task::spawn_blocking(|| TempDir::new("salvo_http_multipart"))
             .await
@@ -132,7 +132,7 @@ impl Drop for FilePart {
 }
 
 /// Parse MIME `multipart/*` information from a stream as a `FormData`.
-pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ReadError> {
+pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ParseError> {
     match headers.get(CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
             let data = request::read_body_bytes(body).await?;
@@ -160,6 +160,6 @@ pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<Fo
             }
             Ok(form_data)
         }
-        _ => Err(ReadError::InvalidContentType),
+        _ => Err(ParseError::InvalidContentType),
     }
 }
