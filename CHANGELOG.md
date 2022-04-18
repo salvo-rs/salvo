@@ -1,3 +1,9 @@
+### 0.19.0
+- rewrite Error
+- add acme support
+- rename HttpError to StatusError, ReadError to ParseError.
+- fix router bugs.
+
 ### 0.18.0
 - remove Response::render_json
 
