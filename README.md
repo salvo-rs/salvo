@@ -25,6 +25,7 @@ Salvo is a powerful and simplest web server framework in Rust world.
   - Middleware is handler and support executed before or after handler;
   - Easy to use routing system, routers can be nested, and you can add middlewares on any routers;
   - Multipart form supported, handle files upload is very simple;
+  - Acme supported, obtain TLS certificate from [let's encrypt](https://letsencrypt.org/) automatic;
   - Serve a static virtual directory from many physical directories;
 
 ## ⚡️ Quick start
@@ -40,7 +41,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { version = "0.18", features = ["full"] }
+salvo = { version = "0.19", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 

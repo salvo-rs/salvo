@@ -26,6 +26,7 @@ Salvo 是一个极其简单易用却又功能强大的 Rust Web 后端框架. �
   - 统一的中间件和句柄接口, 中间件系统支持在句柄之前或者之后运行;
   - 简单易用的路由系统, 支持路由嵌套, 在任何嵌套层都可以添加中间件;
   - 集成 multipart 表单处理, 处理上传文件变得非常简单;
+  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书;
   - 支持从多个本地目录映射成一个虚拟目录提供服务.
 
 ## ⚡️ 快速开始
@@ -42,7 +43,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.18", features = ["full"] }
+salvo = { version = "0.19", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
