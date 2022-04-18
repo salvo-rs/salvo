@@ -103,7 +103,6 @@ impl From<BoxedError> for Error {
     }
 }
 
-#[cfg(debug_assertions)]
 #[async_trait]
 impl Writer for Error {
     #[inline]
@@ -116,7 +115,6 @@ impl Writer for Error {
     }
 }
 #[cfg(feature = "anyhow")]
-#[cfg(debug_assertions)]
 #[async_trait]
 impl Writer for anyhow::Error {
     #[inline]
@@ -137,8 +135,8 @@ mod tests {
         let mut req = Request::default();
         let mut res = Response::default();
         let mut depot = Depot::new();
-        let err: anyhow::Error = anyhow::anyhow!("detail message");
-        err.write(&mut req, &mut depot, &mut res).await;
+        let e: anyhow::Error = anyhow::anyhow!("detail message");
+        e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
     }
 
@@ -148,8 +146,8 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let err = Error::custom("", "detail message");
-        err.write(&mut req, &mut depot, &mut res).await;
+        let e = Error::custom("", "detail message");
+        e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
     }
 }
