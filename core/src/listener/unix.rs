@@ -1,5 +1,5 @@
 //! UnixListener module
-use std::io;
+use std::io::{Error as IoError, Result as IoResult};
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -33,7 +33,7 @@ impl UnixListener {
     /// The runtime is usually set implicitly when this function is called
     /// from a future driven by a tokio runtime.
     #[inline]
-    pub fn try_bind(path: impl AsRef<Path>) -> io::Result<UnixListener> {
+    pub fn try_bind(path: impl AsRef<Path>) -> IoResult<UnixListener> {
         Ok(UnixListener {
             incoming: tokio::net::UnixListener::bind(path)?,
         })
@@ -79,29 +79,27 @@ impl UnixStream {
 }
 
 impl AsyncRead for UnixStream {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_read(cx, buf)
     }
 }
 
 impl AsyncWrite for UnixStream {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_write(cx, buf)
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_flush(cx)
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_shutdown(cx)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::io;
-
     use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
