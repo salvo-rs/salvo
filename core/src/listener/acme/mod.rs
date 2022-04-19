@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
-use std::time::{Duration};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use client::AcmeClient;
