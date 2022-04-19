@@ -1,11 +1,9 @@
-use std::{
-    collections::HashMap,
-    collections::HashSet,
-    fmt::{self, Debug, Formatter},
-    io::{Error as IoError, ErrorKind, Result as IoResult},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
+use std::fmt::{self, Debug, Formatter};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
 use http::Uri;
 use parking_lot::RwLock;
@@ -24,6 +22,7 @@ pub struct AcmeConfig {
     pub(crate) challenge_type: ChallengeType,
     pub(crate) cache_path: Option<PathBuf>,
     pub(crate) keys_for_http01: Option<Arc<RwLock<HashMap<String, String>>>>,
+    pub(crate) before_expired: Duration,
 }
 
 impl AcmeConfig {
@@ -56,6 +55,7 @@ pub struct AcmeConfigBuilder {
     pub(crate) challenge_type: ChallengeType,
     pub(crate) cache_path: Option<PathBuf>,
     pub(crate) keys_for_http01: Option<Arc<RwLock<HashMap<String, String>>>>,
+    pub(crate) before_expired: Duration,
 }
 
 impl AcmeConfigBuilder {
@@ -68,6 +68,7 @@ impl AcmeConfigBuilder {
             challenge_type: ChallengeType::TlsAlpn01,
             cache_path: None,
             keys_for_http01: None,
+            before_expired: Duration::from_secs(12 * 60 * 60),
         }
     }
 
@@ -141,6 +142,12 @@ impl AcmeConfigBuilder {
         }
     }
 
+    /// Sets the duration update certificate before it expired.
+    #[inline]
+    pub fn before_expired(self, before_expired: Duration) -> Self {
+        Self { before_expired, ..self }
+    }
+
     /// Consumes this builder and returns a [`AcmeConfig`] object.
     pub fn build(self) -> IoResult<AcmeConfig> {
         self.directory_url
@@ -157,7 +164,7 @@ impl AcmeConfigBuilder {
             challenge_type,
             cache_path,
             keys_for_http01,
-            ..
+            before_expired,
         } = self;
 
         Ok(AcmeConfig {
@@ -169,6 +176,7 @@ impl AcmeConfigBuilder {
             challenge_type: challenge_type,
             cache_path,
             keys_for_http01,
+            before_expired,
         })
     }
 }

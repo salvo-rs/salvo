@@ -1,14 +1,10 @@
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use parking_lot::RwLock;
-use tokio_rustls::rustls::{
-    server::{ClientHello, ResolvesServerCert},
-    sign::CertifiedKey,
-};
+use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert};
+use tokio_rustls::rustls::sign::CertifiedKey;
 use x509_parser::prelude::{FromDer, X509Certificate};
 
 pub(crate) const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
@@ -20,7 +16,7 @@ pub(crate) struct ResolveServerCert {
 }
 
 impl ResolveServerCert {
-    pub(crate) fn is_expired(&self) -> bool {
+    pub(crate) fn will_expired(&self, before: Duration) -> bool {
         let cert = self.cert.read();
         match cert
             .as_ref()
@@ -29,9 +25,8 @@ impl ResolveServerCert {
             .map(|(_, cert)| cert.validity().not_after.timestamp())
         {
             Some(valid_until) => {
-                let now = SystemTime::now();
-                let now = now.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
-                now + 60 * 60 * 12 > valid_until
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                (now + before).as_secs() as i64 > valid_until
             }
             None => true,
         }

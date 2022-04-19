@@ -270,7 +270,7 @@ impl AcmeListenerBuilder {
         let mut cached_cert = None;
         if let Some(cache_path) = &acme_config.cache_path {
             let pkey_data = cache_path
-                .read_pkey_pem(&acme_config.directory_name, &acme_config.domains)
+                .read_pkey(&acme_config.directory_name, &acme_config.domains)
                 .await?;
             if let Some(pkey_data) = pkey_data {
                 tracing::debug!("load private key from cache");
@@ -282,7 +282,7 @@ impl AcmeListenerBuilder {
                 };
             }
             let cert_data = cache_path
-                .read_cert_pem(&acme_config.directory_name, &acme_config.domains)
+                .read_cert(&acme_config.directory_name, &acme_config.domains)
                 .await?;
             if let Some(cert_data) = cert_data {
                 tracing::debug!("load certificate from cache");
@@ -338,7 +338,7 @@ impl AcmeListenerBuilder {
 
         tokio::spawn(async move {
             while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
-                if cert_resolver.is_expired() {
+                if cert_resolver.will_expired(acme_config.before_expired) {
                     if let Err(err) = issuer::issue_cert(&mut client, &acme_config, &cert_resolver).await {
                         tracing::error!(error = %err, "failed to issue certificate");
                     }

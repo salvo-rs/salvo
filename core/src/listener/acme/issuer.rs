@@ -128,10 +128,10 @@ pub(crate) async fn issue_cert(
     tracing::debug!("certificate obtained");
     if let Some(cache_path) = &config.cache_path {
         cache_path
-            .write_pkey_pem(&config.directory_name, &config.domains, pkey_pem.as_bytes())
+            .write_pkey(&config.directory_name, &config.domains, pkey_pem.as_bytes())
             .await?;
         cache_path
-            .write_cert_pem(&config.directory_name, &config.domains, &cert_pem)
+            .write_cert(&config.directory_name, &config.domains, &cert_pem)
             .await?;
     }
     Ok(())
