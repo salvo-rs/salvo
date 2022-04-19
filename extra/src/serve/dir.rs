@@ -168,21 +168,27 @@ impl Handler for StaticDir {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
-        let base_path = if let Some((_, value)) = param {
+        let rel_path = if let Some((_, value)) = param {
             value.clone()
         } else {
             decode_url_path_safely(req_path)
         };
-        let base_path = if base_path.starts_with('/') {
-            format!(".{}", base_path)
-        } else {
-            base_path.to_owned()
-        };
+        let mut used_parts = Vec::with_capacity(8);
+        for part in rel_path.split('/') {
+            if part.is_empty() || part == "."  {
+                continue;
+            } else if part == ".." {
+                used_parts.pop();
+            } else {
+                used_parts.push(part);
+            }
+        }
+        let rel_path: String = used_parts.join("/");
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
         for root in &self.roots {
-            let path = root.join(&base_path);
+            let path = root.join(&rel_path);
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req_path.ends_with('/') {
