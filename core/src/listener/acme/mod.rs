@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration};
 
 use async_trait::async_trait;
 use client::AcmeClient;
@@ -33,7 +33,6 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
-use x509_parser::prelude::{FromDer, X509Certificate};
 
 use crate::addr::SocketAddr;
 use crate::http::errors::NotFound;
@@ -301,18 +300,7 @@ impl AcmeListenerBuilder {
                 .into_iter()
                 .map(tokio_rustls::rustls::Certificate)
                 .collect::<Vec<_>>();
-
-            let expires_at = match certs
-                .first()
-                .and_then(|cert| X509Certificate::from_der(cert.as_ref()).ok())
-                .map(|(_, cert)| cert.validity().not_after.timestamp())
-                .map(|timestamp| UNIX_EPOCH + Duration::from_secs(timestamp as u64))
-            {
-                Some(expires_at) => chrono::DateTime::<chrono::Utc>::from(expires_at).to_string(),
-                None => "unknown".to_string(),
-            };
-
-            tracing::debug!(expires_at = expires_at.as_str(), "using cached tls certificates");
+            tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
                 any_ecdsa_type(&PrivateKey(cached_pkey)).unwrap(),
