@@ -175,7 +175,7 @@ impl Handler for StaticDir {
         };
         let mut used_parts = Vec::with_capacity(8);
         for part in rel_path.split('/') {
-            if part.is_empty() || part == "."  {
+            if part.is_empty() || part == "." {
                 continue;
             } else if part == ".." {
                 used_parts.pop();
