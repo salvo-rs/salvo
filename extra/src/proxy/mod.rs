@@ -1,7 +1,6 @@
 //! ProxyHandler.
 #![allow(clippy::mutex_atomic)]
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
 use std::sync::Mutex;
 
 use hyper::{Client, Uri};
@@ -12,25 +11,6 @@ use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
-
-#[derive(Debug)]
-struct MsgError {
-    msg: String,
-}
-
-impl MsgError {
-    fn new(msg: impl Into<String>) -> MsgError {
-        MsgError { msg: msg.into() }
-    }
-}
-
-impl Display for MsgError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-
-impl std::error::Error for MsgError {}
 
 /// ProxyHandler
 pub struct ProxyHandler {
@@ -79,13 +59,13 @@ impl ProxyHandler {
             self.upstreams.get(0)
         } else {
             tracing::error!("upstreams is empty");
-            return Err(Error::other(MsgError::new("upstreams is empty")));
+            return Err(Error::other("upstreams is empty"));
         }
         .map(|s| &**s)
         .unwrap_or_default();
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
-            return Err(Error::other(MsgError::new("upstreams is empty")));
+            return Err(Error::other("upstreams is empty"));
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
