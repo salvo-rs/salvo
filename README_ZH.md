@@ -43,7 +43,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.19", features = ["full"] }
+salvo = { version = "0.20", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 

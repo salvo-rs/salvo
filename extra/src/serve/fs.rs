@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
-use salvo_core::http::errors::*;
+use salvo_core::http::errors::StatusError;
 use salvo_core::routing::FlowCtrl;
 use salvo_core::Handler;
 use salvo_core::{Depot, Request, Response, Writer};
@@ -31,7 +31,7 @@ impl Handler for StaticFile {
         match self.0.clone().build().await {
             Ok(file) => file.write(req, depot, res).await,
             Err(_) => {
-                res.set_status_error(NotFound());
+                res.set_status_error(StatusError::not_found());
             }
         }
         ctrl.skip_reset();

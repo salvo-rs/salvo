@@ -4,7 +4,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
-use crate::http::errors::{InternalServerError, ParseError, StatusError};
+use crate::http::errors::{ParseError, StatusError};
 use crate::{Depot, Request, Response, Writer};
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
@@ -101,7 +101,7 @@ impl Writer for Error {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let status_error = match self {
             Error::HttpStatus(e) => e,
-            _ => InternalServerError(),
+            _ => StatusError::internal_server_error(),
         };
         res.set_status_error(status_error);
     }
@@ -111,7 +111,7 @@ impl Writer for Error {
 impl Writer for anyhow::Error {
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_error(InternalServerError());
+        res.set_status_error(StatusError::internal_server_error());
     }
 }
 

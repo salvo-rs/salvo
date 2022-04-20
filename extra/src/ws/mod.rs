@@ -14,7 +14,6 @@ use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{future, ready, FutureExt, TryFutureExt};
 use hyper::upgrade::OnUpgrade;
-use salvo_core::http::errors::*;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use salvo_core::http::{StatusCode, StatusError};
@@ -91,7 +90,7 @@ impl WsHandler {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            return Err(BadRequest().with_summary("missing connection upgrade"));
+            return Err(StatusError::bad_request().with_summary("missing connection upgrade"));
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -100,7 +99,7 @@ impl WsHandler {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            return Err(BadRequest().with_summary("missing upgrade header or it is not equal websocket"));
+            return Err(StatusError::bad_request().with_summary("missing upgrade header or it is not equal websocket"));
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -109,13 +108,13 @@ impl WsHandler {
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not equal 13");
-            return Err(BadRequest().with_summary("websocket version is not equal 13"));
+            return Err(StatusError::bad_request().with_summary("websocket version is not equal 13"));
         }
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(BadRequest().with_summary("sec_websocket_key is not exist in request headers"));
+            return Err(StatusError::bad_request().with_summary("sec_websocket_key is not exist in request headers"));
         };
 
         res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
@@ -139,7 +138,7 @@ impl WsHandler {
             Ok(fut)
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
-            Err(BadRequest().with_summary("ws couldn't be upgraded since no upgrade state was present"))
+            Err(StatusError::bad_request().with_summary("ws couldn't be upgraded since no upgrade state was present"))
         }
     }
 }

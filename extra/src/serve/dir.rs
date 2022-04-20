@@ -7,7 +7,7 @@ use chrono::prelude::*;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::async_trait;
 use salvo_core::fs::NamedFile;
-use salvo_core::http::errors::*;
+use salvo_core::http::errors::StatusError;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::writer::Text;
@@ -208,7 +208,9 @@ impl Handler for StaticDir {
                         if let Ok(named_file) = builder.build().await {
                             named_file.write(req, depot, res).await;
                         } else {
-                            res.set_status_error(InternalServerError().with_summary("file read error"));
+                            res.set_status_error(
+                                StatusError::internal_server_error().with_summary("file read error"),
+                            );
                         }
                         return;
                     }
@@ -238,19 +240,19 @@ impl Handler for StaticDir {
                         .map(|s| s.starts_with('.'))
                         .unwrap_or(false)
                 {
-                    res.set_status_error(NotFound());
+                    res.set_status_error(StatusError::not_found());
                     return;
                 }
                 if let Ok(named_file) = NamedFile::open(path).await {
                     named_file.write(req, depot, res).await;
                 } else {
-                    res.set_status_error(InternalServerError().with_summary("file read error"));
+                    res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                 }
                 return;
             }
         }
         if !path_exist || !self.options.listing {
-            res.set_status_error(NotFound());
+            res.set_status_error(StatusError::not_found());
             return;
         }
         let format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
