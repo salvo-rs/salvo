@@ -35,7 +35,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the private key was unable to be written
     /// sucessfully.
-    async fn read_pkey_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
+    async fn read_pkey(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
     ///
@@ -49,7 +49,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// sucessfully.
-    async fn write_pkey_pem(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
+    async fn write_pkey(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 
     /// Returns the previously written certificate retrieved from `Acme`. The parameters are:
     ///
@@ -62,7 +62,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// sucessfully.
-    async fn read_cert_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
+    async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
     ///
@@ -76,7 +76,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// sucessfully.
-    async fn write_cert_pem(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
+    async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 }
 
 static PKEY_PEM_PREFIX: &str = "pkey-";
@@ -88,10 +88,10 @@ where
 {
     type Error = IoError;
 
-    async fn read_pkey_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
+    async fn read_pkey(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
-            "{}{}-{}.pem",
+            "{}{}-{}",
             PKEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -104,11 +104,11 @@ where
             },
         }
     }
-    async fn write_pkey_pem(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
+    async fn write_pkey(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
-            "{}{}-{}.pem",
+            "{}{}-{}",
             PKEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -116,10 +116,10 @@ where
         Ok(write_data(path, data).await?)
     }
 
-    async fn read_cert_pem(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
+    async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
-            "{}{}-{}.pem",
+            "{}{}-{}",
             CERT_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
@@ -132,11 +132,11 @@ where
             },
         }
     }
-    async fn write_cert_pem(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
+    async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
-            "{}{}-{}.pem",
+            "{}{}-{}",
             CERT_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
