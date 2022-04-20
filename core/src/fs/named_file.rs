@@ -25,7 +25,7 @@ use mime_guess::from_path;
 use super::{ChunkedState, FileChunk};
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::{HttpRange, Request, Response, StatusCode};
-use crate::{Writer, Error, Depot, Result};
+use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
 
@@ -160,15 +160,11 @@ impl NamedFileBuilder {
                 }
             })
         });
-        let content_disposition = content_disposition
-            .parse::<HeaderValue>().map_err(Error::other)?;
+        let content_disposition = content_disposition.parse::<HeaderValue>().map_err(Error::other)?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
-            Some(content_encoding) => Some(
-                content_encoding
-                    .parse::<HeaderValue>().map_err(Error::other)?,
-            ),
+            Some(content_encoding) => Some(content_encoding.parse::<HeaderValue>().map_err(Error::other)?),
             None => None,
         };
 

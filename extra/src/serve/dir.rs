@@ -208,9 +208,7 @@ impl Handler for StaticDir {
                         if let Ok(named_file) = builder.build().await {
                             named_file.write(req, depot, res).await;
                         } else {
-                            res.set_status_error(
-                                StatusError::internal_server_error().with_summary("file read error"),
-                            );
+                            res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                         }
                         return;
                     }
