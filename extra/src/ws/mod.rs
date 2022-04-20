@@ -178,7 +178,7 @@ impl Stream for WebSocket {
             Some(Ok(item)) => Poll::Ready(Some(Ok(Message { inner: item }))),
             Some(Err(e)) => {
                 tracing::debug!("websocket poll error: {}", e);
-                Poll::Ready(Some(Err(Error::custom("websocket", e))))
+                Poll::Ready(Some(Err(Error::other("websocket", e))))
             }
             None => {
                 tracing::debug!("websocket closed");
@@ -194,7 +194,7 @@ impl Sink<Message> for WebSocket {
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_ready(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::custom("websocket", e))),
+            Err(e) => Poll::Ready(Err(Error::other("websocket", e))),
         }
     }
 
@@ -203,7 +203,7 @@ impl Sink<Message> for WebSocket {
             Ok(()) => Ok(()),
             Err(e) => {
                 tracing::debug!("websocket start_send error: {}", e);
-                Err(Error::custom("websocket", e))
+                Err(Error::other("websocket", e))
             }
         }
     }
@@ -211,7 +211,7 @@ impl Sink<Message> for WebSocket {
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_flush(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::custom("websocket", e))),
+            Err(e) => Poll::Ready(Err(Error::other("websocket", e))),
         }
     }
 
@@ -220,7 +220,7 @@ impl Sink<Message> for WebSocket {
             Ok(()) => Poll::Ready(Ok(())),
             Err(e) => {
                 tracing::debug!("websocket close error: {}", e);
-                Poll::Ready(Err(Error::custom("websocket", e)))
+                Poll::Ready(Err(Error::other("websocket", e)))
             }
         }
     }

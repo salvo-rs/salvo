@@ -164,14 +164,14 @@ impl NamedFileBuilder {
         });
         let content_disposition = content_disposition
             .parse::<HeaderValue>()
-            .map_err(|e| crate::Error::custom("parse", e))?;
+            .map_err(|e| crate::Error::other("parse", e))?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(
                 content_encoding
                     .parse::<HeaderValue>()
-                    .map_err(|e| crate::Error::custom("parse", e))?,
+                    .map_err(|e| crate::Error::other("parse", e))?,
             ),
             None => None,
         };

@@ -26,7 +26,7 @@ pub enum Error {
     #[cfg(feature = "anyhow")]
     Anyhow(anyhow::Error),
     /// A custom error that does not fall under any other error kind.
-    Custom {
+    Other {
         /// A name for custom error
         cause: String,
         /// A custom error
@@ -35,8 +35,8 @@ pub enum Error {
 }
 impl Error {
     /// Create a custom error.
-    pub fn custom(cause: impl Into<String>, error: impl Into<BoxedError>) -> Self {
-        Self::Custom {
+    pub fn other(cause: impl Into<String>, error: impl Into<BoxedError>) -> Self {
+        Self::Other {
             cause: cause.into(),
             error: error.into(),
         }
@@ -53,7 +53,7 @@ impl Display for Error {
             Self::SerdeJson(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
-            Self::Custom { error: e, .. } => Display::fmt(e, f),
+            Self::Other { error: e, .. } => Display::fmt(e, f),
         }
     }
 }
@@ -99,7 +99,7 @@ impl From<anyhow::Error> for Error {
 
 impl From<BoxedError> for Error {
     fn from(err: BoxedError) -> Error {
-        Error::custom("[unknown]", err)
+        Error::other("[unknown]", err)
     }
 }
 
@@ -146,7 +146,7 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::custom("", "detail message");
+        let e = Error::other("", "detail message");
         e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
     }
