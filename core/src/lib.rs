@@ -53,7 +53,7 @@ pub mod prelude {
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
-    pub use crate::writer::*;
+    pub use crate::writer::{Writer, Piece, Text, Json};
     pub use crate::Handler;
     pub use async_trait::async_trait;
     pub use salvo_macros::fn_handler;

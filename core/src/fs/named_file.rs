@@ -23,11 +23,9 @@ use headers::*;
 use mime_guess::from_path;
 
 use super::{ChunkedState, FileChunk};
-use crate::http::header;
-use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING};
+use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::{HttpRange, Request, Response, StatusCode};
-use crate::Depot;
-use crate::Writer;
+use crate::{Writer, Error, Depot, Result};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
 
@@ -111,7 +109,7 @@ impl NamedFileBuilder {
         self
     }
     /// Build a new `NamedFile`.
-    pub async fn build(self) -> crate::Result<NamedFile> {
+    pub async fn build(self) -> Result<NamedFile> {
         let NamedFileBuilder {
             path,
             content_type,
@@ -163,15 +161,13 @@ impl NamedFileBuilder {
             })
         });
         let content_disposition = content_disposition
-            .parse::<HeaderValue>()
-            .map_err(|e| crate::Error::other("parse", e))?;
+            .parse::<HeaderValue>().map_err(Error::other)?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
             Some(content_encoding) => Some(
                 content_encoding
-                    .parse::<HeaderValue>()
-                    .map_err(|e| crate::Error::other("parse", e))?,
+                    .parse::<HeaderValue>().map_err(Error::other)?,
             ),
             None => None,
         };
@@ -217,7 +213,7 @@ impl NamedFile {
     /// # }
     /// ```
     #[inline]
-    pub async fn open(path: impl Into<PathBuf>) -> crate::Result<NamedFile> {
+    pub async fn open(path: impl Into<PathBuf>) -> Result<NamedFile> {
         Self::builder(path).build().await
     }
 

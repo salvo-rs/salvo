@@ -21,7 +21,7 @@ pub use http::response::Parts;
 use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING};
 use crate::http::StatusCode;
-use crate::Piece;
+use crate::{Error, Piece};
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
@@ -41,7 +41,7 @@ impl Body {
     /// Take body as deserialize it to type `T` instance.
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         let full = self.take_bytes().await?;
-        serde_json::from_slice(&full).map_err(crate::Error::SerdeJson)
+        serde_json::from_slice(&full).map_err(Error::SerdeJson)
     }
     /// Take body as text.
     pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {

@@ -56,7 +56,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
     } else {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {
-                let data = depot.jwt_auth_data::<crate::JwtClaims>().unwrap();
+                let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
                 res.render(Text::Plain(format!(
                     "Hi {}, have logged in successfully!",
                     data.claims.username

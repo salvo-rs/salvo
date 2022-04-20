@@ -26,23 +26,15 @@ pub enum Error {
     #[cfg(feature = "anyhow")]
     Anyhow(anyhow::Error),
     /// A custom error that does not fall under any other error kind.
-    Other {
-        /// A name for custom error
-        cause: String,
-        /// A custom error
-        error: BoxedError,
-    },
-}
-impl Error {
-    /// Create a custom error.
-    pub fn other(cause: impl Into<String>, error: impl Into<BoxedError>) -> Self {
-        Self::Other {
-            cause: cause.into(),
-            error: error.into(),
-        }
-    }
+    Other(BoxedError),
 }
 
+impl Error {
+    /// Create a custom error.
+    pub fn other(error: impl Into<BoxedError>) -> Self {
+        Self::Other(error.into())
+    }
+}
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
@@ -53,7 +45,7 @@ impl Display for Error {
             Self::SerdeJson(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
-            Self::Other { error: e, .. } => Display::fmt(e, f),
+            Self::Other(e) => Display::fmt(e, f),
         }
     }
 }
@@ -99,7 +91,7 @@ impl From<anyhow::Error> for Error {
 
 impl From<BoxedError> for Error {
     fn from(err: BoxedError) -> Error {
-        Error::other("[unknown]", err)
+        Error::Other(err)
     }
 }
 
@@ -137,7 +129,7 @@ mod tests {
         let mut depot = Depot::new();
         let e: anyhow::Error = anyhow::anyhow!("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     #[tokio::test]
@@ -146,8 +138,8 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::other("", "detail message");
+        let e = Error::Other("detail message".into());
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 }

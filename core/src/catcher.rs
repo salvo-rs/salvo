@@ -2,7 +2,7 @@
 use mime::Mime;
 use once_cell::sync::Lazy;
 
-use crate::http::errors::*;
+use crate::http::errors::StatusError;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 use crate::Depot;
 
@@ -120,7 +120,7 @@ impl Catcher for CatcherImpl {
         let (format, data) = if res.status_error.is_some() {
             status_error_bytes(res.status_error.as_ref().unwrap(), &format)
         } else {
-            status_error_bytes(&crate::http::errors::StatusError::from_code(self.0).unwrap(), &format)
+            status_error_bytes(&StatusError::from_code(self.0).unwrap(), &format)
         };
         res.headers_mut()
             .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());

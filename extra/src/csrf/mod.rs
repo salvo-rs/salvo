@@ -240,11 +240,11 @@ impl CsrfHandler {
         } else if let Some(csrf_token) = self.find_csrf_token_in_form(req).await {
             csrf_token
         } else {
-            return Err(Error::other("csrf", "not found"));
+            return Err(Error::other("not found"));
         };
         self.protect
             .parse_token(&csrf_token)
-            .map_err(|e| Error::other("csrf", e))
+            .map_err(|e| Error::other(e))
     }
 
     fn find_csrf_token_in_header(&self, req: &Request) -> Option<Vec<u8>> {
