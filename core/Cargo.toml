@@ -22,7 +22,7 @@ full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile"]
 native-tls = ["tokio-native-tls"]
 unix = []
-acme = ["base64", "chrono", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
+acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
 anyhow = { version = "1", optional = true }
@@ -31,7 +31,6 @@ async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 bitflags = "1"
 bytes = "1"
-chrono = { version = "0.4", optional = true }
 cookie = { version = "0.16", features = ["percent-encode"] }
 encoding_rs = "0.8"
 fastrand = "1.5"
