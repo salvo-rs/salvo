@@ -35,11 +35,11 @@ use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
 
 use crate::addr::SocketAddr;
+use crate::http::errors::StatusError;
 use crate::listener::{IntoAddrIncoming, Listener};
 use crate::routing::FlowCtrl;
 use crate::transport::Transport;
 use crate::{Depot, Handler, Request, Response, Router};
-use crate::http::errors::StatusError;
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 
