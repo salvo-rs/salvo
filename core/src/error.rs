@@ -28,16 +28,16 @@ pub enum Error {
     /// A custom error that does not fall under any other error kind.
     Custom {
         /// A name for custom error
-        name: String,
+        cause: String,
         /// A custom error
         error: BoxedError,
     },
 }
 impl Error {
     /// Create a custom error.
-    pub fn custom(name: impl Into<String>, error: impl Into<BoxedError>) -> Self {
+    pub fn custom(cause: impl Into<String>, error: impl Into<BoxedError>) -> Self {
         Self::Custom {
-            name: name.into(),
+            cause: cause.into(),
             error: error.into(),
         }
     }
@@ -99,7 +99,7 @@ impl From<anyhow::Error> for Error {
 
 impl From<BoxedError> for Error {
     fn from(err: BoxedError) -> Error {
-        Error::custom("", err)
+        Error::custom("[unknown]", err)
     }
 }
 

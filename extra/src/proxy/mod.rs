@@ -79,13 +79,13 @@ impl ProxyHandler {
             self.upstreams.get(0)
         } else {
             tracing::error!("upstreams is empty");
-            return Err(Error::custom("", MsgError::new("upstreams is empty")));
+            return Err(Error::custom("proxy", MsgError::new("upstreams is empty")));
         }
         .map(|s| &**s)
         .unwrap_or_default();
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
-            return Err(Error::custom("", MsgError::new("upstreams is empty")));
+            return Err(Error::custom("proxy", MsgError::new("upstreams is empty")));
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
@@ -101,7 +101,7 @@ impl ProxyHandler {
         } else {
             format!("{}/{}", upstream.trim_end_matches('/'), encode_url_path(rest))
         };
-        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(|e| Error::custom("", e))?;
+        let forward_url: Uri = TryFrom::try_from(forward_url).map_err(|e| Error::custom("proxy", e))?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
             if key.as_str() != "host" {
@@ -131,7 +131,7 @@ impl ProxyHandler {
         // }
         build
             .body(req.take_body().unwrap_or_default())
-            .map_err(|e| salvo_core::Error::custom("", e))
+            .map_err(|e| salvo_core::Error::custom("proxy", e))
     }
 }
 
