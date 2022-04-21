@@ -23,9 +23,9 @@ use headers::*;
 use mime_guess::from_path;
 
 use super::{ChunkedState, FileChunk};
+use crate::http::errors::StatusError;
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::{HttpRange, Request, Response, StatusCode};
-use crate::http::errors::StatusError;
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -222,7 +222,7 @@ impl NamedFile {
         } else {
             match Self::builder(path).build().await {
                 Ok(file) => file.send(req, res).await,
-                Err(_) => res.set_status_error(StatusError::internal_server_error())
+                Err(_) => res.set_status_error(StatusError::internal_server_error()),
             }
         }
     }
@@ -471,7 +471,7 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-       self.send(req, res).await;
+        self.send(req, res).await;
     }
 }
 
