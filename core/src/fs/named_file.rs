@@ -109,6 +109,17 @@ impl NamedFileBuilder {
         self.flags.set(Flags::ETAG, value);
         self
     }
+    /// Build a new `NamedFile` and send it.
+    pub async fn send(self, req: &mut Request, res: &mut Response) {
+        if !self.path.exists() {
+            res.set_status_error(StatusError::not_found());
+        } else {
+            match self.build().await {
+                Ok(file) => file.send(req, res).await,
+                Err(_) => res.set_status_error(StatusError::internal_server_error()),
+            }
+        }
+    }
     /// Build a new `NamedFile`.
     pub async fn build(self) -> Result<NamedFile> {
         let NamedFileBuilder {
