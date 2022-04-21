@@ -52,7 +52,6 @@ mod tests {
             service.handle(req).await.take_text().await.unwrap()
         }
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
-        println!("================={}", content);
         assert!(content.contains("test1.txt") && content.contains("test2.txt"));
 
         let content = access(&service, "text/xml", "http://127.0.0.1:7979/").await;
@@ -72,12 +71,16 @@ mod tests {
 
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/../girl/love/eat.txt").await;
         assert!(content.contains("Not Found"));
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/..\\girl\\love\\eat.txt").await;
+        assert!(content.contains("Not Found"));
 
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/test3.txt").await;
         assert!(content.contains("copy3"));
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/dir2/test3.txt").await;
         assert!(content == "dir2 test3");
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/../dir1/test3.txt").await;
+        assert!(content == "copy3");
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1\\..\\dir1\\test3.txt").await;
         assert!(content == "copy3");
     }
 }

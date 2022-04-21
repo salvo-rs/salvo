@@ -174,7 +174,7 @@ impl Handler for StaticDir {
             decode_url_path_safely(req_path)
         };
         let mut used_parts = Vec::with_capacity(8);
-        for part in rel_path.split('/') {
+        for part in rel_path.split(['/', '\\']) {
             if part.is_empty() || part == "." {
                 continue;
             } else if part == ".." {
