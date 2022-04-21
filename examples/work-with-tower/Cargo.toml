@@ -6,9 +6,9 @@ publish = false
 
 
 [dependencies]
+hyper = { version = "0.14", features = ["server"] }
 salvo = { path = "../../salvo" }
 tokio = "1"
-tracing-subscriber = "0.3"
-tracing = "0.1"
 tower = { version = "0.4", features = ["limit"] }
-hyper = { version = "0.14", features = ["server"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

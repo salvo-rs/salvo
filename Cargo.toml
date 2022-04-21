@@ -1,2 +1,2 @@
 [workspace]
-members = ["salvo", "core", "extra", "macros", "examples/*"]
+members = ["core", "examples/*", "extra", "macros", "salvo"]

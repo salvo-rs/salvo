@@ -9,7 +9,10 @@ static STORE: Lazy<Db> = Lazy::new(|| new_store());
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
+    start_server().await;
+}
 
+pub(crate) async fn start_server() {
     let router = Router::with_path("todos")
         .get(list_todos)
         .post(create_todo)
@@ -89,7 +92,7 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 }
 
 mod models {
-    use serde_derive::{Deserialize, Serialize};
+    use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
 
     pub type Db = Mutex<Vec<Todo>>;
@@ -120,25 +123,26 @@ mod tests {
     use super::models::Todo;
 
     #[tokio::test]
-    async fn test_create() {
+    async fn test_todo_create() {
+        tokio::task::spawn(async {
+            super::start_server().await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         let client = Client::new();
         let resp = client
-            .post("https://0.0.0.0:7878/todos")
+            .post("http://0.0.0.0:7878/todos")
             .json(&test_todo())
             .send()
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(resp.status(), StatusCode::CREATED);
-    }
-
-    #[tokio::test]
-    async fn test_create_conflict() {
-        let client = Client::new();
         let resp = client
-            .post("https://0.0.0.0:7878/todos")
+            .post("http://0.0.0.0:7878/todos")
             .json(&test_todo())
             .send()
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }

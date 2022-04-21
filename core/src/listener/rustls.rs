@@ -484,7 +484,7 @@ mod tests {
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("certs/end.chain");
+            let trust_anchor = include_bytes!("../../certs/end.chain");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())

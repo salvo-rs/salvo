@@ -6,7 +6,8 @@ publish = false
 
 
 [dependencies]
-salvo = { path = "../../salvo", features=["serve"] }
+salvo = { path = "../../salvo", features = ["serve"] }
+serde = { version = "1", features = ["derive"] }
 tokio = "1"
-tracing-subscriber = "0.3"
 tracing = "0.1"
+tracing-subscriber = "0.3"

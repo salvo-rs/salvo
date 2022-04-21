@@ -51,7 +51,7 @@ jobs:
           - crate: salvo-extra
             path: extra
           - crate: salvo
-            path: ""
+            path: "salvo"
     steps:
       - uses: actions-rs/toolchain@v1
         with:

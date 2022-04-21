@@ -6,8 +6,8 @@ publish = false
 
 
 [dependencies]
+futures-util = { version = "0.3", default-features = false }
 salvo = { path = "../../salvo" }
 tokio = "1"
-tracing-subscriber = "0.3"
 tracing = "0.1"
-futures-util = { version = "0.3", default-features = false }
+tracing-subscriber = "0.3"

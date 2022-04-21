@@ -299,7 +299,7 @@ mod tests {
         let addr = "127.0.0.1:7879";
         let mut listener = NativeTlsListener::with_config(
             NativeTlsConfig::new()
-                .with_pkcs12(include_bytes!("certs/identity.p12").to_vec())
+                .with_pkcs12(include_bytes!("../../certs/identity.p12").to_vec())
                 .with_password("mypass"),
         )
         .bind(addr);

@@ -147,7 +147,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
-cargo run --example basic_auth
+cargo run --bin --example-basic_auth
 ```
 
 You can use any example name you want to run instead of ```basic_auth``` here. 
