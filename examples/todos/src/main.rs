@@ -17,13 +17,13 @@ pub(crate) async fn start_server() {
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-    tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[fn_handler]
 pub async fn list_todos(req: &mut Request, res: &mut Response) {
-    let opts = req.read::<ListOptions>().await.unwrap();
+    let opts = req.read::<ListOptions>().await.unwrap_or_default();
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
@@ -113,6 +113,15 @@ mod models {
         pub offset: Option<usize>,
         pub limit: Option<usize>,
     }
+
+    impl Default for ListOptions {
+        fn default() -> Self {
+            Self {
+                offset: None,
+                limit: None,
+            }
+        }
+    } 
 }
 
 #[cfg(test)]
@@ -130,7 +139,7 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         let client = Client::new();
         let resp = client
-            .post("http://0.0.0.0:7878/todos")
+            .post("http://127.0.0.1:7878/todos")
             .json(&test_todo())
             .send()
             .await
@@ -138,7 +147,7 @@ mod tests {
 
         assert_eq!(resp.status(), StatusCode::CREATED);
         let resp = client
-            .post("http://0.0.0.0:7878/todos")
+            .post("http://127.0.0.1:7878/todos")
             .json(&test_todo())
             .send()
             .await
