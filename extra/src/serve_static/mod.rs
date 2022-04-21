@@ -3,5 +3,5 @@
 mod dir;
 mod fs;
 
-pub use dir::{Options, StaticDir};
-pub use fs::StaticFile;
+pub use dir::{Options, DirHandler};
+pub use fs::FileHandler;

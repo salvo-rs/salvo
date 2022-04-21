@@ -89,23 +89,23 @@ impl StaticRoots for Path {
         vec![PathBuf::from(self)]
     }
 }
-/// StaticDir
+/// DirHandler
 #[derive(Clone)]
-pub struct StaticDir {
+pub struct DirHandler {
     roots: Vec<PathBuf>,
     options: Options,
     chunk_size: Option<u64>,
 }
-impl StaticDir {
-    /// Create new `StaticDir`.
+impl DirHandler {
+    /// Create new `DirHandler`.
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
-        StaticDir::width_options(roots, Options::default())
+        DirHandler::width_options(roots, Options::default())
     }
-    /// Create new `StaticDir` with options.
+    /// Create new `DirHandler` with options.
     #[inline]
     pub fn width_options<T: StaticRoots + Sized>(roots: T, options: Options) -> Self {
-        StaticDir {
+        DirHandler {
             roots: roots.collect(),
             options,
             chunk_size: None,
@@ -164,7 +164,7 @@ impl DirInfo {
 }
 
 #[async_trait]
-impl Handler for StaticDir {
+impl Handler for DirHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();

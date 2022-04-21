@@ -184,11 +184,11 @@ impl Handler for CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve_static::StaticFile;
+/// use salvo_extra::serve_static::FileHandler;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::gzip())
-///     .get(StaticFile::new("./README.md"));
+///     .get(FileHandler::new("./README.md"));
 /// ```
 pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Gzip)
@@ -202,11 +202,11 @@ pub fn gzip() -> CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve_static::StaticFile;
+/// use salvo_extra::serve_static::FileHandler;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::deflate())
-///     .get(StaticFile::new("./README.md"));
+///     .get(FileHandler::new("./README.md"));
 /// ```
 pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Deflate)
@@ -220,11 +220,11 @@ pub fn deflate() -> CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve_static::StaticFile;
+/// use salvo_extra::serve_static::FileHandler;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::brotli())
-///     .get(StaticFile::new("./README.md"));
+///     .get(FileHandler::new("./README.md"));
 /// ```
 pub fn brotli() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Brotli)

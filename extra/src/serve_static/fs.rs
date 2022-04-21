@@ -7,14 +7,14 @@ use salvo_core::routing::FlowCtrl;
 use salvo_core::Handler;
 use salvo_core::{Depot, Request, Response, Writer};
 
-/// StaticFile
+/// FileHandler
 #[derive(Clone)]
-pub struct StaticFile(NamedFileBuilder);
+pub struct FileHandler(NamedFileBuilder);
 
-impl StaticFile {
-    /// Create a new `StaticFile`.
+impl FileHandler {
+    /// Create a new `FileHandler`.
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        StaticFile(NamedFile::builder(path))
+        FileHandler(NamedFile::builder(path))
     }
 
     /// During the file chunk read, the maximum read size at one time will affect the
@@ -26,7 +26,7 @@ impl StaticFile {
 }
 
 #[async_trait]
-impl Handler for StaticFile {
+impl Handler for FileHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.0.clone().build().await {
             Ok(file) => file.write(req, depot, res).await,
