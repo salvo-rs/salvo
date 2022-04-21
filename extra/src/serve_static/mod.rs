@@ -3,5 +3,5 @@
 mod dir;
 mod fs;
 
-pub use dir::{Options, DirHandler};
+pub use dir::{DirHandler, Options};
 pub use fs::FileHandler;

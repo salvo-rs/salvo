@@ -1,4 +1,4 @@
-use salvo::extra::serve_static::{Options, DirHandler};
+use salvo::extra::serve_static::{DirHandler, Options};
 use salvo::prelude::*;
 
 #[tokio::main]
