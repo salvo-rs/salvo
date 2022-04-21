@@ -6,7 +6,7 @@ publish = false
 
 
 [dependencies]
-salvo = { path = "../../salvo", features = ["serve_static"] }
+salvo = { path = "../../salvo", features = ["serve-static"] }
 serde = { version = "1", features = ["derive"] }
 tokio = "1"
 tracing = "0.1"
