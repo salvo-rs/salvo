@@ -17,7 +17,7 @@ use salvo::prelude::*;
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
 
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-static ONLINE_USERS: Lazy<Users> = Lazy::new(|| Users::default());
+static ONLINE_USERS: Lazy<Users> = Lazy::new(Users::default);
 
 #[tokio::main]
 async fn main() {

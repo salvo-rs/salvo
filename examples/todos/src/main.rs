@@ -4,7 +4,7 @@ use salvo::prelude::*;
 
 use self::models::*;
 
-static STORE: Lazy<Db> = Lazy::new(|| new_store());
+static STORE: Lazy<Db> = Lazy::new(new_store);
 
 #[tokio::main]
 async fn main() {

@@ -173,7 +173,7 @@ impl AcmeConfigBuilder {
             domains: domains.into_iter().collect(),
             contacts: contacts.into_iter().collect(),
             key_pair: Arc::new(KeyPair::generate()?),
-            challenge_type: challenge_type,
+            challenge_type,
             cache_path,
             keys_for_http01,
             before_expired,

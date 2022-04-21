@@ -111,7 +111,7 @@ impl ProxyHandler {
         // }
         build
             .body(req.take_body().unwrap_or_default())
-            .map_err(|e| Error::other(e))
+            .map_err(Error::other)
     }
 }
 

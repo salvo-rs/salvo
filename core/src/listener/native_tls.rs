@@ -1,4 +1,5 @@
 //! tls module
+use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::io::{self, Cursor, Error as IoError, ErrorKind, Read};
 use std::path::Path;
@@ -24,12 +25,17 @@ pub struct NativeTlsConfig {
     password: String,
 }
 
-impl std::fmt::Debug for NativeTlsConfig {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl fmt::Debug for NativeTlsConfig {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("NativeTlsConfig").finish()
     }
 }
 
+impl Default for NativeTlsConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl NativeTlsConfig {
     /// Create new `NativeTlsConfig`
     #[inline]
@@ -169,11 +175,9 @@ where
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
-        if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
-            if let Some(identity) = result {
-                let identity = identity.into();
-                *this.identity = Some(identity);
-            }
+        if let Poll::Ready(Some(identity)) = this.config_stream.poll_next(cx) {
+            let identity = identity.into();
+            *this.identity = Some(identity);
         }
         if let Some(identity) = this.identity {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {

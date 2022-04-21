@@ -22,11 +22,10 @@ async fn handle_tick(_req: &mut Request, res: &mut Response) {
         let mut counter: u64 = 0;
         let interval = interval(Duration::from_secs(1));
         let stream = IntervalStream::new(interval);
-        let event_stream = stream.map(move |_| {
+        stream.map(move |_| {
             counter += 1;
             sse_counter(counter)
-        });
-        event_stream
+        })
     };
     sse::streaming(res, event_stream);
 }

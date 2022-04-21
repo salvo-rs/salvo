@@ -63,6 +63,7 @@ store if it requires it.
 */
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 
+use std::fmt::{self, Formatter};
 use std::time::Duration;
 
 use async_session::base64;
@@ -115,8 +116,8 @@ pub struct SessionHandler<S> {
     same_site_policy: SameSite,
     key: Key,
 }
-impl<S: SessionStore> std::fmt::Debug for SessionHandler<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionManger")
             .field("store", &self.store)
             .field("cookie_path", &self.cookie_path)

@@ -6,6 +6,7 @@ pub mod core;
 
 use std::collections::HashSet;
 use std::time::Duration;
+use std::fmt::{self, Formatter};
 
 use self::core::{
     AesGcmCsrfProtection, CsrfCookie, CsrfProtection, CsrfToken, UnencryptedCsrfCookie, UnencryptedCsrfToken,
@@ -76,8 +77,8 @@ pub struct CsrfHandler {
     protect: AesGcmCsrfProtection,
 }
 
-impl std::fmt::Debug for CsrfHandler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for CsrfHandler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("CsrfHandler")
             .field("cookie_path", &self.cookie_path)
             .field("cookie_name", &self.cookie_name)
@@ -242,7 +243,7 @@ impl CsrfHandler {
         } else {
             return Err(Error::other("not found"));
         };
-        self.protect.parse_token(&csrf_token).map_err(|e| Error::other(e))
+        self.protect.parse_token(&csrf_token).map_err(Error::other)
     }
 
     fn find_csrf_token_in_header(&self, req: &Request) -> Option<Vec<u8>> {
