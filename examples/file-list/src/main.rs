@@ -80,7 +80,12 @@ mod tests {
         assert!(content == "dir2 test3");
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/../dir1/test3.txt").await;
         assert!(content == "copy3");
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1\\..\\dir1\\test3.txt").await;
+        let content = access(
+            &service,
+            "text/plain",
+            "http://127.0.0.1:7979/dir1\\..\\dir1\\test3.txt",
+        )
+        .await;
         assert!(content == "copy3");
     }
 }
