@@ -1,0 +1,15 @@
+[package]
+name = "example-jwt-auth"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+
+[dependencies]
+salvo = { path = "../../salvo" }
+tokio = "1"
+tracing-subscriber = "0.3"
+tracing = "0.1"
+serde = "1"
+chrono = "0.4"
+jsonwebtoken = "8.0"

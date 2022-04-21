@@ -117,17 +117,16 @@ mod tests {
     use reqwest::Client;
     use salvo::http::StatusCode;
 
-    use super::filters;
-    use super::models::{self, Todo};
+    use super::models::Todo;
 
     #[tokio::test]
     async fn test_create() {
         let client = Client::new();
         let resp = client
             .post("https://0.0.0.0:7878/todos")
-            .json(&test_todo)
+            .json(&test_todo())
             .send()
-            .await?;
+            .await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::CREATED);
     }
@@ -137,9 +136,9 @@ mod tests {
         let client = Client::new();
         let resp = client
             .post("https://0.0.0.0:7878/todos")
-            .json(&test_todo)
+            .json(&test_todo())
             .send()
-            .await?;
+            .await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }

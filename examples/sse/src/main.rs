@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use futures_util::StreamExt;
 use salvo::prelude::*;
-use salvo_extra::sse::{self, SseEvent};
+use salvo::extra::sse::{self, SseEvent};
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;
 

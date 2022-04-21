@@ -1,5 +1,5 @@
-use salvo_core::prelude::*;
-use salvo_extra::serve::{Options, StaticDir};
+use salvo::prelude::*;
+use salvo::extra::serve::{Options, StaticDir};
 
 #[tokio::main]
 async fn main() {

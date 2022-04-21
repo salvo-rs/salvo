@@ -13,7 +13,7 @@ async fn main() {
     let router = Router::new().get(hello_world);
     let listener = NativeTlsListener::with_config(
         NativeTlsConfig::new()
-            .with_pkcs12(include_bytes!("certs/identity.p12").to_vec())
+            .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
             .with_password("mypass"),
     )
     .bind("0.0.0.0:7878");

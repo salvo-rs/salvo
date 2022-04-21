@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_extra::proxy::ProxyHandler;
+use salvo::extra::proxy::ProxyHandler;
 
 #[tokio::main]
 async fn main() {
