@@ -25,6 +25,7 @@ use mime_guess::from_path;
 use super::{ChunkedState, FileChunk};
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::{HttpRange, Request, Response, StatusCode};
+use crate::http::errors::StatusError;
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -213,6 +214,19 @@ impl NamedFile {
         Self::builder(path).build().await
     }
 
+    /// Attempts to send a file. If file not exists, not found error will occur.
+    pub async fn send_file(path: impl Into<PathBuf>, req: &mut Request, res: &mut Response) {
+        let path = path.into();
+        if !path.exists() {
+            res.set_status_error(StatusError::not_found());
+        } else {
+            match Self::builder(path).build().await {
+                Ok(file) => file.send(req, res).await,
+                Err(_) => res.set_status_error(StatusError::internal_server_error())
+            }
+        }
+    }
+
     /// Returns reference to the underlying `File` object.
     #[inline]
     pub fn file(&self) -> &File {
@@ -340,11 +354,7 @@ impl NamedFile {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
-}
-
-#[async_trait]
-impl Writer for NamedFile {
-    async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    async fn send(self, req: &mut Request, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
         } else {
@@ -455,6 +465,13 @@ impl Writer for NamedFile {
             res.headers_mut().typed_insert(ContentLength(length - offset));
             res.streaming(reader)
         }
+    }
+}
+
+#[async_trait]
+impl Writer for NamedFile {
+    async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+       self.send(req, res).await;
     }
 }
 
