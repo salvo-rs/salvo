@@ -230,7 +230,7 @@ impl CsrfHandler {
         // location. And we can't use `or_else` chaining since the
         // function that searches through the form body is async. Note
         // that if parsing the body fails then we want to returns an
-        // InternalServerError, hence the `?`. This is not the same as
+        // StatusError::internal_server_error(), hence the `?`. This is not the same as
         // what we will do later, which is convert failures to *parse* a
         // found CSRF token into Forbidden responses.
         let csrf_token = if let Some(csrf_token) = self.find_csrf_token_in_header(req) {
@@ -240,11 +240,9 @@ impl CsrfHandler {
         } else if let Some(csrf_token) = self.find_csrf_token_in_form(req).await {
             csrf_token
         } else {
-            return Err(Error::custom("csrf", "not found"));
+            return Err(Error::other("not found"));
         };
-        self.protect
-            .parse_token(&csrf_token)
-            .map_err(|e| Error::custom("csrf", e))
+        self.protect.parse_token(&csrf_token).map_err(|e| Error::other(e))
     }
 
     fn find_csrf_token_in_header(&self, req: &Request) -> Option<Vec<u8>> {

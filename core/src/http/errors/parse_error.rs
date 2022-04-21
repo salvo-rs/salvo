@@ -4,7 +4,7 @@ use std::str::Utf8Error;
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::http::errors::*;
+use crate::http::errors::StatusError;
 use crate::{Depot, Request, Response, Writer};
 
 /// ParseError, errors happened when read data from http request.
@@ -59,7 +59,7 @@ pub enum ParseError {
 impl Writer for ParseError {
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_status_error(
-            InternalServerError()
+            StatusError::internal_server_error()
                 .with_summary("http read error happened")
                 .with_detail("there is no more detailed explanation."),
         );

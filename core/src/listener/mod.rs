@@ -316,8 +316,9 @@ mod tests {
             stream.write_i32(100).await.unwrap();
         });
         let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 50);
+        let first = stream.read_i32().await.unwrap();
         let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 100);
+        let second = stream.read_i32().await.unwrap();
+        assert_eq!(first + second, 150);
     }
 }

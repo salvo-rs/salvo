@@ -35,7 +35,7 @@ use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::NotFound;
+use crate::http::errors::StatusError;
 use crate::listener::{IntoAddrIncoming, Listener};
 use crate::routing::FlowCtrl;
 use crate::transport::Transport;
@@ -128,7 +128,7 @@ impl Handler for Http01Handler {
                 res.render(token);
             }
         } else {
-            res.set_status_error(NotFound().with_summary("token is not provide"));
+            res.set_status_error(StatusError::not_found().with_summary("token is not provide"));
         }
     }
 }

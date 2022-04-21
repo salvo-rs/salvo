@@ -4,7 +4,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
-use crate::http::errors::{InternalServerError, ParseError, StatusError};
+use crate::http::errors::{ParseError, StatusError};
 use crate::{Depot, Request, Response, Writer};
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
@@ -26,23 +26,15 @@ pub enum Error {
     #[cfg(feature = "anyhow")]
     Anyhow(anyhow::Error),
     /// A custom error that does not fall under any other error kind.
-    Custom {
-        /// A name for custom error
-        name: String,
-        /// A custom error
-        error: BoxedError,
-    },
-}
-impl Error {
-    /// Create a custom error.
-    pub fn custom(name: impl Into<String>, error: impl Into<BoxedError>) -> Self {
-        Self::Custom {
-            name: name.into(),
-            error: error.into(),
-        }
-    }
+    Other(BoxedError),
 }
 
+impl Error {
+    /// Create a custom error.
+    pub fn other(error: impl Into<BoxedError>) -> Self {
+        Self::Other(error.into())
+    }
+}
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
@@ -53,7 +45,7 @@ impl Display for Error {
             Self::SerdeJson(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
-            Self::Custom { error: e, .. } => Display::fmt(e, f),
+            Self::Other(e) => Display::fmt(e, f),
         }
     }
 }
@@ -99,7 +91,7 @@ impl From<anyhow::Error> for Error {
 
 impl From<BoxedError> for Error {
     fn from(err: BoxedError) -> Error {
-        Error::custom("", err)
+        Error::Other(err)
     }
 }
 
@@ -109,7 +101,7 @@ impl Writer for Error {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let status_error = match self {
             Error::HttpStatus(e) => e,
-            _ => InternalServerError(),
+            _ => StatusError::internal_server_error(),
         };
         res.set_status_error(status_error);
     }
@@ -119,7 +111,7 @@ impl Writer for Error {
 impl Writer for anyhow::Error {
     #[inline]
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_error(InternalServerError());
+        res.set_status_error(StatusError::internal_server_error());
     }
 }
 
@@ -137,7 +129,7 @@ mod tests {
         let mut depot = Depot::new();
         let e: anyhow::Error = anyhow::anyhow!("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     #[tokio::test]
@@ -146,8 +138,8 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
 
-        let e = Error::custom("", "detail message");
+        let e = Error::Other("detail message".into());
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(crate::http::StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 }

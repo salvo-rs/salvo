@@ -43,7 +43,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use crate::depot::Depot;
-    pub use crate::http::errors::*;
+    pub use crate::http::errors::StatusError;
     pub use crate::http::{Request, Response, StatusCode};
     #[cfg(feature = "rustls")]
     pub use crate::listener::RustlsListener;
@@ -53,7 +53,7 @@ pub mod prelude {
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
-    pub use crate::writer::*;
+    pub use crate::writer::{Json, Piece, Text, Writer};
     pub use crate::Handler;
     pub use async_trait::async_trait;
     pub use salvo_macros::fn_handler;
