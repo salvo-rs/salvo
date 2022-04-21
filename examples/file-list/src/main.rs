@@ -1,5 +1,5 @@
-use salvo::prelude::*;
 use salvo::extra::serve::{Options, StaticDir};
+use salvo::prelude::*;
 
 #[tokio::main]
 async fn main() {
@@ -19,10 +19,10 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
+    use salvo::extra::serve::*;
     use salvo::hyper;
     use salvo::prelude::*;
-    use salvo::extra::serve::*;
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize)]
     struct JwtClaims {
