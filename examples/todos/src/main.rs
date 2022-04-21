@@ -108,20 +108,11 @@ mod models {
         pub completed: bool,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Deserialize, Debug, Default)]
     pub struct ListOptions {
         pub offset: Option<usize>,
         pub limit: Option<usize>,
     }
-
-    impl Default for ListOptions {
-        fn default() -> Self {
-            Self {
-                offset: None,
-                limit: None,
-            }
-        }
-    } 
 }
 
 #[cfg(test)]
