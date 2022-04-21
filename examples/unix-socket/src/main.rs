@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() {
-    use salvo::extra::serve::StaticDir;
+    use salvo::extra::serve_static::StaticDir;
     use salvo::prelude::*;
 
     let router = Router::with_path("files/<*path>").get(StaticDir::new("./static"));

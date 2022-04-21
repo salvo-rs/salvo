@@ -1,5 +1,5 @@
 use salvo::extra::compression;
-use salvo::extra::serve::*;
+use salvo::extra::serve_static::*;
 use salvo::prelude::*;
 
 #[tokio::main]

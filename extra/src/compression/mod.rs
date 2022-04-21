@@ -184,7 +184,7 @@ impl Handler for CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve::StaticFile;
+/// use salvo_extra::serve_static::StaticFile;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::gzip())
@@ -202,7 +202,7 @@ pub fn gzip() -> CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve::StaticFile;
+/// use salvo_extra::serve_static::StaticFile;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::deflate())
@@ -220,7 +220,7 @@ pub fn deflate() -> CompressionHandler {
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_extra::compression;
-/// use salvo_extra::serve::StaticFile;
+/// use salvo_extra::serve_static::StaticFile;
 ///
 /// let router = Router::new()
 ///     .hoop(compression::brotli())

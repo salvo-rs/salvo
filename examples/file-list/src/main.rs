@@ -1,4 +1,4 @@
-use salvo::extra::serve::{Options, StaticDir};
+use salvo::extra::serve_static::{Options, StaticDir};
 use salvo::prelude::*;
 
 #[tokio::main]
@@ -19,7 +19,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use salvo::extra::serve::*;
+    use salvo::extra::serve_static::*;
     use salvo::hyper;
     use salvo::prelude::*;
     use serde::{Deserialize, Serialize};
