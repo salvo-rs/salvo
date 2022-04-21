@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Get releasing version
+        working-directory: salvo
         run: echo NEXT_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
 
       - name: Check published version
