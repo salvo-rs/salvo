@@ -5,8 +5,8 @@
 pub mod core;
 
 use std::collections::HashSet;
-use std::time::Duration;
 use std::fmt::{self, Formatter};
+use std::time::Duration;
 
 use self::core::{
     AesGcmCsrfProtection, CsrfCookie, CsrfProtection, CsrfToken, UnencryptedCsrfCookie, UnencryptedCsrfToken,
