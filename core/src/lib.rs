@@ -44,12 +44,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
+    #[cfg(feature = "acme")]
+    pub use crate::listener::AcmeListener;
     #[cfg(feature = "rustls")]
     pub use crate::listener::RustlsListener;
     #[cfg(unix)]
     pub use crate::listener::UnixListener;
-    #[cfg(feature = "acme")]
-    pub use crate::listener::AcmeListener;
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
