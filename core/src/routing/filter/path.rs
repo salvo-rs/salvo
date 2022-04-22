@@ -625,33 +625,29 @@ impl PathFilter {
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
-        if !self.path_parts.is_empty() {
-            let original_cursor = state.cursor;
-            for ps in &self.path_parts {
-                if ps.detect(state) {
-                    if !state.ended() {
-                        let rest = &state.url_path[state.cursor..];
-                        if rest.starts_with('/') {
+        let original_cursor = state.cursor;
+        for ps in &self.path_parts {
+            if ps.detect(state) {
+                if !state.ended() {
+                    let rest = &state.url_path[state.cursor..];
+                    if rest.starts_with('/') {
+                        state.cursor += 1;
+                        let mut rest = &state.url_path[state.cursor..];
+                        while rest.starts_with('/') {
                             state.cursor += 1;
-                            let mut rest = &state.url_path[state.cursor..];
-                            while rest.starts_with('/') {
-                                state.cursor += 1;
-                                rest = &state.url_path[state.cursor..];
-                            }
-                        } else if !rest.is_empty() {
-                            state.cursor = original_cursor;
-                            return false;
+                            rest = &state.url_path[state.cursor..];
                         }
+                    } else if !rest.is_empty() {
+                        state.cursor = original_cursor;
+                        return false;
                     }
-                } else {
-                    state.cursor = original_cursor;
-                    return false;
                 }
+            } else {
+                state.cursor = original_cursor;
+                return false;
             }
-            true
-        } else {
-            true
         }
+        true
     }
 }
 
