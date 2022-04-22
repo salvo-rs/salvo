@@ -77,14 +77,16 @@ impl Piece for String {
 pub enum Text<C> {
     /// It will set ```content-type``` to ```text/plain; charset=utf-8```.
     Plain(C),
-    /// It will set ```content-type``` to ```text/javascript; charset=utf-8```.
-    Js(C),
     /// It will set ```content-type``` to ```application/json; charset=utf-8```.
     Json(C),
-    /// It will set ```content-type``` to ```text/html; charset=utf-8```.
-    Html(C),
     /// It will set ```content-type``` to ```application/xml; charset=utf-8```.
     Xml(C),
+    /// It will set ```content-type``` to ```text/html; charset=utf-8```.
+    Html(C),
+    /// It will set ```content-type``` to ```text/javascript; charset=utf-8```.
+    Js(C),
+    /// It will set ```content-type``` to ```text/css; charset=utf-8```.
+    Css(C),
 }
 impl<C> Piece for Text<C>
 where
@@ -93,10 +95,11 @@ where
     fn render(self, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
-            Self::Js(content) => (HeaderValue::from_static("text/javascript; charset=utf-8"), content),
             Self::Json(content) => (HeaderValue::from_static("application/json; charset=utf-8"), content),
-            Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
             Self::Xml(content) => (HeaderValue::from_static("application/xml; charset=utf-8"), content),
+            Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
+            Self::Js(content) => (HeaderValue::from_static("text/javascript; charset=utf-8"), content),
+            Self::Css(content) => (HeaderValue::from_static("text/css; charset=utf-8"), content),
         };
         res.headers_mut().insert(CONTENT_TYPE, ctype);
         res.write_body_bytes(content.as_ref().as_bytes());
