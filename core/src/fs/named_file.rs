@@ -365,7 +365,8 @@ impl NamedFile {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
-    async fn send(self, req: &mut Request, res: &mut Response) {
+    ///Send file.
+    pub async fn send(self, req: &mut Request, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
         } else {
