@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           strategy: regex
-          root: "Cargo.toml"
+          root: "salvo/Cargo.toml"
           regex_pattern: "version\\s*=\\s*\"([0-9\\.]+)\""
           tag_prefix: "v"
           # version: "${{ env.NEXT_VERSION }}"
