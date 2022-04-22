@@ -37,3 +37,5 @@ pub mod ws;
 
 #[cfg(feature = "size-limiter")]
 pub mod size_limiter;
+#[cfg(feature = "timeout")]
+pub mod timeout;

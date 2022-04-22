@@ -11,7 +11,7 @@ use salvo_core::http::errors::StatusError;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::writer::Text;
-use salvo_core::{Depot, Handler, Writer};
+use salvo_core::{Depot, Handler};
 use serde_json::json;
 
 /// Options

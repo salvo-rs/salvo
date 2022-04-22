@@ -596,6 +596,11 @@ impl PathFilter {
     /// Create new `PathFilter`.
     pub fn new(value: impl Into<String>) -> Self {
         let raw_value = value.into();
+        if raw_value.is_empty() {
+            tracing::warn!("you should not add empty string as path filter");
+        } else if raw_value == "/" {
+            tracing::warn!("you should not add '/' as path filter");
+        }
         let mut parser = PathParser::new(&raw_value);
         let path_parts = match parser.parse() {
             Ok(path_parts) => path_parts,
@@ -620,33 +625,29 @@ impl PathFilter {
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
-        if !self.path_parts.is_empty() {
-            let original_cursor = state.cursor;
-            for ps in &self.path_parts {
-                if ps.detect(state) {
-                    if !state.ended() {
-                        let rest = &state.url_path[state.cursor..];
-                        if rest.starts_with('/') {
+        let original_cursor = state.cursor;
+        for ps in &self.path_parts {
+            if ps.detect(state) {
+                if !state.ended() {
+                    let rest = &state.url_path[state.cursor..];
+                    if rest.starts_with('/') {
+                        state.cursor += 1;
+                        let mut rest = &state.url_path[state.cursor..];
+                        while rest.starts_with('/') {
                             state.cursor += 1;
-                            let mut rest = &state.url_path[state.cursor..];
-                            while rest.starts_with('/') {
-                                state.cursor += 1;
-                                rest = &state.url_path[state.cursor..];
-                            }
-                        } else if !rest.is_empty() {
-                            state.cursor = original_cursor;
-                            return false;
+                            rest = &state.url_path[state.cursor..];
                         }
+                    } else if !rest.is_empty() {
+                        state.cursor = original_cursor;
+                        return false;
                     }
-                } else {
-                    state.cursor = original_cursor;
-                    return false;
                 }
+            } else {
+                state.cursor = original_cursor;
+                return false;
             }
-            true
-        } else {
-            false
         }
+        true
     }
 }
 
