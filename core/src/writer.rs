@@ -93,7 +93,7 @@ where
     fn render(self, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
-            Self::Json(content) => (HeaderValue::from_static("text/javascript; charset=utf-8"), content),
+            Self::Js(content) => (HeaderValue::from_static("text/javascript; charset=utf-8"), content),
             Self::Json(content) => (HeaderValue::from_static("application/json; charset=utf-8"), content),
             Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
             Self::Xml(content) => (HeaderValue::from_static("application/xml; charset=utf-8"), content),
