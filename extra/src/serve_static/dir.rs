@@ -165,7 +165,7 @@ impl DirInfo {
 
 #[async_trait]
 impl Handler for DirHandler {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
         let rel_path = if let Some((_, value)) = param {
@@ -206,7 +206,7 @@ impl Handler for DirHandler {
                             builder
                         };
                         if let Ok(named_file) = builder.build().await {
-                            named_file.write(req, depot, res).await;
+                            named_file.send(req, res).await;
                         } else {
                             res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                         }
@@ -242,7 +242,7 @@ impl Handler for DirHandler {
                     return;
                 }
                 if let Ok(named_file) = NamedFile::open(path).await {
-                    named_file.write(req, depot, res).await;
+                    named_file.send(req, res).await;
                 } else {
                     res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                 }
