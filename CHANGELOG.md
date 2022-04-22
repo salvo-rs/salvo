@@ -1,3 +1,8 @@
+### 0.20.0
+- Fix security issue
+- Rename feature serve to serve-static
+- Add api to NamedFile
+
 ### 0.19.0
 - rewrite Error
 - add acme support

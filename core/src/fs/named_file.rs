@@ -23,9 +23,9 @@ use headers::*;
 use mime_guess::from_path;
 
 use super::{ChunkedState, FileChunk};
+use crate::http::errors::StatusError;
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
 use crate::http::{HttpRange, Request, Response, StatusCode};
-use crate::http::errors::StatusError;
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -108,6 +108,17 @@ impl NamedFileBuilder {
     pub fn use_etag(mut self, value: bool) -> Self {
         self.flags.set(Flags::ETAG, value);
         self
+    }
+    /// Build a new `NamedFile` and send it.
+    pub async fn send(self, req: &mut Request, res: &mut Response) {
+        if !self.path.exists() {
+            res.set_status_error(StatusError::not_found());
+        } else {
+            match self.build().await {
+                Ok(file) => file.send(req, res).await,
+                Err(_) => res.set_status_error(StatusError::internal_server_error()),
+            }
+        }
     }
     /// Build a new `NamedFile`.
     pub async fn build(self) -> Result<NamedFile> {
@@ -222,7 +233,7 @@ impl NamedFile {
         } else {
             match Self::builder(path).build().await {
                 Ok(file) => file.send(req, res).await,
-                Err(_) => res.set_status_error(StatusError::internal_server_error())
+                Err(_) => res.set_status_error(StatusError::internal_server_error()),
             }
         }
     }
@@ -354,7 +365,8 @@ impl NamedFile {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
-    async fn send(self, req: &mut Request, res: &mut Response) {
+    ///Send file.
+    pub async fn send(self, req: &mut Request, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()
         } else {
@@ -471,7 +483,7 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-       self.send(req, res).await;
+        self.send(req, res).await;
     }
 }
 

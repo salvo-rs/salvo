@@ -43,8 +43,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use crate::depot::Depot;
-    pub use crate::http::errors::StatusError;
-    pub use crate::http::{Request, Response, StatusCode};
+    pub use crate::http::{Request, Response, StatusCode, StatusError};
+    #[cfg(feature = "acme")]
+    pub use crate::listener::AcmeListener;
     #[cfg(feature = "rustls")]
     pub use crate::listener::RustlsListener;
     #[cfg(unix)]

@@ -109,9 +109,7 @@ impl ProxyHandler {
         //     // shouldn't happen...
         //     Err(_) => panic!("Invalid header name: {}", x_forwarded_for_header_name),
         // }
-        build
-            .body(req.take_body().unwrap_or_default())
-            .map_err(|e| Error::other(e))
+        build.body(req.take_body().unwrap_or_default()).map_err(Error::other)
     }
 }
 

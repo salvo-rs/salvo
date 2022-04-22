@@ -104,7 +104,7 @@ mod test {
     }
     #[tokio::test]
     async fn test_named_file_builder() {
-        let src = "../examples/static/test/test1.txt";
+        let src = "Cargo.toml";
         // println!("current path: {:?}", std::env::current_dir());
         // println!("current current_exe: {:?}", std::env::current_exe());
         let file = NamedFile::builder(src)

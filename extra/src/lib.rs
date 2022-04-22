@@ -26,8 +26,8 @@ pub mod csrf;
 pub mod logging;
 #[cfg(feature = "proxy")]
 pub mod proxy;
-#[cfg(feature = "serve")]
-pub mod serve;
+#[cfg(feature = "serve-static")]
+pub mod serve_static;
 #[cfg(feature = "session")]
 pub mod session;
 #[cfg(feature = "sse")]

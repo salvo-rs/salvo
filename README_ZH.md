@@ -134,7 +134,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
 ```
-cargo run --example basic_auth
+cargo run --bin --example-basic_auth
 ```
 
 您可以使用任何你想运行的示例名称替代这里的 ```basic_auth```.

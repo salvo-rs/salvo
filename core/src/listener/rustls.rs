@@ -1,4 +1,5 @@
 //! tls module
+use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Error as IoError, Read};
 use std::path::Path;
@@ -68,8 +69,8 @@ pub struct RustlsConfig {
     ocsp_resp: Vec<u8>,
 }
 
-impl std::fmt::Debug for RustlsConfig {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl fmt::Debug for RustlsConfig {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("RustlsConfig").finish()
     }
 }
@@ -345,10 +346,8 @@ where
 
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
-        if let Poll::Ready(result) = this.config_stream.poll_next(cx) {
-            if let Some(config) = result {
-                *this.server_config = Some(config.into());
-            }
+        if let Poll::Ready(Some(config)) = this.config_stream.poll_next(cx) {
+            *this.server_config = Some(config.into());
         }
         if let Some(server_config) = &this.server_config {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
@@ -466,8 +465,8 @@ mod tests {
     #[test]
     fn test_file_cert_key() {
         RustlsConfig::new()
-            .with_key_path("../examples/certs/end.rsa")
-            .with_cert_path("../examples/certs/end.cert")
+            .with_key_path("certs/end.rsa")
+            .with_cert_path("certs/end.cert")
             .build_server_config()
             .unwrap();
     }
@@ -477,14 +476,14 @@ mod tests {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
         let mut listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
-                .with_key_path("../examples/certs/end.rsa")
-                .with_cert_path("../examples/certs/end.cert"),
+                .with_key_path("certs/end.rsa")
+                .with_cert_path("certs/end.cert"),
         )
         .bind(addr);
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("../../../examples/certs/end.chain");
+            let trust_anchor = include_bytes!("../../certs/end.chain");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())

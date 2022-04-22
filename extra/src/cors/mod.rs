@@ -296,8 +296,8 @@ enum Forbidden {
     Header,
 }
 
-impl ::std::fmt::Debug for Forbidden {
-    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result {
+impl fmt::Debug for Forbidden {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_tuple("CorsForbidden").field(&self).finish()
     }
 }
