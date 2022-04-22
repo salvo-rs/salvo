@@ -650,7 +650,7 @@ impl PathFilter {
             }
             true
         } else {
-            false
+            true
         }
     }
 }
