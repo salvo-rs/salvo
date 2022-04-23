@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.20.0"
+version = "0.21.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -56,7 +56,7 @@ once_cell = { version = "1", optional = true }
 percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
 rand = { version = "0.8", optional = true }
-salvo_core = { version = "0.20", default-features = false, path = "../core" }
+salvo_core = { version = "0.21", default-features = false, path = "../core" }
 serde = { version = "1" }
 serde_derive = { version = "1" }
 serde_json = { version = "1" }
