@@ -44,6 +44,7 @@ sse = ["salvo_extra/sse"]
 ws = ["salvo_extra/ws"]
 size-limiter = ["salvo_extra/size-limiter"]
 logging = ["salvo_extra/logging"]
+timeout = ["salvo_extra/timeout"]
 
 [dependencies]
 salvo_core = { version = "0.21.0", default-features = false, path = "../core" }
