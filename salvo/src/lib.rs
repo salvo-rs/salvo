@@ -23,5 +23,6 @@ pub use salvo_core::*;
     feature = "sse",
     feature = "ws",
     feature = "logging"
+    feature = "timeout"
 ))]
 pub use salvo_extra as extra;
