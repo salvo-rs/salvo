@@ -1,5 +1,5 @@
 //! Logging module
-use std::time::SystemTime;
+use std::time::Instant;
 
 use tracing::{Instrument, Level};
 
@@ -25,8 +25,9 @@ impl Handler for LogHandler {
         );
 
         async move {
-            let now = SystemTime::now();
+            let now = Instant::now();
             ctrl.call_next(req, depot, res).await;
+            let duration = now.elapsed();
 
             let status = match res.status_code() {
                 Some(code) => code,
@@ -38,21 +39,11 @@ impl Handler for LogHandler {
                     }
                 }
             };
-            match now.elapsed() {
-                Ok(duration) => {
-                    tracing::info!(
-                        status = %status,
-                        duration = ?duration,
-                        "Response"
-                    );
-                }
-                Err(_) => {
-                    tracing::info!(
-                        status = %status,
-                        "Response"
-                    );
-                }
-            }
+            tracing::info!(
+                status = %status,
+                duration = ?duration,
+                "Response"
+            );
         }
         .instrument(span)
         .await
