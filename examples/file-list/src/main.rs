@@ -22,13 +22,7 @@ mod tests {
     use salvo::extra::serve_static::*;
     use salvo::hyper;
     use salvo::prelude::*;
-    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize)]
-    struct JwtClaims {
-        user: String,
-        exp: i64,
-    }
     #[tokio::test]
     async fn test_serve_static_files() {
         let router = Router::with_path("<**path>").get(DirHandler::width_options(
