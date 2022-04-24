@@ -3,23 +3,10 @@ use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
-
-use thiserror::Error;
+use salvo_core::{Depot, Handler, Error};
 
 /// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::extra::basic_auth::username";
-
-/// Error
-#[derive(Debug, Error)]
-pub enum Error {
-    /// Base64 decode error
-    #[error("Base64 decode error")]
-    Base64Decode(#[from] base64::DecodeError),
-    /// ParseHttpHeader
-    #[error("Parse http header error")]
-    ParseHttpHeader,
-}
 
 /// BasicAuthValidator
 #[async_trait]
@@ -67,12 +54,12 @@ where
     }
 
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
-        let auth = base64::decode(authorization.as_ref())?;
+        let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();
         if let Some((username, password)) = auth.split_once(':') {
             Ok((username.to_owned(), password.to_owned()))
         } else {
-            Err(Error::ParseHttpHeader)
+            Err(Error::other("parse http header failed"))
         }
     }
 }

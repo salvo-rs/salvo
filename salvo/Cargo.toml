@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.21.0"
+version = "0.21.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -26,7 +26,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["extra", "rustls", "native-tls", "unix", "acme", "anyhow"]
+full = ["rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
 native-tls = ["salvo_core/native-tls"]
 rustls = ["salvo_core/rustls"]
 unix = ["salvo_core/unix"]
@@ -38,14 +38,14 @@ jwt-auth = ["salvo_extra/jwt-auth"]
 compression = ["salvo_extra/compression"]
 cors = ["salvo_extra/cors"]
 csrf = ["salvo_extra/csrf"]
+logging = ["salvo_extra/logging"]
 proxy = ["salvo_extra/proxy"]
 serve-static = ["salvo_extra/serve-static"]
-sse = ["salvo_extra/sse"]
-ws = ["salvo_extra/ws"]
 size-limiter = ["salvo_extra/size-limiter"]
-logging = ["salvo_extra/logging"]
+sse = ["salvo_extra/sse"]
 timeout = ["salvo_extra/timeout"]
+ws = ["salvo_extra/ws"]
 
 [dependencies]
-salvo_core = { version = "0.21.0", default-features = false, path = "../core" }
-salvo_extra = { version = "0.21.0", default-features = false, optional = true, path = "../extra" }
+salvo_core = { version = "0.21.1", default-features = false, path = "../core" }
+salvo_extra = { version = "0.21.1", default-features = false, optional = true, path = "../extra" }

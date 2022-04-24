@@ -1,5 +1,5 @@
 //! Module containing the core functionality for CSRF protection
-//! port from https://raw.githubusercontent.com/heartsucker/rust-csrf/master/src/core.rs
+//! port from <https://raw.githubusercontent.com/heartsucker/rust-csrf/master/src/core.rs>
 
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};

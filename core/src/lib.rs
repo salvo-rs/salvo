@@ -22,6 +22,7 @@ mod transport;
 pub mod writer;
 
 #[cfg(feature = "anyhow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
 pub use anyhow;
 pub use hyper;
 
@@ -45,10 +46,13 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
     #[cfg(feature = "acme")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
     pub use crate::listener::AcmeListener;
     #[cfg(feature = "rustls")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
     pub use crate::listener::RustlsListener;
     #[cfg(unix)]
+    #[cfg_attr(docsrs, doc(cfg(unix)))]
     pub use crate::listener::UnixListener;
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};

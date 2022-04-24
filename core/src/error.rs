@@ -24,6 +24,7 @@ pub enum Error {
     SerdeJson(serde_json::Error),
     /// A anyhow error.
     #[cfg(feature = "anyhow")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
     Anyhow(anyhow::Error),
     /// A custom error that does not fall under any other error kind.
     Other(BoxedError),
@@ -83,6 +84,7 @@ impl From<serde_json::Error> for Error {
     }
 }
 #[cfg(feature = "anyhow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
 impl From<anyhow::Error> for Error {
     fn from(err: anyhow::Error) -> Error {
         Error::Anyhow(err)
@@ -107,6 +109,7 @@ impl Writer for Error {
     }
 }
 #[cfg(feature = "anyhow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
 #[async_trait]
 impl Writer for anyhow::Error {
     #[inline]

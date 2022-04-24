@@ -56,11 +56,9 @@ pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
 const CHALLENGE_TYPE_HTTP_01: &str = "http-01";
 
 /// TLS-ALPN-01 challenge
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 const CHALLENGE_TYPE_TLS_ALPN_01: &str = "tls-alpn-01";
 
 /// Challenge type
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ChallengeType {
     /// HTTP-01 challenge
