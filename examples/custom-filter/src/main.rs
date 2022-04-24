@@ -17,8 +17,8 @@ async fn main() {
 fn route() -> Router {
     Router::new()
         .filter_fn(|req, _| {
-            let host = req.get_header::<String>("host").unwrap_or_default();
-            host == "localhost:7878"
+            let host = req.uri().host().unwrap_or_default();
+            host == "localhost"
         })
         .get(hello_world)
 }
