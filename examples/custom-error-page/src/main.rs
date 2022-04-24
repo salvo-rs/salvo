@@ -10,7 +10,9 @@ async fn hello_world() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
     tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(create_service()).await;
+    Server::new(TcpListener::bind("0.0.0.0:7878"))
+        .serve(create_service())
+        .await;
 }
 
 fn create_service() -> Service {
