@@ -52,7 +52,6 @@ pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt
 pub(crate) const WELL_KNOWN_PATH: &str = "/.well-known/acme-challenge";
 
 /// HTTP-01 challenge
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 const CHALLENGE_TYPE_HTTP_01: &str = "http-01";
 
 /// TLS-ALPN-01 challenge
@@ -132,7 +131,6 @@ impl Handler for Http01Handler {
 }
 
 /// A wrapper around an underlying listener which implements the ACME.
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeListener {
     incoming: AddrIncoming,
     server_config: Arc<ServerConfig>,
@@ -145,7 +143,6 @@ impl AcmeListener {
     }
 }
 /// AcmeListenerBuilder
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeListenerBuilder {
     config_builder: AcmeConfigBuilder,
     check_duration: Duration,
@@ -362,7 +359,6 @@ enum AcmeState {
 /// tokio_rustls::server::TlsStream doesn't expose constructor methods,
 /// so we have to TlsAcceptor::accept and handshake to have access to it
 /// AcmeStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
-#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
 pub struct AcmeStream {
     state: AcmeState,
     remote_addr: SocketAddr,

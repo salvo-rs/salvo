@@ -20,7 +20,6 @@ use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
 /// Builder to set the configuration for the Tls server.
-#[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
 pub struct NativeTlsConfig {
     pkcs12: Box<dyn Read + Send + Sync>,
     password: String,
@@ -83,7 +82,6 @@ impl NativeTlsConfig {
 
 pin_project! {
     /// NativeTlsListener
-    #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
     pub struct NativeTlsListener<C> {
         #[pin]
         config_stream: C,
@@ -198,7 +196,6 @@ where
 
 pin_project! {
     /// NativeTlsStream
-    #[cfg_attr(docsrs, doc(cfg(feature = "native_tls")))]
     pub struct NativeTlsStream {
         // #[pin]
         // acceptor: Pin<Box<AsyncTlsAcceptor>>,
