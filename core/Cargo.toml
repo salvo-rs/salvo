@@ -15,6 +15,7 @@ categories = ["network-programming", "asynchronous", "web-programming::http-serv
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
