@@ -8,7 +8,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 pub use salvo_core as core;
-#[doc(inline)]
 pub use salvo_core::*;
 
 #[cfg(any(

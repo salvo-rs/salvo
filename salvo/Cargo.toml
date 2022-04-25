@@ -16,6 +16,7 @@ categories = ["network-programming", "asynchronous", "web-programming::http-serv
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
 codecov = { repository = "salvo-rs/salvo", branch = "main", service = "github" }
