@@ -387,9 +387,9 @@ impl Response {
         piece.render(self)
     }
 
-    /// Write bytes data to body.
+    /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
-    pub fn write_body_bytes(&mut self, data: &[u8]) {
+    pub fn write_body(&mut self, data: &[u8]) {
         if let Some(body) = self.body_mut() {
             match body {
                 Body::Bytes(bytes) => {

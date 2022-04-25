@@ -57,7 +57,7 @@ impl<'a> Piece for &'a str {
     fn render(self, res: &mut Response) {
         res.headers_mut()
             .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
-        res.write_body_bytes(self.as_bytes());
+        res.write_body(self.as_bytes());
     }
 }
 impl<'a> Piece for &'a String {
@@ -102,7 +102,7 @@ where
             Self::Css(content) => (HeaderValue::from_static("text/css; charset=utf-8"), content),
         };
         res.headers_mut().insert(CONTENT_TYPE, ctype);
-        res.write_body_bytes(content.as_ref().as_bytes());
+        res.write_body(content.as_ref().as_bytes());
     }
 }
 
@@ -120,7 +120,7 @@ where
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/json; charset=utf-8"),
                 );
-                res.write_body_bytes(&bytes);
+                res.write_body(&bytes);
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");
