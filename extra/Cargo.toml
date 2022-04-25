@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.21.2"
+version = "0.21.3"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
