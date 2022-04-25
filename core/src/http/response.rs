@@ -389,7 +389,7 @@ impl Response {
 
     /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
-    pub fn write_body(&mut self, data: &[u8]) {
+    pub fn write_body(&mut self, data: &[u8]) -> crate::Result<()> {
         if let Some(body) = self.body_mut() {
             match body {
                 Body::Bytes(bytes) => {
@@ -397,6 +397,7 @@ impl Response {
                 }
                 Body::Stream(_) => {
                     tracing::error!("current body kind is stream, try to write bytes to it");
+                    return Err(Error::other("current body kind is stream, try to write bytes to it"));
                 }
                 _ => {
                     self.body = Some(Body::Bytes(BytesMut::from(data)));
@@ -405,10 +406,11 @@ impl Response {
         } else {
             self.body = Some(Body::Bytes(BytesMut::from(data)));
         }
+        Ok(())
     }
     /// Write streaming data.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S)
+    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
@@ -417,16 +419,19 @@ impl Response {
         if let Some(body) = &self.body {
             match body {
                 Body::Bytes(_) => {
-                    tracing::warn!("Current body kind is bytes already");
+                    tracing::warn!("current body kind is bytes already");
+                    return Err(Error::other("current body kind is bytes already"));
                 }
                 Body::Stream(_) => {
-                    tracing::warn!("Current body kind is stream already");
+                    tracing::warn!("current body kind is stream already");
+                    return Err(Error::other("current body kind is stream already"));
                 }
                 _ => {}
             }
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
         self.body = Some(Body::Stream(Box::pin(mapped)));
+        Ok(())
     }
 
     /// Redirect temporary.
@@ -434,7 +439,8 @@ impl Response {
     pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
         self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
         if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+            self.headers
+                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
         }
         self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
     }

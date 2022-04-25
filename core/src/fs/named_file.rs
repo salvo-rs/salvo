@@ -455,7 +455,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(reader.chunk_size));
-            res.streaming(reader)
+            res.streaming(reader).ok();
         } else {
             res.set_status_code(StatusCode::OK);
             let reader = FileChunk {
@@ -466,7 +466,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(length - offset));
-            res.streaming(reader)
+            res.streaming(reader).ok();
         }
     }
 }
