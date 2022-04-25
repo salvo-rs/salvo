@@ -1,4 +1,4 @@
-//! File module
+//! Filesystem module
 mod named_file;
 pub use named_file::*;
 

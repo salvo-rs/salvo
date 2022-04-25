@@ -1,4 +1,4 @@
-//! Server module
+//! Listener module
 use std::fs::File;
 use std::io::{self, Error as IoError, ErrorKind, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
