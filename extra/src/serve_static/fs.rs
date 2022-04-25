@@ -34,6 +34,6 @@ impl Handler for FileHandler {
                 res.set_status_error(StatusError::not_found());
             }
         }
-        ctrl.skip_reset();
+        ctrl.skip_rest();
     }
 }

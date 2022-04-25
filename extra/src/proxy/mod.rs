@@ -166,7 +166,7 @@ impl Handler for ProxyHandler {
         }
         if ctrl.has_next() {
             tracing::error!("all handlers after ProxyHandler will skipped");
-            ctrl.skip_reset();
+            ctrl.skip_rest();
         }
     }
 }

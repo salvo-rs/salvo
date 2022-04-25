@@ -355,7 +355,7 @@ where
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     if self.response_error {
                         res.set_status_error(StatusError::forbidden());
-                        ctrl.skip_reset();
+                        ctrl.skip_rest();
                     }
                 }
                 depot.insert(AUTH_TOKEN_KEY, token);
@@ -366,7 +366,7 @@ where
         depot.insert(AUTH_STATE_KEY, JwtAuthState::Unauthorized);
         if self.response_error {
             res.set_status_error(StatusError::unauthorized());
-            ctrl.skip_reset();
+            ctrl.skip_rest();
         } else {
             ctrl.call_next(req, depot, res).await;
         }

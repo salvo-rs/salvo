@@ -70,7 +70,7 @@ impl FlowCtrl {
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(code) = res.status_code() {
             if code.is_redirection() || !code.is_success() {
-                self.skip_reset();
+                self.skip_rest();
                 return false;
             }
         }
@@ -84,7 +84,7 @@ impl FlowCtrl {
     }
     /// Skip all reset handlers.
     #[inline]
-    pub fn skip_reset(&mut self) {
+    pub fn skip_rest(&mut self) {
         self.cursor = self.handlers.len()
     }
 
@@ -96,7 +96,7 @@ impl FlowCtrl {
     /// Cease all fllowwing logic
     #[inline]
     pub fn cease(&mut self) {
-        self.skip_reset();
+        self.skip_rest();
         self.is_ceased = true;
     }
 }

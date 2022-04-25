@@ -233,7 +233,7 @@ mod tests {
         async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before1"));
             if req.get_query::<String>("b").unwrap_or_default() == "1" {
-                ctrl.skip_reset();
+                ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
             }
@@ -242,7 +242,7 @@ mod tests {
         async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before2"));
             if req.get_query::<String>("b").unwrap_or_default() == "2" {
-                ctrl.skip_reset();
+                ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
             }
@@ -251,7 +251,7 @@ mod tests {
         async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before3"));
             if req.get_query::<String>("b").unwrap_or_default() == "3" {
-                ctrl.skip_reset();
+                ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
             }

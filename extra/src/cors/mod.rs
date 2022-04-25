@@ -450,7 +450,7 @@ impl Handler for CorsHandler {
             Err(err) => {
                 tracing::error!(error = %err, "CorsHandler validate error");
                 res.set_status_code(StatusCode::FORBIDDEN);
-                ctrl.skip_reset();
+                ctrl.skip_rest();
             }
             _ => {
                 ctrl.call_next(req, depot, res).await;

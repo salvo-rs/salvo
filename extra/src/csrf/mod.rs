@@ -287,19 +287,19 @@ impl Handler for CsrfHandler {
                     } else {
                         tracing::debug!("rejecting request due to invalid or expired CSRF token");
                         res.set_status_code(StatusCode::FORBIDDEN);
-                        ctrl.skip_reset();
+                        ctrl.skip_rest();
                         return;
                     }
                 } else {
                     tracing::debug!("rejecting request due to missing CSRF token",);
                     res.set_status_code(StatusCode::FORBIDDEN);
-                    ctrl.skip_reset();
+                    ctrl.skip_rest();
                     return;
                 }
             } else {
                 tracing::debug!("rejecting request due to missing CSRF cookie",);
                 res.set_status_code(StatusCode::FORBIDDEN);
-                ctrl.skip_reset();
+                ctrl.skip_rest();
                 return;
             }
         }

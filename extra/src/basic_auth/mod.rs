@@ -85,7 +85,7 @@ where
             }
         }
         self.ask_credentials(res);
-        ctrl.skip_reset();
+        ctrl.skip_rest();
     }
 }
 

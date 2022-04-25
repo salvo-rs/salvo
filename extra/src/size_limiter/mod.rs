@@ -13,7 +13,7 @@ impl Handler for MaxSizeHandler {
         if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
             if upper > self.0 {
                 res.set_status_error(StatusError::payload_too_large());
-                ctrl.skip_reset();
+                ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
             }
