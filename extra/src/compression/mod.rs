@@ -139,15 +139,21 @@ impl Handler for CompressionHandler {
                     match self.algo {
                         CompressionAlgo::Gzip => {
                             let stream = ReaderStream::new(GzipEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                         CompressionAlgo::Deflate => {
                             let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                         CompressionAlgo::Brotli => {
                             let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                     }
                 }
@@ -157,15 +163,21 @@ impl Handler for CompressionHandler {
                     match self.algo {
                         CompressionAlgo::Gzip => {
                             let stream = ReaderStream::new(GzipEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                         CompressionAlgo::Deflate => {
                             let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                         CompressionAlgo::Brotli => {
                             let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                            res.streaming(stream);
+                            if let Err(e) = res.streaming(stream) {
+                                tracing::error!(error = ?e, "request streaming error");
+                            }
                         }
                     }
                 }

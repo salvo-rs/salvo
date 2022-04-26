@@ -419,11 +419,9 @@ impl Response {
         if let Some(body) = &self.body {
             match body {
                 Body::Bytes(_) => {
-                    tracing::warn!("current body kind is bytes already");
                     return Err(Error::other("current body kind is bytes already"));
                 }
                 Body::Stream(_) => {
-                    tracing::warn!("current body kind is stream already");
                     return Err(Error::other("current body kind is stream already"));
                 }
                 _ => {}

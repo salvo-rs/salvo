@@ -245,7 +245,7 @@ where
     }
 
     /// Send stream.
-    pub fn streaming(self, res: &mut Response) {
+    pub fn streaming(self, res: &mut Response) -> salvo_core::Result<()> {
         write_request_headers(res);
         let body_stream = self
             .map_err(|e| {
@@ -254,7 +254,7 @@ where
             })
             .into_stream()
             .and_then(|event| future::ready(Ok(event.to_string())));
-        res.streaming(body_stream);
+        res.streaming(body_stream)
     }
 }
 #[inline]
@@ -267,7 +267,7 @@ fn write_request_headers(res: &mut Response) {
 }
 
 /// Streaming
-pub fn streaming<S>(res: &mut Response, event_stream: S)
+pub fn streaming<S>(res: &mut Response, event_stream: S) -> salvo_core::Result<()>
 where
     S: TryStream<Ok = SseEvent> + Send + 'static,
     S::Error: StdError + Send + Sync + 'static,
@@ -280,7 +280,7 @@ where
         })
         .into_stream()
         .and_then(|event| future::ready(Ok(event.to_string())));
-    res.streaming(body_stream);
+    res.streaming(body_stream)
 }
 
 impl<S> Stream for SseKeepAlive<S>

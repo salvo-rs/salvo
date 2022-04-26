@@ -27,7 +27,7 @@ async fn handle_tick(_req: &mut Request, res: &mut Response) {
             sse_counter(counter)
         })
     };
-    sse::streaming(res, event_stream);
+    sse::streaming(res, event_stream).ok();
 }
 
 #[tokio::main]
