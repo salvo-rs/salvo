@@ -15,7 +15,7 @@ use proc_quote::quote;
 use syn::punctuated::Punctuated;
 use syn::{Ident, ReturnType};
 
-/// ```fn_handler``` is a pro macro to help create ```Handler``` from function easily.
+/// `fn_handler` is a pro macro to help create `Handler` from function easily.
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut item_fn = syn::parse_macro_input!(input as syn::ItemFn);
