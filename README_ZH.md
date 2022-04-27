@@ -61,7 +61,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ### 中间件
 Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
 
-### 树状路由系统
+### 可链式书写的树状路由系统
 
 正常情况下我们是这样写路由的：
 
