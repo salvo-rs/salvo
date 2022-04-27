@@ -32,6 +32,7 @@ async fn main() {
                 router
             }
         });
+    println!("{:#?}", router);
 
     tracing::info!("Listening on http://0.0.0.0:7878");
     Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
