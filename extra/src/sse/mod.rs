@@ -345,7 +345,8 @@ mod tests {
         SseKeepAlive::new(event_stream)
             .with_comment("love you")
             .with_interval(Duration::from_secs(1))
-            .streaming(&mut res).unwrap();
+            .streaming(&mut res)
+            .unwrap();
         let text = res.take_text().await.unwrap();
         assert!(text.contains("data:1"));
     }
