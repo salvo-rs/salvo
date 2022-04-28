@@ -7,10 +7,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-
 #[cfg(feature = "basic-auth")]
 #[cfg_attr(docsrs, doc(cfg(feature = "basic-auth")))]
 pub mod basic_auth;

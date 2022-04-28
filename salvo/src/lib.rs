@@ -12,7 +12,7 @@ pub use salvo_core::*;
 
 #[cfg(any(
     feature = "extra",
-    feature = "basic_auth",
+    feature = "basic-auth",
     feature = "compression",
     feature = "cors",
     feature = "csrf",
