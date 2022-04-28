@@ -10,7 +10,7 @@
 [![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
 [![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
-[![Rust Version](https://img.shields.io/badge/rust-1.56%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
+[![Rust Version](https://img.shields.io/badge/rust-1.59%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.59.0.html)
 <br>
 [![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
 [![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
