@@ -59,7 +59,7 @@ rustls-pemfile = { version = "1.0", optional = true }
 salvo_macros = { version = "0.21", path = "../macros" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tempdir = "0.3"
+tempfile = "3"
 textnonce = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
