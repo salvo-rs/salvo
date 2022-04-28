@@ -2,8 +2,7 @@
 <img alt="Savlo" src="assets/logo.svg" />
 <p>
 
-<a href="README.md"><img width="20px" src="assets/flags/us.svg" /></a>
-<a href="README_ZH.md"><img width="20px" src="assets/flags/cn.svg" /></a><br>
+[English](README.md) [简体中文](README_ZH.md)<br>
 [![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
 [![build status](https://github.com/salvo-rs/salvo//workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
 [![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
