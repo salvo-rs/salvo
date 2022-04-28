@@ -58,8 +58,7 @@ percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
 rand = { version = "0.8", optional = true }
 salvo_core = { version = "0.21", default-features = false, path = "../core" }
-serde = { version = "1" }
-serde_derive = { version = "1" }
+serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 sha2 = { version = "0.10", optional = true }
 tokio = { version = "1", features = ["fs", "sync", "time"], optional = true }
