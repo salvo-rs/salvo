@@ -4,7 +4,7 @@ use multer::{Field, Multipart};
 use multimap::MultiMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use tempdir::TempDir;
+use tempfile::Builder;
 use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -91,7 +91,7 @@ impl FilePart {
     /// deleted once the FilePart object goes out of scope).
     pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
         // Setup a file to capture the contents.
-        let mut path = tokio::task::spawn_blocking(|| TempDir::new("salvo_http_multipart"))
+        let mut path = tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
             .await
             .expect("Runtime spawn blocking poll error")?
             .into_path();

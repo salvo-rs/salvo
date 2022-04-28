@@ -64,7 +64,7 @@ pub mod prelude {
     pub use salvo_macros::fn_handler;
 }
 
-use std::future::Future;
+use std::{future::Future, thread::available_parallelism};
 use tokio::runtime::{self, Runtime};
 
 fn new_runtime(threads: usize) -> Runtime {
@@ -92,7 +92,7 @@ fn new_runtime(threads: usize) -> Runtime {
 /// }
 /// ```
 pub fn run<F: Future>(future: F) {
-    run_with_threads(future, num_cpus::get())
+    run_with_threads(future, available_parallelism().map(|n| n.get()).unwrap_or(1))
 }
 
 /// If you don't want to include tokio in your project directly,
