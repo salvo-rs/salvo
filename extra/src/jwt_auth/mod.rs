@@ -379,7 +379,7 @@ mod tests {
     use jsonwebtoken::EncodingKey;
     use salvo_core::hyper;
     use salvo_core::prelude::*;
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     use super::*;
 
