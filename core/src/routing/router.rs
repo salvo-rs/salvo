@@ -570,4 +570,27 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
     }
+
+    #[test]
+    fn test_router_detect13() {
+        let router = Router::new()
+            .path("user/<id:/[0-9a-z]{8}(-[0-9a-z]{4}){3}-[0-9a-z]{12}/>")
+            .get(fake_handler);
+        let mut req: Request = hyper::Request::builder()
+            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+        let mut req: Request = hyper::Request::builder()
+            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_none());
+    }
 }
