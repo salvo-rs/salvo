@@ -12,7 +12,6 @@ use super::key_pair::KeyPair;
 use super::{ChallengeType, LETS_ENCRYPT_PRODUCTION};
 
 /// ACME configuration
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeConfig {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,
@@ -46,7 +45,6 @@ impl Debug for AcmeConfig {
 }
 
 /// ACME configuration builder
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeConfigBuilder {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,

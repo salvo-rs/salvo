@@ -50,11 +50,12 @@ impl SocketAddr {
         matches!(*self, SocketAddr::IPv6(_))
     }
 
-    /// Returns is a unix socket address.
-    #[cfg(unix)]
-    #[cfg_attr(docsrs, doc(cfg(unix)))]
-    pub fn is_unix(&self) -> bool {
-        matches!(*self, SocketAddr::Unix(_))
+    cfg_feature! {
+        #![unix]
+        /// Returns is a unix socket address.
+        pub fn is_unix(&self) -> bool {
+            matches!(*self, SocketAddr::Unix(_))
+        }
     }
 
     /// Returns ipv6 socket address.
@@ -72,13 +73,14 @@ impl SocketAddr {
         }
     }
 
-    /// Returns unix socket address.
-    #[cfg(unix)]
-    #[cfg_attr(docsrs, doc(cfg(unix)))]
-    pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
-        match self {
-            SocketAddr::Unix(addr) => Some(addr),
-            _ => None,
+    cfg_feature! {
+        #![unix]
+        /// Returns unix socket address.
+        pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
+            match self {
+                SocketAddr::Unix(addr) => Some(addr),
+                _ => None,
+            }
         }
     }
 }

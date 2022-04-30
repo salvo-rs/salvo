@@ -14,31 +14,39 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-#[cfg(feature = "acme")]
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
-pub mod acme;
-#[cfg(feature = "native-tls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "native-tls")))]
-pub mod native_tls;
-#[cfg(feature = "rustls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
-pub mod rustls;
-#[cfg(unix)]
-#[cfg_attr(docsrs, doc(cfg(unix)))]
-pub mod unix;
+cfg_feature! {
+    #![feature = "acme"]
+    pub mod acme;
+}
+cfg_feature! {
+    #![feature = "native-tls"]
+    pub mod native_tls;
+}
+cfg_feature! {
+    #![feature = "rustls"]
+    pub mod rustls;
+}
+cfg_feature! {
+    #![unix]
+    pub mod unix;
+}
 
-#[cfg(feature = "acme")]
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
-pub use acme::AcmeListener;
-#[cfg(feature = "native-tls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "native-tls")))]
+cfg_feature! {
+    #![feature = "acme"]
+    pub use acme::AcmeListener;
+}
+cfg_feature! {
+    #![feature = "native-tls"]
 pub use native_tls::NativeTlsListener;
-#[cfg(feature = "rustls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
+}
+cfg_feature! {
+    #![feature = "rustls"]
 pub use rustls::RustlsListener;
-#[cfg(unix)]
-#[cfg_attr(docsrs, doc(cfg(unix)))]
+}
+cfg_feature! {
+    #![unix]
 pub use unix::UnixListener;
+}
 
 /// Listener trait
 pub trait Listener: Accept {

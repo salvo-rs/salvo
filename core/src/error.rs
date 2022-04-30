@@ -12,21 +12,21 @@ type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 /// Errors that can happen inside salvo.
 #[derive(Debug)]
 pub enum Error {
-    /// A error happened in hyper.
+    /// Error happened in hyper.
     Hyper(hyper::Error),
-    /// A error happened in http parse.
+    /// Error happened in http parse.
     HttpParse(ParseError),
-    /// A error from http response error status.
+    /// Error from http response error status.
     HttpStatus(StatusError),
-    /// Std io error.
+    /// Std I/O error.
     Io(IoError),
-    /// Std io error.
+    /// SerdeJson error.
     SerdeJson(serde_json::Error),
-    /// A anyhow error.
+    /// anyhow error.
     #[cfg(feature = "anyhow")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
+    #[cfg_attr(docsrs, doc(cfg(unix)))]
     Anyhow(anyhow::Error),
-    /// A custom error that does not fall under any other error kind.
+    /// Custom error that does not fall under any other error kind.
     Other(BoxedError),
 }
 
@@ -83,11 +83,12 @@ impl From<serde_json::Error> for Error {
         Error::SerdeJson(err)
     }
 }
-#[cfg(feature = "anyhow")]
-#[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
-impl From<anyhow::Error> for Error {
-    fn from(err: anyhow::Error) -> Error {
-        Error::Anyhow(err)
+cfg_feature! {
+    #![feature = "anyhow"]
+    impl From<anyhow::Error> for Error {
+        fn from(err: anyhow::Error) -> Error {
+            Error::Anyhow(err)
+        }
     }
 }
 
@@ -108,13 +109,14 @@ impl Writer for Error {
         res.set_status_error(status_error);
     }
 }
-#[cfg(feature = "anyhow")]
-#[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
-#[async_trait]
-impl Writer for anyhow::Error {
-    #[inline]
-    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_error(StatusError::internal_server_error());
+cfg_feature! {
+    #![feature = "anyhow"]
+    #[async_trait]
+    impl Writer for anyhow::Error {
+        #[inline]
+        async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+            res.set_status_error(StatusError::internal_server_error());
+        }
     }
 }
 
