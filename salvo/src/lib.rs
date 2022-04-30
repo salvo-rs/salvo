@@ -31,7 +31,7 @@ cfg_feature! {
         feature = "timeout",
         feature = "ws"
     )]
-    
+
     #[doc(no_inline)]
     pub use salvo_extra as extra;
 }
