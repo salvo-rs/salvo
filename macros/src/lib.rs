@@ -132,6 +132,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
                 #sdef
                 #[async_trait]
                 impl #salvo::Handler for #name {
+                    #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                         Self::#name(req, depot, res, ctrl).await
                     }
@@ -143,6 +144,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             #sdef
             #[async_trait]
             impl #salvo::Handler for #name {
+                #[inline]
                 async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                     #salvo::Writer::write(Self::#name(req, depot, res, ctrl).await, req, depot, res).await;
                 }
