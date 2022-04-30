@@ -7,44 +7,60 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-#[cfg(feature = "basic-auth")]
-#[cfg_attr(docsrs, doc(cfg(feature = "basic-auth")))]
-pub mod basic_auth;
-#[cfg(feature = "jwt-auth")]
-#[cfg_attr(docsrs, doc(cfg(feature = "jwt-auth")))]
-pub mod jwt_auth;
+#[macro_use]
+mod cfg;
 
-#[cfg(feature = "compression")]
-#[cfg_attr(docsrs, doc(cfg(feature = "compression")))]
-pub mod compression;
-#[cfg(feature = "cors")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cors")))]
-pub mod cors;
-#[cfg(feature = "csrf")]
-#[cfg_attr(docsrs, doc(cfg(feature = "csrf")))]
-pub mod csrf;
-#[cfg(feature = "logging")]
-#[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
-pub mod logging;
-#[cfg(feature = "proxy")]
-#[cfg_attr(docsrs, doc(cfg(feature = "proxy")))]
-pub mod proxy;
-#[cfg(feature = "serve-static")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serve-static")))]
-pub mod serve_static;
-#[cfg(feature = "session")]
-#[cfg_attr(docsrs, doc(cfg(feature = "session")))]
-pub mod session;
-#[cfg(feature = "sse")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sse")))]
-pub mod sse;
-#[cfg(feature = "ws")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ws")))]
-pub mod ws;
+cfg_feature! {
+    #![feature = "basic-auth"]
+    pub mod basic_auth;
+}
+cfg_feature! {
+    #![feature = "jwt-auth"]
+    pub mod jwt_auth;
+}
 
-#[cfg(feature = "size-limiter")]
-#[cfg_attr(docsrs, doc(cfg(feature = "size-limiter")))]
-pub mod size_limiter;
-#[cfg(feature = "timeout")]
-#[cfg_attr(docsrs, doc(cfg(feature = "timeout")))]
-pub mod timeout;
+cfg_feature! {
+    #![feature = "compression"]
+    pub mod compression;
+}
+cfg_feature! {
+    #![feature = "cors"]
+    pub mod cors;
+}
+cfg_feature! {
+    #![feature = "csrf"]
+    pub mod csrf;
+}
+cfg_feature! {
+    #![feature = "logging"]
+    pub mod logging;
+}
+cfg_feature! {
+    #![feature = "proxy"]
+    pub mod proxy;
+}
+cfg_feature! {
+    #![feature = "serve-static"]
+    pub mod serve_static;
+}
+cfg_feature! {
+    #![feature = "session"]
+    pub mod session;
+}
+cfg_feature! {
+    #![feature = "sse"]
+    pub mod sse;
+}
+cfg_feature! {
+    #![feature = "ws"]
+    pub mod ws;
+}
+
+cfg_feature! {
+    #![feature =  "size-limiter"]
+    pub mod size_limiter;
+}
+cfg_feature! {
+    #![feature = "timeout"]
+    pub mod timeout;
+}

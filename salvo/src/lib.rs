@@ -7,30 +7,17 @@
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+#[macro_use]
+mod cfg;
 pub use salvo_core as core;
+#[doc(no_inline)]
 pub use salvo_core::*;
 
-#[cfg(any(
-    feature = "extra",
-    feature = "basic-auth",
-    feature = "compression",
-    feature = "cors",
-    feature = "csrf",
-    feature = "jwt-auth",
-    feature = "logging",
-    feature = "proxy",
-    feature = "serve-static",
-    feature = "session",
-    feature = "size-limiter",
-    feature = "sse",
-    feature = "timeout",
-    feature = "ws"
-))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(any(
+cfg_feature! {
+    #![any(
         feature = "extra",
-        feature = "basic_auth",
+        feature = "basic-auth",
         feature = "compression",
         feature = "cors",
         feature = "csrf",
@@ -43,6 +30,8 @@ pub use salvo_core::*;
         feature = "sse",
         feature = "timeout",
         feature = "ws"
-    )))
-)]
-pub use salvo_extra as extra;
+    )]
+    
+    #[doc(no_inline)]
+    pub use salvo_extra as extra;
+}

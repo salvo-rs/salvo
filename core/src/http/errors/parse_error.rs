@@ -35,19 +35,19 @@ pub enum ParseError {
     InvalidRange,
 
     /// An multer error.
-    #[error("An multer error from: {0}")]
+    #[error("Multer error: {0}")]
     Multer(#[from] multer::Error),
 
     /// An I/O error.
-    #[error("An I/O error: {}", _0)]
+    #[error("I/O error: {}", _0)]
     Io(#[from] IoError),
 
     /// An error was returned from hyper.
-    #[error("An error was returned from hyper: {0}")]
+    #[error("Hyper error: {0}")]
     Hyper(#[from] hyper::Error),
 
     /// An error occurred during UTF-8 processing.
-    #[error("An error occurred during UTF-8 processing: {0}")]
+    #[error("UTF-8 processing error: {0}")]
     Utf8(#[from] Utf8Error),
 
     /// Serde json error.

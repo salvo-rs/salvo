@@ -27,25 +27,25 @@ use crate::transport::Transport;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Hyper error
-    #[error("hyper error")]
+    #[error("Hyper error: {0}")]
     Hyper(hyper::Error),
     /// An IO error
-    #[error("io error")]
+    #[error("I/O error: {0}")]
     Io(IoError),
     /// An Error parsing the Certificate
-    #[error("certificate parse error")]
+    #[error("Certificate parse error")]
     CertParseError,
     /// An Error parsing a Pkcs8 key
-    #[error("pkcs8 parse error")]
+    #[error("Pkcs8 parse error")]
     Pkcs8ParseError,
     /// An Error parsing a Rsa key
-    #[error("rsa parse error")]
+    #[error("Rsa parse error")]
     RsaParseError,
     /// An error from an empty key
-    #[error("key contains no private key")]
+    #[error("Empy key")]
     EmptyKey,
     /// An error from an invalid key
-    #[error("key contains an invalid key, {0}")]
+    #[error("Invalid key, {0}")]
     InvalidKey(RustlsError),
 }
 
