@@ -910,7 +910,7 @@ mod tests {
         let filter = PathFilter::new("/users/<id:guid>");
         let mut state = PathState::new("/users/123e4567-h89b-12d3-a456-9AC7CBDCEE52");
         assert!(!filter.detect(&mut state));
-        
+
         let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
         assert!(filter.detect(&mut state));
         assert_eq!(
