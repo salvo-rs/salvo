@@ -4,7 +4,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
-use crate::http::errors::{ParseError, StatusError};
+use crate::http::{ParseError, StatusError};
 use crate::{Depot, Request, Response, Writer};
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;

@@ -8,9 +8,8 @@ use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 
 use salvo_core::async_trait;
-use salvo_core::http::errors::StatusError;
 use salvo_core::http::header::AUTHORIZATION;
-use salvo_core::http::{Method, Request, Response};
+use salvo_core::http::{Method, Request, Response, StatusError};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 

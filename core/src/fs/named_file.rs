@@ -14,9 +14,8 @@ use headers::*;
 use mime_guess::from_path;
 
 use super::{ChunkedState, FileChunk};
-use crate::http::errors::StatusError;
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
-use crate::http::{HttpRange, Request, Response, StatusCode};
+use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;

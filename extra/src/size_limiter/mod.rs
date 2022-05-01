@@ -1,8 +1,7 @@
 //! size limiter middleware
 
 use salvo_core::async_trait;
-use salvo_core::http::errors::StatusError;
-use salvo_core::http::HttpBody;
+use salvo_core::http::{StatusError, HttpBody};
 use salvo_core::prelude::*;
 
 /// MaxSizeHandler

@@ -2,7 +2,7 @@
 use mime::Mime;
 use once_cell::sync::Lazy;
 
-use crate::http::errors::StatusError;
+use crate::http::StatusError;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 use crate::Depot;
 

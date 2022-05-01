@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
-use salvo_core::http::errors::StatusError;
+use salvo_core::http::StatusError;
 use salvo_core::routing::FlowCtrl;
 use salvo_core::Handler;
 use salvo_core::{Depot, Request, Response, Writer};

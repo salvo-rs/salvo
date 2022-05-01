@@ -16,7 +16,7 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::ParseError;
+use crate::http::ParseError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;

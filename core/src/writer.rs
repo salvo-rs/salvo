@@ -2,9 +2,8 @@
 use async_trait::async_trait;
 use serde::Serialize;
 
-use crate::http::errors::*;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
-use crate::http::{Request, Response};
+use crate::http::{Request, Response, StatusError};
 use crate::Depot;
 
 /// Writer is used to write data to response.

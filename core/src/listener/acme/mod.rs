@@ -35,7 +35,7 @@ use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::StatusError;
+use crate::http::StatusError;
 use crate::listener::{IntoAddrIncoming, Listener};
 use crate::routing::FlowCtrl;
 use crate::transport::Transport;

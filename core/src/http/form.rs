@@ -8,7 +8,7 @@ use tempfile::Builder;
 use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
-use crate::http::errors::ParseError;
+use crate::http::ParseError;
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
 use crate::http::request::{self, Body};
 

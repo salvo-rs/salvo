@@ -6,7 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 // ported from actix-files
 
-use crate::http::errors::ParseError;
+use crate::http::ParseError;
 
 /// HTTP Range header representation.
 #[derive(Debug, Clone, Copy)]

@@ -2,8 +2,7 @@ use anyhow;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
 use salvo::extra::jwt_auth::{JwtAuthDepotExt, JwtAuthHandler, JwtAuthState, QueryExtractor};
-use salvo::http::errors::*;
-use salvo::http::Method;
+use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
