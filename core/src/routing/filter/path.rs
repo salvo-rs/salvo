@@ -611,17 +611,17 @@ impl PathFilter {
         PathFilter { raw_value, path_parts }
     }
     /// Register new path part builder.
-    pub fn register_path_part_builder<B>(name: String, builder: B)
+    pub fn register_part_builder<B>(name: impl Into<String>, builder: B)
     where
         B: PartBuilder + 'static,
     {
         let mut builders = PART_BUILDERS.write();
-        builders.insert(name, Arc::new(Box::new(builder)));
+        builders.insert(name.into(), Arc::new(Box::new(builder)));
     }
     /// Register new path part regex.
-    pub fn register_path_part_regex<B>(name: String, regex: Regex) {
+    pub fn register_part_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = PART_BUILDERS.write();
-        builders.insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
+        builders.insert(name.into(), Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
@@ -899,6 +899,23 @@ mod tests {
         assert_eq!(
             format!("{:?}", state),
             r#"PathState { url_path: "users///29//emails", cursor: 18, params: {"id": "29"} }"#
+        );
+    }
+    #[test]
+    fn test_detect_named_regex() {
+        PathFilter::register_part_regex(
+            "guid",
+            regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+        );
+        let filter = PathFilter::new("/users/<id:guid>");
+        let mut state = PathState::new("/users/123e4567-h89b-12d3-a456-9AC7CBDCEE52");
+        assert!(!filter.detect(&mut state));
+        
+        let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "users/123e4567-e89b-12d3-a456-9AC7CBDCEE52", cursor: 42, params: {"id": "123e4567-e89b-12d3-a456-9AC7CBDCEE52"} }"#
         );
     }
 }
