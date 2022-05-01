@@ -99,9 +99,9 @@ impl FlowCtrl {
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }
-    /// Cease all following logic. If handler is used as middleware, 
+    /// Cease all following logic. If handler is used as middleware,
     /// it should use `is_ceased` to check is flow is ceased.
-    /// if `is_ceased` returns true, the handler should skip the following logic. 
+    /// if `is_ceased` returns true, the handler should skip the following logic.
     #[inline]
     pub fn cease(&mut self) {
         self.skip_rest();
