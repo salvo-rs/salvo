@@ -136,7 +136,7 @@ impl Router {
     /// Panics if path value is not in correct format.
     #[inline]
     pub fn with_path(path: impl Into<String>) -> Self {
-        Router::new().filter(PathFilter::new(path))
+        Router::with_filter(PathFilter::new(path))
     }
 
     /// Create a new path filter for current router.
@@ -149,6 +149,11 @@ impl Router {
         self.filter(PathFilter::new(path))
     }
 
+    /// Create a new router and set filter.
+    #[inline]
+    pub fn with_filter(filter: impl Filter + Sized) -> Self {
+        Router::new().filter(filter)
+    }
     /// Add a filter for current router.
     #[inline]
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
@@ -156,14 +161,21 @@ impl Router {
         self
     }
 
-    /// Create a new FnFilter from Fn.
+    /// Create a new router and set filter_fn.
     #[inline]
-    pub fn filter_fn<T>(mut self, func: T) -> Self
+    pub fn with_filter_fn<T>(func: T) -> Self
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
-        self.filters.push(Box::new(FnFilter(func)));
-        self
+        Router::with_filter(FnFilter(func))
+    }
+    /// Create a new FnFilter from Fn.
+    #[inline]
+    pub fn filter_fn<T>(self, func: T) -> Self
+    where
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    {
+        self.filter(FnFilter(func))
     }
 
     /// Set current router's handler.
