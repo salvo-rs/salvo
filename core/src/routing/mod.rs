@@ -41,7 +41,13 @@ fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
-/// Flow Control.
+/// FlowCtrl is used to control the flow of execute handlers.
+/// When a request is comming, `Router` will detect it can get the matched one.
+/// And then salvo will collect all handlers (including added as middlewares) in a list.
+/// All handlers in this list will executed one by one. Each handler can use `FlowCtrl` to control this
+/// flow, let the flow call next handler or skip all rest handlers.
+/// *Note: When `Response`'s status code is set, and it's `is_success()` is returns false, all rest handlers
+/// will skipped.*
 pub struct FlowCtrl {
     is_ceased: bool,
     cursor: usize,
