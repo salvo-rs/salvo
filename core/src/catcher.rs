@@ -103,89 +103,28 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
     (format, content.as_bytes().to_owned())
 }
 /// Default implementation of Catcher.
-pub struct CatcherImpl(StatusCode);
+pub struct CatcherImpl();
 impl CatcherImpl {
     /// Create new `CatcherImpl`.
-    pub fn new(code: StatusCode) -> CatcherImpl {
-        CatcherImpl(code)
+    pub fn new() -> CatcherImpl {
+        CatcherImpl()
     }
 }
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
-        if status != self.0 {
+        if !status.is_server_error() && !status.is_client_error() {
             return false;
         }
         let format = guess_accept_mime(req, None);
         let (format, data) = if res.status_error.is_some() {
             status_error_bytes(res.status_error.as_ref().unwrap(), &format)
         } else {
-            status_error_bytes(&StatusError::from_code(self.0).unwrap(), &format)
+            status_error_bytes(&StatusError::from_code(status).unwrap(), &format)
         };
         res.headers_mut()
             .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         res.write_body(&data).ok();
         true
-    }
-}
-
-macro_rules! default_catchers {
-    ($($code:expr),+) => (
-        let list: Vec<Box<dyn Catcher>> = vec![
-        $(
-            Box::new(CatcherImpl::new($code)),
-        )+];
-        list
-    )
-}
-
-/// Defaut catchers.
-pub mod defaults {
-    use super::{Catcher, CatcherImpl};
-    use http::status::StatusCode;
-
-    /// Get a new default catchers list.
-    pub fn get() -> Vec<Box<dyn Catcher>> {
-        default_catchers! {
-            StatusCode::BAD_REQUEST,
-            StatusCode::UNAUTHORIZED,
-            StatusCode::PAYMENT_REQUIRED,
-            StatusCode::FORBIDDEN,
-            StatusCode::NOT_FOUND,
-            StatusCode::METHOD_NOT_ALLOWED,
-            StatusCode::NOT_ACCEPTABLE,
-            StatusCode::PROXY_AUTHENTICATION_REQUIRED,
-            StatusCode::REQUEST_TIMEOUT,
-            StatusCode::CONFLICT,
-            StatusCode::GONE,
-            StatusCode::LENGTH_REQUIRED,
-            StatusCode::PRECONDITION_FAILED,
-            StatusCode::PAYLOAD_TOO_LARGE,
-            StatusCode::URI_TOO_LONG,
-            StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            StatusCode::RANGE_NOT_SATISFIABLE,
-            StatusCode::EXPECTATION_FAILED,
-            StatusCode::IM_A_TEAPOT,
-            StatusCode::MISDIRECTED_REQUEST,
-            StatusCode::UNPROCESSABLE_ENTITY,
-            StatusCode::LOCKED,
-            StatusCode::FAILED_DEPENDENCY,
-            StatusCode::UPGRADE_REQUIRED,
-            StatusCode::PRECONDITION_REQUIRED,
-            StatusCode::TOO_MANY_REQUESTS,
-            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
-            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
-            StatusCode::INTERNAL_SERVER_ERROR,
-            StatusCode::NOT_IMPLEMENTED,
-            StatusCode::BAD_GATEWAY,
-            StatusCode::SERVICE_UNAVAILABLE,
-            StatusCode::GATEWAY_TIMEOUT,
-            StatusCode::HTTP_VERSION_NOT_SUPPORTED,
-            StatusCode::VARIANT_ALSO_NEGOTIATES,
-            StatusCode::INSUFFICIENT_STORAGE,
-            StatusCode::LOOP_DETECTED,
-            StatusCode::NOT_EXTENDED,
-            StatusCode::NETWORK_AUTHENTICATION_REQUIRED
-        }
     }
 }

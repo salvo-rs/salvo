@@ -24,11 +24,6 @@ mod service;
 mod transport;
 pub mod writer;
 
-cfg_feature! {
-    #![feature ="anyhow"]
-    #[doc(no_inline)]
-    pub use anyhow;
-}
 pub use hyper;
 
 pub use self::catcher::{Catcher, CatcherImpl};
