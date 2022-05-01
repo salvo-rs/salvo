@@ -198,43 +198,43 @@ impl Router {
     /// Create a new child router with MethodFilter to filter get method and set this child router's handler.
     #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::get()).handle(handler))
+        self.push(Router::with_filter(filter::get()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter post method and set this child router's handler.
     #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::post()).handle(handler))
+        self.push(Router::with_filter(filter::post()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter put method and set this child router's handler.
     #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::put()).handle(handler))
+        self.push(Router::with_filter(filter::put()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter delete method and set this child router's handler.
     #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::delete()).handle(handler))
+        self.push(Router::with_filter(filter::delete()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter patch method and set this child router's handler.
     #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::patch()).handle(handler))
+        self.push(Router::with_filter(filter::patch()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter head method and set this child router's handler.
     #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::head()).handle(handler))
+        self.push(Router::with_filter(filter::head()).handle(handler))
     }
 
     /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
     #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::options()).handle(handler))
+        self.push(Router::with_filter(filter::options()).handle(handler))
     }
 }
 
