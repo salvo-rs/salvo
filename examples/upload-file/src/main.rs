@@ -9,7 +9,7 @@ async fn index(res: &mut Response) {
 }
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.file_name().unwrap_or("file"));
         println!("{}", dest);

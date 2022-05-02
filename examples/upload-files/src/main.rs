@@ -10,7 +10,7 @@ async fn index(res: &mut Response) {
 
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let files = req.get_files("files").await;
+    let files = req.files("files").await;
     if let Some(files) = files {
         let mut msgs = Vec::with_capacity(files.len());
         for file in files {

@@ -38,7 +38,7 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
 #[async_trait]
 pub trait JwtTokenExtractor: Send + Sync {
     /// Get token from request.
-    async fn get_token(&self, req: &mut Request) -> Option<String>;
+    async fn token(&self, req: &mut Request) -> Option<String>;
 }
 
 /// HeaderExtractor
@@ -73,7 +73,7 @@ impl HeaderExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for HeaderExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             if let Some(auth) = req.headers().get(AUTHORIZATION) {
                 if let Ok(auth) = auth.to_str() {
@@ -120,9 +120,9 @@ impl FormExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for FormExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_form(&self.field_name).await
+            req.form(&self.field_name).await
         } else {
             None
         }
@@ -163,9 +163,9 @@ impl QueryExtractor {
 
 #[async_trait]
 impl JwtTokenExtractor for QueryExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_query(&self.query_name)
+            req.query(&self.query_name)
         } else {
             None
         }
@@ -211,9 +211,9 @@ impl CookieExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for CookieExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_cookie(&self.cookie_name).map(|c| c.value().to_owned())
+            req.cookie(&self.cookie_name).map(|c| c.value().to_owned())
         } else {
             None
         }
@@ -346,7 +346,7 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         for extractor in &self.extractors {
-            if let Some(token) = extractor.get_token(req).await {
+            if let Some(token) = extractor.token(req).await {
                 if let Ok(data) = self.decode(&token) {
                     depot.insert(AUTH_DATA_KEY, data);
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Authorized);

@@ -207,7 +207,7 @@ impl CsrfHandler {
     }
 
     fn find_csrf_cookie(&self, req: &Request) -> Option<UnencryptedCsrfCookie> {
-        req.get_cookie(&self.cookie_name)
+        req.cookie(&self.cookie_name)
             .and_then(|c| match base64::decode(c.value().as_bytes()) {
                 Ok(value) => Some(value),
                 Err(e) => {
@@ -260,7 +260,7 @@ impl CsrfHandler {
     }
 
     async fn find_csrf_token_in_form(&self, req: &mut Request) -> Option<Vec<u8>> {
-        req.get_form::<String>(&self.form_field)
+        req.form::<String>(&self.form_field)
             .await
             .and_then(|v| base64::decode_config(v.as_bytes(), base64::URL_SAFE).ok())
     }
