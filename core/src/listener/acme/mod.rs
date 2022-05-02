@@ -161,7 +161,7 @@ impl AcmeListenerBuilder {
     ///
     /// Defaults to lets encrypt.
     #[inline]
-    pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+    pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.directory(name, url),
             ..self

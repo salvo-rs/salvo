@@ -341,7 +341,7 @@ mod tests {
     const SECRET: [u8; 32] = *b"secrets must be >= 32 bytes long";
 
     #[fn_handler]
-    async fn get_index(depot: &mut Depot) -> String {
+    async fn index(depot: &mut Depot) -> String {
         depot.csrf_token().unwrap_or_default().to_owned()
     }
     #[fn_handler]
@@ -351,7 +351,7 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_exposes_csrf_request_extensions() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
+        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(index);
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()
@@ -366,7 +366,7 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_adds_csrf_cookie_sets_request_token() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
+        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(index);
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()

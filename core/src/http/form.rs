@@ -38,9 +38,6 @@ impl Default for FormData {
         Self::new()
     }
 }
-fn get_extension_from_filename(filename: &str) -> Option<&str> {
-    Path::new(filename).extension().and_then(OsStr::to_str)
-}
 /// A file that is to be inserted into a `multipart/*` or alternatively an uploaded file that
 /// was received as part of `multipart/*` parsing.
 #[derive(Debug)]
@@ -102,7 +99,9 @@ impl FilePart {
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
             file_name
                 .as_deref()
-                .and_then(get_extension_from_filename)
+                .and_then(|name|{
+                    Path::new(name).extension().and_then(OsStr::to_str)
+                })
                 .unwrap_or("unknown")
         ));
         let mut file = File::create(&path).await?;

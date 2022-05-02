@@ -322,7 +322,7 @@ impl Response {
     }
     /// Helper function for get cookie.
     #[inline]
-    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
         T: AsRef<str>,
     {

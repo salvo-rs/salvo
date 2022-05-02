@@ -243,7 +243,7 @@ impl Request {
 
     /// Get header with supplied name and try to parse to a 'T', returns None if failed or not found.
     #[inline]
-    pub fn get_header<T>(&self, key: &str) -> Option<T>
+    pub fn header<T>(&self, key: &str) -> Option<T>
     where
         T: FromStr,
     {
