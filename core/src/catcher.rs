@@ -12,10 +12,10 @@ const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
 /// Catch http response error.
 pub trait Catcher: Send + Sync + 'static {
     /// If the current catcher caught the error, it will returns true.
-    /// 
+    ///
     /// If current catcher is not interested in current error, it will returns false.
     /// Salvo will try to use next catcher to catch this error.
-    /// 
+    ///
     /// If all custom catchers can not catch this error, [`CatcherImpl`] will be used
     /// to catch it.
     fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
@@ -109,8 +109,8 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
     (format, content.as_bytes().to_owned())
 }
 
-/// Default implementation of [`Catcher`]. 
-/// 
+/// Default implementation of [`Catcher`].
+///
 /// If http status is error, and user is not set custom catcher to catch them,
 /// CatcherImpl will catch them.
 pub struct CatcherImpl;

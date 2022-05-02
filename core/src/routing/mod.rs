@@ -42,15 +42,15 @@ fn decode_url_path_safely(path: &str) -> String {
 }
 
 /// `FlowCtrl` is used to control the flow of execute handlers.
-/// 
+///
 /// When a request is comming, [`Router`] will detect it and get the matched one.
 /// And then salvo will collect all handlers (including added as middlewares) in a list.
 /// All handlers in this list will executed one by one. Each handler can use `FlowCtrl` to control this
 /// flow, let the flow call next handler or skip all rest handlers.
-/// 
+///
 /// **NOTE**: When `Response`'s status code is set, and it's `is_success()` is returns false, all rest handlers
 /// will skipped.
-/// 
+///
 /// [`Router`]: crate::routing::Router
 pub struct FlowCtrl {
     is_ceased: bool,
@@ -75,7 +75,7 @@ impl FlowCtrl {
     }
 
     /// Call next handler. If get next handle and executed, return true, otherwise return false.
-    /// 
+    ///
     /// If resposne's statuse code is not success or is redirection, all reset handlers will skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
@@ -104,8 +104,8 @@ impl FlowCtrl {
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }
-    /// Cease all following logic. 
-    /// 
+    /// Cease all following logic.
+    ///
     /// If handler is used as middleware, it should use `is_ceased` to check is flow is ceased.
     /// if `is_ceased` returns true, the handler should skip the following logic.
     #[inline]

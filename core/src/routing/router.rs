@@ -196,7 +196,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
@@ -204,7 +204,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
@@ -212,7 +212,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
@@ -220,7 +220,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
@@ -228,7 +228,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
@@ -236,7 +236,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
@@ -244,7 +244,7 @@ impl Router {
     }
 
     /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
-    /// 
+    ///
     /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
