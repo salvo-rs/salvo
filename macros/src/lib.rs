@@ -23,82 +23,25 @@ enum InputType {
     NoReferenceArg,
 }
 
-macro_rules! rewrite_inputs {
-    ($sig:expr) => {
-        let salvo = salvo_crate();
-        if $sig.asyncness.is_none() {
-            return syn::Error::new_spanned($sig.fn_token, "only async fn is supported")
-                .to_compile_error()
-                .into();
-            // let ts: TokenStream = quote! {async}.into();
-            // $sig.asyncness = Some(syn::parse_macro_input!(ts as syn::token::Async))
-        }
-
-        let inputs = std::mem::replace(&mut $sig.inputs, Punctuated::new());
-        let mut req_ts = None;
-        let mut depot_ts = None;
-        let mut res_ts = None;
-        let mut ctrl_ts = None;
-        for input in inputs {
-            match parse_input_type(&input) {
-                InputType::Request => {
-                    req_ts = Some(input);
-                }
-                InputType::Depot => {
-                    depot_ts = Some(input);
-                }
-                InputType::Response => {
-                    res_ts = Some(input);
-                }
-                InputType::FlowCtrl => {
-                    ctrl_ts = Some(input);
-                }
-                InputType::UnKnow => {
-                    return syn::Error::new_spanned(
-                        &$sig.inputs,
-                        "The inputs parameters must be Request, Depot, Response or FlowCtrl",
-                    )
-                    .to_compile_error()
-                    .into()
-                }
-                InputType::NoReferenceArg => {
-                    return syn::Error::new_spanned(
-                        &$sig.inputs,
-                        "The inputs parameters must be mutable reference Request, Depot, Response or FlowCtrl",
-                    )
-                    .to_compile_error()
-                    .into()
-                }
-            }
-        }
-        if let Some(ts) = req_ts {
-            $sig.inputs.push(ts);
-        } else {
-            let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
-            $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
-        }
-        if let Some(ts) = depot_ts {
-            $sig.inputs.push(ts);
-        } else {
-            let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
-            $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
-        }
-        if let Some(ts) = res_ts {
-            $sig.inputs.push(ts);
-        } else {
-            let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
-            $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
-        }
-        if let Some(ts) = ctrl_ts {
-            $sig.inputs.push(ts);
-        } else {
-            let ts: TokenStream = quote! {_ctrl: &mut #salvo::routing::FlowCtrl}.into();
-            $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
-        }
-    };
-}
-
 /// `fn_handler` is a pro macro to help create `Handler` from function easily.
+/// 
+/// `Handler` is a trait, `fn_handler` will convert you `fn` to a struct, and then implement `Handler`.
+/// 
+/// ```no_run
+/// #[async_trait]
+/// pub trait Handler: Send + Sync + 'static {
+///     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
+/// }
+/// ```
+/// 
+/// After use `fn_handler`, you don't need to care arguments' order, omit unused arguments:
+/// 
+/// ```no_run
+/// #[fn_handler]
+/// async fn hello_world() -> &'static str {
+///     "Hello World"
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut item_fn = syn::parse_macro_input!(input as syn::ItemFn);
@@ -109,6 +52,13 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         return syn::Error::new_spanned(sig.fn_token, "too many args in handle function")
             .to_compile_error()
             .into();
+    }
+    if sig.asyncness.is_none() {
+        return syn::Error::new_spanned(sig.fn_token, "only async fn is supported")
+            .to_compile_error()
+            .into();
+        // let ts: TokenStream = quote! {async}.into();
+        // $sig.asyncness = Some(syn::parse_macro_input!(ts as syn::token::Async))
     }
 
     let body = &item_fn.block;
@@ -121,7 +71,68 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     let salvo = salvo_crate();
-    rewrite_inputs!(sig);
+    
+    let inputs = std::mem::replace(&mut sig.inputs, Punctuated::new());
+    let mut req_ts = None;
+    let mut depot_ts = None;
+    let mut res_ts = None;
+    let mut ctrl_ts = None;
+    for input in inputs {
+        match parse_input_type(&input) {
+            InputType::Request => {
+                req_ts = Some(input);
+            }
+            InputType::Depot => {
+                depot_ts = Some(input);
+            }
+            InputType::Response => {
+                res_ts = Some(input);
+            }
+            InputType::FlowCtrl => {
+                ctrl_ts = Some(input);
+            }
+            InputType::UnKnow => {
+                return syn::Error::new_spanned(
+                    &sig.inputs,
+                    "the inputs parameters must be Request, Depot, Response or FlowCtrl",
+                )
+                .to_compile_error()
+                .into()
+            }
+            InputType::NoReferenceArg => {
+                return syn::Error::new_spanned(
+                    &sig.inputs,
+                    "the inputs parameters must be mutable reference Request, Depot, Response or FlowCtrl",
+                )
+                .to_compile_error()
+                .into()
+            }
+        }
+    }
+    if let Some(ts) = req_ts {
+        sig.inputs.push(ts);
+    } else {
+        let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
+        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+    }
+    if let Some(ts) = depot_ts {
+        sig.inputs.push(ts);
+    } else {
+        let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
+        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+    }
+    if let Some(ts) = res_ts {
+        sig.inputs.push(ts);
+    } else {
+        let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
+        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+    }
+    if let Some(ts) = ctrl_ts {
+        sig.inputs.push(ts);
+    } else {
+        let ts: TokenStream = quote! {_ctrl: &mut #salvo::routing::FlowCtrl}.into();
+        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+    }
 
     let sdef = quote! {
         #(#docs)*
@@ -164,41 +175,6 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
-/// `easy_handle` is a pro macro to help write `handle` function easily.
-#[proc_macro_attribute]
-pub fn easy_handle(_: TokenStream, input: TokenStream) -> TokenStream {
-    let mut item_fn = syn::parse_macro_input!(input as syn::ItemFn);
-    let sig = &mut item_fn.sig;
-    if sig.inputs.len() > 5 {
-        return syn::Error::new_spanned(sig.fn_token, "too many args in handle function")
-            .to_compile_error()
-            .into();
-    }
-
-    let body = &item_fn.block;
-
-    let salvo = salvo_crate();
-    rewrite_inputs!(sig);
-
-    match sig.output {
-        ReturnType::Default => (quote! {
-            #sig {
-                #body
-            }
-        })
-        .into(),
-        ReturnType::Type(_, _) => (quote! {
-            #sig {
-                let result = {
-                    #body
-                };
-                #salvo::Writer::write(result).await;
-            }
-        })
-        .into(),
-    }
-}
-
 fn salvo_crate() -> syn::Ident {
     match crate_name("salvo_core").or_else(|_| crate_name("salvo")) {
         Ok(salvo) => match salvo {
@@ -227,6 +203,7 @@ fn parse_input_type(input: &syn::FnArg) -> InputType {
                 } else if ident == "FlowCtrl" {
                     InputType::FlowCtrl
                 } else {
+                    println!("==============ident: {:?}", ident);
                     InputType::UnKnow
                 }
             } else {
