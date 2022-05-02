@@ -27,7 +27,7 @@ enum InputType {
 /// 
 /// `Handler` is a trait, `fn_handler` will convert you `fn` to a struct, and then implement `Handler`.
 /// 
-/// ```no_run
+/// ```ignore
 /// #[async_trait]
 /// pub trait Handler: Send + Sync + 'static {
 ///     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
@@ -36,7 +36,7 @@ enum InputType {
 /// 
 /// After use `fn_handler`, you don't need to care arguments' order, omit unused arguments:
 /// 
-/// ```no_run
+/// ```ignore
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"

@@ -341,7 +341,7 @@ mod tests {
     const SECRET: [u8; 32] = *b"secrets must be >= 32 bytes long";
 
     #[fn_handler]
-    async fn index(depot: &mut Depot) -> String {
+    async fn get_index(depot: &mut Depot) -> String {
         depot.csrf_token().unwrap_or_default().to_owned()
     }
     #[fn_handler]
@@ -351,7 +351,7 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_exposes_csrf_request_extensions() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(index);
+        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()
@@ -366,7 +366,7 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_adds_csrf_cookie_sets_request_token() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(index);
+        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
         let service = Service::new(router);
 
         let req: Request = hyper::Request::builder()
@@ -379,7 +379,7 @@ mod tests {
 
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_ne!(res.take_text().await.unwrap(), "");
-        assert_ne!(res.get_cookie("salvo.extra.csrf"), None);
+        assert_ne!(res.cookie("salvo.extra.csrf"), None);
     }
 
     #[tokio::test]
@@ -400,7 +400,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -442,7 +442,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -484,7 +484,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -524,7 +524,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -565,7 +565,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -606,7 +606,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -646,7 +646,7 @@ mod tests {
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -686,7 +686,7 @@ mod tests {
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
@@ -735,7 +735,7 @@ mod tests {
             .into();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
-        let cookie = res.get_cookie("salvo.extra.csrf").unwrap();
+        let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
         let req: Request = hyper::Request::builder()
             .method("POST")
