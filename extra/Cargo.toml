@@ -24,7 +24,7 @@ basic-auth = ["base64"]
 jwt-auth = ["cookie", "jsonwebtoken", "once_cell"]
 compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
 cors = []
-csrf = ["hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "generic-array", "hmac"]
+csrf = ["hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "hmac"]
 size-limiter = []
 logging = []
 proxy = ["hyper", "hyper-rustls/webpki-tokio"]
@@ -46,7 +46,6 @@ chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 data-encoding = { version = "2.0.0", optional = true }
 futures-util = { version = "0.3", default-features = false, optional = true }
-generic-array = { version = "0.14", optional = true }
 hkdf = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }

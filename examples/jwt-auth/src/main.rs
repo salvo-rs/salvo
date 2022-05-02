@@ -1,4 +1,3 @@
-use anyhow;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
 use salvo::extra::jwt_auth::{JwtAuthDepotExt, JwtAuthHandler, JwtAuthState, QueryExtractor};
