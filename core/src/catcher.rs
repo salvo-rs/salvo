@@ -103,13 +103,7 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
     (format, content.as_bytes().to_owned())
 }
 /// Default implementation of Catcher.
-pub struct CatcherImpl();
-impl CatcherImpl {
-    /// Create new `CatcherImpl`.
-    pub fn new() -> CatcherImpl {
-        CatcherImpl()
-    }
-}
+pub struct CatcherImpl;
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);

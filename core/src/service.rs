@@ -14,7 +14,7 @@ use crate::routing::{FlowCtrl, PathState, Router};
 use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
-static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(|| vec![Box::new(CatcherImpl::new())]);
+static DEFAULT_CATCHERS: Lazy<Vec<Box<dyn Catcher>>> = Lazy::new(|| vec![Box::new(CatcherImpl)]);
 /// Service http request.
 pub struct Service {
     pub(crate) router: Arc<Router>,
