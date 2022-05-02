@@ -409,12 +409,12 @@ impl Request {
             .and_then(|ps| ps.fields.get(key))
             .and_then(|v| v.parse::<F>().ok())
     }
-    /// Get `FilePart` reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
     pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
-    /// Get `FilePart` reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
     pub async fn first_file(&mut self) -> Option<&FilePart> {
         self.form_data()
@@ -423,13 +423,19 @@ impl Request {
             .and_then(|ps| ps.files.iter().next())
             .map(|(_, f)| f)
     }
-    /// Get `FilePart` lsit reference from request.
+    /// Get [`FilePart`] list reference from request.
     #[inline]
     pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+        self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
+    }
+    /// Get [`FilePart`] list reference from request.
+    #[inline]
+    pub async fn all_files(&mut self) -> Vec<&FilePart> {
         self.form_data()
             .await
             .ok()
-            .and_then(|ps| ps.files.get_vec(key))
+            .map(|ps| ps.files.iter().map(|(_, f)| f).collect())
+            .unwrap_or_default()
     }
     /// Get value from form first if not found then get from query.
     #[inline]

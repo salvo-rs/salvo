@@ -1,4 +1,4 @@
-//! Http
+//! Http module
 
 pub mod errors;
 pub mod form;

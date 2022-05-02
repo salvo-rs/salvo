@@ -1,5 +1,4 @@
-//! The macros lib of Savlo web server framework.
-//! Read more: <https://salvo.rs>
+//! The macros lib of Savlo web server framework. Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -25,7 +24,8 @@ enum InputType {
 }
 
 macro_rules! rewrite_inputs {
-    ($salvo:expr, $sig:expr) => {
+    ($sig:expr) => {
+        let salvo = salvo_crate();
         if $sig.asyncness.is_none() {
             return syn::Error::new_spanned($sig.fn_token, "only async fn is supported")
                 .to_compile_error()
@@ -74,25 +74,25 @@ macro_rules! rewrite_inputs {
         if let Some(ts) = req_ts {
             $sig.inputs.push(ts);
         } else {
-            let ts: TokenStream = quote! {_req: &mut #$salvo::Request}.into();
+            let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
             $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
         }
         if let Some(ts) = depot_ts {
             $sig.inputs.push(ts);
         } else {
-            let ts: TokenStream = quote! {_depot: &mut #$salvo::Depot}.into();
+            let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
             $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
         }
         if let Some(ts) = res_ts {
             $sig.inputs.push(ts);
         } else {
-            let ts: TokenStream = quote! {_res: &mut #$salvo::Response}.into();
+            let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
             $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
         }
         if let Some(ts) = ctrl_ts {
             $sig.inputs.push(ts);
         } else {
-            let ts: TokenStream = quote! {_ctrl: &mut #$salvo::routing::FlowCtrl}.into();
+            let ts: TokenStream = quote! {_ctrl: &mut #salvo::routing::FlowCtrl}.into();
             $sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
         }
     };
@@ -121,7 +121,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     let salvo = salvo_crate();
-    rewrite_inputs!(salvo, sig);
+    rewrite_inputs!(sig);
 
     let sdef = quote! {
         #(#docs)*
@@ -178,7 +178,7 @@ pub fn easy_handle(_: TokenStream, input: TokenStream) -> TokenStream {
     let body = &item_fn.block;
 
     let salvo = salvo_crate();
-    rewrite_inputs!(salvo, sig);
+    rewrite_inputs!(sig);
 
     match sig.output {
         ReturnType::Default => (quote! {

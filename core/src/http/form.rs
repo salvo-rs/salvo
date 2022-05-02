@@ -131,7 +131,7 @@ impl Drop for FilePart {
     }
 }
 
-/// Parse MIME `multipart/*` information from a stream as a `FormData`.
+/// Parse MIME `multipart/*` information from a stream as a [`FormData`].
 pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ParseError> {
     match headers.get(CONTENT_TYPE) {
         Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
