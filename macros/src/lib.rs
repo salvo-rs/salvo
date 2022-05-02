@@ -24,18 +24,18 @@ enum InputType {
 }
 
 /// `fn_handler` is a pro macro to help create `Handler` from function easily.
-/// 
+///
 /// `Handler` is a trait, `fn_handler` will convert you `fn` to a struct, and then implement `Handler`.
-/// 
+///
 /// ```ignore
 /// #[async_trait]
 /// pub trait Handler: Send + Sync + 'static {
 ///     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
 /// }
 /// ```
-/// 
+///
 /// After use `fn_handler`, you don't need to care arguments' order, omit unused arguments:
-/// 
+///
 /// ```ignore
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
@@ -71,7 +71,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     let salvo = salvo_crate();
-    
+
     let inputs = std::mem::replace(&mut sig.inputs, Punctuated::new());
     let mut req_ts = None;
     let mut depot_ts = None;
