@@ -6,8 +6,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-pub use hyper;
 pub use async_trait::async_trait;
+pub use hyper;
 pub use salvo_macros::fn_handler;
 
 #[macro_use]
@@ -82,12 +82,12 @@ fn new_runtime(threads: usize) -> Runtime {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to run server.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```no_run
 /// # use salvo_core::prelude::*;
-/// 
+///
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
@@ -105,17 +105,17 @@ pub fn run<F: Future>(future: F) {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to run server.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```no_run
 /// use salvo_core::prelude::*;
-/// 
+///
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
 /// }
-/// 
+///
 /// fn main() {
 ///    let router = Router::new().get(hello_world);
 ///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);

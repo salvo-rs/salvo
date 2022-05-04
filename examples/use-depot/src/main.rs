@@ -7,7 +7,7 @@ async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl
 }
 #[fn_handler]
 async fn hello_world(depot: &mut Depot) -> String {
-    format!("Hello {}", depot.get::<&str>("user").map(|s|*s).unwrap_or_default())
+    format!("Hello {}", depot.get::<&str>("user").map(|s| *s).unwrap_or_default())
 }
 
 #[tokio::main]
@@ -32,9 +32,7 @@ mod tests {
         let service = Service::new(super::route());
 
         async fn access(service: &Service) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7878");
+            let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878");
             let req: Request = req.body(hyper::Body::empty()).unwrap().into();
             service.handle(req).await.take_text().await.unwrap()
         }

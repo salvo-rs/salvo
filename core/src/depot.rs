@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
 /// Depot if for store temp data of current request. Each handler can read or write data to it.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```no_run
 /// use salvo_core::prelude::*;
-/// 
+///
 /// #[fn_handler]
 /// async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
 ///     depot.insert("user", "client");

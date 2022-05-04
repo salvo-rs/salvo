@@ -12,7 +12,7 @@ use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, AttributeArgs, FnArg, ItemFn, Ident, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
 enum InputType {
     Request,

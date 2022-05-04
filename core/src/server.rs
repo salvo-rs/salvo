@@ -8,7 +8,7 @@ use crate::transport::Transport;
 use crate::{Listener, Service};
 
 /// HTTP Server
-/// 
+///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
@@ -21,12 +21,12 @@ where
     L::Error: Into<Box<(dyn StdError + Send + Sync + 'static)>>,
 {
     /// Create new `Server` with [`Listener`].
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```no_run
     /// # use salvo_core::prelude::*;
-    /// 
+    ///
     /// # #[tokio::main]
     /// # async fn main() {
     /// Server::new(TcpListener::bind("0.0.0.0:7878"));
@@ -58,7 +58,7 @@ where
     ///
     /// ```no_run
     /// # use tokio::sync::oneshot;
-    /// 
+    ///
     /// use salvo_core::prelude::*;
     ///
     /// #[fn_handler]

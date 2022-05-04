@@ -40,13 +40,13 @@ impl Service {
 
     /// When the response code is 400-600 and the body is empty, capture and set the return value.
     /// If catchers is not set, the default [`CatcherImpl`] will be used.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use salvo_core::prelude::*;
     /// # use salvo_core::Catcher;
-    /// 
+    ///
     /// struct Handle404;
     /// impl Catcher for Handle404 {
     ///     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
@@ -58,7 +58,7 @@ impl Service {
     ///         }
     ///     }
     /// }
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
@@ -79,12 +79,12 @@ impl Service {
     }
 
     /// Set allowed media types list and returns `Self` for write code chained.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use salvo_core::prelude::*;
-    /// 
+    ///
     /// # #[tokio::main]
     /// # async fn main() {
     /// let service = Service::new(Router::new()).with_allowed_media_types(vec![mime::TEXT_PLAIN]);
@@ -104,14 +104,14 @@ impl Service {
     }
 
     /// Handle [`Request`] and returns [`Response`].
-    /// 
+    ///
     /// This function is useful for testing application.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use salvo_core::prelude::*;
-    /// 
+    ///
     /// #[fn_handler]
     /// async fn hello_world() -> &'static str {
     ///     "Hello World"

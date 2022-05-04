@@ -33,7 +33,7 @@ where
 }
 
 /// `Piece` is used to write data to [`Response`].
-/// 
+///
 /// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
 pub trait Piece {
     /// Render data to [`Response`].

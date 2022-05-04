@@ -259,12 +259,12 @@ impl NamedFile {
     }
     /// Set the `Content-Disposition` for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
-    /// sent to the peer. 
-    /// 
+    /// sent to the peer.
+    ///
     /// By default the disposition is `inline` for text,
     /// image, and video content types, and `attachment` otherwise, and
     /// the filename is taken from the path provided in the `open` method
-    /// after converting it to UTF-8 using 
+    /// after converting it to UTF-8 using
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
     pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {

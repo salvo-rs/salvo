@@ -7,14 +7,14 @@ use crate::http::Request;
 use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
-/// 
+///
 /// You can wite routers in flat way, like this:
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// # use salvo_core::prelude::*;
-/// 
+///
 /// # #[fn_handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
@@ -40,14 +40,14 @@ use crate::Handler;
 /// Router::with_path("writers/<id>/articles").get(list_writer_articles);
 /// # }
 /// ```
-/// 
+///
 /// You can write router like a tree, this is also the recommended way:
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use salvo_core::prelude::*;
-/// 
+///
 /// # #[fn_handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
@@ -80,7 +80,7 @@ use crate::Handler;
 ///     );
 /// # }
 /// ```
-/// 
+///
 /// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
     pub(crate) routers: Vec<Router>,
