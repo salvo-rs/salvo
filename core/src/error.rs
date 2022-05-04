@@ -14,7 +14,7 @@ type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 pub enum Error {
     /// Error happened in hyper.
     Hyper(hyper::Error),
-    /// Error happened in http parse.
+    /// Error happened when parse http.
     HttpParse(ParseError),
     /// Error from http response error status.
     HttpStatus(StatusError),
@@ -22,7 +22,7 @@ pub enum Error {
     Io(IoError),
     /// SerdeJson error.
     SerdeJson(serde_json::Error),
-    /// anyhow error.
+    /// Anyhow error.
     #[cfg(feature = "anyhow")]
     #[cfg_attr(docsrs, doc(cfg(unix)))]
     Anyhow(anyhow::Error),

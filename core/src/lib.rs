@@ -6,6 +6,10 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub use hyper;
+pub use async_trait::async_trait;
+pub use salvo_macros::fn_handler;
+
 #[macro_use]
 mod cfg;
 
@@ -23,8 +27,6 @@ mod service;
 mod transport;
 pub mod writer;
 
-pub use hyper;
-
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
 pub use self::error::Error;
@@ -35,13 +37,14 @@ pub use self::routing::Router;
 pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::{Piece, Writer};
-pub use async_trait::async_trait;
-pub use salvo_macros::fn_handler;
 /// Result type wich has salvo::Error as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
+    pub use async_trait::async_trait;
+    pub use salvo_macros::fn_handler;
+
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
     cfg_feature! {
@@ -62,11 +65,10 @@ pub mod prelude {
     pub use crate::service::Service;
     pub use crate::writer::{Json, Piece, Text, Writer};
     pub use crate::Handler;
-    pub use async_trait::async_trait;
-    pub use salvo_macros::fn_handler;
 }
 
 use std::{future::Future, thread::available_parallelism};
+
 use tokio::runtime::{self, Runtime};
 
 fn new_runtime(threads: usize) -> Runtime {
@@ -80,14 +82,18 @@ fn new_runtime(threads: usize) -> Runtime {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to run server.
-/// ```ignore
-/// use salvo_core::prelude::*;
+/// 
+/// # Example
+/// 
+/// ```no_run
+/// # use salvo_core::prelude::*;
+/// 
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
 /// }
-/// fn main() {
-///
+/// #[tokio::main]
+/// async fn main() {
 ///    let router = Router::new().get(hello_world);
 ///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
 ///    salvo_core::run(server);
@@ -99,15 +105,20 @@ pub fn run<F: Future>(future: F) {
 
 /// If you don't want to include tokio in your project directly,
 /// you can use this function to run server.
-/// ```ignore
+/// 
+/// # Example
+/// 
+/// ```no_run
 /// use salvo_core::prelude::*;
+/// 
 /// #[fn_handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
 /// }
+/// 
 /// fn main() {
-///    let service = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+///    let router = Router::new().get(hello_world);
+///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```

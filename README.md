@@ -126,12 +126,12 @@ Router::new()
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
 ### File upload
-We can get file async by the function ```get_file``` in ```Request```:
+We can get file async by the function ```file``` in ```Request```:
 
 ```rust
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
         if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {

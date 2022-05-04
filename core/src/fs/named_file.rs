@@ -48,7 +48,7 @@ pub struct NamedFile {
     content_encoding: Option<HeaderValue>,
 }
 
-/// Builder for build `NamedFile`.
+/// Builder for build [`NamedFile`].
 #[derive(Clone)]
 pub struct NamedFileBuilder {
     path: PathBuf,
@@ -61,31 +61,31 @@ pub struct NamedFileBuilder {
     flags: Flags,
 }
 impl NamedFileBuilder {
-    /// Set attached filename and returns Self.
+    /// Set attached filename and returns `Self`.
     #[inline]
     pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> Self {
         self.attached_filename = Some(attached_filename.into());
         self
     }
-    /// Set disposition encoding and returns Self.
+    /// Set disposition encoding and returns `Self`.
     #[inline]
     pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
         self
     }
-    /// Set content type and returns Self.
+    /// Set content type and returns `Self`.
     #[inline]
     pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
-    /// Set content encoding and returns Self.
+    /// Set content encoding and returns `Self`.
     #[inline]
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
     }
-    /// Set buffer size and returns Self.
+    /// Set buffer size and returns `Self`.
     #[inline]
     pub fn with_buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
@@ -110,7 +110,7 @@ impl NamedFileBuilder {
             }
         }
     }
-    /// Build a new `NamedFile`.
+    /// Build a new [`NamedFile`].
     pub async fn build(self) -> Result<NamedFile> {
         let NamedFileBuilder {
             path,
@@ -185,7 +185,7 @@ impl NamedFileBuilder {
 }
 
 impl NamedFile {
-    /// Create new `NamedFileBuilder`.
+    /// Create new [`NamedFileBuilder`].
     #[inline]
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
@@ -205,9 +205,9 @@ impl NamedFile {
     /// # Examples
     ///
     /// ```
-    /// use salvo_core::fs::NamedFile;
+    /// # use salvo_core::fs::NamedFile;
     /// # async fn open() {
-    ///     let file = NamedFile::open("foo.txt").await;
+    /// let file = NamedFile::open("foo.txt").await;
     /// # }
     /// ```
     #[inline]
@@ -235,17 +235,6 @@ impl NamedFile {
     }
 
     /// Retrieve the path of this file.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use std::io;
-    /// # use salvo_core::fs::NamedFile;
-    /// # async fn path() {
-    ///     let file = NamedFile::open("test.txt").await.unwrap();
-    ///     assert_eq!(file.path().as_os_str(), "foo.txt");
-    /// # }
-    /// ```
     #[inline]
     pub fn path(&self) -> &Path {
         self.path.as_path()
@@ -268,12 +257,14 @@ impl NamedFile {
     pub fn content_disposition(&self) -> &HeaderValue {
         &self.content_disposition
     }
-    /// Set the Content-Disposition for serving this file. This allows
+    /// Set the `Content-Disposition` for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
-    /// sent to the peer. By default the disposition is `inline` for text,
+    /// sent to the peer. 
+    /// 
+    /// By default the disposition is `inline` for text,
     /// image, and video content types, and `attachment` otherwise, and
     /// the filename is taken from the path provided in the `open` method
-    /// after converting it to UTF-8 using.
+    /// after converting it to UTF-8 using 
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
     pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {
@@ -300,7 +291,7 @@ impl NamedFile {
         self.content_encoding = Some(content_encoding);
     }
 
-    /// Get etag value.
+    /// Get ETag value.
     pub fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
         self.modified.as_ref().and_then(|mtime| {
@@ -355,7 +346,7 @@ impl NamedFile {
         self.flags.set(Flags::LAST_MODIFIED, value);
         self
     }
-    ///Send file.
+    ///Consume self and send content to [`Response`].
     pub async fn send(self, req: &mut Request, res: &mut Response) {
         let etag = if self.flags.contains(Flags::ETAG) {
             self.etag()

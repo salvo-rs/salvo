@@ -7,7 +7,7 @@ use http::StatusCode;
 use crate::{Depot, Request, Response, Writer};
 
 /// Resut type with `StatusError` has it's error type.
-pub type HttpResult<T> = Result<T, StatusError>;
+pub type StatusResult<T> = Result<T, StatusError>;
 
 macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {

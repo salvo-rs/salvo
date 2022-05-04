@@ -7,6 +7,81 @@ use crate::http::Request;
 use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
+/// 
+/// You can wite routers in flat way, like this:
+/// 
+/// # Example
+/// 
+/// ```
+/// # use salvo_core::prelude::*;
+/// 
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers").get(list_writers).post(create_writer);
+/// Router::with_path("writers/<id>").get(show_writer).patch(edit_writer).delete(delete_writer);
+/// Router::with_path("writers/<id>/articles").get(list_writer_articles);
+/// # }
+/// ```
+/// 
+/// You can write router like a tree, this is also the recommended way:
+/// 
+/// # Example
+/// 
+/// ```
+/// use salvo_core::prelude::*;
+/// 
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers")
+///     .get(list_writers)
+///     .post(create_writer)
+///     .push(
+///         Router::with_path("<id>")
+///             .get(show_writer)
+///             .patch(edit_writer)
+///             .delete(delete_writer)
+///             .push(Router::with_path("articles").get(list_writer_articles)),
+///     );
+/// # }
+/// ```
+/// 
+/// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
     pub(crate) routers: Vec<Router>,
     pub(crate) filters: Vec<Box<dyn Filter>>,
@@ -310,7 +385,7 @@ mod tests {
     use crate::{Request, Response};
     use async_trait::async_trait;
 
-    #[fn_handler]
+    #[fn_handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {

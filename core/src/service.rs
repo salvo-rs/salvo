@@ -21,7 +21,7 @@ pub struct Service {
 }
 
 impl Service {
-    /// Create a new Service with a router.
+    /// Create a new Service with a [`Router`].
     pub fn new<T>(router: T) -> Service
     where
         T: Into<Arc<Router>>,
@@ -33,12 +33,38 @@ impl Service {
         }
     }
 
-    /// Get root router.
+    /// Get router in this `Service`.
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
-    /// when the response code is 400-600 and the body is empty, capture and set the return value.
-    /// By default, it is the built-in default html page.
+
+    /// When the response code is 400-600 and the body is empty, capture and set the return value.
+    /// If catchers is not set, the default [`CatcherImpl`] will be used.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use salvo_core::prelude::*;
+    /// # use salvo_core::Catcher;
+    /// 
+    /// struct Handle404;
+    /// impl Catcher for Handle404 {
+    ///     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
+    ///         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    ///             res.render("Custom 404 Error Page");
+    ///             true
+    ///         } else {
+    ///             false
+    ///         }
+    ///     }
+    /// }
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+    ///     Service::new(Router::new()).with_catchers(catchers);
+    /// }
+    /// ```
     pub fn with_catchers<T>(mut self, catchers: T) -> Self
     where
         T: Into<Arc<Vec<Box<dyn Catcher>>>>,
@@ -52,7 +78,18 @@ impl Service {
         self.catchers.clone()
     }
 
-    /// Set allowed media types list and returns Self for wite code chained.
+    /// Set allowed media types list and returns `Self` for write code chained.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use salvo_core::prelude::*;
+    /// 
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let service = Service::new(Router::new()).with_allowed_media_types(vec![mime::TEXT_PLAIN]);
+    /// # }
+    /// ```
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -66,7 +103,27 @@ impl Service {
         self.allowed_media_types.clone()
     }
 
-    /// Handle ```Request``` and returns ```Response```.
+    /// Handle [`Request`] and returns [`Response`].
+    /// 
+    /// This function is useful for testing application.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use salvo_core::prelude::*;
+    /// 
+    /// #[fn_handler]
+    /// async fn hello_world() -> &'static str {
+    ///     "Hello World"
+    /// }
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let service: Service = Router::new().get(hello_world).into();
+    ///     let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878");
+    ///     let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+    ///     assert_eq!(service.handle(req).await.take_text().await.unwrap(), "Hello World");
+    /// }
+    /// ```
     pub async fn handle(&self, request: Request) -> Response {
         let handler = HyperHandler {
             remote_addr: None,
@@ -232,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before1"));
             if req.query::<String>("b").unwrap_or_default() == "1" {
@@ -241,7 +298,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before2"));
             if req.query::<String>("b").unwrap_or_default() == "2" {
@@ -250,7 +307,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before3"));
             if req.query::<String>("b").unwrap_or_default() == "3" {
@@ -259,7 +316,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }

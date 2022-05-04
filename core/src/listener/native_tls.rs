@@ -19,7 +19,7 @@ use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-/// Builder to set the configuration for the Tls server.
+/// Builder to set the configuration for the TLS server.
 pub struct NativeTlsConfig {
     pkcs12: Box<dyn Read + Send + Sync>,
     password: String,
@@ -46,7 +46,7 @@ impl NativeTlsConfig {
         }
     }
 
-    /// sets the pkcs12 via File Path, returns `Error::IoError` if the file cannot be open
+    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
     #[inline]
     pub fn with_pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12 = Box::new(LazyFile {
@@ -56,13 +56,13 @@ impl NativeTlsConfig {
         self
     }
 
-    /// sets the pkcs12 via bytes slice
+    /// Sets the pkcs12 via bytes slice
     #[inline]
     pub fn with_pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
         self.pkcs12 = Box::new(Cursor::new(pkcs12.into()));
         self
     }
-    /// sets the password
+    /// Sets the password
     #[inline]
     pub fn with_password(mut self, password: impl Into<String>) -> Self {
         self.password = password.into();

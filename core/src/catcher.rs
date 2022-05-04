@@ -1,4 +1,41 @@
-//! Catcher tarit and it's impl.
+//! [`Catcher`] tarit and it's defalut implement [`CatcherImpl`].
+//! 
+//! A web application can specify several different Catchers to handle errors. 
+//! 
+//! They can be set via the ```with_catchers``` function of ```Server```:
+//! 
+//! # Example
+//! 
+//! ```
+//! # use salvo_core::prelude::*;
+//! # use salvo_core::Catcher;
+//! 
+//! struct Handle404;
+//! impl Catcher for Handle404 {
+//!     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
+//!         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+//!             res.render("Custom 404 Error Page");
+//!             true
+//!         } else {
+//!             false
+//!         }
+//!     }
+//! }
+//! 
+//! #[tokio::main]
+//! async fn main() {
+//!     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+//!     Service::new(Router::new()).with_catchers(catchers);
+//! }
+//! ```
+//! 
+//! When there is an error in the website request result, first try to set the error page 
+//! through the [`Catcher`] set by the user. If the [`Catcher`] catches the error, 
+//! it will return `true`. 
+//! 
+//! If your custom catchers does not capture this error, then the system uses the 
+//! default [`CatcherImpl`] to capture processing errors and send the default error page. 
+
 use mime::Mime;
 use once_cell::sync::Lazy;
 
@@ -112,7 +149,9 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
 /// Default implementation of [`Catcher`].
 ///
 /// If http status is error, and user is not set custom catcher to catch them,
-/// CatcherImpl will catch them.
+/// `CatcherImpl` will catch them.
+/// 
+/// `CatcherImpl` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 pub struct CatcherImpl;
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {

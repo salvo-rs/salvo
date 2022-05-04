@@ -1,4 +1,4 @@
-//! Writer trait and it's impls.
+//! Writer trait and it's implements.
 use async_trait::async_trait;
 use serde::Serialize;
 
@@ -9,7 +9,7 @@ use crate::Depot;
 /// Writer is used to write data to response.
 #[async_trait]
 pub trait Writer {
-    /// Write data to ```Respone```.
+    /// Write data to [`Response`].
     #[must_use = "write future must be used"]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
@@ -32,9 +32,11 @@ where
     }
 }
 
-/// Piece is used to write data to response.
+/// `Piece` is used to write data to [`Response`].
+/// 
+/// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
 pub trait Piece {
-    /// Render data to ```Respone```.
+    /// Render data to [`Response`].
     fn render(self, res: &mut Response);
 }
 #[async_trait]
@@ -147,7 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_str() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> &'static str {
             "hello"
         }
@@ -162,7 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_string() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> String {
             "hello".to_owned()
         }
@@ -177,7 +179,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_plain_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Plain("hello")
         }
@@ -192,7 +194,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_json_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Json(r#"{"hello": "world"}"#)
         }
@@ -214,7 +216,7 @@ mod tests {
         struct User {
             name: String,
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Json<User> {
             Json(User { name: "jobs".into() })
         }
@@ -232,7 +234,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_html_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Html("<html><body>hello</body></html>")
         }

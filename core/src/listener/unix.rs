@@ -12,7 +12,18 @@ use super::Listener;
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-/// UnixListener
+/// Unix domain socket listener.
+/// 
+/// # Example
+/// 
+/// ```no_run
+/// #[cfg(target_os = "linux")]
+/// #[tokio::main]
+/// async fn main() {
+/// #    use salvo_core::prelude::*;
+///     Server::new(UnixListener::bind("/tmp/salvo.sock")).serve(Router::new()).await;
+/// }
+/// ```
 #[cfg(unix)]
 pub struct UnixListener {
     incoming: tokio::net::UnixListener,

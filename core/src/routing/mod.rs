@@ -1,4 +1,5 @@
 //! Routing and filters
+//! Router can route http requests to different handlers.
 
 pub mod filter;
 mod router;

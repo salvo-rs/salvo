@@ -1,4 +1,4 @@
-//! Listener module
+//! Listener trait and it's implements.
 use std::fs::File;
 use std::io::{self, Error as IoError, ErrorKind, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
@@ -59,7 +59,7 @@ pub trait Listener: Accept {
     }
 }
 
-/// A IO stream for JoinedListener.
+/// A I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
     #[allow(missing_docs)]
     A(A),

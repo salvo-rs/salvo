@@ -112,12 +112,12 @@ Router::new()
 還可以通過 ```<*>``` 或者 ```<**>``` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: ```<**file_path>```.
 
 ### 文件上傳
-可以通過 Request 中的 get_file 異步獲取上傳的文件:
+可以通過 ```Request``` 中的 ```file``` 異步獲取上傳的文件:
 
 ```rust
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
