@@ -60,6 +60,7 @@ pub enum ParseError {
 
 #[async_trait]
 impl Writer for ParseError {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_status_error(
             StatusError::internal_server_error()

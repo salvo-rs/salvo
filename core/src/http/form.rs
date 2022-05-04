@@ -55,14 +55,17 @@ pub struct FilePart {
 }
 impl FilePart {
     /// Get file name.
+    #[inline]
     pub fn file_name(&self) -> Option<&str> {
         self.file_name.as_deref()
     }
     /// Get file name mutable reference.
+    #[inline]
     pub fn file_name_mut(&mut self) -> Option<&mut String> {
         self.file_name.as_mut()
     }
     /// Get headers.
+    #[inline]
     pub fn headers(&self) -> &HeaderMap {
         &self.headers
     }
@@ -71,15 +74,18 @@ impl FilePart {
         &mut self.headers
     }
     /// Get file path.
+    #[inline]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
     /// Get file size.
+    #[inline]
     pub fn size(&self) -> Option<usize> {
         self.size
     }
     /// If you do not want the file on disk to be deleted when Self drops, call this
     /// function.  It will become your responsibility to clean up.
+    #[inline]
     pub fn do_not_delete_on_drop(&mut self) {
         self.temp_dir = None;
     }

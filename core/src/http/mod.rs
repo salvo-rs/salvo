@@ -17,6 +17,7 @@ pub use range::HttpRange;
 pub use request::Request;
 pub use response::Response;
 
+#[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let dmime: Mime = default_type.unwrap_or_else(|| "text/html".parse().unwrap());
     let accept = req.accept();

@@ -23,6 +23,7 @@ pub struct PathState {
 }
 impl PathState {
     /// Create new `PathState`.
+    #[inline]
     pub fn new(url_path: &str) -> Self {
         let url_path = url_path.trim_start_matches('/').trim_end_matches('/');
         PathState {
@@ -31,6 +32,7 @@ impl PathState {
             params: PathParams::new(),
         }
     }
+    #[inline]
     pub(crate) fn ended(&self) -> bool {
         self.cursor >= self.url_path.len()
     }

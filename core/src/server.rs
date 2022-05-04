@@ -32,11 +32,13 @@ where
     /// Server::new(TcpListener::bind("0.0.0.0:7878"));
     /// # }
     /// ```
+    #[inline]
     pub fn new(listener: L) -> Self {
         Server { listener }
     }
 
     /// Serve a [`Service`]
+    #[inline]
     pub async fn serve<S>(self, service: S)
     where
         S: Into<Service>,
@@ -45,6 +47,7 @@ where
     }
 
     /// Try to serve a [`Service`]
+    #[inline]
     pub async fn try_serve<S>(self, service: S) -> Result<(), hyper::Error>
     where
         S: Into<Service>,

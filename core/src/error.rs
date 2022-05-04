@@ -32,6 +32,7 @@ pub enum Error {
 
 impl Error {
     /// Create a custom error.
+    #[inline]
     pub fn other(error: impl Into<BoxedError>) -> Self {
         Self::Other(error.into())
     }

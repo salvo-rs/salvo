@@ -16,6 +16,7 @@ pub use path::*;
 /// Fiter trait for filter request.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     /// Create a new filter use ```And``` filter.
+    #[inline]
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,
@@ -28,6 +29,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use ```Or``` filter.
+    #[inline]
     fn or<F>(self, other: F) -> Or<Self, F>
     where
         Self: Sized,
@@ -40,6 +42,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use ```AndThen``` filter.
+    #[inline]
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
         Self: Sized,
@@ -52,6 +55,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     }
 
     /// Create a new filter use ```OrElse``` filter.
+    #[inline]
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
         Self: Sized,

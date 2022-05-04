@@ -28,9 +28,11 @@ static PART_BUILDERS: Lazy<PartBuilderMap> = Lazy::new(|| {
     RwLock::new(map)
 });
 
+#[inline]
 fn is_num(ch: char) -> bool {
     ch.is_ascii_digit()
 }
+#[inline]
 fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
@@ -39,6 +41,7 @@ fn is_hex(ch: char) -> bool {
 pub struct RegexPartBuilder(Regex);
 impl RegexPartBuilder {
     /// Create new `RegexPartBuilder`.
+    #[inline]
     pub fn new(checker: Regex) -> Self {
         Self(checker)
     }
@@ -56,6 +59,7 @@ impl PartBuilder for RegexPartBuilder {
 pub struct CharPartBuilder<C>(Arc<C>);
 impl<C> CharPartBuilder<C> {
     /// Create new `CharPartBuilder`.
+    #[inline]
     pub fn new(checker: C) -> Self {
         Self(Arc::new(checker))
     }
@@ -191,6 +195,7 @@ where
 #[derive(Debug)]
 struct CombPart(Vec<Box<dyn PathPart>>);
 impl PathPart for CombPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let original_cursor = state.cursor;
         for child in &self.0 {
@@ -233,11 +238,13 @@ struct RegexPart {
     regex: Regex,
 }
 impl RegexPart {
+    #[inline]
     fn new(name: String, regex: Regex) -> RegexPart {
         RegexPart { name, regex }
     }
 }
 impl PartialEq for RegexPart {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.regex.as_str() == other.regex.as_str()
     }
@@ -280,6 +287,7 @@ impl PathPart for RegexPart {
 #[derive(Eq, PartialEq, Debug)]
 struct ConstPart(String);
 impl PathPart for ConstPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if url_path.is_empty() {
@@ -338,6 +346,7 @@ impl PathParser {
             None
         }
     }
+    #[inline]
     fn curr(&self) -> Option<char> {
         self.path.get(self.offset).copied()
     }
@@ -588,6 +597,7 @@ impl fmt::Debug for PathFilter {
     }
 }
 impl Filter for PathFilter {
+    #[inline]
     fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
         self.detect(state)
     }
@@ -611,6 +621,7 @@ impl PathFilter {
         PathFilter { raw_value, path_parts }
     }
     /// Register new path part builder.
+    #[inline]
     pub fn register_part_builder<B>(name: impl Into<String>, builder: B)
     where
         B: PartBuilder + 'static,
@@ -619,6 +630,7 @@ impl PathFilter {
         builders.insert(name.into(), Arc::new(Box::new(builder)));
     }
     /// Register new path part regex.
+    #[inline]
     pub fn register_part_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = PART_BUILDERS.write();
         builders.insert(name.into(), Arc::new(Box::new(RegexPartBuilder::new(regex))));

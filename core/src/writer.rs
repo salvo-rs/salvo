@@ -20,6 +20,7 @@ where
     T: Writer + Send,
     E: Writer + Send,
 {
+    #[inline]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         match self {
             Ok(v) => {
@@ -44,6 +45,7 @@ impl<P> Writer for P
 where
     P: Piece + Sized + Send,
 {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         self.render(res)
     }
@@ -93,6 +95,7 @@ impl<C> Piece for Text<C>
 where
     C: AsRef<str> + Send,
 {
+    #[inline]
     fn render(self, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
@@ -114,6 +117,7 @@ impl<T> Piece for Json<T>
 where
     T: Serialize + Send,
 {
+    #[inline]
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {

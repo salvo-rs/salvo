@@ -95,6 +95,7 @@ pub struct DetectMatched {
 }
 
 impl Default for Router {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -102,6 +103,7 @@ impl Default for Router {
 
 impl Router {
     /// Create a new `Router`.
+    #[inline]
     pub fn new() -> Self {
         Self {
             routers: Vec::new(),

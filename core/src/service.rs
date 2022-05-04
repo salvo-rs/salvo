@@ -22,6 +22,7 @@ pub struct Service {
 
 impl Service {
     /// Create a new Service with a [`Router`].
+    #[inline]
     pub fn new<T>(router: T) -> Service
     where
         T: Into<Arc<Router>>,
@@ -34,6 +35,7 @@ impl Service {
     }
 
     /// Get router in this `Service`.
+    #[inline]
     pub fn router(&self) -> Arc<Router> {
         self.router.clone()
     }
@@ -65,6 +67,7 @@ impl Service {
     ///     Service::new(Router::new()).with_catchers(catchers);
     /// }
     /// ```
+    #[inline]
     pub fn with_catchers<T>(mut self, catchers: T) -> Self
     where
         T: Into<Arc<Vec<Box<dyn Catcher>>>>,
@@ -74,6 +77,7 @@ impl Service {
     }
 
     /// Get catchers list.
+    #[inline]
     pub fn catchers(&self) -> Arc<Vec<Box<dyn Catcher>>> {
         self.catchers.clone()
     }
@@ -90,6 +94,7 @@ impl Service {
     /// let service = Service::new(Router::new()).with_allowed_media_types(vec![mime::TEXT_PLAIN]);
     /// # }
     /// ```
+    #[inline]
     pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
@@ -99,6 +104,7 @@ impl Service {
     }
 
     /// Get allowed media types list.
+    #[inline]
     pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
         self.allowed_media_types.clone()
     }
@@ -124,6 +130,7 @@ impl Service {
     ///     assert_eq!(service.handle(req).await.take_text().await.unwrap(), "Hello World");
     /// }
     /// ```
+    #[inline]
     pub async fn handle(&self, request: Request) -> Response {
         let handler = HyperHandler {
             remote_addr: None,

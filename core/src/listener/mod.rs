@@ -51,6 +51,7 @@ pub use unix::UnixListener;
 /// Listener trait
 pub trait Listener: Accept {
     /// Join current Listener with the other.
+    #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
     where
         Self: Sized,
@@ -85,6 +86,7 @@ where
     A: AsyncWrite + Send + Unpin + 'static,
     B: AsyncWrite + Send + Unpin + 'static,
 {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_write(cx, buf),
@@ -92,6 +94,7 @@ where
         }
     }
 
+    #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_flush(cx),
@@ -99,6 +102,7 @@ where
         }
     }
 
+    #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_shutdown(cx),
@@ -111,6 +115,7 @@ where
     A: Transport + Send + Unpin + 'static,
     B: Transport + Send + Unpin + 'static,
 {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         match self {
             JoinedStream::A(stream) => stream.remote_addr(),
@@ -205,6 +210,7 @@ impl Accept for TcpListener {
     type Conn = AddrStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
     }
@@ -233,6 +239,7 @@ impl IntoAddrIncoming for AddrIncoming {
 }
 
 impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
+    #[inline]
     fn into_incoming(self) -> AddrIncoming {
         for addr in self.to_socket_addrs().expect("failed to create AddrIncoming") {
             if let Ok(mut incoming) = AddrIncoming::bind(&addr) {
@@ -245,6 +252,7 @@ impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
 }
 
 impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
+    #[inline]
     fn into_incoming(self) -> AddrIncoming {
         let mut incoming = AddrIncoming::bind(&self.into()).expect("failed to create AddrIncoming");
         incoming.set_nodelay(true);
@@ -258,6 +266,7 @@ pub(crate) struct LazyFile {
 }
 
 impl LazyFile {
+    #[inline]
     fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.file.is_none() {
             self.file = Some(File::open(&self.path)?);
@@ -267,6 +276,7 @@ impl LazyFile {
     }
 }
 impl Read for LazyFile {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.lazy_read(buf).map_err(|e| {
             let kind = e.kind();
