@@ -12,7 +12,7 @@ use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{Ident, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, FnArg, ItemFn, Ident, Meta, NestedMeta, ReturnType};
 
 enum InputType {
     Request,
@@ -43,8 +43,8 @@ enum InputType {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
-    let mut item_fn = syn::parse_macro_input!(input as syn::ItemFn);
+pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut item_fn = parse_macro_input!(input as ItemFn);
     let attrs = &item_fn.attrs;
     let vis = &item_fn.vis;
     let sig = &mut item_fn.sig;
@@ -58,7 +58,7 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
             .to_compile_error()
             .into();
         // let ts: TokenStream = quote! {async}.into();
-        // $sig.asyncness = Some(syn::parse_macro_input!(ts as syn::token::Async))
+        // $sig.asyncness = Some(parse_macro_input!(ts as syn::token::Async))
     }
 
     let body = &item_fn.block;
@@ -70,7 +70,16 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         .cloned()
         .collect::<Vec<_>>();
 
-    let salvo = salvo_crate();
+    let args: AttributeArgs = parse_macro_input!(args as AttributeArgs);
+    let mut internal = false;
+    for arg in args {
+        if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
+            internal = true;
+            break;
+        }
+    }
+
+    let salvo = salvo_crate(internal);
 
     let inputs = std::mem::replace(&mut sig.inputs, Punctuated::new());
     let mut req_ts = None;
@@ -113,25 +122,25 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
         sig.inputs.push(ts);
     } else {
         let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
-        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+        sig.inputs.push(parse_macro_input!(ts as FnArg));
     }
     if let Some(ts) = depot_ts {
         sig.inputs.push(ts);
     } else {
         let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
-        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+        sig.inputs.push(parse_macro_input!(ts as FnArg));
     }
     if let Some(ts) = res_ts {
         sig.inputs.push(ts);
     } else {
         let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
-        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+        sig.inputs.push(parse_macro_input!(ts as FnArg));
     }
     if let Some(ts) = ctrl_ts {
         sig.inputs.push(ts);
     } else {
         let ts: TokenStream = quote! {_ctrl: &mut #salvo::routing::FlowCtrl}.into();
-        sig.inputs.push(syn::parse_macro_input!(ts as syn::FnArg));
+        sig.inputs.push(parse_macro_input!(ts as FnArg));
     }
 
     let sdef = quote! {
@@ -175,18 +184,28 @@ pub fn fn_handler(_: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
-fn salvo_crate() -> syn::Ident {
-    match crate_name("salvo_core").or_else(|_| crate_name("salvo")) {
+// https://github.com/bkchr/proc-macro-crate/issues/14
+fn salvo_crate(internal: bool) -> syn::Ident {
+    if internal {
+        return Ident::new("crate", Span::call_site());
+    }
+    match crate_name("salvo") {
         Ok(salvo) => match salvo {
-            FoundCrate::Itself => Ident::new("crate", Span::call_site()),
+            FoundCrate::Itself => Ident::new("salvo", Span::call_site()),
             FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
         },
-        Err(_) => Ident::new("crate", Span::call_site()),
+        Err(_) => match crate_name("salvo_core") {
+            Ok(salvo) => match salvo {
+                FoundCrate::Itself => Ident::new("salvo_core", Span::call_site()),
+                FoundCrate::Name(name) => Ident::new(&name, Span::call_site()),
+            },
+            Err(_) => Ident::new("salvo", Span::call_site()),
+        },
     }
 }
 
-fn parse_input_type(input: &syn::FnArg) -> InputType {
-    if let syn::FnArg::Typed(p) = input {
+fn parse_input_type(input: &FnArg) -> InputType {
+    if let FnArg::Typed(p) = input {
         if let syn::Type::Reference(ty) = &*p.ty {
             if let syn::Type::Path(nty) = &*ty.elem {
                 // the last ident for path type is the real type
@@ -203,7 +222,6 @@ fn parse_input_type(input: &syn::FnArg) -> InputType {
                 } else if ident == "FlowCtrl" {
                     InputType::FlowCtrl
                 } else {
-                    println!("==============ident: {:?}", ident);
                     InputType::UnKnow
                 }
             } else {
