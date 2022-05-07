@@ -53,6 +53,7 @@ where
 
 #[allow(clippy::unit_arg)]
 impl Piece for () {
+    #[inline]
     fn render(self, _res: &mut Response) {}
 }
 impl<'a> Piece for &'a str {

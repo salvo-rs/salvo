@@ -15,6 +15,7 @@ impl Filter for MethodFilter {
 }
 
 impl fmt::Debug for MethodFilter {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "method:{:?}", self.0)
     }

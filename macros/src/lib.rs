@@ -185,6 +185,7 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
+#[inline]
 fn salvo_crate(internal: bool) -> syn::Ident {
     if internal {
         return Ident::new("crate", Span::call_site());
@@ -204,6 +205,7 @@ fn salvo_crate(internal: bool) -> syn::Ident {
     }
 }
 
+#[inline]
 fn parse_input_type(input: &FnArg) -> InputType {
     if let FnArg::Typed(p) = input {
         if let syn::Type::Reference(ty) = &*p.ty {

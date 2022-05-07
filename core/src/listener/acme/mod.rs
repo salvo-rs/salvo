@@ -172,6 +172,7 @@ pub(crate) struct Http01Handler {
 
 #[async_trait]
 impl Handler for Http01Handler {
+    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         if let Some(token) = req.params().get("token") {
             let keys = self.keys.read();
@@ -398,6 +399,7 @@ impl Accept for AcmeListener {
     type Conn = AcmeStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.get_mut();
         match ready!(Pin::new(&mut this.incoming).poll_accept(cx)) {
@@ -421,12 +423,14 @@ pub struct AcmeStream {
     remote_addr: SocketAddr,
 }
 impl Transport for AcmeStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl AcmeStream {
+    #[inline]
     fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
         let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
@@ -438,6 +442,7 @@ impl AcmeStream {
 }
 
 impl AsyncRead for AcmeStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let pin = self.get_mut();
         match pin.state {
@@ -455,6 +460,7 @@ impl AsyncRead for AcmeStream {
 }
 
 impl AsyncWrite for AcmeStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let pin = self.get_mut();
         match pin.state {
@@ -470,6 +476,7 @@ impl AsyncWrite for AcmeStream {
         }
     }
 
+    #[inline]
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             AcmeState::Handshaking(_) => Poll::Ready(Ok(())),
@@ -477,6 +484,7 @@ impl AsyncWrite for AcmeStream {
         }
     }
 
+    #[inline]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             AcmeState::Handshaking(_) => Poll::Ready(Ok(())),

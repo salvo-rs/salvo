@@ -73,6 +73,7 @@ where
     A: AsyncRead + Send + Unpin + 'static,
     B: AsyncRead + Send + Unpin + 'static,
 {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
@@ -131,6 +132,7 @@ pub struct JoinedListener<A, B> {
 }
 
 impl<A, B> JoinedListener<A, B> {
+    #[inline]
     pub(crate) fn new(a: A, b: B) -> Self {
         JoinedListener { a, b }
     }
@@ -153,6 +155,7 @@ where
     type Conn = JoinedStream<A::Conn, B::Conn>;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let pin = self.get_mut();
         if fastrand::bool() {

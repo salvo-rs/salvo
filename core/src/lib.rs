@@ -71,6 +71,7 @@ use std::{future::Future, thread::available_parallelism};
 
 use tokio::runtime::{self, Runtime};
 
+#[inline]
 fn new_runtime(threads: usize) -> Runtime {
     runtime::Builder::new_multi_thread()
         .worker_threads(threads)
@@ -99,6 +100,7 @@ fn new_runtime(threads: usize) -> Runtime {
 ///    salvo_core::run(server);
 /// }
 /// ```
+#[inline]
 pub fn run<F: Future>(future: F) {
     run_with_threads(future, available_parallelism().map(|n| n.get()).unwrap_or(1))
 }
@@ -122,6 +124,7 @@ pub fn run<F: Future>(future: F) {
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```
+#[inline]
 pub fn run_with_threads<F: Future>(future: F, threads: usize) {
     let runtime = crate::new_runtime(threads);
     let _ = runtime.block_on(async { future.await });

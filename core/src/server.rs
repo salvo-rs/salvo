@@ -84,6 +84,7 @@ where
     ///     let _ = tx.send(());
     /// }
     /// ```
+    #[inline]
     pub async fn serve_with_graceful_shutdown<S, G>(self, addr: S, signal: G)
     where
         S: Into<Service>,
@@ -93,6 +94,7 @@ where
     }
 
     /// Serve with graceful shutdown signal.
+    #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(self, service: S, signal: G) -> Result<(), hyper::Error>
     where
         S: Into<Service>,

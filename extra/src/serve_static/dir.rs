@@ -113,8 +113,11 @@ impl DirHandler {
     }
 
     /// During the file chunk read, the maximum read size at one time will affect the
-    /// access experience and the demand for server memory. Please set it according to your own situation.
-    /// The default is 1M
+    /// access experience and the demand for server memory. 
+    /// 
+    /// Please set it according to your own situation.
+    /// 
+    /// The default is 1M.
     #[inline]
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
@@ -128,6 +131,7 @@ struct CurrentInfo {
     dirs: Vec<DirInfo>,
 }
 impl CurrentInfo {
+    #[inline]
     fn new(path: String, files: Vec<FileInfo>, dirs: Vec<DirInfo>) -> CurrentInfo {
         CurrentInfo { path, files, dirs }
     }

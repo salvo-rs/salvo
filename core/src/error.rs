@@ -38,6 +38,7 @@ impl Error {
     }
 }
 impl Display for Error {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Hyper(e) => Display::fmt(e, f),
@@ -55,31 +56,37 @@ impl Display for Error {
 impl StdError for Error {}
 
 impl From<Infallible> for Error {
+    #[inline]
     fn from(infallible: Infallible) -> Error {
         match infallible {}
     }
 }
 impl From<hyper::Error> for Error {
+    #[inline]
     fn from(err: hyper::Error) -> Error {
         Error::Hyper(err)
     }
 }
 impl From<ParseError> for Error {
+    #[inline]
     fn from(err: ParseError) -> Error {
         Error::HttpParse(err)
     }
 }
 impl From<StatusError> for Error {
+    #[inline]
     fn from(err: StatusError) -> Error {
         Error::HttpStatus(err)
     }
 }
 impl From<IoError> for Error {
+    #[inline]
     fn from(err: IoError) -> Error {
         Error::Io(err)
     }
 }
 impl From<serde_json::Error> for Error {
+    #[inline]
     fn from(err: serde_json::Error) -> Error {
         Error::SerdeJson(err)
     }
@@ -87,6 +94,7 @@ impl From<serde_json::Error> for Error {
 cfg_feature! {
     #![feature = "anyhow"]
     impl From<anyhow::Error> for Error {
+        #[inline]
         fn from(err: anyhow::Error) -> Error {
             Error::Anyhow(err)
         }
@@ -94,6 +102,7 @@ cfg_feature! {
 }
 
 impl From<BoxedError> for Error {
+    #[inline]
     fn from(err: BoxedError) -> Error {
         Error::Other(err)
     }

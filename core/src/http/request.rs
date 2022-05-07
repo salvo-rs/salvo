@@ -66,6 +66,7 @@ impl fmt::Debug for Request {
 }
 
 impl Default for Request {
+    #[inline]
     fn default() -> Request {
         Request::new()
     }
@@ -121,6 +122,7 @@ impl From<hyper::Request<Body>> for Request {
 
 impl Request {
     /// Creates a new blank `Request`
+    #[inline]
     pub fn new() -> Request {
         Request {
             uri: Uri::default(),
@@ -468,6 +470,7 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
             .headers()
@@ -553,6 +556,7 @@ impl Request {
     }
 }
 
+#[inline]
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ParseError> {
     hyper::body::to_bytes(body)
         .await

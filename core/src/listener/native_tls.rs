@@ -26,12 +26,14 @@ pub struct NativeTlsConfig {
 }
 
 impl fmt::Debug for NativeTlsConfig {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("NativeTlsConfig").finish()
     }
 }
 
 impl Default for NativeTlsConfig {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -173,6 +175,7 @@ where
     type Conn = NativeTlsStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
         if let Poll::Ready(Some(identity)) = this.config_stream.poll_next(cx) {
@@ -206,12 +209,14 @@ pin_project! {
     }
 }
 impl Transport for NativeTlsStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl NativeTlsStream {
+    #[inline]
     fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, IoError> {
         let acceptor: AsyncTlsAcceptor = TlsAcceptor::new(identity)
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?
@@ -226,6 +231,7 @@ impl NativeTlsStream {
 }
 
 impl AsyncRead for NativeTlsStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -240,6 +246,7 @@ impl AsyncRead for NativeTlsStream {
 }
 
 impl AsyncWrite for NativeTlsStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -252,6 +259,7 @@ impl AsyncWrite for NativeTlsStream {
         }
     }
 
+    #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -264,6 +272,7 @@ impl AsyncWrite for NativeTlsStream {
         }
     }
 
+    #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {

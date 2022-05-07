@@ -47,6 +47,7 @@ impl Accept for UnixListener {
     type Conn = UnixStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         match self.incoming.poll_accept(cx) {
             Poll::Ready(Ok((stream, remote_addr))) => {
@@ -64,12 +65,14 @@ pub struct UnixStream {
     remote_addr: SocketAddr,
 }
 impl Transport for UnixStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl UnixStream {
+    #[inline]
     fn new(inner_stream: tokio::net::UnixStream, remote_addr: SocketAddr) -> Self {
         UnixStream {
             inner_stream,
@@ -79,20 +82,24 @@ impl UnixStream {
 }
 
 impl AsyncRead for UnixStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_read(cx, buf)
     }
 }
 
 impl AsyncWrite for UnixStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_write(cx, buf)
     }
 
+    #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_flush(cx)
     }
 
+    #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.get_mut().inner_stream).poll_shutdown(cx)
     }

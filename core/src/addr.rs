@@ -96,6 +96,7 @@ impl SocketAddr {
 }
 
 impl Display for SocketAddr {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SocketAddr::IPv4(addr) => write!(f, "socket://{}", addr),

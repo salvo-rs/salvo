@@ -151,10 +151,12 @@ where
     // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
+    #[inline]
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         Ok(()).into()
     }
 
+    #[inline]
     fn call(&mut self, target: &T) -> Self::Future {
         let remote_addr = target.remote_addr();
         future::ok(HyperHandler {
@@ -167,6 +169,7 @@ where
 }
 
 impl From<Router> for Service {
+    #[inline]
     fn from(router: Router) -> Self {
         Service::new(router)
     }
@@ -276,9 +279,11 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
+    #[inline]
     fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
         std::task::Poll::Ready(Ok(()))
     }
+    #[inline]
     fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
         let response = self.handle(req.into());
         let fut = async move {

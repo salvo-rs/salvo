@@ -49,6 +49,7 @@ pub struct HandlerBuilder {
     origins: Option<HashSet<HeaderValue>>,
 }
 impl Default for HandlerBuilder {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -56,6 +57,7 @@ impl Default for HandlerBuilder {
 
 impl HandlerBuilder {
     /// Create new `HandlerBuilder`.
+    #[inline]
     pub fn new() -> Self {
         HandlerBuilder {
             credentials: false,
@@ -297,12 +299,14 @@ enum Forbidden {
 }
 
 impl fmt::Debug for Forbidden {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_tuple("CorsForbidden").field(&self).finish()
     }
 }
 
 impl Display for Forbidden {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let detail = match self {
             Forbidden::Origin => "origin not allowed",
@@ -407,6 +411,7 @@ impl CorsHandler {
         }
     }
 
+    #[inline]
     fn append_preflight_headers(&self, headers: &mut HeaderMap) {
         self.append_common_headers(headers);
 
@@ -418,6 +423,7 @@ impl CorsHandler {
         }
     }
 
+    #[inline]
     fn append_common_headers(&self, headers: &mut HeaderMap) {
         if self.credentials {
             headers.insert(
@@ -486,6 +492,7 @@ pub trait IntoOrigin {
 }
 
 impl<'a> IntoOrigin for &'a str {
+    #[inline]
     fn into_origin(self) -> Origin {
         let (scheme, rest) = self.split_once("://").expect("bad url format");
         Origin::try_from_parts(scheme, rest, None).expect("invalid origin")

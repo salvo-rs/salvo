@@ -57,6 +57,7 @@ pub trait Catcher: Send + Sync + 'static {
     /// to catch it.
     fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
 }
+#[inline]
 fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"<!DOCTYPE html>
@@ -103,6 +104,7 @@ fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail
         format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }
+#[inline]
 fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
@@ -112,6 +114,7 @@ fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
+#[inline]
 fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "code:{},\nname:{},\nsummary:{},\ndetail:{}",
@@ -121,6 +124,7 @@ fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detai
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
+#[inline]
 fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
@@ -131,6 +135,7 @@ fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail:
     )
 }
 /// Create bytes from `StatusError`.
+#[inline]
 pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec<u8>) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
         "text/html".parse().unwrap()

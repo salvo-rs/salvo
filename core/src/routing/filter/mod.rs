@@ -87,6 +87,7 @@ where
 }
 
 impl<F> fmt::Debug for FnFilter<F> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "fn:fn")
     }

@@ -33,6 +33,7 @@ impl AcmeConfig {
 }
 
 impl Debug for AcmeConfig {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("AcmeConfig")
             .field("directory_name", &self.directory_name)
@@ -57,6 +58,7 @@ pub struct AcmeConfigBuilder {
 }
 
 impl AcmeConfigBuilder {
+    #[inline]
     pub(crate) fn new() -> Self {
         Self {
             directory_name: "lets_encrypt".to_string(),
@@ -147,6 +149,7 @@ impl AcmeConfigBuilder {
     }
 
     /// Consumes this builder and returns a [`AcmeConfig`] object.
+    #[inline]
     pub fn build(self) -> IoResult<AcmeConfig> {
         self.directory_url
             .parse::<Uri>()

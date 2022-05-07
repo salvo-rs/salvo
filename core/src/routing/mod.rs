@@ -38,6 +38,7 @@ impl PathState {
     }
 }
 
+#[inline]
 fn decode_url_path_safely(path: &str) -> String {
     percent_encoding::percent_decode_str(path)
         .decode_utf8_lossy()

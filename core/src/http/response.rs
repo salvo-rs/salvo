@@ -35,15 +35,18 @@ pub enum Body {
 }
 impl Body {
     /// Check is that body is empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         matches!(*self, Body::Empty)
     }
     /// Take body as deserialize it to type `T` instance.
+    #[inline]
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
         let full = self.take_bytes().await?;
         serde_json::from_slice(&full).map_err(Error::SerdeJson)
     }
     /// Take body as text.
+    #[inline]
     pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
         let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
         let mut full = self.take_bytes().await?;
@@ -79,6 +82,7 @@ impl Body {
         String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
     }
     /// Take all body bytes.
+    #[inline]
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         let bytes = match self {
             Self::Empty => Bytes::new(),
@@ -98,6 +102,7 @@ impl Body {
 impl Stream for Body {
     type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
 
+    #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
             Body::Empty => Poll::Ready(None),
@@ -116,6 +121,7 @@ impl Stream for Body {
     }
 }
 impl From<hyper::Body> for Body {
+    #[inline]
     fn from(hbody: hyper::Body) -> Body {
         Body::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
     }
@@ -131,11 +137,13 @@ pub struct Response {
     pub(crate) body: Option<Body>,
 }
 impl Default for Response {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 impl From<hyper::Response<hyper::Body>> for Response {
+    #[inline]
     fn from(res: hyper::Response<hyper::Body>) -> Self {
         let (
             http::response::Parts {
@@ -175,6 +183,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
 }
 impl Response {
     /// Creates a new blank `Response`.
+    #[inline]
     pub fn new() -> Response {
         Response {
             status_code: None,
@@ -242,10 +251,12 @@ impl Response {
         }
     }
     /// Take body as ```String``` from response.
+    #[inline]
     pub async fn take_text(&mut self) -> crate::Result<String> {
         self.take_text_with_charset("utf-8").await
     }
     /// Take body as ```String``` from response with charset.
+    #[inline]
     pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
         match &mut self.body {
             Some(body) => {
@@ -268,6 +279,7 @@ impl Response {
         }
     }
     /// Take body bytes from response.
+    #[inline]
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         match &mut self.body {
             Some(body) => body.take_bytes().await,
@@ -280,6 +292,7 @@ impl Response {
     /// client.
     ///
     /// `write_back` consumes the `Response`.
+    #[inline]
     pub(crate) async fn write_back(mut self, res: &mut hyper::Response<hyper::Body>) {
         for cookie in self.cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
@@ -466,6 +479,7 @@ impl Response {
 }
 
 impl fmt::Debug for Response {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(
             f,
@@ -477,6 +491,7 @@ impl fmt::Debug for Response {
 }
 
 impl Display for Response {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }

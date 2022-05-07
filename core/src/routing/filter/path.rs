@@ -137,6 +137,7 @@ struct CharPart<C> {
     max_width: Option<usize>,
 }
 impl<C> fmt::Debug for CharPart<C> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -210,6 +211,7 @@ impl PathPart for CombPart {
 #[derive(Debug, Eq, PartialEq)]
 struct NamedPart(String);
 impl PathPart for NamedPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if self.0.starts_with('*') {
@@ -250,6 +252,7 @@ impl PartialEq for RegexPart {
     }
 }
 impl PathPart for RegexPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if self.name.starts_with('*') {
@@ -308,12 +311,14 @@ struct PathParser {
     path: Vec<char>,
 }
 impl PathParser {
+    #[inline]
     fn new(raw_value: &str) -> PathParser {
         PathParser {
             offset: 0,
             path: raw_value.chars().collect(),
         }
     }
+    #[inline]
     fn next(&mut self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
             self.offset += 1;
@@ -326,6 +331,7 @@ impl PathParser {
             None
         }
     }
+    #[inline]
     fn peek(&self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
             if skip_blanks {
@@ -350,6 +356,7 @@ impl PathParser {
     fn curr(&self) -> Option<char> {
         self.path.get(self.offset).copied()
     }
+    #[inline]
     fn scan_ident(&mut self) -> Result<String, String> {
         let mut ident = "".to_owned();
         let mut ch = self
@@ -369,6 +376,7 @@ impl PathParser {
             Ok(ident)
         }
     }
+    #[inline]
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
         let mut ch = self
@@ -397,6 +405,7 @@ impl PathParser {
             Ok(regex)
         }
     }
+    #[inline]
     fn scan_const(&mut self) -> Result<String, String> {
         let mut cnst = "".to_owned();
         let mut ch = self
@@ -416,6 +425,7 @@ impl PathParser {
             Ok(cnst)
         }
     }
+    #[inline]
     fn skip_blanks(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == ' ' || ch == '\t' {
@@ -428,6 +438,7 @@ impl PathParser {
             }
         }
     }
+    #[inline]
     fn skip_slashes(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == '/' {
@@ -604,6 +615,7 @@ impl Filter for PathFilter {
 }
 impl PathFilter {
     /// Create new `PathFilter`.
+    #[inline]
     pub fn new(value: impl Into<String>) -> Self {
         let raw_value = value.into();
         if raw_value.is_empty() {

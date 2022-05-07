@@ -202,6 +202,7 @@ impl Handler for CompressionHandler {
 ///     .hoop(compression::gzip())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Gzip)
 }
@@ -220,6 +221,7 @@ pub fn gzip() -> CompressionHandler {
 ///     .hoop(compression::deflate())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Deflate)
 }
@@ -238,6 +240,7 @@ pub fn deflate() -> CompressionHandler {
 ///     .hoop(compression::brotli())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn brotli() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Brotli)
 }

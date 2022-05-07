@@ -13,8 +13,6 @@ use crate::http::request::{self, Body};
 use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
-///
-/// Use `parse_multipart` to devise this object from a request.
 pub struct FormData {
     /// Name-value pairs for plain text fields. Technically, these are form data parts with no
     /// filename specified in the part's `Content-Disposition`.
@@ -26,6 +24,7 @@ pub struct FormData {
 
 impl FormData {
     /// Create new `FormData`.
+    #[inline]
     pub fn new() -> FormData {
         FormData {
             fields: MultiMap::new(),
@@ -34,6 +33,7 @@ impl FormData {
     }
 }
 impl Default for FormData {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -92,6 +92,7 @@ impl FilePart {
 
     /// Create a new temporary FilePart (when created this way, the file will be
     /// deleted once the FilePart object goes out of scope).
+    #[inline]
     pub async fn create(field: &mut Field<'_>) -> Result<FilePart, ParseError> {
         // Setup a file to capture the contents.
         let mut path = tokio::task::spawn_blocking(|| Builder::new().prefix("salvo_http_multipart").tempdir())
@@ -123,12 +124,12 @@ impl FilePart {
 }
 impl Drop for FilePart {
     fn drop(&mut self) {
-        if self.temp_dir.is_some() {
+        if let Some(temp_dir) = &self.temp_dir {
             let path = self.path.clone();
-            let temp_dir = self.temp_dir.clone();
+            let temp_dir = temp_dir.to_owned();
             tokio::task::spawn_blocking(move || {
-                let _ = ::std::fs::remove_file(&path);
-                let _ = ::std::fs::remove_dir(temp_dir.as_ref().unwrap());
+                std::fs::remove_file(&path).ok();
+                std::fs::remove_dir(temp_dir).ok();
             });
         }
     }
