@@ -2,7 +2,7 @@
 <img alt="Savlo" src="assets/logo.svg" />
 <p>
 
-[English](https://github.com/salvo-rs/salvo/blob/main/README.md) [简体中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md) [繁體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md)<br><br>
+[English](https://github.com/salvo-rs/salvo/blob/main/README.md) [簡體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md) [繁體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md)<br><br>
 [![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
 [![build status](https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
 [![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
@@ -19,14 +19,14 @@
 </p>
 </div>
 
-Salvo 是一個極其簡單易用卻又功能強大的 Rust Web 後端框架. 僅僅需要基本的 Rust 基礎即可寫成功能強大的後端服務器, 我們的目標是: 編碼最簡單, 功能不缺失, 性能有保障.
+Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需要基礎 Rust 知識即可開發後端服務.
 
 ## 🎯 功能特色
-  - 基於hyper, tokio 的異步 Web 後端框架;
+  - 基於 Hyper, Tokio 開發;
+  - 統一的中間件和句柄接口;
+  - 路由支持多層次嵌套, 在任何層都可以添加中間件;
+  - 集成 Multipart 錶單處理;
   - 支持 Websocket;
-  - 統一的中間件和句柄接口, 中間件係統支持在句柄之前或者之後運行;
-  - 簡單易用的路由係統, 支持路由嵌套, 在任何嵌套層都可以添加中間件;
-  - 集成 multipart 錶單處理, 處理上傳文件變得非常簡單;
   - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書;
   - 支持從多個本地目錄映射成一個虛擬目錄提供服務.
 

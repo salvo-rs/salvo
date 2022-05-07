@@ -19,15 +19,16 @@
 </p>
 </div>
 
-Salvo is a powerful and simplest web server framework in Rust world. 
+Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
+
 ## 🎯 Features
-  - Base on hyper, tokio and async supported;
-  - Websocket supported;
-  - Middleware is handler and support executed before or after handler;
-  - Easy to use routing system, routers can be nested, and you can add middlewares on any routers;
-  - Multipart form supported, handle files upload is very simple;
-  - Acme supported, obtain TLS certificate from [let's encrypt](https://letsencrypt.org/) automatic;
-  - Serve a static virtual directory from many physical directories;
+   - Based on Hyper, Tokio development;
+   - Unified middleware and handle interface;
+   - Routing supports multi-level nesting, and middleware can be added at any level;
+   - Integrated Multipart form processing;
+   - Support Websocket;
+   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
+   - Supports mapping from multiple local directories into one virtual directory to provide services.
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/quick-start/hello_world/).
