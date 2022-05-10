@@ -1,21 +1,35 @@
 <div align="center">
-<img alt="Savlo" src="assets/logo.svg" />
+<p><img alt="Savlo" src="assets/logo.svg" /></p>
 <p>
-
-[English](https://github.com/salvo-rs/salvo/blob/main/README.md) [簡體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md) [繁體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md)<br><br>
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+</p>
+<p>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
+</a>
 <br>
-[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
-[![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
-[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
-[![Rust Version](https://img.shields.io/badge/rust-1.56%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
+<a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
+<a href="https://deps.rs/repo/github/salvo-rs/salvo">
+    <img src="https://img.shields.io/librariesio/release/cargo/salvo.svg" />
+</a>
+<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
 <br>
-[![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
-[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
-[![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs)](https://salvo.rs)
-![License](https://img.shields.io/crates/l/salvo.svg)
+<a href="https://salvo.rs">
+    <img alt="Website" src="https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs" />
+</a>
+<a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
+<a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
+<img alt="License" src="https://img.shields.io/crates/l/salvo.svg" />
 </p>
 </div>
 
