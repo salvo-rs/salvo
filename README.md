@@ -36,7 +36,7 @@
 Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
 
 ## 🎯 Features
-   - Based on Hyper, Tokio development;
+   - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
    - Unified middleware and handle interface;
    - Routing supports multi-level nesting, and middleware can be added at any level;
    - Integrated Multipart form processing;
