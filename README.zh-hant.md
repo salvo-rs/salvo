@@ -1,8 +1,8 @@
 <div align="center">
 <p><img alt="Savlo" src="assets/logo.svg" /></p>
 <p>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
