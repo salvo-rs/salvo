@@ -108,7 +108,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello_world)
 ```
 
-This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code]()(https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
+This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
 
 ### Chainable tree routing system
 
