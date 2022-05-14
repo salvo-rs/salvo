@@ -241,7 +241,8 @@ impl HyperHandler {
                 if !is_allowed {
                     res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
-            } else if res.body.is_none() && !has_error {// check for avoid warning when errors (404 etc.)
+            } else if res.body.is_none() && !has_error {
+                // check for avoid warning when errors (404 etc.)
                 tracing::warn!(
                     uri = ?req.uri(),
                     method = req.method().as_str(),
@@ -262,9 +263,9 @@ impl HyperHandler {
             }
             #[cfg(debug_assertions)]
             if let hyper::Method::HEAD = *req.method() {
-                    if !res.body.is_none() {
-                        tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
-                    }
+                if !res.body.is_none() {
+                    tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
+                }
             }
             res
         }

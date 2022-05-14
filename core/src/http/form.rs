@@ -104,8 +104,7 @@ impl FilePart {
         path.push(format!(
             "{}.{}",
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
-            name
-                .as_deref()
+            name.as_deref()
                 .and_then(|name| { Path::new(name).extension().and_then(OsStr::to_str) })
                 .unwrap_or("unknown")
         ));
