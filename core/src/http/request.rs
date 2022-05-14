@@ -644,9 +644,9 @@ file content\r\n\
             .into();
         assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
         let file = req.file("file1").await.unwrap();
-        assert_eq!(file.file_name().unwrap(), "err.txt");
+        assert_eq!(file.name().unwrap(), "err.txt");
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
-        assert_eq!(files[0].file_name().unwrap(), "err.txt");
+        assert_eq!(files[0].name().unwrap(), "err.txt");
     }
 }
