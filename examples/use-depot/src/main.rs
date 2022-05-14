@@ -7,7 +7,7 @@ async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl
 }
 #[fn_handler]
 async fn hello_world(depot: &mut Depot) -> String {
-    format!("Hello {}", depot.get::<&str>("user").map(|s| *s).unwrap_or_default())
+    format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
 }
 
 #[tokio::main]

@@ -241,12 +241,11 @@ impl HyperHandler {
                 if !is_allowed {
                     res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
-            } else if res.body.is_none() {
-                //avoid warning when errors (404 etc.)
+            } else if res.body.is_none() && !has_error {// check for avoid warning when errors (404 etc.)
                 tracing::warn!(
                     uri = ?req.uri(),
                     method = req.method().as_str(),
-                    "Http response content type header is not set"
+                    "Http response content type header not set"
                 );
             }
             if res.body.is_none() && has_error {
@@ -263,11 +262,9 @@ impl HyperHandler {
             }
             #[cfg(debug_assertions)]
             if let hyper::Method::HEAD = *req.method() {
-                if let Some(body) = res.body() {
-                    if !body.is_empty() {
-                        tracing::warn!("request with head method should have empty body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
+                    if !res.body.is_none() {
+                        tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
                     }
-                }
             }
             res
         }

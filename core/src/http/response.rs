@@ -26,18 +26,18 @@ use crate::{Error, Piece};
 /// Response body type.
 #[allow(clippy::type_complexity)]
 pub enum Body {
-    /// Empty body.
-    Empty,
+    /// None body.
+    None,
     /// Bytes body.
     Bytes(BytesMut),
     /// Stream body.
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
 impl Body {
-    /// Check is that body is empty.
+    /// Check is that body is not set.
     #[inline]
-    pub fn is_empty(&self) -> bool {
-        matches!(*self, Body::Empty)
+    pub fn is_none(&self) -> bool {
+        matches!(*self, Body::None)
     }
     /// Take body as deserialize it to type `T` instance.
     #[inline]
@@ -45,7 +45,7 @@ impl Body {
         let full = self.take_bytes().await?;
         serde_json::from_slice(&full).map_err(Error::SerdeJson)
     }
-    /// Take body as text.
+    /// Take body as text. If body is none, it will empty string.
     #[inline]
     pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
         let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
@@ -81,11 +81,11 @@ impl Body {
         }
         String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
     }
-    /// Take all body bytes.
+    /// Take all body bytes. If body is none, it will creates and returns a new [`Bytes`].
     #[inline]
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         let bytes = match self {
-            Self::Empty => Bytes::new(),
+            Self::None => Bytes::new(),
             Self::Bytes(bytes) => std::mem::take(bytes).freeze(),
             Self::Stream(stream) => {
                 let mut bytes = BytesMut::new();
@@ -105,7 +105,7 @@ impl Stream for Body {
     #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
-            Body::Empty => Poll::Ready(None),
+            Body::None => Poll::Ready(None),
             Body::Bytes(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
@@ -134,7 +134,7 @@ pub struct Response {
     headers: HeaderMap,
     version: Version,
     pub(crate) cookies: CookieJar,
-    pub(crate) body: Option<Body>,
+    pub(crate) body: Body,
 }
 impl Default for Response {
     #[inline]
@@ -174,7 +174,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
         Response {
             status_code: Some(status),
             status_error: None,
-            body: Some(body.into()),
+            body: body.into(),
             version,
             headers,
             cookies,
@@ -188,7 +188,7 @@ impl Response {
         Response {
             status_code: None,
             status_error: None,
-            body: None,
+            body: Body::None,
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
@@ -224,31 +224,34 @@ impl Response {
 
     /// Get body reference.
     #[inline]
-    pub fn body(&self) -> Option<&Body> {
-        self.body.as_ref()
+    pub fn body(&self) -> &Body {
+        &self.body
     }
     /// Get mutable body reference.
     #[inline]
-    pub fn body_mut(&mut self) -> Option<&mut Body> {
-        self.body.as_mut()
+    pub fn body_mut(&mut self) -> &mut Body {
+        &mut self.body
     }
     /// Set body.
     #[inline]
-    pub fn set_body(&mut self, body: Option<Body>) {
+    pub fn set_body(&mut self, body: Body) {
         self.body = body
+    }
+
+    /// Set body to a new value and returns old value.
+    #[inline]
+    pub fn replace_body(&mut self, body: Body) -> Body {
+        std::mem::replace(&mut self.body, body)
     }
 
     /// Take body from response.
     #[inline]
-    pub fn take_body(&mut self) -> Option<Body> {
-        self.body.take()
+    pub fn take_body(&mut self) -> Body {
+        std::mem::replace(&mut self.body, Body::None)
     }
     /// Take body from response.
     pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        match &mut self.body {
-            Some(body) => body.take_json().await,
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
+        self.body.take_json().await
     }
     /// Take body as ```String``` from response.
     #[inline]
@@ -258,33 +261,26 @@ impl Response {
     /// Take body as ```String``` from response with charset.
     #[inline]
     pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
-        match &mut self.body {
-            Some(body) => {
-                let content_type = self
-                    .headers
-                    .get(header::CONTENT_TYPE)
-                    .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<Mime>().ok());
-                let charset = content_type
-                    .as_ref()
-                    .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-                    .unwrap_or(default_charset);
-                body.take_text(
-                    charset,
-                    self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
-                )
-                .await
-            }
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
+        let content_type = self
+            .headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<Mime>().ok());
+        let charset = content_type
+            .as_ref()
+            .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
+            .unwrap_or(default_charset);
+        self.body
+            .take_text(
+                charset,
+                self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
+            )
+            .await
     }
     /// Take body bytes from response.
     #[inline]
     pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
-        match &mut self.body {
-            Some(body) => body.take_bytes().await,
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
+        self.body.take_bytes().await
     }
 
     /// `write_back` is used to put all the data added to `self`
@@ -304,22 +300,17 @@ impl Response {
         // Default to a 404 if no response code was set
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
-        if let Some(body) = self.body {
-            match body {
-                Body::Bytes(bytes) => {
-                    *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
-                }
-                Body::Stream(stream) => {
-                    *res.body_mut() = hyper::Body::wrap_stream(stream);
-                }
-                _ => {
-                    res.headers_mut()
-                        .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
-                }
+        match self.body {
+            Body::Bytes(bytes) => {
+                *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
             }
-        } else {
-            res.headers_mut()
-                .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            Body::Stream(stream) => {
+                *res.body_mut() = hyper::Body::wrap_stream(stream);
+            }
+            _ => {
+                res.headers_mut()
+                    .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            }
         }
     }
 
@@ -403,21 +394,17 @@ impl Response {
     /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
     pub fn write_body(&mut self, data: &[u8]) -> crate::Result<()> {
-        if let Some(body) = self.body_mut() {
-            match body {
-                Body::Bytes(bytes) => {
-                    bytes.extend_from_slice(data);
-                }
-                Body::Stream(_) => {
-                    tracing::error!("current body kind is stream, try to write bytes to it");
-                    return Err(Error::other("current body kind is stream, try to write bytes to it"));
-                }
-                _ => {
-                    self.body = Some(Body::Bytes(BytesMut::from(data)));
-                }
+        match self.body_mut() {
+            Body::Bytes(bytes) => {
+                bytes.extend_from_slice(data);
             }
-        } else {
-            self.body = Some(Body::Bytes(BytesMut::from(data)));
+            Body::Stream(_) => {
+                tracing::error!("current body kind is stream, try to write bytes to it");
+                return Err(Error::other("current body kind is stream, try to write bytes to it"));
+            }
+            _ => {
+                self.body = Body::Bytes(BytesMut::from(data));
+            }
         }
         Ok(())
     }
@@ -429,19 +416,17 @@ impl Response {
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
-        if let Some(body) = &self.body {
-            match body {
-                Body::Bytes(_) => {
-                    return Err(Error::other("current body kind is bytes already"));
-                }
-                Body::Stream(_) => {
-                    return Err(Error::other("current body kind is stream already"));
-                }
-                _ => {}
+        match &self.body {
+            Body::Bytes(_) => {
+                return Err(Error::other("current body kind is bytes already"));
             }
+            Body::Stream(_) => {
+                return Err(Error::other("current body kind is stream already"));
+            }
+            _ => {}
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = Some(Body::Stream(Box::pin(mapped)));
+        self.body = Body::Stream(Box::pin(mapped));
         Ok(())
     }
 
@@ -510,9 +495,9 @@ mod test {
     #[test]
     fn test_body_empty() {
         let body = Body::Bytes(BytesMut::from("hello"));
-        assert!(!body.is_empty());
-        let body = Body::Empty;
-        assert!(body.is_empty());
+        assert!(!body.is_none());
+        let body = Body::None;
+        assert!(body.is_none());
     }
 
     #[tokio::test]
