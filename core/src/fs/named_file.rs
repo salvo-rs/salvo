@@ -52,7 +52,7 @@ pub struct NamedFile {
 #[derive(Clone)]
 pub struct NamedFileBuilder {
     path: PathBuf,
-    attached_filename: Option<String>,
+    attached_name: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
@@ -63,8 +63,8 @@ pub struct NamedFileBuilder {
 impl NamedFileBuilder {
     /// Set attached filename and returns `Self`.
     #[inline]
-    pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> Self {
-        self.attached_filename = Some(attached_filename.into());
+    pub fn with_attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
+        self.attached_name = Some(attached_name.into());
         self
     }
     /// Set disposition encoding and returns `Self`.
@@ -119,7 +119,7 @@ impl NamedFileBuilder {
             content_disposition,
             buffer_size,
             disposition_type,
-            attached_filename,
+            attached_name,
             flags,
         } = self;
 
@@ -139,7 +139,7 @@ impl NamedFileBuilder {
         });
         let content_disposition = content_disposition.unwrap_or_else(|| {
             disposition_type.unwrap_or_else(|| {
-                let disposition_type = if attached_filename.is_some() {
+                let disposition_type = if attached_name.is_some() {
                     "attachment"
                 } else {
                     match (content_type.type_(), content_type.subtype()) {
@@ -149,14 +149,14 @@ impl NamedFileBuilder {
                     }
                 };
                 if disposition_type == "attachment" {
-                    let filename = match attached_filename {
-                        Some(filename) => filename,
+                    let file_name = match attached_name {
+                        Some(file_name) => file_name,
                         None => path
                             .file_name()
-                            .map(|filename| filename.to_string_lossy().to_string())
+                            .map(|file_name| file_name.to_string_lossy().to_string())
                             .unwrap_or_else(|| "file".into()),
                     };
-                    format!("attachment; filename={}", filename)
+                    format!("attachment; filename={}", file_name)
                 } else {
                     disposition_type.into()
                 }
@@ -190,7 +190,7 @@ impl NamedFile {
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
             path: path.into(),
-            attached_filename: None,
+            attached_name: None,
             disposition_type: None,
             content_type: None,
             content_encoding: None,

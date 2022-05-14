@@ -42,7 +42,7 @@ impl Default for FormData {
 /// was received as part of `multipart/*` parsing.
 #[derive(Debug)]
 pub struct FilePart {
-    file_name: Option<String>,
+    name: Option<String>,
     /// The headers of the part
     headers: HeaderMap,
     /// A temporary file containing the file content
@@ -56,13 +56,13 @@ pub struct FilePart {
 impl FilePart {
     /// Get file name.
     #[inline]
-    pub fn file_name(&self) -> Option<&str> {
-        self.file_name.as_deref()
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
     /// Get file name mutable reference.
     #[inline]
-    pub fn file_name_mut(&mut self) -> Option<&mut String> {
-        self.file_name.as_mut()
+    pub fn name_mut(&mut self) -> Option<&mut String> {
+        self.name.as_mut()
     }
     /// Get headers.
     #[inline]
@@ -100,11 +100,11 @@ impl FilePart {
             .expect("Runtime spawn blocking poll error")?
             .into_path();
         let temp_dir = Some(path.clone());
-        let file_name = field.file_name().map(|s| s.to_owned());
+        let name = field.file_name().map(|s| s.to_owned());
         path.push(format!(
             "{}.{}",
             TextNonce::sized_urlsafe(32).unwrap().into_string(),
-            file_name
+            name
                 .as_deref()
                 .and_then(|name| { Path::new(name).extension().and_then(OsStr::to_str) })
                 .unwrap_or("unknown")
@@ -114,7 +114,7 @@ impl FilePart {
             file.write_all(&chunk).await?;
         }
         Ok(FilePart {
-            file_name,
+            name,
             headers: field.headers().to_owned(),
             path,
             size: None,
