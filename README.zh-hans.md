@@ -58,7 +58,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.22", features = ["full"] }
+salvo = { version = "0.23", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -75,6 +75,25 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 
 ### 中间件
 Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
+
+```
+use salvo::http::header::{self, HeaderValue};
+use salvo::prelude::*;
+
+#[fn_handler]
+async fn add_header(res: &mut Response) {
+    res.headers_mut()
+        .insert(header::SERVER, HeaderValue::from_static("Salvo"));
+}
+```
+
+然后将它添加到路由中:
+
+```
+Router::new().hoop(add_header).get(hello_world)
+```
+
+这就是一个简单的中间件, 它向 ```Response``` 的头部添加了 ```Header```, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### 可链式书写的树状路由系统
 
@@ -133,7 +152,7 @@ Router::new()
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
-        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        let dest = format!("temp/{}", file.name().unwrap_or_else(|| "file".into()));
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
@@ -175,6 +194,7 @@ Benchmark 测试结果可以从这里查看:
   - 在博客或者技术平台发表 Salvo 相关的技术文章。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
+
 ## ☕ 支持
 
 `Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 

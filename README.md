@@ -57,7 +57,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { version = "0.22", features = ["full"] }
+salvo = { version = "0.23", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -89,7 +89,26 @@ async fn main() {
 ```
 
 ### Middleware
-There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!***
+There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!**
+
+```
+use salvo::http::header::{self, HeaderValue};
+use salvo::prelude::*;
+
+#[fn_handler]
+async fn add_header(res: &mut Response) {
+    res.headers_mut()
+        .insert(header::SERVER, HeaderValue::from_static("Salvo"));
+}
+```
+
+Then add it to router:
+
+```
+Router::new().hoop(add_header).get(hello_world)
+```
+
+This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code]()(https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
 
 ### Chainable tree routing system
 
@@ -148,7 +167,7 @@ We can get file async by the function ```file``` in ```Request```:
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
-        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        let dest = format!("temp/{}", file.name().unwrap_or_else(|| "file".into()));
         if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
