@@ -76,7 +76,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ### 中間件
 Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處. **所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識. 隻要你會寫函數就會寫中間件, 就是這麼簡單!!!**
 
-```
+```rust
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
@@ -89,7 +89,7 @@ async fn add_header(res: &mut Response) {
 
 然後將它添加到路由中:
 
-```
+```rust
 Router::new().hoop(add_header).get(hello_world)
 ```
 
@@ -116,6 +116,7 @@ Router::with_path("articles")
 ```
 
 然後把需要用戶登錄的路由寫到一起， 並且使用相應的中間件驗證用戶是否登錄：
+
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
