@@ -160,6 +160,8 @@ PathFilter::register_part_regex(
 Router::with_path("<id:guid>").get(index)
 ```
 
+查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
+
 ### 文件上傳
 可以通過 ```Request``` 中的 ```file``` 異步獲取上傳的文件:
 

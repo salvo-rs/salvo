@@ -174,6 +174,8 @@ This makes it more concise when path matching is required:
 Router::with_path("<id:guid>").get(index)
 ```
 
+View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
+
 ### File upload
 We can get file async by the function ```file``` in ```Request```:
 
