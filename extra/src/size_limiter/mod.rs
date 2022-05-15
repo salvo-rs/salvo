@@ -1,7 +1,8 @@
 //! size limiter middleware
 
+use hyper::body::HttpBody;
 use salvo_core::async_trait;
-use salvo_core::http::{StatusError, HttpBody};
+use salvo_core::http::StatusError;
 use salvo_core::prelude::*;
 
 /// MaxSizeHandler
@@ -21,7 +22,7 @@ impl Handler for MaxSizeHandler {
     }
 }
 /// Create a new ```MaxSizeHandler```.
-    #[inline]
+#[inline]
 pub fn max_size(size: u64) -> MaxSizeHandler {
     MaxSizeHandler(size)
 }
