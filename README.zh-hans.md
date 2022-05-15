@@ -145,6 +145,21 @@ Router::new()
 
 还可以通过 ```<*>``` 或者 ```<**>``` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: ```<**file_path>```.
 
+有些用于匹配路径的正则表达式需要经常被使用, 可以将它事先注册, 比如 GUID:
+
+```rust
+PathFilter::register_part_regex(
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+);
+```
+
+这样在需要路径匹配时就变得更简洁:
+
+```rust
+Router::with_path("<id:guid>").get(index)
+```
+
 ### 文件上传
 可以通过 ```Request``` 中的 ```file``` 异步获取上传的文件:
 

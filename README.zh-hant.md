@@ -145,6 +145,21 @@ Router::new()
 
 還可以通過 ```<*>``` 或者 ```<**>``` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: ```<**file_path>```.
 
+有些用於匹配路徑的正則錶達式需要經常被使用, 可以將它事先註冊, 比如 GUID:
+
+```rust
+PathFilter::register_part_regex(
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+);
+```
+
+這樣在需要路徑匹配時就變得更簡潔:
+
+```rust
+Router::with_path("<id:guid>").get(index)
+```
+
 ### 文件上傳
 可以通過 ```Request``` 中的 ```file``` 異步獲取上傳的文件:
 

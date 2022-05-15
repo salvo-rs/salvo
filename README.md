@@ -159,6 +159,21 @@ Router::new()
 
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
+Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
+
+```rust
+PathFilter::register_part_regex(
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+);
+```
+
+This makes it more concise when path matching is required:
+
+```rust
+Router::with_path("<id:guid>").get(index)
+```
+
 ### File upload
 We can get file async by the function ```file``` in ```Request```:
 
