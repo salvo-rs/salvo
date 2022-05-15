@@ -197,14 +197,9 @@ impl HyperHandler {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
-                ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                if ctrl.has_next() {
-                    let allow_reset = res
-                        .status_code()
-                        .map(|code| !code.is_success() || code.is_redirection())
-                        .unwrap_or(false);
-                    if !allow_reset {
-                        tracing::error!(url = ?req.uri(), "FlowCtrl has_next should return false");
+                while ctrl.has_next() {
+                    if !ctrl.call_next(&mut req, &mut depot, &mut res).await {
+                        break;
                     }
                 }
             } else {
