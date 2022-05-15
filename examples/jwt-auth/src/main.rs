@@ -1,9 +1,7 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
-use salvo::anyhow;
 use salvo::extra::jwt_auth::{JwtAuthDepotExt, JwtAuthHandler, JwtAuthState, QueryExtractor};
-use salvo::http::errors::*;
-use salvo::http::Method;
+use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -35,8 +33,8 @@ async fn main() {
 async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyhow::Result<()> {
     if req.method() == Method::POST {
         let (username, password) = (
-            req.get_form::<String>("username").await.unwrap_or_default(),
-            req.get_form::<String>("password").await.unwrap_or_default(),
+            req.form::<String>("username").await.unwrap_or_default(),
+            req.form::<String>("password").await.unwrap_or_default(),
         );
         if !validate(&username, &password) {
             res.render(Text::Html(LOGIN_HTML));

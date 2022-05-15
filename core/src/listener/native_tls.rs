@@ -19,19 +19,21 @@ use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-/// Builder to set the configuration for the Tls server.
+/// Builder to set the configuration for the TLS server.
 pub struct NativeTlsConfig {
     pkcs12: Box<dyn Read + Send + Sync>,
     password: String,
 }
 
 impl fmt::Debug for NativeTlsConfig {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("NativeTlsConfig").finish()
     }
 }
 
 impl Default for NativeTlsConfig {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -46,7 +48,7 @@ impl NativeTlsConfig {
         }
     }
 
-    /// sets the pkcs12 via File Path, returns `Error::IoError` if the file cannot be open
+    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
     #[inline]
     pub fn with_pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12 = Box::new(LazyFile {
@@ -56,13 +58,13 @@ impl NativeTlsConfig {
         self
     }
 
-    /// sets the pkcs12 via bytes slice
+    /// Sets the pkcs12 via bytes slice
     #[inline]
     pub fn with_pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
         self.pkcs12 = Box::new(Cursor::new(pkcs12.into()));
         self
     }
-    /// sets the password
+    /// Sets the password
     #[inline]
     pub fn with_password(mut self, password: impl Into<String>) -> Self {
         self.password = password.into();
@@ -173,6 +175,7 @@ where
     type Conn = NativeTlsStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
         if let Poll::Ready(Some(identity)) = this.config_stream.poll_next(cx) {
@@ -206,12 +209,14 @@ pin_project! {
     }
 }
 impl Transport for NativeTlsStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl NativeTlsStream {
+    #[inline]
     fn new(remote_addr: SocketAddr, stream: AddrStream, identity: Identity) -> Result<Self, IoError> {
         let acceptor: AsyncTlsAcceptor = TlsAcceptor::new(identity)
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?
@@ -226,6 +231,7 @@ impl NativeTlsStream {
 }
 
 impl AsyncRead for NativeTlsStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -240,6 +246,7 @@ impl AsyncRead for NativeTlsStream {
 }
 
 impl AsyncWrite for NativeTlsStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -252,6 +259,7 @@ impl AsyncWrite for NativeTlsStream {
         }
     }
 
+    #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
@@ -264,6 +272,7 @@ impl AsyncWrite for NativeTlsStream {
         }
     }
 
+    #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {

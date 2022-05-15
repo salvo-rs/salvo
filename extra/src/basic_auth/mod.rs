@@ -37,6 +37,7 @@ where
     V: BasicAuthValidator,
 {
     /// Create new `BasicAuthValidator`.
+    #[inline]
     pub fn new(validator: V) -> Self {
         BasicAuthHandler {
             realm: "realm".to_owned(),
@@ -53,6 +54,7 @@ where
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
 
+    #[inline]
     fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
         let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
         let auth = auth.iter().map(|&c| c as char).collect::<String>();

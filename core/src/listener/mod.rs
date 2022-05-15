@@ -1,4 +1,4 @@
-//! Listener module
+//! Listener trait and it's implements.
 use std::fs::File;
 use std::io::{self, Error as IoError, ErrorKind, Read};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
@@ -14,35 +14,44 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
-#[cfg(feature = "acme")]
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
-pub mod acme;
-#[cfg(feature = "native-tls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "native-tls")))]
-pub mod native_tls;
-#[cfg(feature = "rustls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
-pub mod rustls;
-#[cfg(unix)]
-#[cfg_attr(docsrs, doc(cfg(unix)))]
-pub mod unix;
+cfg_feature! {
+    #![feature = "acme"]
+    pub mod acme;
+}
+cfg_feature! {
+    #![feature = "native-tls"]
+    pub mod native_tls;
+}
+cfg_feature! {
+    #![feature = "rustls"]
+    pub mod rustls;
+}
+cfg_feature! {
+    #![unix]
+    pub mod unix;
+}
 
-#[cfg(feature = "acme")]
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
-pub use acme::AcmeListener;
-#[cfg(feature = "native-tls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "native-tls")))]
+cfg_feature! {
+    #![feature = "acme"]
+    pub use acme::AcmeListener;
+}
+cfg_feature! {
+    #![feature = "native-tls"]
 pub use native_tls::NativeTlsListener;
-#[cfg(feature = "rustls")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rustls")))]
+}
+cfg_feature! {
+    #![feature = "rustls"]
 pub use rustls::RustlsListener;
-#[cfg(unix)]
-#[cfg_attr(docsrs, doc(cfg(unix)))]
+}
+cfg_feature! {
+    #![unix]
 pub use unix::UnixListener;
+}
 
 /// Listener trait
 pub trait Listener: Accept {
     /// Join current Listener with the other.
+    #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
     where
         Self: Sized,
@@ -51,7 +60,7 @@ pub trait Listener: Accept {
     }
 }
 
-/// A IO stream for JoinedListener.
+/// A I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
     #[allow(missing_docs)]
     A(A),
@@ -64,6 +73,7 @@ where
     A: AsyncRead + Send + Unpin + 'static,
     B: AsyncRead + Send + Unpin + 'static,
 {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
@@ -77,6 +87,7 @@ where
     A: AsyncWrite + Send + Unpin + 'static,
     B: AsyncWrite + Send + Unpin + 'static,
 {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_write(cx, buf),
@@ -84,6 +95,7 @@ where
         }
     }
 
+    #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_flush(cx),
@@ -91,6 +103,7 @@ where
         }
     }
 
+    #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_shutdown(cx),
@@ -103,6 +116,7 @@ where
     A: Transport + Send + Unpin + 'static,
     B: Transport + Send + Unpin + 'static,
 {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         match self {
             JoinedStream::A(stream) => stream.remote_addr(),
@@ -118,6 +132,7 @@ pub struct JoinedListener<A, B> {
 }
 
 impl<A, B> JoinedListener<A, B> {
+    #[inline]
     pub(crate) fn new(a: A, b: B) -> Self {
         JoinedListener { a, b }
     }
@@ -140,6 +155,7 @@ where
     type Conn = JoinedStream<A::Conn, B::Conn>;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let pin = self.get_mut();
         if fastrand::bool() {
@@ -197,6 +213,7 @@ impl Accept for TcpListener {
     type Conn = AddrStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         Pin::new(&mut self.get_mut().incoming).poll_accept(cx)
     }
@@ -225,6 +242,7 @@ impl IntoAddrIncoming for AddrIncoming {
 }
 
 impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
+    #[inline]
     fn into_incoming(self) -> AddrIncoming {
         for addr in self.to_socket_addrs().expect("failed to create AddrIncoming") {
             if let Ok(mut incoming) = AddrIncoming::bind(&addr) {
@@ -237,6 +255,7 @@ impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
 }
 
 impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
+    #[inline]
     fn into_incoming(self) -> AddrIncoming {
         let mut incoming = AddrIncoming::bind(&self.into()).expect("failed to create AddrIncoming");
         incoming.set_nodelay(true);
@@ -250,6 +269,7 @@ pub(crate) struct LazyFile {
 }
 
 impl LazyFile {
+    #[inline]
     fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.file.is_none() {
             self.file = Some(File::open(&self.path)?);
@@ -259,6 +279,7 @@ impl LazyFile {
     }
 }
 impl Read for LazyFile {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.lazy_read(buf).map_err(|e| {
             let kind = e.kind();

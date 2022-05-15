@@ -7,7 +7,9 @@ use hyper::Server as HyperServer;
 use crate::transport::Transport;
 use crate::{Listener, Service};
 
-/// Server
+/// HTTP Server
+///
+/// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
 }
@@ -18,11 +20,25 @@ where
     L::Conn: Transport + Send + Unpin + 'static,
     L::Error: Into<Box<(dyn StdError + Send + Sync + 'static)>>,
 {
-    /// Create new Server.
+    /// Create new `Server` with [`Listener`].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use salvo_core::prelude::*;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// Server::new(TcpListener::bind("0.0.0.0:7878"));
+    /// # }
+    /// ```
+    #[inline]
     pub fn new(listener: L) -> Self {
         Server { listener }
     }
-    /// Serve a service
+
+    /// Serve a [`Service`]
+    #[inline]
     pub async fn serve<S>(self, service: S)
     where
         S: Into<Service>,
@@ -30,7 +46,8 @@ where
         self.try_serve(service).await.unwrap();
     }
 
-    /// Try to serve a service
+    /// Try to serve a [`Service`]
+    #[inline]
     pub async fn try_serve<S>(self, service: S) -> Result<(), hyper::Error>
     where
         S: Into<Service>,
@@ -42,10 +59,10 @@ where
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use tokio::sync::oneshot;
+    ///
     /// use salvo_core::prelude::*;
-    /// use salvo_macros::fn_handler;
-    /// use tokio::sync::oneshot;
     ///
     /// #[fn_handler]
     /// async fn hello_world(res: &mut Response) {
@@ -67,6 +84,7 @@ where
     ///     let _ = tx.send(());
     /// }
     /// ```
+    #[inline]
     pub async fn serve_with_graceful_shutdown<S, G>(self, addr: S, signal: G)
     where
         S: Into<Service>,
@@ -76,6 +94,7 @@ where
     }
 
     /// Serve with graceful shutdown signal.
+    #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(self, service: S, signal: G) -> Result<(), hyper::Error>
     where
         S: Into<Service>,
@@ -99,11 +118,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_server() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn hello_world() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn json(res: &mut Response) {
             #[derive(Serialize, Debug)]
             struct User {

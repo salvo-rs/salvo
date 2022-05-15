@@ -12,12 +12,14 @@ pub struct TimeoutHandler {
 }
 impl TimeoutHandler {
     /// Create a new `TimeoutHandler`.
+    #[inline]
     pub fn new(timeout: Duration) -> Self {
         TimeoutHandler { timeout }
     }
 }
 #[async_trait]
 impl Handler for TimeoutHandler {
+    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         tokio::select! {
             _ = ctrl.call_next(req, depot, res) => {},

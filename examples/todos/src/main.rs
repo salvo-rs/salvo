@@ -55,7 +55,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 
 #[fn_handler]
 pub async fn update_todo(req: &mut Request, res: &mut Response) {
-    let id = req.get_param::<u64>("id").unwrap();
+    let id = req.param::<u64>("id").unwrap();
     let updated_todo = req.read::<Todo>().await.unwrap();
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
@@ -74,7 +74,7 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
 
 #[fn_handler]
 pub async fn delete_todo(req: &mut Request, res: &mut Response) {
-    let id = req.get_param::<u64>("id").unwrap();
+    let id = req.param::<u64>("id").unwrap();
     tracing::debug!(id = ?id, "delete todo");
 
     let mut vec = STORE.lock().await;

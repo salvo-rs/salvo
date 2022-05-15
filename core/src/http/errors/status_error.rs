@@ -7,7 +7,7 @@ use http::StatusCode;
 use crate::{Depot, Request, Response, Writer};
 
 /// Resut type with `StatusError` has it's error type.
-pub type HttpResult<T> = Result<T, StatusError>;
+pub type StatusResult<T> = Result<T, StatusError>;
 
 macro_rules! default_errors {
     ($($sname:ident, $code:expr, $name:expr, $summary:expr);+) => {
@@ -95,6 +95,7 @@ impl StatusError {
 impl StdError for StatusError {}
 
 impl Display for StatusError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "code: {}", &self.code)?;
         write!(f, "name: {}", &self.name)?;
@@ -105,6 +106,7 @@ impl Display for StatusError {
 }
 impl StatusError {
     /// Create new `StatusError` with code. If code is not error, it will be `None`.
+    #[inline]
     pub fn from_code(code: StatusCode) -> Option<StatusError> {
         match code {
             StatusCode::BAD_REQUEST => Some(StatusError::bad_request()),
@@ -152,6 +154,7 @@ impl StatusError {
 }
 #[async_trait]
 impl Writer for StatusError {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_status_error(self);
     }

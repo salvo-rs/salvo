@@ -27,25 +27,25 @@ use crate::transport::Transport;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Hyper error
-    #[error("hyper error")]
+    #[error("Hyper error: {0}")]
     Hyper(hyper::Error),
     /// An IO error
-    #[error("io error")]
+    #[error("I/O error: {0}")]
     Io(IoError),
     /// An Error parsing the Certificate
-    #[error("certificate parse error")]
+    #[error("Certificate parse error")]
     CertParseError,
     /// An Error parsing a Pkcs8 key
-    #[error("pkcs8 parse error")]
+    #[error("Pkcs8 parse error")]
     Pkcs8ParseError,
     /// An Error parsing a Rsa key
-    #[error("rsa parse error")]
+    #[error("Rsa parse error")]
     RsaParseError,
     /// An error from an empty key
-    #[error("key contains no private key")]
+    #[error("Empy key")]
     EmptyKey,
     /// An error from an invalid key
-    #[error("key contains an invalid key, {0}")]
+    #[error("Invalid key, {0}")]
     InvalidKey(RustlsError),
 }
 
@@ -68,11 +68,13 @@ pub struct RustlsConfig {
 }
 
 impl fmt::Debug for RustlsConfig {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("RustlsConfig").finish()
     }
 }
 impl Default for RustlsConfig {
+    #[inline]
     fn default() -> Self {
         RustlsConfig::new()
     }
@@ -232,6 +234,7 @@ impl RustlsConfig {
     }
 }
 
+#[inline]
 fn read_trust_anchor(trust_anchor: Box<dyn Read + Send + Sync>) -> Result<RootCertStore, Error> {
     let mut reader = BufReader::new(trust_anchor);
     let certs = rustls_pemfile::certs(&mut reader).map_err(|_| Error::RsaParseError)?;
@@ -279,6 +282,7 @@ where
 
 impl<C> RustlsListener<C> {
     /// Get local address
+    #[inline]
     pub fn local_addr(&self) -> SocketAddr {
         self.incoming.local_addr().into()
     }
@@ -309,6 +313,7 @@ impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
 }
 
 impl From<RustlsConfig> for Arc<ServerConfig> {
+    #[inline]
     fn from(rustls_config: RustlsConfig) -> Self {
         rustls_config.build_server_config().unwrap().into()
     }
@@ -340,6 +345,7 @@ where
     type Conn = RustlsStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
         if let Poll::Ready(Some(config)) = this.config_stream.poll_next(cx) {
@@ -373,12 +379,14 @@ pub struct RustlsStream {
     remote_addr: SocketAddr,
 }
 impl Transport for RustlsStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl RustlsStream {
+    #[inline]
     fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
         let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
@@ -390,6 +398,7 @@ impl RustlsStream {
 }
 
 impl AsyncRead for RustlsStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let pin = self.get_mut();
         match pin.state {
@@ -407,6 +416,7 @@ impl AsyncRead for RustlsStream {
 }
 
 impl AsyncWrite for RustlsStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let pin = self.get_mut();
         match pin.state {
@@ -422,6 +432,7 @@ impl AsyncWrite for RustlsStream {
         }
     }
 
+    #[inline]
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             RustlsState::Handshaking(_) => Poll::Ready(Ok(())),
@@ -429,6 +440,7 @@ impl AsyncWrite for RustlsStream {
         }
     }
 
+    #[inline]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             RustlsState::Handshaking(_) => Poll::Ready(Ok(())),

@@ -7,6 +7,81 @@ use crate::http::Request;
 use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
+///
+/// You can wite routers in flat way, like this:
+///
+/// # Example
+///
+/// ```
+/// # use salvo_core::prelude::*;
+///
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers").get(list_writers).post(create_writer);
+/// Router::with_path("writers/<id>").get(show_writer).patch(edit_writer).delete(delete_writer);
+/// Router::with_path("writers/<id>/articles").get(list_writer_articles);
+/// # }
+/// ```
+///
+/// You can write router like a tree, this is also the recommended way:
+///
+/// # Example
+///
+/// ```
+/// use salvo_core::prelude::*;
+///
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers")
+///     .get(list_writers)
+///     .post(create_writer)
+///     .push(
+///         Router::with_path("<id>")
+///             .get(show_writer)
+///             .patch(edit_writer)
+///             .delete(delete_writer)
+///             .push(Router::with_path("articles").get(list_writer_articles)),
+///     );
+/// # }
+/// ```
+///
+/// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
     pub(crate) routers: Vec<Router>,
     pub(crate) filters: Vec<Box<dyn Filter>>,
@@ -20,15 +95,17 @@ pub struct DetectMatched {
 }
 
 impl Default for Router {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl Router {
-    /// Create a new Router.
-    pub fn new() -> Router {
-        Router {
+    /// Create a new `Router`.
+    #[inline]
+    pub fn new() -> Self {
+        Self {
             routers: Vec::new(),
             filters: Vec::new(),
             hoops: Vec::new(),
@@ -136,7 +213,7 @@ impl Router {
     /// Panics if path value is not in correct format.
     #[inline]
     pub fn with_path(path: impl Into<String>) -> Self {
-        Router::new().filter(PathFilter::new(path))
+        Router::with_filter(PathFilter::new(path))
     }
 
     /// Create a new path filter for current router.
@@ -149,6 +226,11 @@ impl Router {
         self.filter(PathFilter::new(path))
     }
 
+    /// Create a new router and set filter.
+    #[inline]
+    pub fn with_filter(filter: impl Filter + Sized) -> Self {
+        Router::new().filter(filter)
+    }
     /// Add a filter for current router.
     #[inline]
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
@@ -156,14 +238,21 @@ impl Router {
         self
     }
 
-    /// Create a new FnFilter from Fn.
+    /// Create a new router and set filter_fn.
     #[inline]
-    pub fn filter_fn<T>(mut self, func: T) -> Self
+    pub fn with_filter_fn<T>(func: T) -> Self
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
-        self.filters.push(Box::new(FnFilter(func)));
-        self
+        Router::with_filter(FnFilter(func))
+    }
+    /// Create a new FnFilter from Fn.
+    #[inline]
+    pub fn filter_fn<T>(self, func: T) -> Self
+    where
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    {
+        self.filter(FnFilter(func))
     }
 
     /// Set current router's handler.
@@ -183,46 +272,60 @@ impl Router {
         func(self)
     }
 
-    /// Create a new child router with MethodFilter to filter get method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::get()).handle(handler))
+        self.push(Router::with_filter(filter::get()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter post method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::post()).handle(handler))
+        self.push(Router::with_filter(filter::post()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter put method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::put()).handle(handler))
+        self.push(Router::with_filter(filter::put()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter delete method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::delete()).handle(handler))
+        self.push(Router::with_filter(filter::delete()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter patch method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::patch()).handle(handler))
+        self.push(Router::with_filter(filter::patch()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter head method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::head()).handle(handler))
+        self.push(Router::with_filter(filter::head()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::options()).handle(handler))
+        self.push(Router::with_filter(filter::options()).handle(handler))
     }
 }
 
@@ -284,7 +387,7 @@ mod tests {
     use crate::{Request, Response};
     use async_trait::async_trait;
 
-    #[fn_handler]
+    #[fn_handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {

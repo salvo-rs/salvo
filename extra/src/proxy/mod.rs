@@ -151,7 +151,7 @@ impl Handler for ProxyHandler {
                         ) = response.into_parts();
                         res.set_status_code(status);
                         res.set_headers(headers);
-                        res.set_body(Some(body.into()));
+                        res.set_body(body.into());
                     }
                     Err(e) => {
                         tracing::error!("error: {}", e);
@@ -171,6 +171,7 @@ impl Handler for ProxyHandler {
     }
 }
 
+#[inline]
 fn encode_url_path(path: &str) -> String {
     path.split('/')
         .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())

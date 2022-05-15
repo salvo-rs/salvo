@@ -1,33 +1,48 @@
 <div align="center">
-<img alt="Savlo" src="assets/logo.svg" />
+<p><img alt="Savlo" src="assets/logo.svg" /></p>
 <p>
-
-[English](https://github.com/salvo-rs/salvo/blob/main/README.md) [简体中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md) [繁體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md)<br><br>
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+</p>
+<p>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
+</a>
 <br>
-[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
-[![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
-[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
-[![Rust Version](https://img.shields.io/badge/rust-1.59%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.59.0.html)
+<a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
+<a href="https://deps.rs/repo/github/salvo-rs/salvo">
+    <img alt="dependency status" src="https://img.shields.io/librariesio/release/cargo/salvo/0.23.1" />
+</a>
+<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
 <br>
-[![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
-[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
-[![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs)](https://salvo.rs)
-![License](https://img.shields.io/crates/l/salvo.svg)
+<a href="https://salvo.rs">
+    <img alt="Website" src="https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs" />
+</a>
+<a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
+<a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
+<img alt="License" src="https://img.shields.io/crates/l/salvo.svg" />
 </p>
 </div>
 
-Salvo is a powerful and simplest web server framework in Rust world. 
+Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
+
 ## 🎯 Features
-  - Base on hyper, tokio and async supported;
-  - Websocket supported;
-  - Middleware is handler and support executed before or after handler;
-  - Easy to use routing system, routers can be nested, and you can add middlewares on any routers;
-  - Multipart form supported, handle files upload is very simple;
-  - Acme supported, obtain TLS certificate from [let's encrypt](https://letsencrypt.org/) automatic;
-  - Serve a static virtual directory from many physical directories;
+   - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+   - Unified middleware and handle interface;
+   - Routing supports multi-level nesting, and middleware can be added at any level;
+   - Integrated Multipart form processing;
+   - Support Websocket;
+   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
+   - Supports mapping from multiple local directories into one virtual directory to provide services.
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/quick-start/hello_world/).
@@ -42,8 +57,8 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { version = "0.21", features = ["full"] }
-tokio = { version = "1", features = ["full"] }
+salvo = "0.23"
+tokio = "1"
 ```
 
 Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
@@ -74,7 +89,26 @@ async fn main() {
 ```
 
 ### Middleware
-There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!***
+There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!**
+
+```rust
+use salvo::http::header::{self, HeaderValue};
+use salvo::prelude::*;
+
+#[fn_handler]
+async fn add_header(res: &mut Response) {
+    res.headers_mut()
+        .insert(header::SERVER, HeaderValue::from_static("Salvo"));
+}
+```
+
+Then add it to router:
+
+```rust
+Router::new().hoop(add_header).get(hello_world)
+```
+
+This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
 
 ### Chainable tree routing system
 
@@ -125,15 +159,32 @@ Router::new()
 
 You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
 
+Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
+
+```rust
+PathFilter::register_part_regex(
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+);
+```
+
+This makes it more concise when path matching is required:
+
+```rust
+Router::with_path("<id:guid>").get(index)
+```
+
+View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
+
 ### File upload
-We can get file async by the function ```get_file``` in ```Request```:
+We can get file async by the function ```file``` in ```Request```:
 
 ```rust
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
-        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        let dest = format!("temp/{}", file.name().unwrap_or_else(|| "file".into()));
         if let Err(e) = tokio::fs::copy(&file.path, Path::new(&dest)).await {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {

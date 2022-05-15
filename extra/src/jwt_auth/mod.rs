@@ -8,9 +8,8 @@ use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 
 use salvo_core::async_trait;
-use salvo_core::http::errors::StatusError;
 use salvo_core::http::header::AUTHORIZATION;
-use salvo_core::http::{Method, Request, Response};
+use salvo_core::http::{Method, Request, Response, StatusError};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
@@ -39,7 +38,7 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
 #[async_trait]
 pub trait JwtTokenExtractor: Send + Sync {
     /// Get token from request.
-    async fn get_token(&self, req: &mut Request) -> Option<String>;
+    async fn token(&self, req: &mut Request) -> Option<String>;
 }
 
 /// HeaderExtractor
@@ -49,24 +48,29 @@ pub struct HeaderExtractor {
 }
 impl HeaderExtractor {
     /// Create new `HeaderExtractor`.
+    #[inline]
     pub fn new() -> Self {
         HeaderExtractor {
             cared_methods: ALL_METHODS.clone(),
         }
     }
     /// Get cated methods list reference.
+    #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
     /// Get cated methods list mutable reference.
+    #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
     /// Set cated methods list.
+    #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
     /// Set cated methods list and returns Self.
+    #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -74,7 +78,8 @@ impl HeaderExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for HeaderExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    #[inline]
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
             if let Some(auth) = req.headers().get(AUTHORIZATION) {
                 if let Ok(auth) = auth.to_str() {
@@ -95,6 +100,7 @@ pub struct FormExtractor {
 }
 impl FormExtractor {
     /// Create new `FormExtractor`.
+    #[inline]
     pub fn new<T: Into<String>>(field_name: T) -> Self {
         FormExtractor {
             field_name: field_name.into(),
@@ -102,18 +108,22 @@ impl FormExtractor {
         }
     }
     /// Get cated methods list reference.
+    #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
     /// Get cated methods list mutable reference.
+    #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
     /// Set cated methods list.
+    #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
     /// Set cated methods list and return Self.
+    #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -121,9 +131,10 @@ impl FormExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for FormExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    #[inline]
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_form(&self.field_name).await
+            req.form(&self.field_name).await
         } else {
             None
         }
@@ -137,6 +148,7 @@ pub struct QueryExtractor {
 }
 impl QueryExtractor {
     /// Create new `QueryExtractor`.
+    #[inline]
     pub fn new<T: Into<String>>(query_name: T) -> Self {
         QueryExtractor {
             query_name: query_name.into(),
@@ -144,18 +156,22 @@ impl QueryExtractor {
         }
     }
     /// Get cated methods list reference.
+    #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
     /// Get cated methods list mutable reference.
+    #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
     /// Set cated methods list.
+    #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
     /// Set cated methods list and return Self.
+    #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -164,9 +180,10 @@ impl QueryExtractor {
 
 #[async_trait]
 impl JwtTokenExtractor for QueryExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    #[inline]
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_query(&self.query_name)
+            req.query(&self.query_name)
         } else {
             None
         }
@@ -180,6 +197,7 @@ pub struct CookieExtractor {
 }
 impl CookieExtractor {
     /// Create new `CookieExtractor`.
+    #[inline]
     pub fn new<T: Into<String>>(cookie_name: T) -> Self {
         CookieExtractor {
             cookie_name: cookie_name.into(),
@@ -193,18 +211,22 @@ impl CookieExtractor {
         }
     }
     /// Get cated methods list reference.
+    #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
     /// Get cated methods list mutable reference.
+    #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
     /// Set cated methods list.
+    #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
     /// Set cated methods list and return Self.
+    #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
@@ -212,9 +234,10 @@ impl CookieExtractor {
 }
 #[async_trait]
 impl JwtTokenExtractor for CookieExtractor {
-    async fn get_token(&self, req: &mut Request) -> Option<String> {
+    #[inline]
+    async fn token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            req.get_cookie(&self.cookie_name).map(|c| c.value().to_owned())
+            req.cookie(&self.cookie_name).map(|c| c.value().to_owned())
         } else {
             None
         }
@@ -243,10 +266,12 @@ pub trait JwtAuthDepotExt {
 }
 
 impl JwtAuthDepotExt for Depot {
+    #[inline]
     fn jwt_auth_token(&self) -> Option<&String> {
         self.get(AUTH_TOKEN_KEY)
     }
 
+    #[inline]
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
         C: DeserializeOwned + Sync + Send + 'static,
@@ -254,6 +279,7 @@ impl JwtAuthDepotExt for Depot {
         self.get(AUTH_DATA_KEY)
     }
 
+    #[inline]
     fn jwt_auth_state(&self) -> JwtAuthState {
         self.get(AUTH_STATE_KEY).cloned().unwrap_or(JwtAuthState::Unauthorized)
     }
@@ -347,7 +373,7 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         for extractor in &self.extractors {
-            if let Some(token) = extractor.get_token(req).await {
+            if let Some(token) = extractor.token(req).await {
                 if let Ok(data) = self.decode(&token) {
                     depot.insert(AUTH_DATA_KEY, data);
                     depot.insert(AUTH_STATE_KEY, JwtAuthState::Authorized);

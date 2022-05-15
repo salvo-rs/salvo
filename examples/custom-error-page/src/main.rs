@@ -17,8 +17,8 @@ async fn main() {
 
 fn create_service() -> Service {
     let router = Router::new().get(hello_world);
-    let catcher: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
-    Service::new(router).with_catchers(catcher)
+    let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+    Service::new(router).with_catchers(catchers)
 }
 
 struct Handle404;

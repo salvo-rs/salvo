@@ -12,7 +12,6 @@ use super::key_pair::KeyPair;
 use super::{ChallengeType, LETS_ENCRYPT_PRODUCTION};
 
 /// ACME configuration
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeConfig {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,
@@ -34,6 +33,7 @@ impl AcmeConfig {
 }
 
 impl Debug for AcmeConfig {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("AcmeConfig")
             .field("directory_name", &self.directory_name)
@@ -46,7 +46,6 @@ impl Debug for AcmeConfig {
 }
 
 /// ACME configuration builder
-#[cfg_attr(docsrs, doc(cfg(feature = "acme")))]
 pub struct AcmeConfigBuilder {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,
@@ -59,6 +58,7 @@ pub struct AcmeConfigBuilder {
 }
 
 impl AcmeConfigBuilder {
+    #[inline]
     pub(crate) fn new() -> Self {
         Self {
             directory_name: "lets_encrypt".to_string(),
@@ -149,6 +149,7 @@ impl AcmeConfigBuilder {
     }
 
     /// Consumes this builder and returns a [`AcmeConfig`] object.
+    #[inline]
     pub fn build(self) -> IoResult<AcmeConfig> {
         self.directory_url
             .parse::<Uri>()

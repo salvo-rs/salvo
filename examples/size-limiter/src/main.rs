@@ -10,9 +10,9 @@ async fn index(res: &mut Response) {
 }
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
-        let dest = format!("temp/{}", file.file_name().unwrap_or("file"));
+        let dest = format!("temp/{}", file.name().unwrap_or("file"));
         tracing::debug!(dest = %dest, "upload file");
         if let Err(e) = std::fs::copy(&file.path(), Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);

@@ -1,4 +1,3 @@
-use salvo::anyhow;
 use salvo::prelude::*;
 
 struct CustomError;

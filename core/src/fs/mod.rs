@@ -108,7 +108,7 @@ mod test {
         // println!("current path: {:?}", std::env::current_dir());
         // println!("current current_exe: {:?}", std::env::current_exe());
         let file = NamedFile::builder(src)
-            .with_attached_filename("attach.file")
+            .with_attached_name("attach.file")
             .with_buffer_size(8888)
             .with_content_type(Mime::from_str("text/html").unwrap())
             .build()

@@ -16,10 +16,10 @@ use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::ParseError;
 use crate::http::form::{self, FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
+use crate::http::ParseError;
 
 /// Represents an HTTP request.
 ///
@@ -66,6 +66,7 @@ impl fmt::Debug for Request {
 }
 
 impl Default for Request {
+    #[inline]
     fn default() -> Request {
         Request::new()
     }
@@ -121,6 +122,7 @@ impl From<hyper::Request<Body>> for Request {
 
 impl Request {
     /// Creates a new blank `Request`
+    #[inline]
     pub fn new() -> Request {
         Request {
             uri: Uri::default(),
@@ -243,7 +245,7 @@ impl Request {
 
     /// Get header with supplied name and try to parse to a 'T', returns None if failed or not found.
     #[inline]
-    pub fn get_header<T>(&self, key: &str) -> Option<T>
+    pub fn header<T>(&self, key: &str) -> Option<T>
     where
         T: FromStr,
     {
@@ -354,7 +356,7 @@ impl Request {
     }
     /// Get `Cookie` from cookies.
     #[inline]
-    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
         T: AsRef<str>,
     {
@@ -373,7 +375,7 @@ impl Request {
 
     /// Get param value from params.
     #[inline]
-    pub fn get_param<T>(&self, key: &str) -> Option<T>
+    pub fn param<T>(&self, key: &str) -> Option<T>
     where
         T: FromStr,
     {
@@ -390,7 +392,7 @@ impl Request {
     }
     /// Get query value from queries.
     #[inline]
-    pub fn get_query<F>(&self, key: &str) -> Option<F>
+    pub fn query<F>(&self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
@@ -399,46 +401,59 @@ impl Request {
 
     /// Get field data from form.
     #[inline]
-    pub async fn get_form<F>(&mut self, key: &str) -> Option<F>
+    pub async fn form<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
         self.form_data()
             .await
-            .as_ref()
             .ok()
             .and_then(|ps| ps.fields.get(key))
             .and_then(|v| v.parse::<F>().ok())
     }
-    /// Get `FilePart` reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
-        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
+    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
+        self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
-    /// Get `FilePart` lsit reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+    pub async fn first_file(&mut self) -> Option<&FilePart> {
         self.form_data()
             .await
-            .as_ref()
             .ok()
-            .and_then(|ps| ps.files.get_vec(key))
+            .and_then(|ps| ps.files.iter().next())
+            .map(|(_, f)| f)
+    }
+    /// Get [`FilePart`] list reference from request.
+    #[inline]
+    pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+        self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
+    }
+    /// Get [`FilePart`] list reference from request.
+    #[inline]
+    pub async fn all_files(&mut self) -> Vec<&FilePart> {
+        self.form_data()
+            .await
+            .ok()
+            .map(|ps| ps.files.iter().map(|(_, f)| f).collect())
+            .unwrap_or_default()
     }
     /// Get value from form first if not found then get from query.
     #[inline]
-    pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
+    pub async fn form_or_query<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
-        self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
+        self.form(key.as_ref()).await.or_else(|| self.query(key))
     }
     /// Get value from query first if not found then get from form.
     #[inline]
-    pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
+    pub async fn query_or_form<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
-        self.get_query(key.as_ref()).or(self.get_form(key).await)
+        self.query(key.as_ref()).or(self.form(key).await)
     }
 
     /// Get request payload.
@@ -455,6 +470,7 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
             .headers()
@@ -540,6 +556,7 @@ impl Request {
     }
 }
 
+#[inline]
 pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ParseError> {
     hyper::body::to_bytes(body)
         .await
@@ -590,8 +607,8 @@ mod tests {
             .unwrap()
             .into();
         assert_eq!(req.queries().len(), 1);
-        assert_eq!(req.get_query::<String>("q").unwrap(), "rust");
-        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(req.query::<String>("q").unwrap(), "rust");
+        assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
     }
     #[tokio::test]
     async fn test_form() {
@@ -602,9 +619,9 @@ mod tests {
             .body("lover=dog&money=sh*t&q=firefox".into())
             .unwrap()
             .into();
-        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
-        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
-        assert_eq!(req.get_form_or_query::<String>("q").await.unwrap(), "firefox");
+        assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
+        assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
         let mut req: Request = hyper::Request::builder()
             .method("POST")
@@ -625,11 +642,11 @@ file content\r\n\
             )
             .unwrap()
             .into();
-        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
-        let file = req.get_file("file1").await.unwrap();
-        assert_eq!(file.file_name().unwrap(), "err.txt");
+        assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
+        let file = req.file("file1").await.unwrap();
+        assert_eq!(file.name().unwrap(), "err.txt");
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
-        let files = req.get_files("file1").await.unwrap();
-        assert_eq!(files[0].file_name().unwrap(), "err.txt");
+        let files = req.files("file1").await.unwrap();
+        assert_eq!(files[0].name().unwrap(), "err.txt");
     }
 }

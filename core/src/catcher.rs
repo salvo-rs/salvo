@@ -1,19 +1,63 @@
-//! Catcher tarit and it's impl.
+//! [`Catcher`] tarit and it's defalut implement [`CatcherImpl`].
+//!
+//! A web application can specify several different Catchers to handle errors.
+//!
+//! They can be set via the ```with_catchers``` function of ```Server```:
+//!
+//! # Example
+//!
+//! ```
+//! # use salvo_core::prelude::*;
+//! # use salvo_core::Catcher;
+//!
+//! struct Handle404;
+//! impl Catcher for Handle404 {
+//!     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
+//!         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+//!             res.render("Custom 404 Error Page");
+//!             true
+//!         } else {
+//!             false
+//!         }
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+//!     Service::new(Router::new()).with_catchers(catchers);
+//! }
+//! ```
+//!
+//! When there is an error in the website request result, first try to set the error page
+//! through the [`Catcher`] set by the user. If the [`Catcher`] catches the error,
+//! it will return `true`.
+//!
+//! If your custom catchers does not capture this error, then the system uses the
+//! default [`CatcherImpl`] to capture processing errors and send the default error page.
+
 use mime::Mime;
 use once_cell::sync::Lazy;
 
-use crate::http::errors::StatusError;
+use crate::http::StatusError;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
 use crate::Depot;
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
 
-/// Catch error in current response.
+/// Catch http response error.
 pub trait Catcher: Send + Sync + 'static {
     /// If the current catcher caught the error, it will returns true.
+    ///
+    /// If current catcher is not interested in current error, it will returns false.
+    /// Salvo will try to use next catcher to catch this error.
+    ///
+    /// If all custom catchers can not catch this error, [`CatcherImpl`] will be used
+    /// to catch it.
     fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
 }
+#[inline]
 fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"<!DOCTYPE html>
@@ -60,6 +104,7 @@ fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail
         format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }
+#[inline]
 fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
@@ -69,6 +114,7 @@ fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
+#[inline]
 fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "code:{},\nname:{},\nsummary:{},\ndetail:{}",
@@ -78,6 +124,7 @@ fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detai
         detail.unwrap_or(EMPTY_DETAIL_MSG)
     )
 }
+#[inline]
 fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
     format!(
         "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
@@ -88,6 +135,7 @@ fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail:
     )
 }
 /// Create bytes from `StatusError`.
+#[inline]
 pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec<u8>) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
         "text/html".parse().unwrap()
@@ -102,90 +150,29 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
     };
     (format, content.as_bytes().to_owned())
 }
-/// Default implementation of Catcher.
-pub struct CatcherImpl(StatusCode);
-impl CatcherImpl {
-    /// Create new `CatcherImpl`.
-    pub fn new(code: StatusCode) -> CatcherImpl {
-        CatcherImpl(code)
-    }
-}
+
+/// Default implementation of [`Catcher`].
+///
+/// If http status is error, and user is not set custom catcher to catch them,
+/// `CatcherImpl` will catch them.
+///
+/// `CatcherImpl` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+pub struct CatcherImpl;
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
-        if status != self.0 {
+        if !status.is_server_error() && !status.is_client_error() {
             return false;
         }
         let format = guess_accept_mime(req, None);
         let (format, data) = if res.status_error.is_some() {
             status_error_bytes(res.status_error.as_ref().unwrap(), &format)
         } else {
-            status_error_bytes(&StatusError::from_code(self.0).unwrap(), &format)
+            status_error_bytes(&StatusError::from_code(status).unwrap(), &format)
         };
         res.headers_mut()
             .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
         res.write_body(&data).ok();
         true
-    }
-}
-
-macro_rules! default_catchers {
-    ($($code:expr),+) => (
-        let list: Vec<Box<dyn Catcher>> = vec![
-        $(
-            Box::new(CatcherImpl::new($code)),
-        )+];
-        list
-    )
-}
-
-/// Defaut catchers.
-pub mod defaults {
-    use super::{Catcher, CatcherImpl};
-    use http::status::StatusCode;
-
-    /// Get a new default catchers list.
-    pub fn get() -> Vec<Box<dyn Catcher>> {
-        default_catchers! {
-            StatusCode::BAD_REQUEST,
-            StatusCode::UNAUTHORIZED,
-            StatusCode::PAYMENT_REQUIRED,
-            StatusCode::FORBIDDEN,
-            StatusCode::NOT_FOUND,
-            StatusCode::METHOD_NOT_ALLOWED,
-            StatusCode::NOT_ACCEPTABLE,
-            StatusCode::PROXY_AUTHENTICATION_REQUIRED,
-            StatusCode::REQUEST_TIMEOUT,
-            StatusCode::CONFLICT,
-            StatusCode::GONE,
-            StatusCode::LENGTH_REQUIRED,
-            StatusCode::PRECONDITION_FAILED,
-            StatusCode::PAYLOAD_TOO_LARGE,
-            StatusCode::URI_TOO_LONG,
-            StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            StatusCode::RANGE_NOT_SATISFIABLE,
-            StatusCode::EXPECTATION_FAILED,
-            StatusCode::IM_A_TEAPOT,
-            StatusCode::MISDIRECTED_REQUEST,
-            StatusCode::UNPROCESSABLE_ENTITY,
-            StatusCode::LOCKED,
-            StatusCode::FAILED_DEPENDENCY,
-            StatusCode::UPGRADE_REQUIRED,
-            StatusCode::PRECONDITION_REQUIRED,
-            StatusCode::TOO_MANY_REQUESTS,
-            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
-            StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
-            StatusCode::INTERNAL_SERVER_ERROR,
-            StatusCode::NOT_IMPLEMENTED,
-            StatusCode::BAD_GATEWAY,
-            StatusCode::SERVICE_UNAVAILABLE,
-            StatusCode::GATEWAY_TIMEOUT,
-            StatusCode::HTTP_VERSION_NOT_SUPPORTED,
-            StatusCode::VARIANT_ALSO_NEGOTIATES,
-            StatusCode::INSUFFICIENT_STORAGE,
-            StatusCode::LOOP_DETECTED,
-            StatusCode::NOT_EXTENDED,
-            StatusCode::NETWORK_AUTHENTICATION_REQUIRED
-        }
     }
 }
