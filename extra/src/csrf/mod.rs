@@ -11,7 +11,7 @@ use std::time::Duration;
 use self::core::{
     AesGcmCsrfProtection, CsrfCookie, CsrfProtection, CsrfToken, UnencryptedCsrfCookie, UnencryptedCsrfToken,
 };
-use salvo_core::http::cookie::{Cookie, Expiration, SameSite};
+use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::headers::HeaderName;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};

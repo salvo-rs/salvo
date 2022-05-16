@@ -69,7 +69,7 @@ use std::time::Duration;
 use async_session::base64;
 use async_session::hmac::{Hmac, Mac, NewMac};
 use async_session::sha2::Sha256;
-use salvo_core::http::cookie::{Cookie, Key, SameSite};
+use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{async_trait, Depot, Handler, Request, Response};
