@@ -131,14 +131,14 @@ impl Service {
     /// }
     /// ```
     #[inline]
-    pub async fn handle(&self, request: Request) -> Response {
+    pub async fn handle(&self, request: impl Into<Request>) -> Response {
         let handler = HyperHandler {
             remote_addr: None,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
         };
-        handler.handle(request).await
+        handler.handle(request.into()).await
     }
 }
 impl<'t, T> hyper::service::Service<&'t T> for Service
