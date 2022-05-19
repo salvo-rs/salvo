@@ -9,7 +9,7 @@ use tokio::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 use async_trait::async_trait;
-use bitflags::bitflags;
+use enumflags2::{bitflags, BitFlags};
 use headers::*;
 use mime_guess::from_path;
 
@@ -20,18 +20,13 @@ use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
 
-bitflags! {
-    pub(crate) struct Flags: u8 {
-        const ETAG = 0b0000_0001;
-        const LAST_MODIFIED = 0b0000_0010;
-        const CONTENT_DISPOSITION = 0b0000_0100;
-    }
-}
-
-impl Default for Flags {
-    fn default() -> Self {
-        Flags::all()
-    }
+#[bitflags(default = Etag | LastModified | ContentDisposition)]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) enum Flag {
+    Etag = 0b0001,
+    LastModified = 0b0010,
+    ContentDisposition = 0b0100,
 }
 
 /// A file with an associated name.
@@ -42,7 +37,7 @@ pub struct NamedFile {
     modified: Option<SystemTime>,
     buffer_size: u64,
     metadata: Metadata,
-    flags: Flags,
+    flags: BitFlags<Flag>,
     content_type: mime::Mime,
     content_disposition: HeaderValue,
     content_encoding: Option<HeaderValue>,
@@ -58,7 +53,7 @@ pub struct NamedFileBuilder {
     content_encoding: Option<String>,
     content_disposition: Option<String>,
     buffer_size: Option<u64>,
-    flags: Flags,
+    flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
     /// Set attached filename and returns `Self`.
@@ -91,14 +86,33 @@ impl NamedFileBuilder {
         self.buffer_size = Some(buffer_size);
         self
     }
-    /// Specifies whether to use ETag or not.
+
+    ///Specifies whether to use ETag or not.
     ///
-    /// Default is true.
+    ///Default is true.
     #[inline]
     pub fn use_etag(mut self, value: bool) -> Self {
-        self.flags.set(Flags::ETAG, value);
+        if value {
+            self.flags.insert(Flag::Etag);
+        } else {
+            self.flags.remove(Flag::Etag);
+        }
         self
     }
+
+    ///Specifies whether to use Last-Modified or not.
+    ///
+    ///Default is true.
+    #[inline]
+    pub fn use_last_modified(mut self, value: bool) -> Self {
+        if value {
+            self.flags.insert(Flag::LastModified);
+        } else {
+            self.flags.remove(Flag::LastModified);
+        }
+        self
+    }
+
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req: &mut Request, res: &mut Response) {
         if !self.path.exists() {
@@ -196,7 +210,7 @@ impl NamedFile {
             content_encoding: None,
             content_disposition: None,
             buffer_size: None,
-            flags: Flags::default(),
+            flags: BitFlags::default(),
         }
     }
 
@@ -269,7 +283,7 @@ impl NamedFile {
     #[inline]
     pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {
         self.content_disposition = content_disposition;
-        self.flags.insert(Flags::CONTENT_DISPOSITION);
+        self.flags.insert(Flag::ContentDisposition);
     }
 
     /// Disable `Content-Disposition` header.
@@ -277,7 +291,7 @@ impl NamedFile {
     /// By default Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
-        self.flags.remove(Flags::CONTENT_DISPOSITION);
+        self.flags.remove(Flag::ContentDisposition);
     }
 
     /// Get content encoding value reference.
@@ -329,8 +343,12 @@ impl NamedFile {
     ///
     ///Default is true.
     #[inline]
-    pub fn use_etag(mut self, value: bool) {
-        self.flags.set(Flags::ETAG, value);
+    pub fn use_etag(&mut self, value: bool) {
+        if value {
+            self.flags.insert(Flag::Etag);
+        } else {
+            self.flags.remove(Flag::Etag);
+        }
     }
 
     /// GEt last_modified value.
@@ -342,18 +360,21 @@ impl NamedFile {
     ///
     ///Default is true.
     #[inline]
-    pub fn use_last_modified(mut self, value: bool) -> Self {
-        self.flags.set(Flags::LAST_MODIFIED, value);
-        self
+    pub fn use_last_modified(&mut self, value: bool) {
+        if value {
+            self.flags.insert(Flag::LastModified);
+        } else {
+            self.flags.remove(Flag::LastModified);
+        }
     }
     ///Consume self and send content to [`Response`].
     pub async fn send(self, req: &mut Request, res: &mut Response) {
-        let etag = if self.flags.contains(Flags::ETAG) {
+        let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
             None
         };
-        let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
+        let last_modified = if self.flags.contains(Flag::LastModified) {
             self.last_modified()
         } else {
             None
