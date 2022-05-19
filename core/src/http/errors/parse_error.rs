@@ -3,6 +3,7 @@ use std::str::Utf8Error;
 
 use async_trait::async_trait;
 use thiserror::Error;
+use serde::de::value::Error as DeError;
 
 use crate::http::StatusError;
 use crate::{Depot, Request, Response, Writer};
@@ -21,9 +22,20 @@ pub enum ParseError {
     #[error("The Hyper request's body is empty.")]
     EmptyBody,
 
-    /// Parse error when pase from str.
-    #[error("Parse error when pase from str.")]
+    /// Parse error when parse from str.
+    #[error("Parse error when parse from str.")]
     ParseFromStr,
+
+    /// Parse error when parse from str.
+    #[error("Parse error when decode url.")]
+    UrlDecode,
+
+    #[error("Deserialize error.")]
+    Deserialize(#[from] DeError),
+
+    /// DuplicateKey.
+    #[error("DuplicateKey.")]
+    DuplicateKey,
 
     /// The Hyper request Content-Type top-level Mime was not `Multipart`.
     #[error("The Hyper request Content-Type top-level Mime was not `Multipart`.")]

@@ -42,7 +42,7 @@ enum Message {
 #[fn_handler]
 async fn chat_send(req: &mut Request, res: &mut Response) {
     let my_id = req.param::<usize>("id").unwrap();
-    let msg = req.read_text().await.unwrap();
+    let msg = std::str::from_utf8(req.payload().await.unwrap()).unwrap();
     user_message(my_id, msg);
     res.set_status_code(StatusCode::OK);
 }

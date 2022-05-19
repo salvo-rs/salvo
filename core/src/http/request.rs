@@ -5,6 +5,7 @@ use std::fmt::{self, Formatter};
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
+use enumflags2::{bitflags, BitFlags};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -15,11 +16,27 @@ use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
+use super::de::{from_str_map, from_str_multi_map};
 use crate::addr::SocketAddr;
-use crate::http::form::{self, FilePart, FormData};
+use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
+
+/// ParsedSource
+#[bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ParsedSource {
+    /// Parse from url router params.
+    Params = 0b0001,
+    /// Parse from url queries.
+    Queries = 0b0010,
+    /// Parse from headers.
+    Headers = 0b0100,
+    /// Parse from fomr.
+    Form = 0b1000,
+}
 
 /// Represents an HTTP request.
 ///
@@ -462,7 +479,10 @@ impl Request {
         self.payload
             .get_or_try_init(|| async {
                 match body {
-                    Some(body) => read_body_bytes(body).await,
+                    Some(body) => hyper::body::to_bytes(body)
+                        .await
+                        .map(|d| d.to_vec())
+                        .map_err(ParseError::Hyper),
                     None => Err(ParseError::EmptyBody),
                 }
             })
@@ -483,7 +503,7 @@ impl Request {
             self.form_data
                 .get_or_try_init(|| async {
                     match body {
-                        Some(body) => form::read_form_data(headers, body).await,
+                        Some(body) => FormData::read(headers, body).await,
                         None => Err(ParseError::EmptyBody),
                     }
                 })
@@ -493,28 +513,103 @@ impl Request {
         }
     }
 
-    /// Read body as text from request.
+    /// Read url params as type `T` from request's different sources.
+    ///
+    /// Returns error if sources have duplicated key.
     #[inline]
-    pub async fn read_text(&mut self) -> Result<&str, ParseError> {
-        self.payload()
-            .await
-            .and_then(|body| std::str::from_utf8(body).map_err(ParseError::Utf8))
-    }
-
-    /// Read body as type `T` from request.
-    #[inline]
-    pub async fn read_from_text<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_data<T, S>(&mut self, sources: BitFlags<ParsedSource>) -> Result<T, ParseError>
     where
-        T: FromStr,
+        T: DeserializeOwned,
+        S: AsRef<str>,
     {
-        self.read_text()
-            .await
-            .and_then(|body| body.parse::<T>().map_err(|_| ParseError::ParseFromStr))
+        if sources == ParsedSource::Params {
+            self.parse_params()
+        } else if sources == ParsedSource::Queries {
+            self.parse_queries()
+        } else if sources == ParsedSource::Headers {
+            self.parse_headers()
+        } else if sources == ParsedSource::Form {
+            self.parse_form().await
+        } else {
+            let mut all_data: MultiMap<&str, &str> = MultiMap::new();
+            if sources.contains(ParsedSource::Form) {
+                self.form_data().await?;
+                if let Some(form) = self.form_data.get() {
+                    if form.fields.keys().any(|key|all_data.contains_key(&**key)) {
+                        return Err(ParseError::DuplicateKey);
+                    }
+                    for (k, v) in form.fields.iter() {
+                        all_data.insert(k, v);
+                    }
+                }
+            }
+            if sources.contains(ParsedSource::Params) {
+                for (k, v) in self.params() {
+                    all_data.insert(k, &*v);
+                }
+            }
+            if sources.contains(ParsedSource::Queries) {
+                let queries = self.queries();
+                if queries.keys().any(|key| all_data.contains_key(&**key)) {
+                    return Err(ParseError::DuplicateKey);
+                }
+                for (k, v) in queries.iter() {
+                    all_data.insert(k, v);
+                }
+            }
+            if sources.contains(ParsedSource::Headers) {
+                let headers = self
+                    .headers()
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
+                    .collect::<HashMap<_, _>>();
+                if all_data.keys().any(|key| headers.contains_key(&**key)) {
+                    return Err(ParseError::DuplicateKey);
+                }
+                for (k, v) in headers.into_iter() {
+                    all_data.insert(k, v);
+                }
+            }
+            from_str_multi_map(&all_data).map_err(ParseError::Deserialize)
+        }
+    }
+
+    /// Read url params as type `T` from request.
+    #[inline]
+    pub fn parse_params<T>(&mut self) -> Result<T, ParseError>
+    where
+        T: DeserializeOwned,
+    {
+        from_str_map(self.params()).map_err(ParseError::Deserialize)
+    }
+
+    /// Read queries as type `T` from request.
+    #[inline]
+    pub fn parse_queries<T>(&mut self) -> Result<T, ParseError>
+    where
+        T: DeserializeOwned,
+    {
+        let queries = self.queries();
+        from_str_multi_map(queries).map_err(ParseError::Deserialize)
+    }
+
+    /// Read headers as type `T` from request.
+    #[inline]
+    pub fn parse_headers<T>(&mut self) -> Result<T, ParseError>
+    where
+        T: DeserializeOwned,
+    {
+        let map = self
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
+            .collect::<HashMap<_, _>>();
+        from_str_map(&map).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_json<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_json<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -525,19 +620,16 @@ impl Request {
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_form<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_form<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
-        self.form_data().await.and_then(|form_data| {
-            let data = serde_json::to_value(&form_data.fields)?;
-            Ok(serde_json::from_value::<T>(data)?)
-        })
+        from_str_multi_map(&self.form_data().await?.fields).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -547,21 +639,13 @@ impl Request {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
         if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            self.read_from_form().await
+            self.parse_form().await
         } else if ctype.starts_with("application/json") {
-            self.read_from_json().await
+            self.parse_json().await
         } else {
             Err(ParseError::InvalidContentType)
         }
     }
-}
-
-#[inline]
-pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ParseError> {
-    hyper::body::to_bytes(body)
-        .await
-        .map(|d| d.to_vec())
-        .map_err(ParseError::Hyper)
 }
 
 #[cfg(test)]
@@ -572,17 +656,43 @@ mod tests {
     use crate::hyper;
 
     #[tokio::test]
-    async fn test_read_text() {
+    async fn test_parse_queries() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct BadMan {
+            name: String,
+            age: u8,
+            wives: Vec<String>,
+            weapons: (u64, String, String),
+        }
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct GoodMan {
+            name: String,
+            age: u8,
+            wives: String,
+            weapons: u64,
+        }
         let mut req: Request = hyper::Request::builder()
-            .uri("http://127.0.0.1:7878/hello")
-            .header("content-type", "text/plain")
-            .body("hello".into())
+            .method("GET")
+            .uri("http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun")
+            .body(hyper::Body::empty())
             .unwrap()
             .into();
-        assert_eq!(req.read_from_text::<String>().await.unwrap(), "hello");
+        let man = req.parse_queries::<BadMan>().unwrap();
+        println!("{:#?}", man);
+        assert_eq!(man.name, "rust");
+        assert_eq!(man.age, 25);
+        assert_eq!(man.wives, vec!["a", "2"]);
+        assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
+        let man = req.parse_queries::<GoodMan>().unwrap();
+        println!("{:#?}", man);
+        assert_eq!(man.name, "rust");
+        assert_eq!(man.age, 25);
+        assert_eq!(man.wives, "a");
+        assert_eq!(man.weapons, 69);
     }
+
     #[tokio::test]
-    async fn test_read_json() {
+    async fn test_parse_json() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
         struct User {
             name: String,
@@ -593,10 +703,7 @@ mod tests {
             .body(r#"{"name": "jobs"}"#.into())
             .unwrap()
             .into();
-        assert_eq!(
-            req.read_from_json::<User>().await.unwrap(),
-            User { name: "jobs".into() }
-        );
+        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {

@@ -1,15 +1,15 @@
 //! form
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
 use multer::{Field, Multipart};
 use multimap::MultiMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
 use tempfile::Builder;
 use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
-use crate::http::request::{self, Body};
+use crate::http::request::Body;
 use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -31,6 +31,42 @@ impl FormData {
             files: MultiMap::new(),
         }
     }
+
+    /// Parse MIME `multipart/*` information from a stream as a [`FormData`].
+    pub(crate) async fn read(headers: &HeaderMap, body: Body) -> Result<FormData, ParseError> {
+        match headers.get(CONTENT_TYPE) {
+            Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
+                let data = hyper::body::to_bytes(body)
+                    .await
+                    .map(|d| d.to_vec())
+                    .map_err(ParseError::Hyper)?;
+                let mut form_data = FormData::new();
+                form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
+                Ok(form_data)
+            }
+            Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {
+                let mut form_data = FormData::new();
+                if let Some(boundary) = headers
+                    .get(CONTENT_TYPE)
+                    .and_then(|ct| ct.to_str().ok())
+                    .and_then(|ct| multer::parse_boundary(ct).ok())
+                {
+                    let mut multipart = Multipart::new(body, boundary);
+                    while let Some(mut field) = multipart.next_field().await? {
+                        if let Some(name) = field.name().map(|s| s.to_owned()) {
+                            if field.headers().get(CONTENT_TYPE).is_some() {
+                                form_data.files.insert(name, FilePart::create(&mut field).await?);
+                            } else {
+                                form_data.fields.insert(name, field.text().await?);
+                            }
+                        }
+                    }
+                }
+                Ok(form_data)
+            }
+            _ => Err(ParseError::InvalidContentType),
+        }
+    }
 }
 impl Default for FormData {
     #[inline]
@@ -40,7 +76,7 @@ impl Default for FormData {
 }
 /// A file that is to be inserted into a `multipart/*` or alternatively an uploaded file that
 /// was received as part of `multipart/*` parsing.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FilePart {
     name: Option<String>,
     /// The headers of the part
@@ -131,38 +167,5 @@ impl Drop for FilePart {
                 std::fs::remove_dir(temp_dir).ok();
             });
         }
-    }
-}
-
-/// Parse MIME `multipart/*` information from a stream as a [`FormData`].
-pub(crate) async fn read_form_data(headers: &HeaderMap, body: Body) -> Result<FormData, ParseError> {
-    match headers.get(CONTENT_TYPE) {
-        Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-            let data = request::read_body_bytes(body).await?;
-            let mut form_data = FormData::new();
-            form_data.fields = form_urlencoded::parse(data.as_ref()).into_owned().collect();
-            Ok(form_data)
-        }
-        Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {
-            let mut form_data = FormData::new();
-            if let Some(boundary) = headers
-                .get(CONTENT_TYPE)
-                .and_then(|ct| ct.to_str().ok())
-                .and_then(|ct| multer::parse_boundary(ct).ok())
-            {
-                let mut multipart = Multipart::new(body, boundary);
-                while let Some(mut field) = multipart.next_field().await? {
-                    if let Some(name) = field.name().map(|s| s.to_owned()) {
-                        if field.headers().get(CONTENT_TYPE).is_some() {
-                            form_data.files.insert(name, FilePart::create(&mut field).await?);
-                        } else {
-                            form_data.fields.insert(name, field.text().await?);
-                        }
-                    }
-                }
-            }
-            Ok(form_data)
-        }
-        _ => Err(ParseError::InvalidContentType),
     }
 }
