@@ -30,6 +30,7 @@ pub enum ParseError {
     #[error("Parse error when decode url.")]
     UrlDecode,
 
+    /// Deserialize error when parse from request.
     #[error("Deserialize error.")]
     Deserialize(#[from] DeError),
 
