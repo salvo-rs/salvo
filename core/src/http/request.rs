@@ -535,7 +535,7 @@ impl Request {
             if sources.contains(ParsedSource::Form) {
                 self.form_data().await?;
                 if let Some(form) = self.form_data.get() {
-                    if form.fields.keys().any(|key|all_data.contains_key(&**key)) {
+                    if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
                         return Err(ParseError::DuplicateKey);
                     }
                     for (k, v) in form.fields.iter() {

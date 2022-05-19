@@ -2,8 +2,8 @@ use std::io::Error as IoError;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
-use thiserror::Error;
 use serde::de::value::Error as DeError;
+use thiserror::Error;
 
 use crate::http::StatusError;
 use crate::{Depot, Request, Response, Writer};

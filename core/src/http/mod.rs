@@ -1,11 +1,11 @@
 //! Http module
 
+pub(crate) mod de;
 pub mod errors;
 pub mod form;
 mod range;
 pub mod request;
 pub mod response;
-pub(crate) mod de;
 
 pub use cookie;
 pub use errors::{ParseError, StatusError};

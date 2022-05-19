@@ -301,8 +301,8 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
 mod tests {
     use std::collections::HashMap;
 
-    use serde::Deserialize;
     use multimap::MultiMap;
+    use serde::Deserialize;
 
     #[tokio::test]
     async fn test_de_str_map() {
@@ -330,7 +330,7 @@ mod tests {
             kids: Vec<String>,
             lala: Vec<i64>,
         }
-        
+
         let mut map = MultiMap::new();
 
         map.insert("id", "42");
