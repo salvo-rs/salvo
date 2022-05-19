@@ -53,13 +53,13 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
             .to_compile_error()
             .into();
     }
-    if sig.asyncness.is_none() {
-        return syn::Error::new_spanned(sig.fn_token, "only async fn is supported")
-            .to_compile_error()
-            .into();
-        // let ts: TokenStream = quote! {async}.into();
-        // $sig.asyncness = Some(parse_macro_input!(ts as syn::token::Async))
-    }
+    // if sig.asyncness.is_none() {
+    //     return syn::Error::new_spanned(sig.fn_token, "only async fn is supported")
+    //         .to_compile_error()
+    //         .into();
+    //     // let ts: TokenStream = quote! {async}.into();
+    //     // $sig.asyncness = Some(parse_macro_input!(ts as syn::token::Async))
+    // }
 
     let body = &item_fn.block;
     let name = &sig.ident;
@@ -158,29 +158,59 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
 
     match sig.output {
         ReturnType::Default => {
-            (quote! {
-                #sdef
-                #[async_trait]
-                impl #salvo::Handler for #name {
-                    #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                        Self::#name(req, depot, res, ctrl).await
+            if sig.asyncness.is_none() {
+                (quote! {
+                    #sdef
+                    #[async_trait]
+                    impl #salvo::Handler for #name {
+                        #[inline]
+                        async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                            Self::#name(req, depot, res, ctrl)
+                        }
                     }
-                }
-            })
-            .into()
-        }
-        ReturnType::Type(_, _) => (quote! {
-            #sdef
-            #[async_trait]
-            impl #salvo::Handler for #name {
-                #[inline]
-                async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                    #salvo::Writer::write(Self::#name(req, depot, res, ctrl).await, req, depot, res).await;
-                }
+                })
+                .into()
+            } else {
+                (quote! {
+                    #sdef
+                    #[async_trait]
+                    impl #salvo::Handler for #name {
+                        #[inline]
+                        async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                            Self::#name(req, depot, res, ctrl).await
+                        }
+                    }
+                })
+                .into()
             }
-        })
-        .into(),
+        }
+        ReturnType::Type(_, _) => {
+            if sig.asyncness.is_none() {
+                (quote! {
+                    #sdef
+                    #[async_trait]
+                    impl #salvo::Handler for #name {
+                        #[inline]
+                        async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                            #salvo::Writer::write(Self::#name(req, depot, res, ctrl), req, depot, res).await;
+                        }
+                    }
+                })
+                .into()
+            } else {
+                (quote! {
+                    #sdef
+                    #[async_trait]
+                    impl #salvo::Handler for #name {
+                        #[inline]
+                        async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                            #salvo::Writer::write(Self::#name(req, depot, res, ctrl).await, req, depot, res).await;
+                        }
+                    }
+                })
+                .into()
+            }
+        }
     }
 }
 
