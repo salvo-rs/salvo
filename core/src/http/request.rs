@@ -16,25 +16,25 @@ use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 
-use super::de::{from_str_map, from_str_multi_map};
+use crate::de::{from_str_map, from_str_multi_map};
 use crate::addr::SocketAddr;
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
 
-/// ParsedSource
+/// ParseSource
 #[bitflags]
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParsedSource {
+pub enum ParseSource {
     /// Parse from url router params.
     Params = 0b0001,
     /// Parse from url queries.
     Queries = 0b0010,
     /// Parse from headers.
     Headers = 0b0100,
-    /// Parse from fomr.
+    /// Parse from form.
     Form = 0b1000,
 }
 
@@ -517,22 +517,22 @@ impl Request {
     ///
     /// Returns error if sources have duplicated key.
     #[inline]
-    pub async fn parse_data<T, S>(&mut self, sources: BitFlags<ParsedSource>) -> Result<T, ParseError>
+    pub async fn parse_data<T, S>(&mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
         S: AsRef<str>,
     {
-        if sources == ParsedSource::Params {
+        if sources == ParseSource::Params {
             self.parse_params()
-        } else if sources == ParsedSource::Queries {
+        } else if sources == ParseSource::Queries {
             self.parse_queries()
-        } else if sources == ParsedSource::Headers {
+        } else if sources == ParseSource::Headers {
             self.parse_headers()
-        } else if sources == ParsedSource::Form {
+        } else if sources == ParseSource::Form {
             self.parse_form().await
         } else {
             let mut all_data: MultiMap<&str, &str> = MultiMap::new();
-            if sources.contains(ParsedSource::Form) {
+            if sources.contains(ParseSource::Form) {
                 self.form_data().await?;
                 if let Some(form) = self.form_data.get() {
                     if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
@@ -543,12 +543,12 @@ impl Request {
                     }
                 }
             }
-            if sources.contains(ParsedSource::Params) {
+            if sources.contains(ParseSource::Params) {
                 for (k, v) in self.params() {
                     all_data.insert(k, &*v);
                 }
             }
-            if sources.contains(ParsedSource::Queries) {
+            if sources.contains(ParseSource::Queries) {
                 let queries = self.queries();
                 if queries.keys().any(|key| all_data.contains_key(&**key)) {
                     return Err(ParseError::DuplicateKey);
@@ -557,7 +557,7 @@ impl Request {
                     all_data.insert(k, v);
                 }
             }
-            if sources.contains(ParsedSource::Headers) {
+            if sources.contains(ParseSource::Headers) {
                 let headers = self
                     .headers()
                     .iter()
