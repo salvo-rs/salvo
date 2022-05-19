@@ -678,13 +678,11 @@ mod tests {
             .unwrap()
             .into();
         let man = req.parse_queries::<BadMan>().unwrap();
-        println!("{:#?}", man);
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, vec!["a", "2"]);
         assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
         let man = req.parse_queries::<GoodMan>().unwrap();
-        println!("{:#?}", man);
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, "a");
