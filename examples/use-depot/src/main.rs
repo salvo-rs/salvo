@@ -32,8 +32,11 @@ mod tests {
         let service = Service::new(super::route());
 
         async fn access(service: &Service) -> String {
-            let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878");
-            let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+            let req = hyper::Request::builder()
+                .method("GET")
+                .uri("http://127.0.0.1:7878")
+                .body(hyper::Body::empty())
+                .unwrap();
             service.handle(req).await.take_text().await.unwrap()
         }
 

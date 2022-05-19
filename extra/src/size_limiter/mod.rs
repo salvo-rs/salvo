@@ -47,21 +47,19 @@ mod tests {
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979/hello")
             .body("abc".into())
-            .unwrap()
-            .into();
+            .unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert_eq!(content, "hello");
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979/hello")
             .body("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".into())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }

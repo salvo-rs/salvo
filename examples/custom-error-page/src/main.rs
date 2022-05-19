@@ -45,8 +45,9 @@ mod tests {
         async fn access(service: &Service, name: &str) -> String {
             let req = hyper::Request::builder()
                 .method("GET")
-                .uri(format!("http://127.0.0.1:7878/{}", name));
-            let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+                .uri(format!("http://127.0.0.1:7878/{}", name))
+                .body(hyper::Body::empty())
+                .unwrap();
             service.handle(req).await.take_text().await.unwrap()
         }
 

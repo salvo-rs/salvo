@@ -57,15 +57,13 @@ mod tests {
 
         let req = hyper::Request::builder()
             .method("GET")
-            .uri("http://127.0.0.1:7979/slow");
-        let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+            .uri("http://127.0.0.1:7979/slow").body(hyper::Body::empty()).unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("timeout"));
 
         let req = hyper::Request::builder()
             .method("GET")
-            .uri("http://127.0.0.1:7979/fast");
-        let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+            .uri("http://127.0.0.1:7979/fast").body(hyper::Body::empty()).unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
     }

@@ -435,13 +435,12 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, token: &str) -> String {
-            let req: Request = hyper::Request::builder()
+            let req = hyper::Request::builder()
                 .method("GET")
                 .uri("http://127.0.0.1:7979/hello")
                 .header("Authorization", format!("Bearer {}", token))
                 .body(hyper::Body::empty())
-                .unwrap()
-                .into();
+                .unwrap();
             service.handle(req).await.take_text().await.unwrap()
         }
 
@@ -459,21 +458,19 @@ mod tests {
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979/hello")
             .header("Cookie", format!("jwt_token={}", token))
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
 

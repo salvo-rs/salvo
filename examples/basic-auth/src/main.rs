@@ -38,14 +38,14 @@ mod tests {
         let mut req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878/");
         let headers = req.headers_mut().unwrap();
         headers.typed_insert(Authorization::basic("root", "pwd"));
-        let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+        let req = req.body(hyper::Body::empty()).unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("Hello"));
 
         let mut req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878/");
         let headers = req.headers_mut().unwrap();
         headers.typed_insert(Authorization::basic("root", "pwd2"));
-        let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+        let req = req.body(hyper::Body::empty()).unwrap();
         let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("Unauthorized"));
     }

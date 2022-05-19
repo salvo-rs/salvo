@@ -373,12 +373,11 @@ mod tests {
         let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let response = service.handle(req).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
     }
@@ -388,12 +387,11 @@ mod tests {
         let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
 
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -409,35 +407,32 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("x-csrf-token", csrf_token)
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -451,35 +446,32 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("x-mycsrf-header", csrf_token)
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -493,34 +485,31 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri(format!("http://127.0.0.1:7979?a=1&csrf-token={}&b=2", csrf_token))
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -533,34 +522,31 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri(format!("http://127.0.0.1:7979?a=1&my-csrf-token={}&b=2", csrf_token))
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -574,35 +560,32 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("cookie", cookie.to_string())
             .header("content-type", "application/x-www-form-urlencoded")
             .body(hyper::Body::from(format!("a=1&csrf-token={}&b=2", csrf_token)))
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -615,34 +598,31 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let csrf_token = res.take_text().await.unwrap();
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("cookie", cookie.to_string())
             .header("content-type", "application/x-www-form-urlencoded")
             .body(hyper::Body::from(format!("a=1&my-csrf-token={}&b=2", csrf_token)))
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_text().await.unwrap(), "POST");
@@ -656,34 +636,31 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("x-csrf-token", "aGVsbG8=")
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }
@@ -696,34 +673,31 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("x-csrf-token", "aGVsbG8")
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }
@@ -736,43 +710,39 @@ mod tests {
             .post(post_index);
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let mut res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         let csrf_token = res.take_text().await.unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         let cookie = res.cookie("salvo.extra.csrf").unwrap();
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:7979")
             .header("x-csrf-token", csrf_token)
             .header("cookie", cookie.to_string())
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         let res = service.handle(req).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
     }

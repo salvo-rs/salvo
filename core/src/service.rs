@@ -125,8 +125,7 @@ impl Service {
     /// #[tokio::main]
     /// async fn main() {
     ///     let service: Service = Router::new().get(hello_world).into();
-    ///     let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878");
-    ///     let req: Request = req.body(hyper::Body::empty()).unwrap().into();
+    ///     let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878").body(hyper::Body::empty()).unwrap();
     ///     assert_eq!(service.handle(req).await.take_text().await.unwrap(), "Hello World");
     /// }
     /// ```
@@ -333,12 +332,11 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, b: &str) -> String {
-            let req: Request = hyper::Request::builder()
+            let req = hyper::Request::builder()
                 .method("GET")
                 .uri(format!("http://127.0.0.1:7979/level1/level2/hello?b={}", b))
                 .body(hyper::Body::empty())
-                .unwrap()
-                .into();
+                .unwrap();
             service.handle(req).await.take_text().await.unwrap()
         }
         let content = access(&service, "").await;

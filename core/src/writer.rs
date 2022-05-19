@@ -143,12 +143,11 @@ mod tests {
     use super::*;
 
     async fn access(service: &Service) -> Response {
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979/test")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         service.handle(req).await
     }
 

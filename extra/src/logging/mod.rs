@@ -70,12 +70,11 @@ mod tests {
             .push(Router::with_path("hello").get(hello));
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
+        let req = hyper::Request::builder()
             .method("GET")
             .uri("http://127.0.0.1:7979/hello")
             .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+            .unwrap();
         service.handle(req).await.take_text().await.unwrap();
         assert!(logs_contain("duration"));
     }

@@ -26,6 +26,7 @@ mod server;
 mod service;
 mod transport;
 pub mod writer;
+pub(crate) mod de;
 
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
