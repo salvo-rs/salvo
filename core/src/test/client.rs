@@ -1,11 +1,9 @@
-use std::convert::TryInto;
 use std::time::Duration;
 
 use http::header::{HeaderValue, IntoHeaderName};
 use http::Method;
 
-use super::request::{header_append, header_insert, BaseSettings, RequestBuilder};
-use crate::error::{Error, Result};
+use super::{RequestBuilder, Error, Result};
 
 /// `TestClient` is a type that can carry settings over multiple requests. The settings applied to the
 /// `TestClient` are applied to every request created from this `TestClient`.

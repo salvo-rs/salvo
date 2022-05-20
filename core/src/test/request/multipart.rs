@@ -1,9 +1,11 @@
-use super::body::{Body, BodyKind};
-use crate::test::{Error, ErrorKind, Result};
-use mime::Mime;
-use multipart::client as mc;
+
 use std::fmt;
 use std::io::{copy, prelude::*, Cursor, Error as IoError, Result as IoResult};
+
+use mime::Mime;
+use multipart::client as mc;
+
+use crate::test::{Error, ErrorKind, Result};
 
 /// A file to be uploaded as part of a multipart form.
 #[derive(Debug, Clone)]

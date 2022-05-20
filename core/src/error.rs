@@ -6,6 +6,8 @@ use std::io::Error as IoError;
 
 use crate::http::{ParseError, StatusError};
 use crate::{Depot, Request, Response, Writer};
+#[cfg(feature = "test")]
+use crate::test::Error as TestError;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -18,6 +20,9 @@ pub enum Error {
     HttpParse(ParseError),
     /// Error from http response error status.
     HttpStatus(StatusError),
+    #[cfg(feature = "test")]
+    #[cfg_attr(docsrs, doc(cfg(unix)))]
+    Test(TestError),
     /// Std I/O error.
     Io(IoError),
     /// SerdeJson error.
@@ -44,6 +49,8 @@ impl Display for Error {
             Self::Hyper(e) => Display::fmt(e, f),
             Self::HttpParse(e) => Display::fmt(e, f),
             Self::HttpStatus(e) => Display::fmt(e, f),
+            #[cfg(feature = "test")]
+            Self::Test(e) => Display::fmt(e, f),
             Self::Io(e) => Display::fmt(e, f),
             Self::SerdeJson(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
@@ -77,6 +84,12 @@ impl From<StatusError> for Error {
     #[inline]
     fn from(err: StatusError) -> Error {
         Error::HttpStatus(err)
+    }
+}
+impl From<TestError> for Error {
+    #[inline]
+    fn from(err: TestError) -> Error {
+        Error::Test(err)
     }
 }
 impl From<IoError> for Error {

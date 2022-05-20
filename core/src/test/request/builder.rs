@@ -4,21 +4,16 @@ use std::fs;
 use std::str;
 use std::time::Duration;
 
-use http::{
-    header::{
-        HeaderMap, HeaderValue, IntoHeaderName, ACCEPT, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, TRANSFER_ENCODING,
-        USER_AGENT,
-    },
-    Method,
+use http::header::{
+    HeaderMap, HeaderValue, IntoHeaderName, ACCEPT, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, TRANSFER_ENCODING,
+    USER_AGENT,
 };
+use http::{Method, Uri};
+use hyper::Body;
 use url::Url;
 
-use super::body::{self, Body, BodyKind};
-use super::{header_append, header_insert, header_insert_if_missing, BaseSettings, PreparedRequest};
+use crate::test::{Error, Result};
 
-use crate::error::{Error, ErrorKind, Result};
-
-const DEFAULT_USER_AGENT: &str = concat!("salvo/", env!("CARGO_PKG_VERSION"));
 
 /// `RequestBuilder` is the main way of building requests.
 ///
@@ -26,11 +21,11 @@ const DEFAULT_USER_AGENT: &str = concat!("salvo/", env!("CARGO_PKG_VERSION"));
 /// or use one of the simpler constructors available in the crate root or on the `Session` struct,
 /// such as `get`, `post`, etc.
 #[derive(Debug)]
-pub struct RequestBuilder<B = body::Empty> {
+pub struct RequestBuilder {
     url: Url,
     method: Method,
     headers: HeaderMap,
-    body: B,
+    body: Body,
 }
 
 impl RequestBuilder {
@@ -53,26 +48,21 @@ impl RequestBuilder {
     where
         U: AsRef<str>,
     {
-        let url = Url::parse(url.as_ref()).map_err(|_| ErrorKind::InvalidBaseUrl)?;
-
-        if method == Method::CONNECT {
-            return Err(ErrorKind::ConnectNotSupported.into());
-        }
-
+        let url = Url::parse(url.as_ref()).map_err(|_| Error::InvalidUrl)?;
         Ok(Self {
             url,
             method,
             headers: HeaderMap::new(),
-            body: body::Empty,
+            body: Body::default(),
         })
     }
 }
 
-impl<B> RequestBuilder<B> {
+impl RequestBuilder {
     /// Associate a query string parameter to the given value.
     ///
     /// The same key can be used multiple times.
-    pub fn param<K, V>(mut self, key: K, value: V) -> Self
+    pub fn query<K, V>(mut self, key: K, value: V) -> Self
     where
         K: AsRef<str>,
         V: ToString,
@@ -89,7 +79,7 @@ impl<B> RequestBuilder<B> {
     /// ```
     /// attohttpc::get("http://foo.bar").params(&[("p1", "v1"), ("p2", "v2")]);
     /// ```
-    pub fn params<P, K, V>(mut self, pairs: P) -> Self
+    pub fn queries<P, K, V>(mut self, pairs: P) -> Self
     where
         P: IntoIterator,
         P::Item: Borrow<(K, V)>,
@@ -109,10 +99,9 @@ impl<B> RequestBuilder<B> {
             Some(password) => format!("{}:{}", username, password),
             None => format!("{}:", username),
         };
-        self.insert_header(
-            http::header::AUTHORIZATION,
-            format!("Basic {}", base64::encode_block(auth.as_bytes())),
-        )
+        let mut encoded = String::from("Basic ");
+        base64::encode_config_buf(auth.as_bytes(), base64::STANDARD, &mut encoded);
+        self.insert_header(http::header::AUTHORIZATION, encoded)
     }
 
     /// Enable HTTP bearer authentication.
@@ -121,107 +110,88 @@ impl<B> RequestBuilder<B> {
     }
 
     /// Set the body of this request.
-    ///
-    /// The [BodyKind enum](crate::body::BodyKind) and [Body trait](crate::body::Body)
-    /// determine how to implement custom request body types.
-    pub fn body<B1: Body>(self, body: B1) -> RequestBuilder<B1> {
-        RequestBuilder {
-            url: self.url,
-            method: self.method,
-            headers: self.headers,
-            body,
-        }
+    pub fn body(self, body: impl Into<Body>) -> Self {
+        self.body = body.into();
+        self
     }
 
     /// Set the body of this request to be text.
     ///
     /// If the `Content-Type` header is unset, it will be set to `text/plain` and the charset to UTF-8.
-    pub fn text<B1: AsRef<str>>(mut self, body: B1) -> RequestBuilder<body::Text<B1>> {
+    pub fn text(mut self, body: impl Into<String>) -> Self {
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("text/plain; charset=utf-8"));
-        self.body(body::Text(body))
+        self.body(body.into())
     }
 
     /// Set the body of this request to be bytes.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
-    pub fn bytes<B1: AsRef<[u8]>>(mut self, body: B1) -> RequestBuilder<body::Bytes<B1>> {
+    pub fn bytes(mut self, body: Vec<u8>) -> Self {
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/octet-stream"));
-        self.body(body::Bytes(body))
+        self.body(body)
     }
 
     /// Set the body of this request using a local file.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
-    pub fn file(mut self, body: fs::File) -> RequestBuilder<body::File> {
-        self.headers
-            .entry(http::header::CONTENT_TYPE)
-            .or_insert(HeaderValue::from_static("application/octet-stream"));
-        self.body(body::File(body))
-    }
+    // pub fn file(mut self, body: fs::File) -> RequestBuilder {
+    //     self.headers
+    //         .entry(http::header::CONTENT_TYPE)
+    //         .or_insert(HeaderValue::from_static("application/octet-stream"));
+    //     self.body(body::File(body))
+    // }
 
     /// Set the body of this request to be the JSON representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
-    #[cfg(feature = "json")]
-    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Result<RequestBuilder<body::Bytes<Vec<u8>>>> {
-        let body = serde_json::to_vec(value)?;
+    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Result<Self> {
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
-        Ok(self.body(body::Bytes(body)))
-    }
-
-    /// Set the body of this request to stream out a JSON representation of the given object.
-    ///
-    /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
-    #[cfg(feature = "json")]
-    pub fn json_streaming<T: serde::Serialize>(mut self, value: T) -> RequestBuilder<body::Json<T>> {
-        self.headers
-            .entry(http::header::CONTENT_TYPE)
-            .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
-        self.body(body::Json(value))
+        Ok(self.body(serde_json::to_vec(value)?))
     }
 
     /// Set the body of this request to be the URL-encoded representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
-    #[cfg(feature = "form")]
-    pub fn form<T: serde::Serialize>(mut self, value: &T) -> Result<RequestBuilder<body::Bytes<Vec<u8>>>> {
-        let body = serde_urlencoded::to_string(value)?.into_bytes();
+    pub fn form<T: serde::Serialize>(mut self, value: &T) -> Self {
+        let body = serde_urlencoded::to_string(value).unwrap().into_bytes();
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
-        Ok(self.body(body::Bytes(body)))
+        Ok(self.body(body))
     }
 
     /// Modify a header for this request.
     ///
     /// If the header is already present, the value will be replaced. If you wish to append a new header,
     /// use `header_append`.
-    pub fn insert_header<H, V>(mut self, header: H, value: V) -> Result<Self>
+    pub fn insert_header<H, V>(mut self, header: H, value: V) -> Self
     where
         H: IntoHeaderName,
         V: TryInto<HeaderValue>,
         Error: From<V::Error>,
     {
-        Ok(self.headers.insert(header, value.try_into()?))
+        Ok(self.headers.insert(header, value.try_into().unwrap()))
     }
 
     /// Append a new header to this request.
     ///
     /// The new header is always appended to the request, even if the header already exists.
-    pub fn append_header<H, V>(mut self, header: H, value: V) -> Result<Self>
+    pub fn append_header<H, V>(mut self, header: H, value: V) -> Self
     where
         H: IntoHeaderName,
         V: TryInto<HeaderValue>,
         Error: From<V::Error>,
     {
-        Ok(self.headers.append(header, value.try_into()?))
+        Ok(self.headers.append(header, value.try_into().unwrap()))
     }
+
+    // pub async fn send(r: R) -> RequestedData {}
 }
 
 #[cfg(test)]
@@ -358,7 +328,6 @@ mod tests {
                 "connection: close",
                 "accept-encoding: gzip, deflate",
                 "accept: */*",
-                &format!("user-agent: {}", DEFAULT_USER_AGENT),
             ],
             &[],
         );
@@ -374,7 +343,6 @@ mod tests {
                 "connection: close",
                 "accept-encoding: gzip, deflate",
                 "accept: */*",
-                &format!("user-agent: {}", DEFAULT_USER_AGENT),
             ],
             &[],
         );
@@ -384,7 +352,6 @@ mod tests {
     fn test_prepare_default_headers() {
         let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo/qux/baz").prepare();
         assert_eq!(prepped.headers()[ACCEPT], "*/*");
-        assert_eq!(prepped.headers()[USER_AGENT], DEFAULT_USER_AGENT);
     }
 
     #[test]

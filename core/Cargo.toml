@@ -23,7 +23,7 @@ full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile", "pin-project-lite"]
 native-tls = ["tokio-native-tls", "pin-project-lite"]
 unix = []
-test = ["serde_urlencoded"]
+test = ["base64", "serde_urlencoded", "url"]
 acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
@@ -66,6 +66,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
+url={version = "2", optional = true}
 x509-parser = { version = "0.13", optional = true }
 
 [dev-dependencies]
