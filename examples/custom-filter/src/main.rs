@@ -33,7 +33,11 @@ mod tests {
         let service = Service::new(super::route());
 
         async fn access(service: &Service, host: &str) -> String {
-            let req = hyper::Request::builder().method("GET").uri(format!("http://{}/", host)).body(hyper::Body::empty()).unwrap();
+            let req = hyper::Request::builder()
+                .method("GET")
+                .uri(format!("http://{}/", host))
+                .body(hyper::Body::empty())
+                .unwrap();
             service.handle(req).await.take_text().await.unwrap()
         }
 

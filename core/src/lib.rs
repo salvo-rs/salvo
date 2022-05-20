@@ -15,6 +15,7 @@ mod cfg;
 
 pub mod addr;
 pub mod catcher;
+pub(crate) mod de;
 mod depot;
 mod error;
 pub mod fs;
@@ -26,7 +27,6 @@ mod server;
 mod service;
 mod transport;
 pub mod writer;
-pub(crate) mod de;
 
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
