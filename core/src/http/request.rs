@@ -689,7 +689,7 @@ mod tests {
         assert_eq!(man.wives, "a");
         assert_eq!(man.weapons, 69);
     }
-    
+
     #[tokio::test]
     async fn test_parse_queries() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
