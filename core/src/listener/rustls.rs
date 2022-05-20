@@ -493,7 +493,6 @@ mod tests {
             let trust_anchor = include_bytes!("../../certs/end.chain");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
-                .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())
                 .with_no_client_auth();
             let connector = TlsConnector::from(Arc::new(client_config));
             let mut tls_stream = connector

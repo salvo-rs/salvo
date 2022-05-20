@@ -305,29 +305,4 @@ mod tests {
             self.poll_accept(cx)
         }
     }
-
-    #[tokio::test]
-    async fn test_native_tls_listener() {
-        let addr = "127.0.0.1:7879";
-        let mut listener = NativeTlsListener::with_config(
-            NativeTlsConfig::new()
-                .with_pkcs12(include_bytes!("../../certs/identity.p12").to_vec())
-                .with_password("mypass"),
-        )
-        .bind(addr);
-        tokio::spawn(async move {
-            let stream = TcpStream::connect(addr).await.unwrap();
-            let connector = tokio_native_tls::TlsConnector::from(
-                tokio_native_tls::native_tls::TlsConnector::builder()
-                    .danger_accept_invalid_certs(true)
-                    .build()
-                    .unwrap(),
-            );
-            let mut tls_stream = connector.connect(addr, stream).await.unwrap();
-            tls_stream.write_i32(518).await.unwrap();
-        });
-
-        let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 518);
-    }
 }

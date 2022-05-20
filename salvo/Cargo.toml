@@ -27,7 +27,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+full = ["test", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+test = ["salvo_core/test"]
 native-tls = ["salvo_core/native-tls"]
 rustls = ["salvo_core/rustls"]
 unix = ["salvo_core/unix"]
