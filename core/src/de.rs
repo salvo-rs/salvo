@@ -1,37 +1,35 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::hash::Hash;
+use std::iter::Iterator;
 
-use multimap::MultiMap;
 pub(crate) use serde::de::value::{Error, MapDeserializer, SeqDeserializer};
 use serde::de::{
     Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
 use serde::forward_to_deserialize_any;
 
-pub(crate) fn from_str_map<'de, T, K, V>(input: &'de HashMap<K, V>) -> Result<T, Error>
+pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, Error>
 where
+    I: IntoIterator<Item = (K, V)> + 'de,
     T: Deserialize<'de>,
-    K: AsRef<str>,
-    V: AsRef<str>,
+    K: Into<Cow<'de, str>>,
+    V: Into<Cow<'de, str>>,
 {
-    let iter = input
-        .iter()
-        .map(|(k, v)| (CowValue(Cow::from(k.as_ref())), CowValue(Cow::from(v.as_ref()))));
+    let iter = input.into_iter().map(|(k, v)| (CowValue(k.into()), CowValue(v.into())));
     T::deserialize(MapDeserializer::new(iter))
 }
-pub(crate) fn from_str_multi_map<'de, T, K, V>(input: &'de MultiMap<K, V>) -> Result<T, Error>
+
+pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, Error>
 where
+    I: IntoIterator<Item = (K, C)> + 'de,
     T: Deserialize<'de>,
-    K: AsRef<str> + Hash + std::cmp::Eq,
-    V: AsRef<str> + std::cmp::Eq,
+    K: Into<Cow<'de, str>> + Hash + std::cmp::Eq + 'de,
+    C: IntoIterator<Item = V> + 'de,
+    V: Into<Cow<'de, str>> + std::cmp::Eq + 'de,
 {
-    let iter = input.iter_all().map(|(k, v)| {
-        (
-            CowValue(Cow::from(k.as_ref())),
-            VecValue(v.iter().map(|v| CowValue(Cow::from(v.as_ref()))).collect()),
-        )
-    });
+    let iter = input
+        .into_iter()
+        .map(|(k, v)| (CowValue(k.into()), VecValue(v.into_iter().map(|v| CowValue(v.into())))));
     T::deserialize(MapDeserializer::new(iter))
 }
 
@@ -56,7 +54,7 @@ macro_rules! forward_vec_value_parsed_value {
             fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
                 where V: Visitor<'de>
             {
-                if let Some(item) = self.0.get(0).to_owned() {
+                if let Some(item) = self.0.into_iter().next() {
                     match item.0.parse::<$ty>() {
                         Ok(val) => val.into_deserializer().$method(visitor),
                         Err(e) => Err(DeError::custom(e))
@@ -149,8 +147,11 @@ impl<'de> Deserializer<'de> for CowValue<'de> {
     }
 }
 
-struct VecValue<'de>(Vec<CowValue<'de>>);
-impl<'de> IntoDeserializer<'de> for VecValue<'de> {
+struct VecValue<I>(I);
+impl<'de, I> IntoDeserializer<'de> for VecValue<I>
+where
+    I: Iterator<Item = CowValue<'de>>,
+{
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -158,15 +159,17 @@ impl<'de> IntoDeserializer<'de> for VecValue<'de> {
     }
 }
 
-impl<'de> Deserializer<'de> for VecValue<'de> {
+impl<'de, I> Deserializer<'de> for VecValue<I>
+where
+    I: IntoIterator<Item = CowValue<'de>>,
+{
     type Error = Error;
 
-    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        if !self.0.is_empty() {
-            let item = self.0.remove(0);
+        if let Some(item) = self.0.into_iter().next() {
             item.deserialize_any(visitor)
         } else {
             Err(DeError::custom("expected vec not empty"))
@@ -189,7 +192,7 @@ impl<'de> Deserializer<'de> for VecValue<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Some(item) = self.0.get(0) {
+        if let Some(item) = self.0.into_iter().next() {
             visitor.visit_enum(ValueEnumAccess(item.0.clone()))
         } else {
             Err(DeError::custom("expected vec not empty"))
@@ -345,7 +348,7 @@ mod tests {
         map.insert("lala", "600");
         map.insert("lala", "700");
 
-        let user: User = super::from_str_multi_map(&map).unwrap();
+        let user: User = super::from_str_multi_map(map).unwrap();
         assert_eq!(user.id, 42);
     }
 }

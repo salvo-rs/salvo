@@ -14,7 +14,7 @@ use http::{self, Extensions, Uri};
 pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
-use serde::de::DeserializeOwned;
+use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
 use crate::de::{from_str_map, from_str_multi_map};
@@ -518,9 +518,9 @@ impl Request {
     /// Returns error if the same key is appeared in different sources.
     /// This function will not handle if payload is json format, use [`pase_json`] to get typed json payload.
     #[inline]
-    pub async fn parse_data<T, S>(&mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
+    pub async fn parse_data<'de, T, S>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
         S: AsRef<str>,
     {
         if sources == ParseSource::Params {
@@ -571,48 +571,48 @@ impl Request {
                     all_data.insert(k, v);
                 }
             }
-            from_str_multi_map(&all_data).map_err(ParseError::Deserialize)
+            from_str_multi_map(all_data).map_err(ParseError::Deserialize)
         }
     }
 
     /// Read url params as type `T` from request.
     #[inline]
-    pub fn parse_params<T>(&mut self) -> Result<T, ParseError>
+    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
-        from_str_map(self.params()).map_err(ParseError::Deserialize)
+        let params = self.params().iter();
+        from_str_map(params).map_err(ParseError::Deserialize)
     }
 
     /// Read queries as type `T` from request.
     #[inline]
-    pub fn parse_queries<T>(&mut self) -> Result<T, ParseError>
+    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
-        let queries = self.queries();
+        let queries = self.queries().iter_all();
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
     /// Read headers as type `T` from request.
     #[inline]
-    pub fn parse_headers<T>(&mut self) -> Result<T, ParseError>
+    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
-        let map = self
+        let iter = self
             .headers()
             .iter()
-            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-            .collect::<HashMap<_, _>>();
-        from_str_map(&map).map_err(ParseError::Deserialize)
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()));
+        from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn parse_json<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
         self.payload()
             .await
@@ -621,11 +621,11 @@ impl Request {
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn parse_form<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
-        from_str_multi_map(&self.form_data().await?.fields).map_err(ParseError::Deserialize)
+        from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
@@ -659,8 +659,8 @@ mod tests {
     #[tokio::test]
     async fn test_parse_queries() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
-        struct BadMan {
-            name: String,
+        struct BadMan<'a> {
+            name: &'a str,
             age: u8,
             wives: Vec<String>,
             weapons: (u64, String, String),
