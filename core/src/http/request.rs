@@ -515,7 +515,8 @@ impl Request {
 
     /// Read url params as type `T` from request's different sources.
     ///
-    /// Returns error if sources have duplicated key.
+    /// Returns error if the same key is appeared in different sources.
+    /// This function will not handle if payload is json format, use [`pase_json`] to get typed json payload.
     #[inline]
     pub async fn parse_data<T, S>(&mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
@@ -683,6 +684,28 @@ mod tests {
         assert_eq!(man.wives, vec!["a", "2"]);
         assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
         let man = req.parse_queries::<GoodMan>().unwrap();
+        assert_eq!(man.name, "rust");
+        assert_eq!(man.age, 25);
+        assert_eq!(man.wives, "a");
+        assert_eq!(man.weapons, 69);
+    }
+    
+    #[tokio::test]
+    async fn test_parse_queries() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct Man {
+            name: String,
+            age: u8,
+            wives: Vec<String>,
+            weapons: (u64, String, String),
+        }
+        let mut req: Request = hyper::Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun")
+            .body(hyper::Body::empty())
+            .unwrap()
+            .into();
+        let man = req.parse_queries::<Man>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, "a");
