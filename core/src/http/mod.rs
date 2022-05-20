@@ -1,6 +1,5 @@
 //! Http module
 
-pub(crate) mod de;
 pub mod errors;
 pub mod form;
 mod range;
