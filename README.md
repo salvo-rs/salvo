@@ -54,7 +54,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "0.23"
+salvo = "0.24"
 tokio = "1"
 ```
 
