@@ -18,7 +18,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
+default = ["test"]
 full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile", "pin-project-lite"]
 native-tls = ["tokio-native-tls", "pin-project-lite"]
