@@ -556,7 +556,8 @@ mod tests {
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
 
-        let content = TestClient::get("https://salvo.rs")
+        let content = TestClient::get("https://salvo.rs/hello")
+            .insert_header("origin", "https://salvo.rs")
             .send(&service)
             .await
             .take_string()
@@ -564,7 +565,16 @@ mod tests {
             .unwrap();
         assert!(content.contains("hello"));
 
-        let content = TestClient::get("https://google.rs")
+        let content = TestClient::get("https://google.rs/hello")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("hello"));
+
+        let content = TestClient::get("https://google.rs/hello")
+            .insert_header("origin", "https://google.rs")
             .send(&service)
             .await
             .take_string()

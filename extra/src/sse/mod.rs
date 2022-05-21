@@ -94,7 +94,7 @@ pub struct SseEvent {
 
 impl SseEvent {
     /// Set Server-sent event data.
-    /// 
+    ///
     /// Data field(s) ("data:<content>")
     #[inline]
     pub fn data<T: Into<String>>(mut self, data: T) -> SseEvent {
@@ -103,7 +103,7 @@ impl SseEvent {
     }
 
     /// Set Server-sent event data.
-    /// 
+    ///
     /// data field(s) ("data:<content>")
     #[inline]
     pub fn json_data<T: Serialize>(mut self, data: T) -> Result<SseEvent, Error> {
@@ -112,7 +112,7 @@ impl SseEvent {
     }
 
     /// Set Server-sent event comment.`
-    /// 
+    ///
     /// Comment field (":<comment-text>")
     #[inline]
     pub fn comment<T: Into<String>>(mut self, comment: T) -> SseEvent {
@@ -121,7 +121,7 @@ impl SseEvent {
     }
 
     /// Set Server-sent event event.
-    /// 
+    ///
     /// Event name field ("event:<event-name>")
     #[inline]
     pub fn name<T: Into<String>>(mut self, event: T) -> SseEvent {
@@ -130,7 +130,7 @@ impl SseEvent {
     }
 
     /// Set Server-sent event retry.
-    /// 
+    ///
     /// Retry timeout field ("retry:<timeout>")
     #[inline]
     pub fn retry(mut self, duration: Duration) -> SseEvent {
@@ -139,7 +139,7 @@ impl SseEvent {
     }
 
     /// Set Server-sent event id.
-    /// 
+    ///
     /// Identifier field ("id:<identifier>")
     #[inline]
     pub fn id<T: Into<String>>(mut self, id: T) -> SseEvent {
@@ -284,7 +284,7 @@ fn write_request_headers(res: &mut Response) {
 }
 
 /// Streaming
-    #[inline]
+#[inline]
 pub fn streaming<S>(res: &mut Response, event_stream: S) -> salvo_core::Result<()>
 where
     S: TryStream<Ok = SseEvent> + Send + 'static,
@@ -341,7 +341,7 @@ mod tests {
     use std::time::Duration;
 
     use salvo_core::prelude::*;
-    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::test::ResponseExt;
     use tokio_stream;
 
     use super::*;
