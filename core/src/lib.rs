@@ -29,7 +29,7 @@ mod transport;
 pub mod writer;
 // cfg_feature! {
 //     #![feature ="test"]
-    pub mod test;
+pub mod test;
 // }
 
 pub use self::catcher::{Catcher, CatcherImpl};

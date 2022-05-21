@@ -8,7 +8,7 @@ use std::task::{self, Poll};
 
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
-use futures_util::stream::{Stream,  TryStreamExt};
+use futures_util::stream::{Stream, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
 

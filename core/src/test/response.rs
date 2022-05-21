@@ -4,7 +4,7 @@ use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecod
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
-use futures_util::stream::{ StreamExt};
+use futures_util::stream::StreamExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
 use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};

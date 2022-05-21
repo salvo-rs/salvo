@@ -38,7 +38,11 @@ mod tests {
         async fn access(service: &Service, accept: &str, url: &str) -> String {
             TestClient::get(url)
                 .insert_header("accept", accept)
-                .send(service).await.take_string().await.unwrap()
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
         assert!(content.contains("test1.txt") && content.contains("test2.txt"));

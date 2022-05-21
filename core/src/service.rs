@@ -338,7 +338,11 @@ mod tests {
 
         async fn access(service: &Service, b: &str) -> String {
             TestClient::get(format!("http://127.0.0.1:7979/level1/level2/hello?b={}", b))
-                .send(service).await.take_string().await.unwrap()
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
         let content = access(&service, "").await;
         assert_eq!(content, "before1before2before3hello");

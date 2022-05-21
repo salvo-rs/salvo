@@ -29,8 +29,7 @@ impl TestClient {
     }
 
     /// Create a new `RequestBuilder` with the HEAD method and this TestClient's settings applied on it.
-    pub fn head(url: impl AsRef<str>) -> RequestBuilder
-    {
+    pub fn head(url: impl AsRef<str>) -> RequestBuilder {
         RequestBuilder::new(url, Method::HEAD)
     }
 

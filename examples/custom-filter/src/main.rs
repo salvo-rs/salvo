@@ -33,7 +33,12 @@ mod tests {
         let service = Service::new(super::route());
 
         async fn access(service: &Service, host: &str) -> String {
-            TestClient::get(format!("http://{}/", host)).send(service).await.take_string().await.unwrap()
+            TestClient::get(format!("http://{}/", host))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
 
         assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));

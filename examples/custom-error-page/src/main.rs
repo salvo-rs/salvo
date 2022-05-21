@@ -44,7 +44,11 @@ mod tests {
 
         async fn access(service: &Service, name: &str) -> String {
             TestClient::get(format!("http://127.0.0.1:7878/{}", name))
-                .send(service).await.take_string().await.unwrap()
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
 
         assert_eq!(access(&service, "notfound").await, "Custom 404 Error Page");

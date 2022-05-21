@@ -387,7 +387,7 @@ mod tests {
     use super::{PathState, Router};
     use crate::fn_handler;
     use crate::test::TestClient;
-    use crate::{Response};
+    use crate::Response;
 
     #[fn_handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
