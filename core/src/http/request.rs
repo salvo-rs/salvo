@@ -37,17 +37,6 @@ pub enum ParseSource {
     /// Parse from form.
     Form = 0b1000,
 }
-impl ParseSource {
-    /// Parse request data from queries and form.
-    pub fn queries_and_form() -> BitFlags<Self> {
-        Self::Queries | Self::Form
-    }
-
-    /// Parse request data from params, queries and form.
-    pub fn all() -> BitFlags<Self> {
-        Self::Params | Self::Queries | Self::Headers | Self::Form
-    }
-}
 
 /// Represents an HTTP request.
 ///
