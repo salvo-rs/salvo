@@ -90,3 +90,49 @@ where
         ctrl.skip_rest();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+
+    use super::*;
+
+    #[fn_handler]
+    async fn hello() -> &'static str {
+        "Hello"
+    }
+
+    struct Validator;
+    #[async_trait]
+    impl BasicAuthValidator for Validator {
+        async fn validate(&self, username: &str, password: &str) -> bool {
+            username == "root" && password == "pwd"
+        }
+    }
+
+    #[tokio::test]
+    async fn test_basic_auth() {
+        let auth_handler = BasicAuthHandler::new(Validator);
+        let router = Router::with_hoop(auth_handler).handle(hello);
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:7878/")
+            .basic_auth("root", Some("pwd"))
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Hello"));
+
+        let content = TestClient::get("http://127.0.0.1:7878/")
+            .basic_auth("root", Some("pwd2"))
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Unauthorized"));
+    }
+}

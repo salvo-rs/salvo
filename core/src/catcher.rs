@@ -176,3 +176,76 @@ impl Catcher for CatcherImpl {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+
+    use super::*;
+
+    struct CustomError;
+    #[async_trait]
+    impl Writer for CustomError {
+        async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.render("custom error");
+        }
+    }
+
+    struct Handle404;
+    impl Catcher for Handle404 {
+        fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
+            if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+                res.render("Custom 404 Error Page");
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_error() {
+        #[fn_handler(internal)]
+        async fn handle_custom() -> Result<(), CustomError> {
+            Err(CustomError)
+        }
+        let router = Router::new()
+            .push(Router::with_path("custom").get(handle_custom));
+        let service = Service::new(router);
+
+        async fn access(service: &Service, name: &str) -> String {
+            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
+        }
+
+        assert_eq!(access(&service, "custom").await, "custom error");
+    }
+
+    #[tokio::test]
+    async fn test_custom_catcher() {
+        #[fn_handler(internal)]
+        async fn hello_world() -> &'static str {
+            "Hello World"
+        }
+        let router = Router::new().get(hello_world);
+        let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+        let service = Service::new(router).with_catchers(catchers);
+
+        async fn access(service: &Service, name: &str) -> String {
+            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
+        }
+
+        assert_eq!(access(&service, "notfound").await, "Custom 404 Error Page");
+    }
+}

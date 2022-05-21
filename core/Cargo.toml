@@ -65,7 +65,7 @@ tokio = { version = "1", features = ["full"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
-url={version = "2", optional = true}
+url = { version = "2", optional = true }
 x509-parser = { version = "0.13", optional = true }
 
 [dev-dependencies]

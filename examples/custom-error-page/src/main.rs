@@ -32,25 +32,3 @@ impl Catcher for Handle404 {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_handle_error() {
-        use salvo::prelude::*;
-        use salvo::test::{ResponseExt, TestClient};
-
-        let service = super::create_service();
-
-        async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
-                .send(service)
-                .await
-                .take_string()
-                .await
-                .unwrap()
-        }
-
-        assert_eq!(access(&service, "notfound").await, "Custom 404 Error Page");
-    }
-}

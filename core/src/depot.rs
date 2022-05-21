@@ -115,6 +115,9 @@ impl fmt::Debug for Depot {
 
 #[cfg(test)]
 mod test {
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+
     use super::*;
 
     #[test]
@@ -136,5 +139,28 @@ mod test {
 
         let depot = depot.transfer();
         assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
+    }
+
+    #[tokio::test]
+    async fn test_middleware_use_depot() {
+        #[fn_handler(internal)]
+        async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            depot.insert("user", "client");
+            ctrl.call_next(req, depot, res).await;
+        }
+        #[fn_handler(internal)]
+        async fn hello_world(depot: &mut Depot) -> String {
+            format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
+        }
+        let router = Router::new().hoop(set_user).handle(hello_world);
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:7878")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert_eq!(content, "Hello client");
     }
 }

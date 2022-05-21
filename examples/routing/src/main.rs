@@ -48,7 +48,7 @@ async fn debug(res: &mut Response) {
 }
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render(Text::Plain("Hello world!"));
+    res.render(Text::Plain("Hello World!"));
 }
 #[fn_handler]
 async fn auth(res: &mut Response) {

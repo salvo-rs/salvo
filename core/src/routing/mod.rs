@@ -118,3 +118,37 @@ impl FlowCtrl {
         self.is_ceased = true;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+    
+    #[tokio::test]
+    async fn test_custom_filter() {
+        #[fn_handler(internal)]
+        async fn hello_world() -> &'static str {
+            "Hello World"
+        }
+
+        let router = Router::new()
+            .filter_fn(|req, _| {
+                let host = req.uri().host().unwrap_or_default();
+                host == "localhost"
+            })
+            .get(hello_world);
+        let service = Service::new(router);
+
+        async fn access(service: &Service, host: &str) -> String {
+            TestClient::get(format!("http://{}/", host))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
+        }
+
+        assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));
+        assert_eq!(access(&service, "localhost").await, "Hello World");
+    }
+}

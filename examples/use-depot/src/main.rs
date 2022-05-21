@@ -14,29 +14,7 @@ async fn hello_world(depot: &mut Depot) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
+    let router = Router::new().hoop(set_user).handle(hello_world);
     tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
-}
-
-fn route() -> Router {
-    Router::new().hoop(set_user).handle(hello_world)
-}
-
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_hello_world() {
-        use salvo::prelude::*;
-        use salvo::test::{ResponseExt, TestClient};
-
-        let service = Service::new(super::route());
-
-        let content = TestClient::get("http://127.0.0.1:7878")
-            .send(&service)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert_eq!(content, "Hello client");
-    }
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
