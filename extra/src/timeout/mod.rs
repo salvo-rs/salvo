@@ -32,8 +32,8 @@ impl Handler for TimeoutHandler {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -55,16 +55,20 @@ mod tests {
             .push(Router::with_path("fast").get(fast));
         let service = Service::new(router);
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/slow").body(hyper::Body::empty()).unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
+        let content = TestClient::get("http://127.0.0.1:7979/slow")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert!(content.contains("timeout"));
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/fast").body(hyper::Body::empty()).unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
+        let content = TestClient::get("http://127.0.0.1:7979/fast")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert!(content.contains("hello"));
     }
 }

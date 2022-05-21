@@ -651,10 +651,11 @@ impl Request {
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
     use crate::hyper;
+    use crate::test::TestClient;
 
     #[tokio::test]
     async fn test_parse_queries() {
@@ -672,12 +673,10 @@ mod tests {
             wives: String,
             weapons: u64,
         }
-        let mut req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get(
+            "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
+        )
+        .build();
         let man = req.parse_queries::<BadMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
@@ -692,39 +691,28 @@ mod tests {
 
     #[tokio::test]
     async fn test_parse_json() {
-        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
         struct User {
             name: String,
         }
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://127.0.0.1:7878/hello")
-            .header("content-type", "application/json")
-            .body(r#"{"name": "jobs"}"#.into())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://127.0.0.1:7878/hello")
+            .json(&User { name: "jobs".into() })
+            .build();
         assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
-        let mut req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello?q=rust")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://127.0.0.1:7979/hello?q=rust").build();
         assert_eq!(req.queries().len(), 1);
         assert_eq!(req.query::<String>("q").unwrap(), "rust");
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
     }
     #[tokio::test]
     async fn test_form() {
-        let mut req: Request = hyper::Request::builder()
-            .method("POST")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .uri("http://127.0.0.1:7979/hello?q=rust")
-            .body("lover=dog&money=sh*t&q=firefox".into())
-            .unwrap()
-            .into();
+        let mut req = TestClient::post("http://127.0.0.1:7979/hello?q=rust")
+            .insert_header("content-type", "application/x-www-form-urlencoded")
+            .raw_form("lover=dog&money=sh*t&q=firefox")
+            .build();
         assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
         assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");

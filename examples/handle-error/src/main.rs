@@ -36,18 +36,18 @@ fn route() -> Router {
 mod tests {
     #[tokio::test]
     async fn test_handle_error() {
-        use salvo::hyper;
         use salvo::prelude::*;
+        use salvo::test::{ResponseExt, TestClient};
 
         let service = Service::new(super::route());
 
         async fn access(service: &Service, name: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri(format!("http://127.0.0.1:7878/{}", name))
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
 
         assert!(access(&service, "anyhow").await.contains("500: Internal Server Error"));

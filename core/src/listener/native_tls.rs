@@ -288,9 +288,7 @@ impl AsyncWrite for NativeTlsStream {
 
 #[cfg(test)]
 mod tests {
-    use futures_util::{Stream, StreamExt};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpStream;
+    use futures_util::Stream;
 
     use super::*;
 

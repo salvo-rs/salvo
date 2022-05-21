@@ -20,8 +20,8 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use salvo::extra::serve_static::*;
-    use salvo::hyper;
     use salvo::prelude::*;
+    use salvo::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_serve_static_files() {
@@ -36,13 +36,9 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, accept: &str, url: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .header("accept", accept)
-                .uri(url)
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get(url)
+                .insert_header("accept", accept)
+                .send(service).await.take_string().await.unwrap()
         }
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
         assert!(content.contains("test1.txt") && content.contains("test2.txt"));

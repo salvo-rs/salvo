@@ -341,6 +341,7 @@ mod tests {
     use std::time::Duration;
 
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
     use tokio_stream;
 
     use super::*;
@@ -353,7 +354,7 @@ mod tests {
         ]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("data:1") && text.contains("data:2"));
     }
 
@@ -366,7 +367,7 @@ mod tests {
             .with_interval(Duration::from_secs(1))
             .streaming(&mut res)
             .unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("data:1"));
     }
 
@@ -382,7 +383,7 @@ mod tests {
         })]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains(r#"data:{"name":"jobs"}"#));
     }
 
@@ -391,7 +392,7 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().comment("comment"))]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains(":comment"));
     }
 
@@ -400,7 +401,7 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().name("evt2"))]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("event:evt2"));
     }
 
@@ -411,7 +412,7 @@ mod tests {
         )]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("retry:1000"));
 
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(
@@ -419,7 +420,7 @@ mod tests {
         )]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("retry:1001"));
     }
 
@@ -428,7 +429,7 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().id("jobs"))]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
-        let text = res.take_text().await.unwrap();
+        let text = res.take_string().await.unwrap();
         assert!(text.contains("id:jobs"));
     }
 }

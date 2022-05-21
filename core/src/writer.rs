@@ -141,15 +141,7 @@ mod tests {
     use crate::prelude::*;
 
     use super::*;
-
-    async fn access(service: &Service) -> Response {
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/test")
-            .body(hyper::Body::empty())
-            .unwrap();
-        service.handle(req).await
-    }
+    use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_write_str() {
@@ -159,10 +151,9 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
 
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
@@ -174,10 +165,8 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
@@ -189,10 +178,9 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
 
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
@@ -204,10 +192,8 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), r#"{"hello": "world"}"#);
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), r#"{"hello": "world"}"#);
         assert_eq!(
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
@@ -226,10 +212,8 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), r#"{"name":"jobs"}"#);
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), r#"{"name":"jobs"}"#);
         assert_eq!(
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
@@ -244,10 +228,8 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "<html><body>hello</body></html>");
+        let mut res = TestClient::get("http://127.0.0.1:7979/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "<html><body>hello</body></html>");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
     }
 }

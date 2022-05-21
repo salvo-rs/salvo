@@ -27,18 +27,13 @@ fn route() -> Router {
 mod tests {
     #[tokio::test]
     async fn test_custom_filter() {
-        use salvo::hyper;
         use salvo::prelude::*;
+        use salvo::test::{ResponseExt, TestClient};
 
         let service = Service::new(super::route());
 
         async fn access(service: &Service, host: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri(format!("http://{}/", host))
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get(format!("http://{}/", host)).send(service).await.take_string().await.unwrap()
         }
 
         assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));

@@ -53,6 +53,7 @@ impl Handler for LogHandler {
 #[cfg(test)]
 mod tests {
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
     use tracing_test::traced_test;
 
     use super::*;
@@ -68,14 +69,13 @@ mod tests {
         let router = Router::new()
             .hoop(LogHandler)
             .push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .body(hyper::Body::empty())
+        TestClient::get("http://127.0.0.1:7979/hello")
+            .send(router)
+            .await
+            .take_string()
+            .await
             .unwrap();
-        service.handle(req).await.take_text().await.unwrap();
         assert!(logs_contain("duration"));
     }
 }

@@ -245,8 +245,8 @@ pub fn brotli() -> CompressionHandler {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -259,16 +259,10 @@ mod tests {
     async fn test_gzip() {
         let comp_handler = gzip().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .body(hyper::Body::empty())
-            .unwrap();
-        let mut res = service.handle(req).await;
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "gzip");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -276,16 +270,10 @@ mod tests {
     async fn test_brotli() {
         let comp_handler = brotli().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
-
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .body(hyper::Body::empty())
-            .unwrap();
-        let mut res = service.handle(req).await;
+        
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "br");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -293,14 +281,10 @@ mod tests {
     async fn test_deflate() {
         let comp_handler = deflate().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
-
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello").body(hyper::Body::empty()).unwrap();
-        let mut res = service.handle(req).await;
+       
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "deflate");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 }

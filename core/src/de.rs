@@ -33,7 +33,7 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-macro_rules! forward_cow_value_parsed_value {
+macro_rules! forward_cow_parsed_value {
     ($($ty:ident => $method:ident,)*) => {
         $(
             fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -48,7 +48,7 @@ macro_rules! forward_cow_value_parsed_value {
     }
 }
 
-macro_rules! forward_vec_value_parsed_value {
+macro_rules! forward_vec_parsed_value {
     ($($ty:ident => $method:ident,)*) => {
         $(
             fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -132,7 +132,7 @@ impl<'de> Deserializer<'de> for CowValue<'de> {
         map
     }
 
-    forward_cow_value_parsed_value! {
+    forward_cow_parsed_value! {
         bool => deserialize_bool,
         u8 => deserialize_u8,
         u16 => deserialize_u16,
@@ -239,7 +239,7 @@ where
         map
     }
 
-    forward_vec_value_parsed_value! {
+    forward_vec_parsed_value! {
         bool => deserialize_bool,
         u8 => deserialize_u8,
         u16 => deserialize_u16,

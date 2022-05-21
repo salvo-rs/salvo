@@ -27,26 +27,29 @@ impl BasicAuthValidator for Validator {
 
 #[cfg(test)]
 mod tests {
-    use salvo::http::headers::{Authorization, HeaderMapExt};
-    use salvo::hyper;
     use salvo::prelude::*;
+    use salvo::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_basic_auth() {
         let service = Service::new(super::route());
 
-        let mut req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878/");
-        let headers = req.headers_mut().unwrap();
-        headers.typed_insert(Authorization::basic("root", "pwd"));
-        let req = req.body(hyper::Body::empty()).unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
+        let content = TestClient::get("http://127.0.0.1:7878/")
+            .basic_auth("root", Some("pwd"))
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert!(content.contains("Hello"));
 
-        let mut req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878/");
-        let headers = req.headers_mut().unwrap();
-        headers.typed_insert(Authorization::basic("root", "pwd2"));
-        let req = req.body(hyper::Body::empty()).unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
+        let content = TestClient::get("http://127.0.0.1:7878/")
+            .basic_auth("root", Some("pwd2"))
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert!(content.contains("Unauthorized"));
     }
 }

@@ -27,10 +27,10 @@ mod server;
 mod service;
 mod transport;
 pub mod writer;
-cfg_feature! {
-    #![feature ="test"]
+// cfg_feature! {
+//     #![feature ="test"]
     pub mod test;
-}
+// }
 
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;

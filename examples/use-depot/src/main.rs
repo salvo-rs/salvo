@@ -26,20 +26,17 @@ fn route() -> Router {
 mod tests {
     #[tokio::test]
     async fn test_hello_world() {
-        use salvo::hyper;
         use salvo::prelude::*;
+        use salvo::test::{ResponseExt, TestClient};
 
         let service = Service::new(super::route());
 
-        async fn access(service: &Service) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7878")
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
-        }
-
-        assert_eq!(access(&service).await, "Hello client");
+        let content = TestClient::get("http://127.0.0.1:7878")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert_eq!(content, "Hello client");
     }
 }

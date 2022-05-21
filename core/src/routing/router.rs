@@ -382,10 +382,12 @@ impl fmt::Debug for Router {
 
 #[cfg(test)]
 mod tests {
+    use async_trait::async_trait;
+
     use super::{PathState, Router};
     use crate::fn_handler;
-    use crate::{Request, Response};
-    use async_trait::async_trait;
+    use crate::test::TestClient;
+    use crate::{Response};
 
     #[fn_handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
@@ -436,11 +438,7 @@ mod tests {
             Router::with_path("users")
                 .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/emails")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/emails").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -453,11 +451,7 @@ mod tests {
                 Router::with_path("users")
                     .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
             );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/emails")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/emails").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -470,20 +464,12 @@ mod tests {
                     .push(Router::new().push(Router::with_path("facebook/insights/<**rest>").handle(fake_handler))),
             ),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
@@ -497,21 +483,13 @@ mod tests {
                     .push(Router::new().push(Router::with_path("facebook/insights/<*rest>").handle(fake_handler))),
             ),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -524,20 +502,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -551,20 +521,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::new().path("<*rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -577,20 +539,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -599,20 +553,12 @@ mod tests {
     fn test_router_detect9() {
         let router =
             Router::new().push(Router::with_path("users/<*sub:/(images|css)/>/<filename>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/css/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/css/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -620,20 +566,12 @@ mod tests {
     #[test]
     fn test_router_detect10() {
         let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/css/abc/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/css/abc/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -642,20 +580,12 @@ mod tests {
     fn test_router_detect11() {
         let router =
             Router::new().push(Router::with_path(r"avatars/<width:/\d+/>x<height:/\d+/>.<ext>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/321x641f.webp")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/avatars/321x641f.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/320x640.webp")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/avatars/320x640.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -664,11 +594,7 @@ mod tests {
     fn test_router_detect12() {
         let router = Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").handle(fake_handler));
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -679,19 +605,11 @@ mod tests {
         let router = Router::new()
             .path("user/<id:/[0-9a-z]{8}(-[0-9a-z]{4}){3}-[0-9a-z]{12}/>")
             .get(fake_handler);
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());

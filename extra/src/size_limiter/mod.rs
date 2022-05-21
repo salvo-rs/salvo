@@ -29,8 +29,8 @@ pub fn max_size(size: u64) -> MaxSizeHandler {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -47,20 +47,19 @@ mod tests {
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 
-        let req = hyper::Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:7979/hello")
-            .body("abc".into())
+        let content = TestClient::post("http://127.0.0.1:7979/hello")
+            .text("abc")
+            .send(&service)
+            .await
+            .take_string()
+            .await
             .unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
         assert_eq!(content, "hello");
 
-        let req = hyper::Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:7979/hello")
-            .body("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".into())
-            .unwrap();
-        let res = service.handle(req).await;
+        let res = TestClient::post("http://127.0.0.1:7979/hello")
+            .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }

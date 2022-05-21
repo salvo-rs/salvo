@@ -502,8 +502,8 @@ impl<'a> IntoOrigin for &'a str {
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header::*;
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -532,37 +532,23 @@ mod tests {
         let service = Service::new(router);
 
         async fn options_access(service: &Service, origin: &str) -> Response {
-            let req = hyper::Request::builder()
-                .method("OPTIONS")
-                .uri("http://127.0.0.1:7979/hello")
-                .header("Origin", origin)
-                .header("Access-Control-Request-Method", "POST")
-                .header("Access-Control-Request-Headers", "Content-Type")
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await
+            TestClient::options("http://127.0.0.1:7979/hello")
+                .insert_header("Origin", origin)
+                .insert_header("Access-Control-Request-Method", "POST")
+                .insert_header("Access-Control-Request-Headers", "Content-Type")
+                .send(service)
+                .await
         }
 
-        async fn access(service: &Service, method: &str, origin: &str) -> Response {
-            let req = hyper::Request::builder()
-                .method(method)
-                .uri("http://127.0.0.1:7979/hello")
-                .header("Origin", origin)
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await
-        }
-
-        let res = access(&service, "OPTIONS", "https://salvo.rs").await;
-        let headers = res.headers();
-        assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none());
+        let res = TestClient::options("https://salvo.rs").send(&service).await;
+        assert!(res.headers().get(ACCESS_CONTROL_ALLOW_METHODS).is_none());
 
         let res = options_access(&service, "https://salvo.rs").await;
         let headers = res.headers();
         assert!(headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_some());
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_some());
 
-        let res = access(&service, "OPTIONS", "https://google.com").await;
+        let res = TestClient::options("https://google.com").send(&service).await;
         let headers = res.headers();
         assert!(
             headers.get(ACCESS_CONTROL_ALLOW_METHODS).is_none(),
@@ -570,16 +556,18 @@ mod tests {
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
 
-        let content = access(&service, "GET", "https://salvo.rs")
+        let content = TestClient::get("https://salvo.rs")
+            .send(&service)
             .await
-            .take_text()
+            .take_string()
             .await
             .unwrap();
         assert!(content.contains("hello"));
 
-        let content = access(&service, "GET", "https://google.rs")
+        let content = TestClient::get("https://google.rs")
+            .send(&service)
             .await
-            .take_text()
+            .take_string()
             .await
             .unwrap();
         assert!(content.contains("Forbidden"));

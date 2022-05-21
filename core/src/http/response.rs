@@ -6,20 +6,16 @@ use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
-use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
-use encoding_rs::{Encoding, UTF_8};
-use futures_util::stream::{Stream, StreamExt, TryStreamExt};
+use futures_util::stream::{Stream,  TryStreamExt};
 use http::version::Version;
 use mime::Mime;
-use serde::de::DeserializeOwned;
-use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
 
 pub use http::response::Parts;
 
 use super::errors::*;
-use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING};
+use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue};
 use crate::http::StatusCode;
 use crate::{Error, Piece};
 
@@ -38,64 +34,6 @@ impl Body {
     #[inline]
     pub fn is_none(&self) -> bool {
         matches!(*self, Body::None)
-    }
-    /// Take body as deserialize it to type `T` instance.
-    #[inline]
-    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        let full = self.take_bytes().await?;
-        serde_json::from_slice(&full).map_err(Error::SerdeJson)
-    }
-    /// Take body as text. If body is none, it will empty string.
-    #[inline]
-    pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
-        let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
-        let mut full = self.take_bytes().await?;
-        if let Some(algo) = compress {
-            match algo {
-                "gzip" => {
-                    let mut reader = GzipDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                "deflate" => {
-                    let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                "br" => {
-                    let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                _ => {
-                    tracing::error!(compress = %algo, "unknown compress format");
-                }
-            }
-        }
-        let (text, _, _) = charset.decode(&full);
-        if let Cow::Owned(s) = text {
-            return Ok(s);
-        }
-        String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
-    }
-    /// Take all body bytes. If body is none, it will creates and returns a new [`Bytes`].
-    #[inline]
-    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
-        let bytes = match self {
-            Self::None => Bytes::new(),
-            Self::Bytes(bytes) => std::mem::take(bytes).freeze(),
-            Self::Stream(stream) => {
-                let mut bytes = BytesMut::new();
-                while let Some(chunk) = stream.next().await {
-                    bytes.extend(chunk?);
-                }
-                bytes.freeze()
-            }
-        };
-        Ok(bytes)
     }
 }
 
@@ -248,39 +186,6 @@ impl Response {
     #[inline]
     pub fn take_body(&mut self) -> Body {
         std::mem::replace(&mut self.body, Body::None)
-    }
-    /// Take body from response.
-    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        self.body.take_json().await
-    }
-    /// Take body as ```String``` from response.
-    #[inline]
-    pub async fn take_text(&mut self) -> crate::Result<String> {
-        self.take_text_with_charset("utf-8").await
-    }
-    /// Take body as ```String``` from response with charset.
-    #[inline]
-    pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
-        let content_type = self
-            .headers
-            .get(header::CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<Mime>().ok());
-        let charset = content_type
-            .as_ref()
-            .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-            .unwrap_or(default_charset);
-        self.body
-            .take_text(
-                charset,
-                self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
-            )
-            .await
-    }
-    /// Take body bytes from response.
-    #[inline]
-    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
-        self.body.take_bytes().await
     }
 
     /// `write_back` is used to put all the data added to `self`
@@ -485,9 +390,7 @@ impl Display for Response {
 #[cfg(test)]
 mod test {
     use bytes::BytesMut;
-    use cookie::Cookie;
     use futures_util::stream::{iter, StreamExt};
-    use serde::Deserialize;
     use std::error::Error;
 
     use super::*;
@@ -525,32 +428,5 @@ mod test {
         }
 
         assert_eq!("Hello World", &result)
-    }
-    #[tokio::test]
-    async fn test_others() {
-        let mut response: Response = hyper::Response::builder()
-            .header("set-cookie", "lover=dog")
-            .body("response body".into())
-            .unwrap()
-            .into();
-        // assert_eq!(response.header_cookies().len(), 1);
-        response.cookies_mut().add(Cookie::new("money", "sh*t"));
-        assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
-        // assert_eq!(response.header_cookies().len(), 2);
-        assert_eq!(response.take_bytes().await.unwrap().len(), b"response body".len());
-
-        #[derive(Deserialize, Eq, PartialEq, Debug)]
-        struct User {
-            name: String,
-        }
-
-        let mut response: Response = hyper::Response::builder()
-            .body(r#"{"name": "jobs"}"#.into())
-            .unwrap()
-            .into();
-        assert_eq!(
-            response.take_json::<User>().await.unwrap(),
-            User { name: "jobs".into() }
-        );
     }
 }

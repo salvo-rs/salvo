@@ -403,8 +403,8 @@ where
 mod tests {
     use chrono::{Duration, Utc};
     use jsonwebtoken::EncodingKey;
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
     use serde::{Deserialize, Serialize};
 
     use super::*;
@@ -435,13 +435,13 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, token: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri("http://127.0.0.1:7979/hello")
-                .header("Authorization", format!("Bearer {}", token))
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get("http://127.0.0.1:7979/hello")
+                .insert_header("Authorization", format!("Bearer {}", token))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
 
         let claim = JwtClaims {
@@ -458,20 +458,20 @@ mod tests {
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
-            .body(hyper::Body::empty())
+        let content = TestClient::get(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
+            .send(&service)
+            .await
+            .take_string()
+            .await
             .unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .header("Cookie", format!("jwt_token={}", token))
-            .body(hyper::Body::empty())
+        let content = TestClient::get("http://127.0.0.1:7979/hello")
+            .insert_header("Cookie", format!("jwt_token={}", token))
+            .send(&service)
+            .await
+            .take_string()
+            .await
             .unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("hello"));
 
         let token = jsonwebtoken::encode(

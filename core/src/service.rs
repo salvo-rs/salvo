@@ -117,6 +117,7 @@ impl Service {
     ///
     /// ```
     /// use salvo_core::prelude::*;
+    /// use salvo_core::test::{ResponseExt, TestClient};
     ///
     /// #[fn_handler]
     /// async fn hello_world() -> &'static str {
@@ -126,7 +127,7 @@ impl Service {
     /// async fn main() {
     ///     let service: Service = Router::new().get(hello_world).into();
     ///     let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878").body(hyper::Body::empty()).unwrap();
-    ///     assert_eq!(service.handle(req).await.take_text().await.unwrap(), "Hello World");
+    ///     assert_eq!(service.handle(req).await.take_string().await.unwrap(), "Hello World");
     /// }
     /// ```
     #[inline]
@@ -167,9 +168,12 @@ where
     }
 }
 
-impl From<Router> for Service {
+impl<T> From<T> for Service
+where
+    T: Into<Arc<Router>>,
+{
     #[inline]
-    fn from(router: Router) -> Self {
+    fn from(router: T) -> Self {
         Service::new(router)
     }
 }
@@ -290,6 +294,7 @@ impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_service() {
@@ -332,12 +337,8 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, b: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri(format!("http://127.0.0.1:7979/level1/level2/hello?b={}", b))
-                .body(hyper::Body::empty())
-                .unwrap();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get(format!("http://127.0.0.1:7979/level1/level2/hello?b={}", b))
+                .send(service).await.take_string().await.unwrap()
         }
         let content = access(&service, "").await;
         assert_eq!(content, "before1before2before3hello");

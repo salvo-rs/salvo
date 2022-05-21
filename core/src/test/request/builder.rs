@@ -1,19 +1,16 @@
 use std::borrow::Borrow;
 use std::convert::{From, TryInto};
-use std::fs;
 use std::str;
-use std::time::Duration;
+use std::sync::Arc;
 
-use http::header::{
-    HeaderMap, HeaderValue, IntoHeaderName, ACCEPT, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, TRANSFER_ENCODING,
-    USER_AGENT,
-};
-use http::{Method, Uri};
+use async_trait::async_trait;
+use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
+use http::Method;
 use hyper::Body;
 use url::Url;
 
-use crate::test::{Error, Result};
-
+use crate::routing::FlowCtrl;
+use crate::{Depot, Error, Handler, Request, Response, Router, Service};
 
 /// `RequestBuilder` is the main way of building requests.
 ///
@@ -37,24 +34,13 @@ impl RequestBuilder {
     where
         U: AsRef<str>,
     {
-        Self::try_new(url, method).expect("invalid url or method")
-    }
-
-    /// Try to create a new `RequestBuilder`.
-    ///
-    /// If the base URL is invalid, an error is returned.
-    /// If the method is CONNECT, an error is also returned. CONNECT is not yet supported.
-    pub fn try_new<U>(url: U, method: Method) -> Result<Self>
-    where
-        U: AsRef<str>,
-    {
-        let url = Url::parse(url.as_ref()).map_err(|_| Error::InvalidUrl)?;
-        Ok(Self {
+        let url = Url::parse(url.as_ref()).unwrap();
+        Self {
             url,
             method,
             headers: HeaderMap::new(),
             body: Body::default(),
-        })
+        }
     }
 }
 
@@ -76,8 +62,8 @@ impl RequestBuilder {
     /// The same key can be used multiple times.
     ///
     /// # Example
-    /// ```
-    /// attohttpc::get("http://foo.bar").params(&[("p1", "v1"), ("p2", "v2")]);
+    /// ```ignore
+    /// TestClient::get("http://foo.bar").queries(&[("p1", "v1"), ("p2", "v2")]);
     /// ```
     pub fn queries<P, K, V>(mut self, pairs: P) -> Self
     where
@@ -110,7 +96,7 @@ impl RequestBuilder {
     }
 
     /// Set the body of this request.
-    pub fn body(self, body: impl Into<Body>) -> Self {
+    pub fn body(mut self, body: impl Into<Body>) -> Self {
         self.body = body.into();
         self
     }
@@ -135,24 +121,24 @@ impl RequestBuilder {
         self.body(body)
     }
 
-    /// Set the body of this request using a local file.
-    ///
-    /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
-    // pub fn file(mut self, body: fs::File) -> RequestBuilder {
-    //     self.headers
-    //         .entry(http::header::CONTENT_TYPE)
-    //         .or_insert(HeaderValue::from_static("application/octet-stream"));
-    //     self.body(body::File(body))
-    // }
-
     /// Set the body of this request to be the JSON representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
-    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Result<Self> {
+    pub fn json<T: serde::Serialize>(mut self, value: &T) -> Self {
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
-        Ok(self.body(serde_json::to_vec(value)?))
+        self.body(serde_json::to_vec(value).unwrap())
+    }
+
+    /// Set the body of this request to be the JSON representation of the given string.
+    ///
+    /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
+    pub fn raw_json(mut self, value: impl Into<String>) -> Self {
+        self.headers
+            .entry(http::header::CONTENT_TYPE)
+            .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
+        self.body(value.into())
     }
 
     /// Set the body of this request to be the URL-encoded representation of the given object.
@@ -163,7 +149,16 @@ impl RequestBuilder {
         self.headers
             .entry(http::header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
-        Ok(self.body(body))
+        self.body(body)
+    }
+    /// Set the body of this request to be the URL-encoded representation of the given string.
+    ///
+    /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
+    pub fn raw_form(mut self, value: impl Into<String>) -> Self {
+        self.headers
+            .entry(http::header::CONTENT_TYPE)
+            .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
+        self.body(value.into())
     }
 
     /// Modify a header for this request.
@@ -174,9 +169,15 @@ impl RequestBuilder {
     where
         H: IntoHeaderName,
         V: TryInto<HeaderValue>,
-        Error: From<V::Error>,
     {
-        Ok(self.headers.insert(header, value.try_into().unwrap()))
+        self.headers.insert(
+            header,
+            value
+                .try_into()
+                .map_err(|_| Error::Other("invalid header value".into()))
+                .unwrap(),
+        );
+        self
     }
 
     /// Append a new header to this request.
@@ -186,181 +187,83 @@ impl RequestBuilder {
     where
         H: IntoHeaderName,
         V: TryInto<HeaderValue>,
-        Error: From<V::Error>,
     {
-        Ok(self.headers.append(header, value.try_into().unwrap()))
-    }
-
-    // pub async fn send(r: R) -> RequestedData {}
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use http::header::HeaderMap;
-
-    #[test]
-    fn test_header_insert_exists() {
-        let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static("hello"));
-        header_insert(&mut headers, USER_AGENT, "world").unwrap();
-        assert_eq!(headers[USER_AGENT], "world");
-    }
-
-    #[test]
-    fn test_header_insert_missing() {
-        let mut headers = HeaderMap::new();
-        header_insert(&mut headers, USER_AGENT, "world").unwrap();
-        assert_eq!(headers[USER_AGENT], "world");
-    }
-
-    #[test]
-    fn test_header_insert_if_missing_exists() {
-        let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static("hello"));
-        header_insert_if_missing(&mut headers, USER_AGENT, "world").unwrap();
-        assert_eq!(headers[USER_AGENT], "hello");
-    }
-
-    #[test]
-    fn test_header_insert_if_missing_missing() {
-        let mut headers = HeaderMap::new();
-        header_insert_if_missing(&mut headers, USER_AGENT, "world").unwrap();
-        assert_eq!(headers[USER_AGENT], "world");
-    }
-
-    #[test]
-    fn test_header_append() {
-        let mut headers = HeaderMap::new();
-        header_append(&mut headers, USER_AGENT, "hello").unwrap();
-        header_append(&mut headers, USER_AGENT, "world").unwrap();
-
-        let vals: Vec<_> = headers.get_all(USER_AGENT).into_iter().collect();
-        assert_eq!(vals.len(), 2);
-        for val in vals {
-            assert!(val == "hello" || val == "world");
-        }
-    }
-
-    #[test]
-    fn test_request_builder_param() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo")
-            .param("qux", "baz")
-            .prepare();
-
-        assert_eq!(prepped.url().as_str(), "http://localhost:1337/foo?qux=baz");
-    }
-
-    #[test]
-    fn test_request_builder_params() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo")
-            .params(&[("qux", "baz"), ("foo", "bar")])
-            .prepare();
-
-        assert_eq!(prepped.url().as_str(), "http://localhost:1337/foo?qux=baz&foo=bar");
-    }
-
-    #[test]
-    fn test_request_builder_header_insert() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo")
-            .header("hello", "world")
-            .prepare();
-
-        assert_eq!(prepped.headers()["hello"], "world");
-    }
-
-    #[test]
-    fn test_request_builder_header_append() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo")
-            .header_append("hello", "world")
-            .header_append("hello", "!!!")
-            .prepare();
-
-        let vals: Vec<_> = prepped.headers().get_all("hello").into_iter().collect();
-        assert_eq!(vals.len(), 2);
-        for val in vals {
-            assert!(val == "world" || val == "!!!");
-        }
-    }
-
-    #[cfg(feature = "compress")]
-    fn assert_request_content(
-        builder: RequestBuilder,
-        status_line: &str,
-        mut header_lines: Vec<&str>,
-        body_lines: &[&str],
-    ) {
-        let mut buf = Vec::new();
-
-        let mut prepped = builder.prepare();
-        prepped
-            .write_request(&mut buf, &prepped.url().clone(), None)
-            .expect("error writing request");
-
-        let text = std::str::from_utf8(&buf).expect("cannot decode request as utf-8");
-        let lines: Vec<_> = text.lines().collect();
-
-        let req_status_line = lines[0];
-
-        let empty_line_pos = lines
-            .iter()
-            .position(|l| l.is_empty())
-            .expect("no empty line in request");
-        let mut req_header_lines = lines[1..empty_line_pos].to_vec();
-
-        let req_body_lines = &lines[empty_line_pos + 1..];
-
-        req_header_lines.sort_unstable();
-        header_lines.sort_unstable();
-
-        assert_eq!(req_status_line, status_line);
-        assert_eq!(req_header_lines, header_lines);
-        assert_eq!(req_body_lines, body_lines);
-    }
-
-    #[test]
-    #[cfg(feature = "compress")]
-    fn test_request_builder_write_request_no_query() {
-        assert_request_content(
-            RequestBuilder::new(Method::GET, "http://localhost:1337/foo"),
-            "GET /foo HTTP/1.1",
-            vec![
-                "connection: close",
-                "accept-encoding: gzip, deflate",
-                "accept: */*",
-            ],
-            &[],
+        self.headers.append(
+            header,
+            value
+                .try_into()
+                .map_err(|_| Error::Other("invalid header value".into()))
+                .unwrap(),
         );
+        self
     }
 
-    #[test]
-    #[cfg(feature = "compress")]
-    fn test_request_builder_write_request_with_query() {
-        assert_request_content(
-            RequestBuilder::new(Method::GET, "http://localhost:1337/foo").param("hello", "world"),
-            "GET /foo?hello=world HTTP/1.1",
-            vec![
-                "connection: close",
-                "accept-encoding: gzip, deflate",
-                "accept: */*",
-            ],
-            &[],
-        );
+    /// Build final request.
+    pub fn build(self) -> Request {
+        let Self {
+            url,
+            method,
+            headers,
+            body,
+        } = self;
+        let mut req = hyper::Request::builder().method(method).uri(url.to_string());
+        (*req.headers_mut().unwrap()) = headers;
+        req.body(body).unwrap().into()
     }
 
-    #[test]
-    fn test_prepare_default_headers() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo/qux/baz").prepare();
-        assert_eq!(prepped.headers()[ACCEPT], "*/*");
-    }
-
-    #[test]
-    fn test_prepare_custom_headers() {
-        let prepped = RequestBuilder::new(Method::GET, "http://localhost:1337/foo/qux/baz")
-            .header(USER_AGENT, "foobaz")
-            .header("Accept", "nothing")
-            .prepare();
-        assert_eq!(prepped.headers()[ACCEPT], "nothing");
-        assert_eq!(prepped.headers()[USER_AGENT], "foobaz");
+    /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
+    pub async fn send(self, target: impl SendTarget) -> Response {
+        target.call(self.build()).await
     }
 }
+#[async_trait]
+pub trait SendTarget {
+    #[must_use = "future must be used"]
+    async fn call(self, req: Request) -> Response;
+}
+#[async_trait]
+impl SendTarget for &Service {
+    async fn call(self, req: Request) -> Response {
+        self.handle(req).await
+    }
+}
+#[async_trait]
+impl SendTarget for Router {
+    async fn call(self, req: Request) -> Response {
+        let router = Arc::new(self);
+        SendTarget::call(router, req).await
+    }
+}
+#[async_trait]
+impl SendTarget for Arc<Router> {
+    async fn call(self, req: Request) -> Response {
+        let srv = Service::new(self);
+        srv.handle(req).await
+    }
+}
+
+#[async_trait]
+impl<T> SendTarget for Arc<T>
+where
+    T: Handler + Send,
+{
+    async fn call(self, req: Request) -> Response {
+        let mut req = req;
+        let mut depot = Depot::new();
+        let mut res = Response::default();
+        let mut ctrl = FlowCtrl::new(vec![self.clone()]);
+        self.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
+        res
+    }
+}
+#[async_trait]
+impl<T> SendTarget for T
+where
+    T: Handler + Send,
+{
+    async fn call(self, req: Request) -> Response {
+        let handler = Arc::new(self);
+        SendTarget::call(handler, req).await
+    }
+}
+

@@ -181,8 +181,8 @@ fn encode_url_path(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -196,14 +196,13 @@ mod tests {
     async fn test_proxy() {
         let router = Router::new()
             .push(Router::with_path("baidu/<**rest>").handle(ProxyHandler::new(vec!["https://www.baidu.com".into()])));
-        let service = Service::new(router);
 
-        let req = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/baidu?wd=rust")
-            .body(hyper::Body::empty())
+        let content = TestClient::get("http://127.0.0.1:7979/baidu?wd=rust")
+            .send(router)
+            .await
+            .take_string()
+            .await
             .unwrap();
-        let content = service.handle(req).await.take_text().await.unwrap();
         assert!(content.contains("baidu"));
     }
     #[test]
