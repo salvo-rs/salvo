@@ -211,8 +211,7 @@ mod tests {
         async fn handle_custom() -> Result<(), CustomError> {
             Err(CustomError)
         }
-        let router = Router::new()
-            .push(Router::with_path("custom").get(handle_custom));
+        let router = Router::new().push(Router::with_path("custom").get(handle_custom));
         let service = Service::new(router);
 
         async fn access(service: &Service, name: &str) -> String {

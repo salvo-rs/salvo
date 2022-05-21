@@ -123,7 +123,7 @@ impl FlowCtrl {
 mod tests {
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
-    
+
     #[tokio::test]
     async fn test_custom_filter() {
         #[fn_handler(internal)]
