@@ -131,26 +131,22 @@ mod tests {
             res.render(Json(User { name: "jobs".into() }));
         }
         let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
-
+        let listener = TcpListener::bind("127.0.0.1:0");
+        let addr = listener.local_addr();
         let server = tokio::task::spawn(async {
-            Server::new(TcpListener::bind(([0, 0, 0, 0], 7979))).serve(router).await;
+            Server::new(listener).serve(router).await;
         });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        let base_url = format!("http://{}", addr);
         let client = reqwest::Client::new();
-        let result = client
-            .get("http://127.0.0.1:7979")
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let result = client.get(&base_url).send().await.unwrap().text().await.unwrap();
         assert_eq!(result, "Hello World");
 
         let client = reqwest::Client::new();
         let result = client
-            .get("http://127.0.0.1:7979/json")
+            .get(format!("{}/json", base_url))
             .send()
             .await
             .unwrap()
@@ -160,7 +156,7 @@ mod tests {
         assert_eq!(result, r#"{"name":"jobs"}"#);
 
         let result = client
-            .get("http://127.0.0.1:7979/not_exist")
+            .get(format!("{}/not_exist", base_url))
             .send()
             .await
             .unwrap()
@@ -169,7 +165,7 @@ mod tests {
             .unwrap();
         assert!(result.contains("Not Found"));
         let result = client
-            .get("http://127.0.0.1:7979/not_exist")
+            .get(format!("{}/not_exist", base_url))
             .header("accept", "application/json")
             .send()
             .await
@@ -179,7 +175,7 @@ mod tests {
             .unwrap();
         assert!(result.contains(r#""code":404"#));
         let result = client
-            .get("http://127.0.0.1:7979/not_exist")
+            .get(format!("{}/not_exist", base_url))
             .header("accept", "text/plain")
             .send()
             .await
@@ -189,7 +185,7 @@ mod tests {
             .unwrap();
         assert!(result.contains("code:404"));
         let result = client
-            .get("http://127.0.0.1:7979/not_exist")
+            .get(format!("{}/not_exist", base_url))
             .header("accept", "application/xml")
             .send()
             .await

@@ -195,11 +195,24 @@ pub struct TcpListener {
     incoming: AddrIncoming,
 }
 impl TcpListener {
+    /// Get the [`AddrIncoming] of this listener.
+    #[inline]
+    pub fn incoming(&self) -> &AddrIncoming {
+        &self.incoming
+    }
+
+    /// Get the local address bound to this listener.
+    #[inline]
+    pub fn local_addr(&self) -> std::net::SocketAddr {
+        self.incoming.local_addr()
+    }
+
     /// Bind to socket address.
     #[inline]
     pub fn bind(incoming: impl IntoAddrIncoming) -> Self {
         Self::try_bind(incoming).unwrap()
     }
+
     /// Try to bind to socket address.
     #[inline]
     pub fn try_bind(incoming: impl IntoAddrIncoming) -> Result<Self, hyper::Error> {

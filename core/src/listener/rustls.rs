@@ -281,10 +281,15 @@ where
 }
 
 impl<C> RustlsListener<C> {
-    /// Get local address
+    /// Get the [`AddrIncoming] of this listener.
     #[inline]
-    pub fn local_addr(&self) -> SocketAddr {
-        self.incoming.local_addr().into()
+    pub fn incoming(&self) -> &AddrIncoming {
+        &self.incoming
+    }
+
+    /// Get the local address bound to this listener.
+    pub fn local_addr(&self) -> std::net::SocketAddr {
+        self.incoming.local_addr()
     }
 }
 impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
@@ -480,13 +485,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 7978));
         let mut listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
                 .with_key_path("certs/end.rsa")
                 .with_cert_path("certs/end.cert"),
         )
-        .bind(addr);
+        .bind("127.0.0.1:0");
+        let addr = listener.local_addr();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();

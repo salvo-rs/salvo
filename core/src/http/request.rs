@@ -653,7 +653,6 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::hyper;
     use crate::test::TestClient;
 
     #[tokio::test]
@@ -701,14 +700,14 @@ mod tests {
     }
     #[tokio::test]
     async fn test_query() {
-        let mut req = TestClient::get("http://127.0.0.1:7979/hello?q=rust").build();
+        let mut req = TestClient::get("http://127.0.0.1:7878/hello?q=rust").build();
         assert_eq!(req.queries().len(), 1);
         assert_eq!(req.query::<String>("q").unwrap(), "rust");
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
     }
     #[tokio::test]
     async fn test_form() {
-        let mut req = TestClient::post("http://127.0.0.1:7979/hello?q=rust")
+        let mut req = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
             .insert_header("content-type", "application/x-www-form-urlencoded")
             .raw_form("lover=dog&money=sh*t&q=firefox")
             .build();
@@ -716,13 +715,11 @@ mod tests {
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
         assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
-        let mut req: Request = hyper::Request::builder()
-            .method("POST")
-            .header(
+        let mut req: Request = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
+            .insert_header(
                 "content-type",
                 "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
             )
-            .uri("http://127.0.0.1:7979/hello?q=rust")
             .body(
                 "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
 Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
@@ -730,11 +727,9 @@ Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
 Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\
 Content-Type: text/plain\r\n\r\n\
 file content\r\n\
-------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n"
-                    .into(),
+------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n",
             )
-            .unwrap()
-            .into();
+            .build();
         assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
         let file = req.file("file1").await.unwrap();
         assert_eq!(file.name().unwrap(), "err.txt");

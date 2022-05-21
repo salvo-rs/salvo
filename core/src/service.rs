@@ -126,8 +126,8 @@ impl Service {
     /// #[tokio::main]
     /// async fn main() {
     ///     let service: Service = Router::new().get(hello_world).into();
-    ///     let req = hyper::Request::builder().method("GET").uri("http://127.0.0.1:7878").body(hyper::Body::empty()).unwrap();
-    ///     assert_eq!(service.handle(req).await.take_string().await.unwrap(), "Hello World");
+    ///     let mut res = TestClient::get("http://127.0.0.1:7878").send(&service).await;
+    ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
     /// }
     /// ```
     #[inline]
