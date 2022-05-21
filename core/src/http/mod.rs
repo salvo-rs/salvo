@@ -13,7 +13,7 @@ pub use http::method::Method;
 pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
 pub use mime::Mime;
 pub use range::HttpRange;
-pub use request::Request;
+pub use request::{ParseSource, Request};
 pub use response::Response;
 
 #[inline]

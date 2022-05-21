@@ -37,6 +37,17 @@ pub enum ParseSource {
     /// Parse from form.
     Form = 0b1000,
 }
+impl ParseSource {
+    /// Parse request data from queries and form.
+    pub fn queries_and_form() -> BitFlags<Self> {
+        Self::Queries | Self::Form
+    }
+
+    /// Parse request data from params, queries and form.
+    pub fn all() -> BitFlags<Self> {
+        Self::Params | Self::Queries | Self::Headers | Self::Form
+    }
+}
 
 /// Represents an HTTP request.
 ///
@@ -518,10 +529,9 @@ impl Request {
     /// Returns error if the same key is appeared in different sources.
     /// This function will not handle if payload is json format, use [`pase_json`] to get typed json payload.
     #[inline]
-    pub async fn parse_data<'de, T, S>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
+    pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
-        S: AsRef<str>,
     {
         if sources == ParseSource::Params {
             self.parse_params()

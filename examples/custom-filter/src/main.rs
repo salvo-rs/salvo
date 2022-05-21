@@ -9,11 +9,11 @@ async fn hello_world() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(route()).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
 }
 
-// only allow access from http://localhost:7878/, http://0.0.0.0:7878/ will get not found page.
+// only allow access from http://localhost:7878/, http://127.0.0.1:7878/ will get not found page.
 fn route() -> Router {
     Router::new()
         .filter_fn(|req, _| {

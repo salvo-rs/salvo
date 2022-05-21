@@ -29,7 +29,7 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// Server::new(TcpListener::bind("0.0.0.0:7878"));
+    /// Server::new(TcpListener::bind("127.0.0.1:7878"));
     /// # }
     /// ```
     #[inline]
