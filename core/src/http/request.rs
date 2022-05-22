@@ -17,7 +17,7 @@ use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
-use crate::de::{from_str_map, from_str_multi_map};
+use crate::serde::{from_str_map, from_str_multi_map};
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;

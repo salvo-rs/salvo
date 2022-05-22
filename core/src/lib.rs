@@ -15,7 +15,7 @@ mod cfg;
 
 pub mod addr;
 pub mod catcher;
-pub(crate) mod de;
+pub(crate) mod serde;
 mod depot;
 mod error;
 pub mod fs;
