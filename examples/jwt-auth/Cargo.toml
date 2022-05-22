@@ -6,6 +6,7 @@ publish = false
 
 
 [dependencies]
+anyhow = "1"
 chrono = "0.4"
 jsonwebtoken = "8.0"
 salvo = { path = "../../salvo", features = ["anyhow", "jwt-auth"] }

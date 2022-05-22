@@ -5,6 +5,7 @@ use std::fmt::{self, Formatter};
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
+use enumflags2::{bitflags, BitFlags};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -13,13 +14,29 @@ use http::{self, Extensions, Uri};
 pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
-use serde::de::DeserializeOwned;
+use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
-use crate::http::errors::ParseError;
-use crate::http::form::{self, FilePart, FormData};
+use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
+use crate::http::ParseError;
+use crate::serde::{from_str_map, from_str_multi_map};
+
+/// ParseSource
+#[bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ParseSource {
+    /// Parse from url router params.
+    Params = 0b0001,
+    /// Parse from url queries.
+    Queries = 0b0010,
+    /// Parse from headers.
+    Headers = 0b0100,
+    /// Parse from form.
+    Form = 0b1000,
+}
 
 /// Represents an HTTP request.
 ///
@@ -66,6 +83,7 @@ impl fmt::Debug for Request {
 }
 
 impl Default for Request {
+    #[inline]
     fn default() -> Request {
         Request::new()
     }
@@ -121,6 +139,7 @@ impl From<hyper::Request<Body>> for Request {
 
 impl Request {
     /// Creates a new blank `Request`
+    #[inline]
     pub fn new() -> Request {
         Request {
             uri: Uri::default(),
@@ -243,7 +262,7 @@ impl Request {
 
     /// Get header with supplied name and try to parse to a 'T', returns None if failed or not found.
     #[inline]
-    pub fn get_header<T>(&self, key: &str) -> Option<T>
+    pub fn header<T>(&self, key: &str) -> Option<T>
     where
         T: FromStr,
     {
@@ -354,7 +373,7 @@ impl Request {
     }
     /// Get `Cookie` from cookies.
     #[inline]
-    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
         T: AsRef<str>,
     {
@@ -373,7 +392,7 @@ impl Request {
 
     /// Get param value from params.
     #[inline]
-    pub fn get_param<T>(&self, key: &str) -> Option<T>
+    pub fn param<T>(&self, key: &str) -> Option<T>
     where
         T: FromStr,
     {
@@ -390,7 +409,7 @@ impl Request {
     }
     /// Get query value from queries.
     #[inline]
-    pub fn get_query<F>(&self, key: &str) -> Option<F>
+    pub fn query<F>(&self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
@@ -399,46 +418,59 @@ impl Request {
 
     /// Get field data from form.
     #[inline]
-    pub async fn get_form<F>(&mut self, key: &str) -> Option<F>
+    pub async fn form<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
         self.form_data()
             .await
-            .as_ref()
             .ok()
             .and_then(|ps| ps.fields.get(key))
             .and_then(|v| v.parse::<F>().ok())
     }
-    /// Get `FilePart` reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn get_file(&mut self, key: &str) -> Option<&FilePart> {
-        self.form_data().await.as_ref().ok().and_then(|ps| ps.files.get(key))
+    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
+        self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
-    /// Get `FilePart` lsit reference from request.
+    /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn get_files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+    pub async fn first_file(&mut self) -> Option<&FilePart> {
         self.form_data()
             .await
-            .as_ref()
             .ok()
-            .and_then(|ps| ps.files.get_vec(key))
+            .and_then(|ps| ps.files.iter().next())
+            .map(|(_, f)| f)
+    }
+    /// Get [`FilePart`] list reference from request.
+    #[inline]
+    pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+        self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
+    }
+    /// Get [`FilePart`] list reference from request.
+    #[inline]
+    pub async fn all_files(&mut self) -> Vec<&FilePart> {
+        self.form_data()
+            .await
+            .ok()
+            .map(|ps| ps.files.iter().map(|(_, f)| f).collect())
+            .unwrap_or_default()
     }
     /// Get value from form first if not found then get from query.
     #[inline]
-    pub async fn get_form_or_query<F>(&mut self, key: &str) -> Option<F>
+    pub async fn form_or_query<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
-        self.get_form(key.as_ref()).await.or_else(|| self.get_query(key))
+        self.form(key.as_ref()).await.or_else(|| self.query(key))
     }
     /// Get value from query first if not found then get from form.
     #[inline]
-    pub async fn get_query_or_form<F>(&mut self, key: &str) -> Option<F>
+    pub async fn query_or_form<F>(&mut self, key: &str) -> Option<F>
     where
         F: FromStr,
     {
-        self.get_query(key.as_ref()).or(self.get_form(key).await)
+        self.query(key.as_ref()).or(self.form(key).await)
     }
 
     /// Get request payload.
@@ -447,7 +479,10 @@ impl Request {
         self.payload
             .get_or_try_init(|| async {
                 match body {
-                    Some(body) => read_body_bytes(body).await,
+                    Some(body) => hyper::body::to_bytes(body)
+                        .await
+                        .map(|d| d.to_vec())
+                        .map_err(ParseError::Hyper),
                     None => Err(ParseError::EmptyBody),
                 }
             })
@@ -455,6 +490,7 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
             .headers()
@@ -467,7 +503,7 @@ impl Request {
             self.form_data
                 .get_or_try_init(|| async {
                     match body {
-                        Some(body) => form::read_form_data(headers, body).await,
+                        Some(body) => FormData::read(headers, body).await,
                         None => Err(ParseError::EmptyBody),
                     }
                 })
@@ -477,30 +513,105 @@ impl Request {
         }
     }
 
-    /// Read body as text from request.
+    /// Read url params as type `T` from request's different sources.
+    ///
+    /// Returns error if the same key is appeared in different sources.
+    /// This function will not handle if payload is json format, use [`parse_json`] to get typed json payload.
     #[inline]
-    pub async fn read_text(&mut self) -> Result<&str, ParseError> {
-        self.payload()
-            .await
-            .and_then(|body| std::str::from_utf8(body).map_err(ParseError::Utf8))
-    }
-
-    /// Read body as type `T` from request.
-    #[inline]
-    pub async fn read_from_text<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
-        T: FromStr,
+        T: Deserialize<'de>,
     {
-        self.read_text()
-            .await
-            .and_then(|body| body.parse::<T>().map_err(|_| ParseError::ParseFromStr))
+        if sources == ParseSource::Params {
+            self.parse_params()
+        } else if sources == ParseSource::Queries {
+            self.parse_queries()
+        } else if sources == ParseSource::Headers {
+            self.parse_headers()
+        } else if sources == ParseSource::Form {
+            self.parse_form().await
+        } else {
+            let mut all_data: MultiMap<&str, &str> = MultiMap::new();
+            if sources.contains(ParseSource::Form) {
+                self.form_data().await?;
+                if let Some(form) = self.form_data.get() {
+                    if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
+                        return Err(ParseError::DuplicateKey);
+                    }
+                    for (k, v) in form.fields.iter() {
+                        all_data.insert(k, v);
+                    }
+                }
+            }
+            if sources.contains(ParseSource::Params) {
+                for (k, v) in self.params() {
+                    all_data.insert(k, &*v);
+                }
+            }
+            if sources.contains(ParseSource::Queries) {
+                let queries = self.queries();
+                if queries.keys().any(|key| all_data.contains_key(&**key)) {
+                    return Err(ParseError::DuplicateKey);
+                }
+                for (k, v) in queries.iter() {
+                    all_data.insert(k, v);
+                }
+            }
+            if sources.contains(ParseSource::Headers) {
+                let headers = self
+                    .headers()
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
+                    .collect::<HashMap<_, _>>();
+                if all_data.keys().any(|key| headers.contains_key(&**key)) {
+                    return Err(ParseError::DuplicateKey);
+                }
+                for (k, v) in headers.into_iter() {
+                    all_data.insert(k, v);
+                }
+            }
+            from_str_multi_map(all_data).map_err(ParseError::Deserialize)
+        }
+    }
+
+    /// Read url params as type `T` from request.
+    #[inline]
+    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Deserialize<'de>,
+    {
+        let params = self.params().iter();
+        from_str_map(params).map_err(ParseError::Deserialize)
+    }
+
+    /// Read queries as type `T` from request.
+    #[inline]
+    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Deserialize<'de>,
+    {
+        let queries = self.queries().iter_all();
+        from_str_multi_map(queries).map_err(ParseError::Deserialize)
+    }
+
+    /// Read headers as type `T` from request.
+    #[inline]
+    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Deserialize<'de>,
+    {
+        let iter = self
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()));
+        from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_json<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
         self.payload()
             .await
@@ -509,19 +620,16 @@ impl Request {
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read_from_form<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: DeserializeOwned,
+        T: Deserialize<'de>,
     {
-        self.form_data().await.and_then(|form_data| {
-            let data = serde_json::to_value(&form_data.fields)?;
-            Ok(serde_json::from_value::<T>(data)?)
-        })
+        from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize)
     }
 
     /// Read body as type `T` from request.
     #[inline]
-    pub async fn read<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -531,88 +639,87 @@ impl Request {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
         if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            self.read_from_form().await
+            self.parse_form().await
         } else if ctype.starts_with("application/json") {
-            self.read_from_json().await
+            self.parse_json().await
         } else {
             Err(ParseError::InvalidContentType)
         }
     }
 }
 
-pub(crate) async fn read_body_bytes(body: Body) -> Result<Vec<u8>, ParseError> {
-    hyper::body::to_bytes(body)
-        .await
-        .map(|d| d.to_vec())
-        .map_err(ParseError::Hyper)
-}
-
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::hyper;
+    use crate::test::TestClient;
 
     #[tokio::test]
-    async fn test_read_text() {
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://127.0.0.1:7878/hello")
-            .header("content-type", "text/plain")
-            .body("hello".into())
-            .unwrap()
-            .into();
-        assert_eq!(req.read_from_text::<String>().await.unwrap(), "hello");
-    }
-    #[tokio::test]
-    async fn test_read_json() {
+    async fn test_parse_queries() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct BadMan<'a> {
+            name: &'a str,
+            age: u8,
+            wives: Vec<String>,
+            weapons: (u64, String, String),
+        }
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct GoodMan {
+            name: String,
+            age: u8,
+            wives: String,
+            weapons: u64,
+        }
+        let mut req = TestClient::get(
+            "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
+        )
+        .build();
+        let man = req.parse_queries::<BadMan>().unwrap();
+        assert_eq!(man.name, "rust");
+        assert_eq!(man.age, 25);
+        assert_eq!(man.wives, vec!["a", "2"]);
+        assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
+        let man = req.parse_queries::<GoodMan>().unwrap();
+        assert_eq!(man.name, "rust");
+        assert_eq!(man.age, 25);
+        assert_eq!(man.wives, "a");
+        assert_eq!(man.weapons, 69);
+    }
+
+    #[tokio::test]
+    async fn test_parse_json() {
+        #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
         struct User {
             name: String,
         }
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://127.0.0.1:7878/hello")
-            .header("content-type", "application/json")
-            .body(r#"{"name": "jobs"}"#.into())
-            .unwrap()
-            .into();
-        assert_eq!(
-            req.read_from_json::<User>().await.unwrap(),
-            User { name: "jobs".into() }
-        );
+        let mut req = TestClient::get("http://127.0.0.1:7878/hello")
+            .json(&User { name: "jobs".into() })
+            .build();
+        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
-        let mut req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello?q=rust")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://127.0.0.1:7878/hello?q=rust").build();
         assert_eq!(req.queries().len(), 1);
-        assert_eq!(req.get_query::<String>("q").unwrap(), "rust");
-        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(req.query::<String>("q").unwrap(), "rust");
+        assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
     }
     #[tokio::test]
     async fn test_form() {
-        let mut req: Request = hyper::Request::builder()
-            .method("POST")
-            .header("content-type", "application/x-www-form-urlencoded")
-            .uri("http://127.0.0.1:7979/hello?q=rust")
-            .body("lover=dog&money=sh*t&q=firefox".into())
-            .unwrap()
-            .into();
-        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
-        assert_eq!(req.get_query_or_form::<String>("q").await.unwrap(), "rust");
-        assert_eq!(req.get_form_or_query::<String>("q").await.unwrap(), "firefox");
+        let mut req = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
+            .insert_header("content-type", "application/x-www-form-urlencoded")
+            .raw_form("lover=dog&money=sh*t&q=firefox")
+            .build();
+        assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
+        assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
+        assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
-        let mut req: Request = hyper::Request::builder()
-            .method("POST")
-            .header(
+        let mut req: Request = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
+            .insert_header(
                 "content-type",
                 "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
             )
-            .uri("http://127.0.0.1:7979/hello?q=rust")
             .body(
                 "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
 Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
@@ -620,16 +727,14 @@ Content-Disposition: form-data; name=\"money\"\r\n\r\nsh*t\r\n\
 Content-Disposition: form-data; name=\"file1\"; filename=\"err.txt\"\r\n\
 Content-Type: text/plain\r\n\r\n\
 file content\r\n\
-------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n"
-                    .into(),
+------WebKitFormBoundary0mkL0yrNNupCojyz--\r\n",
             )
-            .unwrap()
-            .into();
-        assert_eq!(req.get_form::<String>("money").await.unwrap(), "sh*t");
-        let file = req.get_file("file1").await.unwrap();
-        assert_eq!(file.file_name().unwrap(), "err.txt");
+            .build();
+        assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
+        let file = req.file("file1").await.unwrap();
+        assert_eq!(file.name().unwrap(), "err.txt");
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
-        let files = req.get_files("file1").await.unwrap();
-        assert_eq!(files[0].file_name().unwrap(), "err.txt");
+        let files = req.files("file1").await.unwrap();
+        assert_eq!(files[0].name().unwrap(), "err.txt");
     }
 }

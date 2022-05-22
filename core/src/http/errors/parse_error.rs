@@ -2,10 +2,14 @@ use std::io::Error as IoError;
 use std::str::Utf8Error;
 
 use async_trait::async_trait;
+use serde::de::value::Error as DeError;
 use thiserror::Error;
 
-use crate::http::errors::StatusError;
+use crate::http::StatusError;
 use crate::{Depot, Request, Response, Writer};
+
+/// Resut type with `ParseError` has it's error type.
+pub type ParseResult<T> = Result<T, ParseError>;
 
 /// ParseError, errors happened when read data from http request.
 #[derive(Error, Debug)]
@@ -18,9 +22,21 @@ pub enum ParseError {
     #[error("The Hyper request's body is empty.")]
     EmptyBody,
 
-    /// Parse error when pase from str.
-    #[error("Parse error when pase from str.")]
+    /// Parse error when parse from str.
+    #[error("Parse error when parse from str.")]
     ParseFromStr,
+
+    /// Parse error when parse from str.
+    #[error("Parse error when decode url.")]
+    UrlDecode,
+
+    /// Deserialize error when parse from request.
+    #[error("Deserialize error.")]
+    Deserialize(#[from] DeError),
+
+    /// DuplicateKey.
+    #[error("DuplicateKey.")]
+    DuplicateKey,
 
     /// The Hyper request Content-Type top-level Mime was not `Multipart`.
     #[error("The Hyper request Content-Type top-level Mime was not `Multipart`.")]
@@ -35,19 +51,19 @@ pub enum ParseError {
     InvalidRange,
 
     /// An multer error.
-    #[error("An multer error from: {0}")]
+    #[error("Multer error: {0}")]
     Multer(#[from] multer::Error),
 
     /// An I/O error.
-    #[error("An I/O error: {}", _0)]
+    #[error("I/O error: {}", _0)]
     Io(#[from] IoError),
 
     /// An error was returned from hyper.
-    #[error("An error was returned from hyper: {0}")]
+    #[error("Hyper error: {0}")]
     Hyper(#[from] hyper::Error),
 
     /// An error occurred during UTF-8 processing.
-    #[error("An error occurred during UTF-8 processing: {0}")]
+    #[error("UTF-8 processing error: {0}")]
     Utf8(#[from] Utf8Error),
 
     /// Serde json error.
@@ -57,6 +73,7 @@ pub enum ParseError {
 
 #[async_trait]
 impl Writer for ParseError {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         res.set_status_error(
             StatusError::internal_server_error()

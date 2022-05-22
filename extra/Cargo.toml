@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.21.5"
+version = "0.24.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -21,18 +21,18 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["full"]
 full = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
 basic-auth = ["base64"]
-jwt-auth = ["cookie", "jsonwebtoken", "once_cell"]
-compression = ["async-compression", "tokio", "tokio-stream", "tokio-util"]
-cors = []
-csrf = ["hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "generic-array", "hmac"]
+jwt-auth = ["jsonwebtoken", "once_cell", "serde"]
+compression = ["async-compression", "tokio", "tokio-stream", "tokio-util", "tracing"]
+cors = ["tracing"]
+csrf = ["cookie", "hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "hmac", "tracing"]
 size-limiter = []
-logging = []
-proxy = ["hyper", "hyper-rustls/webpki-tokio"]
-serve-static = ["chrono", "mime", "percent-encoding", "tokio"]
-session = ["async-session", "cookie"]
-sse = ["futures-util", "pin-project", "tokio"]
+logging = ["tracing"]
+proxy = ["hyper", "hyper-rustls/webpki-tokio", "percent-encoding", "tracing"]
+serve-static = ["chrono", "mime", "percent-encoding", "tokio", "serde", "serde_json"]
+session = ["async-session", "cookie", "tracing"]
+sse = ["futures-util", "pin-project", "tokio", "serde", "serde_json", "tracing"]
 timeout = []
-ws = ["futures-util", "tokio", "tokio-tungstenite"]
+ws = ["futures-util", "tokio", "tokio-tungstenite", "tracing"]
 
 [dependencies]
 aead = { version = "0.4", optional = true }
@@ -46,7 +46,6 @@ chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 data-encoding = { version = "2.0.0", optional = true }
 futures-util = { version = "0.3", default-features = false, optional = true }
-generic-array = { version = "0.14", optional = true }
 hkdf = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
@@ -57,16 +56,16 @@ once_cell = { version = "1", optional = true }
 percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
 rand = { version = "0.8", optional = true }
-salvo_core = { version = "0.21", default-features = false, path = "../core" }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1" }
+salvo_core = { version = "0.24", default-features = false, path = "../core" }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
 tokio = { version = "1", features = ["fs", "sync", "time"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.17", default-features = false, optional = true }
 tokio-util = { version = "0.7", features = ["io"], optional = true }
-tracing = { version = "0.1" }
+tracing = { version = "0.1", optional = true }
 
 [dev-dependencies]
-reqwest = "0.11"
+salvo_core = { features = ["test"], path = "../core" }
 tracing-test = "0.2.1"

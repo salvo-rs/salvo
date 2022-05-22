@@ -34,8 +34,8 @@ async fn main() {
         });
     println!("{:#?}", router);
 
-    tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[fn_handler]
@@ -48,7 +48,7 @@ async fn debug(res: &mut Response) {
 }
 #[fn_handler]
 async fn index(res: &mut Response) {
-    res.render(Text::Plain("Hello world!"));
+    res.render(Text::Plain("Hello World!"));
 }
 #[fn_handler]
 async fn auth(res: &mut Response) {

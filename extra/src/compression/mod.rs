@@ -125,59 +125,57 @@ impl Handler for CompressionHandler {
         {
             return;
         }
-        if let Some(body) = res.take_body() {
-            match body {
-                Body::Empty => {
+        match res.take_body() {
+            Body::None => {
+                return;
+            }
+            Body::Bytes(body) => {
+                if body.len() < self.min_length {
+                    res.set_body(Body::Bytes(body));
                     return;
                 }
-                Body::Bytes(body) => {
-                    if body.len() < self.min_length {
-                        res.set_body(Some(Body::Bytes(body)));
-                        return;
+                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(body)));
+                match self.algo {
+                    CompressionAlgo::Gzip => {
+                        let stream = ReaderStream::new(GzipEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
+                        }
                     }
-                    let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(body)));
-                    match self.algo {
-                        CompressionAlgo::Gzip => {
-                            let stream = ReaderStream::new(GzipEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
+                    CompressionAlgo::Deflate => {
+                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
                         }
-                        CompressionAlgo::Deflate => {
-                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
-                        }
-                        CompressionAlgo::Brotli => {
-                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
+                    }
+                    CompressionAlgo::Brotli => {
+                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
                         }
                     }
                 }
-                Body::Stream(body) => {
-                    let body = body.map(|item| item.map_err(|_| ErrorKind::Other));
-                    let reader = StreamReader::new(body);
-                    match self.algo {
-                        CompressionAlgo::Gzip => {
-                            let stream = ReaderStream::new(GzipEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
+            }
+            Body::Stream(body) => {
+                let body = body.map(|item| item.map_err(|_| ErrorKind::Other));
+                let reader = StreamReader::new(body);
+                match self.algo {
+                    CompressionAlgo::Gzip => {
+                        let stream = ReaderStream::new(GzipEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
                         }
-                        CompressionAlgo::Deflate => {
-                            let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
+                    }
+                    CompressionAlgo::Deflate => {
+                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
                         }
-                        CompressionAlgo::Brotli => {
-                            let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                            if let Err(e) = res.streaming(stream) {
-                                tracing::error!(error = ?e, "request streaming error");
-                            }
+                    }
+                    CompressionAlgo::Brotli => {
+                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
                         }
                     }
                 }
@@ -202,6 +200,7 @@ impl Handler for CompressionHandler {
 ///     .hoop(compression::gzip())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn gzip() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Gzip)
 }
@@ -220,6 +219,7 @@ pub fn gzip() -> CompressionHandler {
 ///     .hoop(compression::deflate())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn deflate() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Deflate)
 }
@@ -238,14 +238,15 @@ pub fn deflate() -> CompressionHandler {
 ///     .hoop(compression::brotli())
 ///     .get(FileHandler::new("./README.md"));
 /// ```
+#[inline]
 pub fn brotli() -> CompressionHandler {
     CompressionHandler::new(CompressionAlgo::Brotli)
 }
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -258,17 +259,10 @@ mod tests {
     async fn test_gzip() {
         let comp_handler = gzip().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
-        let mut res = service.handle(req).await;
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "gzip");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -276,17 +270,10 @@ mod tests {
     async fn test_brotli() {
         let comp_handler = brotli().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
-
-        let req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
-        let mut res = service.handle(req).await;
+        
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "br");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -294,15 +281,10 @@ mod tests {
     async fn test_deflate() {
         let comp_handler = deflate().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        let service = Service::new(router);
-
-        let request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/hello");
-        let req: Request = request.body(hyper::Body::empty()).unwrap().into();
-        let mut res = service.handle(req).await;
+       
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
         assert_eq!(res.headers().get("content-encoding").unwrap(), "deflate");
-        let content = res.take_text().await.unwrap();
+        let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 }

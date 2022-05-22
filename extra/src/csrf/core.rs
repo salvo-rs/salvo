@@ -31,6 +31,7 @@ pub enum CsrfError {
 impl Error for CsrfError {}
 
 impl Display for CsrfError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             CsrfError::InternalError => write!(f, "CSRF library error"),
@@ -48,22 +49,26 @@ pub struct CsrfToken {
 
 impl CsrfToken {
     /// Create a new token from the given bytes.
+    #[inline]
     pub fn new(bytes: Vec<u8>) -> Self {
         // TODO make this return a Result and check that bytes is long enough
         CsrfToken { bytes }
     }
 
     /// Retrieve the CSRF token as a base64 encoded string.
+    #[inline]
     pub fn b64_string(&self) -> String {
         BASE64.encode(&self.bytes)
     }
 
     /// Retrieve the CSRF token as a URL safe base64 encoded string.
+    #[inline]
     pub fn b64_url_string(&self) -> String {
         BASE64URL.encode(&self.bytes)
     }
 
     /// Get be raw value of this token.
+    #[inline]
     pub fn value(&self) -> &[u8] {
         &self.bytes
     }
@@ -77,17 +82,20 @@ pub struct CsrfCookie {
 
 impl CsrfCookie {
     /// Create a new cookie from the given token bytes.
+    #[inline]
     pub fn new(bytes: Vec<u8>) -> Self {
         // TODO make this return a Result and check that bytes is long enough
         CsrfCookie { bytes }
     }
 
     /// Get the base64 value of this cookie.
+    #[inline]
     pub fn b64_string(&self) -> String {
         BASE64.encode(&self.bytes)
     }
 
     /// Get be raw value of this cookie.
+    #[inline]
     pub fn value(&self) -> &[u8] {
         &self.bytes
     }
@@ -101,17 +109,13 @@ pub struct UnencryptedCsrfToken {
 
 impl UnencryptedCsrfToken {
     /// Create a new unenrypted token.
+    #[inline]
     pub fn new(token: Vec<u8>) -> Self {
         UnencryptedCsrfToken { token }
     }
 
     /// Retrieve the token value as bytes.
-    #[deprecated]
-    pub fn token(&self) -> &[u8] {
-        &self.token
-    }
-
-    /// Retrieve the token value as bytes.
+    #[inline]
     pub fn value(&self) -> &[u8] {
         &self.token
     }
@@ -126,11 +130,13 @@ pub struct UnencryptedCsrfCookie {
 
 impl UnencryptedCsrfCookie {
     /// Create a new unenrypted cookie.
+    #[inline]
     pub fn new(expires: i64, token: Vec<u8>) -> Self {
         UnencryptedCsrfCookie { expires, token }
     }
 
     /// Retrieve the token value as bytes.
+    #[inline]
     pub fn value(&self) -> &[u8] {
         &self.token
     }
@@ -152,6 +158,7 @@ pub trait CsrfProtection: Send + Sync {
 
     /// Given a token pair that has been parsed, decoded, decrypted, and verified, return whether
     /// or not the token matches the cookie and they have not expired.
+    #[inline]
     fn verify_token_pair(&self, token: &UnencryptedCsrfToken, cookie: &UnencryptedCsrfCookie) -> bool {
         let tokens_match = token.token == cookie.token;
         if !tokens_match {
@@ -172,6 +179,7 @@ pub trait CsrfProtection: Send + Sync {
     }
 
     /// Given a buffer, fill it with random bytes or error if this is not possible.
+    #[inline]
     fn random_bytes(&self, buf: &mut [u8]) -> Result<(), CsrfError> {
         // TODO We had to get rid of `ring` because of `gcc` conflicts with `rust-crypto`, and
         // `ring`'s RNG didn't require mutability. Now create a new one per call which is not a
@@ -181,6 +189,7 @@ pub trait CsrfProtection: Send + Sync {
     }
 
     /// Given an optional previous token and a TTL, generate a matching token and cookie pair.
+    #[inline]
     fn generate_token_pair(
         &self,
         previous_token_value: Option<&[u8; 64]>,
@@ -210,10 +219,12 @@ pub struct HmacCsrfProtection {
 
 impl HmacCsrfProtection {
     /// Given an HMAC key, return an `HmacCsrfProtection` instance.
+    #[inline]
     pub fn from_key(hmac_key: [u8; 32]) -> Self {
         HmacCsrfProtection { hmac_key }
     }
 
+    #[inline]
     fn hmac(&self) -> Hmac<Sha256> {
         Hmac::<Sha256>::new_from_slice(&self.hmac_key).expect("HMAC can take key of any size")
     }
@@ -298,10 +309,12 @@ pub struct AesGcmCsrfProtection {
 
 impl AesGcmCsrfProtection {
     /// Given an AES256 key, return an `AesGcmCsrfProtection` instance.
+    #[inline]
     pub fn from_key(aead_key: [u8; 32]) -> Self {
         AesGcmCsrfProtection { aead_key }
     }
 
+    #[inline]
     fn aead(&self) -> Aes256Gcm {
         let key = GenericArray::clone_from_slice(&self.aead_key);
         Aes256Gcm::new(&key)
@@ -410,10 +423,12 @@ pub struct ChaCha20Poly1305CsrfProtection {
 
 impl ChaCha20Poly1305CsrfProtection {
     /// Given a key, return a `ChaCha20Poly1305CsrfProtection` instance.
+    #[inline]
     pub fn from_key(aead_key: [u8; 32]) -> Self {
         ChaCha20Poly1305CsrfProtection { aead_key }
     }
 
+    #[inline]
     fn aead(&self) -> ChaCha20Poly1305 {
         let key = GenericArray::clone_from_slice(&self.aead_key);
         ChaCha20Poly1305::new(&key)
@@ -532,14 +547,17 @@ impl MultiCsrfProtection {
 }
 
 impl CsrfProtection for MultiCsrfProtection {
+    #[inline]
     fn generate_cookie(&self, token_value: &[u8; 64], ttl_seconds: i64) -> Result<CsrfCookie, CsrfError> {
         self.current.generate_cookie(token_value, ttl_seconds)
     }
 
+    #[inline]
     fn generate_token(&self, token_value: &[u8; 64]) -> Result<CsrfToken, CsrfError> {
         self.current.generate_token(token_value)
     }
 
+    #[inline]
     fn parse_cookie(&self, cookie: &[u8]) -> Result<UnencryptedCsrfCookie, CsrfError> {
         match self.current.parse_cookie(cookie) {
             Ok(token) => return Ok(token),
@@ -554,6 +572,7 @@ impl CsrfProtection for MultiCsrfProtection {
         Err(CsrfError::ValidationFailure)
     }
 
+    #[inline]
     fn parse_token(&self, token: &[u8]) -> Result<UnencryptedCsrfToken, CsrfError> {
         match self.current.parse_token(token) {
             Ok(token) => return Ok(token),

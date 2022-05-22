@@ -94,6 +94,7 @@ where
 }
 
 impl<T, F> fmt::Debug for AndThen<T, F> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "opt:and_then")
     }

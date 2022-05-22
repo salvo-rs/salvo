@@ -16,6 +16,7 @@ pub(crate) struct ResolveServerCert {
 }
 
 impl ResolveServerCert {
+    #[inline]
     pub(crate) fn will_expired(&self, before: Duration) -> bool {
         let cert = self.cert.read();
         match cert
@@ -34,6 +35,7 @@ impl ResolveServerCert {
 }
 
 impl ResolvesServerCert for ResolveServerCert {
+    #[inline]
     fn resolve(&self, client_hello: ClientHello) -> Option<Arc<CertifiedKey>> {
         if client_hello
             .alpn()

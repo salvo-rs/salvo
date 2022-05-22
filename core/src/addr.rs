@@ -16,6 +16,7 @@ pub enum SocketAddr {
     Unix(Arc<tokio::net::unix::SocketAddr>),
 }
 impl From<std::net::SocketAddr> for SocketAddr {
+    #[inline]
     fn from(addr: std::net::SocketAddr) -> Self {
         match addr {
             std::net::SocketAddr::V4(val) => SocketAddr::IPv4(val),
@@ -24,11 +25,13 @@ impl From<std::net::SocketAddr> for SocketAddr {
     }
 }
 impl From<std::net::SocketAddrV4> for SocketAddr {
+    #[inline]
     fn from(addr: std::net::SocketAddrV4) -> Self {
         SocketAddr::IPv4(addr)
     }
 }
 impl From<std::net::SocketAddrV6> for SocketAddr {
+    #[inline]
     fn from(addr: std::net::SocketAddrV6) -> Self {
         SocketAddr::IPv6(addr)
     }
@@ -36,28 +39,34 @@ impl From<std::net::SocketAddrV6> for SocketAddr {
 
 #[cfg(unix)]
 impl From<tokio::net::unix::SocketAddr> for SocketAddr {
+    #[inline]
     fn from(addr: tokio::net::unix::SocketAddr) -> Self {
         SocketAddr::Unix(addr.into())
     }
 }
 impl SocketAddr {
     /// Returns is a ipv4 socket address.
+    #[inline]
     pub fn is_ipv4(&self) -> bool {
         matches!(*self, SocketAddr::IPv4(_))
     }
     /// Returns is a ipv6 socket address.
+    #[inline]
     pub fn is_ipv6(&self) -> bool {
         matches!(*self, SocketAddr::IPv6(_))
     }
 
-    /// Returns is a unix socket address.
-    #[cfg(unix)]
-    #[cfg_attr(docsrs, doc(cfg(unix)))]
-    pub fn is_unix(&self) -> bool {
-        matches!(*self, SocketAddr::Unix(_))
+    cfg_feature! {
+        #![unix]
+        /// Returns is a unix socket address.
+        #[inline]
+        pub fn is_unix(&self) -> bool {
+            matches!(*self, SocketAddr::Unix(_))
+        }
     }
 
     /// Returns ipv6 socket address.
+    #[inline]
     pub fn as_ipv6(&self) -> Option<&std::net::SocketAddrV6> {
         match self {
             SocketAddr::IPv6(addr) => Some(addr),
@@ -65,6 +74,7 @@ impl SocketAddr {
         }
     }
     /// Returns ipv4 socket address.
+    #[inline]
     pub fn as_ipv4(&self) -> Option<&std::net::SocketAddrV4> {
         match self {
             SocketAddr::IPv4(addr) => Some(addr),
@@ -72,18 +82,21 @@ impl SocketAddr {
         }
     }
 
-    /// Returns unix socket address.
-    #[cfg(unix)]
-    #[cfg_attr(docsrs, doc(cfg(unix)))]
-    pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
-        match self {
-            SocketAddr::Unix(addr) => Some(addr),
-            _ => None,
+    cfg_feature! {
+        #![unix]
+        /// Returns unix socket address.
+        #[inline]
+        pub fn as_unix(&self) -> Option<&tokio::net::unix::SocketAddr> {
+            match self {
+                SocketAddr::Unix(addr) => Some(addr),
+                _ => None,
+            }
         }
     }
 }
 
 impl Display for SocketAddr {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SocketAddr::IPv4(addr) => write!(f, "socket://{}", addr),

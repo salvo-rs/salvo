@@ -6,6 +6,7 @@ publish = false
 
 
 [dependencies]
+anyhow = "1"
 salvo = { path = "../../salvo", features = ["anyhow"] }
 tokio = "1"
 tracing = "0.1"

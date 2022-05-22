@@ -1,4 +1,5 @@
 //! Routing and filters
+//! Router can route http requests to different handlers.
 
 pub mod filter;
 mod router;
@@ -22,6 +23,7 @@ pub struct PathState {
 }
 impl PathState {
     /// Create new `PathState`.
+    #[inline]
     pub fn new(url_path: &str) -> Self {
         let url_path = url_path.trim_start_matches('/').trim_end_matches('/');
         PathState {
@@ -30,18 +32,30 @@ impl PathState {
             params: PathParams::new(),
         }
     }
+    #[inline]
     pub(crate) fn ended(&self) -> bool {
         self.cursor >= self.url_path.len()
     }
 }
 
+#[inline]
 fn decode_url_path_safely(path: &str) -> String {
     percent_encoding::percent_decode_str(path)
         .decode_utf8_lossy()
         .to_string()
 }
 
-/// Flow Control.
+/// `FlowCtrl` is used to control the flow of execute handlers.
+///
+/// When a request is comming, [`Router`] will detect it and get the matched one.
+/// And then salvo will collect all handlers (including added as middlewares) in a list.
+/// All handlers in this list will executed one by one. Each handler can use `FlowCtrl` to control this
+/// flow, let the flow call next handler or skip all rest handlers.
+///
+/// **NOTE**: When `Response`'s status code is set, and it's `is_success()` is returns false, all rest handlers
+/// will skipped.
+///
+/// [`Router`]: crate::routing::Router
 pub struct FlowCtrl {
     is_ceased: bool,
     cursor: usize,
@@ -64,12 +78,13 @@ impl FlowCtrl {
         self.cursor < self.handlers.len() && !self.handlers.is_empty()
     }
 
-    /// Call next handler. If get next handle and executed, return true, otherwise return false.
-    /// If resposne's statuse code is not success or is redirection, all reset handlers will skipped.
+    /// Call next handler. If get next handler and executed, returns true, otherwise returns false.
+    ///
+    /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(code) = res.status_code() {
-            if code.is_redirection() || !code.is_success() {
+            if code.is_client_error() || code.is_server_error() || code.is_redirection() {
                 self.skip_rest();
                 return false;
             }
@@ -88,15 +103,52 @@ impl FlowCtrl {
         self.cursor = self.handlers.len()
     }
 
-    /// Is flow ceased
+    /// Check is `FlowCtrl` ceased.
     #[inline]
     pub fn is_ceased(&self) -> bool {
         self.is_ceased
     }
-    /// Cease all fllowwing logic
+    /// Cease all following logic.
+    ///
+    /// If handler is used as middleware, it should use `is_ceased` to check is flow is ceased.
+    /// if `is_ceased` returns true, the handler should skip the following logic.
     #[inline]
     pub fn cease(&mut self) {
         self.skip_rest();
         self.is_ceased = true;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+
+    #[tokio::test]
+    async fn test_custom_filter() {
+        #[fn_handler(internal)]
+        async fn hello_world() -> &'static str {
+            "Hello World"
+        }
+
+        let router = Router::new()
+            .filter_fn(|req, _| {
+                let host = req.uri().host().unwrap_or_default();
+                host == "localhost"
+            })
+            .get(hello_world);
+        let service = Service::new(router);
+
+        async fn access(service: &Service, host: &str) -> String {
+            TestClient::get(format!("http://{}/", host))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
+        }
+
+        assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));
+        assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 }

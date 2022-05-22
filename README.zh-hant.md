@@ -1,32 +1,43 @@
 <div align="center">
-<img alt="Savlo" src="assets/logo.svg" />
+<p><img alt="Savlo" src="assets/logo.svg" /></p>
 <p>
-
-[English](https://github.com/salvo-rs/salvo/blob/main/README.md) [简体中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md) [繁體中文](https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md)<br><br>
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
-[![build status](https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push)](https://github.com/salvo-rs/salvo/actions)
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">簡體中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+</p>
+<p>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
+</a>
 <br>
-[![crates.io](https://img.shields.io/crates/v/salvo)](https://crates.io/crates/salvo)
-[![Documentation](https://docs.rs/salvo/badge.svg)](https://docs.rs/salvo)
-[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
-[![Rust Version](https://img.shields.io/badge/rust-1.56%2B-blue)](https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html)
+<a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
+<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
 <br>
-[![codecov](https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg)](https://codecov.io/gh/salvo-rs/salvo)
-[![Download](https://img.shields.io/crates/d/salvo.svg)](https://crates.io/crates/salvo)
-[![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=blue&up_message=online&url=https%3A%2F%2Fsalvo.rs)](https://salvo.rs)
-![License](https://img.shields.io/crates/l/salvo.svg)
+<a href="https://salvo.rs">
+    <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
+</a>
+<a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
+<a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
+<img alt="License" src="https://img.shields.io/crates/l/salvo.svg" />
 </p>
 </div>
 
-Salvo 是一個極其簡單易用卻又功能強大的 Rust Web 後端框架. 僅僅需要基本的 Rust 基礎即可寫成功能強大的後端服務器, 我們的目標是: 編碼最簡單, 功能不缺失, 性能有保障.
+Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需要基礎 Rust 知識即可開發後端服務.
 
 ## 🎯 功能特色
-  - 基於hyper, tokio 的異步 Web 後端框架;
+  - 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
+  - 統一的中間件和句柄接口;
+  - 路由支持多層次嵌套, 在任何層都可以添加中間件;
+  - 集成 Multipart 錶單處理;
   - 支持 Websocket;
-  - 統一的中間件和句柄接口, 中間件係統支持在句柄之前或者之後運行;
-  - 簡單易用的路由係統, 支持路由嵌套, 在任何嵌套層都可以添加中間件;
-  - 集成 multipart 錶單處理, 處理上傳文件變得非常簡單;
   - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書;
   - 支持從多個本地目錄映射成一個虛擬目錄提供服務.
 
@@ -44,7 +55,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version = "0.24", features = ["full"] }
+salvo = "0.24"
 tokio = "1"
 ```
 
@@ -61,6 +72,25 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 
 ### 中間件
 Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處. **所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識. 隻要你會寫函數就會寫中間件, 就是這麼簡單!!!**
+
+```rust
+use salvo::http::header::{self, HeaderValue};
+use salvo::prelude::*;
+
+#[fn_handler]
+async fn add_header(res: &mut Response) {
+    res.headers_mut()
+        .insert(header::SERVER, HeaderValue::from_static("Salvo"));
+}
+```
+
+然後將它添加到路由中:
+
+```rust
+Router::new().hoop(add_header).get(hello_world)
+```
+
+這就是一個簡單的中間件, 它嚮 ```Response``` 的頭部添加了 ```Header```, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### 可鏈式書寫的樹狀路由係統
 
@@ -83,6 +113,7 @@ Router::with_path("articles")
 ```
 
 然後把需要用戶登錄的路由寫到一起， 並且使用相應的中間件驗證用戶是否登錄：
+
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
@@ -111,15 +142,32 @@ Router::new()
 
 還可以通過 ```<*>``` 或者 ```<**>``` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: ```<**file_path>```.
 
+有些用於匹配路徑的正則錶達式需要經常被使用, 可以將它事先註冊, 比如 GUID:
+
+```rust
+PathFilter::register_part_regex(
+    "guid",
+    Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+);
+```
+
+這樣在需要路徑匹配時就變得更簡潔:
+
+```rust
+Router::with_path("<id:guid>").get(index)
+```
+
+查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
+
 ### 文件上傳
-可以通過 Request 中的 get_file 異步獲取上傳的文件:
+可以通過 ```Request``` 中的 ```file``` 異步獲取上傳的文件:
 
 ```rust
 #[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
-    let file = req.get_file("file").await;
+    let file = req.file("file").await;
     if let Some(file) = file {
-        let dest = format!("temp/{}", file.filename().unwrap_or_else(|| "file".into()));
+        let dest = format!("temp/{}", file.name().unwrap_or_else(|| "file".into()));
         if let Err(e) = std::fs::copy(&file.path, Path::new(&dest)) {
             res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         } else {
@@ -161,6 +209,7 @@ Benchmark 測試結果可以從這裏查看:
   - 在博客或者技術平臺發錶 Salvo 相關的技術文章。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
+
 ## ☕ 支持
 
 `Salvo`是一個開源項目, 如果想支持本項目, 可以 ☕ [**在這裏買一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 

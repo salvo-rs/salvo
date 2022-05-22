@@ -9,30 +9,24 @@ use tokio::fs::File;
 use std::os::unix::fs::MetadataExt;
 
 use async_trait::async_trait;
-use bitflags::bitflags;
+use enumflags2::{bitflags, BitFlags};
 use headers::*;
 use mime_guess::from_path;
 
 use super::{ChunkedState, FileChunk};
-use crate::http::errors::StatusError;
 use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
-use crate::http::{HttpRange, Request, Response, StatusCode};
+use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
 
-bitflags! {
-    pub(crate) struct Flags: u8 {
-        const ETAG = 0b0000_0001;
-        const LAST_MODIFIED = 0b0000_0010;
-        const CONTENT_DISPOSITION = 0b0000_0100;
-    }
-}
-
-impl Default for Flags {
-    fn default() -> Self {
-        Flags::all()
-    }
+#[bitflags(default = Etag | LastModified | ContentDisposition)]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) enum Flag {
+    Etag = 0b0001,
+    LastModified = 0b0010,
+    ContentDisposition = 0b0100,
 }
 
 /// A file with an associated name.
@@ -43,63 +37,82 @@ pub struct NamedFile {
     modified: Option<SystemTime>,
     buffer_size: u64,
     metadata: Metadata,
-    flags: Flags,
+    flags: BitFlags<Flag>,
     content_type: mime::Mime,
     content_disposition: HeaderValue,
     content_encoding: Option<HeaderValue>,
 }
 
-/// Builder for build `NamedFile`.
+/// Builder for build [`NamedFile`].
 #[derive(Clone)]
 pub struct NamedFileBuilder {
     path: PathBuf,
-    attached_filename: Option<String>,
+    attached_name: Option<String>,
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
     content_disposition: Option<String>,
     buffer_size: Option<u64>,
-    flags: Flags,
+    flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
-    /// Set attached filename and returns Self.
+    /// Set attached filename and returns `Self`.
     #[inline]
-    pub fn with_attached_filename<T: Into<String>>(mut self, attached_filename: T) -> Self {
-        self.attached_filename = Some(attached_filename.into());
+    pub fn with_attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
+        self.attached_name = Some(attached_name.into());
         self
     }
-    /// Set disposition encoding and returns Self.
+    /// Set disposition encoding and returns `Self`.
     #[inline]
     pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
         self
     }
-    /// Set content type and returns Self.
+    /// Set content type and returns `Self`.
     #[inline]
     pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
-    /// Set content encoding and returns Self.
+    /// Set content encoding and returns `Self`.
     #[inline]
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
     }
-    /// Set buffer size and returns Self.
+    /// Set buffer size and returns `Self`.
     #[inline]
     pub fn with_buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
         self
     }
-    /// Specifies whether to use ETag or not.
+
+    ///Specifies whether to use ETag or not.
     ///
-    /// Default is true.
+    ///Default is true.
     #[inline]
     pub fn use_etag(mut self, value: bool) -> Self {
-        self.flags.set(Flags::ETAG, value);
+        if value {
+            self.flags.insert(Flag::Etag);
+        } else {
+            self.flags.remove(Flag::Etag);
+        }
         self
     }
+
+    ///Specifies whether to use Last-Modified or not.
+    ///
+    ///Default is true.
+    #[inline]
+    pub fn use_last_modified(mut self, value: bool) -> Self {
+        if value {
+            self.flags.insert(Flag::LastModified);
+        } else {
+            self.flags.remove(Flag::LastModified);
+        }
+        self
+    }
+
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req: &mut Request, res: &mut Response) {
         if !self.path.exists() {
@@ -111,7 +124,7 @@ impl NamedFileBuilder {
             }
         }
     }
-    /// Build a new `NamedFile`.
+    /// Build a new [`NamedFile`].
     pub async fn build(self) -> Result<NamedFile> {
         let NamedFileBuilder {
             path,
@@ -120,7 +133,7 @@ impl NamedFileBuilder {
             content_disposition,
             buffer_size,
             disposition_type,
-            attached_filename,
+            attached_name,
             flags,
         } = self;
 
@@ -140,7 +153,7 @@ impl NamedFileBuilder {
         });
         let content_disposition = content_disposition.unwrap_or_else(|| {
             disposition_type.unwrap_or_else(|| {
-                let disposition_type = if attached_filename.is_some() {
+                let disposition_type = if attached_name.is_some() {
                     "attachment"
                 } else {
                     match (content_type.type_(), content_type.subtype()) {
@@ -150,14 +163,14 @@ impl NamedFileBuilder {
                     }
                 };
                 if disposition_type == "attachment" {
-                    let filename = match attached_filename {
-                        Some(filename) => filename,
+                    let file_name = match attached_name {
+                        Some(file_name) => file_name,
                         None => path
                             .file_name()
-                            .map(|filename| filename.to_string_lossy().to_string())
+                            .map(|file_name| file_name.to_string_lossy().to_string())
                             .unwrap_or_else(|| "file".into()),
                     };
-                    format!("attachment; filename={}", filename)
+                    format!("attachment; filename={}", file_name)
                 } else {
                     disposition_type.into()
                 }
@@ -186,18 +199,18 @@ impl NamedFileBuilder {
 }
 
 impl NamedFile {
-    /// Create new `NamedFileBuilder`.
+    /// Create new [`NamedFileBuilder`].
     #[inline]
     pub fn builder(path: impl Into<PathBuf>) -> NamedFileBuilder {
         NamedFileBuilder {
             path: path.into(),
-            attached_filename: None,
+            attached_name: None,
             disposition_type: None,
             content_type: None,
             content_encoding: None,
             content_disposition: None,
             buffer_size: None,
-            flags: Flags::default(),
+            flags: BitFlags::default(),
         }
     }
 
@@ -206,9 +219,9 @@ impl NamedFile {
     /// # Examples
     ///
     /// ```
-    /// use salvo_core::fs::NamedFile;
+    /// # use salvo_core::fs::NamedFile;
     /// # async fn open() {
-    ///     let file = NamedFile::open("foo.txt").await;
+    /// let file = NamedFile::open("foo.txt").await;
     /// # }
     /// ```
     #[inline]
@@ -236,17 +249,6 @@ impl NamedFile {
     }
 
     /// Retrieve the path of this file.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use std::io;
-    /// # use salvo_core::fs::NamedFile;
-    /// # async fn path() {
-    ///     let file = NamedFile::open("test.txt").await.unwrap();
-    ///     assert_eq!(file.path().as_os_str(), "foo.txt");
-    /// # }
-    /// ```
     #[inline]
     pub fn path(&self) -> &Path {
         self.path.as_path()
@@ -269,17 +271,19 @@ impl NamedFile {
     pub fn content_disposition(&self) -> &HeaderValue {
         &self.content_disposition
     }
-    /// Set the Content-Disposition for serving this file. This allows
+    /// Set the `Content-Disposition` for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
-    /// sent to the peer. By default the disposition is `inline` for text,
+    /// sent to the peer.
+    ///
+    /// By default the disposition is `inline` for text,
     /// image, and video content types, and `attachment` otherwise, and
     /// the filename is taken from the path provided in the `open` method
-    /// after converting it to UTF-8 using.
+    /// after converting it to UTF-8 using
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
     pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {
         self.content_disposition = content_disposition;
-        self.flags.insert(Flags::CONTENT_DISPOSITION);
+        self.flags.insert(Flag::ContentDisposition);
     }
 
     /// Disable `Content-Disposition` header.
@@ -287,7 +291,7 @@ impl NamedFile {
     /// By default Content-Disposition` header is enabled.
     #[inline]
     pub fn disable_content_disposition(&mut self) {
-        self.flags.remove(Flags::CONTENT_DISPOSITION);
+        self.flags.remove(Flag::ContentDisposition);
     }
 
     /// Get content encoding value reference.
@@ -301,7 +305,7 @@ impl NamedFile {
         self.content_encoding = Some(content_encoding);
     }
 
-    /// Get etag value.
+    /// Get ETag value.
     pub fn etag(&self) -> Option<ETag> {
         // This etag format is similar to Apache's.
         self.modified.as_ref().and_then(|mtime| {
@@ -339,8 +343,12 @@ impl NamedFile {
     ///
     ///Default is true.
     #[inline]
-    pub fn use_etag(mut self, value: bool) {
-        self.flags.set(Flags::ETAG, value);
+    pub fn use_etag(&mut self, value: bool) {
+        if value {
+            self.flags.insert(Flag::Etag);
+        } else {
+            self.flags.remove(Flag::Etag);
+        }
     }
 
     /// GEt last_modified value.
@@ -352,18 +360,21 @@ impl NamedFile {
     ///
     ///Default is true.
     #[inline]
-    pub fn use_last_modified(mut self, value: bool) -> Self {
-        self.flags.set(Flags::LAST_MODIFIED, value);
-        self
+    pub fn use_last_modified(&mut self, value: bool) {
+        if value {
+            self.flags.insert(Flag::LastModified);
+        } else {
+            self.flags.remove(Flag::LastModified);
+        }
     }
-    ///Send file.
+    ///Consume self and send content to [`Response`].
     pub async fn send(self, req: &mut Request, res: &mut Response) {
-        let etag = if self.flags.contains(Flags::ETAG) {
+        let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
             None
         };
-        let last_modified = if self.flags.contains(Flags::LAST_MODIFIED) {
+        let last_modified = if self.flags.contains(Flag::LastModified) {
             self.last_modified()
         } else {
             None

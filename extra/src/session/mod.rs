@@ -69,7 +69,7 @@ use std::time::Duration;
 use async_session::base64;
 use async_session::hmac::{Hmac, Mac, NewMac};
 use async_session::sha2::Sha256;
-use salvo_core::http::cookie::{Cookie, Key, SameSite};
+use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{async_trait, Depot, Handler, Request, Response};
@@ -91,15 +91,19 @@ pub trait SessionDepotExt {
 }
 
 impl SessionDepotExt for Depot {
+    #[inline]
     fn set_session(&mut self, session: Session) {
         self.insert(SESSION_KEY, session);
     }
+    #[inline]
     fn take_session(&mut self) -> Option<Session> {
         self.remove(SESSION_KEY)
     }
+    #[inline]
     fn session(&self) -> Option<&Session> {
         self.get(SESSION_KEY)
     }
+    #[inline]
     fn session_mut(&mut self) -> Option<&mut Session> {
         self.get_mut(SESSION_KEY)
     }
@@ -117,6 +121,7 @@ pub struct SessionHandler<S> {
     key: Key,
 }
 impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionManger")
             .field("store", &self.store)
@@ -180,6 +185,7 @@ where
     S: SessionStore,
 {
     /// Create new `SessionHandler`
+    #[inline]
     pub fn new(store: S, secret: &[u8]) -> Self {
         Self {
             store,
@@ -193,7 +199,9 @@ where
         }
     }
     /// Sets a cookie path for this session middleware.
-    /// The default for this value is "/"
+    ///
+    /// The default for this value is "/".
+    #[inline]
     pub fn with_cookie_path(mut self, cookie_path: impl AsRef<str>) -> Self {
         self.cookie_path = cookie_path.as_ref().to_owned();
         self
@@ -204,6 +212,7 @@ where
     ///
     /// The default for this value is one day. Set this to None to not
     /// set a cookie or session expiry. This is not recommended.
+    #[inline]
     pub fn with_session_ttl(mut self, session_ttl: Option<Duration>) -> Self {
         self.session_ttl = session_ttl;
         self
@@ -213,19 +222,23 @@ where
     ///
     /// If you are running multiple tide applications on the same
     /// domain, you will need different values for each
-    /// application. The default value is "tide.sid"
+    /// application. The default value is "tide.sid".
+    #[inline]
     pub fn with_cookie_name(mut self, cookie_name: impl AsRef<str>) -> Self {
         self.cookie_name = cookie_name.as_ref().to_owned();
         self
     }
 
-    /// Disables the `save_unchanged` setting. When `save_unchanged`
-    /// is enabled, a session will cookie will always be set. With
-    /// `save_unchanged` disabled, the session data must be modified
+    /// Disables the `save_unchanged` setting.
+    ///
+    /// When `save_unchanged` is enabled, a session will cookie will always be set.
+    /// 
+    /// With `save_unchanged` disabled, the session data must be modified
     /// from the `Default` value in order for it to save. If a session
     /// already exists and its data unmodified in the course of a
     /// request, the session will only be persisted if
     /// `save_unchanged` is enabled.
+    #[inline]
     pub fn without_save_unchanged(mut self) -> Self {
         self.save_unchanged = false;
         self
@@ -234,17 +247,20 @@ where
     /// Sets the same site policy for the session cookie. Defaults to
     /// SameSite::Lax. See [incrementally better
     /// cookies](https://tools.ietf.org/html/draft-west-cookie-incrementalism-01)
-    /// for more information about this setting
+    /// for more information about this setting.
+    #[inline]
     pub fn with_same_site_policy(mut self, policy: SameSite) -> Self {
         self.same_site_policy = policy;
         self
     }
 
     /// Sets the domain of the cookie.
+    #[inline]
     pub fn with_cookie_domain(mut self, cookie_domain: impl AsRef<str>) -> Self {
         self.cookie_domain = Some(cookie_domain.as_ref().to_owned());
         self
     }
+    #[inline]
     async fn load_or_create(&self, cookie_value: Option<String>) -> Session {
         let session = match cookie_value {
             Some(cookie_value) => self.store.load_session(cookie_value).await.ok().flatten(),
@@ -258,6 +274,7 @@ where
     /// Given a signed value `str` where the signature is prepended to `value`,
     /// verifies the signed value and returns it. If there's a problem, returns
     /// an `Err` with a string describing the issue.
+    #[inline]
     fn verify_signature(&self, cookie_value: &str) -> Result<String, &'static str> {
         if cookie_value.len() < BASE64_DIGEST_LEN {
             return Err("length of value is <= BASE64_DIGEST_LEN");
@@ -274,6 +291,7 @@ where
             .map(|_| value.to_string())
             .map_err(|_| "value did not verify")
     }
+    #[inline]
     fn build_cookie(&self, secure: bool, cookie_value: String) -> Cookie<'static> {
         let mut cookie = Cookie::build(self.cookie_name.clone(), cookie_value)
             .http_only(true)
@@ -294,9 +312,10 @@ where
 
         cookie
     }
-    // the following is reused verbatim from
+    // The following is reused verbatim from
     // https://github.com/SergioBenitez/cookie-rs/blob/master/src/secure/signed.rs#L37-46
-    /// Signs the cookie's value providing integrity and authenticity.
+    /// signs the cookie's value providing integrity and authenticity.
+    #[inline]
     fn sign_cookie(&self, cookie: &mut Cookie<'_>) {
         // Compute HMAC-SHA256 of the cookie's value.
         let mut mac = Hmac::<Sha256>::new_from_slice(self.key.signing()).expect("good key");

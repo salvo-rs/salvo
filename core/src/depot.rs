@@ -3,6 +3,27 @@ use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
 /// Depot if for store temp data of current request. Each handler can read or write data to it.
+///
+/// # Example
+///
+/// ```no_run
+/// use salvo_core::prelude::*;
+///
+/// #[fn_handler]
+/// async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+///     depot.insert("user", "client");
+///     ctrl.call_next(req, depot, res).await;
+/// }
+/// #[fn_handler]
+/// async fn hello_world(depot: &mut Depot) -> String {
+///     format!("Hello {}", depot.get::<&str>("user").map(|s|*s).unwrap_or_default())
+/// }
+/// #[tokio::main]
+/// async fn main() {
+///     let router = Router::new().hoop(set_user).handle(hello_world);
+///     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+/// }
+/// ```
 #[derive(Default)]
 pub struct Depot {
     data: HashMap<String, Box<dyn Any + Send>>,
@@ -86,6 +107,7 @@ impl Depot {
 }
 
 impl fmt::Debug for Depot {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Depot").field("keys", &self.data.keys()).finish()
     }
@@ -93,6 +115,9 @@ impl fmt::Debug for Depot {
 
 #[cfg(test)]
 mod test {
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+
     use super::*;
 
     #[test]
@@ -114,5 +139,28 @@ mod test {
 
         let depot = depot.transfer();
         assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
+    }
+
+    #[tokio::test]
+    async fn test_middleware_use_depot() {
+        #[fn_handler(internal)]
+        async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            depot.insert("user", "client");
+            ctrl.call_next(req, depot, res).await;
+        }
+        #[fn_handler(internal)]
+        async fn hello_world(depot: &mut Depot) -> String {
+            format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
+        }
+        let router = Router::new().hoop(set_user).handle(hello_world);
+        let service = Service::new(router);
+
+        let content = TestClient::get("http://127.0.0.1:7878")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert_eq!(content, "Hello client");
     }
 }

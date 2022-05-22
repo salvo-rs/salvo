@@ -45,11 +45,11 @@ jobs:
       max-parallel: 1
       matrix:
         package:
-          - crate: salvo-macros
+          - crate: salvo_macros
             path: macros
-          - crate: salvo-core
+          - crate: salvo_core
             path: core
-          - crate: salvo-extra
+          - crate: salvo_extra
             path: extra
           - crate: salvo
             path: "salvo"

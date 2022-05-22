@@ -29,8 +29,8 @@ async fn main() {
             .get(user_connected)
             .push(Router::with_path("<id>").post(chat_send)),
     );
-    tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(router).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[derive(Debug)]
@@ -41,8 +41,8 @@ enum Message {
 
 #[fn_handler]
 async fn chat_send(req: &mut Request, res: &mut Response) {
-    let my_id = req.get_param::<usize>("id").unwrap();
-    let msg = req.read_text().await.unwrap();
+    let my_id = req.param::<usize>("id").unwrap();
+    let msg = std::str::from_utf8(req.payload().await.unwrap()).unwrap();
     user_message(my_id, msg);
     res.set_status_code(StatusCode::OK);
 }

@@ -1,16 +1,15 @@
-//! Writer trait and it's impls.
+//! Writer trait and it's implements.
 use async_trait::async_trait;
 use serde::Serialize;
 
-use crate::http::errors::*;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
-use crate::http::{Request, Response};
+use crate::http::{Request, Response, StatusError};
 use crate::Depot;
 
 /// Writer is used to write data to response.
 #[async_trait]
 pub trait Writer {
-    /// Write data to ```Respone```.
+    /// Write data to [`Response`].
     #[must_use = "write future must be used"]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
@@ -21,6 +20,7 @@ where
     T: Writer + Send,
     E: Writer + Send,
 {
+    #[inline]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
         match self {
             Ok(v) => {
@@ -33,9 +33,11 @@ where
     }
 }
 
-/// Piece is used to write data to response.
+/// `Piece` is used to write data to [`Response`].
+///
+/// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
 pub trait Piece {
-    /// Render data to ```Respone```.
+    /// Render data to [`Response`].
     fn render(self, res: &mut Response);
 }
 #[async_trait]
@@ -43,6 +45,7 @@ impl<P> Writer for P
 where
     P: Piece + Sized + Send,
 {
+    #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         self.render(res)
     }
@@ -50,6 +53,7 @@ where
 
 #[allow(clippy::unit_arg)]
 impl Piece for () {
+    #[inline]
     fn render(self, _res: &mut Response) {}
 }
 impl<'a> Piece for &'a str {
@@ -92,6 +96,7 @@ impl<C> Piece for Text<C>
 where
     C: AsRef<str> + Send,
 {
+    #[inline]
     fn render(self, res: &mut Response) {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
@@ -113,6 +118,7 @@ impl<T> Piece for Json<T>
 where
     T: Serialize + Send,
 {
+    #[inline]
     fn render(self, res: &mut Response) {
         match serde_json::to_vec(&self.0) {
             Ok(bytes) => {
@@ -135,74 +141,59 @@ mod tests {
     use crate::prelude::*;
 
     use super::*;
-
-    async fn access(service: &Service) -> Response {
-        let req: Request = hyper::Request::builder()
-            .method("GET")
-            .uri("http://127.0.0.1:7979/test")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
-        service.handle(req).await
-    }
+    use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_write_str() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> &'static str {
             "hello"
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
 
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
     #[tokio::test]
     async fn test_write_string() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> String {
             "hello".to_owned()
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
     #[tokio::test]
     async fn test_write_plain_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Plain("hello")
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
 
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "hello");
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
 
     #[tokio::test]
     async fn test_write_json_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Json(r#"{"hello": "world"}"#)
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), r#"{"hello": "world"}"#);
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), r#"{"hello": "world"}"#);
         assert_eq!(
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
@@ -215,16 +206,14 @@ mod tests {
         struct User {
             name: String,
         }
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Json<User> {
             Json(User { name: "jobs".into() })
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), r#"{"name":"jobs"}"#);
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), r#"{"name":"jobs"}"#);
         assert_eq!(
             res.headers().get("content-type").unwrap(),
             "application/json; charset=utf-8"
@@ -233,16 +222,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_html_text() {
-        #[fn_handler]
+        #[fn_handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Html("<html><body>hello</body></html>")
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let service = Service::new(router);
-
-        let mut res = access(&service).await;
-        assert_eq!(res.take_text().await.unwrap(), "<html><body>hello</body></html>");
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        assert_eq!(res.take_string().await.unwrap(), "<html><body>hello</body></html>");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
     }
 }

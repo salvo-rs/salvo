@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.21.5"
+version = "0.24.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -27,7 +27,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-full = ["rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+full = ["test", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+test = ["salvo_core/test"]
 native-tls = ["salvo_core/native-tls"]
 rustls = ["salvo_core/rustls"]
 unix = ["salvo_core/unix"]
@@ -48,5 +49,5 @@ timeout = ["salvo_extra/timeout"]
 ws = ["salvo_extra/ws"]
 
 [dependencies]
-salvo_core = { version = "0.21.5", default-features = false, path = "../core" }
-salvo_extra = { version = "0.21.5", default-features = false, optional = true, path = "../extra" }
+salvo_core = { version = "0.24.0", default-features = false, path = "../core" }
+salvo_extra = { version = "0.24.0", default-features = false, optional = true, path = "../extra" }

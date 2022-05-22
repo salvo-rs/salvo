@@ -1,14 +1,15 @@
 //! size limiter middleware
 
+use hyper::body::HttpBody;
 use salvo_core::async_trait;
-use salvo_core::http::errors::StatusError;
-use salvo_core::http::HttpBody;
+use salvo_core::http::StatusError;
 use salvo_core::prelude::*;
 
 /// MaxSizeHandler
 pub struct MaxSizeHandler(u64);
 #[async_trait]
 impl Handler for MaxSizeHandler {
+    #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
             if upper > self.0 {
@@ -21,14 +22,15 @@ impl Handler for MaxSizeHandler {
     }
 }
 /// Create a new ```MaxSizeHandler```.
+#[inline]
 pub fn max_size(size: u64) -> MaxSizeHandler {
     MaxSizeHandler(size)
 }
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::hyper;
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
 
@@ -45,22 +47,19 @@ mod tests {
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 
-        let req: Request = hyper::Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:7979/hello")
-            .body("abc".into())
-            .unwrap()
-            .into();
-        let content = service.handle(req).await.take_text().await.unwrap();
+        let content = TestClient::post("http://127.0.0.1:7979/hello")
+            .text("abc")
+            .send(&service)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert_eq!(content, "hello");
 
-        let req: Request = hyper::Request::builder()
-            .method("POST")
-            .uri("http://127.0.0.1:7979/hello")
-            .body("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".into())
-            .unwrap()
-            .into();
-        let res = service.handle(req).await;
+        let res = TestClient::post("http://127.0.0.1:7979/hello")
+            .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
+            .send(&service)
+            .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }

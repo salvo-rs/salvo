@@ -42,6 +42,7 @@ pub struct WsHandler {
 }
 
 impl Default for WsHandler {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -49,21 +50,25 @@ impl Default for WsHandler {
 
 impl WsHandler {
     /// Create new `WsHandler`.
+    #[inline]
     pub fn new() -> Self {
         WsHandler { config: None }
     }
     /// Create new `WsHandler` with config.
+    #[inline]
     pub fn with_config(config: WebSocketConfig) -> Self {
         WsHandler { config: Some(config) }
     }
 
     /// Set the size of the internal message send queue.
+    #[inline]
     pub fn max_send_queue(mut self, max: usize) -> Self {
         self.config.get_or_insert_with(WebSocketConfig::default).max_send_queue = Some(max);
         self
     }
 
     /// Set the maximum message size (defaults to 64 megabytes)
+    #[inline]
     pub fn max_message_size(mut self, max: usize) -> Self {
         self.config
             .get_or_insert_with(WebSocketConfig::default)
@@ -72,6 +77,7 @@ impl WsHandler {
     }
 
     /// Set the maximum frame size (defaults to 16 megabytes)
+    #[inline]
     pub fn max_frame_size(mut self, max: usize) -> Self {
         self.config.get_or_insert_with(WebSocketConfig::default).max_frame_size = Some(max);
         self
@@ -153,6 +159,7 @@ pub struct WebSocket {
 }
 
 impl WebSocket {
+    #[inline]
     pub(crate) async fn from_raw_socket(
         upgraded: hyper::upgrade::Upgraded,
         role: protocol::Role,
@@ -164,6 +171,7 @@ impl WebSocket {
     }
 
     /// Gracefully close this websocket.
+    #[inline]
     pub async fn close(mut self) -> Result<(), Error> {
         future::poll_fn(|cx| Pin::new(&mut self).poll_close(cx)).await
     }
@@ -172,6 +180,7 @@ impl WebSocket {
 impl Stream for WebSocket {
     type Item = Result<Message, Error>;
 
+    #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         match ready!(Pin::new(&mut self.inner).poll_next(cx)) {
             Some(Ok(item)) => Poll::Ready(Some(Ok(Message { inner: item }))),
@@ -190,6 +199,7 @@ impl Stream for WebSocket {
 impl Sink<Message> for WebSocket {
     type Error = Error;
 
+    #[inline]
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_ready(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
@@ -197,6 +207,7 @@ impl Sink<Message> for WebSocket {
         }
     }
 
+    #[inline]
     fn start_send(mut self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
         match Pin::new(&mut self.inner).start_send(item.inner) {
             Ok(()) => Ok(()),
@@ -207,6 +218,7 @@ impl Sink<Message> for WebSocket {
         }
     }
 
+    #[inline]
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_flush(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
@@ -214,6 +226,7 @@ impl Sink<Message> for WebSocket {
         }
     }
 
+    #[inline]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         match ready!(Pin::new(&mut self.inner).poll_close(cx)) {
             Ok(()) => Poll::Ready(Ok(())),
@@ -226,6 +239,7 @@ impl Sink<Message> for WebSocket {
 }
 
 impl fmt::Debug for WebSocket {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("WebSocket").finish()
     }
@@ -242,6 +256,7 @@ pub struct Message {
 
 impl Message {
     /// Construct a new Text `Message`.
+    #[inline]
     pub fn text<S: Into<String>>(s: S) -> Message {
         Message {
             inner: protocol::Message::text(s),
@@ -249,6 +264,7 @@ impl Message {
     }
 
     /// Construct a new Binary `Message`.
+    #[inline]
     pub fn binary<V: Into<Vec<u8>>>(v: V) -> Message {
         Message {
             inner: protocol::Message::binary(v),
@@ -256,6 +272,7 @@ impl Message {
     }
 
     /// Construct a new Ping `Message`.
+    #[inline]
     pub fn ping<V: Into<Vec<u8>>>(v: V) -> Message {
         Message {
             inner: protocol::Message::Ping(v.into()),
@@ -263,6 +280,7 @@ impl Message {
     }
 
     /// Construct the default Close `Message`.
+    #[inline]
     pub fn close() -> Message {
         Message {
             inner: protocol::Message::Close(None),
@@ -270,6 +288,7 @@ impl Message {
     }
 
     /// Construct a Close `Message` with a code and reason.
+    #[inline]
     pub fn close_with(code: impl Into<u16>, reason: impl Into<Cow<'static, str>>) -> Message {
         Message {
             inner: protocol::Message::Close(Some(protocol::frame::CloseFrame {
@@ -280,31 +299,37 @@ impl Message {
     }
 
     /// Returns true if this message is a Text message.
+    #[inline]
     pub fn is_text(&self) -> bool {
         self.inner.is_text()
     }
 
     /// Returns true if this message is a Binary message.
+    #[inline]
     pub fn is_binary(&self) -> bool {
         self.inner.is_binary()
     }
 
     /// Returns true if this message a is a Close message.
+    #[inline]
     pub fn is_close(&self) -> bool {
         self.inner.is_close()
     }
 
     /// Returns true if this message is a Ping message.
+    #[inline]
     pub fn is_ping(&self) -> bool {
         self.inner.is_ping()
     }
 
     /// Returns true if this message is a Pong message.
+    #[inline]
     pub fn is_pong(&self) -> bool {
         self.inner.is_pong()
     }
 
-    /// Try to get the close frame (close code and reason)
+    /// Try to get the close frame (close code and reason).
+    #[inline]
     pub fn close_frame(&self) -> Option<(u16, &str)> {
         if let protocol::Message::Close(Some(ref close_frame)) = self.inner {
             Some((close_frame.code.into(), close_frame.reason.as_ref()))
@@ -314,6 +339,7 @@ impl Message {
     }
 
     /// Try to get a reference to the string text, if this is a Text message.
+    #[inline]
     pub fn to_str(&self) -> Option<&str> {
         match self.inner {
             protocol::Message::Text(ref s) => Some(s),
@@ -322,6 +348,7 @@ impl Message {
     }
 
     /// Returns the bytes of this message, if the message can contain data.
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         match self.inner {
             protocol::Message::Text(ref s) => s.as_bytes(),
@@ -334,12 +361,14 @@ impl Message {
     }
 
     /// Destructure this message into binary data.
+    #[inline]
     pub fn into_bytes(self) -> Vec<u8> {
         self.inner.into_data()
     }
 }
 
 impl fmt::Debug for Message {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, f)
     }
@@ -347,6 +376,7 @@ impl fmt::Debug for Message {
 
 #[allow(clippy::from_over_into)]
 impl Into<Vec<u8>> for Message {
+    #[inline]
     fn into(self) -> Vec<u8> {
         self.into_bytes()
     }
@@ -357,6 +387,7 @@ impl Into<Vec<u8>> for Message {
 pub struct MissingConnectionUpgrade;
 
 impl Display for MissingConnectionUpgrade {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Connection header did not include 'upgrade'")
     }

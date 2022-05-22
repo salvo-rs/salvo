@@ -7,6 +7,81 @@ use crate::http::Request;
 use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
+///
+/// You can wite routers in flat way, like this:
+///
+/// # Example
+///
+/// ```
+/// # use salvo_core::prelude::*;
+///
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers").get(list_writers).post(create_writer);
+/// Router::with_path("writers/<id>").get(show_writer).patch(edit_writer).delete(delete_writer);
+/// Router::with_path("writers/<id>/articles").get(list_writer_articles);
+/// # }
+/// ```
+///
+/// You can write router like a tree, this is also the recommended way:
+///
+/// # Example
+///
+/// ```
+/// use salvo_core::prelude::*;
+///
+/// # #[fn_handler]
+/// # async fn create_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn show_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writers(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn edit_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn delete_writer(res: &mut Response) {
+/// # }
+/// # #[fn_handler]
+/// # async fn list_writer_articles(res: &mut Response) {
+/// # }
+/// # #[tokio::main]
+/// # async fn main() {
+/// Router::with_path("writers")
+///     .get(list_writers)
+///     .post(create_writer)
+///     .push(
+///         Router::with_path("<id>")
+///             .get(show_writer)
+///             .patch(edit_writer)
+///             .delete(delete_writer)
+///             .push(Router::with_path("articles").get(list_writer_articles)),
+///     );
+/// # }
+/// ```
+///
+/// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
     pub(crate) routers: Vec<Router>,
     pub(crate) filters: Vec<Box<dyn Filter>>,
@@ -20,15 +95,17 @@ pub struct DetectMatched {
 }
 
 impl Default for Router {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl Router {
-    /// Create a new Router.
-    pub fn new() -> Router {
-        Router {
+    /// Create a new `Router`.
+    #[inline]
+    pub fn new() -> Self {
+        Self {
             routers: Vec::new(),
             filters: Vec::new(),
             hoops: Vec::new(),
@@ -136,7 +213,7 @@ impl Router {
     /// Panics if path value is not in correct format.
     #[inline]
     pub fn with_path(path: impl Into<String>) -> Self {
-        Router::new().filter(PathFilter::new(path))
+        Router::with_filter(PathFilter::new(path))
     }
 
     /// Create a new path filter for current router.
@@ -149,6 +226,11 @@ impl Router {
         self.filter(PathFilter::new(path))
     }
 
+    /// Create a new router and set filter.
+    #[inline]
+    pub fn with_filter(filter: impl Filter + Sized) -> Self {
+        Router::new().filter(filter)
+    }
     /// Add a filter for current router.
     #[inline]
     pub fn filter(mut self, filter: impl Filter + Sized) -> Self {
@@ -156,14 +238,21 @@ impl Router {
         self
     }
 
-    /// Create a new FnFilter from Fn.
+    /// Create a new router and set filter_fn.
     #[inline]
-    pub fn filter_fn<T>(mut self, func: T) -> Self
+    pub fn with_filter_fn<T>(func: T) -> Self
     where
         T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
     {
-        self.filters.push(Box::new(FnFilter(func)));
-        self
+        Router::with_filter(FnFilter(func))
+    }
+    /// Create a new FnFilter from Fn.
+    #[inline]
+    pub fn filter_fn<T>(self, func: T) -> Self
+    where
+        T: Fn(&mut Request, &mut PathState) -> bool + Send + Sync + 'static,
+    {
+        self.filter(FnFilter(func))
     }
 
     /// Set current router's handler.
@@ -183,46 +272,60 @@ impl Router {
         func(self)
     }
 
-    /// Create a new child router with MethodFilter to filter get method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::get()).handle(handler))
+        self.push(Router::with_filter(filter::get()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter post method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::post()).handle(handler))
+        self.push(Router::with_filter(filter::post()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter put method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::put()).handle(handler))
+        self.push(Router::with_filter(filter::put()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter delete method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::delete()).handle(handler))
+        self.push(Router::with_filter(filter::delete()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter patch method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::patch()).handle(handler))
+        self.push(Router::with_filter(filter::patch()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter head method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::head()).handle(handler))
+        self.push(Router::with_filter(filter::head()).handle(handler))
     }
 
-    /// Create a new child router with MethodFilter to filter options method and set this child router's handler.
+    /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
+    ///
+    /// [`MethodFilter`]: super::filter::MethodFilter
     #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::new().filter(filter::options()).handle(handler))
+        self.push(Router::with_filter(filter::options()).handle(handler))
     }
 }
 
@@ -279,12 +382,14 @@ impl fmt::Debug for Router {
 
 #[cfg(test)]
 mod tests {
-    use super::{PathState, Router};
-    use crate::fn_handler;
-    use crate::{Request, Response};
     use async_trait::async_trait;
 
-    #[fn_handler]
+    use super::{PathState, Router};
+    use crate::fn_handler;
+    use crate::test::TestClient;
+    use crate::Response;
+
+    #[fn_handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {
@@ -333,11 +438,7 @@ mod tests {
             Router::with_path("users")
                 .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/emails")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/emails").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -350,11 +451,7 @@ mod tests {
                 Router::with_path("users")
                     .push(Router::with_path("<id>").push(Router::with_path("emails").get(fake_handler))),
             );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/emails")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/emails").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -367,20 +464,12 @@ mod tests {
                     .push(Router::new().push(Router::with_path("facebook/insights/<**rest>").handle(fake_handler))),
             ),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
@@ -394,21 +483,13 @@ mod tests {
                     .push(Router::new().push(Router::with_path("facebook/insights/<*rest>").handle(fake_handler))),
             ),
         );
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         // assert_eq!(format!("{:?}", path_state), "");
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -421,20 +502,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -448,20 +521,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::new().path("<*rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -474,20 +539,12 @@ mod tests {
                     Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
                 ),
             )));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights/23").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -496,20 +553,12 @@ mod tests {
     fn test_router_detect9() {
         let router =
             Router::new().push(Router::with_path("users/<*sub:/(images|css)/>/<filename>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/css/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/css/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -517,20 +566,12 @@ mod tests {
     #[test]
     fn test_router_detect10() {
         let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/12/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/users/css/abc/m.jpg")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/users/css/abc/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -539,20 +580,12 @@ mod tests {
     fn test_router_detect11() {
         let router =
             Router::new().push(Router::with_path(r"avatars/<width:/\d+/>x<height:/\d+/>.<ext>").handle(fake_handler));
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/321x641f.webp")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/avatars/321x641f.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/avatars/320x640.webp")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/avatars/320x640.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -561,11 +594,7 @@ mod tests {
     fn test_router_detect12() {
         let router = Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").handle(fake_handler));
 
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
@@ -576,19 +605,11 @@ mod tests {
         let router = Router::new()
             .path("user/<id:/[0-9a-z]{8}(-[0-9a-z]{4}){3}-[0-9a-z]{12}/>")
             .get(fake_handler);
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e38641e").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_some());
-        let mut req: Request = hyper::Request::builder()
-            .uri("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e")
-            .body(hyper::Body::empty())
-            .unwrap()
-            .into();
+        let mut req = TestClient::get("http://local.host/user/726d694c-7af0-4bb0-9d22-706f7e386e").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());

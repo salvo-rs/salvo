@@ -28,9 +28,11 @@ static PART_BUILDERS: Lazy<PartBuilderMap> = Lazy::new(|| {
     RwLock::new(map)
 });
 
+#[inline]
 fn is_num(ch: char) -> bool {
     ch.is_ascii_digit()
 }
+#[inline]
 fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
@@ -39,6 +41,7 @@ fn is_hex(ch: char) -> bool {
 pub struct RegexPartBuilder(Regex);
 impl RegexPartBuilder {
     /// Create new `RegexPartBuilder`.
+    #[inline]
     pub fn new(checker: Regex) -> Self {
         Self(checker)
     }
@@ -56,6 +59,7 @@ impl PartBuilder for RegexPartBuilder {
 pub struct CharPartBuilder<C>(Arc<C>);
 impl<C> CharPartBuilder<C> {
     /// Create new `CharPartBuilder`.
+    #[inline]
     pub fn new(checker: C) -> Self {
         Self(Arc::new(checker))
     }
@@ -133,6 +137,7 @@ struct CharPart<C> {
     max_width: Option<usize>,
 }
 impl<C> fmt::Debug for CharPart<C> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -191,6 +196,7 @@ where
 #[derive(Debug)]
 struct CombPart(Vec<Box<dyn PathPart>>);
 impl PathPart for CombPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let original_cursor = state.cursor;
         for child in &self.0 {
@@ -205,6 +211,7 @@ impl PathPart for CombPart {
 #[derive(Debug, Eq, PartialEq)]
 struct NamedPart(String);
 impl PathPart for NamedPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if self.0.starts_with('*') {
@@ -233,16 +240,19 @@ struct RegexPart {
     regex: Regex,
 }
 impl RegexPart {
+    #[inline]
     fn new(name: String, regex: Regex) -> RegexPart {
         RegexPart { name, regex }
     }
 }
 impl PartialEq for RegexPart {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.regex.as_str() == other.regex.as_str()
     }
 }
 impl PathPart for RegexPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if self.name.starts_with('*') {
@@ -280,6 +290,7 @@ impl PathPart for RegexPart {
 #[derive(Eq, PartialEq, Debug)]
 struct ConstPart(String);
 impl PathPart for ConstPart {
+    #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];
         if url_path.is_empty() {
@@ -300,12 +311,14 @@ struct PathParser {
     path: Vec<char>,
 }
 impl PathParser {
+    #[inline]
     fn new(raw_value: &str) -> PathParser {
         PathParser {
             offset: 0,
             path: raw_value.chars().collect(),
         }
     }
+    #[inline]
     fn next(&mut self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
             self.offset += 1;
@@ -318,6 +331,7 @@ impl PathParser {
             None
         }
     }
+    #[inline]
     fn peek(&self, skip_blanks: bool) -> Option<char> {
         if self.offset < self.path.len() - 1 {
             if skip_blanks {
@@ -338,9 +352,11 @@ impl PathParser {
             None
         }
     }
+    #[inline]
     fn curr(&self) -> Option<char> {
         self.path.get(self.offset).copied()
     }
+    #[inline]
     fn scan_ident(&mut self) -> Result<String, String> {
         let mut ident = "".to_owned();
         let mut ch = self
@@ -360,6 +376,7 @@ impl PathParser {
             Ok(ident)
         }
     }
+    #[inline]
     fn scan_regex(&mut self) -> Result<String, String> {
         let mut regex = "".to_owned();
         let mut ch = self
@@ -388,6 +405,7 @@ impl PathParser {
             Ok(regex)
         }
     }
+    #[inline]
     fn scan_const(&mut self) -> Result<String, String> {
         let mut cnst = "".to_owned();
         let mut ch = self
@@ -407,6 +425,7 @@ impl PathParser {
             Ok(cnst)
         }
     }
+    #[inline]
     fn skip_blanks(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == ' ' || ch == '\t' {
@@ -419,6 +438,7 @@ impl PathParser {
             }
         }
     }
+    #[inline]
     fn skip_slashes(&mut self) {
         if let Some(mut ch) = self.curr() {
             while ch == '/' {
@@ -588,12 +608,14 @@ impl fmt::Debug for PathFilter {
     }
 }
 impl Filter for PathFilter {
+    #[inline]
     fn filter(&self, _req: &mut Request, state: &mut PathState) -> bool {
         self.detect(state)
     }
 }
 impl PathFilter {
     /// Create new `PathFilter`.
+    #[inline]
     pub fn new(value: impl Into<String>) -> Self {
         let raw_value = value.into();
         if raw_value.is_empty() {
@@ -611,17 +633,19 @@ impl PathFilter {
         PathFilter { raw_value, path_parts }
     }
     /// Register new path part builder.
-    pub fn register_path_part_builder<B>(name: String, builder: B)
+    #[inline]
+    pub fn register_part_builder<B>(name: impl Into<String>, builder: B)
     where
         B: PartBuilder + 'static,
     {
         let mut builders = PART_BUILDERS.write();
-        builders.insert(name, Arc::new(Box::new(builder)));
+        builders.insert(name.into(), Arc::new(Box::new(builder)));
     }
     /// Register new path part regex.
-    pub fn register_path_part_regex<B>(name: String, regex: Regex) {
+    #[inline]
+    pub fn register_part_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = PART_BUILDERS.write();
-        builders.insert(name, Arc::new(Box::new(RegexPartBuilder::new(regex))));
+        builders.insert(name.into(), Arc::new(Box::new(RegexPartBuilder::new(regex))));
     }
     /// Detect is that path is match.
     pub fn detect(&self, state: &mut PathState) -> bool {
@@ -899,6 +923,23 @@ mod tests {
         assert_eq!(
             format!("{:?}", state),
             r#"PathState { url_path: "users///29//emails", cursor: 18, params: {"id": "29"} }"#
+        );
+    }
+    #[test]
+    fn test_detect_named_regex() {
+        PathFilter::register_part_regex(
+            "guid",
+            regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
+        );
+        let filter = PathFilter::new("/users/<id:guid>");
+        let mut state = PathState::new("/users/123e4567-h89b-12d3-a456-9AC7CBDCEE52");
+        assert!(!filter.detect(&mut state));
+
+        let mut state = PathState::new("/users/123e4567-e89b-12d3-a456-9AC7CBDCEE52");
+        assert!(filter.detect(&mut state));
+        assert_eq!(
+            format!("{:?}", state),
+            r#"PathState { url_path: "users/123e4567-e89b-12d3-a456-9AC7CBDCEE52", cursor: 42, params: {"id": "123e4567-e89b-12d3-a456-9AC7CBDCEE52"} }"#
         );
     }
 }

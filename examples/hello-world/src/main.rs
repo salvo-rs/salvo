@@ -21,8 +21,8 @@ async fn hello_world3(_req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://0.0.0.0:7878");
-    Server::new(TcpListener::bind("0.0.0.0:7878")).serve(route()).await;
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
 }
 
 fn route() -> Router {
@@ -35,19 +35,20 @@ fn route() -> Router {
 
 #[cfg(test)]
 mod tests {
+    use salvo::prelude::*;
+    use salvo::test::{ResponseExt, TestClient};
+
     #[tokio::test]
     async fn test_hello_world() {
-        use salvo::hyper;
-        use salvo::prelude::*;
-
         let service = Service::new(super::route());
 
         async fn access(service: &Service, name: &str) -> String {
-            let req = hyper::Request::builder()
-                .method("GET")
-                .uri(format!("http://127.0.0.1:7878/{}", name));
-            let req: Request = req.body(hyper::Body::empty()).unwrap().into();
-            service.handle(req).await.take_text().await.unwrap()
+            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+                .send(service)
+                .await
+                .take_string()
+                .await
+                .unwrap()
         }
 
         assert_eq!(access(&service, "hello1").await, "Hello World1");

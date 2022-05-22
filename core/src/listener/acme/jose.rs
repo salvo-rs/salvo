@@ -21,6 +21,7 @@ struct Protected<'a> {
 }
 
 impl<'a> Protected<'a> {
+    #[inline]
     fn base64(jwk: Option<Jwk>, kid: Option<&'a str>, nonce: &'a str, url: &'a str) -> IoResult<String> {
         let protected = Self {
             alg: "ES256",
@@ -47,6 +48,7 @@ struct Jwk {
 }
 
 impl Jwk {
+    #[inline]
     fn new(key: &KeyPair) -> Self {
         let (x, y) = key.public_key()[1..].split_at(32);
         Self {
@@ -59,6 +61,7 @@ impl Jwk {
         }
     }
 
+    #[inline]
     fn thumb_sha256_base64(&self) -> IoResult<String> {
         #[derive(Serialize)]
         struct JwkThumb<'a> {
@@ -81,6 +84,7 @@ impl Jwk {
     }
 }
 
+#[inline]
 fn sha256(data: impl AsRef<[u8]>) -> Digest {
     digest(&SHA256, data.as_ref())
 }
@@ -140,6 +144,7 @@ pub(crate) async fn request(
     }
     Ok(resp)
 }
+#[inline]
 pub(crate) async fn request_json<T, R>(
     cli: &Client<HttpsConnector<HttpConnector>>,
     key_pair: &KeyPair,
@@ -160,12 +165,14 @@ where
     serde_json::from_slice(data.as_ref()).map_err(|e| IoError::new(ErrorKind::Other, format!("bad response: {}", e)))
 }
 
+#[inline]
 pub(crate) fn key_authorization(key: &KeyPair, token: &str) -> IoResult<String> {
     let jwk = Jwk::new(key);
     let key_authorization = format!("{}.{}", token, jwk.thumb_sha256_base64()?);
     Ok(key_authorization)
 }
 
+#[inline]
 pub(crate) fn key_authorization_sha256(key: &KeyPair, token: &str) -> IoResult<impl AsRef<[u8]>> {
     Ok(sha256(key_authorization(key, token)?.as_bytes()))
 }

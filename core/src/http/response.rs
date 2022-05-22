@@ -6,101 +6,44 @@ use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
-use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
 use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
-use encoding_rs::{Encoding, UTF_8};
-use futures_util::stream::{Stream, StreamExt, TryStreamExt};
+use futures_util::stream::{Stream, TryStreamExt};
 use http::version::Version;
 use mime::Mime;
-use serde::de::DeserializeOwned;
-use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
 
 pub use http::response::Parts;
 
 use super::errors::*;
-use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue, CONTENT_ENCODING};
+use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue};
 use crate::http::StatusCode;
 use crate::{Error, Piece};
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
 pub enum Body {
-    /// Empty body.
-    Empty,
+    /// None body.
+    None,
     /// Bytes body.
     Bytes(BytesMut),
     /// Stream body.
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
 impl Body {
-    /// Check is that body is empty.
-    pub fn is_empty(&self) -> bool {
-        matches!(*self, Body::Empty)
-    }
-    /// Take body as deserialize it to type `T` instance.
-    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        let full = self.take_bytes().await?;
-        serde_json::from_slice(&full).map_err(Error::SerdeJson)
-    }
-    /// Take body as text.
-    pub async fn take_text(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String> {
-        let charset = Encoding::for_label(charset.as_bytes()).unwrap_or(UTF_8);
-        let mut full = self.take_bytes().await?;
-        if let Some(algo) = compress {
-            match algo {
-                "gzip" => {
-                    let mut reader = GzipDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                "deflate" => {
-                    let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                "br" => {
-                    let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
-                }
-                _ => {
-                    tracing::error!(compress = %algo, "unknown compress format");
-                }
-            }
-        }
-        let (text, _, _) = charset.decode(&full);
-        if let Cow::Owned(s) = text {
-            return Ok(s);
-        }
-        String::from_utf8(full.to_vec()).map_err(|e| IoError::new(ErrorKind::Other, e).into())
-    }
-    /// Take all body bytes.
-    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
-        let bytes = match self {
-            Self::Empty => Bytes::new(),
-            Self::Bytes(bytes) => std::mem::take(bytes).freeze(),
-            Self::Stream(stream) => {
-                let mut bytes = BytesMut::new();
-                while let Some(chunk) = stream.next().await {
-                    bytes.extend(chunk?);
-                }
-                bytes.freeze()
-            }
-        };
-        Ok(bytes)
+    /// Check is that body is not set.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        matches!(*self, Body::None)
     }
 }
 
 impl Stream for Body {
     type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
 
+    #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
-            Body::Empty => Poll::Ready(None),
+            Body::None => Poll::Ready(None),
             Body::Bytes(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
@@ -116,6 +59,7 @@ impl Stream for Body {
     }
 }
 impl From<hyper::Body> for Body {
+    #[inline]
     fn from(hbody: hyper::Body) -> Body {
         Body::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
     }
@@ -128,14 +72,16 @@ pub struct Response {
     headers: HeaderMap,
     version: Version,
     pub(crate) cookies: CookieJar,
-    pub(crate) body: Option<Body>,
+    pub(crate) body: Body,
 }
 impl Default for Response {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 impl From<hyper::Response<hyper::Body>> for Response {
+    #[inline]
     fn from(res: hyper::Response<hyper::Body>) -> Self {
         let (
             http::response::Parts {
@@ -166,7 +112,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
         Response {
             status_code: Some(status),
             status_error: None,
-            body: Some(body.into()),
+            body: body.into(),
             version,
             headers,
             cookies,
@@ -175,11 +121,12 @@ impl From<hyper::Response<hyper::Body>> for Response {
 }
 impl Response {
     /// Creates a new blank `Response`.
+    #[inline]
     pub fn new() -> Response {
         Response {
             status_code: None,
             status_error: None,
-            body: None,
+            body: Body::None,
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies: CookieJar::new(),
@@ -215,64 +162,30 @@ impl Response {
 
     /// Get body reference.
     #[inline]
-    pub fn body(&self) -> Option<&Body> {
-        self.body.as_ref()
+    pub fn body(&self) -> &Body {
+        &self.body
     }
     /// Get mutable body reference.
     #[inline]
-    pub fn body_mut(&mut self) -> Option<&mut Body> {
-        self.body.as_mut()
+    pub fn body_mut(&mut self) -> &mut Body {
+        &mut self.body
     }
     /// Set body.
     #[inline]
-    pub fn set_body(&mut self, body: Option<Body>) {
+    pub fn set_body(&mut self, body: Body) {
         self.body = body
+    }
+
+    /// Set body to a new value and returns old value.
+    #[inline]
+    pub fn replace_body(&mut self, body: Body) -> Body {
+        std::mem::replace(&mut self.body, body)
     }
 
     /// Take body from response.
     #[inline]
-    pub fn take_body(&mut self) -> Option<Body> {
-        self.body.take()
-    }
-    /// Take body from response.
-    pub async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T> {
-        match &mut self.body {
-            Some(body) => body.take_json().await,
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
-    }
-    /// Take body as ```String``` from response.
-    pub async fn take_text(&mut self) -> crate::Result<String> {
-        self.take_text_with_charset("utf-8").await
-    }
-    /// Take body as ```String``` from response with charset.
-    pub async fn take_text_with_charset(&mut self, default_charset: &str) -> crate::Result<String> {
-        match &mut self.body {
-            Some(body) => {
-                let content_type = self
-                    .headers
-                    .get(header::CONTENT_TYPE)
-                    .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<Mime>().ok());
-                let charset = content_type
-                    .as_ref()
-                    .and_then(|mime| mime.get_param("charset").map(|charset| charset.as_str()))
-                    .unwrap_or(default_charset);
-                body.take_text(
-                    charset,
-                    self.headers.get(CONTENT_ENCODING).and_then(|v| v.to_str().ok()),
-                )
-                .await
-            }
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
-    }
-    /// Take body bytes from response.
-    pub async fn take_bytes(&mut self) -> crate::Result<Bytes> {
-        match &mut self.body {
-            Some(body) => body.take_bytes().await,
-            None => Err(IoError::new(ErrorKind::Other, "body is none").into()),
-        }
+    pub fn take_body(&mut self) -> Body {
+        std::mem::replace(&mut self.body, Body::None)
     }
 
     /// `write_back` is used to put all the data added to `self`
@@ -280,6 +193,7 @@ impl Response {
     /// client.
     ///
     /// `write_back` consumes the `Response`.
+    #[inline]
     pub(crate) async fn write_back(mut self, res: &mut hyper::Response<hyper::Body>) {
         for cookie in self.cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
@@ -291,22 +205,17 @@ impl Response {
         // Default to a 404 if no response code was set
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
-        if let Some(body) = self.body {
-            match body {
-                Body::Bytes(bytes) => {
-                    *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
-                }
-                Body::Stream(stream) => {
-                    *res.body_mut() = hyper::Body::wrap_stream(stream);
-                }
-                _ => {
-                    res.headers_mut()
-                        .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
-                }
+        match self.body {
+            Body::Bytes(bytes) => {
+                *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
             }
-        } else {
-            res.headers_mut()
-                .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            Body::Stream(stream) => {
+                *res.body_mut() = hyper::Body::wrap_stream(stream);
+            }
+            _ => {
+                res.headers_mut()
+                    .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            }
         }
     }
 
@@ -322,7 +231,7 @@ impl Response {
     }
     /// Helper function for get cookie.
     #[inline]
-    pub fn get_cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
     where
         T: AsRef<str>,
     {
@@ -390,21 +299,17 @@ impl Response {
     /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
     pub fn write_body(&mut self, data: &[u8]) -> crate::Result<()> {
-        if let Some(body) = self.body_mut() {
-            match body {
-                Body::Bytes(bytes) => {
-                    bytes.extend_from_slice(data);
-                }
-                Body::Stream(_) => {
-                    tracing::error!("current body kind is stream, try to write bytes to it");
-                    return Err(Error::other("current body kind is stream, try to write bytes to it"));
-                }
-                _ => {
-                    self.body = Some(Body::Bytes(BytesMut::from(data)));
-                }
+        match self.body_mut() {
+            Body::Bytes(bytes) => {
+                bytes.extend_from_slice(data);
             }
-        } else {
-            self.body = Some(Body::Bytes(BytesMut::from(data)));
+            Body::Stream(_) => {
+                tracing::error!("current body kind is stream, try to write bytes to it");
+                return Err(Error::other("current body kind is stream, try to write bytes to it"));
+            }
+            _ => {
+                self.body = Body::Bytes(BytesMut::from(data));
+            }
         }
         Ok(())
     }
@@ -416,19 +321,17 @@ impl Response {
         O: Into<Bytes> + 'static,
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
-        if let Some(body) = &self.body {
-            match body {
-                Body::Bytes(_) => {
-                    return Err(Error::other("current body kind is bytes already"));
-                }
-                Body::Stream(_) => {
-                    return Err(Error::other("current body kind is stream already"));
-                }
-                _ => {}
+        match &self.body {
+            Body::Bytes(_) => {
+                return Err(Error::other("current body kind is bytes already"));
             }
+            Body::Stream(_) => {
+                return Err(Error::other("current body kind is stream already"));
+            }
+            _ => {}
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = Some(Body::Stream(Box::pin(mapped)));
+        self.body = Body::Stream(Box::pin(mapped));
         Ok(())
     }
 
@@ -466,6 +369,7 @@ impl Response {
 }
 
 impl fmt::Debug for Response {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(
             f,
@@ -477,6 +381,7 @@ impl fmt::Debug for Response {
 }
 
 impl Display for Response {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
@@ -485,9 +390,7 @@ impl Display for Response {
 #[cfg(test)]
 mod test {
     use bytes::BytesMut;
-    use cookie::Cookie;
     use futures_util::stream::{iter, StreamExt};
-    use serde::Deserialize;
     use std::error::Error;
 
     use super::*;
@@ -495,9 +398,9 @@ mod test {
     #[test]
     fn test_body_empty() {
         let body = Body::Bytes(BytesMut::from("hello"));
-        assert!(!body.is_empty());
-        let body = Body::Empty;
-        assert!(body.is_empty());
+        assert!(!body.is_none());
+        let body = Body::None;
+        assert!(body.is_none());
     }
 
     #[tokio::test]
@@ -525,32 +428,5 @@ mod test {
         }
 
         assert_eq!("Hello World", &result)
-    }
-    #[tokio::test]
-    async fn test_others() {
-        let mut response: Response = hyper::Response::builder()
-            .header("set-cookie", "lover=dog")
-            .body("response body".into())
-            .unwrap()
-            .into();
-        // assert_eq!(response.header_cookies().len(), 1);
-        response.cookies_mut().add(Cookie::new("money", "sh*t"));
-        assert_eq!(response.cookies().get("money").unwrap().value(), "sh*t");
-        // assert_eq!(response.header_cookies().len(), 2);
-        assert_eq!(response.take_bytes().await.unwrap().len(), b"response body".len());
-
-        #[derive(Deserialize, Eq, PartialEq, Debug)]
-        struct User {
-            name: String,
-        }
-
-        let mut response: Response = hyper::Response::builder()
-            .body(r#"{"name": "jobs"}"#.into())
-            .unwrap()
-            .into();
-        assert_eq!(
-            response.take_json::<User>().await.unwrap(),
-            User { name: "jobs".into() }
-        );
     }
 }

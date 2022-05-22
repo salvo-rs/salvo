@@ -2,6 +2,63 @@
 //!
 //! Reference: <https://datatracker.ietf.org/doc/html/rfc8555>
 //! Reference: <https://datatracker.ietf.org/doc/html/rfc8737>
+//! 
+//! * HTTP-01
+//! 
+//! # Example
+//! 
+//! ```no_run
+//! use salvo_core::listener::{AcmeListener, TcpListener};
+//! use salvo_core::prelude::*;
+//! 
+//! #[fn_handler]
+//! async fn hello_world() -> &'static str {
+//!     "Hello World"
+//! }
+//! 
+//! #[tokio::main]
+//! async fn main() {
+//!     let mut router = Router::new().get(hello_world);
+//!     let listener = AcmeListener::builder()
+//!         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
+//!         .cache_path("acme/letsencrypt")
+//!         .add_domain("acme-http01.salvo.rs")
+//!         .http01_challege(&mut router)
+//!         .bind("0.0.0.0:443")
+//!         .await;
+//!     tracing::info!("Listening on https://0.0.0.0:443");
+//!     Server::new(listener.join(TcpListener::bind("0.0.0.0:80")))
+//!         .serve(router)
+//!         .await;
+//! }
+//! ```
+//! 
+//! * TLS ALPN-01
+//! 
+//! # Example
+//! 
+//! ```no_run
+//! use salvo_core::listener::AcmeListener;
+//! use salvo_core::prelude::*;
+//! 
+//! #[fn_handler]
+//! async fn hello_world() -> &'static str {
+//!     "Hello World"
+//! }
+//! 
+//! #[tokio::main]
+//! async fn main() {
+//!     let router = Router::new().get(hello_world);
+//!     let listener = AcmeListener::builder()
+//!         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
+//!         .cache_path("acme/letsencrypt")
+//!         .add_domain("acme-tls-alpn01.salvo.rs")
+//!         .bind("0.0.0.0:443")
+//!         .await;
+//!     tracing::info!("Listening on https://0.0.0.0:443");
+//!     Server::new(listener).serve(router).await;
+//! }
+//! ```
 
 pub mod cache;
 mod client;
@@ -35,7 +92,7 @@ use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
 
 use crate::addr::SocketAddr;
-use crate::http::errors::StatusError;
+use crate::http::StatusError;
 use crate::listener::{IntoAddrIncoming, Listener};
 use crate::routing::FlowCtrl;
 use crate::transport::Transport;
@@ -115,6 +172,7 @@ pub(crate) struct Http01Handler {
 
 #[async_trait]
 impl Handler for Http01Handler {
+    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         if let Some(token) = req.params().get("token") {
             let keys = self.keys.read();
@@ -161,7 +219,7 @@ impl AcmeListenerBuilder {
     ///
     /// Defaults to lets encrypt.
     #[inline]
-    pub fn directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
+    pub fn get_directory(self, name: impl Into<String>, url: impl Into<String>) -> Self {
         Self {
             config_builder: self.config_builder.directory(name, url),
             ..self
@@ -341,6 +399,7 @@ impl Accept for AcmeListener {
     type Conn = AcmeStream;
     type Error = IoError;
 
+    #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.get_mut();
         match ready!(Pin::new(&mut this.incoming).poll_accept(cx)) {
@@ -364,12 +423,14 @@ pub struct AcmeStream {
     remote_addr: SocketAddr,
 }
 impl Transport for AcmeStream {
+    #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
         Some(self.remote_addr.clone())
     }
 }
 
 impl AcmeStream {
+    #[inline]
     fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
         let remote_addr = stream.remote_addr();
         let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
@@ -381,6 +442,7 @@ impl AcmeStream {
 }
 
 impl AsyncRead for AcmeStream {
+    #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let pin = self.get_mut();
         match pin.state {
@@ -398,6 +460,7 @@ impl AsyncRead for AcmeStream {
 }
 
 impl AsyncWrite for AcmeStream {
+    #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let pin = self.get_mut();
         match pin.state {
@@ -413,6 +476,7 @@ impl AsyncWrite for AcmeStream {
         }
     }
 
+    #[inline]
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             AcmeState::Handshaking(_) => Poll::Ready(Ok(())),
@@ -420,6 +484,7 @@ impl AsyncWrite for AcmeStream {
         }
     }
 
+    #[inline]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.state {
             AcmeState::Handshaking(_) => Poll::Ready(Ok(())),
