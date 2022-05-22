@@ -61,7 +61,7 @@ serde_urlencoded = { version = "0.7", optional = true }
 tempfile = "3"
 textnonce = "1"
 thiserror = "1"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
