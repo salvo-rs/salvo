@@ -516,7 +516,7 @@ impl Request {
     /// Read url params as type `T` from request's different sources.
     ///
     /// Returns error if the same key is appeared in different sources.
-    /// This function will not handle if payload is json format, use [`pase_json`] to get typed json payload.
+    /// This function will not handle if payload is json format, use [`parse_json`] to get typed json payload.
     #[inline]
     pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
     where
