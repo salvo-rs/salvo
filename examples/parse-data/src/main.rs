@@ -41,28 +41,18 @@ async fn edit(req: &mut Request) -> String {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BadMan<'a> {
-    #[serde(default)]
     id: i64,
-    #[serde(default)]
     username: &'a str,
-    #[serde(default)]
     first_name: String,
-    #[serde(default)]
     last_name: &'a str,
-    #[serde(default)]
     lovers: Vec<String>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct GoodMan<'a> {
-    #[serde(default)]
     id: i64,
-    #[serde(default)]
     username: &'a str,
-    #[serde(default)]
     first_name: String,
-    #[serde(default)]
     last_name: &'a str,
-    #[serde(default)]
     #[serde(alias = "lovers")]
     lover: &'a str,
 }
