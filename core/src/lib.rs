@@ -15,7 +15,6 @@ mod cfg;
 
 pub mod addr;
 pub mod catcher;
-pub(crate) mod serde;
 mod depot;
 mod error;
 pub mod fs;
@@ -23,6 +22,7 @@ mod handler;
 pub mod http;
 pub mod listener;
 pub mod routing;
+pub(crate) mod serde;
 mod server;
 mod service;
 mod transport;
