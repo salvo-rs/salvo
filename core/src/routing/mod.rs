@@ -9,6 +9,8 @@ pub use router::{DetectMatched, Router};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use async_recursion::async_recursion;
+
 use crate::http::{Request, Response};
 use crate::{Depot, Handler};
 
