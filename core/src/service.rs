@@ -200,11 +200,7 @@ impl HyperHandler {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
-                while ctrl.has_next() {
-                    if !ctrl.call_next(&mut req, &mut depot, &mut res).await {
-                        break;
-                    }
-                }
+                ctrl.call_next(&mut req, &mut depot, &mut res).await;
             } else {
                 res.set_status_code(StatusCode::NOT_FOUND);
             }

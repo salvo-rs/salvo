@@ -92,6 +92,9 @@ impl FlowCtrl {
         if let Some(handler) = self.handlers.get(self.cursor) {
             self.cursor += 1;
             handler.clone().handle(req, depot, res, self).await;
+            if self.has_next() {
+                self.call_next(req, depot, res).await;
+            }
             true
         } else {
             false
