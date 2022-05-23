@@ -82,6 +82,7 @@ impl FlowCtrl {
     ///
     /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
+    #[async_recursion]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(code) = res.status_code() {
             if code.is_client_error() || code.is_server_error() || code.is_redirection() {
