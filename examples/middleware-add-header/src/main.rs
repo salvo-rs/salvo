@@ -7,7 +7,7 @@ async fn hello_world() -> &'static str {
 }
 
 #[fn_handler]
-async fn add_header(res: &mut Response, ctrl: &mut FlowCtrl) {
+async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
 }
