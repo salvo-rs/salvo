@@ -613,9 +613,15 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        self.payload()
-            .await
-            .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson))
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::JSON {
+                return self
+                    .payload()
+                    .await
+                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+            }
+        }
+        Err(ParseError::InvalidContentType)
     }
 
     /// Read body as type `T` from request.
@@ -624,7 +630,12 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize)
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+            }
+        }
+        Err(ParseError::InvalidContentType)
     }
 
     /// Read body as type `T` from request.
@@ -633,18 +644,17 @@ impl Request {
     where
         T: DeserializeOwned,
     {
-        let ctype = self
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default();
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            self.parse_form().await
-        } else if ctype.starts_with("application/json") {
-            self.parse_json().await
-        } else {
-            Err(ParseError::InvalidContentType)
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+            } else if ctype.subtype() == mime::JSON {
+                return self
+                    .payload()
+                    .await
+                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+            }
         }
+        Err(ParseError::InvalidContentType)
     }
 }
 
