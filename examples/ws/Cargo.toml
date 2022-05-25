@@ -8,6 +8,6 @@ publish = false
 [dependencies]
 futures-util = { version = "0.3", default-features = false }
 salvo = { path = "../../salvo" }
-tokio = "1"
+tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
