@@ -55,7 +55,7 @@ Add this to `Cargo.toml`
 ```toml
 [dependencies]
 salvo = "0.24"
-tokio = "1"
+tokio = { version = "1", features = ["macros"] }
 ```
 
 Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
