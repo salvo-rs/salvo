@@ -1,5 +1,5 @@
 <div align="center">
-<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="assets/logo-text.svg" /></p>
+<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="assets/logo.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
