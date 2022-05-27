@@ -1,5 +1,5 @@
 //! The macros lib of Savlo web server framework. Read more: <https://salvo.rs>
-#![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
+#![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.webp")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(private_in_public, unreachable_pub, unused_crate_dependencies)]
