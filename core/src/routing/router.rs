@@ -329,10 +329,10 @@ impl Router {
     }
 }
 
-static SYMBOL_DOWN: &str = "│";
-static SYMBOL_TEE: &str = "├";
-static SYMBOL_ELL: &str = "└";
-static SYMBOL_RIGHT: &str = "─";
+const SYMBOL_DOWN: &str = "│";
+const SYMBOL_TEE: &str = "├";
+const SYMBOL_ELL: &str = "└";
+const SYMBOL_RIGHT: &str = "─";
 impl fmt::Debug for Router {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fn print(f: &mut Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
