@@ -358,10 +358,15 @@ impl fmt::Debug for Router {
             } else {
                 format!("{}{}{}{}", prefix, SYMBOL_TEE, SYMBOL_RIGHT, SYMBOL_RIGHT)
             };
-            if !others.is_empty() {
-                writeln!(f, "{}{}[{}]", cp, path, others.join(","))?;
+            let hd = if let Some(handler) = &router.handler {
+                format!(" -> {}", handler.type_name())
             } else {
-                writeln!(f, "{}{}", cp, path)?;
+                "".into()
+            };
+            if !others.is_empty() {
+                writeln!(f, "{}{}[{}]{}", cp, path, others.join(","), hd)?;
+            } else {
+                writeln!(f, "{}{}{}", cp, path, hd)?;
             }
             let routers = router.routers();
             if !routers.is_empty() {
@@ -418,17 +423,17 @@ mod tests {
     ├──users
     │   ├──<id>
     │   │   └──emails
-    │   │       └──[GET]
+    │   │       └──[GET] -> salvo_core::routing::router::tests::fake_handler
     │   └──<id>/articles/<aid>
-    │       ├──[GET]
-    │       └──[DELETE]
+    │       ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+    │       └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
     └──articles
         ├──<id>/authors/<aid>
-        │   ├──[GET]
-        │   └──[DELETE]
+        │   ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+        │   └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
         └──<id>
-            ├──[GET]
-            └──[DELETE]
+            ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+            └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
 "#
         );
     }
