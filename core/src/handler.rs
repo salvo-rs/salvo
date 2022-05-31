@@ -41,7 +41,15 @@ use crate::Depot;
 /// ```
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
+    #[doc(hidden)]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// Handle http request.
     #[must_use = "handle future must be used"]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
 }
+
+// fn print_type_of<T>(_: &T) {
+//     println!("{}", std::any::type_name::<T>())
+// }
