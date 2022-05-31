@@ -23,7 +23,7 @@ full = ["rustls", "anyhow"]
 rustls = ["tokio-rustls", "rustls-pemfile", "pin-project-lite"]
 native-tls = ["tokio-native-tls", "pin-project-lite"]
 unix = []
-test = ["async-compression", "base64", "encoding_rs", "serde_urlencoded", "url"]
+test = ["async-compression", "base64", "encoding_rs", "serde_urlencoded", "url", "tokio/macros"]
 acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
@@ -62,7 +62,7 @@ serde_urlencoded = { version = "0.7", optional = true }
 tempfile = "3"
 textnonce = "1"
 thiserror = "1"
-tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tracing = "0.1"
