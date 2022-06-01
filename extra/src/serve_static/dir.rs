@@ -44,49 +44,55 @@ impl Default for Options {
 }
 
 pub trait StaticRoots {
-    fn collect(&self) -> Vec<PathBuf>;
+    fn collect(self) -> Vec<PathBuf>;
 }
 
 impl<'a> StaticRoots for &'a str {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
 impl<'a> StaticRoots for Vec<&'a str> {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
 impl<'a> StaticRoots for &'a String {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
 impl<'a> StaticRoots for Vec<&'a String> {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
-impl<'a> StaticRoots for String {
+impl StaticRoots for String {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
-impl<'a> StaticRoots for Vec<String> {
+impl StaticRoots for Vec<String> {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         self.iter().map(PathBuf::from).collect()
     }
 }
-impl StaticRoots for Path {
+impl<'a> StaticRoots for &'a Path {
     #[inline]
-    fn collect(&self) -> Vec<PathBuf> {
+    fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
+    }
+}
+impl StaticRoots for PathBuf {
+    #[inline]
+    fn collect(self) -> Vec<PathBuf> {
+        vec![self]
     }
 }
 /// DirHandler

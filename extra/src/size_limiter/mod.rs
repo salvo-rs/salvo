@@ -1,6 +1,6 @@
 //! size limiter middleware
 
-use hyper::body::HttpBody;
+use salvo_core::hyper::body::HttpBody;
 use salvo_core::async_trait;
 use salvo_core::http::StatusError;
 use salvo_core::prelude::*;
