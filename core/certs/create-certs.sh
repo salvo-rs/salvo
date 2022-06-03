@@ -86,3 +86,5 @@ for kt in rsa ; do
 
   openssl asn1parse -in $kt/ca.cert -out $kt/ca.der > /dev/null
 done
+
+rm rsa/ca.cert rsa/ca.key rsa/end.key rsa/end.req rsa/end.key rsa/inter.cert rsa/inter.key rsa/inter.req rsa/inter.cert
