@@ -343,7 +343,7 @@ impl Request {
 
     /// Get first accept.
     #[inline]
-    pub fn frist_accept(&self) -> Option<Mime> {
+    pub fn first_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
         if !accept.is_empty() {
             Some(accept.remove(0))

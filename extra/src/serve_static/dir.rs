@@ -263,7 +263,7 @@ impl Handler for DirHandler {
             res.set_status_error(StatusError::not_found());
             return;
         }
-        let format = req.frist_accept().unwrap_or(mime::TEXT_HTML);
+        let format = req.first_accept().unwrap_or(mime::TEXT_HTML);
         let mut files: Vec<FileInfo> = files
             .into_iter()
             .map(|(name, metadata)| FileInfo::new(name, metadata))
