@@ -197,10 +197,10 @@ async fn upload(req: &mut Request, res: &mut Response) {
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
-cargo run --bin --example-basic_auth
+cargo run --bin example-basic-auth
 ```
 
-You can use any example name you want to run instead of ```basic_auth``` here. 
+You can use any example name you want to run instead of ```basic-auth``` here. 
 
 There is a real and open source project use Salvo: [https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
