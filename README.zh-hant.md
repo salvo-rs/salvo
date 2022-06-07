@@ -183,10 +183,10 @@ async fn upload(req: &mut Request, res: &mut Response) {
 您可以從 [examples](./examples/) 文件夾下查看更多示例代碼, 您可以通過以下命令運行這些示例：
 
 ```
-cargo run --bin --example-basic_auth
+cargo run --bin example-basic-auth
 ```
 
-您可以使用任何你想運行的示例名稱替代這裏的 ```basic_auth```.
+您可以使用任何你想運行的示例名稱替代這裏的 ```basic-auth```.
 
 這裏有一個真實的項目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
