@@ -15,6 +15,14 @@ pub use path::*;
 
 /// Fiter trait for filter request.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
+    #[doc(hidden)]
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    #[doc(hidden)]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// Create a new filter use ```And``` filter.
     #[inline]
     fn and<F>(self, other: F) -> And<Self, F>

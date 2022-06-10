@@ -10,7 +10,15 @@ use crate::http::Request;
 use crate::routing::{Filter, PathState};
 
 /// PathPart
-pub trait PathPart: Send + Sync + fmt::Debug {
+pub trait PathPart: Send + Sync + fmt::Debug + 'static {
+    #[doc(hidden)]
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    #[doc(hidden)]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// Detect is that path matched.
     fn detect(&self, state: &mut PathState) -> bool;
 }

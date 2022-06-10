@@ -42,6 +42,10 @@ use crate::Depot;
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
     #[doc(hidden)]
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    #[doc(hidden)]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
