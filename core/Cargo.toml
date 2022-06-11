@@ -4,7 +4,7 @@ version = "0.24.4"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
-Salvo is a powerful and easy to use web server framework.
+Salvo is a powerful and simplest web server framework in Rust world.
 """
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
