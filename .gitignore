@@ -11,3 +11,5 @@ cobertura.xml
 debug.log
 temp
 tarpaulin-report.*
+
+.DS_Store
