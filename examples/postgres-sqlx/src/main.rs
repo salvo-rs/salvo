@@ -32,14 +32,14 @@ pub async fn get_user(req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
+    // postgresql connect info
     let postgres_uri = "postgres://postgres:password@localhost/test";
     let pool = PgPool::connect(postgres_uri).await.unwrap();
     POSTGRES.set(pool).unwrap();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
-}
+    // router
+    let router = Router::with_path("users").get(get_user);
 
-fn route() -> Router {
-    Router::new().get(get_user)
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
