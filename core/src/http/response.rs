@@ -296,7 +296,7 @@ impl Response {
         self.status_error = Some(err);
     }
 
-    /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
+    /// Render content.
     #[inline]
     pub fn render<P>(&mut self, piece: P)
     where
