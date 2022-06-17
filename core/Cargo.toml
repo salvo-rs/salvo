@@ -65,7 +65,7 @@ thiserror = "1"
 tokio = { version = "1", features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
-tokio-stream = { version = "0.1.9", default-features = false }
+tokio-stream = { version = "0.1", default-features = false }
 tracing = "0.1"
 url = { version = "2", optional = true }
 x509-parser = { version = "0.13", optional = true }
