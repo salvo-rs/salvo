@@ -75,9 +75,9 @@ mod test {
     use std::path::Path;
     use std::str::FromStr;
 
+    use bytes::BytesMut;
     use futures_util::stream::StreamExt;
     use mime::Mime;
-    use bytes::BytesMut;
 
     use super::*;
     use crate::http::header::HeaderValue;

@@ -216,8 +216,11 @@ impl Response {
                 *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
             }
             Body::Chunks(chunks) => {
-                *res.body_mut() =
-                    hyper::Body::wrap_stream(tokio_stream::iter(chunks.into_iter().map(|chunk| Result::<_, Box<dyn StdError + Send + Sync>>::Ok(chunk))));
+                *res.body_mut() = hyper::Body::wrap_stream(tokio_stream::iter(
+                    chunks
+                        .into_iter()
+                        .map(|chunk| Result::<_, Box<dyn StdError + Send + Sync>>::Ok(chunk)),
+                ));
             }
             Body::Stream(stream) => {
                 *res.body_mut() = hyper::Body::wrap_stream(stream);
@@ -320,7 +323,9 @@ impl Response {
             }
             Body::Stream(_) => {
                 tracing::error!("current body kind is `Body::Stream`, try to write bytes to it");
-                return Err(Error::other("current body kind is `Body::Stream`, try to write bytes to it"));
+                return Err(Error::other(
+                    "current body kind is `Body::Stream`, try to write bytes to it",
+                ));
             }
         }
         Ok(())
