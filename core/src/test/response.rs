@@ -87,7 +87,14 @@ impl ResponseExt for Response {
         let body = self.take_body();
         let bytes = match body {
             Body::None => Bytes::new(),
-            Body::Bytes(bytes) => bytes.freeze(),
+            Body::Once(bytes) => bytes,
+            Body::Chunks(chunks) => {
+                let mut bytes = BytesMut::new();
+                for chunk in chunks {
+                    bytes.extend(chunk);
+                }
+                bytes.freeze()
+            },
             Body::Stream(mut stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {

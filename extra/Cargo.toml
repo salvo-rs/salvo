@@ -22,7 +22,7 @@ default = ["full"]
 full = ["basic-auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
 basic-auth = ["base64"]
 jwt-auth = ["jsonwebtoken", "once_cell", "serde"]
-compression = ["async-compression", "tokio", "tokio-stream", "tokio-util", "tracing"]
+compression = ["async-compression", "bytes", "tokio", "tokio-stream", "tokio-util", "tracing"]
 cors = ["tracing"]
 csrf = ["cookie", "hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "hmac", "tracing"]
 size-limiter = []
@@ -41,6 +41,7 @@ async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", 
 async-session = { version = "3", optional = true }
 base64 = { version = "0.13", optional = true }
 byteorder = { version = "1", optional = true }
+bytes = { version = "1", optional = true }
 chacha20poly1305 = { version = "0.9", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }

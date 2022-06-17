@@ -4,6 +4,7 @@ use std::io::{Error as IoError, ErrorKind};
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
+use bytes::BytesMut;
 
 use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
@@ -129,12 +130,12 @@ impl Handler for CompressionHandler {
             Body::None => {
                 return;
             }
-            Body::Bytes(body) => {
-                if body.len() < self.min_length {
-                    res.set_body(Body::Bytes(body));
+            Body::Once(bytes) => {
+                if bytes.len() < self.min_length {
+                    res.set_body(Body::Once(bytes));
                     return;
                 }
-                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(body)));
+                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
                 match self.algo {
                     CompressionAlgo::Gzip => {
                         let stream = ReaderStream::new(GzipEncoder::new(reader));
@@ -156,9 +157,41 @@ impl Handler for CompressionHandler {
                     }
                 }
             }
-            Body::Stream(body) => {
-                let body = body.map(|item| item.map_err(|_| ErrorKind::Other));
-                let reader = StreamReader::new(body);
+            Body::Chunks(chunks) => {
+                let len = chunks.iter().map(|c|c.len()).sum();
+                if len < self.min_length {
+                    res.set_body(Body::Chunks(chunks));
+                    return;
+                }
+                let mut bytes = BytesMut::with_capacity(len);
+                for chunk in chunks {
+                    bytes.extend_from_slice(&*chunk);
+                }
+                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
+                match self.algo {
+                    CompressionAlgo::Gzip => {
+                        let stream = ReaderStream::new(GzipEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
+                        }
+                    }
+                    CompressionAlgo::Deflate => {
+                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
+                        }
+                    }
+                    CompressionAlgo::Brotli => {
+                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
+                        if let Err(e) = res.streaming(stream) {
+                            tracing::error!(error = ?e, "request streaming error");
+                        }
+                    }
+                }
+            }
+            Body::Stream(stream) => {
+                let stream = stream.map(|item| item.map_err(|_| ErrorKind::Other));
+                let reader = StreamReader::new(stream);
                 match self.algo {
                     CompressionAlgo::Gzip => {
                         let stream = ReaderStream::new(GzipEncoder::new(reader));
