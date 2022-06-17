@@ -1,12 +1,12 @@
 //! Http response.
 
 use std::borrow::Cow;
+use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
-use bytes::{Bytes, BytesMut};
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::{Stream, TryStreamExt};
 use http::version::Version;
@@ -18,14 +18,17 @@ use super::errors::*;
 use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue};
 use crate::http::StatusCode;
 use crate::{Error, Piece};
+use bytes::Bytes;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
 pub enum Body {
     /// None body.
     None,
-    /// Bytes body.
-    Bytes(BytesMut),
+    /// Once bytes body.
+    Once(Bytes),
+    /// Chunks body.
+    Chunks(VecDeque<Bytes>),
     /// Stream body.
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
@@ -44,17 +47,16 @@ impl Stream for Body {
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
             Body::None => Poll::Ready(None),
-            Body::Bytes(bytes) => {
+            Body::Once(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
                 } else {
-                    Poll::Ready(Some(Ok(bytes.split().freeze())))
+                    let bytes = std::mem::replace(bytes, Bytes::new());
+                    Poll::Ready(Some(Ok(bytes)))
                 }
             }
-            Body::Stream(stream) => {
-                let x = stream.as_mut();
-                x.poll_next(cx)
-            }
+            Body::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(|chunk| Ok(chunk))),
+            Body::Stream(stream) => stream.as_mut().poll_next(cx),
         }
     }
 }
@@ -206,15 +208,19 @@ impl Response {
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         match self.body {
-            Body::Bytes(bytes) => {
+            Body::None => {
+                res.headers_mut()
+                    .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            }
+            Body::Once(bytes) => {
                 *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
+            }
+            Body::Chunks(chunks) => {
+                *res.body_mut() =
+                    hyper::Body::wrap_stream(tokio_stream::iter(chunks.into_iter().map(|chunk| Result::<_, Box<dyn StdError + Send + Sync>>::Ok(chunk))));
             }
             Body::Stream(stream) => {
                 *res.body_mut() = hyper::Body::wrap_stream(stream);
-            }
-            _ => {
-                res.headers_mut()
-                    .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
             }
         }
     }
@@ -298,17 +304,23 @@ impl Response {
 
     /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
-    pub fn write_body(&mut self, data: &[u8]) -> crate::Result<()> {
+    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
-            Body::Bytes(bytes) => {
-                bytes.extend_from_slice(data);
+            Body::None => {
+                self.body = Body::Once(data.into());
+            }
+            Body::Once(ref bytes) => {
+                let mut chunks = VecDeque::new();
+                chunks.push_back(bytes.clone());
+                chunks.push_back(data.into());
+                self.body = Body::Chunks(chunks);
+            }
+            Body::Chunks(chunks) => {
+                chunks.push_back(data.into());
             }
             Body::Stream(_) => {
-                tracing::error!("current body kind is stream, try to write bytes to it");
-                return Err(Error::other("current body kind is stream, try to write bytes to it"));
-            }
-            _ => {
-                self.body = Body::Bytes(BytesMut::from(data));
+                tracing::error!("current body kind is `Body::Stream`, try to write bytes to it");
+                return Err(Error::other("current body kind is `Body::Stream`, try to write bytes to it"));
             }
         }
         Ok(())
@@ -322,11 +334,14 @@ impl Response {
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
         match &self.body {
-            Body::Bytes(_) => {
-                return Err(Error::other("current body kind is bytes already"));
+            Body::Once(_) => {
+                return Err(Error::other("current body kind is `Body::Once` already"));
+            }
+            Body::Chunks(_) => {
+                return Err(Error::other("current body kind is `Body::Chunks` already"));
             }
             Body::Stream(_) => {
-                return Err(Error::other("current body kind is stream already"));
+                return Err(Error::other("current body kind is `Body::Stream` already"));
             }
             _ => {}
         }
@@ -397,7 +412,7 @@ mod test {
 
     #[test]
     fn test_body_empty() {
-        let body = Body::Bytes(BytesMut::from("hello"));
+        let body = Body::Once(Bytes::from("hello"));
         assert!(!body.is_none());
         let body = Body::None;
         assert!(body.is_none());
@@ -405,7 +420,7 @@ mod test {
 
     #[tokio::test]
     async fn test_body_stream1() {
-        let mut body = Body::Bytes(BytesMut::from("hello"));
+        let mut body = Body::Once(Bytes::from("hello"));
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {

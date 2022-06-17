@@ -56,24 +56,28 @@ impl Piece for () {
     #[inline]
     fn render(self, _res: &mut Response) {}
 }
-impl<'a> Piece for &'a str {
+impl Piece for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut()
             .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
-        res.write_body(self.as_bytes()).ok();
+        res.write_body(self).ok();
     }
 }
 impl<'a> Piece for &'a String {
     #[inline]
     fn render(self, res: &mut Response) {
-        (&**self).render(res);
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.write_body(self.as_bytes().to_vec()).ok();
     }
 }
 impl Piece for String {
     #[inline]
     fn render(self, res: &mut Response) {
-        (&*self).render(res);
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.write_body(self).ok();
     }
 }
 
@@ -92,12 +96,9 @@ pub enum Text<C> {
     /// It will set ```content-type``` to ```text/css; charset=utf-8```.
     Css(C),
 }
-impl<C> Piece for Text<C>
-where
-    C: AsRef<str> + Send,
-{
-    #[inline]
-    fn render(self, res: &mut Response) {
+
+impl<C> Text<C> where C: AsRef<str> {
+    fn set_header(self, res: &mut Response) -> C {
         let (ctype, content) = match self {
             Self::Plain(content) => (HeaderValue::from_static("text/plain; charset=utf-8"), content),
             Self::Json(content) => (HeaderValue::from_static("application/json; charset=utf-8"), content),
@@ -107,7 +108,28 @@ where
             Self::Css(content) => (HeaderValue::from_static("text/css; charset=utf-8"), content),
         };
         res.headers_mut().insert(CONTENT_TYPE, ctype);
-        res.write_body(content.as_ref().as_bytes()).ok();
+        content
+    }
+}
+impl Piece for Text<&'static str> {
+    #[inline]
+    fn render(self, res: &mut Response) {
+        let content = self.set_header(res);
+        res.write_body(content).ok();
+    }
+}
+impl Piece for Text<String> {
+    #[inline]
+    fn render(self, res: &mut Response) {
+        let content = self.set_header(res);
+        res.write_body(content).ok();
+    }
+}
+impl<'a> Piece for Text<&'a String> {
+    #[inline]
+    fn render(self, res: &mut Response) {
+        let content = self.set_header(res);
+        res.write_body(content.as_bytes().to_vec()).ok();
     }
 }
 
@@ -126,7 +148,7 @@ where
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/json; charset=utf-8"),
                 );
-                res.write_body(&bytes).ok();
+                res.write_body(bytes).ok();
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");
