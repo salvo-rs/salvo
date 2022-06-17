@@ -55,7 +55,7 @@ impl Stream for Body {
                     Poll::Ready(Some(Ok(bytes)))
                 }
             }
-            Body::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(|chunk| Ok(chunk))),
+            Body::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
             Body::Stream(stream) => stream.as_mut().poll_next(cx),
         }
     }
@@ -213,13 +213,11 @@ impl Response {
                     .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
             }
             Body::Once(bytes) => {
-                *res.body_mut() = hyper::Body::from(Bytes::from(bytes));
+                *res.body_mut() = hyper::Body::from(bytes);
             }
             Body::Chunks(chunks) => {
                 *res.body_mut() = hyper::Body::wrap_stream(tokio_stream::iter(
-                    chunks
-                        .into_iter()
-                        .map(|chunk| Result::<_, Box<dyn StdError + Send + Sync>>::Ok(chunk)),
+                    chunks.into_iter().map(Result::<_, Box<dyn StdError + Send + Sync>>::Ok),
                 ));
             }
             Body::Stream(stream) => {
