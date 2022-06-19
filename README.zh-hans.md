@@ -196,8 +196,8 @@ Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
-[![techempower](assets/tp.jpg)](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
+[https://tfb-status.techempower.com/](https://tfb-status.techempower.com/)
+![techempower](assets/tp.jpg)
 
 ## 🩸 贡献
 
