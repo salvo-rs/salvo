@@ -1,3 +1,4 @@
+#[derive(Default)]
 pub struct Affix(Depot);
 
 pub fn inject<V: Any + Send + Sync>(value: V) -> Affix {
@@ -28,12 +29,6 @@ impl Affix {
     {
         self.0.insert();
         self
-    }
-}
-
-impl Default for Affix {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

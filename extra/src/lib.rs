@@ -10,6 +10,10 @@
 mod cfg;
 
 cfg_feature! {
+    #![feature = "affix"]
+    pub mod affix;
+}
+cfg_feature! {
     #![feature = "basic-auth"]
     pub mod basic_auth;
 }
