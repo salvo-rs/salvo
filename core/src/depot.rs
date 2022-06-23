@@ -1,4 +1,4 @@
-use std::any::{TypeId, Any};
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
