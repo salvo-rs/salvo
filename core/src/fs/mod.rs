@@ -75,6 +75,7 @@ mod test {
     use std::path::Path;
     use std::str::FromStr;
 
+    use bytes::BytesMut;
     use futures_util::stream::StreamExt;
     use mime::Mime;
 
@@ -94,7 +95,7 @@ mod test {
             state: ChunkedState::File(Some(mock.clone())),
         };
 
-        let mut result = bytes::BytesMut::with_capacity(SIZE as usize);
+        let mut result = BytesMut::with_capacity(SIZE as usize);
 
         while let Some(Ok(read_chunck)) = chunk.next().await {
             result.extend_from_slice(&read_chunck)
