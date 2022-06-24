@@ -7,6 +7,8 @@ use salvo_core::{Depot, Error, Handler};
 
 /// key used when insert into depot.
 pub const DATA_KEY: &str = "::salvo::extra::authorization::data";
+/// key used when insert into depot.
+pub const DATA_TYPE: &str = "::salvo::extra::authorization::type";
 
 /// AuthorizationValidator
 #[async_trait]
@@ -15,7 +17,6 @@ pub trait AuthorizationValidator: Send + Sync {
     #[must_use = "validate future must be used"]
     async fn validate(&self, data: AuthorizationResult) -> bool;
 }
-
 
 /// AuthorizationType
 #[derive(PartialEq, Debug)]
@@ -95,7 +96,6 @@ where
             Err(Error::other("parse http header failed"))
         }
     }
-
 }
 
 #[async_trait]
@@ -107,7 +107,7 @@ where
         if let Some(auth) = req.headers().get(AUTHORIZATION) {
             if let Ok(auth) = auth.to_str() {
                 let mut list = auth.split(' ').collect::<Vec<&str>>();
-                
+
                 let auth_type: &str = list.remove(0);
                 if &self.auth_type.to_string() != auth_type && self.auth_type != AuthorizationType::Any {
                     self.ask_credentials(res);
@@ -119,16 +119,18 @@ where
                 match auth_type {
                     "Basic" => {
                         if let Ok(u) = self.parse_basic_authorization(raw.clone()) {
-                            if self.validator.validate(AuthorizationResult::Basic(u)).await {
-                                depot.insert(DATA_KEY, raw);
+                            if self.validator.validate(AuthorizationResult::Basic(u.clone())).await {
+                                depot.insert(DATA_KEY, u.0);
+                                depot.insert(DATA_TYPE, "Basic");
                                 ctrl.call_next(req, depot, res).await;
                                 return;
                             }
                         }
-                    },
+                    }
                     "Bearer" => {
                         if self.validator.validate(AuthorizationResult::Bearer(raw.clone())).await {
                             depot.insert(DATA_KEY, raw);
+                            depot.insert(DATA_TYPE, "Bearer");
                             ctrl.call_next(req, depot, res).await;
                             return;
                         }
@@ -136,12 +138,13 @@ where
                     "Digest" => {
                         if self.validator.validate(AuthorizationResult::Digest(raw.clone())).await {
                             depot.insert(DATA_KEY, raw);
+                            depot.insert(DATA_TYPE, "Digest");
                             ctrl.call_next(req, depot, res).await;
                             return;
                         }
                     }
                     _ => {
-                        return ;
+                        return;
                     }
                 }
             }
