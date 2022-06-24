@@ -27,7 +27,7 @@ use std::fmt::{self, Formatter};
 
 #[derive(Default)]
 pub struct Depot {
-    map: HashMap<String, Box<dyn Any + Send + Sync>>,
+    map: HashMap<String, Box<dyn Any + Send>>,
 }
 
 impl Depot {
@@ -41,7 +41,7 @@ impl Depot {
 
     /// Get reference to depot inner map.
     #[inline]
-    pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send + Sync>> {
+    pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send>> {
         &self.map
     }
 
@@ -62,12 +62,12 @@ impl Depot {
 
     /// Inject a value into the depot.
     #[inline]
-    pub fn inject<V: Any + Send + Sync>(&mut self, value: V) {
+    pub fn inject<V: Any + Send>(&mut self, value: V) {
         self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
     }
     /// Obtain a reference to a value previous inject to the depot.
     #[inline]
-    pub fn obtain<T: Any + Send + Sync>(&self) -> Option<&T> {
+    pub fn obtain<T: Any + Send>(&self) -> Option<&T> {
         self.get(&format!("{:?}", TypeId::of::<T>()))
     }
 
@@ -76,7 +76,7 @@ impl Depot {
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
-        V: Any + Send + Sync,
+        V: Any + Send,
     {
         self.map.insert(key.into(), Box::new(value));
     }
@@ -89,19 +89,19 @@ impl Depot {
 
     /// Immutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Option<&V> {
+    pub fn get<V: Any + Send>(&self, key: &str) -> Option<&V> {
         self.map.get(key).and_then(|b| b.downcast_ref::<V>())
     }
 
     /// Mutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get_mut<V: Any + Send + Sync>(&mut self, key: &str) -> Option<&mut V> {
+    pub fn get_mut<V: Any + Send>(&mut self, key: &str) -> Option<&mut V> {
         self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())
     }
 
     /// Take value from depot container.
     #[inline]
-    pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Option<V> {
+    pub fn remove<V: Any + Send>(&mut self, key: &str) -> Option<V> {
         self.map.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
     }
 
