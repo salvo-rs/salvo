@@ -66,7 +66,7 @@ impl<C> CharPartBuilder<C> {
 }
 impl<C> PartBuilder for CharPartBuilder<C>
 where
-    C: Fn(char) -> bool + Sync + Send + 'static,
+    C: Fn(char) -> bool + Send + Sync + 'static,
 {
     fn build(&self, name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathPart>, String> {
         if args.is_empty() {
@@ -148,7 +148,7 @@ impl<C> fmt::Debug for CharPart<C> {
 }
 impl<C> PathPart for CharPart<C>
 where
-    C: Fn(char) -> bool + Sync + Send + 'static,
+    C: Fn(char) -> bool + Send + Sync + 'static,
 {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let url_path = &state.url_path[state.cursor..];

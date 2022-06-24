@@ -25,38 +25,9 @@ use std::fmt::{self, Formatter};
 /// }
 /// ```
 
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
-pub enum  Key {
-    TypeId(TypeId),
-    String(String),
-}
-
-impl From<TypeId> for Key {
-    fn from(id: TypeId) -> Self {
-        Key::TypeId(id)
-    }
-}
-impl<T: Into<String>> From<T> for Key {
-    fn from(id: T) -> Self {
-        Key::String(id.into())
-    }
-}
-
-impl AsRef<Key> for TypeId {
-    fn as_ref(&self) -> &Key {
-        &Key::TypeId(*self)
-    }
-}
-impl<T> AsRef<Key> for T where T: Into<String> {
-    fn as_ref(&self) -> &Key {
-        &Key::String(self.into())
-    }
-}
-}
-
 #[derive(Default)]
 pub struct Depot {
-    map: HashMap<String, Box<dyn Any + Send>>,
+    map: HashMap<String, Box<dyn Any + Send + Sync>>,
 }
 
 impl Depot {
@@ -70,7 +41,7 @@ impl Depot {
 
     /// Get reference to depot inner map.
     #[inline]
-    pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send>> {
+    pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send + Sync>> {
         &self.map
     }
 
@@ -93,19 +64,19 @@ impl Depot {
     #[inline]
     pub fn inject<V: Any + Send + Sync>(&mut self, value: V) {
         self.map
-            .insert(TypeId::of::<V>(), Box::new(value));
+            .insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
     }
     /// Obtain a reference to a value previous inject to the depot.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&mut self) -> Option<&T> {
-        self.get(&Key::TypeId(TypeId::of::<T>()));
+        self.get(&format!("{:?}",TypeId::of::<T>()))
     }
 
     /// Inserts a key-value pair into the depot.
     #[inline]
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
-        K: Into<Key>,
+        K: Into<String>,
         V: Any + Send + Sync,
     {
         self.map.insert(key.into(), Box::new(value));
@@ -113,36 +84,36 @@ impl Depot {
 
     /// Check is there a value stored in depot with this key.
     #[inline]
-    pub fn contains_key(&self, key: impl AsRef<Key> ) -> bool {
-        self.map.contains_key(key.as_ref())
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.map.contains_key(key)
     }
 
     /// Immutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get<V: Any + Send + Sync>(&self, key: impl AsRef<Key>) -> Option<&V> {
-        self.map.get(key.as_ref()).and_then(|b| b.downcast_ref::<V>())
+    pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Option<&V> {
+        self.map.get(key).and_then(|b| b.downcast_ref::<V>())
     }
 
     /// Mutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get_mut<V: Any + Send + Sync>(&mut self, key: impl AsRef<Key>) -> Option<&mut V> {
-        self.map.get_mut(key.as_ref()).and_then(|b| b.downcast_mut::<V>())
+    pub fn get_mut<V: Any + Send + Sync>(&mut self, key: &str) -> Option<&mut V> {
+        self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())
     }
 
     /// Take value from depot container.
     #[inline]
-    pub fn remove<V: Any + Send + Sync>(&mut self, key: impl AsRef<Key>) -> Option<V> {
-        self.map.remove(key.as_ref()).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
+    pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Option<V> {
+        self.map.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
     }
 
     /// Transfer all data to a new instance.
     #[inline]
     pub fn transfer(&mut self) -> Depot {
-        let mut data = HashMap::with_capacity(self.map.len());
+        let mut map = HashMap::with_capacity(self.map.len());
         for (k, v) in self.map.drain() {
-            data.insert(k, v);
+            map.insert(k, v);
         }
-        Depot { data }
+        Depot { map }
     }
 }
 
