@@ -3,7 +3,7 @@ use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
+use salvo_core::{Depot, Error, Handler};
 
 /// key used when insert into depot.
 pub const DATA_KEY: &str = "::salvo::extra::authorization::data";
@@ -46,7 +46,7 @@ impl ToString for AuthorizationType {
 /// AuthorizationResult
 pub enum AuthorizationResult {
     /// Basic Authorization
-    Basic(String),
+    Basic((String, String)),
     /// Bearer Authorization
     Bearer(String),
     /// Digest Authorization
@@ -85,6 +85,17 @@ where
         );
         res.set_status_code(StatusCode::UNAUTHORIZED);
     }
+
+    fn parse_basic_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
+        let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
+        let auth = auth.iter().map(|&c| c as char).collect::<String>();
+        if let Some((username, password)) = auth.split_once(':') {
+            Ok((username.to_owned(), password.to_owned()))
+        } else {
+            Err(Error::other("parse http header failed"))
+        }
+    }
+
 }
 
 #[async_trait]
@@ -107,21 +118,23 @@ where
                 let raw = list.join(" ");
                 match auth_type {
                     "Basic" => {
-                        if self.validator.validate(AuthorizationResult::Basic(raw.clone())).await {
-                            depot.insert(DATA_KEY, raw);
-                            ctrl.call_next(req, depot, res).await;
-                            return;
+                        if let Ok(u) = self.parse_basic_authorization(raw.clone()) {
+                            if self.validator.validate(AuthorizationResult::Basic(u)).await {
+                                depot.insert(DATA_KEY, raw);
+                                ctrl.call_next(req, depot, res).await;
+                                return;
+                            }
                         }
                     },
                     "Bearer" => {
-                        if self.validator.validate(AuthorizationResult::Basic(raw.clone())).await {
+                        if self.validator.validate(AuthorizationResult::Bearer(raw.clone())).await {
                             depot.insert(DATA_KEY, raw);
                             ctrl.call_next(req, depot, res).await;
                             return;
                         }
                     }
                     "Digest" => {
-                        if self.validator.validate(AuthorizationResult::Basic(raw.clone())).await {
+                        if self.validator.validate(AuthorizationResult::Digest(raw.clone())).await {
                             depot.insert(DATA_KEY, raw);
                             ctrl.call_next(req, depot, res).await;
                             return;
@@ -155,7 +168,7 @@ mod tests {
     impl AuthorizationValidator for Validator {
         async fn validate(&self, data: AuthorizationResult) -> bool {
             if let AuthorizationResult::Basic(msg) = data {
-                return &msg == "123456";
+                return &msg.0 == "root" && &msg.1 == "pwd";
             }
             false
         }
