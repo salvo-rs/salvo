@@ -1,4 +1,4 @@
-//! Http response.
+//! Http request.
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
