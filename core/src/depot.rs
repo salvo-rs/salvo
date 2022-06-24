@@ -68,7 +68,7 @@ impl Depot {
     }
     /// Obtain a reference to a value previous inject to the depot.
     #[inline]
-    pub fn obtain<T: Any + Send + Sync>(&mut self) -> Option<&T> {
+    pub fn obtain<T: Any + Send + Sync>(&self) -> Option<&T> {
         self.get(&format!("{:?}",TypeId::of::<T>()))
     }
 
