@@ -63,13 +63,12 @@ impl Depot {
     /// Inject a value into the depot.
     #[inline]
     pub fn inject<V: Any + Send + Sync>(&mut self, value: V) {
-        self.map
-            .insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
+        self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
     }
     /// Obtain a reference to a value previous inject to the depot.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Option<&T> {
-        self.get(&format!("{:?}",TypeId::of::<T>()))
+        self.get(&format!("{:?}", TypeId::of::<T>()))
     }
 
     /// Inserts a key-value pair into the depot.
