@@ -15,6 +15,7 @@ pub use salvo_core::*;
 
 cfg_feature! {
     #![any(
+        feature = "affix",
         feature = "extra",
         feature = "authorization",
         feature = "compression",

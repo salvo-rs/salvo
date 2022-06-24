@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
@@ -24,9 +24,10 @@ use std::fmt::{self, Formatter};
 ///     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 /// }
 /// ```
+
 #[derive(Default)]
 pub struct Depot {
-    data: HashMap<String, Box<dyn Any + Send>>,
+    map: HashMap<String, Box<dyn Any + Send>>,
 }
 
 impl Depot {
@@ -35,7 +36,13 @@ impl Depot {
     /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
     #[inline]
     pub fn new() -> Depot {
-        Depot { data: HashMap::new() }
+        Depot { map: HashMap::new() }
+    }
+
+    /// Get reference to depot inner map.
+    #[inline]
+    pub fn inner(&self) -> &HashMap<String, Box<dyn Any + Send>> {
+        &self.map
     }
 
     /// Creates an empty ```Depot``` with the specified capacity.
@@ -44,72 +51,75 @@ impl Depot {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Depot {
         Depot {
-            data: HashMap::with_capacity(capacity),
+            map: HashMap::with_capacity(capacity),
         }
     }
     /// Returns the number of elements the depot can hold without reallocating.
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.data.capacity()
+        self.map.capacity()
     }
+
+    /// Inject a value into the depot.
+    #[inline]
+    pub fn inject<V: Any + Send>(&mut self, value: V) {
+        self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
+    }
+    /// Obtain a reference to a value previous inject to the depot.
+    #[inline]
+    pub fn obtain<T: Any + Send>(&self) -> Option<&T> {
+        self.get(&format!("{:?}", TypeId::of::<T>()))
+    }
+
     /// Inserts a key-value pair into the depot.
     #[inline]
     pub fn insert<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
-        V: Any + Send + Sync,
+        V: Any + Send,
     {
-        self.data.insert(key.into(), Box::new(value));
+        self.map.insert(key.into(), Box::new(value));
     }
 
     /// Check is there a value stored in depot with this key.
     #[inline]
     pub fn contains_key(&self, key: &str) -> bool {
-        self.data.contains_key(key)
+        self.map.contains_key(key)
     }
 
     /// Immutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get<V>(&self, key: &str) -> Option<&V>
-    where
-        V: Any + Send,
-    {
-        self.data.get(key).and_then(|b| b.downcast_ref::<V>())
+    pub fn get<V: Any + Send>(&self, key: &str) -> Option<&V> {
+        self.map.get(key).and_then(|b| b.downcast_ref::<V>())
     }
 
     /// Mutably borrows value from depot, returing none if value is not present in depot.
     #[inline]
-    pub fn get_mut<V>(&mut self, key: &str) -> Option<&mut V>
-    where
-        V: Any + Send,
-    {
-        self.data.get_mut(key).and_then(|b| b.downcast_mut::<V>())
+    pub fn get_mut<V: Any + Send>(&mut self, key: &str) -> Option<&mut V> {
+        self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())
     }
 
     /// Take value from depot container.
     #[inline]
-    pub fn remove<V>(&mut self, key: &str) -> Option<V>
-    where
-        V: Any + Send,
-    {
-        self.data.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
+    pub fn remove<V: Any + Send>(&mut self, key: &str) -> Option<V> {
+        self.map.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
     }
 
     /// Transfer all data to a new instance.
     #[inline]
     pub fn transfer(&mut self) -> Depot {
-        let mut data = HashMap::with_capacity(self.data.len());
-        for (k, v) in self.data.drain() {
-            data.insert(k, v);
+        let mut map = HashMap::with_capacity(self.map.len());
+        for (k, v) in self.map.drain() {
+            map.insert(k, v);
         }
-        Depot { data }
+        Depot { map }
     }
 }
 
 impl fmt::Debug for Depot {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Depot").field("keys", &self.data.keys()).finish()
+        f.debug_struct("Depot").field("keys", &self.map.keys()).finish()
     }
 }
 

@@ -15,6 +15,11 @@ cfg_feature! {
 }
 
 cfg_feature! {
+    #![feature = "affix"]
+    pub mod affix;
+}
+
+cfg_feature! {
     #![feature = "jwt-auth"]
     pub mod jwt_auth;
 }

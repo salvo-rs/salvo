@@ -260,7 +260,7 @@ pub trait JwtAuthDepotExt {
     /// get jwt auth decoded data from depot.
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
-        C: DeserializeOwned + Sync + Send + 'static;
+        C: DeserializeOwned + Send + Sync + 'static;
     /// get jwt auth state from depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
 }
@@ -274,7 +274,7 @@ impl JwtAuthDepotExt for Depot {
     #[inline]
     fn jwt_auth_data<C>(&self) -> Option<&TokenData<C>>
     where
-        C: DeserializeOwned + Sync + Send + 'static,
+        C: DeserializeOwned + Send + Sync + 'static,
     {
         self.get(AUTH_DATA_KEY)
     }
@@ -296,7 +296,7 @@ pub struct JwtAuthHandler<C> {
 
 impl<C> JwtAuthHandler<C>
 where
-    C: DeserializeOwned + Sync + Send + 'static,
+    C: DeserializeOwned + Send + Sync + 'static,
 {
     /// Create new `JwtAuthHandler`.
     #[inline]
@@ -369,7 +369,7 @@ where
 #[async_trait]
 impl<C> Handler for JwtAuthHandler<C>
 where
-    C: DeserializeOwned + Sync + Send + 'static,
+    C: DeserializeOwned + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         for extractor in &self.extractors {

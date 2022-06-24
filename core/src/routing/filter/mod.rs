@@ -20,7 +20,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,
-        F: Filter + Sync + Send,
+        F: Filter + Send + Sync,
     {
         And {
             first: self,
@@ -33,7 +33,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn or<F>(self, other: F) -> Or<Self, F>
     where
         Self: Sized,
-        F: Filter + Sync + Send,
+        F: Filter + Send + Sync,
     {
         Or {
             first: self,
