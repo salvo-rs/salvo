@@ -143,9 +143,7 @@ where
                             return;
                         }
                     }
-                    _ => {
-                        return;
-                    }
+                    _ => {}
                 }
             }
         }

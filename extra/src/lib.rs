@@ -15,10 +15,6 @@ cfg_feature! {
 }
 
 cfg_feature! {
-    #![feature = "basic-auth"]
-    pub mod basic_auth;
-}
-cfg_feature! {
     #![feature = "jwt-auth"]
     pub mod jwt_auth;
 }
