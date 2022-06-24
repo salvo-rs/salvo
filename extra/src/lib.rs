@@ -10,13 +10,15 @@
 mod cfg;
 
 cfg_feature! {
+    #![feature = "authorization"]
+    pub mod authorization;
+}
+
+cfg_feature! {
     #![feature = "affix"]
     pub mod affix;
 }
-cfg_feature! {
-    #![feature = "basic-auth"]
-    pub mod basic_auth;
-}
+
 cfg_feature! {
     #![feature = "jwt-auth"]
     pub mod jwt_auth;
