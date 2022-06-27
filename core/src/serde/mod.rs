@@ -98,9 +98,6 @@ impl<'de> IntoDeserializer<'de> for FieldValue<'de> {
     }
 }
 
-impl<'de> Deserializer<'de> for FieldValue<'de> {
-}
-
 impl<'de> Deserializer<'de> for CowValue<'de> {
     type Error = Error;
 

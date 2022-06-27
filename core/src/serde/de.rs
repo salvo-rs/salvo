@@ -29,7 +29,12 @@ where
             metadata,
         }
     }
-    fn  de_value(&self, value: &str) -> Result<Value, E> {
+    fn  value_deserializer(&self, value: &str) -> Result<Value, E> {
+        let value = self.value.take();
+        // Panic because this indicates a bug in the program rather than an
+        // expected failure.
+        let value = value.expect("MapAccess::next_value called before next_key");
+        let source = self.field_source.take().or(self.default_source()).unwrap();
         let field = &de.metadata.fields[self.field_index];
         match f
     }
@@ -124,11 +129,7 @@ where
     where
         T: de::DeserializeSeed<'de>,
     {
-        let value = self.value.take();
-        // Panic because this indicates a bug in the program rather than an
-        // expected failure.
-        let value = value.expect("MapAccess::next_value called before next_key");
-        seed.deserialize(value.into_deserializer())
+        seed.deserialize(self.value_deserializer());
     }
 
     fn next_entry_seed<TK, TV>(
@@ -143,7 +144,7 @@ where
         match self.next_pair() {
             Some((key, value)) => {
                 let key = try!(kseed.deserialize(key.into_deserializer()));
-                let value = try!(vseed.deserialize(value.into_deserializer()));
+                let value = try!(vseed.deserialize(self.value_deserializer()));
                 Ok(Some((key, value)))
             }
             None => Ok(None),

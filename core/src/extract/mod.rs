@@ -12,7 +12,7 @@ pub trait Extractor {
 
 pub struct ExtractorImpl<T>;
 
-impl<T> Extractor for ExtractorImpl<T> wehre T: Extractible {
+impl<T> Extractor for ExtractorImpl<T> where T: Extractible {
     type Output = T;
     async fn extract(&self, req: &mut Request) -> Result<Self::Output, ParseError> {
         let mut all_data: HashMap<&str, FieldValue> = HashMap::new();
