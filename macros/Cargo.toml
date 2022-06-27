@@ -17,6 +17,7 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
+darling = "0.14.1"
 proc-macro-crate = "1"
 proc-macro2 = "1"
 proc-quote = "0.4"

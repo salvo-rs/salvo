@@ -27,6 +27,7 @@ mod server;
 mod service;
 mod transport;
 pub mod writer;
+pub mod extract;
 cfg_feature! {
     #![feature ="test"]
     pub mod test;
@@ -42,6 +43,7 @@ pub use self::routing::Router;
 pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::{Piece, Writer};
+pub use self::extract::{Extractible, Extractor};
 /// Result type wich has salvo::Error as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -69,6 +71,7 @@ pub mod prelude {
     pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::{Json, Piece, Text, Writer};
+    pub use crate::extract::{Extractible, Extractor};
     pub use crate::Handler;
 }
 
