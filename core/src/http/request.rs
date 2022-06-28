@@ -516,6 +516,7 @@ impl Request {
         }
     }
 
+    /// Extract request as type `T` from request's different parts.
     #[inline]
     pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
@@ -524,6 +525,7 @@ impl Request {
         self.extract_with_metadata(T::metadata()).await
     }
 
+    /// Extract request as type `T` from request's different parts.
     #[inline]
     pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
     where
@@ -532,70 +534,9 @@ impl Request {
         Ok(crate::serde::from_request(self, metadata).await?)
     }
 
-    /// Read url params as type `T` from request's different sources.
-    ///
-    /// Returns error if the same key is appeared in different sources.
-    /// This function will not handle if payload is json format, use [`parse_json`] to get typed json payload.
+    /// Extract url params as type `T` from request.
     #[inline]
-    pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
-    where
-        T: Deserialize<'de>,
-    {
-        if sources == ParseSource::Params {
-            self.parse_params()
-        } else if sources == ParseSource::Queries {
-            self.parse_queries()
-        } else if sources == ParseSource::Headers {
-            self.parse_headers()
-        } else if sources == ParseSource::Form {
-            self.parse_form().await
-        } else {
-            let mut all_data: MultiMap<&str, &str> = MultiMap::new();
-            if sources.contains(ParseSource::Form) {
-                self.form_data().await?;
-                if let Some(form) = self.form_data.get() {
-                    if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
-                        return Err(ParseError::DuplicateKey);
-                    }
-                    for (k, v) in form.fields.iter() {
-                        all_data.insert(k, v);
-                    }
-                }
-            }
-            if sources.contains(ParseSource::Params) {
-                for (k, v) in self.params() {
-                    all_data.insert(k, &*v);
-                }
-            }
-            if sources.contains(ParseSource::Queries) {
-                let queries = self.queries();
-                if queries.keys().any(|key| all_data.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in queries.iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            if sources.contains(ParseSource::Headers) {
-                let headers = self
-                    .headers()
-                    .iter()
-                    .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-                    .collect::<MultiMap<_, _>>();
-                if all_data.keys().any(|key| headers.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in headers.iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            from_str_multi_map(all_data).map_err(ParseError::Deserialize)
-        }
-    }
-
-    /// Read url params as type `T` from request.
-    #[inline]
-    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -603,9 +544,9 @@ impl Request {
         from_str_map(params).map_err(ParseError::Deserialize)
     }
 
-    /// Read queries as type `T` from request.
+    /// Extract queries as type `T` from request.
     #[inline]
-    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -613,9 +554,9 @@ impl Request {
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
-    /// Read headers as type `T` from request.
+    /// Extract headers as type `T` from request.
     #[inline]
-    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -626,9 +567,9 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn extract_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -643,9 +584,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn extract_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -657,9 +598,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
+    pub async fn extract_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {

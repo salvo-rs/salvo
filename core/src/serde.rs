@@ -191,9 +191,12 @@ impl<'de> RequestDeserializer<'de> {
         let value = self.field_value.expect("MapAccess::next_value called before next_key");
         let source = self.field_source.or(self.metadata.default_source.as_ref()).unwrap();
         let field = &self.metadata.fields[self.field_index];
-        match &*source.from {
-            "json" => seed.deserialize(value.into_deserializer()),
-            _ => seed.deserialize(CowValue(Cow::from(value))),
+        if source.from == Source::Body && source.format == SourceFormat::Json {
+            let value = serde_json::from_str::<T::Value>(value).map_err(ValError::SerdeJson)?;
+            seed.deserialize(value)
+        } else {
+            let value = value.parse::<T::Value>().map_err(ValError::Parse)?;
+            seed.deserialize(value)
         }
     }
     fn next_pair(&mut self) -> Option<(&str, &str)> {
