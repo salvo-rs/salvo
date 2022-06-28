@@ -45,7 +45,7 @@ where
             }
         }
     }
-    fn  next_pair(&mut self) -> Option<(&'a str, &'a str)> {
+    fn  next_pair(&mut self) -> Option<(&'de str, impl Deserializer<'de>)> {
         if self.field_index < de.metadata.fields.len() - 1 {
             Some(kv) => {
                 self.field_index += 1;
@@ -54,47 +54,43 @@ where
                     let value = match &*source.from {
                         "param" => {
                             if let Some(value) = req.params().get(field.name) {
-                                return  Some((field.name, value));
+                                return  Some((field.name, CowValue(value.into())));
                             }
                         }
                         "query" => {
                             if let Some(value) = value = req.queries().get(field.name) {
-                                return  Some((field.name, value));
+                                return  Some((field.name, CowValue(value.into())));
                             }
                         }
                         "header" => {
                             if let Some(value) =  req.header(field.name) {
-                                return  Some((field.name, value));
+                                return  Some((field.name, CowValue(value.into())));
                             }
                         }
                         "body" => {
                             match source.format {
                                 Some("json") => {
                                     if let Some(json_body) =  &self.json_body {
-                                        return  Some((field.name, ""));
+                                        return  Some((field.name, json_body.get(field.name).unwrap()));
+                                    } else {
+                                        return  None;
                                     }
                                 }
                                 Some("form") => {
-                                    let value = req.json().await?;
-                                    all_data.insert(field.name, value);
+                                    if let Some(form_body) =  &self.form_body {
+                                        let value =  CowValue(form_body.get(field.name).unwrap().into());
+                                        return  Some(field.name, value);
+                                    } else {
+                                        return  None;
+                                    }
                                 }
                                 _ => {
-                                    tracing::error!("Unsupported source format: {}", source.format);
+                                    panic!("Unsupported source format: {}", source.format);
                                 }
                             }
                         }
-    
-                        if let Some(value) = source.get(req, &field.name) {
-                            all_data.insert(&field.name, value);
-                            break;
-                        }
                     }
-                    all_data.insert(field.name, FieldValue {
-                        value, 
-                        format: soruce.format,
-                    });
                 }
-               
             }
             None => None,
         }
@@ -164,33 +160,5 @@ where
             }
             None => Ok(None),
         }
-    }
-}
-
-impl<'de, I, E> de::SeqAccess<'de> for RequestDeserializer<'de, I, E>
-where
-    I: Iterator,
-    I::Item: private::Pair,
-    First<I::Item>: IntoDeserializer<'de, E>,
-    Second<I::Item>: IntoDeserializer<'de, E>,
-    E: de::Error,
-{
-    type Error = E;
-
-    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        match self.next_pair() {
-            Some((k, v)) => {
-                let de = PairDeserializer(k, v, PhantomData);
-                seed.deserialize(de).map(Some)
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn size_hint(&self) -> Option<usize> {
-        size_hint::from_bounds(&self.iter)
     }
 }

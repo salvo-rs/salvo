@@ -1,6 +1,6 @@
 [package]
 name = "salvo_macros"
-version = "0.25.0"
+version = "0.26.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = "salvo proc macros"
@@ -17,7 +17,7 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-darling = "0.14.1"
+# darling = "0.14.1"
 proc-macro-crate = "1"
 proc-macro2 = "1"
 proc-quote = "0.4"
