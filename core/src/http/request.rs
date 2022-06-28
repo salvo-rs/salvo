@@ -24,6 +24,7 @@ use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
 use crate::serde::{from_str_map, from_str_multi_map};
+use crate::serde::RequestDeserializer;
 
 /// ParseSource
 #[bitflags]
@@ -62,9 +63,9 @@ pub struct Request {
     pub(crate) params: HashMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
-    queries: OnceCell<MultiMap<String, String>>,
-    form_data: tokio::sync::OnceCell<FormData>,
-    payload: tokio::sync::OnceCell<Vec<u8>>,
+    pub(crate) queries: OnceCell<MultiMap<String, String>>,
+    pub(crate) form_data: tokio::sync::OnceCell<FormData>,
+    pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
     version: Version,
@@ -476,7 +477,7 @@ impl Request {
     }
 
     /// Get request payload.
-    pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
+    pub(crate) async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
         self.payload
             .get_or_try_init(|| async {
@@ -516,19 +517,19 @@ impl Request {
     }
 
     #[inline]
-    pub async fn extract<T>(&mut self) -> Result<T>
+    pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: Extractible,
+        T: Extractible<'de>,
     {
-        T::extract(self).await
+        self.extract_with_metadata(T::metadata()).await
     }
 
     #[inline]
-    pub async fn extract_with_metadata<'de, T>(&mut self, metadata: &Metadata) -> Result<T>
+    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        T::extract(self).await
+       Ok(crate::serde::from_request(self, metadata).await?)
     }
 
     /// Read url params as type `T` from request's different sources.
@@ -584,7 +585,7 @@ impl Request {
                 if all_data.keys().any(|key| headers.contains_key(&**key)) {
                     return Err(ParseError::DuplicateKey);
                 }
-                for (k, v) in headers.into_iter() {
+                for (k, v) in headers.iter() {
                     all_data.insert(k, v);
                 }
             }
@@ -636,7 +637,7 @@ impl Request {
                 return self
                     .payload()
                     .await
-                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+                    .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
             }
         }
         Err(ParseError::InvalidContentType)

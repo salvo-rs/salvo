@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 
 use multimap::MultiMap;
 use async_trait::async_trait;
+use serde::Deserialize;
 
 use crate::http::ParseError;
 use crate::Request;
@@ -12,21 +13,21 @@ pub mod metadata;
 pub use metadata::Metadata;
 
 #[async_trait]
-pub trait Extractor {
+pub trait Extractor<'de> {
     type Output;
-    async fn extract(&self, req: &mut Request) -> Result<Self::Output, ParseError>;
+    async fn extract(&self, req: &'de mut Request) -> Result<Self::Output, ParseError>;
 }
 
 pub struct ExtractorImpl<T>(PhantomData<T>);
 
 #[async_trait]
-impl<T> Extractor for ExtractorImpl<T> where T: Extractible {
+impl<'de, T> Extractor<'de> for ExtractorImpl<T> where T: Extractible<'de> + Sync {
     type Output = T;
-    async fn extract(&self, req: &mut Request) -> Result<Self::Output, ParseError> {
-        crate::serde::from_request(req, Self::Output::metadata()).map_err(ParseError::Deserialize)
+    async fn extract(&self, req: &'de mut Request) -> Result<Self::Output, ParseError> {
+        crate::serde::from_request(req, Self::Output::metadata()).await
     }
 }
 
-pub trait Extractible {
+pub trait Extractible<'de>: Deserialize<'de> {
     fn metadata() -> &'static Metadata;
 }

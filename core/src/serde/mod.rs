@@ -10,9 +10,10 @@ use serde_json::Value;
 
 use crate::extract::metadata::Source;
 use crate::http::form::FormData;
+use crate::http::ParseError;
 use crate::Request;
 
-pub(crate) use serde::de::value::{Error, MapDeserializer, SeqDeserializer};
+pub(crate) use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{
     Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
@@ -20,7 +21,7 @@ use serde::forward_to_deserialize_any;
 
 use crate::extract::Metadata;
 
-pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, Error>
+pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, V)> + 'de,
     T: Deserialize<'de>,
@@ -31,7 +32,7 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, Error>
+pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, C)> + 'de,
     T: Deserialize<'de>,
@@ -45,11 +46,14 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-pub(crate) fn from_request<'de, T>(req: &mut Request, metadata: &Metadata) -> Result<T, Error>
+pub(crate) async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
 where
     T: Deserialize<'de>,
 {
-    T::deserialize(RequestDeserializer::new(req, metadata))
+    // Ensure body is parsed correctly.
+    req.form_data().await.ok();
+    req.payload().await.ok();
+    Ok(T::deserialize(RequestDeserializer::new(req, metadata)?)?)
 }
 
 macro_rules! forward_cow_parsed_value {
@@ -89,7 +93,7 @@ macro_rules! forward_vec_parsed_value {
 struct ValueEnumAccess<'de>(Cow<'de, str>);
 
 impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
-    type Error = Error;
+    type Error = ValError;
     type Variant = UnitOnlyVariantAccess;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
@@ -104,7 +108,7 @@ impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
 struct UnitOnlyVariantAccess;
 
 impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
-    type Error = Error;
+    type Error = ValError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
         Ok(())
@@ -133,12 +137,12 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
 }
 
 #[derive(Debug, Clone)]
-pub struct RequestDeserializer<'de> {
+pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
     headers: MultiMap<&'de str, &'de str>,
     form_data: Option<&'de FormData>,
-    json_body: Option<Value>,
+    json_body: Option<HashMap<&'de str, String>>,
     metadata: &'de Metadata,
     field_index: usize,
     field_source: Option<&'de Source>,
@@ -147,10 +151,21 @@ pub struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    pub async fn new(request: &'de mut Request, metadata: &'de Metadata) -> RequestDeserializer<'de> {
-        RequestDeserializer {
-            json_body: request.parse_json::<Value>().await.ok(),
-            form_data: request.form_data().await.ok(),
+    pub(crate) fn new(request: &'de mut Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
+        let json_body = if let Some(payload) = request.payload.get() {
+            Some(
+                serde_json::from_slice::<HashMap<&str, Value>>(payload)
+                    .map_err(ParseError::SerdeJson)?
+                    .into_iter()
+                    .map(|(key, value)| (key, value.to_string()))
+                    .collect::<HashMap<&str, String>>(),
+            )
+        } else {
+            None
+        };
+        Ok(RequestDeserializer {
+            json_body,
+            form_data: request.form_data.get(),
             params: request.params(),
             queries: request.queries(),
             headers: request
@@ -162,21 +177,25 @@ impl<'de> RequestDeserializer<'de> {
             field_index: 0,
             field_source: None,
             field_value: None,
-        }
+        })
     }
-    fn value_deserializer(&self, value: &str) -> Result<Value, crate::http::ParseError> {
-        let value = self.value.take();
+    fn deserialize_value<T>(&self, seed: T) -> Result<T::Value, ValError> 
+    where
+        T: de::DeserializeSeed<'de>,{
         // Panic because this indicates a bug in the program rather than an
         // expected failure.
-        let value = value.expect("MapAccess::next_value called before next_key");
-        let source = self.field_source.take().or(self.default_source()).unwrap();
+        let value = self.field_value.expect("MapAccess::next_value called before next_key");
+        let source = self
+            .field_source
+            .or(self.metadata.default_source.as_ref())
+            .unwrap();
         let field = &self.metadata.fields[self.field_index];
-        match &*source.name {
-            "json" => Ok(value.into_deserializer()),
-            _ => Ok(CowValue(Cow::from(value))),
+        match &*source.from {
+            "json" => seed.deserialize(value.into_deserializer()),
+            _ => seed.deserialize(CowValue(Cow::from(value))),
         }
     }
-    fn next_pair(&mut self) -> Option<(&'de str, impl Deserializer<'de>)> {
+    fn next_pair(&mut self) -> Option<(&str, &str)> {
         if self.field_index < self.metadata.fields.len() - 1 {
             self.field_index += 1;
             let field = &self.metadata.fields[self.field_index];
@@ -184,31 +203,37 @@ impl<'de> RequestDeserializer<'de> {
                 match &*source.from {
                     "param" => {
                         if let Some(value) = self.params.get(field.name) {
-                            return Some((field.name, CowValue(value.into())));
+                            self.field_value = Some(value);
+                            return Some((field.name, value));
                         }
                     }
                     "query" => {
                         if let Some(value) = self.queries.get(field.name) {
-                            return Some((field.name, CowValue(value.into())));
+                            self.field_value = Some(value);
+                            return Some((field.name, value));
                         }
                     }
                     "header" => {
                         if let Some(value) = self.headers.get(field.name) {
-                            return Some((field.name, CowValue((*value).into())));
+                            self.field_value = Some(value);
+                            return Some((field.name,value));
                         }
                     }
                     "body" => match source.format {
                         "json" => {
                             if let Some(json_body) = &self.json_body {
-                                return Some((field.name, json_body.get(field.name).unwrap()));
+                                let value = json_body.get(field.name).unwrap();
+                                self.field_value = Some(value);
+                                return Some((field.name, value));
                             } else {
                                 return None;
                             }
                         }
                         "form" => {
-                            if let Some(form_body) = &self.form_body {
-                                let value = CowValue(form_body.get(field.name).unwrap().into());
-                                return Some(field.name, value);
+                            if let Some(form_data) = self.form_data {
+                                let value = form_data.fields.get(field.name).unwrap();
+                                self.field_value = Some(value);
+                                return Some((field.name, value));
                             } else {
                                 return None;
                             }
@@ -216,6 +241,9 @@ impl<'de> RequestDeserializer<'de> {
                         _ => {
                             panic!("Unsupported source format: {}", source.format);
                         }
+                    }
+                    _ => {
+                        panic!("Unsupported source format: {}", source.format);
                     },
                 }
             }
@@ -224,35 +252,31 @@ impl<'de> RequestDeserializer<'de> {
     }
 }
 impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
-    type Error = crate::http::ParseError;
+    type Error = ValError;
 
     fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        let value = visitor.visit_map(&mut self);
-        Ok(value)
+        visitor.visit_map(&mut self)
     }
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct tuple_struct map
+        bytes byte_buf option unit unit_struct newtype_struct tuple_struct map seq tuple
         struct enum identifier ignored_any
     }
 }
 
 impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
-    type Error = crate::http::ParseError;
+    type Error = ValError;
 
     fn next_key_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
         T: de::DeserializeSeed<'de>,
     {
         match self.next_pair() {
-            Some((key, value)) => {
-                self.value = Some(value);
-                seed.deserialize(key.into_deserializer()).map(Some)
-            }
+            Some((key, value)) => seed.deserialize(key.into_deserializer()).map(Some),
             None => Ok(None),
         }
     }
@@ -261,7 +285,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
     where
         T: de::DeserializeSeed<'de>,
     {
-        seed.deserialize(self.value_deserializer());
+        self.deserialize_value(seed)
     }
 
     fn next_entry_seed<TK, TV>(&mut self, kseed: TK, vseed: TV) -> Result<Option<(TK::Value, TV::Value)>, Self::Error>
@@ -272,7 +296,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         match self.next_pair() {
             Some((key, value)) => {
                 let key = kseed.deserialize(key.into_deserializer())?;
-                let value = vseed.deserialize(self.value_deserializer())?;
+                let value = self.deserialize_value(vseed)?;
                 Ok(Some((key, value)))
             }
             None => Ok(None),
@@ -290,7 +314,7 @@ impl<'de> IntoDeserializer<'de> for CowValue<'de> {
 }
 
 impl<'de> Deserializer<'de> for CowValue<'de> {
-    type Error = Error;
+    type Error = ValError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -376,7 +400,7 @@ impl<'de, I> Deserializer<'de> for VecValue<I>
 where
     I: IntoIterator<Item = CowValue<'de>>,
 {
-    type Error = Error;
+    type Error = ValError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where

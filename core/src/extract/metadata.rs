@@ -8,6 +8,7 @@ pub enum DataKind {
 pub struct Metadata {
     pub name: &'static str,
     pub kind: DataKind,
+    pub default_source: Option<Source>,
     pub fields: Vec<Field>,
 }
 
@@ -34,8 +35,14 @@ impl Metadata {
         Self {
             name,
             kind,
+            default_source: None,
             fields: Vec::with_capacity(8),
         }
+    }
+
+    pub fn default_source(mut self, source: Source) -> Self {
+        self.default_source = Some(source);
+        self
     }
 
     pub fn add_field(mut self, name: &'static str, type_name: &'static str, sources: Vec<Source>) -> Self {
