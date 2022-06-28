@@ -151,7 +151,10 @@ pub(crate) struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
-    pub(crate) fn new(request: &'de mut Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(
+        request: &'de mut Request,
+        metadata: &'de Metadata,
+    ) -> Result<RequestDeserializer<'de>, ParseError> {
         let json_body = if let Some(payload) = request.payload.get() {
             Some(
                 serde_json::from_slice::<HashMap<&str, Value>>(payload)
@@ -179,16 +182,14 @@ impl<'de> RequestDeserializer<'de> {
             field_value: None,
         })
     }
-    fn deserialize_value<T>(&self, seed: T) -> Result<T::Value, ValError> 
+    fn deserialize_value<T>(&self, seed: T) -> Result<T::Value, ValError>
     where
-        T: de::DeserializeSeed<'de>,{
+        T: de::DeserializeSeed<'de>,
+    {
         // Panic because this indicates a bug in the program rather than an
         // expected failure.
         let value = self.field_value.expect("MapAccess::next_value called before next_key");
-        let source = self
-            .field_source
-            .or(self.metadata.default_source.as_ref())
-            .unwrap();
+        let source = self.field_source.or(self.metadata.default_source.as_ref()).unwrap();
         let field = &self.metadata.fields[self.field_index];
         match &*source.from {
             "json" => seed.deserialize(value.into_deserializer()),
@@ -216,7 +217,7 @@ impl<'de> RequestDeserializer<'de> {
                     "header" => {
                         if let Some(value) = self.headers.get(field.name) {
                             self.field_value = Some(value);
-                            return Some((field.name,value));
+                            return Some((field.name, value));
                         }
                     }
                     "body" => match source.format {
@@ -241,10 +242,10 @@ impl<'de> RequestDeserializer<'de> {
                         _ => {
                             panic!("Unsupported source format: {}", source.format);
                         }
-                    }
+                    },
                     _ => {
                         panic!("Unsupported source format: {}", source.format);
-                    },
+                    }
                 }
             }
         }

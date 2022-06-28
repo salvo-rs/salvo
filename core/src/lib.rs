@@ -17,6 +17,7 @@ pub mod addr;
 pub mod catcher;
 mod depot;
 mod error;
+pub mod extract;
 pub mod fs;
 mod handler;
 pub mod http;
@@ -27,7 +28,6 @@ mod server;
 mod service;
 mod transport;
 pub mod writer;
-pub mod extract;
 cfg_feature! {
     #![feature ="test"]
     pub mod test;
@@ -36,6 +36,7 @@ cfg_feature! {
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
 pub use self::error::Error;
+pub use self::extract::{Extractible, Extractor};
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::listener::Listener;
@@ -43,7 +44,6 @@ pub use self::routing::Router;
 pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::{Piece, Writer};
-pub use self::extract::{Extractible, Extractor};
 /// Result type wich has salvo::Error as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -66,12 +66,12 @@ pub mod prelude {
         #![unix]
         pub use crate::listener::UnixListener;
     }
+    pub use crate::extract::{Extractible, Extractor};
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::{Json, Piece, Text, Writer};
-    pub use crate::extract::{Extractible, Extractor};
     pub use crate::Handler;
 }
 
