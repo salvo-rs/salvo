@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use multimap::MultiMap;
 use serde::de;
-use serde_json::Value;
+use serde_json::value::RawValue;
 
 use crate::extract::metadata::Source;
 use crate::http::form::FormData;
@@ -142,7 +142,7 @@ pub(crate) struct RequestDeserializer<'de> {
     queries: &'de MultiMap<String, String>,
     headers: MultiMap<&'de str, &'de str>,
     form_data: Option<&'de FormData>,
-    json_body: Option<HashMap<&'de str, String>>,
+    json_body: Option<HashMap<&'de str, &'de str>>,
     metadata: &'de Metadata,
     field_index: usize,
     field_source: Option<&'de Source>,
@@ -157,11 +157,11 @@ impl<'de> RequestDeserializer<'de> {
     ) -> Result<RequestDeserializer<'de>, ParseError> {
         let json_body = if let Some(payload) = request.payload.get() {
             Some(
-                serde_json::from_slice::<HashMap<&str, Value>>(payload)
+                serde_json::from_slice::<HashMap<&str, &RawValue>>(payload)
                     .map_err(ParseError::SerdeJson)?
                     .into_iter()
-                    .map(|(key, value)| (key, value.to_string()))
-                    .collect::<HashMap<&str, String>>(),
+                    .map(|(key, value)| (key, value.get()))
+                    .collect::<HashMap<&str, &str>>(),
             )
         } else {
             None
