@@ -543,4 +543,37 @@ mod tests {
         let user: User = super::from_str_multi_map(map).unwrap();
         assert_eq!(user.id, 42);
     }
+
+    
+    #[tokio::test]
+    async fn test_de_request() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo::extract(default_from="body", format="json")]
+        struct RequestData<'a> {
+            #[salvo::extract(from="param")]
+            param1: i64,
+            #[salvo::extract(from="param")]
+            param2: &'a str,
+            #[salvo::extract(from="query")]
+            q1: &'a str,
+            #[salvo::extract(from="query")]
+            q2: usize,
+            body: RequestBody,
+        }
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo::extract(default_from="body", format="json")]
+        struct RequestBody<'a> {
+            title: &'a str,
+            content: String,
+            comment: &'a str,
+            viewers: usize,
+        }
+        
+        let router = Router::new().push(Router::with_path("test").get(test));
+
+        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+
+    
+        assert_eq!(request.id, 42);
+    }
 }
