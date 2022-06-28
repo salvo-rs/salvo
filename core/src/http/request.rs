@@ -531,7 +531,7 @@ impl Request {
     }
 
     #[inline]
-    pub async fn extract_with_metadata<T>(&mut self, metadata: &Metadata) -> Result<T> where T: Extractible {
+    pub async fn extract_with_metadata<T>(&mut self, metadata: &Metadata) -> Result<T> where T: Deserialize {
         T::extract(self).await
     }
 
