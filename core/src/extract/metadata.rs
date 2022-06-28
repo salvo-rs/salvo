@@ -6,45 +6,42 @@ pub enum DataKind {
 }
 #[derive(Debug, Clone)]
 pub struct Metadata {
-    pub name: String,
+    pub name: &'static str,
     pub kind: DataKind,
     pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Field {
-    pub name: String,
-    pub type_name: String,
+    pub name: &'static str,
+    pub type_name: &'static str,
     pub sources: Vec<Source>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Source {
-    pub name: String,
-    pub format: String,
+    pub from: &'static str,
+    pub format: &'static str,
 }
 impl Source {
-    pub fn new(name: &str, format: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            format: format.to_string(),
-        }
+    pub fn new(from: &'static str, format: &'static str) -> Self {
+        Self { from, format }
     }
 }
 
 impl Metadata {
-    pub fn new(name: impl Into<String>, kind: DataKind) -> Self {
+    pub fn new(name: &'static str, kind: DataKind) -> Self {
         Self {
-            name: name.into(),
+            name,
             kind,
             fields: Vec::with_capacity(8),
         }
     }
 
-    pub fn add_field(mut self, name: impl Into<String>, type_name: impl Into<String>, sources: Vec<Source>) -> Self {
+    pub fn add_field(mut self, name: &'static str, type_name: &'static str, sources: Vec<Source>) -> Self {
         self.fields.push(Field {
-            name: name.into(),
-            type_name: type_name.into(),
+            name,
+            type_name,
             sources,
         });
         self

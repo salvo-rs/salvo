@@ -1,6 +1,16 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::Iterator;
+use std::marker::PhantomData;
+
+use multimap::MultiMap;
+use serde::de;
+use serde_json::Value;
+
+use crate::extract::metadata::Source;
+use crate::http::form::FormData;
+use crate::Request;
 
 pub(crate) use serde::de::value::{Error, MapDeserializer, SeqDeserializer};
 use serde::de::{
@@ -8,10 +18,7 @@ use serde::de::{
 };
 use serde::forward_to_deserialize_any;
 
-mod map;
-mod request;
-pub use map::*;
-pub use request::*;
+use crate::extract::Metadata;
 
 pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, Error>
 where
@@ -21,20 +28,6 @@ where
     V: Into<Cow<'de, str>>,
 {
     let iter = input.into_iter().map(|(k, v)| (CowValue(k.into()), CowValue(v.into())));
-    T::deserialize(MapDeserializer::new(iter))
-}
-
-pub(crate) fn from_str_value_map<'de, I, T, K, C, V>(input: I) -> Result<T, Error>
-where
-    I: IntoIterator<Item = (K, C)> + 'de,
-    T: Deserialize<'de>,
-    K: Into<Cow<'de, str>> + Hash + std::cmp::Eq + 'de,
-    C: IntoIterator<Item = V> + 'de,
-    V: Into<Cow<'de, str>> + std::cmp::Eq + 'de,
-{
-    let iter = input
-        .into_iter()
-        .map(|(k, v)| (CowValue(k.into()), FieldValue));
     T::deserialize(MapDeserializer::new(iter))
 }
 
@@ -52,9 +45,477 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-pub(crate) fn from_request<T>(request: &mut Request, metadata: &Metadata) -> Result<T, Error>
+pub(crate) fn from_request<'de, T>(req: &mut Request, metadata: &Metadata) -> Result<T, Error>
 where
     T: Deserialize<'de>,
 {
-    T::deserialize(RequestDeserializer::new(q, metadata))
+    T::deserialize(RequestDeserializer::new(req, metadata))
+}
+
+macro_rules! forward_cow_parsed_value {
+    ($($ty:ident => $method:ident,)*) => {
+        $(
+            fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+                where V: Visitor<'de>
+            {
+                match self.0.parse::<$ty>() {
+                    Ok(val) => val.into_deserializer().$method(visitor),
+                    Err(e) => Err(DeError::custom(e))
+                }
+            }
+        )*
+    }
+}
+
+macro_rules! forward_vec_parsed_value {
+    ($($ty:ident => $method:ident,)*) => {
+        $(
+            fn $method<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+                where V: Visitor<'de>
+            {
+                if let Some(item) = self.0.into_iter().next() {
+                    match item.0.parse::<$ty>() {
+                        Ok(val) => val.into_deserializer().$method(visitor),
+                        Err(e) => Err(DeError::custom(e))
+                    }
+                } else {
+                    Err(DeError::custom("expected vec not empty"))
+                }
+            }
+        )*
+    }
+}
+
+struct ValueEnumAccess<'de>(Cow<'de, str>);
+
+impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
+    type Error = Error;
+    type Variant = UnitOnlyVariantAccess;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let variant = seed.deserialize(self.0.into_deserializer())?;
+        Ok((variant, UnitOnlyVariantAccess))
+    }
+}
+
+struct UnitOnlyVariantAccess;
+
+impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+
+    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RequestDeserializer<'de> {
+    params: &'de HashMap<String, String>,
+    queries: &'de MultiMap<String, String>,
+    headers: MultiMap<&'de str, &'de str>,
+    form_data: Option<&'de FormData>,
+    json_body: Option<Value>,
+    metadata: &'de Metadata,
+    field_index: usize,
+    field_source: Option<&'de Source>,
+    field_value: Option<&'de str>,
+}
+
+impl<'de> RequestDeserializer<'de> {
+    /// Construct a new `RequestDeserializer<I, E>`.
+    pub async fn new(request: &'de mut Request, metadata: &'de Metadata) -> RequestDeserializer<'de> {
+        RequestDeserializer {
+            json_body: request.parse_json::<Value>().await.ok(),
+            form_data: request.form_data().await.ok(),
+            params: request.params(),
+            queries: request.queries(),
+            headers: request
+                .headers()
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
+                .collect::<MultiMap<_, _>>(),
+            metadata,
+            field_index: 0,
+            field_source: None,
+            field_value: None,
+        }
+    }
+    fn value_deserializer(&self, value: &str) -> Result<Value, crate::http::ParseError> {
+        let value = self.value.take();
+        // Panic because this indicates a bug in the program rather than an
+        // expected failure.
+        let value = value.expect("MapAccess::next_value called before next_key");
+        let source = self.field_source.take().or(self.default_source()).unwrap();
+        let field = &self.metadata.fields[self.field_index];
+        match &*source.name {
+            "json" => Ok(value.into_deserializer()),
+            _ => Ok(CowValue(Cow::from(value))),
+        }
+    }
+    fn next_pair(&mut self) -> Option<(&'de str, impl Deserializer<'de>)> {
+        if self.field_index < self.metadata.fields.len() - 1 {
+            self.field_index += 1;
+            let field = &self.metadata.fields[self.field_index];
+            for source in &field.sources {
+                match &*source.from {
+                    "param" => {
+                        if let Some(value) = self.params.get(field.name) {
+                            return Some((field.name, CowValue(value.into())));
+                        }
+                    }
+                    "query" => {
+                        if let Some(value) = self.queries.get(field.name) {
+                            return Some((field.name, CowValue(value.into())));
+                        }
+                    }
+                    "header" => {
+                        if let Some(value) = self.headers.get(field.name) {
+                            return Some((field.name, CowValue((*value).into())));
+                        }
+                    }
+                    "body" => match source.format {
+                        "json" => {
+                            if let Some(json_body) = &self.json_body {
+                                return Some((field.name, json_body.get(field.name).unwrap()));
+                            } else {
+                                return None;
+                            }
+                        }
+                        "form" => {
+                            if let Some(form_body) = &self.form_body {
+                                let value = CowValue(form_body.get(field.name).unwrap().into());
+                                return Some(field.name, value);
+                            } else {
+                                return None;
+                            }
+                        }
+                        _ => {
+                            panic!("Unsupported source format: {}", source.format);
+                        }
+                    },
+                }
+            }
+        }
+        None
+    }
+}
+impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
+    type Error = crate::http::ParseError;
+
+    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        let value = visitor.visit_map(&mut self);
+        Ok(value)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct tuple_struct map
+        struct enum identifier ignored_any
+    }
+}
+
+impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
+    type Error = crate::http::ParseError;
+
+    fn next_key_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        match self.next_pair() {
+            Some((key, value)) => {
+                self.value = Some(value);
+                seed.deserialize(key.into_deserializer()).map(Some)
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn next_value_seed<T>(&mut self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.value_deserializer());
+    }
+
+    fn next_entry_seed<TK, TV>(&mut self, kseed: TK, vseed: TV) -> Result<Option<(TK::Value, TV::Value)>, Self::Error>
+    where
+        TK: de::DeserializeSeed<'de>,
+        TV: de::DeserializeSeed<'de>,
+    {
+        match self.next_pair() {
+            Some((key, value)) => {
+                let key = kseed.deserialize(key.into_deserializer())?;
+                let value = vseed.deserialize(self.value_deserializer())?;
+                Ok(Some((key, value)))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+struct CowValue<'de>(Cow<'de, str>);
+impl<'de> IntoDeserializer<'de> for CowValue<'de> {
+    type Deserializer = Self;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
+
+impl<'de> Deserializer<'de> for CowValue<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.0 {
+            Cow::Borrowed(value) => visitor.visit_borrowed_str(value),
+            Cow::Owned(value) => visitor.visit_string(value),
+        }
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_some(self)
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_enum(ValueEnumAccess(self.0))
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
+    forward_to_deserialize_any! {
+        char
+        str
+        string
+        unit
+        bytes
+        byte_buf
+        unit_struct
+        tuple_struct
+        struct
+        identifier
+        tuple
+        ignored_any
+        seq
+        map
+    }
+
+    forward_cow_parsed_value! {
+        bool => deserialize_bool,
+        u8 => deserialize_u8,
+        u16 => deserialize_u16,
+        u32 => deserialize_u32,
+        u64 => deserialize_u64,
+        i8 => deserialize_i8,
+        i16 => deserialize_i16,
+        i32 => deserialize_i32,
+        i64 => deserialize_i64,
+        f32 => deserialize_f32,
+        f64 => deserialize_f64,
+    }
+}
+
+struct VecValue<I>(I);
+impl<'de, I> IntoDeserializer<'de> for VecValue<I>
+where
+    I: Iterator<Item = CowValue<'de>>,
+{
+    type Deserializer = Self;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
+
+impl<'de, I> Deserializer<'de> for VecValue<I>
+where
+    I: IntoIterator<Item = CowValue<'de>>,
+{
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            item.deserialize_any(visitor)
+        } else {
+            Err(DeError::custom("expected vec not empty"))
+        }
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_some(self)
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Some(item) = self.0.into_iter().next() {
+            visitor.visit_enum(ValueEnumAccess(item.0.clone()))
+        } else {
+            Err(DeError::custom("expected vec not empty"))
+        }
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
+    fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_seq(visitor)
+    }
+    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_seq(visitor)
+    }
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_seq(SeqDeserializer::new(self.0.into_iter()))
+    }
+
+    forward_to_deserialize_any! {
+        char
+        str
+        string
+        unit
+        bytes
+        byte_buf
+        unit_struct
+        struct
+        identifier
+        ignored_any
+        map
+    }
+
+    forward_vec_parsed_value! {
+        bool => deserialize_bool,
+        u8 => deserialize_u8,
+        u16 => deserialize_u16,
+        u32 => deserialize_u32,
+        u64 => deserialize_u64,
+        i8 => deserialize_i8,
+        i16 => deserialize_i16,
+        i32 => deserialize_i32,
+        i64 => deserialize_i64,
+        f32 => deserialize_f32,
+        f64 => deserialize_f64,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use multimap::MultiMap;
+    use serde::Deserialize;
+
+    #[tokio::test]
+    async fn test_de_str_map() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User {
+            name: String,
+            age: u8,
+        }
+
+        let mut data: HashMap<String, String> = HashMap::new();
+        data.insert("age".into(), "10".into());
+        data.insert("name".into(), "hello".into());
+        let user: User = super::from_str_map(&data).unwrap();
+        assert_eq!(user.age, 10);
+    }
+
+    #[tokio::test]
+    async fn test_de_str_multi_map() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User<'a> {
+            id: i64,
+            name: &'a str,
+            age: u8,
+            friends: (String, String, i64),
+            kids: Vec<String>,
+            lala: Vec<i64>,
+        }
+
+        let mut map = MultiMap::new();
+
+        map.insert("id", "42");
+        map.insert("name", "Jobs");
+        map.insert("age", "100");
+        map.insert("friends", "100");
+        map.insert("friends", "200");
+        map.insert("friends", "300");
+        map.insert("kids", "aaa");
+        map.insert("kids", "bbb");
+        map.insert("kids", "ccc");
+        map.insert("lala", "600");
+        map.insert("lala", "700");
+
+        let user: User = super::from_str_multi_map(map).unwrap();
+        assert_eq!(user.id, 42);
+    }
 }

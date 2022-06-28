@@ -17,6 +17,8 @@ use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
+use crate::extract::metadata::Source;
+use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
@@ -497,18 +499,7 @@ impl Request {
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
-        if ctype == "application/x-www-form-urlencoded" {
-            let payload = self.payload().await;
-            let headers = self.headers();
-            self.form_data
-                .get_or_try_init(|| async {
-                    match payload {
-                        Ok(payload) => FormData::read(headers, body).await,
-                        Err(e) => Err(e),
-                    }
-                })
-                .await
-        } else if ctype.starts_with("multipart/") {
+        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
             let body = self.body.take();
             let headers = self.headers();
             self.form_data
@@ -519,19 +510,24 @@ impl Request {
                     }
                 })
                 .await
-        } 
-        else {
+        } else {
             Err(ParseError::NotFormData)
         }
     }
 
     #[inline]
-    pub async fn extract<T>(&mut self) -> Result<T> where T: Extractible {
+    pub async fn extract<T>(&mut self) -> Result<T>
+    where
+        T: Extractible,
+    {
         T::extract(self).await
     }
 
     #[inline]
-    pub async fn extract_with_metadata<T>(&mut self, metadata: &Metadata) -> Result<T> where T: Deserialize {
+    pub async fn extract_with_metadata<'de, T>(&mut self, metadata: &Metadata) -> Result<T>
+    where
+        T: Deserialize<'de>,
+    {
         T::extract(self).await
     }
 
@@ -584,7 +580,7 @@ impl Request {
                     .headers()
                     .iter()
                     .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-                    .collect::<HashMap<_, _>>();
+                    .collect::<MultiMap<_, _>>();
                 if all_data.keys().any(|key| headers.contains_key(&**key)) {
                     return Err(ParseError::DuplicateKey);
                 }
