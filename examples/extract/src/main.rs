@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Extractible)]
+#[derive(Clone, Debug, Extractible)]
 #[salvo::extract(default_from(path_params))]
 struct Article {
     #[salvo::extract(from(params))]

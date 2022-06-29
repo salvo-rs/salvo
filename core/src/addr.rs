@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 
 /// Network socket address
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum SocketAddr {
     /// IPv4 socket address
     IPv4(std::net::SocketAddrV4),

@@ -8,7 +8,7 @@ use multimap::MultiMap;
 use serde::de;
 use serde_json::value::RawValue;
 
-use crate::extract::metadata::Source;
+use crate::extract::metadata::{Source, SourceFormat, SourceFrom};
 use crate::http::form::FormData;
 use crate::http::ParseError;
 use crate::Request;
@@ -136,7 +136,7 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
@@ -182,75 +182,90 @@ impl<'de> RequestDeserializer<'de> {
             field_value: None,
         })
     }
-    fn deserialize_value<T>(&self, seed: T) -> Result<T::Value, ValError>
+    fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
         T: de::DeserializeSeed<'de>,
     {
         // Panic because this indicates a bug in the program rather than an
         // expected failure.
         let value = self.field_value.expect("MapAccess::next_value called before next_key");
-        let source = self.field_source.or(self.metadata.default_source.as_ref()).unwrap();
+        let source = self
+            .field_source
+            .take()
+            .expect("MapAccess::next_value called before next_key");
         let field = &self.metadata.fields[self.field_index];
-        if source.from == Source::Body && source.format == SourceFormat::Json {
-            let value = serde_json::from_str::<T::Value>(value).map_err(ValError::SerdeJson)?;
-            seed.deserialize(value)
+        if source.from == SourceFrom::Body && source.format == SourceFormat::Json {
+            let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
+            seed.deserialize(&mut value).map_err(|_|ValError::custom("parse value error"))
         } else {
-            let value = value.parse::<T::Value>().map_err(ValError::Parse)?;
-            seed.deserialize(value)
+            seed.deserialize(value.into_deserializer())
         }
     }
     fn next_pair(&mut self) -> Option<(&str, &str)> {
         if self.field_index < self.metadata.fields.len() - 1 {
-            self.field_index += 1;
             let field = &self.metadata.fields[self.field_index];
-            for source in &field.sources {
-                match &*source.from {
-                    "param" => {
+            let sources = if !field.sources.is_empty() {
+                &field.sources
+            } else if !self.metadata.default_sources.is_empty() {
+                &self.metadata.default_sources
+            } else {
+                tracing::error!("no sources for field {}", field.name);
+                return None;
+            };
+            for source in sources {
+                match source.from {
+                    SourceFrom::Param => {
                         if let Some(value) = self.params.get(field.name) {
                             self.field_value = Some(value);
+                            self.field_source = Some(source);
                             return Some((field.name, value));
                         }
                     }
-                    "query" => {
+                    SourceFrom::Query => {
                         if let Some(value) = self.queries.get(field.name) {
                             self.field_value = Some(value);
+                            self.field_source = Some(source);
                             return Some((field.name, value));
                         }
                     }
-                    "header" => {
+                    SourceFrom::Header => {
                         if let Some(value) = self.headers.get(field.name) {
                             self.field_value = Some(value);
+                            self.field_source = Some(source);
                             return Some((field.name, value));
                         }
                     }
-                    "body" => match source.format {
-                        "json" => {
+                    SourceFrom::Body => match source.format {
+                        SourceFormat::Json => {
                             if let Some(json_body) = &self.json_body {
                                 let value = json_body.get(field.name).unwrap();
                                 self.field_value = Some(value);
+                                self.field_source = Some(source);
                                 return Some((field.name, value));
                             } else {
                                 return None;
                             }
                         }
-                        "form" => {
+                        SourceFormat::MultiMap => {
                             if let Some(form_data) = self.form_data {
                                 let value = form_data.fields.get(field.name).unwrap();
                                 self.field_value = Some(value);
+                                self.field_source = Some(source);
                                 return Some((field.name, value));
                             } else {
                                 return None;
                             }
                         }
                         _ => {
-                            panic!("Unsupported source format: {}", source.format);
+                            panic!("Unsupported source format: {:?}", source.format);
                         }
                     },
                     _ => {
-                        panic!("Unsupported source format: {}", source.format);
+                        panic!("Unsupported source format: {:?}", source.format);
                     }
                 }
             }
+            self.field_index += 1;
         }
         None
     }

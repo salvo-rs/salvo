@@ -1,30 +1,30 @@
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum DataKind {
     Enum,
     Struct,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFrom {
     Param,
     Query,
     Header,
     Body,
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {
     MultiMap,
     Json,
 }
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Metadata {
     pub name: &'static str,
     pub kind: DataKind,
-    pub default_source: Option<Source>,
+    pub default_sources: Vec<Source>,
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Field {
     pub name: &'static str,
     pub kind: DataKind,
@@ -44,7 +44,7 @@ impl Field {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Source {
     pub from: SourceFrom,
     pub format: SourceFormat,
@@ -60,13 +60,13 @@ impl Metadata {
         Self {
             name,
             kind,
-            default_source: None,
+            default_sources: vec![],
             fields: Vec::with_capacity(8),
         }
     }
 
-    pub fn default_source(mut self, source: Source) -> Self {
-        self.default_source = Some(source);
+    pub fn add_default_source(mut self, source: Source) -> Self {
+        self.default_sources.push(source);
         self
     }
 

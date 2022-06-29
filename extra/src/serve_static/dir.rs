@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 /// Options
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Options {
     /// List dot files.
     pub dot_files: bool,

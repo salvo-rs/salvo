@@ -26,21 +26,6 @@ use crate::http::ParseError;
 use crate::serde::RequestDeserializer;
 use crate::serde::{from_str_map, from_str_multi_map};
 
-/// ParseSource
-#[bitflags]
-#[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParseSource {
-    /// Parse from url router params.
-    Params = 0b0001,
-    /// Parse from url queries.
-    Queries = 0b0010,
-    /// Parse from headers.
-    Headers = 0b0100,
-    /// Parse from form.
-    Form = 0b1000,
-}
-
 /// Represents an HTTP request.
 ///
 /// Stores all the properties of the client's request.
