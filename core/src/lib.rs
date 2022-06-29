@@ -75,12 +75,10 @@ pub mod prelude {
     pub use crate::Handler;
 }
 
-
 #[doc(hidden)]
 pub mod __private {
     pub use once_cell;
 }
-
 
 use std::{future::Future, thread::available_parallelism};
 

@@ -28,7 +28,6 @@ impl FromStr for SourceFrom {
     }
 }
 
-
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {
     MultiMap,

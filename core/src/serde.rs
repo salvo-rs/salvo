@@ -196,7 +196,8 @@ impl<'de> RequestDeserializer<'de> {
         let field = &self.metadata.fields[self.field_index];
         if source.from == SourceFrom::Body && source.format == SourceFormat::Json {
             let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-            seed.deserialize(&mut value).map_err(|_|ValError::custom("parse value error"))
+            seed.deserialize(&mut value)
+                .map_err(|_| ValError::custom("parse value error"))
         } else {
             seed.deserialize(value.into_deserializer())
         }
