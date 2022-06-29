@@ -1,4 +1,4 @@
-use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField};
+use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, TokenStream};
 use proc_quote::quote;
 use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Path, Type};
@@ -13,7 +13,7 @@ struct Field {
     attrs: Vec<Attribute>,
 
     #[darling(default)]
-    sources: Vec<Source>,
+    sources: Sources,
 }
 
 #[derive(FromDeriveInput)]
@@ -28,13 +28,20 @@ struct ExtractibleArgs {
     internal: bool,
 
     #[darling(default)]
-    default_sources: Vec<Source>,
+    default_sources: Sources,
 }
 
 #[derive(FromMeta)]
 struct Source {
-    from: Option<&'static str>,
-    format: Option<&'static str>,
+    from: String,
+    format: Option<String>,
+}
+
+#[derive(Default)]
+struct Sources(Vec<Source>);
+
+impl FromMeta for Sources {
+
 }
 
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
@@ -51,9 +58,9 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut default_sources = Vec::new();
     let mut fields = Vec::new();
 
-    for source in &args.default_sources {
-        let from = source.from;
-        let format = source.format;
+    for source in &args.default_sources.0 {
+        let from = &source.from;
+        let format = source.format.as_deref().unwrap_or("multimap");
         default_sources.push(quote! {
             metadata.add_default_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()))
         });
@@ -66,10 +73,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             .ok_or_else(|| Error::new_spanned(&ident, "All fields must be named."))?;
         let field_ty = &field.ty;
 
-        let mut sources = Vec::with_capacity(field.sources.len());
-        for source in &field.sources {
-            let from = source.from;
-            let format = source.format;
+        let mut sources = Vec::with_capacity(field.sources.0.len());
+        for source in &field.sources.0 {
+            let from = &source.from;
+            let format = source.format.as_deref().unwrap_or("multimap");
             sources.push(quote! {
                 #salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap())
             });

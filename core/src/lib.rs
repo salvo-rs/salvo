@@ -8,7 +8,9 @@
 
 pub use async_trait::async_trait;
 pub use hyper;
-pub use salvo_macros::fn_handler;
+pub use salvo_macros::{fn_handler};
+
+pub use salvo_macros as macros;
 
 #[macro_use]
 mod cfg;
@@ -50,7 +52,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use async_trait::async_trait;
-    pub use salvo_macros::fn_handler;
+    pub use salvo_macros::{fn_handler, Extractible};
 
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
@@ -66,7 +68,7 @@ pub mod prelude {
         #![unix]
         pub use crate::listener::UnixListener;
     }
-    pub use crate::extract::{Extractible, Extractor};
+    // pub use crate::extract::{Extractible, Extractor};
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;

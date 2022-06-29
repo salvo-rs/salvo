@@ -518,6 +518,9 @@ mod tests {
     use multimap::MultiMap;
     use serde::Deserialize;
 
+    use crate::test::TestClient;
+    use crate::macros::Extractible;
+
     #[tokio::test]
     async fn test_de_str_map() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]
@@ -577,9 +580,9 @@ mod tests {
             #[extract(source(from = "query"))]
             q2: usize,
             #[extract(source(from = "body", format = "json"))]
-            body: RequestBody,
+            body: RequestBody<'a>,
         }
-        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
         struct RequestBody<'a> {
             title: &'a str,
             content: String,
@@ -587,10 +590,9 @@ mod tests {
             viewers: usize,
         }
 
-        let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
-
-        assert_eq!(request.id, 42);
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/param1v/param2v").query("q1", "q1v").query("q2", "q2v").build();    
+        let data: RequestData<'_> = RequestData::extract(&mut req).unwrap();
+        assert_eq!(data.param1, "param1");
     }
 }

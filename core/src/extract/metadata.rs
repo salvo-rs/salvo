@@ -1,4 +1,5 @@
 use std::vec;
+use std::str::FromStr;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum DataKind {
@@ -27,6 +28,7 @@ impl FromStr for SourceFrom {
         }
     }
 }
+
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {
@@ -62,7 +64,7 @@ pub struct Field {
 }
 impl Field {
     pub fn new(name: &'static str, kind: DataKind) -> Self {
-        with_source(name, kind, vec![])
+        Self::with_source(name, kind, vec![])
     }
     pub fn with_source(name: &'static str, kind: DataKind, sources: Vec<Source>) -> Self {
         Self {

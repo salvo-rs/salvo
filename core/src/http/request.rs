@@ -630,12 +630,12 @@ mod tests {
             "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
         )
         .build();
-        let man = req.parse_queries::<BadMan>().unwrap();
+        let man = req.extract_queries::<BadMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, vec!["a", "2"]);
         assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
-        let man = req.parse_queries::<GoodMan>().unwrap();
+        let man = req.extract_queries::<GoodMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, "a");
@@ -651,7 +651,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:7878/hello")
             .json(&User { name: "jobs".into() })
             .build();
-        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
+        assert_eq!(req.extract_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
