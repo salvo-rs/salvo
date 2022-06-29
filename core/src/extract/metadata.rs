@@ -1,3 +1,5 @@
+use std::vec;
+
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum DataKind {
     Enum,
@@ -11,11 +13,40 @@ pub enum SourceFrom {
     Header,
     Body,
 }
+
+impl FromStr for SourceFrom {
+    type Err = crate::Error;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "param" => Ok(Self::Param),
+            "query" => Ok(Self::Query),
+            "header" => Ok(Self::Header),
+            "body" => Ok(Self::Body),
+            _ => Err(crate::Error::Other("invalid source from".into())),
+        }
+    }
+}
+
+
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {
     MultiMap,
     Json,
 }
+
+impl FromStr for SourceFormat {
+    type Err = crate::Error;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "multiMap" => Ok(Self::MultiMap),
+            "json" => Ok(Self::Json),
+            _ => Err(crate::Error::Other("invalid source format".into())),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub name: &'static str,
@@ -32,6 +63,9 @@ pub struct Field {
 }
 impl Field {
     pub fn new(name: &'static str, kind: DataKind) -> Self {
+        with_source(name, kind, vec![])
+    }
+    pub fn with_source(name: &'static str, kind: DataKind, sources: Vec<Source>) -> Self {
         Self {
             name,
             kind,
@@ -44,7 +78,7 @@ impl Field {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Source {
     pub from: SourceFrom,
     pub format: SourceFormat,
@@ -63,6 +97,16 @@ impl Metadata {
             default_sources: vec![],
             fields: Vec::with_capacity(8),
         }
+    }
+
+    pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
+        self.default_sources = default_sources;
+        self
+    }
+
+    pub fn set_fields(mut self, fields: Vec<Field>) -> Self {
+        self.fields = fields;
+        self
     }
 
     pub fn add_default_source(mut self, source: Source) -> Self {

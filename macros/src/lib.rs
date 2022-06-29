@@ -6,15 +6,17 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, FnArg, Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
 mod shared;
 use shared::*;
+mod extract;
 
 /// `fn_handler` is a pro macro to help create `Handler` from function easily.
 ///
@@ -204,5 +206,14 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                 .into()
             }
         }
+    }
+}
+
+#[proc_macro_derive(Extractible, attributes(extract))]
+pub fn derive_extractible(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as DeriveInput);
+    match extract::generate(args) {
+        Ok(stream) => stream.into(),
+        Err(e) => e.to_compile_error().into(),
     }
 }
