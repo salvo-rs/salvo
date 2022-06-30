@@ -3,7 +3,7 @@ use std::vec;
 use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_quote::quote;
-use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Meta, NestedMeta, Path, Type};
+use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Meta, NestedMeta, Path, Type, GenericParam};
 
 use crate::shared::salvo_crate;
 
@@ -62,15 +62,13 @@ impl FromMeta for Sources {
 }
 
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
-    let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
-    let salvo = salvo_crate(args.internal);
-    // if args.generics.lifetimes().next().is_none() {
-    //     args.generics
-    //         .insert(0, Ident::new("'de", Span::call_site()));
-    // }
-    let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
+    let mut eargs: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
+    let salvo = salvo_crate(eargs.internal);
+    let (impl_generics, ty_generics, where_clause) = eargs.generics.split_for_impl();
+
+
     let ident = &args.ident;
-    let mut s = match args.data {
+    let mut s = match eargs.data {
         Data::Struct(s) => s,
         _ => {
             return Err(Error::new_spanned(ident, "Extractible can only be applied to an struct.").into());
@@ -79,10 +77,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut default_sources = Vec::new();
     let mut fields = Vec::new();
 
-    if let Some(source) = args.default_source.take() {
-        args.default_sources.0.push(source);
+    if let Some(source) = eargs.default_source.take() {
+       eargs.default_sources.0.push(source);
     }
-    for source in &args.default_sources.0 {
+    for source in &eargs.default_sources.0 {
         let from = &source.from;
         let format = source.format.as_deref().unwrap_or("multimap");
         default_sources.push(quote! {
@@ -118,6 +116,27 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
 
     let sv = Ident::new(&format!("__salvo_extract_{}", ident.to_string()), Span::call_site());
     let mt = ident.to_string();
+
+    
+    let imp_code = if args.generics.lifetimes().next().is_none() {
+        args.generics.params.insert(0, GenericParam::parse("'de").unwrap());
+        let impl_generics_de = args.generics.split_for_impl().0;
+        quote! {
+            impl #impl_generics_de #salvo::extract::Extractible<'de> for #ident #ty_generics #where_clause {
+                fn metadata() ->  &'static #salvo::extract::Metadata {
+                    &*#sv
+                }
+            }
+        }
+    } else {
+        quote! {
+            impl #impl_generics #salvo::extract::Extractible #impl_generics for #ident #ty_generics #where_clause {
+                fn metadata() ->  &'static #salvo::extract::Metadata {
+                    &*#sv
+                }
+            }
+        }
+    };
     let code = quote! {
         static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
             let mut metadata = #salvo::extract::Metadata::new(#mt, #salvo::extract::metadata::DataKind::Struct);
@@ -129,11 +148,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             )*
             metadata
         });
-        impl #impl_generics #salvo::extract::Extractible #impl_generics for #ident #ty_generics #where_clause {
-            fn metadata() ->  &'static #salvo::extract::Metadata {
-                &*#sv
-            }
-        }
+        #imp_code
     };
 
     println!("{}", code);
