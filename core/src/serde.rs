@@ -569,17 +569,17 @@ mod tests {
     #[tokio::test]
     async fn test_de_request() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "body", format = "json"))]
+        #[extract(default_sources(source(from = "body", format = "json")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"))]
+            // #[extract(source(from = "param"))]
             param1: i64,
-            #[extract(source(from = "param"))]
+            // #[extract(source(from = "param"))]
             param2: &'a str,
-            #[extract(source(from = "query"))]
+            // #[extract(source(from = "query"))]
             q1: &'a str,
-            #[extract(source(from = "query"))]
+            // #[extract(source(from = "query"))]
             q2: usize,
-            #[extract(source(from = "body", format = "json"))]
+            // #[extract(source(from = "body", format = "json"))]
             body: RequestBody<'a>,
         }
         #[derive(Deserialize, Eq, PartialEq, Debug)]
