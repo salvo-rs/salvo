@@ -1,10 +1,21 @@
-use std::str::FromStr;
 use std::vec;
+use std::str::FromStr;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum DataKind {
     Enum,
     Struct,
+}
+impl FromStr for DataKind {
+    type Err = crate::Error;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "enum" => Ok(Self::Enum),
+            "struct" => Ok(Self::Struct),
+            _ => Err(crate::Error::Other("invalid data kind".into())),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -29,6 +40,7 @@ impl FromStr for SourceFrom {
     }
 }
 
+
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {
     MultiMap,
@@ -40,7 +52,7 @@ impl FromStr for SourceFormat {
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
-            "multiMap" => Ok(Self::MultiMap),
+            "multimap" => Ok(Self::MultiMap),
             "json" => Ok(Self::Json),
             _ => Err(crate::Error::Other("invalid source format".into())),
         }

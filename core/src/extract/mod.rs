@@ -31,5 +31,5 @@ where
 }
 
 pub trait Extractible<'de>: Deserialize<'de> {
-    fn metadata() -> Metadata;
+    fn metadata() -> &'de Metadata;
 }

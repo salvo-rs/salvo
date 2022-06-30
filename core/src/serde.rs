@@ -155,17 +155,28 @@ impl<'de> RequestDeserializer<'de> {
         request: &'de mut Request,
         metadata: &'de Metadata,
     ) -> Result<RequestDeserializer<'de>, ParseError> {
-        let json_body = if let Some(payload) = request.payload.get() {
-            Some(
-                serde_json::from_slice::<HashMap<&str, &RawValue>>(payload)
+        println!("======================0");  
+        let (form_data, json_body) = if let Some(ctype) = request.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+                (request.form_data.get(), None)
+            } else if ctype.subtype() == mime::JSON {
+                if let Some(payload) = request.payload.get() {
+                    let json_body = serde_json::from_slice::<HashMap<&str, &RawValue>>(payload)
                     .map_err(ParseError::SerdeJson)?
                     .into_iter()
                     .map(|(key, value)| (key, value.get()))
-                    .collect::<HashMap<&str, &str>>(),
-            )
+                    .collect::<HashMap<&str, &str>>();
+                    (None, Some(json_body))
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            }
         } else {
-            None
+            (None, None)
         };
+        println!("======================2");
         Ok(RequestDeserializer {
             json_body,
             form_data: request.form_data.get(),
@@ -203,7 +214,7 @@ impl<'de> RequestDeserializer<'de> {
         }
     }
     fn next_pair(&mut self) -> Option<(&str, &str)> {
-        if self.field_index < self.metadata.fields.len() - 1 {
+        if self.field_index < self.metadata.fields.len() {
             let field = &self.metadata.fields[self.field_index];
             let sources = if !field.sources.is_empty() {
                 &field.sources
@@ -217,6 +228,7 @@ impl<'de> RequestDeserializer<'de> {
                 match source.from {
                     SourceFrom::Param => {
                         if let Some(value) = self.params.get(field.name) {
+                            println!("==============field: {:?}", field);
                             self.field_value = Some(value);
                             self.field_source = Some(source);
                             return Some((field.name, value));
@@ -550,7 +562,7 @@ mod tests {
 
         let mut map = MultiMap::new();
 
-        map.insert("id", "42");
+        map.insert("id", "42"); 
         map.insert("name", "Jobs");
         map.insert("age", "100");
         map.insert("friends", "100");
@@ -568,33 +580,37 @@ mod tests {
 
     #[tokio::test]
     async fn test_de_request() {
-        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_sources(source(from = "body", format = "json")))]
-        struct RequestData<'a> {
-            // #[extract(source(from = "param"))]
-            param1: i64,
-            // #[extract(source(from = "param"))]
-            param2: &'a str,
+        // #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        // #[extract(internal=true, default_source(from = "query"))]
+        // struct RequestData<'a> {
             // #[extract(source(from = "query"))]
-            q1: &'a str,
+            // q1: &'a str,
             // #[extract(source(from = "query"))]
-            q2: usize,
+            // q2: &'a str,
             // #[extract(source(from = "body", format = "json"))]
-            body: RequestBody<'a>,
-        }
-        #[derive(Deserialize, Eq, PartialEq, Debug)]
-        struct RequestBody<'a> {
-            title: &'a str,
-            content: String,
-            comment: &'a str,
-            viewers: usize,
-        }
+            // body: RequestBody<'a>,
+        // }
+        // #[derive(Deserialize, Eq, PartialEq, Debug)]
+        // struct RequestBody<'a> {
+        //     title: &'a str,
+        //     content: String,
+        //     comment: &'a str,
+        //     viewers: usize,
+        // }
 
-        let mut req = TestClient::get("http://127.0.0.1:7878/test/param1v/param2v")
-            .query("q1", "q1v")
-            .query("q2", "q2v")
-            .build();
-        let data: RequestData<'_> = RequestData::extract(&mut req).unwrap();
-        assert_eq!(data.param1, "param1");
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal=true, default_source(from = "query"))]
+        struct RequestData {
+            // #[extract(source(from = "query"))]
+            q1: String,
+            // #[extract(source(from = "query"))]
+            q2: String,
+            // #[extract(source(from = "body", format = "json"))]
+            // body: RequestBody<'a>,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v").query("q1", "q1v").query("q2", "23").build();    
+        let data: RequestData<'_> = req.extract().await.unwrap();
+        println!("==={:#?}", data);
+        assert_eq!(data.q1, "1");
     }
 }

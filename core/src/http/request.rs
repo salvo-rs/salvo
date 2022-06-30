@@ -512,7 +512,7 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
+    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata>) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {

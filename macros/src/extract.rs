@@ -64,6 +64,10 @@ impl FromMeta for Sources {
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
     let salvo = salvo_crate(args.internal);
+    // if args.generics.lifetimes().next().is_none() {
+    //     args.generics
+    //         .insert(0, Ident::new("'de", Span::call_site()));
+    // }
     let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
     let ident = &args.ident;
     let mut s = match args.data {
@@ -82,7 +86,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let from = &source.from;
         let format = source.format.as_deref().unwrap_or("multimap");
         default_sources.push(quote! {
-            metadata.add_default_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
+            metadata = metadata.add_default_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
         });
     }
 
@@ -102,21 +106,21 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             let from = &source.from;
             let format = source.format.as_deref().unwrap_or("multimap");
             sources.push(quote! {
-                field.add_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
+                field = field.add_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
             });
         }
         fields.push(quote! {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident, "struct".parse().unwrap());
             #(#sources)*
-            metadata.add_field(field);
+            metadata = metadata.add_field(field);
         });
     }
 
-    // let sv = Ident::new(&format!("__salvo_extract_{}", ident.to_string()), Span::call_site());
+    let sv = Ident::new(&format!("__salvo_extract_{}", ident.to_string()), Span::call_site());
+    let mt = ident.to_string();
     let code = quote! {
-        impl #impl_generics #salvo::extract::Extractible for #ident #ty_generics #where_clause {
-            fn metadata() ->  #salvo::extract::Metadata {
-                let mut metadata = #salvo::extract::Metadata::new(#ident, #salvo::extract::metadata::DataKind::Struct);
+        static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
+            let mut metadata = #salvo::extract::Metadata::new(#mt, #salvo::extract::metadata::DataKind::Struct);
             #(
                 #default_sources
             )*
@@ -124,6 +128,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 #fields
             )*
             metadata
+        });
+        impl #impl_generics #salvo::extract::Extractible #impl_generics for #ident #ty_generics #where_clause {
+            fn metadata() ->  &'static #salvo::extract::Metadata {
+                &*#sv
             }
         }
     };
