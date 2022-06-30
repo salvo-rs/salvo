@@ -1,7 +1,7 @@
 use std::vec;
 
 use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField, FromMeta};
-use proc_macro2::{Ident, TokenStream, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use proc_quote::quote;
 use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Meta, NestedMeta, Path, Type};
 
@@ -76,7 +76,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut fields = Vec::new();
 
     if let Some(source) = args.default_source.take() {
-        args.default_sources.0.push(source); 
+        args.default_sources.0.push(source);
     }
     for source in &args.default_sources.0 {
         let from = &source.from;
@@ -90,7 +90,8 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let field_ident = field
             .ident
             .as_ref()
-            .ok_or_else(|| Error::new_spanned(&ident, "All fields must be named."))?.to_string();
+            .ok_or_else(|| Error::new_spanned(&ident, "All fields must be named."))?
+            .to_string();
         // let field_ty = field.ty.to_string();
 
         let mut sources = Vec::with_capacity(field.sources.0.len());
@@ -107,7 +108,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         fields.push(quote! {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident, "struct".parse().unwrap());
             #(#sources)*
-            metadata.add_field(field); 
+            metadata.add_field(field);
         });
     }
 

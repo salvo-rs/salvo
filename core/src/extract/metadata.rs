@@ -1,5 +1,5 @@
-use std::vec;
 use std::str::FromStr;
+use std::vec;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum DataKind {
@@ -28,7 +28,6 @@ impl FromStr for SourceFrom {
         }
     }
 }
-
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFormat {

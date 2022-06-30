@@ -518,8 +518,8 @@ mod tests {
     use multimap::MultiMap;
     use serde::Deserialize;
 
-    use crate::test::TestClient;
     use crate::macros::Extractible;
+    use crate::test::TestClient;
 
     #[tokio::test]
     async fn test_de_str_map() {
@@ -590,8 +590,10 @@ mod tests {
             viewers: usize,
         }
 
-
-        let mut req = TestClient::get("http://127.0.0.1:7878/test/param1v/param2v").query("q1", "q1v").query("q2", "q2v").build();    
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/param1v/param2v")
+            .query("q1", "q1v")
+            .query("q2", "q2v")
+            .build();
         let data: RequestData<'_> = RequestData::extract(&mut req).unwrap();
         assert_eq!(data.param1, "param1");
     }
