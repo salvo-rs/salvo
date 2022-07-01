@@ -44,7 +44,6 @@ impl<'de> RequestDeserializer<'de> {
         request: &'de mut Request,
         metadata: &'de Metadata,
     ) -> Result<RequestDeserializer<'de>, ParseError> {
-        println!("======================0");
         let (form_data, json_body) = if let Some(ctype) = request.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
                 (request.form_data.get(), None)
@@ -253,35 +252,35 @@ mod tests {
     use crate::macros::Extractible;
     use crate::test::TestClient;
 
-    // #[tokio::test]
-    // async fn test_de_request_from_query() {
-    //     #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-    //     #[extract(internal = true, default_source(from = "query"))]
-    //     struct RequestData {
-    //         q1: String,
-    //         q2: i64,
-    //     }
-    //     let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
-    //         .query("q1", "q1v")
-    //         .query("q2", "23")
-    //         .build();
-    //     let data: RequestData = req.extract().await.unwrap();
-    //     assert_eq!(
-    //         data,
-    //         RequestData {
-    //             q1: "q1v".to_string(),
-    //             q2: 23
-    //         }
-    //     );
-    // }
+    #[tokio::test]
+    async fn test_de_request_from_query() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "query"))]
+        struct RequestData {
+            q1: String,
+            q2: i64,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .query("q1", "q1v")
+            .query("q2", "23")
+            .build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                q1: "q1v".to_string(),
+                q2: 23
+            }
+        );
+    }
 
     #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        # [extract(internal = true, default_source(from = "query"))]
+        # [extract(internal, default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"), source(from = "query"))]
-            #[extract(source(from = "form"))]
+            #[extract(source(from = "body"))]
             q1: &'a str,
             // #[extract(source(from = "query"))]
             // #[serde(alias = "param2", alias = "param3")]
@@ -296,46 +295,46 @@ mod tests {
         assert_eq!(data, RequestData { q1: "q1v" });
     }
 
-    // #[tokio::test]
-    // async fn test_de_request_with_mulit_sources() {
-    //     #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-    //     #[extract(internal = true, default_source(from = "query"))]
-    //     struct RequestData<'a> {
-    //         #[extract(source(from = "param"))]
-    //         #[serde(alias="param1")]
-    //         p1: String,
-    //         #[extract(source(from = "param"))]
-    //         #[serde(alias="param2")]
-    //         p2: &'a str,
-    //         #[extract(source(from = "param"))]
-    //         #[serde(alias="param3")]
-    //         p3: usize,
-    //         // #[extract(source(from = "query"))]
-    //         q1: String,
-    //         // #[extract(source(from = "query"))]
-    //         q2: i64,
-    //         // #[extract(source(from = "body", format = "json"))]
-    //         // body: RequestBody<'a>,
-    //     }
+    #[tokio::test]
+    async fn test_de_request_with_mulit_sources() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "query"))]
+        struct RequestData<'a> {
+            #[extract(source(from = "param"))]
+            #[serde(alias="param1")]
+            p1: String,
+            #[extract(source(from = "param"))]
+            #[serde(alias="param2")]
+            p2: &'a str,
+            #[extract(source(from = "param"))]
+            #[serde(alias="param3")]
+            p3: usize,
+            // #[extract(source(from = "query"))]
+            q1: String,
+            // #[extract(source(from = "query"))]
+            q2: i64,
+            // #[extract(source(from = "body", format = "json"))]
+            // body: RequestBody<'a>,
+        }
 
-    //     #[derive(Deserialize, Eq, PartialEq, Debug)]
-    //     struct SData {
-    //         #[serde(alias="param1")]
-    //         #[serde(alias="param2")]
-    //         p1: String,
-    //     }
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct SData {
+            #[serde(alias="param1")]
+            #[serde(alias="param2")]
+            p1: String,
+        }
 
-    //     let d = r#"{"param1":"param1v","params2":"param2v","param3":123,"q1":"q1v","q2":23}"#;
-    //     println!("{:#?}", serde_json::from_str::<SData>(d).unwrap());
+        let d = r#"{"param1":"param1v","params2":"param2v","param3":123,"q1":"q1v","q2":23}"#;
+        println!("{:#?}", serde_json::from_str::<SData>(d).unwrap());
 
-    //     let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
-    //         .query("q1", "q1v")
-    //         .query("q2", "23")
-    //         .build();
-    //         req.params.insert("param1".into(), "param1v".into());
-    //         req.params.insert("p2".into(), "921".into());
-    //         req.params.insert("p3".into(), "89785".into());
-    //     let data: RequestData = req.extract().await.unwrap();
-    //     assert_eq!(data, RequestData { p1: "param1v".into(), p2: "921", p3: 89785,  q1: "q1v".into(), q2: 23 });
-    // }
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .query("q1", "q1v")
+            .query("q2", "23")
+            .build();
+            req.params.insert("param1".into(), "param1v".into());
+            req.params.insert("p2".into(), "921".into());
+            req.params.insert("p3".into(), "89785".into());
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(data, RequestData { p1: "param1v".into(), p2: "921", p3: 89785,  q1: "q1v".into(), q2: 23 });
+    }
 }
