@@ -3,23 +3,60 @@ use std::vec;
 use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_quote::quote;
-use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Meta, NestedMeta, Path, Type, GenericParam};
+use syn::{
+    ext::IdentExt, Attribute, DeriveInput, Error, GenericParam, Generics, Meta, MetaList, NestedMeta, Path, Type,
+};
 
 use crate::shared::salvo_crate;
 
-#[derive(FromField, Debug)]
-#[darling(attributes(extract), forward_attrs(extract))]
+#[derive(Debug)]
 struct Field {
     ident: Option<Ident>,
     ty: Type,
     attrs: Vec<Attribute>,
 
-    #[darling(default, rename="source")]
-    sources: Sources,
+    sources: Vec<Source>,
+    // alias: Vec<String>,
+    // rename: Option<String>,
+}
+#[derive(FromMeta, Debug)]
+struct Source {
+    from: String,
+    format: Option<String>,
+}
+
+impl FromField for Field {
+    fn from_field(field: &syn::Field) -> darling::Result<Self> {
+        let ident = field.ident.clone();
+        let ty = field.ty.clone();
+        let attrs = field.attrs.clone();
+        let mut sources = Vec::with_capacity(4);
+        for attr in &attrs {
+            if attr.path.is_ident("extract") {
+                if let Meta::List(list) = attr.parse_meta()? {
+                    for meta in list.nested.iter() {
+                        println!("=============meta: {:#?}",&*meta);
+                        if let NestedMeta::Meta(Meta::List(item)) = meta {
+                            if item.path.is_ident("source") {
+                                let source: Source = FromMeta::from_nested_meta(meta)?;
+                                sources.push(source);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(Field {
+            ident,
+            ty,
+            attrs,
+            sources,
+        })
+    }
 }
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(extract), forward_attrs(extract))]
+#[darling(attributes(extract), forward_attrs(serde))]
 struct ExtractibleArgs {
     ident: Ident,
     generics: Generics,
@@ -30,41 +67,33 @@ struct ExtractibleArgs {
     internal: bool,
 
     #[darling(default)]
-    default_sources: Sources,
-
-    default_source: Option<Source>,
+    default_sources: Vec<Sources>,
 }
 
-#[derive(FromMeta, Debug)]
-struct Source {
-    from: String,
-    format: Option<String>,
-}
 
-#[derive(Default, Debug)]
-struct Sources(Vec<Source>);
+// #[derive(Default, Debug)]
+// struct Sources(Vec<Source>);
 
-impl FromMeta for Sources {
-    fn from_list(items: &[NestedMeta]) -> Result<Self, darling::Error> {
-        let mut sources = Vec::with_capacity(items.len());
-        for item in items {
-            if let NestedMeta::Meta(Meta::List(ref item)) = *item {
-                let meta = item.nested.iter().cloned().collect::<Vec<syn::NestedMeta>>();
-                let source: Source = FromMeta::from_list(&meta).unwrap();
-                sources.push(source);
-            }
-        }
+// impl FromMeta for Sources {
+//     fn from_list(items: &[NestedMeta]) -> Result<Self, darling::Error> {
+//         // println!("========items: {:#?}", items );
+//         let mut sources = Vec::with_capacity(items.len());
+//         for item in items {
+//             if let NestedMeta::Meta(Meta::List(ref item)) = *item {
+//                 let meta = item.nested.iter().cloned().collect::<Vec<syn::NestedMeta>>();
+//                 let source: Source = FromMeta::from_list(&meta).unwrap();
+//                 sources.push(source);
+//             }
+//         }
 
-        Ok(Sources(sources))
-    }
-}
+//         Ok(Sources(sources))
+//     }
+// }
 
 pub(crate) fn generate(mut args: DeriveInput) -> Result<TokenStream, Error> {
     let mut eargs: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
-    println!("b bbbbbb {:#?}", eargs.data);
     let salvo = salvo_crate(eargs.internal);
     let (impl_generics, ty_generics, where_clause) = eargs.generics.split_for_impl();
-
 
     let ident = &args.ident;
     let mut s = match eargs.data {
@@ -77,7 +106,7 @@ pub(crate) fn generate(mut args: DeriveInput) -> Result<TokenStream, Error> {
     let mut fields = Vec::new();
 
     if let Some(source) = eargs.default_source.take() {
-       eargs.default_sources.0.push(source);
+        eargs.default_sources.0.push(source);
     }
     for source in &eargs.default_sources.0 {
         let from = &source.from;
@@ -146,7 +175,7 @@ pub(crate) fn generate(mut args: DeriveInput) -> Result<TokenStream, Error> {
         #imp_code
     };
 
-    println!("{}", code);
+    // println!("{}", code);
 
     Ok(code)
 }

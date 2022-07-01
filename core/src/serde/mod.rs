@@ -1,25 +1,12 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::Iterator;
-use std::marker::PhantomData;
-
-use multimap::MultiMap;
-use serde::de;
-use serde_json::value::RawValue;
-
-use crate::extract::metadata::{Source, SourceFormat, SourceFrom};
-use crate::http::form::FormData;
-use crate::http::ParseError;
-use crate::Request;
 
 pub(crate) use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{
     Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
 use serde::forward_to_deserialize_any;
-
-use crate::extract::Metadata;
 
 mod request;
 pub(crate) use request::from_request;

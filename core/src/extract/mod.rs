@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use multimap::MultiMap;
 use serde::Deserialize;
 
 use crate::http::ParseError;

@@ -1,15 +1,9 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::iter::Iterator;
-use std::marker::PhantomData;
 
 use multimap::MultiMap;
-use serde::de::value::{Error as ValError};
-use serde::de::{
-    self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess,
-    Visitor,
-};
+use serde::de::value::Error as ValError;
+use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer, Visitor};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 
@@ -71,7 +65,6 @@ impl<'de> RequestDeserializer<'de> {
         } else {
             (None, None)
         };
-        println!("======================2");
         Ok(RequestDeserializer {
             params: request.params(),
             queries: request.queries(),
@@ -80,7 +73,7 @@ impl<'de> RequestDeserializer<'de> {
                 .iter()
                 .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
                 .collect::<MultiMap<_, _>>(),
-            form_data: request.form_data.get(),
+            form_data,
             json_body,
             metadata,
             field_index: 0,
@@ -182,9 +175,6 @@ impl<'de> RequestDeserializer<'de> {
                         _ => {
                             panic!("Unsupported source format: {:?}", source.format);
                         }
-                    },
-                    _ => {
-                        panic!("Unsupported source format: {:?}", source.format);
                     }
                 }
             }
@@ -243,7 +233,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         TV: de::DeserializeSeed<'de>,
     {
         match self.next_pair() {
-            Some((key, value)) => {
+            Some((key, _)) => {
                 let key = kseed.deserialize(key.into_deserializer())?;
                 let value = self.deserialize_value(vseed)?;
                 Ok(Some((key, value)))
@@ -288,12 +278,14 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal = true, default_source(from = "query"))]
+        # [extract(internal = true, default_source(from = "query"))]
         struct RequestData<'a> {
+            #[extract(source(from = "param"), source(from = "query"))]
+            #[extract(source(from = "form"))]
             q1: &'a str,
-            #[extract(source(from = "query"))]
-            #[serde(alias = "param2", alias = "param3")]
-            q2: i64,
+            // #[extract(source(from = "query"))]
+            // #[serde(alias = "param2", alias = "param3")]
+            // q2: i64,
         }
 
         let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
@@ -301,7 +293,7 @@ mod tests {
             .query("q2", "23")
             .build();
         let data: RequestData<'_> = req.extract().await.unwrap();
-        assert_eq!(data, RequestData { q1: "q1v", q2: 23 });
+        assert_eq!(data, RequestData { q1: "q1v" });
     }
 
     // #[tokio::test]

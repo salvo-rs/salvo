@@ -5,7 +5,6 @@ use std::fmt::{self, Formatter};
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
-use enumflags2::{bitflags, BitFlags};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -17,7 +16,6 @@ use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
-use crate::extract::metadata::Source;
 use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
