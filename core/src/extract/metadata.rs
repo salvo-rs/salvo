@@ -24,6 +24,7 @@ pub enum SourceFrom {
     Query,
     Header,
     Body,
+    Request,
 }
 
 impl FromStr for SourceFrom {
@@ -45,6 +46,7 @@ impl FromStr for SourceFrom {
 pub enum SourceFormat {
     MultiMap,
     Json,
+    Request,
 }
 
 impl FromStr for SourceFormat {

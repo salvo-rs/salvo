@@ -7,21 +7,19 @@ use syn::{ext::IdentExt, Attribute, DeriveInput, Error, Generics, Meta, NestedMe
 
 use crate::shared::salvo_crate;
 
-#[derive(FromField)]
-#[darling(attributes(extract))]
+#[derive(FromField, Debug)]
+#[darling(attributes(extract), forward_attrs(extract))]
 struct Field {
     ident: Option<Ident>,
     ty: Type,
     attrs: Vec<Attribute>,
 
-    #[darling(default)]
+    #[darling(default, rename="source")]
     sources: Sources,
-
-    source: Option<Source>,
 }
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(extract))]
+#[darling(attributes(extract), forward_attrs(extract))]
 struct ExtractibleArgs {
     ident: Ident,
     generics: Generics,
@@ -43,7 +41,7 @@ struct Source {
     format: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Sources(Vec<Source>);
 
 impl FromMeta for Sources {
@@ -61,8 +59,9 @@ impl FromMeta for Sources {
     }
 }
 
-pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
+pub(crate) fn generate(mut args: DeriveInput) -> Result<TokenStream, Error> {
     let mut eargs: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
+    println!("b bbbbbb {:#?}", eargs.data);
     let salvo = salvo_crate(eargs.internal);
     let (impl_generics, ty_generics, where_clause) = eargs.generics.split_for_impl();
 
@@ -97,9 +96,6 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         // let field_ty = field.ty.to_string();
 
         let mut sources = Vec::with_capacity(field.sources.0.len());
-        if let Some(source) = field.source.take() {
-            field.sources.0.push(source);
-        }
         for source in &field.sources.0 {
             let from = &source.from;
             let format = source.format.as_deref().unwrap_or("multimap");
@@ -116,10 +112,9 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
 
     let sv = Ident::new(&format!("__salvo_extract_{}", ident.to_string()), Span::call_site());
     let mt = ident.to_string();
-
-    
     let imp_code = if args.generics.lifetimes().next().is_none() {
-        args.generics.params.insert(0, GenericParam::parse("'de").unwrap());
+        let de_life_def = syn::parse_str("'de").unwrap();
+        args.generics.params.insert(0, de_life_def);
         let impl_generics_de = args.generics.split_for_impl().0;
         quote! {
             impl #impl_generics_de #salvo::extract::Extractible<'de> for #ident #ty_generics #where_clause {

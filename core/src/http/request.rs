@@ -23,7 +23,6 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::RequestDeserializer;
 use crate::serde::{from_str_map, from_str_multi_map};
 
 /// Represents an HTTP request.
@@ -512,7 +511,7 @@ impl Request {
 
     /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata>) -> Result<T, ParseError>
+    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
