@@ -38,7 +38,7 @@ cfg_feature! {
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
 pub use self::error::Error;
-pub use self::extract::{Extractible};
+pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::listener::Listener;

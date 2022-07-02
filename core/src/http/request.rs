@@ -21,7 +21,7 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_str_map, from_str_multi_map, from_request};
+use crate::serde::{from_request, from_str_map, from_str_multi_map};
 
 /// Represents an HTTP request.
 ///
@@ -459,7 +459,7 @@ impl Request {
     }
 
     /// Get request payload.
-    /// 
+    ///
     /// *Notice: This method takes body.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
@@ -477,7 +477,7 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
-    /// 
+    ///
     /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
