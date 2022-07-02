@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::Iterator;
 
@@ -110,7 +111,7 @@ impl<'de> RequestDeserializer<'de> {
             seed.deserialize(CowValue(value.into()))
         }
     }
-    fn next_pair(&mut self) -> Option<(&str, &str)> {
+    fn next(&mut self) -> Option<Cow<'_, str>> {
         if self.field_index < self.metadata.fields.len() {
             let field = &self.metadata.fields[self.field_index];
             let sources = if !field.sources.is_empty() {
@@ -122,51 +123,112 @@ impl<'de> RequestDeserializer<'de> {
                 return None;
             };
             self.field_index += 1;
+            let field_name = if let Some(rename) = field.rename {
+                rename
+            } else {
+                field.name
+            };
+            let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
+                Cow::from(rename_all.transform(field_name))
+            } else {
+               field_name.into()
+            };
             for source in sources {
                 match source.from {
                     SourceFrom::Request => {
                         self.field_value = None;
                         self.field_source = Some(source);
-                        return Some((field.name, ""));
+                        return Some(field_name);
                     }
                     SourceFrom::Param => {
-                        if let Some(value) = self.params.get(field.name) {
+                        let mut value = self.params.get(&*field_name);
+                        if value.is_none() {
+                            for alias in &field.aliases {
+                                value = self.params.get(*alias);
+                                if value.is_some() {
+                                    break;
+                                }
+                            }
+                        }
+                        if let Some(value) = value {
                             self.field_value = Some(value);
                             self.field_source = Some(source);
-                            return Some((field.name, value));
+                            return Some(field_name);
                         }
                     }
                     SourceFrom::Query => {
-                        if let Some(value) = self.queries.get(field.name) {
+                        let mut value = self.queries.get(field_name.as_ref());
+                        if value.is_none() {
+                            for alias in &field.aliases {
+                                value = self.queries.get(*alias);
+                                if value.is_some() {
+                                    break;
+                                }
+                            }
+                        }
+                        if let Some(value) = value {
                             self.field_value = Some(value.as_str());
                             self.field_source = Some(source);
-                            return Some((field.name, value));
+                            return Some(field_name);
                         }
                     }
                     SourceFrom::Header => {
-                        if let Some(value) = self.headers.get(field.name) {
+                        let mut value = self.headers.get(field_name.as_ref());
+                        if value.is_none() {
+                            for alias in &field.aliases {
+                                value = self.headers.get(*alias);
+                                if value.is_some() {
+                                    break;
+                                }
+                            }
+                        }
+                        if let Some(value) = value {
                             self.field_value = Some(value);
                             self.field_source = Some(source);
-                            return Some((field.name, value));
+                            return Some(field_name);
                         }
                     }
                     SourceFrom::Body => match source.format {
                         SourceFormat::Json => {
                             if let Some(json_body) = &self.json_body {
-                                let value = json_body.get(field.name).unwrap();
-                                self.field_value = Some(value);
-                                self.field_source = Some(source);
-                                return Some((field.name, value));
+                                let mut value = json_body.get(field_name.as_ref());
+                                if value.is_none() {
+                                    for alias in &field.aliases {
+                                        value = json_body.get(alias);
+                                        if value.is_some() {
+                                            break;
+                                        }
+                                    }
+                                }
+                                if let Some(value) = value {
+                                    self.field_value = Some(value);
+                                    self.field_source = Some(source);
+                                    return Some(field_name);
+                                } else {
+                                    return None;
+                                }
                             } else {
                                 return None;
                             }
                         }
                         SourceFormat::MultiMap => {
                             if let Some(form_data) = self.form_data {
-                                let value = form_data.fields.get(field.name).unwrap();
-                                self.field_value = Some(value);
-                                self.field_source = Some(source);
-                                return Some((field.name, value));
+                                let mut value = form_data.fields.get(field.name);
+                                if value.is_none() {
+                                    for alias in &field.aliases {
+                                        value = form_data.fields.get(*alias);
+                                        if value.is_some() {
+                                            break;
+                                        }
+                                    }
+                                }
+                                if let Some(value) = value {
+                                    self.field_value = Some(value);
+                                    self.field_source = Some(source);
+                                    return Some(field_name);
+                                } else {
+                                    return None;
+                                }
                             } else {
                                 return None;
                             }
@@ -174,7 +236,7 @@ impl<'de> RequestDeserializer<'de> {
                         _ => {
                             panic!("Unsupported source format: {:?}", source.format);
                         }
-                    }
+                    },
                 }
             }
         }
@@ -213,8 +275,8 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
     where
         T: de::DeserializeSeed<'de>,
     {
-        match self.next_pair() {
-            Some((key, value)) => seed.deserialize(key.into_deserializer()).map(Some),
+        match self.next() {
+            Some(key) => seed.deserialize(key.into_deserializer()).map(Some),
             None => Ok(None),
         }
     }
@@ -231,8 +293,8 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         TK: de::DeserializeSeed<'de>,
         TV: de::DeserializeSeed<'de>,
     {
-        match self.next_pair() {
-            Some((key, _)) => {
+        match self.next() {
+            Some(key) => {
                 let key = kseed.deserialize(key.into_deserializer())?;
                 let value = self.deserialize_value(vseed)?;
                 Ok(Some((key, value)))
@@ -277,7 +339,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        # [extract(internal, default_source(from = "query"))]
+        #[extract(internal, default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"), source(from = "query"))]
             #[extract(source(from = "body"))]
@@ -301,13 +363,11 @@ mod tests {
         #[extract(internal, default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"))]
-            #[serde(alias="param1")]
+            #[extract(alias = "param1")]
             p1: String,
-            #[extract(source(from = "param"))]
-            #[serde(alias="param2")]
+            #[extract(source(from = "param"), alias = "param2")]
             p2: &'a str,
-            #[extract(source(from = "param"))]
-            #[serde(alias="param3")]
+            #[extract(source(from = "param"), alias = "param3")]
             p3: usize,
             // #[extract(source(from = "query"))]
             q1: String,
@@ -317,24 +377,23 @@ mod tests {
             // body: RequestBody<'a>,
         }
 
-        #[derive(Deserialize, Eq, PartialEq, Debug)]
-        struct SData {
-            #[serde(alias="param1")]
-            #[serde(alias="param2")]
-            p1: String,
-        }
-
-        let d = r#"{"param1":"param1v","params2":"param2v","param3":123,"q1":"q1v","q2":23}"#;
-        println!("{:#?}", serde_json::from_str::<SData>(d).unwrap());
-
         let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
             .query("q1", "q1v")
             .query("q2", "23")
             .build();
-            req.params.insert("param1".into(), "param1v".into());
-            req.params.insert("p2".into(), "921".into());
-            req.params.insert("p3".into(), "89785".into());
+        req.params.insert("param1".into(), "param1v".into());
+        req.params.insert("p2".into(), "921".into());
+        req.params.insert("p3".into(), "89785".into());
         let data: RequestData = req.extract().await.unwrap();
-        assert_eq!(data, RequestData { p1: "param1v".into(), p2: "921", p3: 89785,  q1: "q1v".into(), q2: 23 });
+        assert_eq!(
+            data,
+            RequestData {
+                p1: "param1v".into(),
+                p2: "921",
+                p3: 89785,
+                q1: "q1v".into(),
+                q2: 23
+            }
+        );
     }
 }
