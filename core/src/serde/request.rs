@@ -4,7 +4,7 @@ use std::iter::Iterator;
 
 use multimap::MultiMap;
 use serde::de::value::Error as ValError;
-use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer, Visitor};
+use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 

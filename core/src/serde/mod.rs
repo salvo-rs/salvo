@@ -312,9 +312,6 @@ mod tests {
     use serde::Deserialize;
 
     use crate::macros::Extractible;
-    use crate::test::TestClient;
-
-    use super::from_str_map;
 
     #[tokio::test]
     async fn test_de_str_map() {

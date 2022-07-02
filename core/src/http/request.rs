@@ -459,7 +459,9 @@ impl Request {
     }
 
     /// Get request payload.
-    pub(crate) async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
+    /// 
+    /// *Notice: This method takes body.
+    pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
         self.payload
             .get_or_try_init(|| async {
@@ -475,6 +477,8 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    /// 
+    /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self

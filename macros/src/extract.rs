@@ -13,7 +13,7 @@ use crate::shared::salvo_crate;
 // #[derive(Debug)]
 struct Field {
     ident: Option<Ident>,
-    attrs: Vec<Attribute>,
+    // attrs: Vec<Attribute>,
 
     sources: Vec<RawSource>,
     aliases: Vec<String>,
@@ -34,7 +34,7 @@ impl FromField for Field {
         let sources = parse_sources(&attrs, "source")?;
         Ok(Self {
             ident,
-            attrs,
+            // attrs,
             sources,
             aliases: parse_aliases(&field.attrs)?,
             rename: None,
@@ -59,7 +59,7 @@ impl FromDeriveInput for ExtractibleArgs {
         let generics = input.generics.clone();
         let attrs = input.attrs.clone();
         let default_sources = parse_sources(&attrs, "default_source")?;
-        let mut data = match &input.data {
+        let data = match &input.data {
             syn::Data::Struct(data) => data,
             _ => {
                 return Err(Error::new_spanned(ident, "Extractible can only be applied to an struct.").into());
@@ -84,7 +84,6 @@ impl FromDeriveInput for ExtractibleArgs {
                 }
             }
         }
-        println!("========================args.internal: {}", internal);
         Ok(Self {
             ident,
             generics,
