@@ -50,10 +50,5 @@ timeout = ["salvo_extra/timeout"]
 ws = ["salvo_extra/ws"]
 
 [dependencies]
-<<<<<<< HEAD
 salvo_core = { version = "0.26.0", default-features = false, path = "../core" }
 salvo_extra = { version = "0.26.0", default-features = false, optional = true, path = "../extra" }
-=======
-salvo_core = { version = "0.25.2", default-features = false, path = "../core" }
-salvo_extra = { version = "0.25.2", default-features = false, optional = true, path = "../extra" }
->>>>>>> main

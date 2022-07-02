@@ -16,6 +16,7 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
 }
 
+#[allow(dead_code)]
 #[derive(Default, Clone, Debug)]
 struct Config {
     username: String,

@@ -1,12 +1,7 @@
-use std::vec;
-
-use darling::{ast::Data, util::Ignored, FromDeriveInput, FromField, FromMeta};
+use darling::{FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_quote::quote;
-use syn::ext::IdentExt;
-use syn::{Lit,
-    Attribute, AttributeArgs, DeriveInput, Error, GenericParam, Generics, Meta, MetaList, NestedMeta, Path, Type,
-};
+use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta};
 
 use crate::shared::salvo_crate;
 
@@ -14,7 +9,6 @@ use crate::shared::salvo_crate;
 struct Field {
     ident: Option<Ident>,
     // attrs: Vec<Attribute>,
-
     sources: Vec<RawSource>,
     aliases: Vec<String>,
     rename: Option<String>,
@@ -29,7 +23,6 @@ struct RawSource {
 impl FromField for Field {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
         let ident = field.ident.clone();
-        let ty = field.ty.clone();
         let attrs = field.attrs.clone();
         let sources = parse_sources(&attrs, "source")?;
         Ok(Self {
@@ -37,7 +30,7 @@ impl FromField for Field {
             // attrs,
             sources,
             aliases: parse_aliases(&field.attrs)?,
-            rename: None,
+            rename: parse_rename(&field.attrs)?,
         })
     }
 }
@@ -111,8 +104,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             metadata = metadata.add_default_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
         });
     }
-    let rename_all = args.rename_all.map(|rename| quote! {
-        metadata = metadata.rename_all(#rename);
+    let rename_all = args.rename_all.map(|rename| {
+        quote! {
+            metadata = metadata.rename_all(#rename);
+        }
     });
 
     for field in &mut args.fields {
@@ -131,8 +126,15 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 field = field.add_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
             });
         }
-        let aliases = field.aliases.iter().map(|alias| quote! {
-            field = field.add_alias(#alias);
+        let aliases = field.aliases.iter().map(|alias| {
+            quote! {
+                field = field.add_alias(#alias);
+            }
+        });
+        let rename = field.rename.as_ref().map(|rename| {
+            quote! {
+                field = field.rename(#rename);
+            }
         });
         for source in &field.sources {
             let from = &source.from;
@@ -145,6 +147,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident, "struct".parse().unwrap());
             #(#sources)*
             #(#aliases)*
+            #rename
             metadata = metadata.add_field(field);
         });
     }
@@ -203,7 +206,7 @@ fn parse_rename(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
                                 return Err(darling::Error::custom(format!("invalid rename: {:?}", item)));
                             }
                         }
-                    } 
+                    }
                 }
             }
         }
@@ -224,7 +227,7 @@ fn parse_rename_rule(attrs: &[syn::Attribute]) -> darling::Result<Option<String>
                                 return Err(darling::Error::custom(format!("invalid alias: {:?}", item)));
                             }
                         }
-                    } 
+                    }
                 }
             }
         }
@@ -246,7 +249,7 @@ fn parse_aliases(attrs: &[syn::Attribute]) -> darling::Result<Vec<String>> {
                                 return Err(darling::Error::custom(format!("invalid alias: {:?}", item)));
                             }
                         }
-                    } 
+                    }
                 }
             }
         }

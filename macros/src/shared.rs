@@ -1,7 +1,6 @@
-use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
-use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{FnArg, Ident};
 
 pub(crate) enum InputType {
     Request,

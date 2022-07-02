@@ -7,10 +7,9 @@
 #![warn(missing_docs)]
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use proc_quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, FnArg, Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, FnArg, ItemFn, Meta, NestedMeta, ReturnType};
 
 mod shared;
 use shared::*;
@@ -207,6 +206,7 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
+/// Generate code for extractible type.
 #[proc_macro_derive(Extractible, attributes(extract))]
 pub fn derive_extractible(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as DeriveInput);
