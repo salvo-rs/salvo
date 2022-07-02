@@ -1,4 +1,6 @@
-use salvo::extra::basic_auth::{BasicAuthHandler, BasicAuthValidator};
+use salvo::extra::authorization::{
+    AuthorizationHandler, AuthorizationResult, AuthorizationType, AuthorizationValidator,
+};
 use salvo::prelude::*;
 
 #[tokio::main]
@@ -9,7 +11,7 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
 }
 fn route() -> Router {
-    let auth_handler = BasicAuthHandler::new(Validator);
+    let auth_handler = AuthorizationHandler::new(AuthorizationType::Basic, Validator);
     Router::with_hoop(auth_handler).handle(hello)
 }
 #[fn_handler]
@@ -19,9 +21,12 @@ async fn hello() -> &'static str {
 
 struct Validator;
 #[async_trait]
-impl BasicAuthValidator for Validator {
-    async fn validate(&self, username: &str, password: &str) -> bool {
-        username == "root" && password == "pwd"
+impl AuthorizationValidator for Validator {
+    async fn validate(&self, data: AuthorizationResult) -> bool {
+        if let AuthorizationResult::Basic(u) = data {
+            return u.0 == "root" && u.1 == "pwd";
+        }
+        false
     }
 }
 

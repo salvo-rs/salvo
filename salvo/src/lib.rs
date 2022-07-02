@@ -17,7 +17,7 @@ cfg_feature! {
     #![any(
         feature = "affix",
         feature = "extra",
-        feature = "basic-auth",
+        feature = "authorization",
         feature = "compression",
         feature = "cors",
         feature = "csrf",
