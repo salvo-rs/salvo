@@ -517,7 +517,7 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        Ok(from_request(self, metadata).await?)
+        from_request(self, metadata).await
     }
 
     /// Extract url params as type `T` from request.

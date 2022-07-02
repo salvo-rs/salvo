@@ -1,8 +1,7 @@
-use std::vec;
 use std::str::FromStr;
+use std::vec;
 
 use self::RenameRule::*;
-
 
 /// Field or object data type.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -81,7 +80,12 @@ impl FromStr for RenameRule {
     type Err = crate::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        Self::from_str(input)
+        for (name, rule) in RENAME_RULES {
+            if input == *name {
+                return Ok(*rule);
+            }
+        }
+        Err(crate::Error::other(format!("invalid rename rule: {}", input)))
     }
 }
 
@@ -96,16 +100,6 @@ static RENAME_RULES: &[(&str, RenameRule)] = &[
     ("SCREAMING-KEBAB-CASE", ScreamingKebabCase),
 ];
 impl RenameRule {
-    /// Convert a string to a rename rule.
-    pub fn from_str(rename_all_str: &str) -> Result<Self, crate::Error> {
-        for (name, rule) in RENAME_RULES {
-            if rename_all_str == *name {
-                return Ok(*rule);
-            }
-        }
-        Err(crate::Error::other(format!("invalid rename rule: {}", rename_all_str)))
-    }
-
     /// Apply a renaming rule to an variant, returning the version expected in the source.
     pub fn transform(&self, variant: &str) -> String {
         match *self {
@@ -125,14 +119,10 @@ impl RenameRule {
             }
             ScreamingSnakeCase => SnakeCase.transform(variant).to_ascii_uppercase(),
             KebabCase => SnakeCase.transform(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase
-                .transform(variant)
-                .replace('_', "-"),
+            ScreamingKebabCase => ScreamingSnakeCase.transform(variant).replace('_', "-"),
         }
     }
 }
-
-
 
 /// Source format for a source. This format is just means that field format, not the request mime type.
 /// For example, the request is posted as form, but if the field is string as json format, it can be parsed as json.
@@ -140,7 +130,7 @@ impl RenameRule {
 pub enum SourceFormat {
     /// MulitMap format. This is the default.
     MultiMap,
-    /// Json format. 
+    /// Json format.
     Json,
     /// Request format means this field is [`Extractible`] and it will extract from the request.
     Request,
@@ -172,7 +162,6 @@ pub struct Metadata {
     /// Rename rule for all fields of this type.
     pub rename_all: Option<RenameRule>,
 }
-
 
 /// Information about struct field.
 #[derive(Clone, Debug)]
@@ -230,7 +219,6 @@ impl Field {
     }
 }
 
-
 /// Request source for extract data.
 #[derive(Copy, Clone, Debug)]
 pub struct Source {
@@ -257,7 +245,7 @@ impl Metadata {
             rename_all: None,
         }
     }
-    
+
     /// Set the default sources list to a new value.
     pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
         self.default_sources = default_sources;

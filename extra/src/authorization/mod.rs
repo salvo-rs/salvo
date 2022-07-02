@@ -109,7 +109,7 @@ where
                 let mut list = auth.split(' ').collect::<Vec<&str>>();
 
                 let auth_type: &str = list.remove(0);
-                if &self.auth_type.to_string() != auth_type && self.auth_type != AuthorizationType::Any {
+                if self.auth_type.to_string() != auth_type && self.auth_type != AuthorizationType::Any {
                     self.ask_credentials(res);
                     ctrl.skip_rest();
                     return;

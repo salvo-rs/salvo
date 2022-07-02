@@ -104,7 +104,7 @@ impl<'de> RequestDeserializer<'de> {
                 params: self.params,
                 queries: self.queries,
                 headers: self.headers.clone(),
-                form_data: self.form_data.clone(),
+                form_data: self.form_data,
                 json_body: self.json_body.clone(),
                 metadata: self.metadata,
                 field_index: 0,
@@ -112,14 +112,12 @@ impl<'de> RequestDeserializer<'de> {
                 field_str_value: None,
                 field_vec_value: None,
             })
+        } else if let Some(value) = self.field_str_value.take() {
+            seed.deserialize(CowValue(value.into()))
+        } else if let Some(value) = self.field_vec_value.take() {
+            seed.deserialize(VecValue(value.into_iter()))
         } else {
-            if let Some(value) = self.field_str_value.take() {
-                seed.deserialize(CowValue(value.into()))
-            } else if let Some(value) = self.field_vec_value.take() {
-                seed.deserialize(VecValue(value.into_iter()))
-            } else {
-                Err(ValError::custom("parse value error"))
-            }
+            Err(ValError::custom("parse value error"))
         }
     }
     fn next(&mut self) -> Option<Cow<'_, str>> {

@@ -152,7 +152,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         });
     }
 
-    let sv = Ident::new(&format!("__salvo_extract_{}", ident.to_string()), Span::call_site());
+    let sv = Ident::new(&format!("__salvo_extract_{}", ident), Span::call_site());
     let mt = ident.to_string();
     let imp_code = if args.generics.lifetimes().next().is_none() {
         let de_life_def = syn::parse_str("'de").unwrap();
@@ -285,9 +285,9 @@ fn parse_sources(attrs: &[Attribute], key: &str) -> darling::Result<Vec<RawSourc
                             )));
                         }
                         if source.from == "request" && source.format != "request" {
-                            return Err(darling::Error::custom(format!(
-                                "source format must be `request` for `request` sources"
-                            )));
+                            return Err(darling::Error::custom(
+                                "source format must be `request` for `request` sources",
+                            ));
                         }
                         sources.push(source);
                     }
