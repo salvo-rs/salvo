@@ -14,7 +14,7 @@ use crate::http::form::FormData;
 use crate::http::ParseError;
 use crate::Request;
 
-use super::CowValue;
+use super::{CowValue, VecValue};
 
 pub(crate) async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
 where
@@ -26,7 +26,7 @@ where
     Ok(T::deserialize(RequestDeserializer::new(req, metadata)?)?)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
@@ -36,7 +36,8 @@ pub(crate) struct RequestDeserializer<'de> {
     metadata: &'de Metadata,
     field_index: usize,
     field_source: Option<&'de Source>,
-    field_value: Option<&'de str>,
+    field_str_value: Option<&'de str>,
+    field_vec_value: Option<Vec<CowValue<'de>>>,
 }
 
 impl<'de> RequestDeserializer<'de> {
@@ -78,20 +79,23 @@ impl<'de> RequestDeserializer<'de> {
             metadata,
             field_index: 0,
             field_source: None,
-            field_value: None,
+            field_str_value: None,
+            field_vec_value: None,
         })
     }
     fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
         T: de::DeserializeSeed<'de>,
     {
-        // Panic because this indicates a bug in the program rather than an expected failure.
-        let value = self.field_value.expect("MapAccess::next_value called before next_key");
         let source = self
             .field_source
             .take()
             .expect("MapAccess::next_value called before next_key");
         if source.from == SourceFrom::Body && source.format == SourceFormat::Json {
+            // Panic because this indicates a bug in the program rather than an expected failure.
+            let value = self
+                .field_str_value
+                .expect("MapAccess::next_value called before next_key");
             let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
             seed.deserialize(&mut value)
                 .map_err(|_| ValError::custom("parse value error"))
@@ -105,10 +109,17 @@ impl<'de> RequestDeserializer<'de> {
                 metadata: self.metadata,
                 field_index: 0,
                 field_source: None,
-                field_value: None,
+                field_str_value: None,
+                field_vec_value: None,
             })
         } else {
-            seed.deserialize(CowValue(value.into()))
+            if let Some(value) = self.field_str_value.take() {
+                seed.deserialize(CowValue(value.into()))
+            } else if let Some(value) = self.field_vec_value.take() {
+                seed.deserialize(VecValue(value.into_iter()))
+            } else {
+                Err(ValError::custom("parse value error"))
+            }
         }
     }
     fn next(&mut self) -> Option<Cow<'_, str>> {
@@ -122,6 +133,8 @@ impl<'de> RequestDeserializer<'de> {
                 tracing::error!("no sources for field {}", field.name);
                 return None;
             };
+            self.field_str_value = None;
+            self.field_vec_value = None;
             self.field_index += 1;
             let field_name = if let Some(rename) = field.rename {
                 rename
@@ -131,12 +144,11 @@ impl<'de> RequestDeserializer<'de> {
             let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
                 Cow::from(rename_all.transform(field_name))
             } else {
-               field_name.into()
+                field_name.into()
             };
             for source in sources {
                 match source.from {
                     SourceFrom::Request => {
-                        self.field_value = None;
                         self.field_source = Some(source);
                         return Some(field_name);
                     }
@@ -151,39 +163,39 @@ impl<'de> RequestDeserializer<'de> {
                             }
                         }
                         if let Some(value) = value {
-                            self.field_value = Some(value);
+                            self.field_str_value = Some(value);
                             self.field_source = Some(source);
                             return Some(field_name);
                         }
                     }
                     SourceFrom::Query => {
-                        let mut value = self.queries.get(field_name.as_ref());
+                        let mut value = self.queries.get_vec(field_name.as_ref());
                         if value.is_none() {
                             for alias in &field.aliases {
-                                value = self.queries.get(*alias);
+                                value = self.queries.get_vec(*alias);
                                 if value.is_some() {
                                     break;
                                 }
                             }
                         }
                         if let Some(value) = value {
-                            self.field_value = Some(value.as_str());
+                            self.field_vec_value = Some(value.iter().map(|v| CowValue(v.into())).collect());
                             self.field_source = Some(source);
                             return Some(field_name);
                         }
                     }
                     SourceFrom::Header => {
-                        let mut value = self.headers.get(field_name.as_ref());
+                        let mut value = self.headers.get_vec(field_name.as_ref());
                         if value.is_none() {
                             for alias in &field.aliases {
-                                value = self.headers.get(*alias);
+                                value = self.headers.get_vec(*alias);
                                 if value.is_some() {
                                     break;
                                 }
                             }
                         }
                         if let Some(value) = value {
-                            self.field_value = Some(value);
+                            self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(*v))).collect());
                             self.field_source = Some(source);
                             return Some(field_name);
                         }
@@ -201,7 +213,7 @@ impl<'de> RequestDeserializer<'de> {
                                     }
                                 }
                                 if let Some(value) = value {
-                                    self.field_value = Some(value);
+                                    self.field_str_value = Some(*value);
                                     self.field_source = Some(source);
                                     return Some(field_name);
                                 } else {
@@ -213,17 +225,17 @@ impl<'de> RequestDeserializer<'de> {
                         }
                         SourceFormat::MultiMap => {
                             if let Some(form_data) = self.form_data {
-                                let mut value = form_data.fields.get(field.name);
+                                let mut value = form_data.fields.get_vec(field.name);
                                 if value.is_none() {
                                     for alias in &field.aliases {
-                                        value = form_data.fields.get(*alias);
+                                        value = form_data.fields.get_vec(*alias);
                                         if value.is_some() {
                                             break;
                                         }
                                     }
                                 }
                                 if let Some(value) = value {
-                                    self.field_value = Some(value);
+                                    self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
                                     self.field_source = Some(source);
                                     return Some(field_name);
                                 } else {

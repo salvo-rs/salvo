@@ -21,7 +21,7 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_str_map, from_str_multi_map};
+use crate::serde::{from_str_map, from_str_multi_map, from_request};
 
 /// Represents an HTTP request.
 ///
@@ -513,7 +513,7 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        Ok(crate::serde::from_request(self, metadata).await?)
+        Ok(from_request(self, metadata).await?)
     }
 
     /// Extract url params as type `T` from request.

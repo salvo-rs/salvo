@@ -116,6 +116,7 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
     }
 }
 
+#[derive(Debug)]
 struct CowValue<'de>(Cow<'de, str>);
 impl<'de> IntoDeserializer<'de> for CowValue<'de> {
     type Deserializer = Self;

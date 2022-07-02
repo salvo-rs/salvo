@@ -84,6 +84,7 @@ impl FromDeriveInput for ExtractibleArgs {
                 }
             }
         }
+        println!("========================args.internal: {}", internal);
         Ok(Self {
             ident,
             generics,
@@ -210,7 +211,6 @@ fn parse_rename(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
     }
     Ok(None)
 }
-
 
 fn parse_rename_rule(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
     for attr in attrs {

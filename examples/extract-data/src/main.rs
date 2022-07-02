@@ -12,7 +12,7 @@ async fn show(req: &mut Request, res: &mut Response) {
         </head>
         <body>
             <h1>Hello, fill your profile</h1>
-            <form action="/{}" method="post">
+            <form action="/{}?username=jobs" method="post">
                 <label>First Name:</label><input type="text" name="first_name" />
                 <label>Last Name:</label><input type="text" name="last_name" />
                 <legend>What is Your Favorite Pet?</legend>      
@@ -30,15 +30,19 @@ async fn show(req: &mut Request, res: &mut Response) {
 }
 #[fn_handler]
 async fn edit(req: &mut Request) -> String {
-    let source = make_bitflags!(ParseSource::{Params|Queries|Form});
-    let bad_man: BadMan = req.parse_data(source).await.unwrap();
+    let bad_man: BadMan = req.extract().await.unwrap();
     let bad_man = format!("Bad Man: {:#?}", bad_man);
-    let good_man: GoodMan = req.parse_data(source).await.unwrap();
+    let good_man: GoodMan = req.extract().await.unwrap();
     let good_man = format!("Good Man: {:#?}", good_man);
     format!("{}\r\n\r\n\r\n{}", bad_man, good_man)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(
+    default_source(from = "query"),
+    default_source(from = "param"),
+    default_source(from = "body")
+)]
 struct BadMan<'a> {
     id: i64,
     username: &'a str,
@@ -46,13 +50,18 @@ struct BadMan<'a> {
     last_name: &'a str,
     lovers: Vec<String>,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(
+    default_source(from = "query"),
+    default_source(from = "param"),
+    default_source(from = "body")
+)]
 struct GoodMan<'a> {
     id: i64,
     username: &'a str,
     first_name: String,
     last_name: &'a str,
-    #[serde(alias = "lovers")]
+    #[extract(alias = "lovers")]
     lover: &'a str,
 }
 
@@ -62,6 +71,6 @@ async fn main() {
 
     let router = Router::with_path("<id>").get(show).post(edit);
     tracing::info!("Listening on http://127.0.0.1:7878");
-    println!("Example url: http://127.0.0.1:7878/95?username=jobs");
+    println!("Example url: http://127.0.0.1:7878/95");
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
