@@ -112,7 +112,7 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,
                             Err(e) => {
-                                println!("failed to extract data: {}", e);
+                                #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
                                 res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
                                     "Extract data failed."
                                 ));
