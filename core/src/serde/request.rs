@@ -34,7 +34,7 @@ pub(crate) struct RequestDeserializer<'de> {
     form_data: Option<&'de FormData>,
     json_body: Option<HashMap<&'de str, &'de str>>,
     metadata: &'de Metadata,
-    field_index: usize,
+    field_index: isize,
     field_source: Option<&'de Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
@@ -77,7 +77,7 @@ impl<'de> RequestDeserializer<'de> {
             form_data,
             json_body,
             metadata,
-            field_index: 0,
+            field_index: -1,
             field_source: None,
             field_str_value: None,
             field_vec_value: None,
@@ -97,17 +97,20 @@ impl<'de> RequestDeserializer<'de> {
                 .field_str_value
                 .expect("MapAccess::next_value called before next_key");
             let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-            seed.deserialize(&mut value)
+            
+        seed.deserialize(&mut value)
                 .map_err(|_| ValError::custom("parse value error"))
         } else if source.from == SourceFrom::Request {
+            let field = self.metadata.fields.get(self.field_index as usize).expect("Field must exist");
+            let metadata = field.metadata.expect("Field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
                 headers: self.headers.clone(),
                 form_data: self.form_data,
                 json_body: self.json_body.clone(),
-                metadata: self.metadata,
-                field_index: 0,
+                metadata,
+                field_index: -1,
                 field_source: None,
                 field_str_value: None,
                 field_vec_value: None,
@@ -121,8 +124,9 @@ impl<'de> RequestDeserializer<'de> {
         }
     }
     fn next(&mut self) -> Option<Cow<'_, str>> {
-        if self.field_index < self.metadata.fields.len() {
-            let field = &self.metadata.fields[self.field_index];
+        if self.field_index < self.metadata.fields.len() as isize - 1{
+            self.field_index += 1;
+            let field = &self.metadata.fields[self.field_index as usize];
             let sources = if !field.sources.is_empty() {
                 &field.sources
             } else if !self.metadata.default_sources.is_empty() {
@@ -133,7 +137,6 @@ impl<'de> RequestDeserializer<'de> {
             };
             self.field_str_value = None;
             self.field_vec_value = None;
-            self.field_index += 1;
             let field_name = if let Some(rename) = field.rename {
                 rename
             } else {
@@ -249,6 +252,7 @@ impl<'de> RequestDeserializer<'de> {
                     },
                 }
             }
+        
         }
         None
     }

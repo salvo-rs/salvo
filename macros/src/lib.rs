@@ -103,31 +103,22 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                     call_args.push(ident.ident.clone());
                     // Maybe extractible type.
                     let id = &pat.pat;
-                    let mut ty = ty.path.clone();
-                    let mut lcount = 0;
-                    for seg in ty.segments.iter_mut() {
-                        if let AngleBracketed(ref mut args) = seg.arguments {
-                            for arg in args.args.iter_mut() {
-                                if let GenericArgument::Lifetime(lifetime) = arg {
-                                    lifetime.ident = Ident::new("_", Span::call_site());
-                                    lcount+=1;
-                                }
-                            }
-                        }
-                    }
+                    let (ty, lcount) = shared::omit_type_path_lifetimes(ty);
                     if lcount > 1 {
                         return syn::Error::new_spanned(pat, "Only one lifetime is allowed for `Extractible` type.")
                         .to_compile_error().into();
                     }
 
                     extract_ts.push(quote!{
-                        let #id: #ty = if let Ok(data) = req.extract().await {
-                            data
-                        } else {
-                            res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
-                                "Extract data failed"
-                            ));
-                            return;
+                        let #id: #ty = match req.extract().await {
+                            Ok(data) => data,
+                            Err(e) => {
+                                println!("failed to extract data: {}", e);
+                                res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
+                                    "Extract data failed."
+                                ));
+                                return;
+                            }
                         };
                     });
                 } else {

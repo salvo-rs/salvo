@@ -415,7 +415,7 @@ impl Request {
     }
     /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn file<'a>(&'a mut self, key: &str) -> Option<&'a FilePart> {
+    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
     /// Get [`FilePart`] reference from request.

@@ -1,14 +1,15 @@
 use darling::{FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, format_ident};
-use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta};
+use syn::{Attribute, DeriveInput, Error, Generics, Lit, Type, Meta, NestedMeta};
 
-use crate::shared::salvo_crate;
+use crate::shared::{salvo_crate, omit_type_path_lifetimes};
 
 // #[derive(Debug)]
 struct Field {
     ident: Option<Ident>,
     // attrs: Vec<Attribute>,
+    ty: Type,
     sources: Vec<RawSource>,
     aliases: Vec<String>,
     rename: Option<String>,
@@ -28,6 +29,7 @@ impl FromField for Field {
         Ok(Self {
             ident,
             // attrs,
+            ty: field.ty.clone(),
             sources,
             aliases: parse_aliases(&field.attrs)?,
             rename: parse_rename(&field.attrs)?,
@@ -119,12 +121,32 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         // let field_ty = field.ty.to_string();
 
         let mut sources = Vec::with_capacity(field.sources.len());
+        let mut nested_metadata = None;
         for source in &field.sources {
             let from = &source.from;
             let format = &source.format;
+            if from == "request" {
+                if let Type::Path(ty) = &field.ty {
+                    let (ty, _) = omit_type_path_lifetimes(ty);
+                    nested_metadata = Some(quote! {
+                        field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
+                    });
+                } else {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "Invalid type for request source.",
+                    ));
+                }
+            }
             sources.push(quote! {
                 field = field.add_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
             });
+        }
+        if nested_metadata.is_some() && field.sources.len() > 1 {
+            return Err(Error::new_spanned(
+                &ident,
+                "Only one source can be from request.",
+            ));
         }
         let aliases = field.aliases.iter().map(|alias| {
             quote! {
@@ -136,15 +158,9 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 field = field.rename(#rename);
             }
         });
-        for source in &field.sources {
-            let from = &source.from;
-            let format = &source.format;
-            sources.push(quote! {
-                field = field.add_source(#salvo::extract::metadata::Source::new(#from.parse().unwrap(), #format.parse().unwrap()));
-            });
-        }
         fields.push(quote! {
-            let mut field = #salvo::extract::metadata::Field::new(#field_ident, "struct".parse().unwrap());
+            let mut field = #salvo::extract::metadata::Field::new(#field_ident);
+            #nested_metadata
             #(#sources)*
             #(#aliases)*
             #rename
@@ -178,7 +194,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let code = quote! {
         #[allow(non_upper_case_globals)]
         static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
-            let mut metadata = #salvo::extract::Metadata::new(#mt, #salvo::extract::metadata::DataKind::Struct);
+            let mut metadata = #salvo::extract::Metadata::new(#mt);
             #(
                 #default_sources
             )*
@@ -191,6 +207,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         #imp_code
     };
 
+    println!("{}", code.to_string());
     Ok(code)
 }
 
@@ -267,7 +284,7 @@ fn parse_sources(attrs: &[Attribute], key: &str) -> darling::Result<Vec<RawSourc
                     if matches!(meta, NestedMeta::Meta(Meta::List(item)) if item.path.is_ident(key)) {
                         let mut source: RawSource = FromMeta::from_nested_meta(meta)?;
                         if source.format.is_empty() {
-                            if source.format == "request" {
+                            if source.from == "request" {
                                 source.format = "request".to_string();
                             } else {
                                 source.format = "multimap".to_string();
