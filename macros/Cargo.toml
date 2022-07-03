@@ -20,5 +20,5 @@ proc-macro = true
 darling = "0.14.1"
 proc-macro-crate = "1"
 proc-macro2 = "1"
-proc-quote = "0.4"
+quote = "1"
 syn = { version = "1", features = ["full", "parsing"] }

@@ -1,14 +1,14 @@
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
-use syn::{FnArg, Ident};
+use syn::{FnArg, Ident, PatType};
 
-pub(crate) enum InputType {
-    Request,
-    Depot,
-    Response,
-    FlowCtrl,
-    UnKnow,
-    NoReferenceArg,
+pub(crate) enum InputType<'a> {
+    Request(&'a PatType),
+    Depot(&'a PatType),
+    Response(&'a PatType),
+    FlowCtrl(&'a PatType),
+    Unknown,
+    NoReference(&'a PatType),
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
@@ -43,25 +43,25 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                 // `Vec` is `Vec`
                 let ident = &nty.path.segments.last().unwrap().ident;
                 if ident == "Request" {
-                    InputType::Request
+                    InputType::Request(p)
                 } else if ident == "Response" {
-                    InputType::Response
+                    InputType::Response(p)
                 } else if ident == "Depot" {
-                    InputType::Depot
+                    InputType::Depot(p)
                 } else if ident == "FlowCtrl" {
-                    InputType::FlowCtrl
+                    InputType::FlowCtrl(p)
                 } else {
-                    InputType::UnKnow
+                    InputType::Unknown
                 }
             } else {
-                InputType::UnKnow
+                InputType::Unknown
             }
         } else {
             // like owned type or other type
-            InputType::NoReferenceArg
+            InputType::NoReference(p)
         }
     } else {
         // like self on fn
-        InputType::UnKnow
+        InputType::Unknown
     }
 }

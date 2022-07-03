@@ -1,6 +1,6 @@
 use darling::{FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_quote::quote;
+use quote::{quote, format_ident};
 use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta};
 
 use crate::shared::salvo_crate;
@@ -152,7 +152,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         });
     }
 
-    let sv = Ident::new(&format!("__salvo_extract_{}", ident), Span::call_site());
+    let sv = format_ident!("__salvo_extract_{}", ident);
     let mt = ident.to_string();
     let imp_code = if args.generics.lifetimes().next().is_none() {
         let de_life_def = syn::parse_str("'de").unwrap();
@@ -176,6 +176,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         }
     };
     let code = quote! {
+        #[allow(non_upper_case_globals)]
         static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
             let mut metadata = #salvo::extract::Metadata::new(#mt, #salvo::extract::metadata::DataKind::Struct);
             #(

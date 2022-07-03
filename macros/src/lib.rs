@@ -6,10 +6,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use proc_macro::TokenStream;
-use proc_quote::quote;
+use proc_macro::{TokenStream};
+use proc_macro2::{ Span};
+use quote::quote;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, FnArg, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::token::Comma;
+use syn::PathArguments::AngleBracketed;
+use syn::{parse_macro_input, Type, Pat, AttributeArgs, Expr, GenericArgument, DeriveInput, FnArg,  Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
 mod shared;
 use shared::*;
@@ -73,26 +76,23 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let salvo = salvo_crate(internal);
 
-    let inputs = std::mem::replace(&mut sig.inputs, Punctuated::new());
-    let mut req_ts = None;
-    let mut depot_ts = None;
-    let mut res_ts = None;
-    let mut ctrl_ts = None;
-    for input in inputs {
+    let mut extract_ts = Vec::with_capacity(sig.inputs.len());
+    let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
+    for input in &sig.inputs {
         match parse_input_type(&input) {
-            InputType::Request => {
-                req_ts = Some(input);
+            InputType::Request(pat) => {
+                call_args.push( Ident::new("req", Span::call_site()));
             }
-            InputType::Depot => {
-                depot_ts = Some(input);
+            InputType::Depot(pat) => {
+                call_args.push(Ident::new("depot", Span::call_site()));
             }
-            InputType::Response => {
-                res_ts = Some(input);
+            InputType::Response(pat) => {
+                call_args.push(Ident::new("res", Span::call_site()));
             }
-            InputType::FlowCtrl => {
-                ctrl_ts = Some(input);
+            InputType::FlowCtrl(pat) => {
+                call_args.push(Ident::new("ctrl", Span::call_site()));
             }
-            InputType::UnKnow => {
+            InputType::Unknown => {
                 return syn::Error::new_spanned(
                     &sig.inputs,
                     "the inputs parameters must be Request, Depot, Response or FlowCtrl",
@@ -100,39 +100,44 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                 .to_compile_error()
                 .into()
             }
-            InputType::NoReferenceArg => {
-                return syn::Error::new_spanned(
-                    &sig.inputs,
-                    "the inputs parameters must be mutable reference Request, Depot, Response or FlowCtrl",
-                )
-                .to_compile_error()
-                .into()
+            InputType::NoReference(pat) => {
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    call_args.push(ident.ident.clone());
+                    // Maybe extractible type.
+                    let id = &pat.pat;
+                    let mut ty = ty.path.clone();
+                    let mut lcount = 0;
+                    for seg in ty.segments.iter_mut() {
+                        if let AngleBracketed(ref mut args) = seg.arguments {
+                            for arg in args.args.iter_mut() {
+                                if let GenericArgument::Lifetime(lifetime) = arg {
+                                    lifetime.ident = Ident::new("_", Span::call_site());
+                                    lcount+=1;
+                                }
+                            }
+                        }
+                    }
+                    if lcount > 1 {
+                        return syn::Error::new_spanned(pat, "Only one lifetime is allowed for `Extractible` type.")
+                        .to_compile_error().into();
+                    }
+
+                    extract_ts.push(quote!{
+                        let #id: #ty = if let Ok(data) = req.extract().await {
+                            data
+                        } else {
+                            res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
+                                "Extract data failed"
+                            ));
+                            return;
+                        };
+                    });
+                } else {
+                    return syn::Error::new_spanned(pat, "Invalid param definition.")
+                    .to_compile_error().into();
+                }
             }
         }
-    }
-    if let Some(ts) = req_ts {
-        sig.inputs.push(ts);
-    } else {
-        let ts: TokenStream = quote! {_req: &mut #salvo::Request}.into();
-        sig.inputs.push(parse_macro_input!(ts as FnArg));
-    }
-    if let Some(ts) = depot_ts {
-        sig.inputs.push(ts);
-    } else {
-        let ts: TokenStream = quote! {_depot: &mut #salvo::Depot}.into();
-        sig.inputs.push(parse_macro_input!(ts as FnArg));
-    }
-    if let Some(ts) = res_ts {
-        sig.inputs.push(ts);
-    } else {
-        let ts: TokenStream = quote! {_res: &mut #salvo::Response}.into();
-        sig.inputs.push(parse_macro_input!(ts as FnArg));
-    }
-    if let Some(ts) = ctrl_ts {
-        sig.inputs.push(ts);
-    } else {
-        let ts: TokenStream = quote! {_ctrl: &mut #salvo::routing::FlowCtrl}.into();
-        sig.inputs.push(parse_macro_input!(ts as FnArg));
     }
 
     let sdef = quote! {
@@ -157,7 +162,8 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #salvo::Handler for #name {
                         #[inline]
                         async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                            Self::#name(req, depot, res, ctrl)
+                            #(#extract_ts)*
+                            Self::#name(#(#call_args),*)
                         }
                     }
                 })
@@ -169,7 +175,8 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #salvo::Handler for #name {
                         #[inline]
                         async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                            Self::#name(req, depot, res, ctrl).await
+                            #(#extract_ts)*
+                            Self::#name(#(#call_args),*).await
                         }
                     }
                 })
@@ -184,7 +191,8 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #salvo::Handler for #name {
                         #[inline]
                         async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                            #salvo::Writer::write(Self::#name(req, depot, res, ctrl), req, depot, res).await;
+                           
+                            #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                         }
                     }
                 })
@@ -196,7 +204,8 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #salvo::Handler for #name {
                         #[inline]
                         async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                            #salvo::Writer::write(Self::#name(req, depot, res, ctrl).await, req, depot, res).await;
+                            #(#extract_ts)*
+                            #salvo::Writer::write(Self::#name(#(#call_args),*).await, req, depot, res).await;
                         }
                     }
                 })
