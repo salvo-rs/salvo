@@ -9,10 +9,8 @@
 use proc_macro::{TokenStream};
 use proc_macro2::{ Span};
 use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
 use syn::PathArguments::AngleBracketed;
-use syn::{parse_macro_input, Type, Pat, AttributeArgs, Expr, GenericArgument, DeriveInput, FnArg,  Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, Type, Pat, AttributeArgs, GenericArgument, DeriveInput, Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
 mod shared;
 use shared::*;
@@ -79,17 +77,17 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     for input in &sig.inputs {
-        match parse_input_type(&input) {
-            InputType::Request(pat) => {
+        match parse_input_type(input) {
+            InputType::Request(_pat) => {
                 call_args.push( Ident::new("req", Span::call_site()));
             }
-            InputType::Depot(pat) => {
+            InputType::Depot(_pat) => {
                 call_args.push(Ident::new("depot", Span::call_site()));
             }
-            InputType::Response(pat) => {
+            InputType::Response(_pat) => {
                 call_args.push(Ident::new("res", Span::call_site()));
             }
-            InputType::FlowCtrl(pat) => {
+            InputType::FlowCtrl(_pat) => {
                 call_args.push(Ident::new("ctrl", Span::call_site()));
             }
             InputType::Unknown => {

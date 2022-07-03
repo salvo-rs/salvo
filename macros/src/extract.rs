@@ -1,5 +1,5 @@
 use darling::{FromDeriveInput, FromField, FromMeta};
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, format_ident};
 use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta};
 

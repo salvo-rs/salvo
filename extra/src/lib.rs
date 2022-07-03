@@ -10,8 +10,8 @@
 mod cfg;
 
 cfg_feature! {
-    #![feature = "authorization"]
-    pub mod authorization;
+    #![feature = "basic_auth"]
+    pub mod basic_auth;
 }
 
 cfg_feature! {
