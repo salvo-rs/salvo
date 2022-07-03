@@ -9,8 +9,7 @@
 use proc_macro::{TokenStream};
 use proc_macro2::{ Span};
 use quote::quote;
-use syn::PathArguments::AngleBracketed;
-use syn::{parse_macro_input, Type, Pat, AttributeArgs, GenericArgument, DeriveInput, Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, Type, Pat, AttributeArgs,  DeriveInput, Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
 mod shared;
 use shared::*;

@@ -108,7 +108,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     }
     let rename_all = args.rename_all.map(|rename| {
         quote! {
-            metadata = metadata.rename_all(#rename);
+            metadata = metadata.rename_all(#rename.parse().unwrap());
         }
     });
 
@@ -207,7 +207,6 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         #imp_code
     };
 
-    println!("{}", code.to_string());
     Ok(code)
 }
 

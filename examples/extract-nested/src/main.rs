@@ -12,8 +12,8 @@ async fn show(req: &mut Request, res: &mut Response) {
         </head>
         <body>
             <h1>Hello, fill your profile</h1>
-            <div class="result"></div>
-            <form action="/{}?username=jobs" method="post">
+            <div id="result"></div>
+            <form id="form" method="post">
                 <label>First Name:</label><input type="text" name="first_name" />
                 <label>Last Name:</label><input type="text" name="last_name" />
                 <legend>What is Your Favorite Pet?</legend>      
@@ -26,7 +26,7 @@ async fn show(req: &mut Request, res: &mut Response) {
             let form = document.getElementById("form");
             form.addEventListener("submit", async (e) => {{
                 e.preventDefault();
-                let response = await fetch('http://localhost:8482/encode', {{
+                let response = await fetch('/{}?username=jobs', {{
                     method: 'POST',
                     headers: {{
                         'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ async fn show(req: &mut Request, res: &mut Response) {
                     }}),
                 }});
                 let text = await response.text();
-                document.querySelector(".result").innerHTML = text;
+                document.getElementById("result").innerHTML = text;
             }});
             </script>
         </body>
@@ -54,11 +54,7 @@ async fn edit<'a>(good_man: GoodMan<'a>, res: &mut Response) {
 }
 
 #[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(
-    default_source(from = "query"),
-    default_source(from = "param"),
-    default_source(from = "body", format = "json")
-)]
+#[extract(default_source(from = "body", format = "json"))]
 struct GoodMan<'a> {
     #[extract(source(from = "param"))]
     id: i64,
@@ -72,11 +68,7 @@ struct GoodMan<'a> {
 }
 
 #[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(
-    default_source(from = "query"),
-    default_source(from = "param"),
-    default_source(from = "body", format = "json")
-)]
+#[extract(default_source(from = "body", format = "json"))]
 struct Nested<'a> {
     #[extract(source(from = "param"))]
     id: i64,
@@ -85,6 +77,7 @@ struct Nested<'a> {
     first_name: String,
     last_name: String,
     #[extract(rename = "lovers")]
+    #[serde(default)]
     pets: Vec<String>,
 }
 

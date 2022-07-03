@@ -311,8 +311,6 @@ mod tests {
     use multimap::MultiMap;
     use serde::Deserialize;
 
-    use crate::macros::Extractible;
-
     #[tokio::test]
     async fn test_de_str_map() {
         #[derive(Deserialize, Eq, PartialEq, Debug)]

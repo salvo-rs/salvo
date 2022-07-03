@@ -27,6 +27,7 @@ test = ["async-compression", "base64", "encoding_rs", "serde_urlencoded", "url",
 acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
 
 [dependencies]
+Inflector = "0.11.4"
 anyhow = { version = "1", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-recursion = "1"

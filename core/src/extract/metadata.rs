@@ -1,6 +1,8 @@
 use std::str::FromStr;
 use std::vec;
 
+use inflector::Inflector;
+
 use self::RenameRule::*;
 
 
@@ -83,25 +85,17 @@ static RENAME_RULES: &[(&str, RenameRule)] = &[
 ];
 impl RenameRule {
     /// Apply a renaming rule to an variant, returning the version expected in the source.
-    pub fn transform(&self, variant: &str) -> String {
+    pub fn rename(&self, name: impl AsRef<str>) -> String {
+        let name = name.as_ref();
         match *self {
-            PascalCase => variant.to_owned(),
-            LowerCase => variant.to_ascii_lowercase(),
-            UpperCase => variant.to_ascii_uppercase(),
-            CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],
-            SnakeCase => {
-                let mut snake = String::new();
-                for (i, ch) in variant.char_indices() {
-                    if i > 0 && ch.is_uppercase() {
-                        snake.push('_');
-                    }
-                    snake.push(ch.to_ascii_lowercase());
-                }
-                snake
-            }
-            ScreamingSnakeCase => SnakeCase.transform(variant).to_ascii_uppercase(),
-            KebabCase => SnakeCase.transform(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase.transform(variant).replace('_', "-"),
+            PascalCase => name.to_pascal_case(),
+            LowerCase => name.to_lowercase(),
+            UpperCase => name.to_uppercase(),
+            CamelCase => name.to_camel_case(),
+            SnakeCase => name.to_snake_case(),
+            ScreamingSnakeCase => SnakeCase.rename(name).to_ascii_uppercase(),
+            KebabCase => SnakeCase.rename(name).replace('_', "-"),
+            ScreamingKebabCase => ScreamingSnakeCase.rename(name).replace('_', "-"),
         }
     }
 }
