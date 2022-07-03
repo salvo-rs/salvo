@@ -10,6 +10,8 @@ pub use async_trait::async_trait;
 pub use hyper;
 pub use salvo_macros::fn_handler;
 
+pub use salvo_macros as macros;
+
 #[macro_use]
 mod cfg;
 
@@ -17,6 +19,7 @@ pub mod addr;
 pub mod catcher;
 mod depot;
 mod error;
+pub mod extract;
 pub mod fs;
 mod handler;
 pub mod http;
@@ -35,6 +38,7 @@ cfg_feature! {
 pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::depot::Depot;
 pub use self::error::Error;
+pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::listener::Listener;
@@ -48,7 +52,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use async_trait::async_trait;
-    pub use salvo_macros::fn_handler;
+    pub use salvo_macros::{fn_handler, Extractible};
 
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
@@ -64,12 +68,18 @@ pub mod prelude {
         #![unix]
         pub use crate::listener::UnixListener;
     }
+    // pub use crate::extract::{Extractible, Extractor};
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::{Json, Piece, Text, Writer};
     pub use crate::Handler;
+}
+
+#[doc(hidden)]
+pub mod __private {
+    pub use once_cell;
 }
 
 use std::{future::Future, thread::available_parallelism};

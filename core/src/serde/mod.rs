@@ -2,13 +2,16 @@ use std::borrow::Cow;
 use std::hash::Hash;
 use std::iter::Iterator;
 
-pub(crate) use serde::de::value::{Error, MapDeserializer, SeqDeserializer};
+pub(crate) use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{
     Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
 use serde::forward_to_deserialize_any;
 
-pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, Error>
+mod request;
+pub(crate) use request::from_request;
+
+pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, V)> + 'de,
     T: Deserialize<'de>,
@@ -19,7 +22,7 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, Error>
+pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, C)> + 'de,
     T: Deserialize<'de>,
@@ -67,6 +70,53 @@ macro_rules! forward_vec_parsed_value {
     }
 }
 
+struct ValueEnumAccess<'de>(Cow<'de, str>);
+
+impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
+    type Error = ValError;
+    type Variant = UnitOnlyVariantAccess;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let variant = seed.deserialize(self.0.into_deserializer())?;
+        Ok((variant, UnitOnlyVariantAccess))
+    }
+}
+
+struct UnitOnlyVariantAccess;
+
+impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
+    type Error = ValError;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+
+    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Err(DeError::custom("expected unit variant"))
+    }
+}
+
+#[derive(Debug)]
 struct CowValue<'de>(Cow<'de, str>);
 impl<'de> IntoDeserializer<'de> for CowValue<'de> {
     type Deserializer = Self;
@@ -77,7 +127,7 @@ impl<'de> IntoDeserializer<'de> for CowValue<'de> {
 }
 
 impl<'de> Deserializer<'de> for CowValue<'de> {
-    type Error = Error;
+    type Error = ValError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -163,7 +213,7 @@ impl<'de, I> Deserializer<'de> for VecValue<I>
 where
     I: IntoIterator<Item = CowValue<'de>>,
 {
-    type Error = Error;
+    type Error = ValError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -254,58 +304,14 @@ where
     }
 }
 
-struct ValueEnumAccess<'de>(Cow<'de, str>);
-
-impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
-    type Error = Error;
-    type Variant = UnitOnlyVariantAccess;
-
-    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
-    where
-        V: DeserializeSeed<'de>,
-    {
-        let variant = seed.deserialize(self.0.into_deserializer())?;
-        Ok((variant, UnitOnlyVariantAccess))
-    }
-}
-
-struct UnitOnlyVariantAccess;
-
-impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
-    type Error = Error;
-
-    fn unit_variant(self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value, Self::Error>
-    where
-        T: DeserializeSeed<'de>,
-    {
-        Err(DeError::custom("expected unit variant"))
-    }
-
-    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        Err(DeError::custom("expected unit variant"))
-    }
-
-    fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        Err(DeError::custom("expected unit variant"))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
     use multimap::MultiMap;
     use serde::Deserialize;
+
+    use crate::macros::Extractible;
 
     #[tokio::test]
     async fn test_de_str_map() {

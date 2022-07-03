@@ -42,7 +42,7 @@ impl Display for CsrfError {
 }
 
 /// A signed, encrypted CSRF token that is suitable to be displayed to end users.
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Eq, PartialEq, Clone, Debug, Hash)]
 pub struct CsrfToken {
     bytes: Vec<u8>,
 }

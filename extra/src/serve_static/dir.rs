@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 /// Options
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Options {
     /// List dot files.
     pub dot_files: bool,
@@ -119,10 +120,10 @@ impl DirHandler {
     }
 
     /// During the file chunk read, the maximum read size at one time will affect the
-    /// access experience and the demand for server memory. 
-    /// 
+    /// access experience and the demand for server memory.
+    ///
     /// Please set it according to your own situation.
-    /// 
+    ///
     /// The default is 1M.
     #[inline]
     pub fn chunk_size(mut self, size: u64) -> Self {
@@ -310,21 +311,25 @@ fn list_xml(current: &CurrentInfo) -> String {
         ftxt.push_str("No files");
     } else {
         for dir in &current.dirs {
-            ftxt.push_str(&format!(
+            write!(
+                ftxt,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
                 dir.modified.format("%Y-%m-%d %H:%M:%S"),
                 encode_url_path(&dir.name),
-            ));
+            )
+            .ok();
         }
         for file in &current.files {
-            ftxt.push_str(&format!(
+            write!(
+                ftxt,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
                 file.size,
                 encode_url_path(&file.name),
-            ));
+            )
+            .ok();
         }
     }
     ftxt.push_str("</list>");
@@ -357,35 +362,42 @@ fn list_html(current: &CurrentInfo) -> String {
         header_links(&current.path)
     );
     if current.dirs.is_empty() && current.files.is_empty() {
-        ftxt.push_str("<p>No files</p>");
+        write!(ftxt, "<p>No files</p>").ok();
     } else {
-        ftxt.push_str("<table><tr><th>");
+        write!(ftxt, "<table><tr><th>").ok();
         if !(current.path.is_empty() || current.path == "/") {
-            ftxt.push_str("<a href=\"../\">[..]</a>");
+            write!(ftxt, "<a href=\"../\">[..]</a>").ok();
         }
-        ftxt.push_str("</th><th>Name</th><th>Last modified</th><th>Size</th></tr>");
+        write!(ftxt, "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>").ok();
         for dir in &current.dirs {
-            ftxt.push_str(&format!(
+            write!(
+                ftxt,
                 r#"<tr><td>{}</td><td><a href="./{}/">{}</a></td><td>{}</td><td></td></tr>"#,
                 DIR_ICON,
                 encode_url_path(&dir.name),
                 dir.name,
                 dir.modified.format("%Y-%m-%d %H:%M:%S")
-            ));
+            )
+            .ok();
         }
         for file in &current.files {
-            ftxt.push_str(&format!(
+            write!(
+                ftxt,
                 r#"<tr><td>{}</td><td><a href="./{}">{}</a></td><td>{}</td><td>{}</td></tr>"#,
                 FILE_ICON,
                 encode_url_path(&file.name),
                 file.name,
                 file.modified.format("%Y-%m-%d %H:%M:%S"),
                 file.size
-            ));
+            )
+            .ok();
         }
-        ftxt.push_str("</table>");
+        write!(ftxt, "</table>").ok();
     }
-    ftxt.push_str(r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#);
+    write!(
+        ftxt,
+        r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#
+    ).ok();
     ftxt
 }
 #[inline]

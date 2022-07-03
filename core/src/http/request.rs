@@ -5,7 +5,6 @@ use std::fmt::{self, Formatter};
 use std::str::FromStr;
 
 use cookie::{Cookie, CookieJar};
-use enumflags2::{bitflags, BitFlags};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -17,26 +16,12 @@ use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
 
 use crate::addr::SocketAddr;
+use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_str_map, from_str_multi_map};
-
-/// ParseSource
-#[bitflags]
-#[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParseSource {
-    /// Parse from url router params.
-    Params = 0b0001,
-    /// Parse from url queries.
-    Queries = 0b0010,
-    /// Parse from headers.
-    Headers = 0b0100,
-    /// Parse from form.
-    Form = 0b1000,
-}
+use crate::serde::{from_request, from_str_map, from_str_multi_map};
 
 /// Represents an HTTP request.
 ///
@@ -60,9 +45,9 @@ pub struct Request {
     pub(crate) params: HashMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
-    queries: OnceCell<MultiMap<String, String>>,
-    form_data: tokio::sync::OnceCell<FormData>,
-    payload: tokio::sync::OnceCell<Vec<u8>>,
+    pub(crate) queries: OnceCell<MultiMap<String, String>>,
+    pub(crate) form_data: tokio::sync::OnceCell<FormData>,
+    pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
     version: Version,
@@ -430,7 +415,7 @@ impl Request {
     }
     /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
+    pub async fn file<'a>(&'a mut self, key: &str) -> Option<&'a FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
     /// Get [`FilePart`] reference from request.
@@ -474,6 +459,8 @@ impl Request {
     }
 
     /// Get request payload.
+    ///
+    /// *Notice: This method takes body.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
         self.payload
@@ -490,6 +477,8 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    ///
+    /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
@@ -513,70 +502,27 @@ impl Request {
         }
     }
 
-    /// Read url params as type `T` from request's different sources.
-    ///
-    /// Returns error if the same key is appeared in different sources.
-    /// This function will not handle if payload is json format, use [`parse_json`] to get typed json payload.
+    /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
+    pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Extractible<'de>,
+    {
+        self.extract_with_metadata(T::metadata()).await
+    }
+
+    /// Extract request as type `T` from request's different parts.
+    #[inline]
+    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        if sources == ParseSource::Params {
-            self.parse_params()
-        } else if sources == ParseSource::Queries {
-            self.parse_queries()
-        } else if sources == ParseSource::Headers {
-            self.parse_headers()
-        } else if sources == ParseSource::Form {
-            self.parse_form().await
-        } else {
-            let mut all_data: MultiMap<&str, &str> = MultiMap::new();
-            if sources.contains(ParseSource::Form) {
-                self.form_data().await?;
-                if let Some(form) = self.form_data.get() {
-                    if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
-                        return Err(ParseError::DuplicateKey);
-                    }
-                    for (k, v) in form.fields.iter() {
-                        all_data.insert(k, v);
-                    }
-                }
-            }
-            if sources.contains(ParseSource::Params) {
-                for (k, v) in self.params() {
-                    all_data.insert(k, &*v);
-                }
-            }
-            if sources.contains(ParseSource::Queries) {
-                let queries = self.queries();
-                if queries.keys().any(|key| all_data.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in queries.iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            if sources.contains(ParseSource::Headers) {
-                let headers = self
-                    .headers()
-                    .iter()
-                    .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-                    .collect::<HashMap<_, _>>();
-                if all_data.keys().any(|key| headers.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in headers.into_iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            from_str_multi_map(all_data).map_err(ParseError::Deserialize)
-        }
+        from_request(self, metadata).await
     }
 
-    /// Read url params as type `T` from request.
+    /// Extract url params as type `T` from request.
     #[inline]
-    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -584,9 +530,9 @@ impl Request {
         from_str_map(params).map_err(ParseError::Deserialize)
     }
 
-    /// Read queries as type `T` from request.
+    /// Extract queries as type `T` from request.
     #[inline]
-    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -594,9 +540,9 @@ impl Request {
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
-    /// Read headers as type `T` from request.
+    /// Extract headers as type `T` from request.
     #[inline]
-    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn extract_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -607,9 +553,9 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn extract_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -618,15 +564,15 @@ impl Request {
                 return self
                     .payload()
                     .await
-                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+                    .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
             }
         }
         Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn extract_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -638,9 +584,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Extract body as type `T` from request.
     #[inline]
-    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
+    pub async fn extract_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -685,12 +631,12 @@ mod tests {
             "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
         )
         .build();
-        let man = req.parse_queries::<BadMan>().unwrap();
+        let man = req.extract_queries::<BadMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, vec!["a", "2"]);
         assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
-        let man = req.parse_queries::<GoodMan>().unwrap();
+        let man = req.extract_queries::<GoodMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, "a");
@@ -706,7 +652,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:7878/hello")
             .json(&User { name: "jobs".into() })
             .build();
-        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
+        assert_eq!(req.extract_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
