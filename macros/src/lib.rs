@@ -6,8 +6,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use proc_macro::{TokenStream};
-use proc_macro2::{ Span};
+use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{parse_macro_input, Type, Pat, AttributeArgs,  DeriveInput, Ident, ItemFn, Meta, NestedMeta, ReturnType};
 
@@ -202,6 +202,12 @@ pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
 }
+
+
+// #[proc_macro_attribute]
+// pub fn impl_handler(args: TokenStream, input: TokenStream) -> TokenStream {
+
+// }
 
 /// Generate code for extractible type.
 #[proc_macro_derive(Extractible, attributes(extract))]
