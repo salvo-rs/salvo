@@ -34,7 +34,7 @@ pub(crate) struct RequestDeserializer<'de> {
     form_data: Option<&'de FormData>,
     json_body: Option<HashMap<&'de str, &'de str>>,
     metadata: &'de Metadata,
-    field_index: usize,
+    field_index: isize,
     field_source: Option<&'de Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
@@ -77,7 +77,7 @@ impl<'de> RequestDeserializer<'de> {
             form_data,
             json_body,
             metadata,
-            field_index: 0,
+            field_index: -1,
             field_source: None,
             field_str_value: None,
             field_vec_value: None,
@@ -97,17 +97,20 @@ impl<'de> RequestDeserializer<'de> {
                 .field_str_value
                 .expect("MapAccess::next_value called before next_key");
             let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-            seed.deserialize(&mut value)
+            
+        seed.deserialize(&mut value)
                 .map_err(|_| ValError::custom("parse value error"))
         } else if source.from == SourceFrom::Request {
+            let field = self.metadata.fields.get(self.field_index as usize).expect("Field must exist");
+            let metadata = field.metadata.expect("Field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
                 headers: self.headers.clone(),
                 form_data: self.form_data,
                 json_body: self.json_body.clone(),
-                metadata: self.metadata,
-                field_index: 0,
+                metadata,
+                field_index: -1,
                 field_source: None,
                 field_str_value: None,
                 field_vec_value: None,
@@ -121,8 +124,9 @@ impl<'de> RequestDeserializer<'de> {
         }
     }
     fn next(&mut self) -> Option<Cow<'_, str>> {
-        if self.field_index < self.metadata.fields.len() {
-            let field = &self.metadata.fields[self.field_index];
+        if self.field_index < self.metadata.fields.len() as isize - 1{
+            self.field_index += 1;
+            let field = &self.metadata.fields[self.field_index as usize];
             let sources = if !field.sources.is_empty() {
                 &field.sources
             } else if !self.metadata.default_sources.is_empty() {
@@ -133,22 +137,24 @@ impl<'de> RequestDeserializer<'de> {
             };
             self.field_str_value = None;
             self.field_vec_value = None;
-            self.field_index += 1;
-            let field_name = if let Some(rename) = field.rename {
-                rename
-            } else {
-                field.name
-            };
             let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
-                Cow::from(rename_all.transform(field_name))
+                if let Some(rename) = field.rename {
+                    Cow::from(rename)
+                } else {
+                    rename_all.rename(field.name).into()
+                }
             } else {
-                field_name.into()
+                if let Some(rename) = field.rename {
+                    rename
+                } else {
+                    field.name
+                }.into()
             };
             for source in sources {
                 match source.from {
                     SourceFrom::Request => {
                         self.field_source = Some(source);
-                        return Some(field_name);
+                        return Some(Cow::from(field.name));
                     }
                     SourceFrom::Param => {
                         let mut value = self.params.get(&*field_name);
@@ -163,7 +169,7 @@ impl<'de> RequestDeserializer<'de> {
                         if let Some(value) = value {
                             self.field_str_value = Some(value);
                             self.field_source = Some(source);
-                            return Some(field_name);
+                            return Some(Cow::from(field.name));
                         }
                     }
                     SourceFrom::Query => {
@@ -179,7 +185,7 @@ impl<'de> RequestDeserializer<'de> {
                         if let Some(value) = value {
                             self.field_vec_value = Some(value.iter().map(|v| CowValue(v.into())).collect());
                             self.field_source = Some(source);
-                            return Some(field_name);
+                            return Some(Cow::from(field.name));
                         }
                     }
                     SourceFrom::Header => {
@@ -195,7 +201,7 @@ impl<'de> RequestDeserializer<'de> {
                         if let Some(value) = value {
                             self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(*v))).collect());
                             self.field_source = Some(source);
-                            return Some(field_name);
+                            return Some(Cow::from(field.name));
                         }
                     }
                     SourceFrom::Body => match source.format {
@@ -213,7 +219,7 @@ impl<'de> RequestDeserializer<'de> {
                                 if let Some(value) = value {
                                     self.field_str_value = Some(*value);
                                     self.field_source = Some(source);
-                                    return Some(field_name);
+                                    return Some(Cow::from(field.name));
                                 } else {
                                     return None;
                                 }
@@ -235,7 +241,7 @@ impl<'de> RequestDeserializer<'de> {
                                 if let Some(value) = value {
                                     self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
                                     self.field_source = Some(source);
-                                    return Some(field_name);
+                                    return Some(Cow::from(field.name));
                                 } else {
                                     return None;
                                 }
@@ -249,6 +255,7 @@ impl<'de> RequestDeserializer<'de> {
                     },
                 }
             }
+        
         }
         None
     }
@@ -316,9 +323,6 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use multimap::MultiMap;
     use serde::Deserialize;
 
     use crate::macros::Extractible;
@@ -365,6 +369,40 @@ mod tests {
             .build();
         let data: RequestData<'_> = req.extract().await.unwrap();
         assert_eq!(data, RequestData { q1: "q1v" });
+    }
+
+    #[tokio::test]
+    async fn test_de_request_with_rename() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "query"))]
+        struct RequestData<'a> {
+            #[extract(source(from = "param"), source(from = "query"), rename="abc")]
+            q1: &'a str,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .query("abc", "q1v")
+            .build();
+        let data: RequestData<'_> = req.extract().await.unwrap();
+        assert_eq!(data, RequestData { q1: "q1v" });
+    }
+    
+    #[tokio::test]
+    async fn test_de_request_with_rename_all() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "query"), rename_all = "PascalCase")]
+        struct RequestData<'a> {
+            first_name: &'a str,
+            #[extract(rename="lastName")]
+            last_name: &'a str,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .query("FirstName", "chris")
+            .query("lastName", "young")
+            .build();
+        let data: RequestData<'_> = req.extract().await.unwrap();
+        assert_eq!(data, RequestData { first_name: "chris", last_name: "young" });
     }
 
     #[tokio::test]

@@ -415,7 +415,7 @@ impl Request {
     }
     /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn file<'a>(&'a mut self, key: &str) -> Option<&'a FilePart> {
+    pub async fn file<'a>(&'a mut self, key: &'a str) -> Option<&'a FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
     /// Get [`FilePart`] reference from request.
@@ -429,7 +429,7 @@ impl Request {
     }
     /// Get [`FilePart`] list reference from request.
     #[inline]
-    pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+    pub async fn files<'a>(&'a mut self, key: &'a str) -> Option<&'a Vec<FilePart>> {
         self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
     }
     /// Get [`FilePart`] list reference from request.

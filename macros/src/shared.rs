@@ -1,6 +1,8 @@
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
-use syn::{FnArg, Ident, PatType};
+use syn::PathArguments::AngleBracketed;
+use syn::{FnArg, Ident, PatType, GenericArgument, TypePath};
+
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -64,4 +66,20 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
         // like self on fn
         InputType::Unknown
     }
+}
+
+pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> (TypePath, usize) {
+    let mut ty_path = ty_path.clone();
+    let mut count = 0;
+    for seg in ty_path.path.segments.iter_mut() {
+        if let AngleBracketed(ref mut args) = seg.arguments {
+            for arg in args.args.iter_mut() {
+                if let GenericArgument::Lifetime(lifetime) = arg {
+                    lifetime.ident = Ident::new("_", Span::call_site());
+                    count+=1;
+                }
+            }
+        }
+    }
+    (ty_path, count)
 }

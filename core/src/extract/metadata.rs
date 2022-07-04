@@ -1,27 +1,10 @@
 use std::str::FromStr;
 use std::vec;
 
+use inflector::Inflector;
+
 use self::RenameRule::*;
 
-/// Field or object data type.
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
-pub enum DataKind {
-    /// Enum.
-    Enum,
-    /// Struct.
-    Struct,
-}
-impl FromStr for DataKind {
-    type Err = crate::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            "enum" => Ok(Self::Enum),
-            "struct" => Ok(Self::Struct),
-            _ => Err(crate::Error::Other("invalid data kind".into())),
-        }
-    }
-}
 
 /// Source from for a field.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -47,7 +30,8 @@ impl FromStr for SourceFrom {
             "query" => Ok(Self::Query),
             "header" => Ok(Self::Header),
             "body" => Ok(Self::Body),
-            _ => Err(crate::Error::Other("invalid source from".into())),
+            "request" => Ok(Self::Request),
+            _ => Err(crate::Error::Other(format!("invalid source from `{}`", input).into())),
         }
     }
 }
@@ -101,25 +85,17 @@ static RENAME_RULES: &[(&str, RenameRule)] = &[
 ];
 impl RenameRule {
     /// Apply a renaming rule to an variant, returning the version expected in the source.
-    pub fn transform(&self, variant: &str) -> String {
+    pub fn rename(&self, name: impl AsRef<str>) -> String {
+        let name = name.as_ref();
         match *self {
-            PascalCase => variant.to_owned(),
-            LowerCase => variant.to_ascii_lowercase(),
-            UpperCase => variant.to_ascii_uppercase(),
-            CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],
-            SnakeCase => {
-                let mut snake = String::new();
-                for (i, ch) in variant.char_indices() {
-                    if i > 0 && ch.is_uppercase() {
-                        snake.push('_');
-                    }
-                    snake.push(ch.to_ascii_lowercase());
-                }
-                snake
-            }
-            ScreamingSnakeCase => SnakeCase.transform(variant).to_ascii_uppercase(),
-            KebabCase => SnakeCase.transform(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase.transform(variant).replace('_', "-"),
+            PascalCase => name.to_pascal_case(),
+            LowerCase => name.to_lowercase(),
+            UpperCase => name.to_uppercase(),
+            CamelCase => name.to_camel_case(),
+            SnakeCase => name.to_snake_case(),
+            ScreamingSnakeCase => SnakeCase.rename(name).to_ascii_uppercase(),
+            KebabCase => SnakeCase.rename(name).replace('_', "-"),
+            ScreamingKebabCase => ScreamingSnakeCase.rename(name).replace('_', "-"),
         }
     }
 }
@@ -143,6 +119,7 @@ impl FromStr for SourceFormat {
         match input {
             "multimap" => Ok(Self::MultiMap),
             "json" => Ok(Self::Json),
+            "request" => Ok(Self::Request),
             _ => Err(crate::Error::Other("invalid source format".into())),
         }
     }
@@ -153,8 +130,6 @@ impl FromStr for SourceFormat {
 pub struct Metadata {
     /// The name of this type.
     pub name: &'static str,
-    /// The data type of the struct.
-    pub kind: DataKind,
     /// Default sources of all fields.
     pub default_sources: Vec<Source>,
     /// Fields of this type.
@@ -168,30 +143,36 @@ pub struct Metadata {
 pub struct Field {
     /// Field name.
     pub name: &'static str,
-    /// Field kind.
-    pub kind: DataKind,
     /// Field sources.
     pub sources: Vec<Source>,
     /// Field aliaes.
     pub aliases: Vec<&'static str>,
     /// Field rename.
     pub rename: Option<&'static str>,
+    /// Field metadata. This is used for nested extractible types.
+    pub metadata: Option<&'static Metadata>,
 }
 impl Field {
     /// Create a new field with the given name and kind.
-    pub fn new(name: &'static str, kind: DataKind) -> Self {
-        Self::with_sources(name, kind, vec![])
+    pub fn new(name: &'static str) -> Self {
+        Self::with_sources(name, vec![])
     }
 
     /// Create a new field with the given name and kind, and the given sources.
-    pub fn with_sources(name: &'static str, kind: DataKind, sources: Vec<Source>) -> Self {
+    pub fn with_sources(name: &'static str, sources: Vec<Source>) -> Self {
         Self {
             name,
-            kind,
             sources,
             aliases: vec![],
             rename: None,
+            metadata: None,
         }
+    }
+
+    /// Set the metadata to the field type.
+    pub fn metadata(mut self, metadata: &'static Metadata) -> Self {
+        self.metadata = Some(metadata);
+        self
     }
 
     /// Add a source to sources list.
@@ -236,10 +217,9 @@ impl Source {
 
 impl Metadata {
     /// Create a new metadata object.
-    pub fn new(name: &'static str, kind: DataKind) -> Self {
+    pub fn new(name: &'static str) -> Self {
         Self {
             name,
-            kind,
             default_sources: vec![],
             fields: Vec::with_capacity(8),
             rename_all: None,
