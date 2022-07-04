@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_macro_input, Type, Pat, AttributeArgs, Ident, ItemFn, Meta, NestedMeta, ReturnType};
+use syn::{parse_macro_input, AttributeArgs, Ident, ItemFn, Meta, NestedMeta, Pat, ReturnType, Type};
 
 use crate::shared::*;
 
@@ -47,7 +47,7 @@ pub(crate) fn fn_handler(args: TokenStream, mut item_fn: ItemFn) -> TokenStream 
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push( Ident::new("req", Span::call_site()));
+                call_args.push(Ident::new("req", Span::call_site()));
             }
             InputType::Depot(_pat) => {
                 call_args.push(Ident::new("depot", Span::call_site()));
@@ -74,10 +74,11 @@ pub(crate) fn fn_handler(args: TokenStream, mut item_fn: ItemFn) -> TokenStream 
                     let (ty, lcount) = omit_type_path_lifetimes(ty);
                     if lcount > 1 {
                         return syn::Error::new_spanned(pat, "Only one lifetime is allowed for `Extractible` type.")
-                        .to_compile_error().into();
+                            .to_compile_error()
+                            .into();
                     }
 
-                    extract_ts.push(quote!{
+                    extract_ts.push(quote! {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,
                             Err(e) => {
@@ -91,7 +92,8 @@ pub(crate) fn fn_handler(args: TokenStream, mut item_fn: ItemFn) -> TokenStream 
                     });
                 } else {
                     return syn::Error::new_spanned(pat, "Invalid param definition.")
-                    .to_compile_error().into();
+                        .to_compile_error()
+                        .into();
                 }
             }
         }
@@ -148,7 +150,6 @@ pub(crate) fn fn_handler(args: TokenStream, mut item_fn: ItemFn) -> TokenStream 
                     impl #salvo::Handler for #name {
                         #[inline]
                         async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
-                           
                             #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                         }
                     }

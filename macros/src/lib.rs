@@ -9,9 +9,9 @@
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
-mod shared;
 mod extract;
 mod handler;
+mod shared;
 
 /// `fn_handler` is a pro macro to help create `Handler` from function easily.
 ///

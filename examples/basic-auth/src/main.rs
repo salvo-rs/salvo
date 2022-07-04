@@ -1,4 +1,4 @@
-use salvo::extra::basic_auth::{BasicAuthHandler, BasicAuthValidator };
+use salvo::extra::basic_auth::{BasicAuthHandler, BasicAuthValidator};
 use salvo::prelude::*;
 
 #[tokio::main]
@@ -19,7 +19,7 @@ async fn hello() -> &'static str {
 
 struct Validator;
 #[async_trait]
-impl BasicAuthValidator  for Validator {
+impl BasicAuthValidator for Validator {
     async fn validate(&self, username: &str, password: &str) -> bool {
         username == "root" && password == "pwd"
     }

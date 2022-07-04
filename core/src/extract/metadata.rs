@@ -5,7 +5,6 @@ use inflector::Inflector;
 
 use self::RenameRule::*;
 
-
 /// Source from for a field.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum SourceFrom {

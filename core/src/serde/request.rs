@@ -97,11 +97,15 @@ impl<'de> RequestDeserializer<'de> {
                 .field_str_value
                 .expect("MapAccess::next_value called before next_key");
             let mut value = serde_json::Deserializer::new(serde_json::de::StrRead::new(value));
-            
-        seed.deserialize(&mut value)
+
+            seed.deserialize(&mut value)
                 .map_err(|_| ValError::custom("parse value error"))
         } else if source.from == SourceFrom::Request {
-            let field = self.metadata.fields.get(self.field_index as usize).expect("Field must exist");
+            let field = self
+                .metadata
+                .fields
+                .get(self.field_index as usize)
+                .expect("Field must exist");
             let metadata = field.metadata.expect("Field's metadata must exist");
             seed.deserialize(RequestDeserializer {
                 params: self.params,
@@ -124,7 +128,7 @@ impl<'de> RequestDeserializer<'de> {
         }
     }
     fn next(&mut self) -> Option<Cow<'_, str>> {
-        if self.field_index < self.metadata.fields.len() as isize - 1{
+        if self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;
             let field = &self.metadata.fields[self.field_index as usize];
             let sources = if !field.sources.is_empty() {
@@ -148,7 +152,8 @@ impl<'de> RequestDeserializer<'de> {
                     rename
                 } else {
                     field.name
-                }.into()
+                }
+                .into()
             };
             for source in sources {
                 match source.from {
@@ -255,7 +260,6 @@ impl<'de> RequestDeserializer<'de> {
                     },
                 }
             }
-        
         }
         None
     }
@@ -376,7 +380,7 @@ mod tests {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
         #[extract(internal, default_source(from = "query"))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"), source(from = "query"), rename="abc")]
+            #[extract(source(from = "param"), source(from = "query"), rename = "abc")]
             q1: &'a str,
         }
 
@@ -386,14 +390,14 @@ mod tests {
         let data: RequestData<'_> = req.extract().await.unwrap();
         assert_eq!(data, RequestData { q1: "q1v" });
     }
-    
+
     #[tokio::test]
     async fn test_de_request_with_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
         #[extract(internal, default_source(from = "query"), rename_all = "PascalCase")]
         struct RequestData<'a> {
             first_name: &'a str,
-            #[extract(rename="lastName")]
+            #[extract(rename = "lastName")]
             last_name: &'a str,
         }
 
@@ -402,7 +406,13 @@ mod tests {
             .query("lastName", "young")
             .build();
         let data: RequestData<'_> = req.extract().await.unwrap();
-        assert_eq!(data, RequestData { first_name: "chris", last_name: "young" });
+        assert_eq!(
+            data,
+            RequestData {
+                first_name: "chris",
+                last_name: "young"
+            }
+        );
     }
 
     #[tokio::test]

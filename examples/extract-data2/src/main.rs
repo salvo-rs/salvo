@@ -72,5 +72,3 @@ async fn main() {
     println!("Example url: http://127.0.0.1:7878/95");
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
-
-
