@@ -137,7 +137,7 @@ fn metadata_source(salvo: &Ident, source: &RawSource) -> TokenStream {
         #salvo::extract::metadata::SourceFormat::#format
     };
     quote! {
-        salvo::extract::metadata::Source::new(#from, #format)
+        #salvo::extract::metadata::Source::new(#from, #format)
     }
 }
 
