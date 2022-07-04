@@ -33,15 +33,16 @@
 Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需要基礎 Rust 知識即可開發後端服務.
 
 ## 🎯 功能特色
+
   - 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
   - 統一的中間件和句柄接口;
   - 路由支持多層次嵌套, 在任何層都可以添加中間件;
   - 集成 Multipart 錶單處理;
   - 支持 Websocket;
-  - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書;
-  - 支持從多個本地目錄映射成一個虛擬目錄提供服務.
+  - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書.
 
 ## ⚡️ 快速開始
+
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs/book/quick-start/hello_world/).
 
 
@@ -71,6 +72,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ```
 
 ### 中間件
+
 Salvo 中的中間件其實就是 Handler, 冇有其他任何特別之處. **所以書寫中間件並不需要像其他某些框架需要掌握泛型關聯類型等知識. 隻要你會寫函數就會寫中間件, 就是這麼簡單!!!**
 
 ```rust
@@ -91,6 +93,7 @@ Router::new().hoop(add_header).get(hello_world)
 ```
 
 這就是一個簡單的中間件, 它嚮 ```Response``` 的頭部添加了 ```Header```, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+
 
 ### 可鏈式書寫的樹狀路由係統
 
@@ -160,6 +163,7 @@ Router::with_path("<id:guid>").get(index)
 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### 文件上傳
+
 可以通過 ```Request``` 中的 ```file``` 異步獲取上傳的文件:
 
 ```rust
@@ -179,7 +183,81 @@ async fn upload(req: &mut Request, res: &mut Response) {
 }
 ```
 
+### 提取請求數據
+
+可以輕鬆地從多個不同數據源獲取數據, 並且組裝為你想要的類型. 可以先定義一個自定義的類型, 比如: 
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+/// 默認從 body 中獲取數據字段值
+#[extract(default_source(from = "body"))]
+struct GoodMan<'a> {
+    /// 其中, id 號從請求路徑參數中獲取, 並且自動解析數據為 i64 類型.
+    #[extract(source(from = "param"))]
+    id: i64,
+    /// 可以使用引用類型, 避免內存複製.
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+}
+```
+
+然後在 ```Handler``` 中可以這樣獲取數據:
+
+```rust
+#[fn_handler]
+async fn edit(req: &mut Request) -> String {
+    let good_man: GoodMan<'_> = req.extract().await.unwrap();
+}
+```
+
+甚至於可以直接把類型作為參數傳入函數, 像這樣:
+
+
+```rust
+#[fn_handler]
+async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+    res.render(Json(good_man));
+}
+```
+
+數據類型的定義有相當大的靈活性, 甚至可以根據需要解析為嵌套的結構:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct GoodMan<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    lovers: Vec<String>,
+    /// 這個 nested 字段完全是從 Request 重新解析.
+    #[extract(source(from = "request"))]
+    nested: Nested<'a>,
+}
+
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct Nested<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    #[extract(rename = "lovers")]
+    #[serde(default)]
+    pets: Vec<String>,
+}
+```
+
+查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
 ### 更多示例
+
 您可以從 [examples](./examples/) 文件夾下查看更多示例代碼, 您可以通過以下命令運行這些示例：
 
 ```

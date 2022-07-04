@@ -33,15 +33,16 @@
 Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需要基础 Rust 知识即可开发后端服务.
 
 ## 🎯 功能特色
+
   - 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
   - 统一的中间件和句柄接口;
   - 路由支持多层次嵌套, 在任何层都可以添加中间件;
   - 集成 Multipart 表单处理;
   - 支持 Websocket;
-  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书;
-  - 支持从多个本地目录映射成一个虚拟目录提供服务.
+  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
 
 ## ⚡️ 快速开始
+
 你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs/book/quick-start/hello_world/).
 
 
@@ -71,6 +72,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
 ```
 
 ### 中间件
+
 Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
 
 ```rust
@@ -91,6 +93,7 @@ Router::new().hoop(add_header).get(hello_world)
 ```
 
 这就是一个简单的中间件, 它向 ```Response``` 的头部添加了 ```Header```, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+
 
 ### 可链式书写的树状路由系统
 
@@ -160,6 +163,7 @@ Router::with_path("<id:guid>").get(index)
 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### 文件上传
+
 可以通过 ```Request``` 中的 ```file``` 异步获取上传的文件:
 
 ```rust
@@ -179,7 +183,81 @@ async fn upload(req: &mut Request, res: &mut Response) {
 }
 ```
 
+### 提取请求数据
+
+可以轻松地从多个不同数据源获取数据, 并且组装为你想要的类型. 可以先定义一个自定义的类型, 比如: 
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+/// 默认从 body 中获取数据字段值
+#[extract(default_source(from = "body"))]
+struct GoodMan<'a> {
+    /// 其中, id 号从请求路径参数中获取, 并且自动解析数据为 i64 类型.
+    #[extract(source(from = "param"))]
+    id: i64,
+    /// 可以使用引用类型, 避免内存复制.
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+}
+```
+
+然后在 ```Handler``` 中可以这样获取数据:
+
+```rust
+#[fn_handler]
+async fn edit(req: &mut Request) -> String {
+    let good_man: GoodMan<'_> = req.extract().await.unwrap();
+}
+```
+
+甚至于可以直接把类型作为参数传入函数, 像这样:
+
+
+```rust
+#[fn_handler]
+async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+    res.render(Json(good_man));
+}
+```
+
+数据类型的定义有相当大的灵活性, 甚至可以根据需要解析为嵌套的结构:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct GoodMan<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    lovers: Vec<String>,
+    /// 这个 nested 字段完全是从 Request 重新解析.
+    #[extract(source(from = "request"))]
+    nested: Nested<'a>,
+}
+
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct Nested<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    #[extract(rename = "lovers")]
+    #[serde(default)]
+    pets: Vec<String>,
+}
+```
+
+查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
 ### 更多示例
+
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
 ```
@@ -192,6 +270,7 @@ cargo run --bin example-basic-auth
 
 
 ## 🚀 性能
+
 Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)

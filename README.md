@@ -38,8 +38,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
    - Routing supports multi-level nesting, and middleware can be added at any level;
    - Integrated Multipart form processing;
    - Support Websocket;
-   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
-   - Supports mapping from multiple local directories into one virtual directory to provide services.
+   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/quick-start/hello_world/).
@@ -192,6 +191,78 @@ async fn upload(req: &mut Request, res: &mut Response) {
     }
 }
 ```
+
+### Extract data from request
+
+You can easily get data from multiple different data sources and assemble it into the type you want. You can define a custom type first, for example:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+/// Get the data field value from the body by default.
+#[extract(default_source(from = "body"))]
+struct GoodMan<'a> {
+    /// The id number is obtained from the request path parameter, and the data is automatically parsed as i64 type.
+    #[extract(source(from = "param"))]
+    id: i64,
+    /// Reference types can be used to avoid memory copying.
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+}
+```
+
+Then in ```Handler``` you can get the data like this:
+
+```rust
+#[fn_handler]
+async fn edit(req: &mut Request) -> String {
+    let good_man: GoodMan<'_> = req.extract().await.unwrap();
+}
+```
+
+You can even pass the type directly to the function as a parameter, like this:
+
+```rust
+#[fn_handler]
+async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+    res.render(Json(good_man));
+}
+```
+
+There is considerable flexibility in the definition of data types, and can even be resolved into nested structures as needed:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct GoodMan<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    lovers: Vec<String>,
+    /// The nested field is completely reparsed from Request.
+    #[extract(source(from = "request"))]
+    nested: Nested<'a>,
+}
+
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct Nested<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    #[extract(rename = "lovers")]
+    #[serde(default)]
+    pets: Vec<String>,
+}
+```
+
+View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
 ### More Examples
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
