@@ -32,12 +32,18 @@ pub(crate) struct RequestDeserializer<'de> {
     queries: &'de MultiMap<String, String>,
     headers: MultiMap<&'de str, &'de str>,
     form_data: Option<&'de FormData>,
-    json_body: Option<HashMap<&'de str, &'de str>>,
+    json_body: Option<JsonBody<'de>>,
     metadata: &'de Metadata,
     field_index: isize,
     field_source: Option<&'de Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum JsonBody<'a> {
+    Map(HashMap<&'a str, &'a RawValue>),
+    Str(&'a str),
 }
 
 impl<'de> RequestDeserializer<'de> {
@@ -51,11 +57,10 @@ impl<'de> RequestDeserializer<'de> {
                 (request.form_data.get(), None)
             } else if ctype.subtype() == mime::JSON {
                 if let Some(payload) = request.payload.get() {
-                    let json_body = serde_json::from_slice::<HashMap<&str, &RawValue>>(payload)
-                        .map_err(ParseError::SerdeJson)?
-                        .into_iter()
-                        .map(|(key, value)| (key, value.get()))
-                        .collect::<HashMap<&str, &str>>();
+                    let json_body = match serde_json::from_slice::<HashMap<&str, &RawValue>>(payload) {
+                        Ok(map) => JsonBody::Map(map),
+                        Err(_) => JsonBody::Str(std::str::from_utf8(payload)?),
+                    };
                     (None, Some(json_body))
                 } else {
                     (None, None)
@@ -212,21 +217,30 @@ impl<'de> RequestDeserializer<'de> {
                     SourceFrom::Body => match source.format {
                         SourceFormat::Json => {
                             if let Some(json_body) = &self.json_body {
-                                let mut value = json_body.get(field_name.as_ref());
-                                if value.is_none() {
-                                    for alias in &field.aliases {
-                                        value = json_body.get(alias);
-                                        if value.is_some() {
-                                            break;
+                                match json_body {
+                                    JsonBody::Map(ref map) => {
+                                        let mut value = map.get(field_name.as_ref());
+                                        if value.is_none() {
+                                            for alias in &field.aliases {
+                                                value = map.get(alias);
+                                                if value.is_some() {
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if let Some(value) = value {
+                                            self.field_str_value = Some(value.get());
+                                            self.field_source = Some(source);
+                                            return Some(Cow::from(field.name));
+                                        } else {
+                                            return None;
                                         }
                                     }
-                                }
-                                if let Some(value) = value {
-                                    self.field_str_value = Some(*value);
-                                    self.field_source = Some(source);
-                                    return Some(Cow::from(field.name));
-                                } else {
-                                    return None;
+                                    JsonBody::Str(ref value) => {
+                                        self.field_str_value = Some(*value);
+                                        self.field_source = Some(source);
+                                        return Some(Cow::from(field.name));
+                                    }
                                 }
                             } else {
                                 return None;
@@ -327,7 +341,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use crate::macros::Extractible;
     use crate::test::TestClient;
@@ -416,7 +430,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_de_request_with_mulit_sources() {
+    async fn test_de_request_with_multi_sources() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
         #[extract(internal, default_source(from = "query"))]
         struct RequestData<'a> {
@@ -453,5 +467,87 @@ mod tests {
                 q2: 23
             }
         );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_with_json_vec() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "body", format = "json"))]
+        struct RequestData<'a> {
+            #[extract(source(from = "param"))]
+            p2: &'a str,
+            users: Vec<User>,
+        }
+        #[derive(Deserialize, Serialize, Eq, PartialEq, Debug)]
+        struct User {
+            id: i64,
+            name: String,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .json(&vec![
+                User {
+                    id: 1,
+                    name: "chris".into(),
+                },
+                User {
+                    id: 2,
+                    name: "young".into(),
+                },
+            ])
+            .build();
+        req.params.insert("p2".into(), "921".into());
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                p2: "921",
+                users: vec![
+                    User {
+                        id: 1,
+                        name: "chris".into()
+                    },
+                    User {
+                        id: 2,
+                        name: "young".into()
+                    }
+                ]
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_de_request_with_json_bool() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "body", format = "json"))]
+        struct RequestData<'a> {
+            #[extract(source(from = "param"))]
+            p2: &'a str,
+            b: bool,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .json(&true)
+            .build();
+        req.params.insert("p2".into(), "921".into());
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(data, RequestData { p2: "921", b: true });
+    }
+    #[tokio::test]
+    async fn test_de_request_with_json_str() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[extract(internal, default_source(from = "body", format = "json"))]
+        struct RequestData<'a> {
+            #[extract(source(from = "param"))]
+            p2: &'a str,
+            s: &'a str,
+        }
+
+        let mut req = TestClient::get("http://127.0.0.1:7878/test/1234/param2v")
+            .json(&"abcd-good")
+            .build();
+        req.params.insert("p2".into(), "921".into());
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(data, RequestData { p2: "921", s: "abcd-good" });
     }
 }
