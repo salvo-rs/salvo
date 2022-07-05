@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.26.0"
+version = "0.26.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -51,4 +51,4 @@ ws = ["salvo_extra/ws"]
 
 [dependencies]
 salvo_core = { version = "0.26.1", default-features = false, path = "../core" }
-salvo_extra = { version = "0.26.0", default-features = false, optional = true, path = "../extra" }
+salvo_extra = { version = "0.26.1", default-features = false, optional = true, path = "../extra" }
