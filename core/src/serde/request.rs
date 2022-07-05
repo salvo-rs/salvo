@@ -548,6 +548,12 @@ mod tests {
             .build();
         req.params.insert("p2".into(), "921".into());
         let data: RequestData = req.extract().await.unwrap();
-        assert_eq!(data, RequestData { p2: "921", s: "abcd-good" });
+        assert_eq!(
+            data,
+            RequestData {
+                p2: "921",
+                s: "abcd-good"
+            }
+        );
     }
 }
