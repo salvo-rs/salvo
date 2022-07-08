@@ -1,10 +1,10 @@
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world1() -> &'static str {
     "Server1: Hello World"
 }
-#[fn_handler]
+#[handler]
 async fn hello_world2() -> &'static str {
     "Server2: Hello World"
 }

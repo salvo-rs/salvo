@@ -98,7 +98,7 @@ mod tests {
 
     use super::*;
 
-    #[fn_handler]
+    #[handler]
     async fn hello() -> &'static str {
         "Hello"
     }

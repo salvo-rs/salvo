@@ -8,7 +8,7 @@
 
 pub use async_trait::async_trait;
 pub use hyper;
-pub use salvo_macros::fn_handler;
+pub use salvo_macros::handler;
 
 pub use salvo_macros as macros;
 
@@ -52,7 +52,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use async_trait::async_trait;
-    pub use salvo_macros::{fn_handler, Extractible};
+    pub use salvo_macros::{handler, Extractible};
 
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
@@ -105,7 +105,7 @@ fn new_runtime(threads: usize) -> Runtime {
 /// ```no_run
 /// # use salvo_core::prelude::*;
 ///
-/// #[fn_handler]
+/// #[handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
 /// }
@@ -129,7 +129,7 @@ pub fn run<F: Future>(future: F) {
 /// ```no_run
 /// use salvo_core::prelude::*;
 ///
-/// #[fn_handler]
+/// #[handler]
 /// async fn hello_world() -> &'static str {
 ///     "Hello World"
 /// }

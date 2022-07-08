@@ -119,7 +119,7 @@ impl Service {
     /// use salvo_core::prelude::*;
     /// use salvo_core::test::{ResponseExt, TestClient};
     ///
-    /// #[fn_handler]
+    /// #[handler]
     /// async fn hello_world() -> &'static str {
     ///     "Hello World"
     /// }
@@ -294,7 +294,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before1"));
             if req.query::<String>("b").unwrap_or_default() == "1" {
@@ -303,7 +303,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before2"));
             if req.query::<String>("b").unwrap_or_default() == "2" {
@@ -312,7 +312,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before3"));
             if req.query::<String>("b").unwrap_or_default() == "3" {
@@ -321,7 +321,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }

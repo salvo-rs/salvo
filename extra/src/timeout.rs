@@ -39,11 +39,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_timeout_handler() {
-        #[fn_handler]
+        #[handler]
         async fn fast() -> &'static str {
             "hello"
         }
-        #[fn_handler]
+        #[handler]
         async fn slow() -> &'static str {
             tokio::time::sleep(Duration::from_secs(6)).await;
             "hello"

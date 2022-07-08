@@ -3,12 +3,12 @@ use std::path::Path;
 
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn index(res: &mut Response) {
     res.render(Text::Html(INDEX_HTML));
 }
 
-#[fn_handler]
+#[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let files = req.files("files").await;
     if let Some(files) = files {

@@ -28,7 +28,7 @@
 //!         )
 //!     ])
 //! }
-//! #[fn_handler]
+//! #[handler]
 //! async fn handle(res: &mut Response) {
 //!     sse::streaming(res, sse_events());
 //! }

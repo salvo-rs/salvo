@@ -359,11 +359,11 @@ mod tests {
 
     const SECRET: [u8; 32] = *b"secrets must be >= 32 bytes long";
 
-    #[fn_handler]
+    #[handler]
     async fn get_index(depot: &mut Depot) -> String {
         depot.csrf_token().unwrap_or_default().to_owned()
     }
-    #[fn_handler]
+    #[handler]
     async fn post_index() -> &'static str {
         "POST"
     }

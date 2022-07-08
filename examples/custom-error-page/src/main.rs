@@ -1,7 +1,7 @@
 use salvo::prelude::*;
 use salvo::Catcher;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }

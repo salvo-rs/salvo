@@ -3,7 +3,7 @@ use tokio::time::Duration;
 use salvo::listener::rustls::RustlsConfig;
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }

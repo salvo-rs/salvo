@@ -12,7 +12,7 @@ fn route() -> Router {
     let auth_handler = BasicAuthHandler::new(Validator);
     Router::with_hoop(auth_handler).handle(hello)
 }
-#[fn_handler]
+#[handler]
 async fn hello() -> &'static str {
     "Hello"
 }

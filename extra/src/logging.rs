@@ -61,7 +61,7 @@ mod tests {
     #[tokio::test]
     #[traced_test]
     async fn test_log() {
-        #[fn_handler]
+        #[handler]
         async fn hello() -> &'static str {
             "hello"
         }

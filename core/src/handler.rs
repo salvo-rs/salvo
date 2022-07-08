@@ -13,7 +13,7 @@ use crate::Depot;
 /// ```
 /// use salvo_core::prelude::*;
 ///
-/// #[fn_handler]
+/// #[handler]
 /// async fn middleware() {
 /// }
 ///
@@ -30,7 +30,7 @@ use crate::Depot;
 /// ```
 /// # use salvo_core::prelude::*;
 ///
-/// #[fn_handler]
+/// #[handler]
 /// async fn middleware() {
 /// }
 ///

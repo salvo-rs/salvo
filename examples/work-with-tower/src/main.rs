@@ -1,7 +1,7 @@
 use salvo::prelude::*;
 use tower::limit::ConcurrencyLimit;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }

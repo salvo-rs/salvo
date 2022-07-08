@@ -1,12 +1,12 @@
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }
 
-#[fn_handler]
+#[handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));

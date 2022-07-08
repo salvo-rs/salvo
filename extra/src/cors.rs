@@ -11,7 +11,7 @@
 //!     .with_allow_methods(vec!["GET", "POST", "DELETE"]).build();
 //!
 //! let router = Router::new().hoop(cors_handler).post(upload_file);
-//! #[fn_handler]
+//! #[handler]
 //! async fn upload_file(res: &mut Response) {
 //! }
 //!
@@ -521,7 +521,7 @@ mod tests {
             ])
             .build();
 
-        #[fn_handler]
+        #[handler]
         async fn hello() -> &'static str {
             "hello"
         }

@@ -65,7 +65,7 @@ tokio = { version = "1", features = ["macros"] }
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
@@ -79,7 +79,7 @@ Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
@@ -167,7 +167,7 @@ Router::with_path("<id:guid>").get(index)
 可以通过 ```Request``` 中的 ```file``` 异步获取上传的文件:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
@@ -205,7 +205,7 @@ struct GoodMan<'a> {
 然后在 ```Handler``` 中可以这样获取数据:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn edit(req: &mut Request) -> String {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
@@ -215,7 +215,7 @@ async fn edit(req: &mut Request) -> String {
 
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn edit<'a>(good_man: GoodMan<'a>) -> String {
     res.render(Json(good_man));
 }

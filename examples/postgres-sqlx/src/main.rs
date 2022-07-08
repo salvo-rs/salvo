@@ -17,7 +17,7 @@ pub struct User {
     pub password: String,
 }
 
-#[fn_handler]
+#[handler]
 pub async fn get_user(req: &mut Request, res: &mut Response) {
     let uid = req.query::<i64>("uid").unwrap();
     let data = sqlx::query_as::<_, User>("select * from users where id = $1")

@@ -132,7 +132,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_filter() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello_world() -> &'static str {
             "Hello World"
         }

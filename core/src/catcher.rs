@@ -207,7 +207,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_error() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn handle_custom() -> Result<(), CustomError> {
             Err(CustomError)
         }
@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_catcher() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello_world() -> &'static str {
             "Hello World"
         }

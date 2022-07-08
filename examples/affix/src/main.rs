@@ -1,7 +1,7 @@
 use salvo::extra::affix;
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
     let custom_data = depot.get::<&str>("custom_data").unwrap();

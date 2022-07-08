@@ -2,7 +2,7 @@ use salvo::macros::Extractible;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[fn_handler]
+#[handler]
 async fn show(req: &mut Request, res: &mut Response) {
     let content = format!(
         r#"<!DOCTYPE html>
@@ -48,7 +48,7 @@ async fn show(req: &mut Request, res: &mut Response) {
     );
     res.render(Text::Html(content));
 }
-#[fn_handler]
+#[handler]
 async fn edit<'a>(good_man: GoodMan<'a>, res: &mut Response) {
     res.render(Json(good_man));
 }

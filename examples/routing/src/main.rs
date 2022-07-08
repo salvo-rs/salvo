@@ -38,39 +38,39 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
-#[fn_handler]
+#[handler]
 async fn admin(res: &mut Response) {
     res.render(Text::Plain("Admin page"));
 }
-#[fn_handler]
+#[handler]
 async fn debug(res: &mut Response) {
     res.render(Text::Plain("Debug page"));
 }
-#[fn_handler]
+#[handler]
 async fn index(res: &mut Response) {
     res.render(Text::Plain("Hello World!"));
 }
-#[fn_handler]
+#[handler]
 async fn auth(res: &mut Response) {
     res.render(Text::Plain("user has authed\n\n"));
 }
-#[fn_handler]
+#[handler]
 async fn list_users(res: &mut Response) {
     res.render(Text::Plain("list users"));
 }
-#[fn_handler]
+#[handler]
 async fn show_user(res: &mut Response) {
     res.render(Text::Plain("show user"));
 }
-#[fn_handler]
+#[handler]
 async fn create_user(res: &mut Response) {
     res.render(Text::Plain("user created"));
 }
-#[fn_handler]
+#[handler]
 async fn update_user(res: &mut Response) {
     res.render(Text::Plain("user updated"));
 }
-#[fn_handler]
+#[handler]
 async fn delete_user(res: &mut Response) {
     res.render(Text::Plain("user deleted"));
 }

@@ -64,7 +64,7 @@ where
     ///
     /// use salvo_core::prelude::*;
     ///
-    /// #[fn_handler]
+    /// #[handler]
     /// async fn hello_world(res: &mut Response) {
     ///     res.render("Hello World!");
     /// }
@@ -118,11 +118,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_server() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello_world() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn json(res: &mut Response) {
             #[derive(Serialize, Debug)]
             struct User {

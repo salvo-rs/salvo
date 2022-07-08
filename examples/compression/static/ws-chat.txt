@@ -29,7 +29,7 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
-#[fn_handler]
+#[handler]
 async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let fut = WsHandler::new().handle(req, res)?;
     let fut = async move {
@@ -101,7 +101,7 @@ async fn user_disconnected(my_id: usize) {
     ONLINE_USERS.write().await.remove(&my_id);
 }
 
-#[fn_handler]
+#[handler]
 async fn index(res: &mut Response) {
     res.render(Text::Html(INDEX_HTML));
 }

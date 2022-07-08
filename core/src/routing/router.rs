@@ -15,22 +15,22 @@ use crate::Handler;
 /// ```
 /// # use salvo_core::prelude::*;
 ///
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn show_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writers(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn edit_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn delete_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writer_articles(res: &mut Response) {
 /// # }
 /// # #[tokio::main]
@@ -48,22 +48,22 @@ use crate::Handler;
 /// ```
 /// use salvo_core::prelude::*;
 ///
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn show_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writers(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn edit_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn delete_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writer_articles(res: &mut Response) {
 /// # }
 /// # #[tokio::main]
@@ -390,11 +390,11 @@ mod tests {
     use async_trait::async_trait;
 
     use super::{PathState, Router};
-    use crate::fn_handler;
+    use crate::handler;
     use crate::test::TestClient;
     use crate::Response;
 
-    #[fn_handler(internal)]
+    #[handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {

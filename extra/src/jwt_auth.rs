@@ -424,7 +424,7 @@ mod tests {
                 Box::new(CookieExtractor::new("jwt_token")),
             ]);
 
-        #[fn_handler]
+        #[handler]
         async fn hello() -> &'static str {
             "hello"
         }

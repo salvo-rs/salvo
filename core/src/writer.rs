@@ -170,7 +170,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_str() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> &'static str {
             "hello"
         }
@@ -184,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_string() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> String {
             "hello".to_owned()
         }
@@ -197,7 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_plain_text() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Plain("hello")
         }
@@ -211,7 +211,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_json_text() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Json(r#"{"hello": "world"}"#)
         }
@@ -231,7 +231,7 @@ mod tests {
         struct User {
             name: String,
         }
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> Json<User> {
             Json(User { name: "jobs".into() })
         }
@@ -247,7 +247,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_html_text() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn test() -> Text<&'static str> {
             Text::Html("<html><body>hello</body></html>")
         }
