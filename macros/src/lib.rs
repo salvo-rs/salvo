@@ -28,7 +28,7 @@ impl Parse for Item {
             input
                 .parse()
                 .map(Item::Fn)
-                .map_err(|_| syn::Error::new(Span::call_site(), "#[handler] must added to `impl` or `fn`").into())
+                .map_err(|_| syn::Error::new(Span::call_site(), "#[handler] must added to `impl` or `fn`"))
         }
     }
 }
