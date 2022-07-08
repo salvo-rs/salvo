@@ -1,9 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{
-    parse_macro_input, AttributeArgs, Block, Ident, ImplItem, ItemFn, ItemImpl, Meta, NestedMeta, Pat, ReturnType,
-    Signature, Token, Type,
-};
+use syn::{Ident, ImplItem, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
 use crate::Item;
@@ -57,7 +54,7 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             let mut hmtd = None;
             for item in &item_impl.items {
                 if let ImplItem::Method(method) = item {
-                    if method.sig.ident.to_string() == "handle" {
+                    if method.sig.ident == Ident::new("handle", Span::call_site()) {
                         hmtd = Some(method);
                     }
                 }
@@ -134,7 +131,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
                 }
             }
-            InputType::Receiver(r) => {
+            InputType::Receiver(_) => {
                 call_args.push(Ident::new("self", Span::call_site()));
             }
         }

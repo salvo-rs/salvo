@@ -215,6 +215,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     }
 
     let sv = format_ident!("__salvo_extract_{}", name);
+    let mt = name.to_string();
     let imp_code = if args.generics.lifetimes().next().is_none() {
         let de_life_def = syn::parse_str("'de").unwrap();
         let mut generics = args.generics.clone();
@@ -239,7 +240,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let code = quote! {
         #[allow(non_upper_case_globals)]
         static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
-            let mut metadata = #salvo::extract::Metadata::new(#name);
+            let mut metadata = #salvo::extract::Metadata::new(#mt);
             #(
                 #default_sources
             )*
@@ -251,7 +252,6 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         });
         #imp_code
     };
-
     Ok(code)
 }
 

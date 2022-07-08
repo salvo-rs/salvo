@@ -236,7 +236,7 @@ impl<'de> RequestDeserializer<'de> {
                                             return None;
                                         }
                                     }
-                                    JsonBody::Str(ref value) => {
+                                    JsonBody::Str(value) => {
                                         self.field_str_value = Some(*value);
                                         self.field_source = Some(source);
                                         return Some(Cow::from(field.name));

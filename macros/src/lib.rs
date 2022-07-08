@@ -7,11 +7,9 @@
 #![warn(missing_docs)]
 
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
-use syn::{
-    parse_macro_input, AttributeArgs, DeriveInput, Ident, ItemFn, ItemImpl, ItemStruct, Meta, NestedMeta, Pat,
-    ReturnType, Token, Type,
-};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn, ItemImpl, Meta, NestedMeta, Token};
 
 mod extract;
 mod handler;
@@ -27,7 +25,10 @@ impl Parse for Item {
         if lookahead.peek(Token![impl]) {
             input.parse().map(Item::Impl)
         } else {
-            input.parse().map(Item::Fn)
+            input
+                .parse()
+                .map(Item::Fn)
+                .map_err(|_| syn::Error::new(Span::call_site(), "#[handler] must added to `impl` or `fn`").into())
         }
     }
 }
