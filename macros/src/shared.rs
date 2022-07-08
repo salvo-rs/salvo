@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use syn::PathArguments::AngleBracketed;
-use syn::{FnArg, GenericArgument, Ident, PatType, TypePath, Receiver};
+use syn::{FnArg, GenericArgument, Ident, PatType, Receiver, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),

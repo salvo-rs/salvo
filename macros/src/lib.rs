@@ -7,8 +7,11 @@
 #![warn(missing_docs)]
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, Ident, ItemFn, ItemStruct, ItemImpl, Meta, NestedMeta, Token, Pat, ReturnType, Type};
 use syn::parse::{Parse, ParseStream};
+use syn::{
+    parse_macro_input, AttributeArgs, DeriveInput, Ident, ItemFn, ItemImpl, ItemStruct, Meta, NestedMeta, Pat,
+    ReturnType, Token, Type,
+};
 
 mod extract;
 mod handler;
@@ -48,7 +51,7 @@ impl Parse for Item {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream { 
+pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let args: AttributeArgs = parse_macro_input!(args as AttributeArgs);
     let mut internal = false;
     for arg in args {
@@ -58,7 +61,7 @@ pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
     let item = parse_macro_input!(input as Item);
-    match handler::generate(internal, item){
+    match handler::generate(internal, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     }

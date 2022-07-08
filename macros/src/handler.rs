@@ -69,7 +69,7 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             let hfn = handle_fn(&salvo, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
             let (impl_generics, ty_generics, where_clause) = &item_impl.generics.split_for_impl();
-           
+
             Ok(quote! {
                 #item_impl
                 #[#salvo::async_trait]
