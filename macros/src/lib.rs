@@ -32,7 +32,7 @@ impl Parse for Item {
         }
     }
 }
-/// `handler` is a pro macro to help create `Handler` from function easily.
+/// `handler` is a pro macro to help create `Handler` from function for impl block easily.
 ///
 /// `Handler` is a trait, `handler` will convert you `fn` to a struct, and then implement `Handler`.
 ///
@@ -66,6 +66,15 @@ pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     }
+}
+
+/// `handler` is a pro macro to help create `Handler` from function easily.
+/// 
+/// Note: This is a deprecated version, please use `handler` instead, this will be removed in the future.
+#[deprecated(since="0.27.0", note="please use `handler` instead, this will be removed in the future")]
+#[proc_macro_attribute]
+pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
+    handler(args, input)
 }
 
 // #[proc_macro_attribute]
