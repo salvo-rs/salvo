@@ -32,9 +32,9 @@ impl Parse for Item {
         }
     }
 }
-/// `handler` is a pro macro to help create `Handler` from function for impl block easily.
+/// `handler` is a pro macro to help create `Handler` from function or impl block easily.
 ///
-/// `Handler` is a trait, `handler` will convert you `fn` to a struct, and then implement `Handler`.
+/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`.
 ///
 /// ```ignore
 /// #[async_trait]
