@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use syn::PathArguments::AngleBracketed;
-use syn::{FnArg, GenericArgument, Ident, PatType, TypePath};
+use syn::{FnArg, GenericArgument, Ident, PatType, TypePath, Receiver};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -9,6 +9,7 @@ pub(crate) enum InputType<'a> {
     Response(&'a PatType),
     FlowCtrl(&'a PatType),
     Unknown,
+    Receiver(&'a Receiver),
     NoReference(&'a PatType),
 }
 
@@ -55,12 +56,15 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                     InputType::Unknown
                 }
             } else {
+                println!("=======================xxxxxxxxx {:?}", ty);
                 InputType::Unknown
             }
         } else {
             // like owned type or other type
             InputType::NoReference(p)
         }
+    } else if let FnArg::Receiver(r) = input {
+        InputType::Receiver(r)
     } else {
         // like self on fn
         InputType::Unknown

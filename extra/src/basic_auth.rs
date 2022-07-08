@@ -1,9 +1,8 @@
 //! basic auth middleware
-use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Error, Handler};
+use salvo_core::{async_trait, Depot, Error, Handler};
 
 /// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::extra::basic_auth::username";
@@ -32,6 +31,7 @@ pub struct BasicAuthHandler<V: BasicAuthValidator> {
     realm: String,
     validator: V,
 }
+
 impl<V> BasicAuthHandler<V>
 where
     V: BasicAuthValidator,
@@ -65,6 +65,7 @@ where
         }
     }
 }
+
 #[async_trait]
 impl<V> Handler for BasicAuthHandler<V>
 where

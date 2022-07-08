@@ -27,7 +27,26 @@ impl FromField for Field {
         let ident = field.ident.clone();
         let attrs = field.attrs.clone();
         let sources = parse_sources(&attrs, "source")?;
-        Ok(Self { 
+        Ok(Self {
+            ident,
+            // attrs,
+            ty: field.ty.clone(),
+            sources,
+            aliases: parse_aliases(&field.attrs)?,
+            rename: parse_rename(&field.attrs)?,
+        })
+    }
+}
+
+struct ExtractibleArgs {
+    ident: Ident,
+    generics: Generics,
+    fields: Vec<Field>,
+
+    internal: bool,
+
+    default_sources: Vec<RawSource>,
+    rename_all: Option<String>,
 }
 
 impl FromDeriveInput for ExtractibleArgs {
@@ -127,7 +146,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let salvo = salvo_crate(args.internal);
     let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
 
-    let ident = &args.ident;
+    let name = &args.ident;
     let mut default_sources = Vec::new();
     let mut fields = Vec::new();
 
@@ -150,7 +169,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let field_ident = field
             .ident
             .as_ref()
-            .ok_or_else(|| Error::new_spanned(&ident, "All fields must be named."))?
+            .ok_or_else(|| Error::new_spanned(&name, "All fields must be named."))?
             .to_string();
 
         let mut sources = Vec::with_capacity(field.sources.len());
@@ -164,7 +183,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                         field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
                     });
                 } else {
-                    return Err(Error::new_spanned(&ident, "Invalid type for request source."));
+                    return Err(Error::new_spanned(&name, "Invalid type for request source."));
                 }
             }
             let source = metadata_source(&salvo, source);
@@ -173,7 +192,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             });
         }
         if nested_metadata.is_some() && field.sources.len() > 1 {
-            return Err(Error::new_spanned(&ident, "Only one source can be from request."));
+            return Err(Error::new_spanned(&name, "Only one source can be from request."));
         }
         let aliases = field.aliases.iter().map(|alias| {
             quote! {
@@ -195,15 +214,14 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         });
     }
 
-    let sv = format_ident!("__salvo_extract_{}", ident);
-    let mt = ident.to_string();
+    let sv = format_ident!("__salvo_extract_{}", name);
     let imp_code = if args.generics.lifetimes().next().is_none() {
         let de_life_def = syn::parse_str("'de").unwrap();
         let mut generics = args.generics.clone();
         generics.params.insert(0, de_life_def);
         let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'de> for #ident #ty_generics #where_clause {
+            impl #impl_generics_de #salvo::extract::Extractible<'de> for #name #ty_generics #where_clause {
                 fn metadata() ->  &'static #salvo::extract::Metadata {
                     &*#sv
                 }
@@ -211,7 +229,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         }
     } else {
         quote! {
-            impl #impl_generics #salvo::extract::Extractible #impl_generics for #ident #ty_generics #where_clause {
+            impl #impl_generics #salvo::extract::Extractible #impl_generics for #name #ty_generics #where_clause {
                 fn metadata() ->  &'static #salvo::extract::Metadata {
                     &*#sv
                 }
@@ -221,7 +239,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let code = quote! {
         #[allow(non_upper_case_globals)]
         static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
-            let mut metadata = #salvo::extract::Metadata::new(#mt);
+            let mut metadata = #salvo::extract::Metadata::new(#name);
             #(
                 #default_sources
             )*

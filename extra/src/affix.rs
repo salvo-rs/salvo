@@ -2,7 +2,7 @@
 
 use std::any::TypeId;
 
-use salvo_core::async_trait;
+use salvo_core::handler;
 use salvo_core::prelude::*;
 
 trait Affix {
@@ -42,6 +42,8 @@ where
 /// AffixList is used to add any data to depot.
 #[derive(Default)]
 pub struct AffixList(Vec<Box<dyn Affix + Send + Sync + 'static>>);
+
+#[handler]
 impl AffixList {
     /// Create an empty affix list.
     pub fn new() -> AffixList {
@@ -62,11 +64,7 @@ impl AffixList {
         self.0.push(Box::new(cell));
         self
     }
-}
-
-#[async_trait]
-impl Handler for AffixList {
-    async fn handle(&self, _req: &mut Request, depot: &mut Depot, _res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(&self, depot: &mut Depot) {
         for cell in &self.0 {
             cell.attach(depot);
         }
