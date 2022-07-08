@@ -27,26 +27,7 @@ impl FromField for Field {
         let ident = field.ident.clone();
         let attrs = field.attrs.clone();
         let sources = parse_sources(&attrs, "source")?;
-        Ok(Self {
-            ident,
-            // attrs,
-            ty: field.ty.clone(),
-            sources,
-            aliases: parse_aliases(&field.attrs)?,
-            rename: parse_rename(&field.attrs)?,
-        })
-    }
-}
-
-struct ExtractibleArgs {
-    ident: Ident,
-    generics: Generics,
-    fields: Vec<Field>,
-
-    internal: bool,
-
-    default_sources: Vec<RawSource>,
-    rename_all: Option<String>,
+        Ok(Self { 
 }
 
 impl FromDeriveInput for ExtractibleArgs {
