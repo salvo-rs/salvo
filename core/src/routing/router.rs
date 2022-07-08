@@ -387,8 +387,6 @@ impl fmt::Debug for Router {
 
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-
     use super::{PathState, Router};
     use crate::handler;
     use crate::test::TestClient;
