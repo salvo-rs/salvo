@@ -98,14 +98,12 @@ impl PathState {
     pub fn forward(&mut self, steps: usize) {
         let mut steps = steps + self.cursor.1;
         while let Some(part) = self.parts.get(self.cursor.0) {
-            println!("========part: {:?},  steps: {}", part, steps);
             if part.len() > steps {
                 self.cursor.1 = steps;
                 return;
             } else {
                 steps -= part.len();
                 self.cursor = (self.cursor.0 + 1, 0);
-                println!("========part2: {:?},  steps: {}", self.cursor, steps);
             }
         }
     }

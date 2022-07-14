@@ -56,7 +56,6 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
                     InputType::Unknown
                 }
             } else {
-                println!("=======================xxxxxxxxx {:?}", ty);
                 InputType::Unknown
             }
         } else {
