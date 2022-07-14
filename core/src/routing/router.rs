@@ -619,4 +619,16 @@ mod tests {
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
     }
+
+    #[test]
+    fn test_router_detect_path_encoded() {
+        let router = Router::new()
+            .path("api/<p>")
+            .get(fake_handler);
+        let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+        assert_eq!(path_state.params["p"], "a/b/c");
+    }
 }

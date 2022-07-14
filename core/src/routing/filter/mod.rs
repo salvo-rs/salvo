@@ -161,10 +161,10 @@ mod tests {
     #[test]
     fn test_opts() {
         fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
-            path.url_path.contains("one")
+            path.parts.contains(&"one".into())
         }
         fn has_two(_req: &mut Request, path: &mut PathState) -> bool {
-            path.url_path.contains("two")
+            path.parts.contains(&"two".into())
         }
 
         let one_filter = FnFilter(has_one);
