@@ -77,20 +77,19 @@ impl PathState {
     }
 
     #[inline]
-    pub fn all_rest<'a>(&'a self) -> Option<Cow<'a, str>> {
-        let picked = self.pick();
-        if picked.is_none() {
-            None
-        } else {
+    pub fn all_rest(&self) -> Option<Cow<'_, str>> {
+        if let Some(picked) = self.pick() {
             if self.cursor.0 >= self.parts.len() {
-                Some(Cow::Borrowed(picked.unwrap()))
+                Some(Cow::Borrowed(picked))
             } else {
                 Some(Cow::Owned(format!(
                     "{}/{}",
-                    picked.unwrap(),
+                    picked,
                     self.parts[self.cursor.0 + 1..].join("/")
                 )))
             }
+        } else {
+            None
         }
     }
 
