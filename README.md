@@ -57,23 +57,23 @@ salvo = "0.26"
 tokio = { version = "1", features = ["macros"] }
 ```
 
-Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
+Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text `"Hello World"`.
 
-``` rust
+```rust
 use salvo::prelude::*;
 
-#[handler]
+#[fn_handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 ```
 
-In the ```main``` function, we need to create a root Router first, and then create a server and call it's ```bind``` function:
+In the `main` function, we need to create a root Router first, and then create a server and call it's `bind` function:
 
 ```rust
 use salvo::prelude::*;
 
-#[handler]
+#[fn_handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }
@@ -91,7 +91,7 @@ There is no difference between Handler and Middleware, Middleware is just Handle
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[handler]
+#[fn_handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
@@ -104,7 +104,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello_world)
 ```
 
-This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
+This is a very simple middleware, it add `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### Chainable tree routing system
 
@@ -118,7 +118,7 @@ Router::with_path("articles/<id>")
     .delete(delete_article);
 ```
 
-Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together: 
+Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together:
 
 ```rust
 Router::with_path("articles")
@@ -126,7 +126,7 @@ Router::with_path("articles")
     .push(Router::with_path("<id>").get(show_article));
 ```
 
-Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in: 
+Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in:
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
@@ -134,7 +134,7 @@ Router::with_path("articles")
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
-Although these two routes have the same ```path("articles")```, they can still be added to the same parent route at the same time, so the final route looks like this: 
+Although these two routes have the same `path("articles")`, they can still be added to the same parent route at the same time, so the final route looks like this:
 
 ```rust
 Router::new()
@@ -151,9 +151,9 @@ Router::new()
     );
 ```
 
-```<id>``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
+`<id>` matches a fragment in the path, under normal circumstances, the article `id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
 
-You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
+You can also use `<*>` or `<**>` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: `<**file_path>`.
 
 Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
 
@@ -173,10 +173,10 @@ Router::with_path("<id:guid>").get(index)
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### File upload
-We can get file async by the function ```file``` in ```Request```:
+We can get file async by the function `file` in `Request`:
 
 ```rust
-#[handler]
+#[fn_handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
@@ -211,10 +211,10 @@ struct GoodMan<'a> {
 }
 ```
 
-Then in ```Handler``` you can get the data like this:
+Then in `Handler` you can get the data like this:
 
 ```rust
-#[handler]
+#[fn_handler]
 async fn edit(req: &mut Request) -> String {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
@@ -223,7 +223,7 @@ async fn edit(req: &mut Request) -> String {
 You can even pass the type directly to the function as a parameter, like this:
 
 ```rust
-#[handler]
+#[fn_handler]
 async fn edit<'a>(good_man: GoodMan<'a>) -> String {
     res.render(Json(good_man));
 }
@@ -271,7 +271,7 @@ Your can find more examples in [examples](./examples/) folder. You can run these
 cargo run --bin example-basic-auth
 ```
 
-You can use any example name you want to run instead of ```basic-auth``` here. 
+You can use any example name you want to run instead of `basic-auth` here.
 
 There is a real and open source project use Salvo: [https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
