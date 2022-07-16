@@ -62,7 +62,7 @@ Create a simple function handler in the main.rs file, we call it `hello_world`, 
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
@@ -73,7 +73,7 @@ In the `main` function, we need to create a root Router first, and then create a
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }
@@ -91,7 +91,7 @@ There is no difference between Handler and Middleware, Middleware is just Handle
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
@@ -176,7 +176,7 @@ View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/rou
 We can get file async by the function `file` in `Request`:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
@@ -214,7 +214,7 @@ struct GoodMan<'a> {
 Then in `Handler` you can get the data like this:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn edit(req: &mut Request) -> String {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
@@ -223,7 +223,7 @@ async fn edit(req: &mut Request) -> String {
 You can even pass the type directly to the function as a parameter, like this:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn edit<'a>(good_man: GoodMan<'a>) -> String {
     res.render(Json(good_man));
 }
