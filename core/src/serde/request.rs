@@ -26,24 +26,24 @@ where
     Ok(T::deserialize(RequestDeserializer::new(req, metadata)?)?)
 }
 
+#[derive(Clone, Debug)]
+pub(crate) enum Payload<'a> {
+    FormData(&'a FormData),
+    JsonStr(&'a str),
+    JsonMap(HashMap<&'a str, &'a RawValue>),
+}
+
 #[derive(Debug)]
 pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
     headers: MultiMap<&'de str, &'de str>,
-    form_data: Option<&'de FormData>,
-    json_body: Option<JsonBody<'de>>,
+    payload: Option<Payload<'de>>,
     metadata: &'de Metadata,
     field_index: isize,
     field_source: Option<&'de Source>,
     field_str_value: Option<&'de str>,
     field_vec_value: Option<Vec<CowValue<'de>>>,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum JsonBody<'a> {
-    Map(HashMap<&'a str, &'a RawValue>),
-    Str(&'a str),
 }
 
 impl<'de> RequestDeserializer<'de> {
@@ -52,25 +52,19 @@ impl<'de> RequestDeserializer<'de> {
         request: &'de mut Request,
         metadata: &'de Metadata,
     ) -> Result<RequestDeserializer<'de>, ParseError> {
-        let (form_data, json_body) = if let Some(ctype) = request.content_type() {
+        let mut payload = None;
+        if let Some(ctype) = request.content_type() {
             if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                (request.form_data.get(), None)
+                payload = request.form_data.get().map(Payload::FormData);
             } else if ctype.subtype() == mime::JSON {
-                if let Some(payload) = request.payload.get() {
-                    let json_body = match serde_json::from_slice::<HashMap<&str, &RawValue>>(payload) {
-                        Ok(map) => JsonBody::Map(map),
-                        Err(_) => JsonBody::Str(std::str::from_utf8(payload)?),
+                if let Some(data) = request.payload.get() {
+                    payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                        Ok(map) => Some(Payload::JsonMap(map)),
+                        Err(_) => Some(Payload::JsonStr(std::str::from_utf8(data)?)),
                     };
-                    (None, Some(json_body))
-                } else {
-                    (None, None)
                 }
-            } else {
-                (None, None)
             }
-        } else {
-            (None, None)
-        };
+        }
         Ok(RequestDeserializer {
             params: request.params(),
             queries: request.queries(),
@@ -79,8 +73,7 @@ impl<'de> RequestDeserializer<'de> {
                 .iter()
                 .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
                 .collect::<MultiMap<_, _>>(),
-            form_data,
-            json_body,
+            payload,
             metadata,
             field_index: -1,
             field_source: None,
@@ -116,8 +109,7 @@ impl<'de> RequestDeserializer<'de> {
                 params: self.params,
                 queries: self.queries,
                 headers: self.headers.clone(),
-                form_data: self.form_data,
-                json_body: self.json_body.clone(),
+                payload: self.payload.clone(),
                 metadata,
                 field_index: -1,
                 field_source: None,
@@ -216,9 +208,27 @@ impl<'de> RequestDeserializer<'de> {
                     }
                     SourceFrom::Body => match source.format {
                         SourceFormat::Json => {
-                            if let Some(json_body) = &self.json_body {
-                                match json_body {
-                                    JsonBody::Map(ref map) => {
+                            if let Some(payload) = &self.payload {
+                                match payload {
+                                    Payload::FormData(form_data) => {
+                                        let mut value = form_data.fields.get(field_name.as_ref());
+                                        if value.is_none() {
+                                            for alias in &field.aliases {
+                                                value = form_data.fields.get(*alias);
+                                                if value.is_some() {
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if let Some(value) = value {
+                                            self.field_str_value = Some(value);
+                                            self.field_source = Some(source);
+                                            return Some(Cow::from(field.name));
+                                        } else {
+                                            return None;
+                                        }
+                                    }
+                                    Payload::JsonMap(ref map) => {
                                         let mut value = map.get(field_name.as_ref());
                                         if value.is_none() {
                                             for alias in &field.aliases {
@@ -236,7 +246,7 @@ impl<'de> RequestDeserializer<'de> {
                                             return None;
                                         }
                                     }
-                                    JsonBody::Str(value) => {
+                                    Payload::JsonStr(value) => {
                                         self.field_str_value = Some(*value);
                                         self.field_source = Some(source);
                                         return Some(Cow::from(field.name));
@@ -247,7 +257,7 @@ impl<'de> RequestDeserializer<'de> {
                             }
                         }
                         SourceFormat::MultiMap => {
-                            if let Some(form_data) = self.form_data {
+                            if let Some(Payload::FormData(form_data)) = self.payload {
                                 let mut value = form_data.fields.get_vec(field.name);
                                 if value.is_none() {
                                     for alias in &field.aliases {
