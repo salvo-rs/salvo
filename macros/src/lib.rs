@@ -53,7 +53,7 @@ impl Parse for Item {
 /// ```
 #[proc_macro_attribute]
 pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args: AttributeArgs = parse_macro_input!(args as AttributeArgs);
+    let args = parse_macro_input!(args as AttributeArgs);
     let mut internal = false;
     for arg in args {
         if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
