@@ -86,7 +86,7 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> (TypePath, usize) 
     (ty_path, count)
 }
 
-pub(crate) fn is_internal<'a>(args: impl Iterator<Item=&'a NestedMeta>) -> bool {
+pub(crate) fn is_internal<'a>(args: impl Iterator<Item = &'a NestedMeta>) -> bool {
     for arg in args {
         if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
             return true;

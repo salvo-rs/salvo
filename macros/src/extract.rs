@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta, Type};
 
-use crate::shared::{omit_type_path_lifetimes, salvo_crate, is_internal};
+use crate::shared::{is_internal, omit_type_path_lifetimes, salvo_crate};
 
 // #[derive(Debug)]
 struct Field {
