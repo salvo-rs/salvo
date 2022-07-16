@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use syn::PathArguments::AngleBracketed;
-use syn::{FnArg, GenericArgument, Ident, PatType, Receiver, TypePath};
+use syn::{FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -84,4 +84,13 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> (TypePath, usize) 
         }
     }
     (ty_path, count)
+}
+
+pub(crate) fn is_internal<'a>(args: impl Iterator<Item=&'a NestedMeta>) -> bool {
+    for arg in args {
+        if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
+            return true;
+        }
+    }
+    false
 }

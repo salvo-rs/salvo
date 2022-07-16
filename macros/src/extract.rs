@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta, Type};
 
-use crate::shared::{omit_type_path_lifetimes, salvo_crate};
+use crate::shared::{omit_type_path_lifetimes, salvo_crate, is_internal};
 
 // #[derive(Debug)]
 struct Field {
@@ -69,14 +69,10 @@ impl FromDeriveInput for ExtractibleArgs {
         for attr in &attrs {
             if attr.path.is_ident("extract") {
                 if let Meta::List(list) = attr.parse_meta()? {
-                    for meta in list.nested.iter() {
-                        if matches!(meta, NestedMeta::Meta(Meta::Path(item)) if item.is_ident("internal")) {
-                            internal = true;
-                        }
+                    if is_internal(list.nested.iter()) {
+                        internal = true;
+                        break;
                     }
-                }
-                if internal {
-                    break;
                 }
             }
         }

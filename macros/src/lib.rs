@@ -9,7 +9,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn, ItemImpl, Meta, NestedMeta, Token};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn, ItemImpl, Token};
 
 mod extract;
 mod handler;
@@ -54,13 +54,7 @@ impl Parse for Item {
 #[proc_macro_attribute]
 pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as AttributeArgs);
-    let mut internal = false;
-    for arg in args {
-        if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
-            internal = true;
-            break;
-        }
-    }
+    let internal = shared::is_internal(args.iter());
     let item = parse_macro_input!(input as Item);
     match handler::generate(internal, item) {
         Ok(stream) => stream.into(),
