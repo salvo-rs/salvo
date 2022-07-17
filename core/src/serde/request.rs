@@ -54,15 +54,19 @@ impl<'de> RequestDeserializer<'de> {
     ) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;
         if let Some(ctype) = request.content_type() {
-            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
-                payload = request.form_data.get().map(Payload::FormData);
-            } else if ctype.subtype() == mime::JSON {
-                if let Some(data) = request.payload.get() {
-                    payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
-                        Ok(map) => Some(Payload::JsonMap(map)),
-                        Err(_) => Some(Payload::JsonStr(std::str::from_utf8(data)?)),
-                    };
+            match ctype.subtype() {
+                mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
+                    payload = request.form_data.get().map(Payload::FormData);
                 }
+                mime::JSON => {
+                    if let Some(data) = request.payload.get() {
+                        payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                            Ok(map) => Some(Payload::JsonMap(map)),
+                            Err(_) => Some(Payload::JsonStr(std::str::from_utf8(data)?)),
+                        };
+                    }
+                }
+                _ => {}
             }
         }
         Ok(RequestDeserializer {
