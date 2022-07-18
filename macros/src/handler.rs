@@ -74,12 +74,10 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
                 }
             })
         }
-        _ => {
-            Err(syn::Error::new_spanned(
-                input,
-                "#[handler] must added to `impl` or `fn`",
-            ))
-        }   
+        _ => Err(syn::Error::new_spanned(
+            input,
+            "#[handler] must added to `impl` or `fn`",
+        )),
     }
 }
 
