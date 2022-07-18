@@ -7,31 +7,12 @@
 #![warn(missing_docs)]
 
 use proc_macro::TokenStream;
-use proc_macro2::Span;
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn, ItemImpl, Token};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, Item};
 
 mod extract;
 mod handler;
 mod shared;
 
-pub(crate) enum Item {
-    Fn(ItemFn),
-    Impl(ItemImpl),
-}
-impl Parse for Item {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(Token![impl]) {
-            input.parse().map(Item::Impl)
-        } else {
-            input
-                .parse()
-                .map(Item::Fn)
-                .map_err(|_| syn::Error::new(Span::call_site(), "#[handler] must added to `impl` or `fn`"))
-        }
-    }
-}
 /// `handler` is a pro macro to help create `Handler` from function or impl block easily.
 ///
 /// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`.

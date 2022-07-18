@@ -1,9 +1,8 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Ident, ImplItem, Pat, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
-use crate::Item;
 
 pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> {
     let salvo = salvo_crate(internal);
@@ -75,6 +74,12 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
                 }
             })
         }
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "#[handler] must added to `impl` or `fn`",
+            ));
+        }   
     }
 }
 
