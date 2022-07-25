@@ -224,7 +224,8 @@ impl PathWisp for NamedWisp {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
             if !rest.is_empty() || self.0.starts_with("**") {
-                state.params.insert(self.0.clone(), rest.to_string());
+                let rest = rest.to_string();
+                state.params.insert(self.0.clone(), rest);
                 state.cursor.0 = state.parts.len();
                 true
             } else {
