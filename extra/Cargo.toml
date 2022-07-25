@@ -36,7 +36,7 @@ timeout = ["tokio/macros"]
 ws = ["futures-util", "tokio", "tokio-tungstenite", "tracing"]
 
 [dependencies]
-aead = { version = "0.4", optional = true }
+aead = { version = "0.5", optional = true }
 aes-gcm = { version = "0.9", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { version = "3", optional = true }
