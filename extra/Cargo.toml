@@ -19,9 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic_auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
+full = ["affix", "basic-auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
 affix = []
-basic_auth = ["base64"]
+basic-auth = ["base64"]
 jwt-auth = ["jsonwebtoken", "once_cell", "serde"]
 compression = ["async-compression", "bytes", "tokio", "tokio-stream", "tokio-util", "tracing"]
 cors = ["tracing"]
@@ -36,7 +36,7 @@ timeout = ["tokio/macros"]
 ws = ["futures-util", "tokio", "tokio-tungstenite", "tracing"]
 
 [dependencies]
-aead = { version = "0.4", optional = true }
+aead = { version = "0.4", features = ["alloc"], optional = true }
 aes-gcm = { version = "0.9", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { version = "3", optional = true }
