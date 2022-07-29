@@ -11,6 +11,7 @@ use serde_json::value::RawValue;
 use crate::extract::metadata::{Source, SourceFormat, SourceFrom};
 use crate::extract::Metadata;
 use crate::http::form::FormData;
+use crate::http::header::HeaderMap;
 use crate::http::ParseError;
 use crate::Request;
 
@@ -37,7 +38,7 @@ pub(crate) enum Payload<'a> {
 pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
-    headers: MultiMap<&'de str, &'de str>,
+    headers: &'de HeaderMap,
     payload: Option<Payload<'de>>,
     metadata: &'de Metadata,
     field_index: isize,
@@ -72,11 +73,7 @@ impl<'de> RequestDeserializer<'de> {
         Ok(RequestDeserializer {
             params: request.params(),
             queries: request.queries(),
-            headers: request
-                .headers()
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-                .collect::<MultiMap<_, _>>(),
+            headers: request.headers(),
             payload,
             metadata,
             field_index: -1,
@@ -112,7 +109,7 @@ impl<'de> RequestDeserializer<'de> {
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
-                headers: self.headers.clone(),
+                headers: &self.headers,
                 payload: self.payload.clone(),
                 metadata,
                 field_index: -1,
@@ -195,17 +192,19 @@ impl<'de> RequestDeserializer<'de> {
                         }
                     }
                     SourceFrom::Header => {
-                        let mut value = self.headers.get_vec(field_name.as_ref());
-                        if value.is_none() {
+                        let mut value = None;
+                        if self.headers.contains_key(field_name.as_ref()) {
+                            value = Some(self.headers.get_all(field_name.as_ref()))
+                        } else {
                             for alias in &field.aliases {
-                                value = self.headers.get_vec(*alias);
-                                if value.is_some() {
+                                if self.headers.contains_key(*alias) {
+                                    value = Some(self.headers.get_all(*alias));
                                     break;
                                 }
                             }
-                        }
+                        };
                         if let Some(value) = value {
-                            self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(*v))).collect());
+                            self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default()))).collect());
                             self.field_source = Some(source);
                             return Some(Cow::from(field.name));
                         }
