@@ -274,7 +274,7 @@ Benchmark 測試結果可以從這裏查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://tfb-status.techempower.com/](https://tfb-status.techempower.com/)
+[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
 ![techempower](assets/tp.jpg)
 
 ## 🩸 貢獻
