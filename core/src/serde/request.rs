@@ -204,7 +204,12 @@ impl<'de> RequestDeserializer<'de> {
                             }
                         };
                         if let Some(value) = value {
-                            self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default()))).collect());
+                            self.field_vec_value = Some(
+                                value
+                                    .iter()
+                                    .map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default())))
+                                    .collect(),
+                            );
                             self.field_source = Some(source);
                             return Some(Cow::from(field.name));
                         }
