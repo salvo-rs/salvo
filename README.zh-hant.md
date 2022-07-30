@@ -148,7 +148,7 @@ Router::new()
 有些用於匹配路徑的正則錶達式需要經常被使用, 可以將它事先註冊, 比如 GUID:
 
 ```rust
-PathFilter::register_part_regex(
+PathFilter::register_wisp_regex(
     "guid",
     Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );

@@ -648,9 +648,9 @@ impl PathFilter {
         };
         PathFilter { raw_value, path_wisps }
     }
-    /// Register new path part builder.
+    /// Register new path wisp builder.
     #[inline]
-    pub fn register_part_builder<B>(name: impl Into<String>, builder: B)
+    pub fn register_wisp_builder<B>(name: impl Into<String>, builder: B)
     where
         B: WispBuilder + 'static,
     {
@@ -659,7 +659,7 @@ impl PathFilter {
     }
     /// Register new path part regex.
     #[inline]
-    pub fn register_part_regex(name: impl Into<String>, regex: Regex) {
+    pub fn register_wisp_regex(name: impl Into<String>, regex: Regex) {
         let mut builders = WISP_BUILDERS.write();
         builders.insert(name.into(), Arc::new(Box::new(RegexWispBuilder::new(regex))));
     }
@@ -903,7 +903,7 @@ mod tests {
     }
     #[test]
     fn test_detect_named_regex() {
-        PathFilter::register_part_regex(
+        PathFilter::register_wisp_regex(
             "guid",
             regex::Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
         );

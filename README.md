@@ -158,7 +158,7 @@ You can also use `<*>` or `<**>` to match all remaining path fragments. In order
 Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
 
 ```rust
-PathFilter::register_part_regex(
+PathFilter::register_wisp_regex(
     "guid",
     Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
