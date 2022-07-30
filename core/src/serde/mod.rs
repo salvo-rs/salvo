@@ -11,6 +11,7 @@ use serde::forward_to_deserialize_any;
 mod request;
 pub(crate) use request::from_request;
 
+#[inline]
 pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, V)> + 'de,
@@ -22,6 +23,7 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
+#[inline]
 pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, C)> + 'de,
@@ -76,6 +78,7 @@ impl<'de> EnumAccess<'de> for ValueEnumAccess<'de> {
     type Error = ValError;
     type Variant = UnitOnlyVariantAccess;
 
+    #[inline]
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
     where
         V: DeserializeSeed<'de>,
@@ -90,10 +93,12 @@ struct UnitOnlyVariantAccess;
 impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
     type Error = ValError;
 
+    #[inline]
     fn unit_variant(self) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    #[inline]
     fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value, Self::Error>
     where
         T: DeserializeSeed<'de>,
@@ -101,6 +106,7 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
         Err(DeError::custom("expected unit variant"))
     }
 
+    #[inline]
     fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -108,6 +114,7 @@ impl<'de> VariantAccess<'de> for UnitOnlyVariantAccess {
         Err(DeError::custom("expected unit variant"))
     }
 
+    #[inline]
     fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -129,6 +136,7 @@ impl<'de> IntoDeserializer<'de> for CowValue<'de> {
 impl<'de> Deserializer<'de> for CowValue<'de> {
     type Error = ValError;
 
+    #[inline]
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -139,6 +147,7 @@ impl<'de> Deserializer<'de> for CowValue<'de> {
         }
     }
 
+    #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -146,6 +155,7 @@ impl<'de> Deserializer<'de> for CowValue<'de> {
         visitor.visit_some(self)
     }
 
+    #[inline]
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
@@ -158,6 +168,7 @@ impl<'de> Deserializer<'de> for CowValue<'de> {
         visitor.visit_enum(ValueEnumAccess(self.0))
     }
 
+    #[inline]
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -204,6 +215,7 @@ where
 {
     type Deserializer = Self;
 
+    #[inline]
     fn into_deserializer(self) -> Self::Deserializer {
         self
     }
@@ -215,6 +227,7 @@ where
 {
     type Error = ValError;
 
+    #[inline]
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -226,6 +239,7 @@ where
         }
     }
 
+    #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -233,6 +247,7 @@ where
         visitor.visit_some(self)
     }
 
+    #[inline]
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
@@ -249,6 +264,7 @@ where
         }
     }
 
+    #[inline]
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -256,18 +272,21 @@ where
         visitor.visit_newtype_struct(self)
     }
 
+    #[inline]
     fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         self.deserialize_seq(visitor)
     }
+    #[inline]
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         self.deserialize_seq(visitor)
     }
+    #[inline]
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,

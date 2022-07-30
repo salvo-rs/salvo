@@ -186,6 +186,7 @@ pub struct HyperHandler {
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 impl HyperHandler {
+    #[inline]
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();

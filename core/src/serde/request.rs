@@ -49,6 +49,7 @@ pub(crate) struct RequestDeserializer<'de> {
 
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
+    #[inline]
     pub(crate) fn new(
         request: &'de mut Request,
         metadata: &'de Metadata,
@@ -82,6 +83,7 @@ impl<'de> RequestDeserializer<'de> {
             field_vec_value: None,
         })
     }
+    #[inline]
     fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
         T: de::DeserializeSeed<'de>,
@@ -125,6 +127,7 @@ impl<'de> RequestDeserializer<'de> {
             Err(ValError::custom("parse value error"))
         }
     }
+    #[inline]
     fn next(&mut self) -> Option<Cow<'_, str>> {
         if self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;
@@ -300,6 +303,7 @@ impl<'de> RequestDeserializer<'de> {
 impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
     type Error = ValError;
 
+    #[inline]
     fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -307,6 +311,7 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
         visitor.visit_map(&mut self)
     }
 
+    #[inline]
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
@@ -324,6 +329,7 @@ impl<'de> de::Deserializer<'de> for RequestDeserializer<'de> {
 impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
     type Error = ValError;
 
+    #[inline]
     fn next_key_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
         T: de::DeserializeSeed<'de>,
@@ -334,6 +340,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         }
     }
 
+    #[inline]
     fn next_value_seed<T>(&mut self, seed: T) -> Result<T::Value, Self::Error>
     where
         T: de::DeserializeSeed<'de>,
@@ -341,6 +348,7 @@ impl<'de> de::MapAccess<'de> for RequestDeserializer<'de> {
         self.deserialize_value(seed)
     }
 
+    #[inline]
     fn next_entry_seed<TK, TV>(&mut self, kseed: TK, vseed: TV) -> Result<Option<(TK::Value, TV::Value)>, Self::Error>
     where
         TK: de::DeserializeSeed<'de>,
