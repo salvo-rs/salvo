@@ -1,16 +1,17 @@
 //! Http response.
 
+#[cfg(feature = "cookie")]
+use cookie::{Cookie, CookieJar};
+use futures_util::stream::{Stream, TryStreamExt};
+use http::version::Version;
+use mime::Mime;
+#[cfg(feature = "cookie")]
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
-
-use cookie::{Cookie, CookieJar};
-use futures_util::stream::{Stream, TryStreamExt};
-use http::version::Version;
-use mime::Mime;
 
 pub use http::response::Parts;
 
@@ -73,6 +74,7 @@ pub struct Response {
     pub(crate) status_error: Option<StatusError>,
     headers: HeaderMap,
     version: Version,
+    #[cfg(feature = "cookie")]
     pub(crate) cookies: CookieJar,
     pub(crate) body: Body,
 }
@@ -95,14 +97,14 @@ impl From<hyper::Response<hyper::Body>> for Response {
             },
             body,
         ) = res.into_parts();
-
+        #[cfg(feature = "cookie")]
         // Set the request cookies, if they exist.
         let cookies = if let Some(header) = headers.get(header::SET_COOKIE) {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
                 for cookie_str in header.split(';').map(|s| s.trim()) {
                     if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
-                        cookie_jar.add_original(cookie);
+                        cookie_jar.add(cookie);
                     }
                 }
             }
@@ -117,6 +119,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
             body: body.into(),
             version,
             headers,
+            #[cfg(feature = "cookie")]
             cookies,
         }
     }
@@ -131,6 +134,7 @@ impl Response {
             body: Body::None,
             version: Version::default(),
             headers: HeaderMap::new(),
+            #[cfg(feature = "cookie")]
             cookies: CookieJar::new(),
         }
     }
@@ -196,18 +200,30 @@ impl Response {
     ///
     /// `write_back` consumes the `Response`.
     #[inline]
-    pub(crate) async fn write_back(mut self, res: &mut hyper::Response<hyper::Body>) {
-        for cookie in self.cookies.delta() {
+    pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
+        let Self {
+            status_code,
+            #[cfg(feature = "cookie")]
+            mut headers,
+            #[cfg(not(feature = "cookie"))]
+            headers,
+            #[cfg(feature = "cookie")]
+            cookies,
+            body,
+            ..
+        } = self;
+        #[cfg(feature = "cookie")]
+        for cookie in cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
-                self.headers.append(header::SET_COOKIE, hv);
+                headers.append(header::SET_COOKIE, hv);
             }
         }
-        *res.headers_mut() = self.headers;
+        *res.headers_mut() = headers;
 
         // Default to a 404 if no response code was set
-        *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
 
-        match self.body {
+        match body {
             Body::None => {
                 res.headers_mut()
                     .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
@@ -226,36 +242,39 @@ impl Response {
         }
     }
 
-    /// Get cookies reference.
-    #[inline]
-    pub fn cookies(&self) -> &CookieJar {
-        &self.cookies
-    }
-    /// Get mutable cookies reference.
-    #[inline]
-    pub fn cookies_mut(&mut self) -> &mut CookieJar {
-        &mut self.cookies
-    }
-    /// Helper function for get cookie.
-    #[inline]
-    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
-    where
-        T: AsRef<str>,
-    {
-        self.cookies.get(name.as_ref())
-    }
-    /// Helper function for add cookie.
-    #[inline]
-    pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
-        self.cookies.add(cookie);
-    }
-    /// Helper function for remove cookie.
-    #[inline]
-    pub fn remove_cookie<T>(&mut self, name: T)
-    where
-        T: Into<Cow<'static, str>>,
-    {
-        self.cookies.remove(Cookie::named(name));
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Get cookies reference.
+        #[inline]
+        pub fn cookies(&self) -> &CookieJar {
+            &self.cookies
+        }
+        /// Get mutable cookies reference.
+        #[inline]
+        pub fn cookies_mut(&mut self) -> &mut CookieJar {
+            &mut self.cookies
+        }
+        /// Helper function for get cookie.
+        #[inline]
+        pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+        where
+            T: AsRef<str>,
+        {
+            self.cookies.get(name.as_ref())
+        }
+        /// Helper function for add cookie.
+        #[inline]
+        pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
+            self.cookies.add(cookie);
+        }
+        /// Helper function for remove cookie.
+        #[inline]
+        pub fn remove_cookie<T>(&mut self, name: T)
+        where
+            T: Into<Cow<'static, str>>,
+        {
+            self.cookies.remove(Cookie::named(name));
+        }
     }
 
     /// Get status code.

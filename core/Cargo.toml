@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.28.2"
+version = "0.29.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
@@ -18,13 +18,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["test"]
+default = ["cookie", "test"]
 full = ["rustls", "anyhow"]
-rustls = ["tokio-rustls", "rustls-pemfile", "pin-project-lite"]
-native-tls = ["tokio-native-tls", "pin-project-lite"]
+cookie = ["dep:cookie"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project-lite"]
+native-tls = ["dep:tokio-native-tls", "dep:pin-project-lite"]
 unix = []
-test = ["async-compression", "base64", "encoding_rs", "serde_urlencoded", "url", "tokio/macros"]
-acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
+test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
+acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 Inflector = "0.11"
@@ -34,7 +35,7 @@ async-recursion = "1"
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 bytes = "1"
-cookie = { version = "0.16", features = ["percent-encode"] }
+cookie = { version = "0.16", features = ["percent-encode"], optional = true }
 encoding_rs = { version = "0.8", optional = true }
 enumflags2 = "0.7"
 fastrand = "1.5"
@@ -56,7 +57,7 @@ rcgen = { version = "0.9", optional = true }
 regex = "1"
 ring = { version = "0.16", optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
-salvo_macros = { version = "0.28.1", path = "../macros" }
+salvo_macros = { version = "0.29.0", path = "../macros" }
 serde = { version = "1", features = ["derive"] }
 serde_json = {version = "1", features = ["raw_value"] }
 serde_urlencoded = { version = "0.7", optional = true }

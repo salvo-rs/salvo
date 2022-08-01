@@ -19,7 +19,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2022/04/07/Rust-1.60.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.60%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -56,7 +56,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "0.28"
+salvo = "0.29"
 tokio = { version = "1", features = ["macros"] }
 ```
 

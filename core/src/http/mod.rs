@@ -5,8 +5,10 @@ pub mod form;
 mod range;
 pub mod request;
 pub mod response;
-
-pub use cookie;
+cfg_feature! {
+    #![feature = "cookie"]
+    pub use cookie;
+}
 pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
