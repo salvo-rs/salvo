@@ -107,7 +107,7 @@ pub enum SourceFormat {
     MultiMap,
     /// Json format.
     Json,
-    /// Request format means this field is [`Extractible`] and it will extract from the request.
+    /// Request format means this field will extract from the request.
     Request,
 }
 

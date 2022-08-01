@@ -194,7 +194,6 @@ impl HyperHandler {
         let mut res = Response::new();
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
-        res.cookies = req.cookies().clone();
         let router = self.router.clone();
 
         async move {

@@ -56,10 +56,9 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "0.28"
+salvo = "0.29"
 tokio = { version = "1", features = ["macros"] }
-```
-
+`
 在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello_world`, 这个函数只是简单地打印文本 ```"Hello World"```.
 
 ```rust
