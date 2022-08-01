@@ -63,23 +63,9 @@ impl PathState {
     }
 
     #[inline]
-    pub fn part_rest(&self) -> Option<&str> {
-        match self.parts.get(self.cursor.0) {
-            None => None,
-            Some(part) => {
-                if self.cursor.1 >= part.len() {
-                    None
-                } else {
-                    Some(&part[self.cursor.1..])
-                }
-            }
-        }
-    }
-
-    #[inline]
     pub fn all_rest(&self) -> Option<Cow<'_, str>> {
         if let Some(picked) = self.pick() {
-            if self.cursor.0 >= self.parts.len() {
+            if self.cursor.0 >= self.parts.len() - 1 {
                 Some(Cow::Borrowed(picked))
             } else {
                 Some(Cow::Owned(format!(
@@ -158,7 +144,12 @@ impl FlowCtrl {
     /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
     #[async_recursion]
-    pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
+    pub async fn call_next(
+        &mut self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+    ) -> bool {
         if let Some(code) = res.status_code() {
             if code.is_client_error() || code.is_server_error() || code.is_redirection() {
                 self.skip_rest();
@@ -227,7 +218,9 @@ mod tests {
                 .unwrap()
         }
 
-        assert!(access(&service, "127.0.0.1").await.contains("404: Not Found"));
+        assert!(access(&service, "127.0.0.1")
+            .await
+            .contains("404: Not Found"));
         assert_eq!(access(&service, "localhost").await, "Hello World");
     }
 }
