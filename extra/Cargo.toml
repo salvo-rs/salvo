@@ -36,14 +36,14 @@ timeout = ["tokio/macros"]
 ws = ["futures-util", "tokio", "tokio-tungstenite", "tracing"]
 
 [dependencies]
-aead = { version = "0.4", features = ["alloc"], optional = true }
-aes-gcm = { version = "0.9", optional = true }
+aead = { version = "0.5", features = ["alloc"], optional = true }
+aes-gcm = { version = "0.10", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { version = "3", optional = true }
 base64 = { version = "0.13", optional = true }
 byteorder = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
-chacha20poly1305 = { version = "0.9", optional = true }
+chacha20poly1305 = { version = "0.10", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 data-encoding = { version = "2", optional = true }
