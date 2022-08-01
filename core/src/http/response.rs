@@ -201,7 +201,7 @@ impl Response {
     /// `write_back` consumes the `Response`.
     #[inline]
     pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
-        let Self{
+        let Self {
             status_code,
             #[cfg(feature = "cookie")]
             mut headers,
