@@ -26,8 +26,9 @@ name = "salvo"
 path = "src/lib.rs"
 
 [features]
-default = []
-full = ["test", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+default = ["test", "cookie"]
+full = ["test", "cookie", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+cookie = ["salvo_core/cookie"]
 rustls = ["salvo_core/rustls"]
 unix = ["salvo_core/unix"]
 acme = ["salvo_core/acme"]

@@ -20,11 +20,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["test"]
 full = ["rustls", "anyhow"]
-rustls = ["tokio-rustls", "rustls-pemfile", "pin-project-lite"]
-native-tls = ["tokio-native-tls", "pin-project-lite"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project-lite"]
+native-tls = ["dep:tokio-native-tls", "dep:pin-project-lite"]
 unix = []
-test = ["async-compression", "base64", "encoding_rs", "serde_urlencoded", "url", "tokio/macros"]
-acme = ["base64", "hyper/client", "hyper-rustls", "rcgen", "ring", "x509-parser", "tokio-rustls", "rustls-pemfile"]
+test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
+acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 Inflector = "0.11"
@@ -34,7 +34,7 @@ async-recursion = "1"
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 bytes = "1"
-cookie = { version = "0.16", features = ["percent-encode"] }
+cookie = { version = "0.16", features = ["percent-encode"], optional = true }
 encoding_rs = { version = "0.8", optional = true }
 enumflags2 = "0.7"
 fastrand = "1.5"
