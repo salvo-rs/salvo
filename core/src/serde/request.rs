@@ -38,6 +38,8 @@ pub(crate) enum Payload<'a> {
 pub(crate) struct RequestDeserializer<'de> {
     params: &'de HashMap<String, String>,
     queries: &'de MultiMap<String, String>,
+    #[cfg(feature = "cookie")]
+    cookies: &'de cookie::CookieJar,
     headers: &'de HeaderMap,
     payload: Option<Payload<'de>>,
     metadata: &'de Metadata,
@@ -75,6 +77,8 @@ impl<'de> RequestDeserializer<'de> {
             params: request.params(),
             queries: request.queries(),
             headers: request.headers(),
+            #[cfg(feature = "cookie")]
+            cookies: request.cookies(),
             payload,
             metadata,
             field_index: -1,
@@ -111,7 +115,9 @@ impl<'de> RequestDeserializer<'de> {
             seed.deserialize(RequestDeserializer {
                 params: self.params,
                 queries: self.queries,
-                headers: &self.headers,
+                headers: self.headers,
+                #[cfg(feature = "cookie")]
+                cookies: self.cookies,
                 payload: self.payload.clone(),
                 metadata,
                 field_index: -1,
@@ -213,6 +219,25 @@ impl<'de> RequestDeserializer<'de> {
                                     .map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default())))
                                     .collect(),
                             );
+                            self.field_source = Some(source);
+                            return Some(Cow::from(field.name));
+                        }
+                    }
+                    #[cfg(feature = "cookie")]
+                    SourceFrom::Cookie => {
+                        let mut value = None;
+                        if let Some(cookie) = self.cookies.get(field_name.as_ref()) {
+                            value = Some(cookie.value());
+                        } else {
+                            for alias in &field.aliases {
+                                if let Some(cookie) = self.cookies.get(*alias) {
+                                    value = Some(cookie.value());
+                                    break;
+                                }
+                            }
+                        };
+                        if let Some(value) = value {
+                            self.field_str_value = Some(value);
                             self.field_source = Some(source);
                             return Some(Cow::from(field.name));
                         }
