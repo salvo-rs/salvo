@@ -1,7 +1,7 @@
+use std::borrow::Cow;
 use std::cmp;
 use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
-use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -438,7 +438,8 @@ impl NamedFile {
         if self.flags.contains(Flag::ContentDisposition) {
             if let Some(content_disposition) = self.content_disposition.take() {
                 res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
-            } else if !res.headers().contains_key(CONTENT_DISPOSITION) { // skip to set CONTENT_DISPOSITION header if it is already set.
+            } else if !res.headers().contains_key(CONTENT_DISPOSITION) {
+                // skip to set CONTENT_DISPOSITION header if it is already set.
                 match build_content_disposition(&self.path, &self.content_type, None, None) {
                     Ok(content_disposition) => {
                         res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
