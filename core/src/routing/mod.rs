@@ -23,11 +23,13 @@ pub struct PathState {
     pub(crate) parts: Vec<String>,
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
+    pub(crate) end_slash: bool, // For rest match, we want includs the last slash.
 }
 impl PathState {
     /// Create new `PathState`.
     #[inline]
     pub fn new(url_path: &str) -> Self {
+        let end_slash = url_path.ends_with('/');
         let parts = url_path
             .trim_start_matches('/')
             .trim_end_matches('/')
@@ -44,6 +46,7 @@ impl PathState {
             parts,
             cursor: (0, 0),
             params: PathParams::new(),
+            end_slash,
         }
     }
 
@@ -66,13 +69,18 @@ impl PathState {
     pub fn all_rest(&self) -> Option<Cow<'_, str>> {
         if let Some(picked) = self.pick() {
             if self.cursor.0 >= self.parts.len() - 1 {
-                Some(Cow::Borrowed(picked))
+                if self.end_slash {
+                    Some(Cow::Owned(format!("{}/", picked)))
+                } else {
+                    Some(Cow::Borrowed(picked))
+                }
             } else {
-                Some(Cow::Owned(format!(
-                    "{}/{}",
-                    picked,
-                    self.parts[self.cursor.0 + 1..].join("/")
-                )))
+                let last = self.parts[self.cursor.0 + 1..].join("/");
+                if self.end_slash {
+                    Some(Cow::Owned(format!("{}/{}/", picked, last)))
+                } else {
+                    Some(Cow::Owned(format!("{}/{}", picked, last)))
+                }
             }
         } else {
             None

@@ -1,11 +1,10 @@
 //! ProxyHandler.
-#![allow(clippy::mutex_atomic)]
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::sync::Mutex;
 
 use hyper::{Client, Uri};
 use hyper_rustls::HttpsConnectorBuilder;
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
@@ -69,17 +68,21 @@ impl ProxyHandler {
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let rest = if let Some((_, rest)) = param { rest } else { "" }.trim_start_matches('/');
-        let forward_url = if let Some(query) = req.uri().query() {
-            if rest.is_empty() {
-                format!("{}?{}", upstream, query)
-            } else {
-                format!("{}/{}?{}", upstream.trim_end_matches('/'), encode_url_path(rest), query)
-            }
-        } else if rest.is_empty() {
-            upstream.into()
+        let mut rest: Cow<'_, str> = if let Some((_, rest)) = param {
+            rest.into()
         } else {
-            format!("{}/{}", upstream.trim_end_matches('/'), encode_url_path(rest))
+            "".into()
+        };
+        if let Some(query) = req.uri().query() {
+            rest = format!("{}?{}", rest, query).into();
+        }
+
+        let forward_url = if upstream.ends_with('/') && rest.starts_with('/') {
+            format!("{}{}", upstream.trim_end_matches('/'), rest)
+        } else if upstream.ends_with('/') || rest.starts_with('/') {
+            format!("{}{}", upstream, rest)
+        } else {
+            format!("{}/{}", upstream, rest)
         };
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
@@ -169,14 +172,6 @@ impl Handler for ProxyHandler {
             ctrl.skip_rest();
         }
     }
-}
-
-#[inline]
-fn encode_url_path(path: &str) -> String {
-    path.split('/')
-        .map(|s| utf8_percent_encode(s, NON_ALPHANUMERIC).to_string())
-        .collect::<Vec<_>>()
-        .join("/")
 }
 
 #[cfg(test)]
