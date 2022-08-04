@@ -1,9 +1,9 @@
 use std::cmp;
 use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::fs::File;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -12,10 +12,11 @@ use async_trait::async_trait;
 use enumflags2::{bitflags, BitFlags};
 use headers::*;
 use mime_guess::from_path;
+use tokio::fs::File;
 
 use super::{ChunkedState, FileChunk};
-use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING};
-use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
+use crate::http::header::{self, CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH};
+use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer};
 
 const CHUNK_SIZE: u64 = 1024 * 1024;
@@ -39,7 +40,7 @@ pub struct NamedFile {
     metadata: Metadata,
     flags: BitFlags<Flag>,
     content_type: mime::Mime,
-    content_disposition: HeaderValue,
+    content_disposition: Option<HeaderValue>,
     content_encoding: Option<HeaderValue>,
 }
 
@@ -51,7 +52,6 @@ pub struct NamedFileBuilder {
     disposition_type: Option<String>,
     content_type: Option<mime::Mime>,
     content_encoding: Option<String>,
-    content_disposition: Option<String>,
     buffer_size: Option<u64>,
     flags: BitFlags<Flag>,
 }
@@ -60,26 +60,40 @@ impl NamedFileBuilder {
     #[inline]
     pub fn with_attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
         self.attached_name = Some(attached_name.into());
+        self.flags.insert(Flag::ContentDisposition);
         self
     }
+
     /// Set disposition encoding and returns `Self`.
     #[inline]
     pub fn with_disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
+        self.flags.insert(Flag::ContentDisposition);
         self
     }
+
+    /// Disable `Content-Disposition` header.
+    ///
+    /// By default Content-Disposition` header is enabled.
+    #[inline]
+    pub fn disable_content_disposition(&mut self) {
+        self.flags.remove(Flag::ContentDisposition);
+    }
+
     /// Set content type and returns `Self`.
     #[inline]
     pub fn with_content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
+
     /// Set content encoding and returns `Self`.
     #[inline]
     pub fn with_content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
     }
+
     /// Set buffer size and returns `Self`.
     #[inline]
     pub fn with_buffer_size(mut self, buffer_size: u64) -> Self {
@@ -89,7 +103,7 @@ impl NamedFileBuilder {
 
     ///Specifies whether to use ETag or not.
     ///
-    ///Default is true.
+    /// Default is true.
     #[inline]
     pub fn use_etag(mut self, value: bool) -> Self {
         if value {
@@ -124,13 +138,13 @@ impl NamedFileBuilder {
             }
         }
     }
+
     /// Build a new [`NamedFile`].
     pub async fn build(self) -> Result<NamedFile> {
         let NamedFileBuilder {
             path,
             content_type,
             content_encoding,
-            content_disposition,
             buffer_size,
             disposition_type,
             attached_name,
@@ -151,32 +165,6 @@ impl NamedFileBuilder {
                 ct
             }
         });
-        let content_disposition = content_disposition.unwrap_or_else(|| {
-            disposition_type.unwrap_or_else(|| {
-                let disposition_type = if attached_name.is_some() {
-                    "attachment"
-                } else {
-                    match (content_type.type_(), content_type.subtype()) {
-                        (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _)
-                        | (_, mime::JAVASCRIPT | mime::JSON) => "inline",
-                        _ => "attachment",
-                    }
-                };
-                if disposition_type == "attachment" {
-                    let file_name = match attached_name {
-                        Some(file_name) => file_name,
-                        None => path
-                            .file_name()
-                            .map(|file_name| file_name.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "file".into()),
-                    };
-                    format!("attachment; filename={}", file_name)
-                } else {
-                    disposition_type.into()
-                }
-            })
-        });
-        let content_disposition = content_disposition.parse::<HeaderValue>().map_err(Error::other)?;
         let metadata = file.metadata().await?;
         let modified = metadata.modified().ok();
         let content_encoding = match content_encoding {
@@ -184,6 +172,15 @@ impl NamedFileBuilder {
             None => None,
         };
 
+        let mut content_disposition = None;
+        if attached_name.is_some() || disposition_type.is_some() {
+            content_disposition = Some(build_content_disposition(
+                &path,
+                &content_type,
+                disposition_type.as_deref(),
+                attached_name.as_deref(),
+            )?);
+        }
         Ok(NamedFile {
             path,
             file,
@@ -197,7 +194,42 @@ impl NamedFileBuilder {
         })
     }
 }
-
+fn build_content_disposition(
+    file_path: impl AsRef<Path>,
+    content_type: &Mime,
+    disposition_type: Option<&str>,
+    attached_name: Option<&str>,
+) -> Result<HeaderValue> {
+    let disposition_type = disposition_type.unwrap_or_else(|| {
+        if attached_name.is_some() {
+            "attachment"
+        } else {
+            match (content_type.type_(), content_type.subtype()) {
+                (mime::IMAGE | mime::TEXT | mime::VIDEO | mime::AUDIO, _) | (_, mime::JAVASCRIPT | mime::JSON) => {
+                    "inline"
+                }
+                _ => "attachment",
+            }
+        }
+    });
+    let content_disposition = if disposition_type == "attachment" {
+        let attached_name = match attached_name {
+            Some(attached_name) => Cow::Borrowed(attached_name),
+            None => file_path
+                .as_ref()
+                .file_name()
+                .map(|file_name| file_name.to_string_lossy().to_string())
+                .unwrap_or_else(|| "file".into())
+                .into(),
+        };
+        format!("attachment; filename={}", attached_name)
+            .parse::<HeaderValue>()
+            .map_err(Error::other)?
+    } else {
+        disposition_type.parse::<HeaderValue>().map_err(Error::other)?
+    };
+    Ok(content_disposition)
+}
 impl NamedFile {
     /// Create new [`NamedFileBuilder`].
     #[inline]
@@ -208,7 +240,6 @@ impl NamedFile {
             disposition_type: None,
             content_type: None,
             content_encoding: None,
-            content_disposition: None,
             buffer_size: None,
             flags: BitFlags::default(),
         }
@@ -268,8 +299,8 @@ impl NamedFile {
 
     /// Get Content-Disposition value.
     #[inline]
-    pub fn content_disposition(&self) -> &HeaderValue {
-        &self.content_disposition
+    pub fn content_disposition(&self) -> Option<&HeaderValue> {
+        self.content_disposition.as_ref()
     }
     /// Set the `Content-Disposition` for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
@@ -282,7 +313,7 @@ impl NamedFile {
     /// [to_string_lossy](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy).
     #[inline]
     pub fn set_content_disposition(&mut self, content_disposition: HeaderValue) {
-        self.content_disposition = content_disposition;
+        self.content_disposition = Some(content_disposition);
         self.flags.insert(Flag::ContentDisposition);
     }
 
@@ -368,7 +399,7 @@ impl NamedFile {
         }
     }
     ///Consume self and send content to [`Response`].
-    pub async fn send(self, req: &mut Request, res: &mut Response) {
+    pub async fn send(mut self, req: &mut Request, res: &mut Response) {
         let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
@@ -394,7 +425,7 @@ impl NamedFile {
         // check last modified
         let not_modified = if !none_match(etag.as_ref(), req) {
             true
-        } else if req.headers().contains_key(header::IF_NONE_MATCH) {
+        } else if req.headers().contains_key(IF_NONE_MATCH) {
             false
         } else if let (Some(ref last_modified), Some(since)) =
             (last_modified, req.headers().typed_get::<IfModifiedSince>())
@@ -404,8 +435,21 @@ impl NamedFile {
             false
         };
 
-        res.headers_mut()
-            .insert(CONTENT_DISPOSITION, self.content_disposition.clone());
+        if self.flags.contains(Flag::ContentDisposition) {
+            if let Some(content_disposition) = self.content_disposition.take() {
+                res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
+            } else if !res.headers().contains_key(CONTENT_DISPOSITION) { // skip to set CONTENT_DISPOSITION header if it is already set.
+                match build_content_disposition(&self.path, &self.content_type, None, None) {
+                    Ok(content_disposition) => {
+                        res.headers_mut().insert(CONTENT_DISPOSITION, content_disposition);
+                    }
+                    Err(e) => {
+                        tracing::error!(error = ?e, "build file's content disposition failed");
+                    }
+                }
+            }
+        }
+
         res.headers_mut()
             .typed_insert(ContentType::from(self.content_type.clone()));
         if let Some(lm) = last_modified {
