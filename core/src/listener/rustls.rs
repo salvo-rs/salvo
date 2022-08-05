@@ -1,4 +1,4 @@
-//! tls module
+//! rustls module
 use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Error as IoError, Read};

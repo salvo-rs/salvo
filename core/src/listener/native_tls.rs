@@ -1,4 +1,4 @@
-//! tls module
+//! native_tls module
 use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::io::{self, Cursor, Error as IoError, ErrorKind, Read};

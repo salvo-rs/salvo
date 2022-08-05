@@ -27,6 +27,10 @@ cfg_feature! {
     pub mod rustls;
 }
 cfg_feature! {
+    #![feature = "openssl"]
+    pub mod openssl;
+}
+cfg_feature! {
     #![unix]
     pub mod unix;
 }
@@ -41,11 +45,15 @@ pub use native_tls::NativeTlsListener;
 }
 cfg_feature! {
     #![feature = "rustls"]
-pub use rustls::RustlsListener;
+    pub use rustls::RustlsListener;
+}
+cfg_feature! {
+    #![feature = "openssl"]
+    pub use openssl::OpensslListener;
 }
 cfg_feature! {
     #![unix]
-pub use unix::UnixListener;
+    pub use unix::UnixListener;
 }
 
 /// Listener trait
