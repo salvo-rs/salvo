@@ -126,7 +126,7 @@ pub fn options() -> MethodFilter {
 pub fn post() -> MethodFilter {
     MethodFilter(Method::POST)
 }
-/// Filter request, only allow path method.
+/// Filter request, only allow patch method.
 #[inline]
 pub fn patch() -> MethodFilter {
     MethodFilter(Method::PATCH)
