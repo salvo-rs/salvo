@@ -9,9 +9,9 @@ Salvo is a powerful and simplest web server framework in Rust world.
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
 readme = "../README.md"
-keywords = ["salvo", "web", "framework", "server"]
+keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["network-programming", "asynchronous", "web-programming::http-server", "web-programming::websocket"]
+categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [package.metadata.docs.rs]
 all-features = true
