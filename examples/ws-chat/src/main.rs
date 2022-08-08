@@ -116,7 +116,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
         <div id="chat">
             <p><em>Connecting...</em></p>
         </div>
-        <input type="text" id="msg" />
+        <input type="text" id="text" />
         <button type="button" id="submit">Submit</button>
         <script>
             const chat = document.getElementById('chat');
@@ -129,19 +129,19 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
             };
 
             ws.onmessage = function(msg) {
-                message(msg.data);
+                showMessage(msg.data);
             };
 
             ws.onclose = function() {
                 chat.getElementsByTagName('em')[0].innerText = 'Disconnected!';
             };
 
-            send.onclick = function() {
+            submit.onclick = function() {
                 const msg = text.value;
                 ws.send(msg);
                 text.value = '';
 
-                message('<You>: ' + msg);
+                showMessage('<You>: ' + msg);
             };
             function showMessage(data) {
                 const line = document.createElement('p');

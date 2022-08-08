@@ -1,9 +1,6 @@
 //! Http request.
 
-use std::collections::HashMap;
-use std::fmt::{self, Formatter};
-use std::str::FromStr;
-
+#[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::header::{self, HeaderMap};
 use http::method::Method;
@@ -14,6 +11,9 @@ pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
+use std::collections::HashMap;
+use std::fmt::{self, Formatter};
+use std::str::FromStr;
 
 use crate::addr::SocketAddr;
 use crate::extract::{Extractible, Metadata};
@@ -40,6 +40,7 @@ pub struct Request {
     // The request method.
     method: Method,
 
+    #[cfg(feature = "cookie")]
     cookies: CookieJar,
 
     pub(crate) params: HashMap<String, String>,
@@ -89,6 +90,7 @@ impl From<hyper::Request<Body>> for Request {
         ) = req.into_parts();
 
         // Set the request cookies, if they exist.
+        #[cfg(feature = "cookie")]
         let cookies = if let Some(header) = headers.get("Cookie") {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
@@ -110,6 +112,7 @@ impl From<hyper::Request<Body>> for Request {
             body: Some(body),
             extensions,
             method,
+            #[cfg(feature = "cookie")]
             cookies,
             // accept: None,
             params: HashMap::new(),
@@ -132,6 +135,7 @@ impl Request {
             body: Some(Body::default()),
             extensions: Extensions::default(),
             method: Method::default(),
+            #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
             params: HashMap::new(),
             queries: OnceCell::new(),
@@ -346,23 +350,26 @@ impl Request {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get `CookieJar` reference.
-    #[inline]
-    pub fn cookies(&self) -> &CookieJar {
-        &self.cookies
-    }
-    /// Get `CookieJar` mutable reference.
-    #[inline]
-    pub fn cookies_mut(&mut self) -> &mut CookieJar {
-        &mut self.cookies
-    }
-    /// Get `Cookie` from cookies.
-    #[inline]
-    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
-    where
-        T: AsRef<str>,
-    {
-        self.cookies.get(name.as_ref())
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Get `CookieJar` reference.
+        #[inline]
+        pub fn cookies(&self) -> &CookieJar {
+            &self.cookies
+        }
+        /// Get `CookieJar` mutable reference.
+        #[inline]
+        pub fn cookies_mut(&mut self) -> &mut CookieJar {
+            &mut self.cookies
+        }
+        /// Get `Cookie` from cookies.
+        #[inline]
+        pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+        where
+            T: AsRef<str>,
+        {
+            self.cookies.get(name.as_ref())
+        }
     }
     /// Get params reference.
     #[inline]

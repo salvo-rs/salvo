@@ -1,6 +1,6 @@
 [package]
 name = "salvo_extra"
-version = "0.28.0"
+version = "0.29.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -21,29 +21,29 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["full"]
 full = ["affix", "basic-auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
 affix = []
-basic-auth = ["base64"]
-jwt-auth = ["jsonwebtoken", "once_cell", "serde"]
-compression = ["async-compression", "bytes", "tokio", "tokio-stream", "tokio-util", "tracing"]
-cors = ["tracing"]
-csrf = ["cookie", "hkdf", "rand", "sha2", "aead", "aes-gcm", "byteorder", "chacha20poly1305", "chrono", "data-encoding", "hmac", "tracing"]
+basic-auth = ["dep:base64"]
+jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie"]
+compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
+cors = ["dep:tracing"]
+csrf = ["dep:cookie", "dep:hkdf", "dep:rand", "dep:sha2", "dep:aead", "dep:aes-gcm", "dep:byteorder", "dep:chacha20poly1305", "dep:chrono", "dep:data-encoding", "dep:hmac", "dep:tracing"]
 size-limiter = []
-logging = ["tracing"]
-proxy = ["hyper", "hyper-rustls/webpki-tokio", "percent-encoding", "tracing"]
-serve-static = ["chrono", "mime", "percent-encoding", "tokio", "serde", "serde_json"]
-session = ["async-session", "cookie", "tracing"]
-sse = ["futures-util", "pin-project", "tokio", "serde", "serde_json", "tracing"]
+logging = ["dep:tracing"]
+proxy = ["dep:hyper", "hyper-rustls/webpki-tokio", "dep:tracing"]
+serve-static = ["dep:chrono", "dep:mime", "dep:percent-encoding", "tokio", "dep:serde", "dep:serde_json"]
+session = ["dep:async-session", "dep:cookie", "dep:tracing"]
+sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 timeout = ["tokio/macros"]
-ws = ["futures-util", "tokio", "tokio-tungstenite", "tracing"]
+ws = ["dep:futures-util", "tokio", "tokio-tungstenite", "dep:tracing"]
 
 [dependencies]
-aead = { version = "0.4", features = ["alloc"], optional = true }
-aes-gcm = { version = "0.9", optional = true }
+aead = { version = "0.5", features = ["alloc"], optional = true }
+aes-gcm = { version = "0.10", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { version = "3", optional = true }
 base64 = { version = "0.13", optional = true }
 byteorder = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
-chacha20poly1305 = { version = "0.9", optional = true }
+chacha20poly1305 = { version = "0.10", optional = true }
 chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 data-encoding = { version = "2", optional = true }
@@ -58,11 +58,11 @@ once_cell = { version = "1", optional = true }
 percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
 rand = { version = "0.8", optional = true }
-salvo_core = { version = "0.28.0", default-features = false, path = "../core" }
+salvo_core = { version = "0.29.1", default-features = false, path = "../core" }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 sha2 = { version = "0.10", optional = true }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"], optional = true }
+tokio = { version = "1", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 tokio-tungstenite = { version = "0.17", default-features = false, optional = true }
 tokio-util = { version = "0.7", features = ["io"], optional = true }

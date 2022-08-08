@@ -14,6 +14,9 @@ pub enum SourceFrom {
     Query,
     /// The field will extracted from http header.
     Header,
+    /// The field will extracted from http cookie.
+    #[cfg(feature = "cookie")]
+    Cookie,
     /// The field will extracted from http payload.
     Body,
     /// The field will extracted from request.
@@ -28,6 +31,8 @@ impl FromStr for SourceFrom {
             "param" => Ok(Self::Param),
             "query" => Ok(Self::Query),
             "header" => Ok(Self::Header),
+            #[cfg(feature = "cookie")]
+            "cookie" => Ok(Self::Cookie),
             "body" => Ok(Self::Body),
             "request" => Ok(Self::Request),
             _ => Err(crate::Error::Other(format!("invalid source from `{}`", input).into())),
@@ -107,7 +112,7 @@ pub enum SourceFormat {
     MultiMap,
     /// Json format.
     Json,
-    /// Request format means this field is [`Extractible`] and it will extract from the request.
+    /// Request format means this field will extract from the request.
     Request,
 }
 

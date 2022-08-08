@@ -119,7 +119,7 @@ mod test {
         assert_eq!(file.content_type(), &Mime::from_str("text/html").unwrap());
         assert_eq!(
             file.content_disposition(),
-            &HeaderValue::from_static("attachment; filename=attach.file")
+            Some(&HeaderValue::from_static("attachment; filename=attach.file"))
         );
     }
 }
