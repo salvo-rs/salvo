@@ -48,7 +48,7 @@ async fn chat_send(req: &mut Request, res: &mut Response) {
 }
 
 #[handler]
-async fn user_connected(_req: &mut Request, res: &mut Response) {
+async fn user_connected(res: &mut Response) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
