@@ -1,28 +1,26 @@
+#[macro_use]
+extern crate rbatis;
+extern crate rbdc;
+
+use rbatis::Rbatis;
 use salvo::prelude::*;
 use serde::Serialize;
+use rbdc_mysql::driver::MysqlDriver;
 
-static POSTGRES: OnceCell<PgPool> = OnceCell::new();
+static RB: Rbatis = Rbatis::new();
 
-#[inline]
-pub fn get_postgres() -> &'static PgPool {
-    unsafe { POSTGRES.get_unchecked() }
-}
-
-#[derive(FromRow, Serialize, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: i64,
     pub username: String,
     pub password: String,
 }
-
+// crud!(User{});
+impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 1`"});
 #[handler]
 pub async fn get_user(req: &mut Request, res: &mut Response) {
     let uid = req.query::<i64>("uid").unwrap();
-    let data = sqlx::query_as::<_, User>("select * from users where id = $1")
-        .bind(uid)
-        .fetch_one(get_postgres())
-        .await
-        .unwrap();
+    let data = User::select_by_id(&mut RB, uid.to_string()).await;
     res.render(serde_json::to_string(&data).unwrap());
 }
 
@@ -30,10 +28,9 @@ pub async fn get_user(req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    // postgresql connect info
-    let postgres_uri = "postgres://postgres:password@localhost/test";
-    let pool = PgPool::connect(postgres_uri).await.unwrap();
-    POSTGRES.set(pool).unwrap();
+    // mysql connect info
+    let mysql_uri = "postgres://postgres:password@localhost/test";
+    RB.link(MysqlDriver {}, mysql_uri).await.unwrap();
 
     // router
     let router = Router::with_path("users").get(get_user);
