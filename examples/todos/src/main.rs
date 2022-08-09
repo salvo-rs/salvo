@@ -23,7 +23,7 @@ pub(crate) async fn start_server() {
 
 #[handler]
 pub async fn list_todos(req: &mut Request, res: &mut Response) {
-    let opts = req.extract_body::<ListOptions>().await.unwrap_or_default();
+    let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
@@ -36,7 +36,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 
 #[handler]
 pub async fn create_todo(req: &mut Request, res: &mut Response) {
-    let new_todo = req.extract_body::<Todo>().await.unwrap();
+    let new_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -56,7 +56,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 #[handler]
 pub async fn update_todo(req: &mut Request, res: &mut Response) {
     let id = req.param::<u64>("id").unwrap();
-    let updated_todo = req.extract_body::<Todo>().await.unwrap();
+    let updated_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
