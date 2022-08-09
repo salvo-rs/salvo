@@ -527,9 +527,9 @@ impl Request {
         from_request(self, metadata).await
     }
 
-    /// Extract url params as type `T` from request.
+    /// Parse url params as type `T` from request.
     #[inline]
-    pub fn extract_params<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -537,9 +537,9 @@ impl Request {
         from_str_map(params).map_err(ParseError::Deserialize)
     }
 
-    /// Extract queries as type `T` from request.
+    /// Parse queries as type `T` from request.
     #[inline]
-    pub fn extract_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -547,9 +547,9 @@ impl Request {
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
-    /// Extract headers as type `T` from request.
+    /// Parse headers as type `T` from request.
     #[inline]
-    pub fn extract_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -560,9 +560,9 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
-    /// Extract body as type `T` from request.
+    /// Parse json body as type `T` from request.
     #[inline]
-    pub async fn extract_json<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -577,9 +577,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Extract body as type `T` from request.
+    /// Parse form body as type `T` from request.
     #[inline]
-    pub async fn extract_form<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -591,9 +591,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Extract body as type `T` from request.
+    /// Parse json body or form body as type `T` from request.
     #[inline]
-    pub async fn extract_body<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
