@@ -206,7 +206,7 @@ struct GoodMan<'a> {
 
 ```rust
 #[handler]
-async fn edit(req: &mut Request) -> String {
+async fn edit(req: &mut Request) {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
 ```
@@ -216,7 +216,7 @@ async fn edit(req: &mut Request) -> String {
 
 ```rust
 #[handler]
-async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+async fn edit<'a>(good_man: GoodMan<'a>) {
     res.render(Json(good_man));
 }
 ```
