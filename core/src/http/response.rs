@@ -287,12 +287,22 @@ impl Response {
         self.status_error = Some(err);
     }
 
-    /// Render text as html content. It will set ```content-type``` to ```text/html; charset=utf-8```.
+    /// Render content.
     #[inline]
-    pub fn render<P>(&mut self, piece: P)
+    pub fn render<P>(&mut self,  piece: P)
     where
         P: Piece,
     {
+        piece.render(self)
+    }
+
+    /// Render content with status code.
+    #[inline]
+    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
+    where
+        P: Piece,
+    {
+        self.status_code = Some(code);
         piece.render(self)
     }
 
