@@ -315,7 +315,7 @@ impl Response {
 
     /// Render content.
     #[inline]
-    pub fn render<P>(&mut self,  piece: P)
+    pub fn render<P>(&mut self, piece: P)
     where
         P: Piece,
     {
