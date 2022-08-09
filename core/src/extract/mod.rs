@@ -1,8 +1,8 @@
 //! Extract is a feature to let you deserialize request to custom type.
-//! 
+//!
 //! You can easily get data from multiple different data sources and assemble it into the type you want.
 //! You can define a custom type first, then in `Handler` you can get the data like this:
-//! 
+//!
 //! ```
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
@@ -18,15 +18,15 @@
 //!     first_name: String,
 //!     last_name: String,
 //! }
-//! 
+//!
 //! #[handler]
 //! async fn edit(req: &mut Request) {
 //!     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 //! }
 //! ```
-//! 
+//!
 //! There is considerable flexibility in the definition of data types, and can even be resolved into nested structures as needed:
-//! 
+//!
 //! ```
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
@@ -44,7 +44,7 @@
 //!     #[extract(source(from = "request"))]
 //!     nested: Nested<'a>,
 //! }
-//! 
+//!
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
 //! #[extract(default_source(from = "body", format = "json"))]
 //! struct Nested<'a> {
@@ -59,7 +59,7 @@
 //!     pets: Vec<String>,
 //! }
 //! ```
-//! 
+//!
 //! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
 use serde::Deserialize;
