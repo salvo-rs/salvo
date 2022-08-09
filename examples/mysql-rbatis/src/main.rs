@@ -1,0 +1,43 @@
+use salvo::prelude::*;
+use serde::Serialize;
+
+static POSTGRES: OnceCell<PgPool> = OnceCell::new();
+
+#[inline]
+pub fn get_postgres() -> &'static PgPool {
+    unsafe { POSTGRES.get_unchecked() }
+}
+
+#[derive(FromRow, Serialize, Debug)]
+pub struct User {
+    pub id: i64,
+    pub username: String,
+    pub password: String,
+}
+
+#[handler]
+pub async fn get_user(req: &mut Request, res: &mut Response) {
+    let uid = req.query::<i64>("uid").unwrap();
+    let data = sqlx::query_as::<_, User>("select * from users where id = $1")
+        .bind(uid)
+        .fetch_one(get_postgres())
+        .await
+        .unwrap();
+    res.render(serde_json::to_string(&data).unwrap());
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt().init();
+
+    // postgresql connect info
+    let postgres_uri = "postgres://postgres:password@localhost/test";
+    let pool = PgPool::connect(postgres_uri).await.unwrap();
+    POSTGRES.set(pool).unwrap();
+
+    // router
+    let router = Router::with_path("users").get(get_user);
+
+    tracing::info!("Listening on http://127.0.0.1:7878");
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+}
