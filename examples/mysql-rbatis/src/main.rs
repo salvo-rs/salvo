@@ -2,12 +2,15 @@
 extern crate rbatis;
 extern crate rbdc;
 
+use once_cell::sync::Lazy;
+use async_std::sync::{RwLock};
 use rbatis::Rbatis;
+use rbatis::decode::decode;
 use salvo::prelude::*;
 use serde::Serialize;
 use rbdc_mysql::driver::MysqlDriver;
 
-static RB: Rbatis = Rbatis::new();
+pub static RB: Lazy<Rbatis> = Lazy::new(|| Rbatis::new());
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
@@ -15,12 +18,16 @@ pub struct User {
     pub username: String,
     pub password: String,
 }
+
+#[sql("select * from user where id = ?")]
+pub async fn select(rb: &Rbatis, id: &str) -> User {}
 // crud!(User{});
 impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 1`"});
 #[handler]
 pub async fn get_user(req: &mut Request, res: &mut Response) {
     let uid = req.query::<i64>("uid").unwrap();
-    let data = User::select_by_id(&mut RB, uid.to_string()).await;
+    let data = select(&RB, uid.to_string().as_str()).await.unwrap();
+    println!("{:?}", data);
     res.render(serde_json::to_string(&data).unwrap());
 }
 
