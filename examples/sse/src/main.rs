@@ -16,7 +16,7 @@ fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
     Ok(SseEvent::default().data(counter.to_string()))
 }
 
-#[fn_handler]
+#[handler]
 async fn handle_tick(_req: &mut Request, res: &mut Response) {
     let event_stream = {
         let mut counter: u64 = 0;

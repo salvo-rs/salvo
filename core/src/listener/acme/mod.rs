@@ -11,7 +11,7 @@
 //! use salvo_core::listener::{AcmeListener, TcpListener};
 //! use salvo_core::prelude::*;
 //! 
-//! #[fn_handler]
+//! #[handler]
 //! async fn hello_world() -> &'static str {
 //!     "Hello World"
 //! }
@@ -41,7 +41,7 @@
 //! use salvo_core::listener::AcmeListener;
 //! use salvo_core::prelude::*;
 //! 
-//! #[fn_handler]
+//! #[handler]
 //! async fn hello_world() -> &'static str {
 //!     "Hello World"
 //! }

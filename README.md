@@ -1,5 +1,5 @@
 <div align="center">
-<p><img alt="Savlo" src="assets/logo.svg" /></p>
+<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
@@ -19,7 +19,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2022/04/07/Rust-1.60.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.60%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -38,8 +38,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
    - Routing supports multi-level nesting, and middleware can be added at any level;
    - Integrated Multipart form processing;
    - Support Websocket;
-   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
-   - Supports mapping from multiple local directories into one virtual directory to provide services.
+   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/quick-start/hello_world/).
@@ -54,27 +53,27 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "0.24"
-tokio = "1"
+salvo = "0.29"
+tokio = { version = "1", features = ["macros"] }
 ```
 
-Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text ```"Hello World"```.
+Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text `"Hello World"`.
 
-``` rust
+```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 ```
 
-In the ```main``` function, we need to create a root Router first, and then create a server and call it's ```bind``` function:
+In the `main` function, we need to create a root Router first, and then create a server and call it's `bind` function:
 
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }
@@ -92,7 +91,7 @@ There is no difference between Handler and Middleware, Middleware is just Handle
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
@@ -105,7 +104,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello_world)
 ```
 
-This is a very simple middleware, it add ```Header``` to ```Response```, View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs). 
+This is a very simple middleware, it add `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### Chainable tree routing system
 
@@ -119,7 +118,7 @@ Router::with_path("articles/<id>")
     .delete(delete_article);
 ```
 
-Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together: 
+Often viewing articles and article lists does not require user login, but creating, editing, deleting articles, etc. require user login authentication permissions. The tree-like routing system in Salvo can meet this demand. We can write routers without user login together:
 
 ```rust
 Router::with_path("articles")
@@ -127,7 +126,7 @@ Router::with_path("articles")
     .push(Router::with_path("<id>").get(show_article));
 ```
 
-Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in: 
+Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in:
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
@@ -135,7 +134,7 @@ Router::with_path("articles")
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
-Although these two routes have the same ```path("articles")```, they can still be added to the same parent route at the same time, so the final route looks like this: 
+Although these two routes have the same `path("articles")`, they can still be added to the same parent route at the same time, so the final route looks like this:
 
 ```rust
 Router::new()
@@ -152,14 +151,14 @@ Router::new()
     );
 ```
 
-```<id>``` matches a fragment in the path, under normal circumstances, the article ```id``` is just a number, which we can use regular expressions to restrict ```id``` matching rules, ```r"<id:/\d+/>"```.
+`<id>` matches a fragment in the path, under normal circumstances, the article `id` is just a number, which we can use regular expressions to restrict `id` matching rules, `r"<id:/\d+/>"`.
 
-You can also use ```<*>``` or ```<**>``` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: ```<**file_path>```.
+You can also use `<*>` or `<**>` to match all remaining path fragments. In order to make the code more readable, you can also add appropriate name to make the path semantics more clear, for example: `<**file_path>`.
 
 Some regular expressions for matching paths need to be used frequently, and it can be registered in advance, such as GUID:
 
 ```rust
-PathFilter::register_part_regex(
+PathFilter::register_wisp_regex(
     "guid",
     Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
@@ -174,10 +173,10 @@ Router::with_path("<id:guid>").get(index)
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### File upload
-We can get file async by the function ```file``` in ```Request```:
+We can get file async by the function `file` in `Request`:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
@@ -193,14 +192,86 @@ async fn upload(req: &mut Request, res: &mut Response) {
 }
 ```
 
+### Extract data from request
+
+You can easily get data from multiple different data sources and assemble it into the type you want. You can define a custom type first, for example:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+/// Get the data field value from the body by default.
+#[extract(default_source(from = "body"))]
+struct GoodMan<'a> {
+    /// The id number is obtained from the request path parameter, and the data is automatically parsed as i64 type.
+    #[extract(source(from = "param"))]
+    id: i64,
+    /// Reference types can be used to avoid memory copying.
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+}
+```
+
+Then in `Handler` you can get the data like this:
+
+```rust
+#[handler]
+async fn edit(req: &mut Request) -> String {
+    let good_man: GoodMan<'_> = req.extract().await.unwrap();
+}
+```
+
+You can even pass the type directly to the function as a parameter, like this:
+
+```rust
+#[handler]
+async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+    res.render(Json(good_man));
+}
+```
+
+There is considerable flexibility in the definition of data types, and can even be resolved into nested structures as needed:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct GoodMan<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    lovers: Vec<String>,
+    /// The nested field is completely reparsed from Request.
+    #[extract(source(from = "request"))]
+    nested: Nested<'a>,
+}
+
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct Nested<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    #[extract(rename = "lovers")]
+    #[serde(default)]
+    pets: Vec<String>,
+}
+```
+
+View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
 ### More Examples
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
-cargo run --bin --example-basic_auth
+cargo run --bin example-basic-auth
 ```
 
-You can use any example name you want to run instead of ```basic_auth``` here. 
+You can use any example name you want to run instead of `basic-auth` here.
 
 There is a real and open source project use Salvo: [https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
@@ -210,8 +281,8 @@ Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
-[![techempower](assets/tp.jpg)](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
+[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
+![techempower](assets/tp.jpg)
 
 
 ## 🩸 Contributing
@@ -228,6 +299,9 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 ## ☕ Supporters
 
 Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy a coffee here**](https://www.buymeacoffee.com/chrislearn).
+<p style="text-align: center;">
+<img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
+</p>
 
 ## ⚠️ License
 

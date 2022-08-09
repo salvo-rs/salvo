@@ -3,7 +3,7 @@ use tokio::time::Duration;
 use salvo::listener::rustls::RustlsConfig;
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
@@ -26,6 +26,6 @@ async fn main() {
 
 fn load_rustls_config() -> RustlsConfig {
     RustlsConfig::new()
-        .with_cert_path("examples/certs/end.cert")
-        .with_key_path("examples/certs/end.rsa")
+        .with_cert(include_bytes!("../certs/end.cert").as_ref())
+        .with_key(include_bytes!("../certs/end.rsa").as_ref())
 }

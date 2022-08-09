@@ -3,7 +3,7 @@ use futures_util::{FutureExt, StreamExt};
 use salvo::extra::ws::WsHandler;
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let fut = WsHandler::new().handle(req, res)?;
     let fut = async move {

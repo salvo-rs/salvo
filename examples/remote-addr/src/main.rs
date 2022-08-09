@@ -1,6 +1,6 @@
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn index(req: &mut Request, res: &mut Response) {
     res.render(Text::Plain(format!("remote address: {:?}", req.remote_addr())));
 }

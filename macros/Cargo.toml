@@ -1,15 +1,15 @@
 [package]
 name = "salvo_macros"
-version = "0.24.0"
+version = "0.29.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = "salvo proc macros"
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo/macros"
 readme = "../README.md"
-keywords = ["salvo", "web", "framework", "server"]
+keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["network-programming", "asynchronous", "web-programming::http-server", "web-programming::websocket"]
+categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [lib]
 name = "salvo_macros"
@@ -17,7 +17,9 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
+Inflector = "0.11"
+darling = "0.14.1"
 proc-macro-crate = "1"
 proc-macro2 = "1"
-proc-quote = "0.4"
+quote = "1"
 syn = { version = "1", features = ["full", "parsing"] }

@@ -22,6 +22,7 @@ pub struct RequestBuilder {
     url: Url,
     method: Method,
     headers: HeaderMap,
+    // params: HashMap<String, String>,
     body: Body,
 }
 
@@ -39,6 +40,7 @@ impl RequestBuilder {
             url,
             method,
             headers: HeaderMap::new(),
+            // params: HeaderMap::new(),
             body: Body::default(),
         }
     }
@@ -78,6 +80,32 @@ impl RequestBuilder {
         }
         self
     }
+
+    // /// Associate a url param to the given value.
+    // pub fn param<K, V>(mut self, key: K, value: V) -> Self
+    // where
+    //     K: AsRef<str>,
+    //     V: ToString,
+    // {
+    //     self.params.insert(key.as_ref(), &value.to_string());
+    //     self
+    // }
+
+    // /// Associated a list of url params.
+    // pub fn params<P, K, V>(mut self, pairs: P) -> Self
+    // where
+    //     P: IntoIterator,
+    //     P::Item: Borrow<(K, V)>,
+    //     K: AsRef<str>,
+    //     V: ToString,
+    // {
+    //     for pair in pairs.into_iter() {
+    //         let (key, value) = pair.borrow();
+    //         self.params.insert(key.as_ref(), &value.to_string());
+    //     }
+    //     self
+    // }
+
 
     /// Enable HTTP basic authentication.
     pub fn basic_auth(self, username: impl std::fmt::Display, password: Option<impl std::fmt::Display>) -> Self {

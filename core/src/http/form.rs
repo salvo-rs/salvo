@@ -13,6 +13,7 @@ use crate::http::request::Body;
 use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
+#[derive(Debug)]
 pub struct FormData {
     /// Name-value pairs for plain text fields. Technically, these are form data parts with no
     /// filename specified in the part's `Content-Disposition`.

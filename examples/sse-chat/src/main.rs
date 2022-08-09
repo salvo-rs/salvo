@@ -39,7 +39,7 @@ enum Message {
     Reply(String),
 }
 
-#[fn_handler]
+#[handler]
 async fn chat_send(req: &mut Request, res: &mut Response) {
     let my_id = req.param::<usize>("id").unwrap();
     let msg = std::str::from_utf8(req.payload().await.unwrap()).unwrap();
@@ -47,8 +47,8 @@ async fn chat_send(req: &mut Request, res: &mut Response) {
     res.set_status_code(StatusCode::OK);
 }
 
-#[fn_handler]
-async fn user_connected(_req: &mut Request, res: &mut Response) {
+#[handler]
+async fn user_connected(res: &mut Response) {
     // Use a counter to assign a new unique ID for this user.
     let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
 
@@ -92,7 +92,7 @@ fn user_message(my_id: usize, msg: &str) {
     });
 }
 
-#[fn_handler]
+#[handler]
 async fn index(res: &mut Response) {
     res.render(Text::Html(INDEX_HTML));
 }

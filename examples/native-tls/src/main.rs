@@ -1,7 +1,7 @@
 use salvo::listener::native_tls::{NativeTlsConfig, NativeTlsListener};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }

@@ -15,12 +15,20 @@ pub use path::*;
 
 /// Fiter trait for filter request.
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
+    #[doc(hidden)]
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    #[doc(hidden)]
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// Create a new filter use ```And``` filter.
     #[inline]
     fn and<F>(self, other: F) -> And<Self, F>
     where
         Self: Sized,
-        F: Filter + Sync + Send,
+        F: Filter + Send + Sync,
     {
         And {
             first: self,
@@ -33,7 +41,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn or<F>(self, other: F) -> Or<Self, F>
     where
         Self: Sized,
-        F: Filter + Sync + Send,
+        F: Filter + Send + Sync,
     {
         Or {
             first: self,
@@ -118,7 +126,7 @@ pub fn options() -> MethodFilter {
 pub fn post() -> MethodFilter {
     MethodFilter(Method::POST)
 }
-/// Filter request, only allow path method.
+/// Filter request, only allow patch method.
 #[inline]
 pub fn patch() -> MethodFilter {
     MethodFilter(Method::PATCH)
@@ -153,10 +161,10 @@ mod tests {
     #[test]
     fn test_opts() {
         fn has_one(_req: &mut Request, path: &mut PathState) -> bool {
-            path.url_path.contains("one")
+            path.parts.contains(&"one".into())
         }
         fn has_two(_req: &mut Request, path: &mut PathState) -> bool {
-            path.url_path.contains("two")
+            path.parts.contains(&"two".into())
         }
 
         let one_filter = FnFilter(has_one);

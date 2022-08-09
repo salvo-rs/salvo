@@ -15,22 +15,22 @@ use crate::Handler;
 /// ```
 /// # use salvo_core::prelude::*;
 ///
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn show_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writers(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn edit_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn delete_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writer_articles(res: &mut Response) {
 /// # }
 /// # #[tokio::main]
@@ -48,22 +48,22 @@ use crate::Handler;
 /// ```
 /// use salvo_core::prelude::*;
 ///
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn create_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn show_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writers(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn edit_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn delete_writer(res: &mut Response) {
 /// # }
-/// # #[fn_handler]
+/// # #[handler]
 /// # async fn list_writer_articles(res: &mut Response) {
 /// # }
 /// # #[tokio::main]
@@ -329,10 +329,10 @@ impl Router {
     }
 }
 
-static SYMBOL_DOWN: &str = "│";
-static SYMBOL_TEE: &str = "├";
-static SYMBOL_ELL: &str = "└";
-static SYMBOL_RIGHT: &str = "─";
+const SYMBOL_DOWN: &str = "│";
+const SYMBOL_TEE: &str = "├";
+const SYMBOL_ELL: &str = "└";
+const SYMBOL_RIGHT: &str = "─";
 impl fmt::Debug for Router {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         fn print(f: &mut Formatter, prefix: &str, last: bool, router: &Router) -> fmt::Result {
@@ -358,10 +358,15 @@ impl fmt::Debug for Router {
             } else {
                 format!("{}{}{}{}", prefix, SYMBOL_TEE, SYMBOL_RIGHT, SYMBOL_RIGHT)
             };
-            if !others.is_empty() {
-                writeln!(f, "{}{}[{}]", cp, path, others.join(","))?;
+            let hd = if let Some(handler) = &router.handler {
+                format!(" -> {}", handler.type_name())
             } else {
-                writeln!(f, "{}{}", cp, path)?;
+                "".into()
+            };
+            if !others.is_empty() {
+                writeln!(f, "{}{}[{}]{}", cp, path, others.join(","), hd)?;
+            } else {
+                writeln!(f, "{}{}{}", cp, path, hd)?;
             }
             let routers = router.routers();
             if !routers.is_empty() {
@@ -382,14 +387,12 @@ impl fmt::Debug for Router {
 
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-
     use super::{PathState, Router};
-    use crate::fn_handler;
+    use crate::handler;
     use crate::test::TestClient;
     use crate::Response;
 
-    #[fn_handler(internal)]
+    #[handler(internal)]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {
@@ -418,17 +421,17 @@ mod tests {
     ├──users
     │   ├──<id>
     │   │   └──emails
-    │   │       └──[GET]
+    │   │       └──[GET] -> salvo_core::routing::router::tests::fake_handler
     │   └──<id>/articles/<aid>
-    │       ├──[GET]
-    │       └──[DELETE]
+    │       ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+    │       └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
     └──articles
         ├──<id>/authors/<aid>
-        │   ├──[GET]
-        │   └──[DELETE]
+        │   ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+        │   └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
         └──<id>
-            ├──[GET]
-            └──[DELETE]
+            ├──[GET] -> salvo_core::routing::router::tests::fake_handler
+            └──[DELETE] -> salvo_core::routing::router::tests::fake_handler
 "#
         );
     }
@@ -613,5 +616,15 @@ mod tests {
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
         assert!(matched.is_none());
+    }
+
+    #[test]
+    fn test_router_detect_path_encoded() {
+        let router = Router::new().path("api/<p>").get(fake_handler);
+        let mut req = TestClient::get("http://127.0.0.1:6060/api/a%2fb%2fc").build();
+        let mut path_state = PathState::new(req.uri().path());
+        let matched = router.detect(&mut req, &mut path_state);
+        assert!(matched.is_some());
+        assert_eq!(path_state.params["p"], "a/b/c");
     }
 }

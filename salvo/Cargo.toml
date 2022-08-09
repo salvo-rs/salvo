@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.24.1"
+version = "0.29.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -10,9 +10,9 @@ homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
 documentation = "https://docs.rs/salvo/"
 readme = "../README.md"
-keywords = ["salvo", "web", "framework", "server"]
+keywords = ["http", "async", "web", "framework", "server"]
 license = "MIT OR Apache-2.0"
-categories = ["network-programming", "asynchronous", "web-programming::http-server", "web-programming::websocket"]
+categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -26,14 +26,16 @@ name = "salvo"
 path = "src/lib.rs"
 
 [features]
-default = []
-full = ["test", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
-test = ["salvo_core/test"]
-native-tls = ["salvo_core/native-tls"]
+default = ["test", "cookie"]
+full = ["test", "cookie", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+cookie = ["salvo_core/cookie"]
 rustls = ["salvo_core/rustls"]
 unix = ["salvo_core/unix"]
 acme = ["salvo_core/acme"]
 anyhow = ["salvo_core/anyhow"]
+test = ["salvo_core/test"]
+native-tls = ["salvo_core/native-tls"]
+affix = ["salvo_extra/affix"]
 extra = ["salvo_extra/full"]
 basic-auth = ["salvo_extra/basic-auth"]
 jwt-auth = ["salvo_extra/jwt-auth"]
@@ -49,5 +51,5 @@ timeout = ["salvo_extra/timeout"]
 ws = ["salvo_extra/ws"]
 
 [dependencies]
-salvo_core = { version = "0.24.1", default-features = false, path = "../core" }
-salvo_extra = { version = "0.24.1", default-features = false, optional = true, path = "../extra" }
+salvo_core = { version = "0.29.1", default-features = false, path = "../core" }
+salvo_extra = { version = "0.29.1", default-features = false, optional = true, path = "../extra" }

@@ -6,6 +6,7 @@ mod router;
 pub use filter::*;
 pub use router::{DetectMatched, Router};
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -19,24 +20,90 @@ pub type PathParams = HashMap<String, String>;
 #[doc(hidden)]
 #[derive(Debug, Eq, PartialEq)]
 pub struct PathState {
-    pub(crate) url_path: String,
-    pub(crate) cursor: usize,
+    pub(crate) parts: Vec<String>,
+    pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
+    pub(crate) end_slash: bool, // For rest match, we want includs the last slash.
 }
 impl PathState {
     /// Create new `PathState`.
     #[inline]
     pub fn new(url_path: &str) -> Self {
-        let url_path = url_path.trim_start_matches('/').trim_end_matches('/');
+        let end_slash = url_path.ends_with('/');
+        let parts = url_path
+            .trim_start_matches('/')
+            .trim_end_matches('/')
+            .split('/')
+            .filter_map(|p| {
+                if !p.is_empty() {
+                    Some(decode_url_path_safely(p))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
         PathState {
-            url_path: decode_url_path_safely(url_path),
-            cursor: 0,
+            parts,
+            cursor: (0, 0),
             params: PathParams::new(),
+            end_slash,
         }
     }
+
     #[inline]
-    pub(crate) fn ended(&self) -> bool {
-        self.cursor >= self.url_path.len()
+    pub fn pick(&self) -> Option<&str> {
+        match self.parts.get(self.cursor.0) {
+            None => None,
+            Some(part) => {
+                if self.cursor.1 >= part.len() {
+                    let row = self.cursor.0 + 1;
+                    self.parts.get(row).map(|s| &**s)
+                } else {
+                    Some(&part[self.cursor.1..])
+                }
+            }
+        }
+    }
+
+    #[inline]
+    pub fn all_rest(&self) -> Option<Cow<'_, str>> {
+        if let Some(picked) = self.pick() {
+            if self.cursor.0 >= self.parts.len() - 1 {
+                if self.end_slash {
+                    Some(Cow::Owned(format!("{}/", picked)))
+                } else {
+                    Some(Cow::Borrowed(picked))
+                }
+            } else {
+                let last = self.parts[self.cursor.0 + 1..].join("/");
+                if self.end_slash {
+                    Some(Cow::Owned(format!("{}/{}/", picked, last)))
+                } else {
+                    Some(Cow::Owned(format!("{}/{}", picked, last)))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    pub fn forward(&mut self, steps: usize) {
+        let mut steps = steps + self.cursor.1;
+        while let Some(part) = self.parts.get(self.cursor.0) {
+            if part.len() > steps {
+                self.cursor.1 = steps;
+                return;
+            } else {
+                steps -= part.len();
+                self.cursor = (self.cursor.0 + 1, 0);
+            }
+        }
+    }
+
+    #[inline]
+    pub fn ended(&self) -> bool {
+        self.cursor.0 >= self.parts.len()
     }
 }
 
@@ -132,7 +199,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_filter() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello_world() -> &'static str {
             "Hello World"
         }

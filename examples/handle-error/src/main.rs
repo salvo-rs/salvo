@@ -9,11 +9,11 @@ impl Writer for CustomError {
     }
 }
 
-#[fn_handler]
+#[handler]
 async fn handle_anyhow() -> Result<(), anyhow::Error> {
     Err(anyhow::anyhow!("anyhow error"))
 }
-#[fn_handler]
+#[handler]
 async fn handle_custom() -> Result<(), CustomError> {
     Err(CustomError)
 }

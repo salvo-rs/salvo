@@ -6,5 +6,5 @@ publish = false
 
 
 [dependencies]
-salvo = { path = "../../salvo" }
-tokio = "1"
+salvo = { path = "../../salvo", features = ["serve-static"] }
+tokio = { version = "1", features = ["macros"] }

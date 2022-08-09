@@ -1,5 +1,5 @@
 //! The extra lib of Savlo web server framework. Read more: <https://salvo.rs>
-#![doc(html_favicon_url = "https://salvo.rs/images/favicon-32x32.png")]
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(private_in_public, unreachable_pub, unused_crate_dependencies)]
@@ -13,6 +13,12 @@ cfg_feature! {
     #![feature = "basic-auth"]
     pub mod basic_auth;
 }
+
+cfg_feature! {
+    #![feature = "affix"]
+    pub mod affix;
+}
+
 cfg_feature! {
     #![feature = "jwt-auth"]
     pub mod jwt_auth;

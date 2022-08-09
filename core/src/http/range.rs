@@ -1,7 +1,7 @@
 use crate::http::ParseError;
 
 /// HTTP Range header representation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct HttpRange {
     /// Start position.
     pub start: u64,

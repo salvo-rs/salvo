@@ -1,11 +1,7 @@
-//! Http response.
+//! Http request.
 
-use std::collections::HashMap;
-use std::fmt::{self, Formatter};
-use std::str::FromStr;
-
+#[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use enumflags2::{bitflags, BitFlags};
 use http::header::{self, HeaderMap};
 use http::method::Method;
 pub use http::request::Parts;
@@ -15,28 +11,17 @@ pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::{Deserialize, DeserializeOwned};
+use std::collections::HashMap;
+use std::fmt::{self, Formatter};
+use std::str::FromStr;
 
 use crate::addr::SocketAddr;
+use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_str_map, from_str_multi_map};
-
-/// ParseSource
-#[bitflags]
-#[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParseSource {
-    /// Parse from url router params.
-    Params = 0b0001,
-    /// Parse from url queries.
-    Queries = 0b0010,
-    /// Parse from headers.
-    Headers = 0b0100,
-    /// Parse from form.
-    Form = 0b1000,
-}
+use crate::serde::{from_request, from_str_map, from_str_multi_map};
 
 /// Represents an HTTP request.
 ///
@@ -55,14 +40,15 @@ pub struct Request {
     // The request method.
     method: Method,
 
+    #[cfg(feature = "cookie")]
     cookies: CookieJar,
 
     pub(crate) params: HashMap<String, String>,
 
     // accept: Option<Vec<Mime>>,
-    queries: OnceCell<MultiMap<String, String>>,
-    form_data: tokio::sync::OnceCell<FormData>,
-    payload: tokio::sync::OnceCell<Vec<u8>>,
+    pub(crate) queries: OnceCell<MultiMap<String, String>>,
+    pub(crate) form_data: tokio::sync::OnceCell<FormData>,
+    pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
     version: Version,
@@ -104,6 +90,7 @@ impl From<hyper::Request<Body>> for Request {
         ) = req.into_parts();
 
         // Set the request cookies, if they exist.
+        #[cfg(feature = "cookie")]
         let cookies = if let Some(header) = headers.get("Cookie") {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
@@ -125,6 +112,7 @@ impl From<hyper::Request<Body>> for Request {
             body: Some(body),
             extensions,
             method,
+            #[cfg(feature = "cookie")]
             cookies,
             // accept: None,
             params: HashMap::new(),
@@ -147,6 +135,7 @@ impl Request {
             body: Some(Body::default()),
             extensions: Extensions::default(),
             method: Method::default(),
+            #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
             params: HashMap::new(),
             queries: OnceCell::new(),
@@ -343,7 +332,7 @@ impl Request {
 
     /// Get first accept.
     #[inline]
-    pub fn frist_accept(&self) -> Option<Mime> {
+    pub fn first_accept(&self) -> Option<Mime> {
         let mut accept = self.accept();
         if !accept.is_empty() {
             Some(accept.remove(0))
@@ -361,23 +350,26 @@ impl Request {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get `CookieJar` reference.
-    #[inline]
-    pub fn cookies(&self) -> &CookieJar {
-        &self.cookies
-    }
-    /// Get `CookieJar` mutable reference.
-    #[inline]
-    pub fn cookies_mut(&mut self) -> &mut CookieJar {
-        &mut self.cookies
-    }
-    /// Get `Cookie` from cookies.
-    #[inline]
-    pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
-    where
-        T: AsRef<str>,
-    {
-        self.cookies.get(name.as_ref())
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Get `CookieJar` reference.
+        #[inline]
+        pub fn cookies(&self) -> &CookieJar {
+            &self.cookies
+        }
+        /// Get `CookieJar` mutable reference.
+        #[inline]
+        pub fn cookies_mut(&mut self) -> &mut CookieJar {
+            &mut self.cookies
+        }
+        /// Get `Cookie` from cookies.
+        #[inline]
+        pub fn cookie<T>(&self, name: T) -> Option<&Cookie<'static>>
+        where
+            T: AsRef<str>,
+        {
+            self.cookies.get(name.as_ref())
+        }
     }
     /// Get params reference.
     #[inline]
@@ -430,7 +422,7 @@ impl Request {
     }
     /// Get [`FilePart`] reference from request.
     #[inline]
-    pub async fn file(&mut self, key: &str) -> Option<&FilePart> {
+    pub async fn file<'a>(&'a mut self, key: &'a str) -> Option<&'a FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
     /// Get [`FilePart`] reference from request.
@@ -444,7 +436,7 @@ impl Request {
     }
     /// Get [`FilePart`] list reference from request.
     #[inline]
-    pub async fn files(&mut self, key: &str) -> Option<&Vec<FilePart>> {
+    pub async fn files<'a>(&'a mut self, key: &'a str) -> Option<&'a Vec<FilePart>> {
         self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
     }
     /// Get [`FilePart`] list reference from request.
@@ -474,6 +466,8 @@ impl Request {
     }
 
     /// Get request payload.
+    ///
+    /// *Notice: This method takes body.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
         let body = self.body.take();
         self.payload
@@ -490,6 +484,8 @@ impl Request {
     }
 
     /// Get `FormData` reference from request.
+    ///
+    /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         let ctype = self
@@ -513,68 +509,25 @@ impl Request {
         }
     }
 
-    /// Read url params as type `T` from request's different sources.
-    ///
-    /// Returns error if the same key is appeared in different sources.
-    /// This function will not handle if payload is json format, use [`parse_json`] to get typed json payload.
+    /// Extract request as type `T` from request's different parts.
     #[inline]
-    pub async fn parse_data<'de, T>(&'de mut self, sources: BitFlags<ParseSource>) -> Result<T, ParseError>
+    pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Extractible<'de>,
+    {
+        self.extract_with_metadata(T::metadata()).await
+    }
+
+    /// Extract request as type `T` from request's different parts.
+    #[inline]
+    pub async fn extract_with_metadata<'de, T>(&'de mut self, metadata: &'de Metadata) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        if sources == ParseSource::Params {
-            self.parse_params()
-        } else if sources == ParseSource::Queries {
-            self.parse_queries()
-        } else if sources == ParseSource::Headers {
-            self.parse_headers()
-        } else if sources == ParseSource::Form {
-            self.parse_form().await
-        } else {
-            let mut all_data: MultiMap<&str, &str> = MultiMap::new();
-            if sources.contains(ParseSource::Form) {
-                self.form_data().await?;
-                if let Some(form) = self.form_data.get() {
-                    if form.fields.keys().any(|key| all_data.contains_key(&**key)) {
-                        return Err(ParseError::DuplicateKey);
-                    }
-                    for (k, v) in form.fields.iter() {
-                        all_data.insert(k, v);
-                    }
-                }
-            }
-            if sources.contains(ParseSource::Params) {
-                for (k, v) in self.params() {
-                    all_data.insert(k, &*v);
-                }
-            }
-            if sources.contains(ParseSource::Queries) {
-                let queries = self.queries();
-                if queries.keys().any(|key| all_data.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in queries.iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            if sources.contains(ParseSource::Headers) {
-                let headers = self
-                    .headers()
-                    .iter()
-                    .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or_default()))
-                    .collect::<HashMap<_, _>>();
-                if all_data.keys().any(|key| headers.contains_key(&**key)) {
-                    return Err(ParseError::DuplicateKey);
-                }
-                for (k, v) in headers.into_iter() {
-                    all_data.insert(k, v);
-                }
-            }
-            from_str_multi_map(all_data).map_err(ParseError::Deserialize)
-        }
+        from_request(self, metadata).await
     }
 
-    /// Read url params as type `T` from request.
+    /// Parse url params as type `T` from request.
     #[inline]
     pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
@@ -584,7 +537,7 @@ impl Request {
         from_str_map(params).map_err(ParseError::Deserialize)
     }
 
-    /// Read queries as type `T` from request.
+    /// Parse queries as type `T` from request.
     #[inline]
     pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
@@ -594,7 +547,7 @@ impl Request {
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
-    /// Read headers as type `T` from request.
+    /// Parse headers as type `T` from request.
     #[inline]
     pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
@@ -607,44 +560,70 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
-    /// Read body as type `T` from request.
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Parse cookies as type `T` from request.
+        #[inline]
+        pub fn parse_cookies<'de, T>(&'de mut self) -> Result<T, ParseError>
+        where
+            T: Deserialize<'de>,
+        {
+            let iter = self
+                .cookies()
+                .iter()
+                .map(|c| c.name_value());
+            from_str_map(iter).map_err(ParseError::Deserialize)
+        }
+    }
+
+    /// Parse json body as type `T` from request.
     #[inline]
     pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        self.payload()
-            .await
-            .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson))
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::JSON {
+                return self
+                    .payload()
+                    .await
+                    .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
+            }
+        }
+        Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Parse form body as type `T` from request.
     #[inline]
     pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize)
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+            }
+        }
+        Err(ParseError::InvalidContentType)
     }
 
-    /// Read body as type `T` from request.
+    /// Parse json body or form body as type `T` from request.
     #[inline]
     pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
-        let ctype = self
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default();
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            self.parse_form().await
-        } else if ctype.starts_with("application/json") {
-            self.parse_json().await
-        } else {
-            Err(ParseError::InvalidContentType)
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.subtype() == mime::FORM_DATA {
+                return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
+            } else if ctype.subtype() == mime::JSON {
+                return self
+                    .payload()
+                    .await
+                    .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
+            }
         }
+        Err(ParseError::InvalidContentType)
     }
 }
 

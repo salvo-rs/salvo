@@ -172,7 +172,7 @@ impl Catcher for CatcherImpl {
         };
         res.headers_mut()
             .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
-        res.write_body(&data).ok();
+        res.write_body(data).ok();
         true
     }
 }
@@ -207,7 +207,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_error() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn handle_custom() -> Result<(), CustomError> {
             Err(CustomError)
         }
@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_catcher() {
-        #[fn_handler(internal)]
+        #[handler(internal)]
         async fn hello_world() -> &'static str {
             "Hello World"
         }

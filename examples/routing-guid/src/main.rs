@@ -8,7 +8,7 @@ async fn main() {
 
     // invalid guid: 123e4567-h89b-12d3-a456-9AC7CBDCEE52
     // valid guid: 123e4567-e89b-12d3-a456-9AC7CBDCEE52
-    PathFilter::register_part_regex(
+    PathFilter::register_wisp_regex(
         "guid",
         Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
     );
@@ -19,7 +19,7 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
-#[fn_handler]
+#[handler]
 async fn index(req: &mut Request, res: &mut Response) {
     res.render(req.params().get::<str>("id").unwrap());
 }

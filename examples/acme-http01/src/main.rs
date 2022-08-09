@@ -1,7 +1,7 @@
 use salvo::listener::AcmeListener;
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world() -> &'static str {
     "Hello World"
 }

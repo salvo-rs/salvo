@@ -29,7 +29,7 @@ async fn main() {
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
-#[fn_handler]
+#[handler]
 async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     let fut = WsHandler::new().handle(req, res)?;
     let fut = async move {
@@ -101,7 +101,7 @@ async fn user_disconnected(my_id: usize) {
     ONLINE_USERS.write().await.remove(&my_id);
 }
 
-#[fn_handler]
+#[handler]
 async fn index(res: &mut Response) {
     res.render(Text::Html(INDEX_HTML));
 }
@@ -116,7 +116,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
         <div id="chat">
             <p><em>Connecting...</em></p>
         </div>
-        <input type="text" id="msg" />
+        <input type="text" id="text" />
         <button type="button" id="submit">Submit</button>
         <script>
             const chat = document.getElementById('chat');
@@ -129,19 +129,19 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
             };
 
             ws.onmessage = function(msg) {
-                message(msg.data);
+                showMessage(msg.data);
             };
 
             ws.onclose = function() {
                 chat.getElementsByTagName('em')[0].innerText = 'Disconnected!';
             };
 
-            send.onclick = function() {
+            submit.onclick = function() {
                 const msg = text.value;
                 ws.send(msg);
                 text.value = '';
 
-                message('<You>: ' + msg);
+                showMessage('<You>: ' + msg);
             };
             function showMessage(data) {
                 const line = document.createElement('p');

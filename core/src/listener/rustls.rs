@@ -477,8 +477,8 @@ mod tests {
     #[test]
     fn test_file_cert_key() {
         RustlsConfig::new()
-            .with_key_path("certs/end.rsa")
-            .with_cert_path("certs/end.cert")
+            .with_key_path("certs/rsa/end.rsa")
+            .with_cert_path("certs/rsa/end.cert")
             .build_server_config()
             .unwrap();
     }
@@ -487,15 +487,15 @@ mod tests {
     async fn test_rustls_listener() {
         let mut listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
-                .with_key_path("certs/end.rsa")
-                .with_cert_path("certs/end.cert"),
+                .with_key_path("certs/rsa/end.rsa")
+                .with_cert_path("certs/rsa/end.cert"),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("../../certs/end.chain");
+            let trust_anchor = include_bytes!("../../certs/rsa/end.chain");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())

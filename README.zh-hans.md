@@ -1,5 +1,5 @@
 <div align="center">
-<p><img alt="Savlo" src="assets/logo.svg" /></p>
+<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
@@ -19,7 +19,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.59%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2022/04/07/Rust-1.60.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.60%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -33,15 +33,16 @@
 Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需要基础 Rust 知识即可开发后端服务.
 
 ## 🎯 功能特色
+
   - 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
   - 统一的中间件和句柄接口;
   - 路由支持多层次嵌套, 在任何层都可以添加中间件;
   - 集成 Multipart 表单处理;
   - 支持 Websocket;
-  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书;
-  - 支持从多个本地目录映射成一个虚拟目录提供服务.
+  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
 
 ## ⚡️ 快速开始
+
 你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs/book/quick-start/hello_world/).
 
 
@@ -55,29 +56,29 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "0.24"
-tokio = "1"
+salvo = "0.29"
+tokio = { version = "1", features = ["macros"] }
 ```
-
 在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello_world`, 这个函数只是简单地打印文本 ```"Hello World"```.
 
 ```rust
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 ```
 
 ### 中间件
+
 Salvo 中的中间件其实就是 Handler, 没有其他任何特别之处. **所以书写中间件并不需要像其他某些框架需要掌握泛型关联类型等知识. 只要你会写函数就会写中间件, 就是这么简单!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
-#[fn_handler]
+#[handler]
 async fn add_header(res: &mut Response) {
     res.headers_mut()
         .insert(header::SERVER, HeaderValue::from_static("Salvo"));
@@ -91,6 +92,7 @@ Router::new().hoop(add_header).get(hello_world)
 ```
 
 这就是一个简单的中间件, 它向 ```Response``` 的头部添加了 ```Header```, 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+
 
 ### 可链式书写的树状路由系统
 
@@ -145,7 +147,7 @@ Router::new()
 有些用于匹配路径的正则表达式需要经常被使用, 可以将它事先注册, 比如 GUID:
 
 ```rust
-PathFilter::register_part_regex(
+PathFilter::register_wisp_regex(
     "guid",
     Regex::new("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}").unwrap(),
 );
@@ -160,10 +162,11 @@ Router::with_path("<id:guid>").get(index)
 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### 文件上传
+
 可以通过 ```Request``` 中的 ```file``` 异步获取上传的文件:
 
 ```rust
-#[fn_handler]
+#[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
     if let Some(file) = file {
@@ -179,25 +182,100 @@ async fn upload(req: &mut Request, res: &mut Response) {
 }
 ```
 
+### 提取请求数据
+
+可以轻松地从多个不同数据源获取数据, 并且组装为你想要的类型. 可以先定义一个自定义的类型, 比如: 
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+/// 默认从 body 中获取数据字段值
+#[extract(default_source(from = "body"))]
+struct GoodMan<'a> {
+    /// 其中, id 号从请求路径参数中获取, 并且自动解析数据为 i64 类型.
+    #[extract(source(from = "param"))]
+    id: i64,
+    /// 可以使用引用类型, 避免内存复制.
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+}
+```
+
+然后在 ```Handler``` 中可以这样获取数据:
+
+```rust
+#[handler]
+async fn edit(req: &mut Request) -> String {
+    let good_man: GoodMan<'_> = req.extract().await.unwrap();
+}
+```
+
+甚至于可以直接把类型作为参数传入函数, 像这样:
+
+
+```rust
+#[handler]
+async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+    res.render(Json(good_man));
+}
+```
+
+数据类型的定义有相当大的灵活性, 甚至可以根据需要解析为嵌套的结构:
+
+```rust
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct GoodMan<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    lovers: Vec<String>,
+    /// 这个 nested 字段完全是从 Request 重新解析.
+    #[extract(source(from = "request"))]
+    nested: Nested<'a>,
+}
+
+#[derive(Serialize, Deserialize, Extractible, Debug)]
+#[extract(default_source(from = "body", format = "json"))]
+struct Nested<'a> {
+    #[extract(source(from = "param"))]
+    id: i64,
+    #[extract(source(from = "query"))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
+    #[extract(rename = "lovers")]
+    #[serde(default)]
+    pets: Vec<String>,
+}
+```
+
+查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
 ### 更多示例
+
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
 ```
-cargo run --bin --example-basic_auth
+cargo run --bin example-basic-auth
 ```
 
-您可以使用任何你想运行的示例名称替代这里的 ```basic_auth```.
+您可以使用任何你想运行的示例名称替代这里的 ```basic-auth```.
 
 这里有一个真实的项目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
 
 
 ## 🚀 性能
+
 Benchmark 测试结果可以从这里查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
-[![techempower](assets/tp.jpg)](https://www.techempower.com/benchmarks/#section=test&runid=785f3715-0f93-443c-8de0-10dca9424049)
+[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
+![techempower](assets/tp.jpg)
 
 ## 🩸 贡献
 
@@ -214,7 +292,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 `Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://www.buymeacoffee.com/chrislearn). 
 <p style="text-align: center;">
-<img src="assets/alipay.png" alt="Alipay" width="320"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="assets/weixin.png" alt="Weixin" width="320"/>
+<img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>
 
 

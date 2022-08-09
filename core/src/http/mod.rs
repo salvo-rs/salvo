@@ -5,15 +5,17 @@ pub mod form;
 mod range;
 pub mod request;
 pub mod response;
-
-pub use cookie;
+cfg_feature! {
+    #![feature = "cookie"]
+    pub use cookie;
+}
 pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
 pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
 pub use mime::Mime;
 pub use range::HttpRange;
-pub use request::{ParseSource, Request};
+pub use request::Request;
 pub use response::Response;
 
 #[inline]

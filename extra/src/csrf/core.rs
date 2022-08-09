@@ -5,7 +5,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
 
-use aead::{generic_array::GenericArray, Aead, NewAead};
+use aead::{generic_array::GenericArray, Aead};
 use aes_gcm::Aes256Gcm;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chacha20poly1305::ChaCha20Poly1305;
@@ -42,7 +42,7 @@ impl Display for CsrfError {
 }
 
 /// A signed, encrypted CSRF token that is suitable to be displayed to end users.
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Eq, PartialEq, Clone, Debug, Hash)]
 pub struct CsrfToken {
     bytes: Vec<u8>,
 }
@@ -316,6 +316,7 @@ impl AesGcmCsrfProtection {
 
     #[inline]
     fn aead(&self) -> Aes256Gcm {
+        use aead::KeyInit;
         let key = GenericArray::clone_from_slice(&self.aead_key);
         Aes256Gcm::new(&key)
     }
@@ -430,6 +431,7 @@ impl ChaCha20Poly1305CsrfProtection {
 
     #[inline]
     fn aead(&self) -> ChaCha20Poly1305 {
+        use aead::KeyInit;
         let key = GenericArray::clone_from_slice(&self.aead_key);
         ChaCha20Poly1305::new(&key)
     }

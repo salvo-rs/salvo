@@ -29,7 +29,7 @@ async fn main() {
         .serve(Router::with_hoop(auth_handler).handle(index))
         .await;
 }
-#[fn_handler]
+#[handler]
 async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyhow::Result<()> {
     if req.method() == Method::POST {
         let (username, password) = (
