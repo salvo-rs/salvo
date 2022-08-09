@@ -560,6 +560,22 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Parse cookies as type `T` from request.
+        #[inline]
+        pub fn parse_cookies<'de, T>(&'de mut self) -> Result<T, ParseError>
+        where
+            T: Deserialize<'de>,
+        {
+            let iter = self
+                .cookies()
+                .iter()
+                .map(|c| c.name_value());
+            from_str_map(iter).map_err(ParseError::Deserialize)
+        }
+    }
+
     /// Parse json body as type `T` from request.
     #[inline]
     pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
