@@ -234,12 +234,7 @@ mod tests {
                 if expected.is_empty() {
                     continue;
                 } else {
-                    panic!(
-                        "parse({}, {}) returned error {:?}",
-                        header,
-                        size,
-                        res.unwrap_err()
-                    );
+                    panic!("parse({}, {}) returned error {:?}", header, size, res.unwrap_err());
                 }
             }
 
