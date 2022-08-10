@@ -43,7 +43,7 @@ mod tests {
         assert!(content.contains("<html>") && content.contains("test1.txt") && content.contains("test2.txt"));
 
         let content = access(&service, "application/json", "http://127.0.0.1:7979/").await;
-        assert!(content.starts_with("{") && content.contains("test1.txt") && content.contains("test2.txt"));
+        assert!(content.starts_with('{') && content.contains("test1.txt") && content.contains("test2.txt"));
 
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/test1.txt").await;
         assert!(content.contains("copy1"));

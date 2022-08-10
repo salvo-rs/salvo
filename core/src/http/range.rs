@@ -234,8 +234,7 @@ mod tests {
                 if expected.is_empty() {
                     continue;
                 } else {
-                    assert!(
-                        false,
+                    panic!(
                         "parse({}, {}) returned error {:?}",
                         header,
                         size,
@@ -247,28 +246,24 @@ mod tests {
             let got = res.unwrap();
 
             if got.len() != expected.len() {
-                assert!(
-                    false,
+                panic!(
                     "len(parseRange({}, {})) = {}, want {}",
                     header,
                     size,
                     got.len(),
                     expected.len()
                 );
-                continue;
             }
 
             for i in 0..expected.len() {
                 if got[i].start != expected[i].start {
-                    assert!(
-                        false,
+                    panic!(
                         "parseRange({}, {})[{}].start = {}, want {}",
                         header, size, i, got[i].start, expected[i].start
                     )
                 }
                 if got[i].length != expected[i].length {
-                    assert!(
-                        false,
+                    panic!(
                         "parseRange({}, {})[{}].length = {}, want {}",
                         header, size, i, got[i].length, expected[i].length
                     )

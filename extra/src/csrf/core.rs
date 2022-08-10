@@ -611,11 +611,11 @@ mod tests {
                     let (token, cookie) = protect
                         .generate_token_pair(None, 300)
                         .expect("couldn't generate token/cookie pair");
-                    let ref token = BASE64
+                    let token = BASE64
                         .decode(token.b64_string().as_bytes())
                         .expect("token not base64");
                     let token = protect.parse_token(&token).expect("token not parsed");
-                    let ref cookie = BASE64
+                    let cookie = BASE64
                         .decode(cookie.b64_string().as_bytes())
                         .expect("cookie not base64");
                     let cookie = protect.parse_cookie(&cookie).expect("cookie not parsed");
@@ -632,7 +632,7 @@ mod tests {
                         .generate_token_pair(None, 300)
                         .expect("couldn't generate token/cookie pair");
                     cookie.bytes[0] ^= 0x01;
-                    let ref cookie = BASE64
+                    let cookie = BASE64
                         .decode(cookie.b64_string().as_bytes())
                         .expect("cookie not base64");
                     assert!(protect.parse_cookie(&cookie).is_err());
@@ -645,7 +645,7 @@ mod tests {
                         .generate_token_pair(None, 300)
                         .expect("couldn't generate token/token pair");
                     token.bytes[0] ^= 0x01;
-                    let ref token = BASE64
+                    let token = BASE64
                         .decode(token.b64_string().as_bytes())
                         .expect("token not base64");
                     assert!(protect.parse_token(&token).is_err());
@@ -661,11 +661,11 @@ mod tests {
                         .generate_token_pair(None, 300)
                         .expect("couldn't generate token/token pair");
 
-                    let ref token = BASE64
+                    let token = BASE64
                         .decode(token.b64_string().as_bytes())
                         .expect("token not base64");
                     let token = protect.parse_token(&token).expect("token not parsed");
-                    let ref cookie = BASE64
+                    let cookie = BASE64
                         .decode(cookie.b64_string().as_bytes())
                         .expect("cookie not base64");
                     let cookie = protect.parse_cookie(&cookie).expect("cookie not parsed");
@@ -681,11 +681,11 @@ mod tests {
                     let (token, cookie) = protect
                         .generate_token_pair(None, -1)
                         .expect("couldn't generate token/cookie pair");
-                    let ref token = BASE64
+                    let token = BASE64
                         .decode(token.b64_string().as_bytes())
                         .expect("token not base64");
                     let token = protect.parse_token(&token).expect("token not parsed");
-                    let ref cookie = BASE64
+                    let cookie = BASE64
                         .decode(cookie.b64_string().as_bytes())
                         .expect("cookie not base64");
                     let cookie = protect.parse_cookie(&cookie).expect("cookie not parsed");
@@ -725,12 +725,12 @@ mod tests {
                             .expect("couldn't generate token/cookie pair");
                         pairs.push(pair);
 
-                        for &(ref token, ref cookie) in pairs.iter() {
-                            let ref token = BASE64
+                        for (token, cookie) in pairs.iter() {
+                            let token = BASE64
                                 .decode(token.b64_string().as_bytes())
                                 .expect("token not base64");
                             let token = protect.parse_token(&token).expect("token not parsed");
-                            let ref cookie = BASE64
+                            let cookie = BASE64
                                 .decode(cookie.b64_string().as_bytes())
                                 .expect("cookie not base64");
                             let cookie = protect.parse_cookie(&cookie).expect("cookie not parsed");
@@ -764,11 +764,11 @@ mod tests {
                         pairs.push(pair);
 
                         for &(ref token, ref cookie) in pairs.iter() {
-                            let ref token = BASE64
+                            let token = BASE64
                                 .decode(token.b64_string().as_bytes())
                                 .expect("token not base64");
                             let token = protect.parse_token(&token).expect("token not parsed");
-                            let ref cookie = BASE64
+                            let cookie = BASE64
                                 .decode(cookie.b64_string().as_bytes())
                                 .expect("cookie not base64");
                             let cookie = protect.parse_cookie(&cookie).expect("cookie not parsed");
