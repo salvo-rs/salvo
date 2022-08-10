@@ -4,9 +4,9 @@ extern crate rbdc;
 
 use once_cell::sync::Lazy;
 use rbatis::Rbatis;
-use salvo::prelude::*;
-use serde::{Serialize, Deserialize};
 use rbdc_mysql::driver::MysqlDriver;
+use salvo::prelude::*;
+use serde::{Deserialize, Serialize};
 
 pub static RB: Lazy<Rbatis> = Lazy::new(|| Rbatis::new());
 
