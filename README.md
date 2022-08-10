@@ -215,7 +215,7 @@ Then in `Handler` you can get the data like this:
 
 ```rust
 #[handler]
-async fn edit(req: &mut Request) -> String {
+async fn edit(req: &mut Request) {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
 ```
@@ -224,7 +224,7 @@ You can even pass the type directly to the function as a parameter, like this:
 
 ```rust
 #[handler]
-async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+async fn edit<'a>(good_man: GoodMan<'a>) {
     res.render(Json(good_man));
 }
 ```

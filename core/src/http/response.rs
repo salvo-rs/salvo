@@ -322,6 +322,16 @@ impl Response {
         piece.render(self)
     }
 
+    /// Render content with status code.
+    #[inline]
+    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
+    where
+        P: Piece,
+    {
+        self.status_code = Some(code);
+        piece.render(self)
+    }
+
     /// Write bytes data to body. If body is none, a new `Body` will created.
     #[inline]
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {

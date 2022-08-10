@@ -527,9 +527,9 @@ impl Request {
         from_request(self, metadata).await
     }
 
-    /// Extract url params as type `T` from request.
+    /// Parse url params as type `T` from request.
     #[inline]
-    pub fn extract_params<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_params<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -537,9 +537,9 @@ impl Request {
         from_str_map(params).map_err(ParseError::Deserialize)
     }
 
-    /// Extract queries as type `T` from request.
+    /// Parse queries as type `T` from request.
     #[inline]
-    pub fn extract_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -547,9 +547,9 @@ impl Request {
         from_str_multi_map(queries).map_err(ParseError::Deserialize)
     }
 
-    /// Extract headers as type `T` from request.
+    /// Parse headers as type `T` from request.
     #[inline]
-    pub fn extract_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub fn parse_headers<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -560,9 +560,25 @@ impl Request {
         from_str_map(iter).map_err(ParseError::Deserialize)
     }
 
-    /// Extract body as type `T` from request.
+    cfg_feature! {
+        #![feature = "cookie"]
+        /// Parse cookies as type `T` from request.
+        #[inline]
+        pub fn parse_cookies<'de, T>(&'de mut self) -> Result<T, ParseError>
+        where
+            T: Deserialize<'de>,
+        {
+            let iter = self
+                .cookies()
+                .iter()
+                .map(|c| c.name_value());
+            from_str_map(iter).map_err(ParseError::Deserialize)
+        }
+    }
+
+    /// Parse json body as type `T` from request.
     #[inline]
-    pub async fn extract_json<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -577,9 +593,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Extract body as type `T` from request.
+    /// Parse form body as type `T` from request.
     #[inline]
-    pub async fn extract_form<'de, T>(&'de mut self) -> Result<T, ParseError>
+    pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -591,9 +607,9 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Extract body as type `T` from request.
+    /// Parse json body or form body as type `T` from request.
     #[inline]
-    pub async fn extract_body<T>(&mut self) -> Result<T, ParseError>
+    pub async fn parse_body<T>(&mut self) -> Result<T, ParseError>
     where
         T: DeserializeOwned,
     {
@@ -638,12 +654,12 @@ mod tests {
             "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
         )
         .build();
-        let man = req.extract_queries::<BadMan>().unwrap();
+        let man = req.parse_queries::<BadMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, vec!["a", "2"]);
         assert_eq!(man.weapons, (69, "stick".into(), "gun".into()));
-        let man = req.extract_queries::<GoodMan>().unwrap();
+        let man = req.parse_queries::<GoodMan>().unwrap();
         assert_eq!(man.name, "rust");
         assert_eq!(man.age, 25);
         assert_eq!(man.wives, "a");
@@ -659,7 +675,7 @@ mod tests {
         let mut req = TestClient::get("http://127.0.0.1:7878/hello")
             .json(&User { name: "jobs".into() })
             .build();
-        assert_eq!(req.extract_json::<User>().await.unwrap(), User { name: "jobs".into() });
+        assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
