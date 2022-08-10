@@ -1,6 +1,9 @@
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
 
 name: clippy-check
 jobs:
