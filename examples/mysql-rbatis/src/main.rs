@@ -8,7 +8,7 @@ use rbdc_mysql::driver::MysqlDriver;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub static RB: Lazy<Rbatis> = Lazy::new(|| Rbatis::new());
+pub static RB: Lazy<Rbatis> = Lazy::new(Rbatis::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
