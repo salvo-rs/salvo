@@ -27,14 +27,25 @@ path = "src/lib.rs"
 
 [features]
 default = ["test", "cookie"]
-full = ["test", "cookie", "rustls", "native-tls", "unix", "acme", "anyhow", "extra"]
+full = [
+    "test",
+    "cookie",
+    "rustls",
+    "native-tls",
+    "openssl",
+    "unix",
+    "acme",
+    "anyhow",
+    "extra",
+]
 cookie = ["salvo_core/cookie"]
 rustls = ["salvo_core/rustls"]
+native-tls = ["salvo_core/native-tls"]
+openssl = ["salvo_core/openssl"]
 unix = ["salvo_core/unix"]
 acme = ["salvo_core/acme"]
 anyhow = ["salvo_core/anyhow"]
 test = ["salvo_core/test"]
-native-tls = ["salvo_core/native-tls"]
 affix = ["salvo_extra/affix"]
 extra = ["salvo_extra/full"]
 basic-auth = ["salvo_extra/basic-auth"]

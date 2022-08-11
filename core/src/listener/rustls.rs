@@ -1,4 +1,4 @@
-//! tls module
+//! rustls module
 use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::io::{self, BufReader, Cursor, Error as IoError, Read};
@@ -477,8 +477,8 @@ mod tests {
     #[test]
     fn test_file_cert_key() {
         RustlsConfig::new()
-            .with_key_path("certs/rsa/end.rsa")
-            .with_cert_path("certs/rsa/end.cert")
+            .with_key_path("certs/key.pem")
+            .with_cert_path("certs/cert.pem")
             .build_server_config()
             .unwrap();
     }
@@ -487,15 +487,15 @@ mod tests {
     async fn test_rustls_listener() {
         let mut listener = RustlsListener::with_rustls_config(
             RustlsConfig::new()
-                .with_key_path("certs/rsa/end.rsa")
-                .with_cert_path("certs/rsa/end.cert"),
+                .with_key_path("certs/key.pem")
+                .with_cert_path("certs/cert.pem"),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("../../certs/rsa/end.chain");
+            let trust_anchor = include_bytes!("../../certs/chain.pem");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())

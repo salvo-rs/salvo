@@ -26,6 +26,6 @@ async fn main() {
 
 fn load_rustls_config() -> RustlsConfig {
     RustlsConfig::new()
-        .with_cert(include_bytes!("../certs/end.cert").as_ref())
-        .with_key(include_bytes!("../certs/end.rsa").as_ref())
+        .with_cert(include_bytes!("../certs/cert.pem").as_ref())
+        .with_key(include_bytes!("../certs/key.pem").as_ref())
 }

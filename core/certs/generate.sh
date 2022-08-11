@@ -2,6 +2,7 @@
 # https://github.com/rustls/rustls/tree/main/test-ca
 set -xe
 
+rm -f *.pem *.p12
 rm -rf rsa/
 mkdir -p rsa/
 
@@ -35,17 +36,17 @@ openssl rsa \
           -in rsa/end.key \
           -out rsa/end.rsa
 
-# openssl req -nodes \
-#           -newkey rsa:2048 \
-#           -keyout rsa/client.key \
-#           -out rsa/client.req \
-#           -sha256 \
-#           -batch \
-#           -subj "/CN=ponytown client"
+openssl req -nodes \
+          -newkey rsa:2048 \
+          -keyout rsa/client.key \
+          -out rsa/client.req \
+          -sha256 \
+          -batch \
+          -subj "/CN=ponytown client"
 
-# openssl rsa \
-#           -in rsa/client.key \
-#           -out rsa/client.rsa
+openssl rsa \
+          -in rsa/client.key \
+          -out rsa/client.rsa
 
 for kt in rsa ; do
   openssl x509 -req \
@@ -68,23 +69,43 @@ for kt in rsa ; do
             -set_serial 456 \
             -extensions v3_end -extfile openssl.cnf
 
-#   openssl x509 -req \
-#             -in $kt/client.req \
-#             -out $kt/client.cert \
-#             -CA $kt/inter.cert \
-#             -CAkey $kt/inter.key \
-#             -sha256 \
-#             -days 2000 \
-#             -set_serial 789 \
-#             -extensions v3_client -extfile openssl.cnf
+  openssl x509 -req \
+            -in $kt/client.req \
+            -out $kt/client.cert \
+            -CA $kt/inter.cert \
+            -CAkey $kt/inter.key \
+            -sha256 \
+            -days 2000 \
+            -set_serial 789 \
+            -extensions v3_client -extfile openssl.cnf
 
   cat $kt/inter.cert $kt/ca.cert > $kt/end.chain
-#   cat $kt/end.cert $kt/inter.cert $kt/ca.cert > $kt/end.fullchain
+  cat $kt/end.cert $kt/inter.cert $kt/ca.cert > $kt/end.fullchain
 
-#   cat $kt/inter.cert $kt/ca.cert > $kt/client.chain
-#   cat $kt/client.cert $kt/inter.cert $kt/ca.cert > $kt/client.fullchain
+  cat $kt/inter.cert $kt/ca.cert > $kt/client.chain
+  cat $kt/client.cert $kt/inter.cert $kt/ca.cert > $kt/client.fullchain
 
   openssl asn1parse -in $kt/ca.cert -out $kt/ca.der > /dev/null
 done
 
-rm rsa/ca.cert rsa/ca.key rsa/end.key rsa/end.req rsa/end.key rsa/inter.cert rsa/inter.key rsa/inter.req rsa/inter.cert
+
+cat rsa/inter.cert rsa/ca.cert > rsa/end.chain
+cat rsa/end.cert rsa/inter.cert rsa/ca.cert > rsa/end.fullchain
+
+cat rsa/inter.cert rsa/ca.cert > rsa/client.chain
+cat rsa/client.cert rsa/inter.cert rsa/ca.cert > rsa/client.fullchain
+
+openssl asn1parse -in rsa/ca.cert -out rsa/ca.der > /dev/null
+
+cp rsa/end.key key.pem
+cp rsa/end.cert cert.pem
+cp rsa/end.fullchain chain.pem
+
+openssl pkcs12 -export \
+    -inkey rsa/inter.key \
+    -in rsa/inter.cert \
+    -certfile rsa/end.chain \
+    -out identity.p12 \
+    -passout pass:mypass
+
+rm -rf rsa

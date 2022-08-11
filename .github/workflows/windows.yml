@@ -32,6 +32,11 @@ jobs:
           toolchain: ${{ matrix.version }}-${{ matrix.target }}
           profile: minimal
           override: true
+      
+      - name: Install openssl
+        run: |
+            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+            vcpkg install openssl:x64-windows-static-md
 
       - name: Generate Cargo.lock
         uses: actions-rs/cargo@v1
