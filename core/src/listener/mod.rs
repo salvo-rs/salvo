@@ -284,6 +284,7 @@ impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct LazyFile {
     path: PathBuf,
     file: Option<File>,

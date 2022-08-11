@@ -1,5 +1,6 @@
 //! openssl module
 use std::fmt::{self, Formatter};
+use std::future::Future;
 use std::io::{self, Cursor, Error as IoError, Read};
 use std::path::Path;
 use std::pin::Pin;
@@ -172,9 +173,7 @@ impl<C> OpensslListener<C> {
 impl OpensslListener<stream::Once<Ready<OpensslConfig>>> {
     /// Create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
-    pub fn with_openssl_config(
-        config: OpensslConfig,
-    ) -> OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>> {
+    pub fn with_openssl_config(config: OpensslConfig) -> OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>> {
         Self::try_with_openssl_config(config).unwrap()
     }
     /// Try to create new OpensslListenerBuilder with OpensslConfig.
@@ -243,12 +242,16 @@ where
     }
 }
 
-/// tokio_openssl::server::TlsStream doesn't expose constructor methods,
-/// so we have to TlsAcceptor::accept and handshake to have access to it
-/// OpensslStream implements AsyncRead/AsyncWrite handshaking tokio_openssl::Accept first
-pub struct OpensslStream {
-    inner_stream: SslStream<AddrStream>,
-    remote_addr: SocketAddr,
+pin_project! {
+    /// tokio_openssl::server::TlsStream doesn't expose constructor methods,
+    /// so we have to TlsAcceptor::accept and handshake to have access to it
+    /// OpensslStream implements AsyncRead/AsyncWrite handshaking tokio_openssl::Accept first
+    pub struct OpensslStream {
+        #[pin]
+        inner_future: Pin<Box<dyn Future<Output=Result<SslStream<AddrStream>, openssl::ssl::Error>> + Send>>,
+        inner_stream: Option<SslStream<AddrStream>>,
+        remote_addr: SocketAddr,
+    }
 }
 impl Transport for OpensslStream {
     #[inline]
@@ -259,10 +262,14 @@ impl Transport for OpensslStream {
 
 impl OpensslStream {
     #[inline]
-    fn new(remote_addr: SocketAddr, inner_stream: SslStream<AddrStream>) -> Self {
+    fn new(remote_addr: SocketAddr, mut stream: SslStream<AddrStream>) -> Self {
         OpensslStream {
             remote_addr,
-            inner_stream,
+            inner_stream: None,
+            inner_future: Box::pin(async move {
+                Pin::new(&mut stream).accept().await?;
+                Ok(stream)
+            }),
         }
     }
 }
@@ -270,28 +277,56 @@ impl OpensslStream {
 impl AsyncRead for OpensslStream {
     #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
-        let pin = self.get_mut();
-        Pin::new(&mut pin.inner_stream).poll_read(cx, buf)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_read(cx, buf)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
+        } else {
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+        }
     }
 }
 
 impl AsyncWrite for OpensslStream {
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
-        let pin = self.get_mut();
-        Pin::new(&mut pin.inner_stream).poll_write(cx, buf)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_write(cx, buf)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
+        } else {
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+        }
     }
 
     #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let pin = self.get_mut();
-        Pin::new(&mut pin.inner_stream).poll_flush(cx)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_flush(cx)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
+        } else {
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+        }
     }
 
     #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let pin = self.get_mut();
-        Pin::new(&mut pin.inner_stream).poll_shutdown(cx)
+        let mut this = self.project();
+        if let Some(inner_stream) = &mut this.inner_stream {
+            Pin::new(inner_stream).poll_shutdown(cx)
+        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
+            *this.inner_stream = Some(stream);
+            Pin::new(this.inner_stream.as_mut().unwrap()).poll_shutdown(cx)
+        } else {
+            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+        }
     }
 }
 
@@ -321,8 +356,8 @@ mod tests {
     async fn test_openssl_listener() {
         let mut listener = OpensslListener::with_openssl_config(
             OpensslConfig::new()
-                .with_key_path("certs/cert.pem")
-                .with_cert_path("certs/key.pem"),
+                .with_key_path("certs/key.pem")
+                .with_cert_path("certs/cert.pem"),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
