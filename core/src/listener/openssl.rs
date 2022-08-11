@@ -127,7 +127,7 @@ pin_project! {
         #[pin]
         config_stream: C,
         incoming: AddrIncoming,
-        openssl_config: Option<Arc<OpensslConfig>>,
+        openssl_config: Option<OpensslConfig>,
         acceptor: Option<Arc<SslAcceptor>>,
     }
 }
@@ -138,7 +138,7 @@ pub struct OpensslListenerBuilder<C> {
 impl<C> OpensslListenerBuilder<C>
 where
     C: Stream,
-    C::Item: Into<Arc<OpensslConfig>>,
+    C::Item: Into<OpensslConfig>,
 {
     /// Bind to socket address.
     #[inline]
@@ -169,19 +169,19 @@ impl<C> OpensslListener<C> {
         self.incoming.local_addr()
     }
 }
-impl OpensslListener<stream::Once<Ready<Arc<OpensslConfig>>>> {
+impl OpensslListener<stream::Once<Ready<OpensslConfig>>> {
     /// Create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
     pub fn with_openssl_config(
         config: OpensslConfig,
-    ) -> OpensslListenerBuilder<stream::Once<Ready<Arc<OpensslConfig>>>> {
+    ) -> OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>> {
         Self::try_with_openssl_config(config).unwrap()
     }
     /// Try to create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
     pub fn try_with_openssl_config(
         config: OpensslConfig,
-    ) -> Result<OpensslListenerBuilder<stream::Once<Ready<Arc<OpensslConfig>>>>, IoError> {
+    ) -> Result<OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>>, IoError> {
         let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
         Ok(Self::with_config_stream(stream))
     }
@@ -190,7 +190,7 @@ impl OpensslListener<stream::Once<Ready<Arc<OpensslConfig>>>> {
 impl<C> OpensslListener<C>
 where
     C: Stream,
-    C::Item: Into<Arc<OpensslConfig>>,
+    C::Item: Into<OpensslConfig>,
 {
     /// Create new OpensslListener with config stream.
     #[inline]
@@ -297,18 +297,19 @@ impl AsyncWrite for OpensslStream {
 
 #[cfg(test)]
 mod tests {
+    use std::pin::Pin;
+
     use futures_util::{Stream, StreamExt};
+    use openssl::ssl::SslConnector;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
-    use tokio_openssl::openssl::{ClientConfig, ServerName};
-    use tokio_openssl::TlsConnector;
 
     use super::*;
 
     impl<C> Stream for OpensslListener<C>
     where
         C: Stream,
-        C::Item: Into<Arc<OpensslConfig>>,
+        C::Item: Into<OpensslConfig>,
     {
         type Item = Result<OpensslStream, IoError>;
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -337,11 +338,9 @@ mod tests {
                 .into_ssl("testserver.com")
                 .unwrap();
 
-            let stream = TcpStream::connect(local_addr.as_socket_addr().unwrap()).await.unwrap();
+            let stream = TcpStream::connect(addr).await.unwrap();
             let mut tls_stream = SslStream::new(ssl, stream).unwrap();
-            use std::pin::Pin;
             Pin::new(&mut tls_stream).connect().await.unwrap();
-
             tls_stream.write_i32(518).await.unwrap();
         });
 
