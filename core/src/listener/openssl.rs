@@ -181,7 +181,7 @@ impl OpensslListener<stream::Once<Ready<OpensslConfig>>> {
     pub fn try_with_openssl_config(
         config: OpensslConfig,
     ) -> Result<OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>>, IoError> {
-        let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
+        let stream = futures_util::stream::once(futures_util::future::ready(config));
         Ok(Self::with_config_stream(stream))
     }
 }
