@@ -28,6 +28,7 @@ full = ["rustls", "anyhow"]
 cookie = ["dep:cookie"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project-lite"]
 native-tls = ["dep:tokio-native-tls", "dep:pin-project-lite"]
+openssl = ["dep:openssl", "dep:pin-project-lite", "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
@@ -74,7 +75,7 @@ serde_urlencoded = { version = "0.7", optional = true }
 tempfile = "3"
 textnonce = "1"
 thiserror = "1"
-tls_openssl = { version = "0.10", package = "openssl", optional = true }
+openssl = { version = "0.10", optional = true }
 tokio = { version = "1", features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }

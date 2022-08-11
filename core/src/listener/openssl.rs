@@ -1,7 +1,6 @@
 //! openssl module
 use std::fmt::{self, Formatter};
-use std::future::Future;
-use std::io::{self, BufReader, Cursor, Error as IoError, Read};
+use std::io::{self, Cursor, Error as IoError, Read};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -11,44 +10,16 @@ use futures_util::future::Ready;
 use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
-use openssl::{
-    pkey::PKey,
-    ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslFiletype, SslMethod, SslRef},
-    x509::X509,
-};
+use openssl::pkey::PKey;
+use openssl::ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
+use openssl::x509::X509;
 use pin_project_lite::pin_project;
-use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
+use tokio_openssl::SslStream;
 
 use super::{IntoAddrIncoming, LazyFile, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
-
-/// Represents errors that can occur building the OpensslListener
-#[derive(Debug, Error)]
-pub enum Error {
-    /// Hyper error
-    #[error("Hyper error: {0}")]
-    Hyper(hyper::Error),
-    /// An IO error
-    #[error("I/O error: {0}")]
-    Io(IoError),
-    /// An Error parsing the Certificate
-    #[error("Certificate parse error")]
-    CertParseError,
-    /// An Error parsing a Pkcs8 key
-    #[error("Pkcs8 parse error")]
-    Pkcs8ParseError,
-    /// An Error parsing a Rsa key
-    #[error("Rsa parse error")]
-    RsaParseError,
-    /// An error from an empty key
-    #[error("Empy key")]
-    EmptyKey,
-    /// An error from an invalid key
-    #[error("Invalid key, {0}")]
-    InvalidKey(OpensslError),
-}
 
 /// Builder to set the configuration for the Tls server.
 pub struct OpensslConfig {
@@ -76,12 +47,10 @@ impl OpensslConfig {
         OpensslConfig {
             key: Box::new(io::empty()),
             cert: Box::new(io::empty()),
-            client_auth: TlsClientAuth::Off,
-            ocsp_resp: Vec::new(),
         }
     }
 
-    /// sets the Tls key via File Path, returns `Error::IoError` if the file cannot be open
+    /// Sets the Tls key via File Path, returns `Error::IoError` if the file cannot be open
     #[inline]
     pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key = Box::new(LazyFile {
@@ -91,7 +60,7 @@ impl OpensslConfig {
         self
     }
 
-    /// sets the Tls key via bytes slice
+    /// Sets the Tls key via bytes slice
     #[inline]
     pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = Box::new(Cursor::new(key.into()));
@@ -108,7 +77,7 @@ impl OpensslConfig {
         self
     }
 
-    /// sets the Tls certificate via bytes slice
+    /// Sets the Tls certificate via bytes slice
     #[inline]
     pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = Box::new(Cursor::new(cert.into()));
@@ -116,15 +85,12 @@ impl OpensslConfig {
     }
 
     /// Create [`SslAcceptorBuilder`]
-    pub fn create_acceptor_builder(mut self) -> Result<SslAcceptorBuilder, Error> {
+    pub fn create_acceptor_builder(mut self) -> Result<SslAcceptorBuilder, IoError> {
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
 
         let mut cert_vec = Vec::new();
-        self.cert.read_to_end(&mut key_vec).map_err(Error::Io)?;
-        if cert_vec.is_empty() {
-            return Err(Error::EmptyCert);
-        }
-        let mut certs = X509::stack_from_pem(cert_vec)?;
+        self.cert.read_to_end(&mut cert_vec)?;
+        let mut certs = X509::stack_from_pem(&cert_vec)?;
         let mut certs = certs.drain(..);
         builder.set_certificate(
             certs
@@ -136,25 +102,13 @@ impl OpensslConfig {
 
         // convert it to Vec<u8> to allow reading it again if key is RSA
         let mut key_vec = Vec::new();
-        self.key.read_to_end(&mut key_vec).map_err(Error::Io)?;
+        self.key.read_to_end(&mut key_vec)?;
 
         if key_vec.is_empty() {
-            return Err(Error::EmptyKey);
+            return Err(IoError::new(ErrorKind::Other, "empty key"));
         }
 
-        builder.set_private_key(PKey::private_key_from_pem(data)?.as_ref())?;
-
-        if !pkcs8.is_empty() {
-            pkcs8.remove(0)
-        } else {
-            let mut rsa = rsa_private_keys(&mut key_vec.as_slice()).map_err(|_| Error::RsaParseError)?;
-
-            if !rsa.is_empty() {
-                rsa.remove(0)
-            } else {
-                return Err(Error::EmptyKey);
-            }
-        }
+        builder.set_private_key(PKey::private_key_from_pem(&key_vec)?.as_ref())?;
 
         // set ALPN protocols
         static PROTOS: &[u8] = b"\x02h2\x08http/1.1";
@@ -173,7 +127,8 @@ pin_project! {
         #[pin]
         config_stream: C,
         incoming: AddrIncoming,
-        server_config: Option<Arc<ServerConfig>>,
+        openssl_config: Option<Arc<OpensslConfig>>,
+        acceptor: Option<Arc<SslAcceptor>>,
     }
 }
 /// OpensslListener
@@ -183,7 +138,7 @@ pub struct OpensslListenerBuilder<C> {
 impl<C> OpensslListenerBuilder<C>
 where
     C: Stream,
-    C::Item: Into<Arc<ServerConfig>>,
+    C::Item: Into<Arc<OpensslConfig>>,
 {
     /// Bind to socket address.
     #[inline]
@@ -196,7 +151,8 @@ where
         Ok(OpensslListener {
             config_stream: self.config_stream,
             incoming: incoming.into_incoming(),
-            server_config: None,
+            openssl_config: None,
+            acceptor: None,
         })
     }
 }
@@ -213,44 +169,28 @@ impl<C> OpensslListener<C> {
         self.incoming.local_addr()
     }
 }
-impl OpensslListener<stream::Once<Ready<Arc<ServerConfig>>>> {
+impl OpensslListener<stream::Once<Ready<Arc<OpensslConfig>>>> {
     /// Create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
     pub fn with_openssl_config(
         config: OpensslConfig,
-    ) -> OpensslListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
+    ) -> OpensslListenerBuilder<stream::Once<Ready<Arc<OpensslConfig>>>> {
         Self::try_with_openssl_config(config).unwrap()
     }
     /// Try to create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
     pub fn try_with_openssl_config(
         config: OpensslConfig,
-    ) -> Result<OpensslListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>>, Error> {
-        let config = config.build_server_config()?;
+    ) -> Result<OpensslListenerBuilder<stream::Once<Ready<Arc<OpensslConfig>>>>, IoError> {
         let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
         Ok(Self::with_config_stream(stream))
-    }
-    /// Create new OpensslListenerBuilder with ServerConfig.
-    #[inline]
-    pub fn with_server_config(
-        config: impl Into<Arc<ServerConfig>>,
-    ) -> OpensslListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
-        let stream = futures_util::stream::once(futures_util::future::ready(config.into()));
-        Self::with_config_stream(stream)
-    }
-}
-
-impl From<OpensslConfig> for Arc<ServerConfig> {
-    #[inline]
-    fn from(openssl_config: OpensslConfig) -> Self {
-        openssl_config.build_server_config().unwrap().into()
     }
 }
 
 impl<C> OpensslListener<C>
 where
     C: Stream,
-    C::Item: Into<Arc<ServerConfig>>,
+    C::Item: Into<Arc<OpensslConfig>>,
 {
     /// Create new OpensslListener with config stream.
     #[inline]
@@ -262,13 +202,13 @@ where
 impl<C> Listener for OpensslListener<C>
 where
     C: Stream,
-    C::Item: Into<Arc<ServerConfig>>,
+    C::Item: Into<OpensslConfig>,
 {
 }
 impl<C> Accept for OpensslListener<C>
 where
     C: Stream,
-    C::Item: Into<Arc<ServerConfig>>,
+    C::Item: Into<OpensslConfig>,
 {
     type Conn = OpensslStream;
     type Error = IoError;
@@ -277,11 +217,20 @@ where
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
         let this = self.project();
         if let Poll::Ready(Some(config)) = this.config_stream.poll_next(cx) {
-            *this.server_config = Some(config.into());
+            let config: OpensslConfig = config.into();
+            let builder = config.create_acceptor_builder()?;
+            *this.acceptor = Some(Arc::new(builder.build()));
         }
-        if let Some(server_config) = &this.server_config {
+        if let Some(acceptor) = &this.acceptor {
             match ready!(Pin::new(this.incoming).poll_accept(cx)) {
-                Some(Ok(sock)) => Poll::Ready(Some(Ok(OpensslStream::new(sock, server_config.clone())))),
+                Some(Ok(sock)) => {
+                    let remote_addr = sock.remote_addr();
+                    let ssl =
+                        Ssl::new(acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                    let stream =
+                        SslStream::new(ssl, sock).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                    Poll::Ready(Some(Ok(OpensslStream::new(remote_addr.into(), stream))))
+                }
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 None => Poll::Ready(None),
             }
@@ -294,16 +243,11 @@ where
     }
 }
 
-enum OpensslState {
-    Handshaking(tokio_openssl::Accept<AddrStream>),
-    Streaming(tokio_openssl::server::TlsStream<AddrStream>),
-}
-
 /// tokio_openssl::server::TlsStream doesn't expose constructor methods,
 /// so we have to TlsAcceptor::accept and handshake to have access to it
 /// OpensslStream implements AsyncRead/AsyncWrite handshaking tokio_openssl::Accept first
 pub struct OpensslStream {
-    state: OpensslState,
+    inner_stream: SslStream<AddrStream>,
     remote_addr: SocketAddr,
 }
 impl Transport for OpensslStream {
@@ -315,12 +259,10 @@ impl Transport for OpensslStream {
 
 impl OpensslStream {
     #[inline]
-    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> Self {
-        let remote_addr = stream.remote_addr();
-        let accept = tokio_openssl::TlsAcceptor::from(config).accept(stream);
+    fn new(remote_addr: SocketAddr, inner_stream: SslStream<AddrStream>) -> Self {
         OpensslStream {
-            state: OpensslState::Handshaking(accept),
-            remote_addr: remote_addr.into(),
+            remote_addr,
+            inner_stream,
         }
     }
 }
@@ -329,17 +271,7 @@ impl AsyncRead for OpensslStream {
     #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
         let pin = self.get_mut();
-        match pin.state {
-            OpensslState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
-                Ok(mut stream) => {
-                    let result = Pin::new(&mut stream).poll_read(cx, buf);
-                    pin.state = OpensslState::Streaming(stream);
-                    result
-                }
-                Err(err) => Poll::Ready(Err(err)),
-            },
-            OpensslState::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
-        }
+        Pin::new(&mut pin.inner_stream).poll_read(cx, buf)
     }
 }
 
@@ -347,33 +279,19 @@ impl AsyncWrite for OpensslStream {
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let pin = self.get_mut();
-        match pin.state {
-            OpensslState::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
-                Ok(mut stream) => {
-                    let result = Pin::new(&mut stream).poll_write(cx, buf);
-                    pin.state = OpensslState::Streaming(stream);
-                    result
-                }
-                Err(err) => Poll::Ready(Err(err)),
-            },
-            OpensslState::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
-        }
+        Pin::new(&mut pin.inner_stream).poll_write(cx, buf)
     }
 
     #[inline]
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.state {
-            OpensslState::Handshaking(_) => Poll::Ready(Ok(())),
-            OpensslState::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
-        }
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let pin = self.get_mut();
+        Pin::new(&mut pin.inner_stream).poll_flush(cx)
     }
 
     #[inline]
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.state {
-            OpensslState::Handshaking(_) => Poll::Ready(Ok(())),
-            OpensslState::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
-        }
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let pin = self.get_mut();
+        Pin::new(&mut pin.inner_stream).poll_shutdown(cx)
     }
 }
 
@@ -390,7 +308,7 @@ mod tests {
     impl<C> Stream for OpensslListener<C>
     where
         C: Stream,
-        C::Item: Into<Arc<ServerConfig>>,
+        C::Item: Into<Arc<OpensslConfig>>,
     {
         type Item = Result<OpensslStream, IoError>;
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -402,15 +320,15 @@ mod tests {
     async fn test_openssl_listener() {
         let mut listener = OpensslListener::with_openssl_config(
             OpensslConfig::new()
-                .with_key_path("certs/rsa/cert.pem")
-                .with_cert_path("certs/rsa/key.pem"),
+                .with_key_path("certs/cert.pem")
+                .with_cert_path("certs/key.pem"),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
 
         tokio::spawn(async move {
             let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
-            connector.set_ca_file("src/listener/certs/chain1.pem").unwrap();
+            connector.set_ca_file("certs/chain.pem").unwrap();
 
             let ssl = connector
                 .build()

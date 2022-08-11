@@ -49,7 +49,7 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature = "openssl"]
-    pub use openssl::OpensslListener;
+    pub use self::openssl::OpensslListener;
 }
 cfg_feature! {
     #![unix]
