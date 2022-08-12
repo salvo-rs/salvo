@@ -126,12 +126,12 @@ impl Keycert {
             .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
 
         let key = {
-            let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_slice())
+            let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key()?)
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
             if !pkcs8.is_empty() {
                 PrivateKey(pkcs8.remove(0))
             } else {
-                let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_slice())
+                let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key()?)
                     .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
 
                 if !rsa.is_empty() {
@@ -539,17 +539,6 @@ mod tests {
         fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.poll_accept(cx)
         }
-    }
-    #[test]
-    fn test_file_cert_key() {
-        RustlsConfig::new()
-            .with_backup(
-                Keycert::new()
-                    .with_key_path("certs/key.pem")
-                    .with_cert_path("certs/cert.pem"),
-            )
-            .build_server_config()
-            .unwrap();
     }
 
     #[tokio::test]
