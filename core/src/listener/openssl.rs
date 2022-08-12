@@ -1,6 +1,5 @@
 //! openssl module
 use std::fmt::{self, Formatter};
-use std::future::Future;
 use std::io::{self, Cursor, Error as IoError, Read};
 use std::path::Path;
 use std::pin::Pin;
@@ -173,12 +172,12 @@ impl<C> OpensslListener<C> {
 impl OpensslListener<stream::Once<Ready<OpensslConfig>>> {
     /// Create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
-    pub fn with_openssl_config(config: OpensslConfig) -> OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>> {
-        Self::try_with_openssl_config(config).unwrap()
+    pub fn with_config(config: OpensslConfig) -> OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>> {
+        Self::try_with_config(config).unwrap()
     }
     /// Try to create new OpensslListenerBuilder with OpensslConfig.
     #[inline]
-    pub fn try_with_openssl_config(
+    pub fn try_with_config(
         config: OpensslConfig,
     ) -> Result<OpensslListenerBuilder<stream::Once<Ready<OpensslConfig>>>, IoError> {
         let stream = futures_util::stream::once(futures_util::future::ready(config));
@@ -236,23 +235,19 @@ where
         } else {
             Poll::Ready(Some(Err(IoError::new(
                 ErrorKind::Other,
-                "faild to load openssl server config",
+                "failed to load openssl server config",
             ))))
         }
     }
 }
 
-pin_project! {
-    /// tokio_openssl::server::TlsStream doesn't expose constructor methods,
-    /// so we have to TlsAcceptor::accept and handshake to have access to it
-    /// OpensslStream implements AsyncRead/AsyncWrite handshaking tokio_openssl::Accept first
-    pub struct OpensslStream {
-        #[pin]
-        inner_future: Pin<Box<dyn Future<Output=Result<SslStream<AddrStream>, openssl::ssl::Error>> + Send>>,
-        inner_stream: Option<SslStream<AddrStream>>,
-        remote_addr: SocketAddr,
-    }
+/// OpensslStream implements AsyncRead/AsyncWrite handshaking tokio_openssl::Accept first
+pub struct OpensslStream {
+    inner_stream: SslStream<AddrStream>,
+    remote_addr: SocketAddr,
+    is_ready: bool,
 }
+
 impl Transport for OpensslStream {
     #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {
@@ -262,29 +257,35 @@ impl Transport for OpensslStream {
 
 impl OpensslStream {
     #[inline]
-    fn new(remote_addr: SocketAddr, mut stream: SslStream<AddrStream>) -> Self {
+    fn new(remote_addr: SocketAddr, inner_stream: SslStream<AddrStream>) -> Self {
         OpensslStream {
             remote_addr,
-            inner_stream: None,
-            inner_future: Box::pin(async move {
-                Pin::new(&mut stream).accept().await?;
-                Ok(stream)
-            }),
+            inner_stream,
+            is_ready: false,
         }
+    }
+    #[inline]
+    fn sync_ready(&mut self, cx: &mut Context) -> io::Result<bool> {
+        if !self.is_ready {
+            let result = Pin::new(&mut self.inner_stream)
+                .poll_accept(cx)
+                .map_err(|_| IoError::new(ErrorKind::Other, "failed to accept in openssl"))?;
+            if result.is_ready() {
+                self.is_ready = true;
+            }
+        }
+        Ok(self.is_ready)
     }
 }
 
 impl AsyncRead for OpensslStream {
     #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<io::Result<()>> {
-        let mut this = self.project();
-        if let Some(inner_stream) = &mut this.inner_stream {
-            Pin::new(inner_stream).poll_read(cx, buf)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
+        let pin = self.get_mut();
+        if pin.sync_ready(cx)? {
+            Pin::new(&mut pin.inner_stream).poll_read(cx, buf)
         } else {
-            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+            Poll::Pending
         }
     }
 }
@@ -292,41 +293,27 @@ impl AsyncRead for OpensslStream {
 impl AsyncWrite for OpensslStream {
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
-        let mut this = self.project();
-        if let Some(inner_stream) = &mut this.inner_stream {
-            Pin::new(inner_stream).poll_write(cx, buf)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
+        let pin = self.get_mut();
+        if pin.sync_ready(cx)? {
+            Pin::new(&mut pin.inner_stream).poll_write(cx, buf)
         } else {
-            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+            Poll::Pending
         }
     }
 
     #[inline]
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let mut this = self.project();
-        if let Some(inner_stream) = &mut this.inner_stream {
-            Pin::new(inner_stream).poll_flush(cx)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
+        let pin = self.get_mut();
+        if pin.sync_ready(cx)? {
+            Pin::new(&mut pin.inner_stream).poll_flush(cx)
         } else {
-            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
+            Poll::Pending
         }
     }
 
     #[inline]
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let mut this = self.project();
-        if let Some(inner_stream) = &mut this.inner_stream {
-            Pin::new(inner_stream).poll_shutdown(cx)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_shutdown(cx)
-        } else {
-            Poll::Ready(Err(IoError::new(ErrorKind::Other, "openssl error")))
-        }
+        Pin::new(&mut self.get_mut().inner_stream).poll_shutdown(cx)
     }
 }
 
