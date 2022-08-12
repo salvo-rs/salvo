@@ -1,6 +1,5 @@
+use salvo::listener::rustls::{Keycert, RustlsConfig};
 use tokio::time::Duration;
-
-use salvo::listener::rustls::RustlsConfig;
 use salvo::prelude::*;
 
 #[handler]
@@ -25,7 +24,9 @@ async fn main() {
 }
 
 fn load_rustls_config() -> RustlsConfig {
-    RustlsConfig::new()
-        .with_cert(include_bytes!("../certs/cert.pem").as_ref())
-        .with_key(include_bytes!("../certs/key.pem").as_ref())
+    RustlsConfig::new().with_backup(
+        Keycert::new()
+            .with_cert(include_bytes!("../certs/cert.pem").as_ref())
+            .with_key(include_bytes!("../certs/key.pem").as_ref()),
+    )
 }
