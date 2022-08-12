@@ -31,6 +31,12 @@ pub struct Keycert {
     cert: Vec<u8>,
 }
 
+impl Default for Keycert {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Keycert {
     /// Create a new keycert.
     #[inline]

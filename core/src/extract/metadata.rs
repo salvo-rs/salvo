@@ -41,7 +41,7 @@ impl FromStr for SourceFrom {
 }
 
 /// Rename rule for a field.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum RenameRule {
     /// Rename direct children to "lowercase" style.
     LowerCase,

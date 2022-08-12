@@ -360,7 +360,7 @@ where
     pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
         decode::<C>(
             token,
-            &DecodingKey::from_secret(&*self.secret.as_ref()),
+            &DecodingKey::from_secret(self.secret.as_ref()),
             &self.validation,
         )
     }

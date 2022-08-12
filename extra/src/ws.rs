@@ -132,14 +132,13 @@ impl WsHandler {
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config;
             let fut = async move {
-                let ws = on_upgrade
+                on_upgrade
                     .and_then(move |upgraded| {
                         tracing::debug!("websocket upgrade complete");
                         WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                     })
                     .await
-                    .ok();
-                ws
+                    .ok()
             };
             Ok(fut)
         } else {
