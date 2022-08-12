@@ -1,10 +1,10 @@
 //! native_tls module
 use std::fmt::{self, Formatter};
+use std::fs::File;
 use std::future::Future;
 use std::io::{self, Error as IoError, ErrorKind, Read};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::fs::File;
 use std::task::{Context, Poll};
 
 use futures_util::future::Ready;
@@ -84,22 +84,20 @@ impl NativeTlsConfig {
     }
 }
 
-pin_project! {
-    /// NativeTlsListener
-    pub struct NativeTlsListener<C> {
-        #[pin]
-        config_stream: C,
-        incoming: AddrIncoming,
-        identity: Option<Identity>,
-    }
+/// NativeTlsListener
+pub struct NativeTlsListener<C> {
+    config_stream: C,
+    incoming: AddrIncoming,
+    identity: Option<Identity>,
 }
+
 /// NativeTlsListener
 pub struct NativeTlsListenerBuilder<C> {
     config_stream: C,
 }
 impl<C> NativeTlsListenerBuilder<C>
 where
-    C: Stream,
+    C: Stream + Send + Unpin + 'static,
     C::Item: Into<Identity>,
 {
     /// Bind to socket address.
@@ -159,7 +157,7 @@ impl<C> NativeTlsListener<C> {
 }
 impl<C> NativeTlsListener<C>
 where
-    C: Stream,
+    C: Stream + Send + Unpin + 'static,
     C::Item: Into<Identity>,
 {
     /// Create new NativeTlsListener with config stream.
@@ -171,13 +169,13 @@ where
 
 impl<C> Listener for NativeTlsListener<C>
 where
-    C: Stream,
+    C: Stream + Send + Unpin + 'static,
     C::Item: Into<Identity>,
 {
 }
 impl<C> Accept for NativeTlsListener<C>
 where
-    C: Stream,
+    C: Stream + Send + Unpin + 'static,
     C::Item: Into<Identity>,
 {
     type Conn = NativeTlsStream;
@@ -185,13 +183,12 @@ where
 
     #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let this = self.project();
-        if let Poll::Ready(Some(identity)) = this.config_stream.poll_next(cx) {
-            let identity = identity.into();
-            *this.identity = Some(identity);
+        let pin = self.get_mut();
+        if let Poll::Ready(Some(identity)) = Pin::new(&mut pin.config_stream).poll_next(cx) {
+            pin.identity = Some(identity.into());
         }
-        if let Some(identity) = this.identity {
-            match ready!(Pin::new(this.incoming).poll_accept(cx)) {
+        if let Some(identity) = &pin.identity {
+            match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => {
                     let stream = NativeTlsStream::new(sock.remote_addr().into(), sock, identity.clone())?;
                     Poll::Ready(Some(Ok(stream)))
@@ -208,12 +205,11 @@ where
 pin_project! {
     /// NativeTlsStream
     pub struct NativeTlsStream {
-        // #[pin]
-        // acceptor: Pin<Box<AsyncTlsAcceptor>>,
         #[pin]
         inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + Send>>,
         inner_stream: Option<TlsStream<AddrStream>>,
         remote_addr: SocketAddr,
+        accepted: bool,
     }
 }
 impl Transport for NativeTlsStream {
@@ -230,10 +226,10 @@ impl NativeTlsStream {
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?
             .into();
         Ok(NativeTlsStream {
-            // acceptor: Box::pin(acceptor),
             inner_future: Box::pin(async move { acceptor.accept(stream).await }),
             inner_stream: None,
             remote_addr,
+            accepted: false,
         })
     }
 }
@@ -244,9 +240,19 @@ impl AsyncRead for NativeTlsStream {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
             Pin::new(inner_stream).poll_read(cx, buf)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
+        } else if !*this.accepted {
+            match this.inner_future.poll(cx) {
+                Poll::Ready(Ok(stream)) => {
+                    *this.accepted = true;
+                    *this.inner_stream = Some(stream);
+                    Pin::new(this.inner_stream.as_mut().unwrap()).poll_read(cx, buf)
+                }
+                Poll::Ready(Err(_)) => {
+                    *this.accepted = true;
+                    Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
+                }
+                Poll::Pending => Poll::Pending,
+            }
         } else {
             Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
@@ -259,9 +265,19 @@ impl AsyncWrite for NativeTlsStream {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
             Pin::new(inner_stream).poll_write(cx, buf)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
+        } else if !*this.accepted {
+            match this.inner_future.poll(cx) {
+                Poll::Ready(Ok(stream)) => {
+                    *this.accepted = true;
+                    *this.inner_stream = Some(stream);
+                    Pin::new(this.inner_stream.as_mut().unwrap()).poll_write(cx, buf)
+                }
+                Poll::Ready(Err(_)) => {
+                    *this.accepted = true;
+                    Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
+                }
+                Poll::Pending => Poll::Pending,
+            }
         } else {
             Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
@@ -272,9 +288,19 @@ impl AsyncWrite for NativeTlsStream {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
             Pin::new(inner_stream).poll_flush(cx)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
+        } else if !*this.accepted {
+            match this.inner_future.poll(cx) {
+                Poll::Ready(Ok(stream)) => {
+                    *this.accepted = true;
+                    *this.inner_stream = Some(stream);
+                    Pin::new(this.inner_stream.as_mut().unwrap()).poll_flush(cx)
+                }
+                Poll::Ready(Err(_)) => {
+                    *this.accepted = true;
+                    Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
+                }
+                Poll::Pending => Poll::Pending,
+            }
         } else {
             Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
         }
@@ -285,11 +311,8 @@ impl AsyncWrite for NativeTlsStream {
         let mut this = self.project();
         if let Some(inner_stream) = &mut this.inner_stream {
             Pin::new(inner_stream).poll_shutdown(cx)
-        } else if let Ok(stream) = ready!(this.inner_future.poll(cx)) {
-            *this.inner_stream = Some(stream);
-            Pin::new(this.inner_stream.as_mut().unwrap()).poll_shutdown(cx)
         } else {
-            Poll::Ready(Err(IoError::new(ErrorKind::Other, "native tls error")))
+            Poll::Ready(Ok(()))
         }
     }
 }
@@ -303,7 +326,7 @@ mod tests {
     use super::*;
     impl<C> Stream for NativeTlsListener<C>
     where
-        C: Stream,
+        C: Stream + Send + Unpin + 'static,
         C::Item: Into<Identity>,
     {
         type Item = Result<NativeTlsStream, IoError>;
