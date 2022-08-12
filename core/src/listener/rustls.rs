@@ -295,12 +295,12 @@ impl<C> RustlsListener<C> {
 impl RustlsListener<stream::Once<Ready<Arc<ServerConfig>>>> {
     /// Create new RustlsListenerBuilder with RustlsConfig.
     #[inline]
-    pub fn with_rustls_config(config: RustlsConfig) -> RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
-        Self::try_with_rustls_config(config).unwrap()
+    pub fn with_config(config: RustlsConfig) -> RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>> {
+        Self::try_with_config(config).unwrap()
     }
     /// Try to create new RustlsListenerBuilder with RustlsConfig.
     #[inline]
-    pub fn try_with_rustls_config(
+    pub fn try_with_config(
         config: RustlsConfig,
     ) -> Result<RustlsListenerBuilder<stream::Once<Ready<Arc<ServerConfig>>>>, Error> {
         let config = config.build_server_config()?;
@@ -365,7 +365,7 @@ where
         } else {
             Poll::Ready(Some(Err(IoError::new(
                 ErrorKind::Other,
-                "faild to load rustls server config",
+                "failed to load rustls server config",
             ))))
         }
     }
@@ -485,7 +485,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let mut listener = RustlsListener::with_rustls_config(
+        let mut listener = RustlsListener::with_config(
             RustlsConfig::new()
                 .with_key_path("certs/key.pem")
                 .with_cert_path("certs/cert.pem"),
