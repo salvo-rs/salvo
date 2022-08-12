@@ -65,6 +65,14 @@ pub mod prelude {
         pub use crate::listener::RustlsListener;
     }
     cfg_feature! {
+        #![feature ="native-tls"]
+        pub use crate::listener::NativeTlsListener;
+    }
+    cfg_feature! {
+        #![feature ="openssl"]
+        pub use crate::listener::OpensslListener;
+    }
+    cfg_feature! {
         #![unix]
         pub use crate::listener::UnixListener;
     }
