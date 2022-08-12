@@ -1,6 +1,6 @@
 use salvo::listener::openssl::{Keycert, OpensslConfig};
-use tokio::time::Duration;
 use salvo::prelude::*;
+use tokio::time::Duration;
 
 #[handler]
 async fn hello_world(res: &mut Response) {
