@@ -374,12 +374,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_openssl_listener() {
-        let mut listener = OpensslListener::with_config(
-            OpensslConfig::new()
+        let config = OpensslConfig::new(
+            Keycert::new()
                 .with_key_path("certs/key.pem")
                 .with_cert_path("certs/cert.pem"),
-        )
-        .bind("127.0.0.1:0");
+        );
+        let mut listener = OpensslListener::with_config(config).bind("127.0.0.1:0");
         let addr = listener.local_addr();
 
         tokio::spawn(async move {

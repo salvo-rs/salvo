@@ -339,8 +339,8 @@ mod tests {
     async fn test_native_tls_listener() {
         let mut listener = NativeTlsListener::with_config(
             NativeTlsConfig::new()
-                .pkcs12(include_bytes!("../../certs/identity.p12").as_ref())
-                .password("mypass"),
+                .with_pkcs12(include_bytes!("../../certs/identity.p12").as_ref())
+                .with_password("mypass"),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();

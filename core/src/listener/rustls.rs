@@ -13,8 +13,8 @@ use futures_util::future::Ready;
 use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
-use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 use pin_project_lite::pin_project;
+use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
@@ -543,8 +543,11 @@ mod tests {
     #[test]
     fn test_file_cert_key() {
         RustlsConfig::new()
-            .with_key_path("certs/key.pem")
-            .with_cert_path("certs/cert.pem")
+            .with_backup(
+                Keycert::new()
+                    .with_key_path("certs/key.pem")
+                    .with_cert_path("certs/cert.pem"),
+            )
             .build_server_config()
             .unwrap();
     }
@@ -552,9 +555,11 @@ mod tests {
     #[tokio::test]
     async fn test_rustls_listener() {
         let mut listener = RustlsListener::with_config(
-            RustlsConfig::new()
-                .with_key_path("certs/key.pem")
-                .with_cert_path("certs/cert.pem"),
+            RustlsConfig::new().with_backup(
+                Keycert::new()
+                    .with_key_path("certs/key.pem")
+                    .with_cert_path("certs/cert.pem"),
+            ),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
@@ -564,7 +569,7 @@ mod tests {
             let trust_anchor = include_bytes!("../../certs/chain.pem");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
-                .with_root_certificates(read_trust_anchor(Box::new(trust_anchor.as_slice())).unwrap())
+                .with_root_certificates(read_trust_anchor(trust_anchor.as_slice()).unwrap())
                 .with_no_client_auth();
             let connector = TlsConnector::from(Arc::new(client_config));
             let mut tls_stream = connector
