@@ -1,4 +1,4 @@
-use salvo::listener::openssl::{Keycert, OpensslConfig};
+use salvo::listener::native_tls::NativeTlsConfig;
 use salvo::prelude::*;
 use tokio::time::Duration;
 
@@ -12,7 +12,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    let listener = OpensslListener::with_config_stream(async_stream::stream! {
+    let listener = NativeTlsListener::with_config_stream(async_stream::stream! {
         loop {
             yield load_config();
             tokio::time::sleep(Duration::from_secs(60)).await;
@@ -23,10 +23,8 @@ async fn main() {
     Server::new(listener).serve(router).await;
 }
 
-fn load_config() -> OpensslConfig {
-    OpensslConfig::new(
-        Keycert::new()
-            .with_cert(include_bytes!("../certs/cert.pem").as_ref())
-            .with_key(include_bytes!("../certs/key.pem").as_ref()),
-    )
+fn load_config() -> NativeTlsConfig {
+    NativeTlsConfig::new()
+        .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
+        .with_password("mypass")
 }
