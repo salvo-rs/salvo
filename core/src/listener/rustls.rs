@@ -14,6 +14,7 @@ use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
+use pin_project_lite::pin_project;
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
@@ -284,6 +285,7 @@ impl RustlsConfig {
         Ok(config)
     }
 }
+
 struct CertResolver {
     backup: Option<Arc<CertifiedKey>>,
     certified_keys: HashMap<String, Arc<CertifiedKey>>,
@@ -310,11 +312,14 @@ fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertStore> {
     Ok(store)
 }
 
+pin_project! {
 /// RustlsListener
 pub struct RustlsListener<C> {
+    #[pin]
     config_stream: C,
     incoming: AddrIncoming,
     server_config: Option<Arc<ServerConfig>>,
+}
 }
 /// RustlsListener
 pub struct RustlsListenerBuilder<C> {
@@ -322,7 +327,7 @@ pub struct RustlsListenerBuilder<C> {
 }
 impl<C> RustlsListenerBuilder<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Arc<ServerConfig>>,
 {
     /// Bind to socket address.
@@ -399,13 +404,13 @@ where
 
 impl<C> Listener for RustlsListener<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Arc<ServerConfig>>,
 {
 }
 impl<C> Accept for RustlsListener<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Arc<ServerConfig>>,
 {
     type Conn = RustlsStream;
@@ -413,12 +418,12 @@ where
 
     #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let pin = self.get_mut();
-        if let Poll::Ready(Some(config)) = Pin::new(&mut pin.config_stream).poll_next(cx) {
-            pin.server_config = Some(config.into());
+        let this = self.project();
+        if let Poll::Ready(Some(config)) = this.config_stream.poll_next(cx) {
+            *this.server_config = Some(config.into());
         }
-        if let Some(server_config) = &pin.server_config {
-            match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
+        if let Some(server_config) = &this.server_config {
+            match ready!(Pin::new(this.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => Poll::Ready(Some(Ok(RustlsStream::new(sock, server_config.clone())))),
                 Some(Err(e)) => Poll::Ready(Some(Err(e))),
                 None => Poll::Ready(None),
