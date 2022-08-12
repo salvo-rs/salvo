@@ -84,11 +84,14 @@ impl NativeTlsConfig {
     }
 }
 
+pin_project! {
 /// NativeTlsListener
 pub struct NativeTlsListener<C> {
+    #[pin]
     config_stream: C,
     incoming: AddrIncoming,
     identity: Option<Identity>,
+}
 }
 
 /// NativeTlsListener
@@ -97,7 +100,7 @@ pub struct NativeTlsListenerBuilder<C> {
 }
 impl<C> NativeTlsListenerBuilder<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Identity>,
 {
     /// Bind to socket address.
@@ -157,7 +160,7 @@ impl<C> NativeTlsListener<C> {
 }
 impl<C> NativeTlsListener<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Identity>,
 {
     /// Create new NativeTlsListener with config stream.
@@ -169,13 +172,13 @@ where
 
 impl<C> Listener for NativeTlsListener<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Identity>,
 {
 }
 impl<C> Accept for NativeTlsListener<C>
 where
-    C: Stream + Send + Unpin + 'static,
+    C: Stream,
     C::Item: Into<Identity>,
 {
     type Conn = NativeTlsStream;
@@ -183,12 +186,12 @@ where
 
     #[inline]
     fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let pin = self.get_mut();
-        if let Poll::Ready(Some(identity)) = Pin::new(&mut pin.config_stream).poll_next(cx) {
-            pin.identity = Some(identity.into());
+        let this = self.project();
+        if let Poll::Ready(Some(identity)) = this.config_stream.poll_next(cx) {
+            *this.identity = Some(identity.into());
         }
-        if let Some(identity) = &pin.identity {
-            match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
+        if let Some(identity) = &this.identity {
+            match ready!(Pin::new(this.incoming).poll_accept(cx)) {
                 Some(Ok(sock)) => {
                     let stream = NativeTlsStream::new(sock.remote_addr().into(), sock, identity.clone())?;
                     Poll::Ready(Some(Ok(stream)))
