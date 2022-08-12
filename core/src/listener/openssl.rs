@@ -341,7 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_openssl_listener() {
-        let mut listener = OpensslListener::with_openssl_config(
+        let mut listener = OpensslListener::with_config(
             OpensslConfig::new()
                 .with_key_path("certs/key.pem")
                 .with_cert_path("certs/cert.pem"),
