@@ -1,7 +1,8 @@
 //! openssl module
 use std::fmt::{self, Formatter};
-use std::io::{self, Cursor, Error as IoError, Read};
-use std::path::Path;
+use std::fs::File;
+use std::io::{self, Error as IoError, Read};
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -17,14 +18,94 @@ use pin_project_lite::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 use tokio_openssl::SslStream;
 
-use super::{IntoAddrIncoming, LazyFile, Listener};
+use super::{IntoAddrIncoming, Listener};
 use crate::addr::SocketAddr;
 use crate::transport::Transport;
 
+/// Private key and certificate
+#[derive(Debug)]
+pub struct Keycert {
+    key_path: Option<PathBuf>,
+    key: Vec<u8>,
+    cert_path: Option<PathBuf>,
+    cert: Vec<u8>,
+}
+
+impl Keycert {
+    /// Create a new keycert.
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            key_path: None,
+            key: vec![],
+            cert_path: None,
+            cert: vec![],
+        }
+    }
+    /// Sets the Tls private key via File Path, returns `Error::IoError` if the file cannot be open.
+    #[inline]
+    pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
+        self.key_path = Some(path.as_ref().into());
+        self
+    }
+
+    /// Sets the Tls private key via bytes slice.
+    #[inline]
+    pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
+        self.key = key.into();
+        self
+    }
+
+    /// Specify the file path for the TLS certificate to use.
+    #[inline]
+    pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
+        self.cert_path = Some(path.as_ref().into());
+        self
+    }
+
+    /// Sets the Tls certificate via bytes slice
+    #[inline]
+    pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
+        self.cert = cert.into();
+        self
+    }
+
+    /// Get the private key.
+    #[inline]
+    pub fn key(&mut self) -> io::Result<&[u8]> {
+        if self.key.is_empty() {
+            if let Some(path) = &self.key_path {
+                let mut file = File::open(path)?;
+                file.read_to_end(&mut self.key)?;
+            }
+        }
+        if self.key.is_empty() {
+            Err(IoError::new(ErrorKind::Other, "empty key"))
+        } else {
+            Ok(&self.key)
+        }
+    }
+
+    /// Get the cert.
+    #[inline]
+    pub fn cert(&mut self) -> io::Result<&[u8]> {
+        if self.cert.is_empty() {
+            if let Some(path) = &self.cert_path {
+                let mut file = File::open(path)?;
+                file.read_to_end(&mut self.cert)?;
+            }
+        }
+        if self.cert.is_empty() {
+            Err(IoError::new(ErrorKind::Other, "empty cert"))
+        } else {
+            Ok(&self.cert)
+        }
+    }
+}
+
 /// Builder to set the configuration for the Tls server.
 pub struct OpensslConfig {
-    cert: Box<dyn Read + Send + Sync>,
-    key: Box<dyn Read + Send + Sync>,
+    keycert: Keycert,
 }
 
 impl fmt::Debug for OpensslConfig {
@@ -33,64 +114,19 @@ impl fmt::Debug for OpensslConfig {
         f.debug_struct("OpensslConfig").finish()
     }
 }
-impl Default for OpensslConfig {
-    #[inline]
-    fn default() -> Self {
-        OpensslConfig::new()
-    }
-}
 
 impl OpensslConfig {
     /// Create new `OpensslConfig`
     #[inline]
-    pub fn new() -> Self {
-        OpensslConfig {
-            key: Box::new(io::empty()),
-            cert: Box::new(io::empty()),
-        }
-    }
-
-    /// Sets the Tls key via File Path, returns `Error::IoError` if the file cannot be open
-    #[inline]
-    pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.key = Box::new(LazyFile {
-            path: path.as_ref().into(),
-            file: None,
-        });
-        self
-    }
-
-    /// Sets the Tls key via bytes slice
-    #[inline]
-    pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
-        self.key = Box::new(Cursor::new(key.into()));
-        self
-    }
-
-    /// Specify the file path for the TLS certificate to use.
-    #[inline]
-    pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.cert = Box::new(LazyFile {
-            path: path.as_ref().into(),
-            file: None,
-        });
-        self
-    }
-
-    /// Sets the Tls certificate via bytes slice
-    #[inline]
-    pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
-        self.cert = Box::new(Cursor::new(cert.into()));
-        self
+    pub fn new(keycert: Keycert) -> Self {
+        OpensslConfig { keycert }
     }
 
     /// Create [`SslAcceptorBuilder`]
     pub fn create_acceptor_builder(mut self) -> Result<SslAcceptorBuilder, IoError> {
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
 
-        let mut cert_vec = Vec::new();
-        self.cert.read_to_end(&mut cert_vec)?;
-        let mut certs = X509::stack_from_pem(&cert_vec)?;
+        let mut certs = X509::stack_from_pem(self.keycert.cert()?)?;
         let mut certs = certs.drain(..);
         builder.set_certificate(
             certs
@@ -99,16 +135,7 @@ impl OpensslConfig {
                 .as_ref(),
         )?;
         certs.try_for_each(|cert| builder.add_extra_chain_cert(cert))?;
-
-        // convert it to Vec<u8> to allow reading it again if key is RSA
-        let mut key_vec = Vec::new();
-        self.key.read_to_end(&mut key_vec)?;
-
-        if key_vec.is_empty() {
-            return Err(IoError::new(ErrorKind::Other, "empty key"));
-        }
-
-        builder.set_private_key(PKey::private_key_from_pem(&key_vec)?.as_ref())?;
+        builder.set_private_key(PKey::private_key_from_pem(self.keycert.key()?)?.as_ref())?;
 
         // set ALPN protocols
         static PROTOS: &[u8] = b"\x02h2\x08http/1.1";

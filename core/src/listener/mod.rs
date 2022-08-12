@@ -1,8 +1,6 @@
 //! Listener trait and it's implements.
-use std::fs::File;
-use std::io::{self, Error as IoError, ErrorKind, Read};
+use std::io::{self, Error as IoError, ErrorKind};
 use std::net::{IpAddr, SocketAddr as StdSocketAddr, ToSocketAddrs};
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -281,33 +279,6 @@ impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
         let mut incoming = AddrIncoming::bind(&self.into()).expect("failed to create AddrIncoming");
         incoming.set_nodelay(true);
         incoming
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct LazyFile {
-    path: PathBuf,
-    file: Option<File>,
-}
-
-impl LazyFile {
-    #[inline]
-    fn lazy_read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if self.file.is_none() {
-            self.file = Some(File::open(&self.path)?);
-        }
-
-        self.file.as_mut().unwrap().read(buf)
-    }
-}
-impl Read for LazyFile {
-    #[inline]
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.lazy_read(buf).map_err(|e| {
-            let kind = e.kind();
-            tracing::error!(path = ?self.path, error = ?e, "error reading file");
-            IoError::new(kind, format!("error reading file ({:?}): {}", self.path.display(), e))
-        })
     }
 }
 
