@@ -180,28 +180,16 @@ impl fmt::Debug for RustlsConfig {
         f.debug_struct("RustlsConfig").finish()
     }
 }
-impl Default for RustlsConfig {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl RustlsConfig {
     /// Create new `RustlsConfig`
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(backup: impl Into<Option<Keycert>>) -> Self {
         RustlsConfig {
-            backup: None,
+            backup: backup.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
         }
-    }
-
-    /// Sets the backup keycert.
-    #[inline]
-    pub fn with_backup(mut self, backup: Keycert) -> Self {
-        self.backup = Some(backup);
-        self
     }
 
     /// Sets the trust anchor for optional Tls client authentication via file path.
@@ -544,11 +532,9 @@ mod tests {
     #[tokio::test]
     async fn test_rustls_listener() {
         let mut listener = RustlsListener::with_config(
-            RustlsConfig::new().with_backup(
-                Keycert::new()
-                    .with_key_path("certs/key.pem")
-                    .with_cert_path("certs/cert.pem"),
-            ),
+            RustlsConfig::new( Keycert::new()
+            .with_key_path("certs/key.pem")
+            .with_cert_path("certs/cert.pem")),
         )
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
