@@ -39,7 +39,7 @@ impl ProxyHandler {
     pub fn upstreams_mut(&mut self) -> &mut Vec<String> {
         &mut self.upstreams
     }
-    /// set upstreams list and return Self.
+    /// Set upstreams list and return Self.
     #[inline]
     pub fn with_upstreams(mut self, upstreams: Vec<String>) -> Self {
         self.upstreams = upstreams;

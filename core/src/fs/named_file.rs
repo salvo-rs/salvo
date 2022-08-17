@@ -128,12 +128,12 @@ impl NamedFileBuilder {
     }
 
     /// Build a new `NamedFile` and send it.
-    pub async fn send(self, req: &mut Request, res: &mut Response) {
+    pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
         if !self.path.exists() {
             res.set_status_error(StatusError::not_found());
         } else {
             match self.build().await {
-                Ok(file) => file.send(req, res).await,
+                Ok(file) => file.send(req_headers, res).await,
                 Err(_) => res.set_status_error(StatusError::internal_server_error()),
             }
         }
@@ -261,13 +261,13 @@ impl NamedFile {
     }
 
     /// Attempts to send a file. If file not exists, not found error will occur.
-    pub async fn send_file(path: impl Into<PathBuf>, req: &mut Request, res: &mut Response) {
+    pub async fn send_file(path: impl Into<PathBuf>, req_headers: &HeaderMap, res: &mut Response) {
         let path = path.into();
         if !path.exists() {
             res.set_status_error(StatusError::not_found());
         } else {
             match Self::builder(path).build().await {
-                Ok(file) => file.send(req, res).await,
+                Ok(file) => file.send(req_headers, res).await,
                 Err(_) => res.set_status_error(StatusError::internal_server_error()),
             }
         }
@@ -399,7 +399,7 @@ impl NamedFile {
         }
     }
     ///Consume self and send content to [`Response`].
-    pub async fn send(mut self, req: &mut Request, res: &mut Response) {
+    pub async fn send(mut self, req_headers: &HeaderMap, res: &mut Response) {
         let etag = if self.flags.contains(Flag::Etag) {
             self.etag()
         } else {
@@ -412,10 +412,10 @@ impl NamedFile {
         };
 
         // check preconditions
-        let precondition_failed = if !any_match(etag.as_ref(), req) {
+        let precondition_failed = if !any_match(etag.as_ref(), req_headers) {
             true
         } else if let (Some(ref last_modified), Some(since)) =
-            (last_modified, req.headers().typed_get::<IfUnmodifiedSince>())
+            (last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
             !since.precondition_passes(*last_modified)
         } else {
@@ -423,12 +423,12 @@ impl NamedFile {
         };
 
         // check last modified
-        let not_modified = if !none_match(etag.as_ref(), req) {
+        let not_modified = if !none_match(etag.as_ref(), req_headers) {
             true
-        } else if req.headers().contains_key(IF_NONE_MATCH) {
+        } else if req_headers.contains_key(IF_NONE_MATCH) {
             false
         } else if let (Some(ref last_modified), Some(since)) =
-            (last_modified, req.headers().typed_get::<IfModifiedSince>())
+            (last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
             !since.is_modified(*last_modified)
         } else {
@@ -469,7 +469,7 @@ impl NamedFile {
 
         // check for range header
         // let mut range = None;
-        if let Some(ranges) = req.headers().get(header::RANGE) {
+        if let Some(ranges) = req_headers.get(header::RANGE) {
             if let Ok(rangesheader) = ranges.to_str() {
                 if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
                     length = rangesvec[0].length;
@@ -530,7 +530,7 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.send(req, res).await;
+        self.send(req.headers(), res).await;
     }
 }
 
@@ -549,8 +549,8 @@ impl DerefMut for NamedFile {
 }
 
 /// Returns true if `req` has no `If-Match` header or one which matches `etag`.
-fn any_match(etag: Option<&ETag>, req: &Request) -> bool {
-    match req.headers().typed_get::<IfMatch>() {
+fn any_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
+    match req_headers.typed_get::<IfMatch>() {
         None => true,
         Some(if_match) => {
             if if_match == IfMatch::any() {
@@ -565,8 +565,8 @@ fn any_match(etag: Option<&ETag>, req: &Request) -> bool {
 }
 
 /// Returns true if `req` doesn't have an `If-None-Match` header matching `req`.
-fn none_match(etag: Option<&ETag>, req: &Request) -> bool {
-    match req.headers().typed_get::<IfMatch>() {
+fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
+    match req_headers.typed_get::<IfMatch>() {
         None => true,
         Some(if_match) => {
             if if_match == IfMatch::any() {

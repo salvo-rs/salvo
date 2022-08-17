@@ -217,7 +217,7 @@ impl Handler for DirHandler {
                             builder
                         };
                         if let Ok(named_file) = builder.build().await {
-                            named_file.send(req, res).await;
+                            named_file.send(req.headers(), res).await;
                         } else {
                             res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                         }
@@ -253,7 +253,7 @@ impl Handler for DirHandler {
                     return;
                 }
                 if let Ok(named_file) = NamedFile::open(path).await {
-                    named_file.send(req, res).await;
+                    named_file.send(req.headers(), res).await;
                 } else {
                     res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
                 }
