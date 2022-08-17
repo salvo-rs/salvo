@@ -11,13 +11,6 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             let attrs = &item_fn.attrs;
             let vis = &item_fn.vis;
             let sig = &mut item_fn.sig;
-            if sig.inputs.len() > 4 {
-                return Err(syn::Error::new_spanned(
-                    sig.fn_token,
-                    "too many args in handle function",
-                ));
-            }
-
             let body = &item_fn.block;
             let name = &sig.ident;
             let docs = item_fn
@@ -165,6 +158,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                 Ok(quote! {
                     #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                        #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                     }
                 })
