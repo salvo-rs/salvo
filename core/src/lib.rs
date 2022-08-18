@@ -76,7 +76,7 @@ pub mod prelude {
         #![unix]
         pub use crate::listener::UnixListener;
     }
-    // pub use crate::extract::{Extractible, Extractor};
+    pub use crate::extract::LazyExtract;
     pub use crate::listener::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;

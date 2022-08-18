@@ -18,8 +18,9 @@ proc-macro = true
 
 [dependencies]
 Inflector = "0.11"
-darling = "0.14.1"
+darling = "0.14"
 proc-macro-crate = "1"
 proc-macro2 = "1"
 quote = "1"
+regex = "1"
 syn = { version = "1", features = ["full", "parsing"] }

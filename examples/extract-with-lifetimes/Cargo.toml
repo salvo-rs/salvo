@@ -1,5 +1,5 @@
 [package]
-name = "example-extract-data2"
+name = "example-extract-with-lifetimes"
 version = "0.1.0"
 edition = "2021"
 publish = false

@@ -469,11 +469,11 @@ impl NamedFile {
 
         // check for range header
         // let mut range = None;
-        if let Some(ranges) = req_headers.get(header::RANGE) {
-            if let Ok(rangesheader) = ranges.to_str() {
-                if let Ok(rangesvec) = HttpRange::parse(rangesheader, length) {
-                    length = rangesvec[0].length;
-                    offset = rangesvec[0].start;
+        if let Some(range) = req_headers.get(header::RANGE) {
+            if let Ok(range) = range.to_str() {
+                if let Ok(range) = HttpRange::parse(range, length) {
+                    length = range[0].length;
+                    offset = range[0].start;
                 } else {
                     res.headers_mut().typed_insert(ContentRange::unsatisfied_bytes(length));
                     res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);

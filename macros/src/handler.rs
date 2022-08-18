@@ -103,14 +103,8 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     call_args.push(ident.ident.clone());
                     // Maybe extractible type.
                     let id = &pat.pat;
-                    let (ty, lcount) = omit_type_path_lifetimes(ty);
-                    if lcount > 1 {
-                        return Err(syn::Error::new_spanned(
-                            pat,
-                            "Only one lifetime is allowed for `Extractible` type.",
-                        ));
-                    }
-
+                    let ty = omit_type_path_lifetimes(ty);
+                  
                     extract_ts.push(quote! {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,
@@ -122,6 +116,20 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                                 return;
                             }
                         };
+                    });
+                } else {
+                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
+                }
+            }
+            InputType::LazyExtract(pat) => {
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    call_args.push(ident.ident.clone());
+                    // Maybe extractible type.
+                    let id = &pat.pat;
+                    let ty = omit_type_path_lifetimes(ty);
+                  
+                    extract_ts.push(quote! {
+                        let #id: #ty = #salvo::extract::LazyExtract::new();
                     });
                 } else {
                     return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
