@@ -1,7 +1,9 @@
+use darling::ToTokens;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use syn::PathArguments::AngleBracketed;
-use syn::{FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath};
+use syn::{FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath, parse_quote};
+use regex::Regex;
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -70,20 +72,11 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
     }
 }
 
-pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> (TypePath, usize) {
-    let mut ty_path = ty_path.clone();
-    let mut count = 0;
-    for seg in ty_path.path.segments.iter_mut() {
-        if let AngleBracketed(ref mut args) = seg.arguments {
-            for arg in args.args.iter_mut() {
-                if let GenericArgument::Lifetime(lifetime) = arg {
-                    lifetime.ident = Ident::new("_", Span::call_site());
-                    count += 1;
-                }
-            }
-        }
-    }
-    (ty_path, count)
+pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> syn::TypePath  {
+    let reg = Regex::new(r"'\w+").unwrap();
+    let ty_path2 = ty_path.into_token_stream().to_string();
+    let ty_path2 = reg.replace_all(&ty_path2, "'_");
+    parse_quote!(#ty_path)
 }
 
 pub(crate) fn is_internal<'a>(args: impl Iterator<Item = &'a NestedMeta>) -> bool {

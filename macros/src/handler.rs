@@ -34,6 +34,13 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             };
 
             let hfn = handle_fn(&salvo, sig)?;
+            println!("{}", quote! {
+                #sdef
+                #[#salvo::async_trait]
+                impl #salvo::Handler for #name {
+                    #hfn
+                }
+            });
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -103,14 +110,9 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     call_args.push(ident.ident.clone());
                     // Maybe extractible type.
                     let id = &pat.pat;
-                    let (ty, lcount) = omit_type_path_lifetimes(ty);
-                    if lcount > 1 {
-                        return Err(syn::Error::new_spanned(
-                            pat,
-                            "Only one lifetime is allowed for `Extractible` type.",
-                        ));
-                    }
-
+                    let ty = omit_type_path_lifetimes(ty);
+                    println!("==============hhh=========={:?}", ty);
+                  
                     extract_ts.push(quote! {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,

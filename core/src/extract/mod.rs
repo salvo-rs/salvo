@@ -62,14 +62,49 @@
 //!
 //! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
+use std::marker::PhantomData;
+
 use serde::Deserialize;
 
 /// Metadata types.
 pub mod metadata;
+use crate::http::ParseError;
+use crate::Request;
 pub use metadata::Metadata;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
 pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
+}
+
+/// Wrapper for Extractible type. [`Handler`]'s parameters does not allow two extractible types has lifetime, wrap these types with `LazyExtract`.
+#[derive(Deserialize)]
+pub struct LazyExtract<T> {
+    #[serde(skip)]
+    inner: PhantomData<T>,
+}
+impl<'de, T> LazyExtract<T>
+where
+    T: Extractible<'de>,
+{
+    /// Create a new `LazyExtract` instance.
+    pub fn new() -> Self {
+        LazyExtract {
+            inner: PhantomData::<T>,
+        }
+    }
+
+    /// Get the inner type.
+    pub async fn extract(self, req: &'de mut Request) -> Result<T, ParseError> {
+        req.extract().await
+    }
+}
+impl<'de, T> Extractible<'de> for LazyExtract<T>
+where
+    T: Extractible<'de>,
+{
+    fn metadata() -> &'de Metadata {
+        T::metadata()
+    }
 }

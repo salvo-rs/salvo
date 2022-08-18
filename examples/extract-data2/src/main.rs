@@ -28,11 +28,67 @@ async fn show(req: &mut Request, res: &mut Response) {
     );
     res.render(Text::Html(content));
 }
-#[handler]
-async fn edit<'a>(bad_man: BadMan, good_man: GoodMan<'a>) -> String {
-    let bad_man = format!("Bad Man: {:#?}", bad_man);
-    let good_man = format!("Good Man: {:#?}", good_man);
-    format!("{}\r\n\r\n\r\n{}", bad_man, good_man)
+// #[handler]
+// async fn edit<'a>(bad_man: LazyExtract<BadMan<'a>>, good_man: LazyExtract<GoodMan<'a>>, req: &mut Request) -> String {
+//     let bad_man = bad_man.extract(req).await.unwrap();
+//     let bad_man = format!("Bad Man: {:#?}", bad_man);
+//     let good_man = good_man.extract(req).await.unwrap();
+//     let good_man = format!("Good Man: {:#?}", good_man);
+//     format!("{}\r\n\r\n\r\n{}", bad_man, good_man)
+// }
+
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+struct edit;
+impl edit {
+    async fn edit<'a>(
+        bad_man: LazyExtract<BadMan<'a>>,
+        good_man: LazyExtract<GoodMan<'a>>,
+        req: &mut Request,
+    ) -> String {
+        {
+            let bad_man = bad_man.extract(req).await.unwrap();
+            let bad_man = format!("Bad Man: {:#?}", bad_man);
+            let good_man = good_man.extract(req).await.unwrap();
+            let good_man = format!("Good Man: {:#?}", good_man);
+            format!("{}\r\n\r\n\r\n{}", bad_man, good_man)
+        }
+    }
+}
+#[salvo::async_trait]
+impl salvo::Handler for edit {
+    #[inline]
+    async fn handle(
+        &self,
+        req: &mut salvo::Request,
+        depot: &mut salvo::Depot,
+        res: &mut salvo::Response,
+        ctrl: &mut salvo::routing::FlowCtrl,
+    ) {
+        let bad_man: LazyExtract<BadMan> = match req.extract().await {
+            Ok(data) => data,
+            Err(e) => {
+                salvo :: __private :: tracing :: error!
+                (error = ? e, "failed to extract data");
+                res.set_status_error(
+                    salvo::http::errors::StatusError::bad_request().with_detail("Extract data failed."),
+                );
+                return;
+            }
+        };
+        let good_man: LazyExtract<GoodMan> = match req.extract().await {
+            Ok(data) => data,
+            Err(e) => {
+                salvo :: __private :: tracing :: error!
+                (error = ? e, "failed to extract data");
+                res.set_status_error(
+                    salvo::http::errors::StatusError::bad_request().with_detail("Extract data failed."),
+                );
+                return;
+            }
+        };
+        salvo::Writer::write(Self::edit(bad_man, good_man, req).await, req, depot, res).await;
+    }
 }
 
 #[derive(Serialize, Deserialize, Extractible, Debug)]
@@ -41,10 +97,10 @@ async fn edit<'a>(bad_man: BadMan, good_man: GoodMan<'a>) -> String {
     default_source(from = "param"),
     default_source(from = "body")
 )]
-struct BadMan {
+struct BadMan<'a> {
     id: i64,
     username: String,
-    first_name: String,
+    first_name: &'a str,
     last_name: String,
     lovers: Vec<String>,
 }

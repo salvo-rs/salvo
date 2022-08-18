@@ -174,7 +174,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             let from = &source.from;
             if from == "request" {
                 if let Type::Path(ty) = &field.ty {
-                    let (ty, _) = omit_type_path_lifetimes(ty);
+                    let ty = omit_type_path_lifetimes(ty);
                     nested_metadata = Some(quote! {
                         field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
                     });
