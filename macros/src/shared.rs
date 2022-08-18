@@ -1,9 +1,9 @@
 use darling::ToTokens;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
-use syn::PathArguments::AngleBracketed;
-use syn::{FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath, parse_quote};
 use regex::Regex;
+use syn::PathArguments::AngleBracketed;
+use syn::{parse_quote, FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -72,7 +72,7 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
     }
 }
 
-pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> syn::TypePath  {
+pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> syn::TypePath {
     let reg = Regex::new(r"'\w+").unwrap();
     let ty_path2 = ty_path.into_token_stream().to_string();
     let ty_path2 = reg.replace_all(&ty_path2, "'_");
