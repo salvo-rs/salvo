@@ -104,7 +104,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
-                  
+
                     extract_ts.push(quote! {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,
@@ -127,7 +127,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
-                  
+
                     extract_ts.push(quote! {
                         let #id: #ty = #salvo::extract::LazyExtract::new();
                     });
