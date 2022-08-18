@@ -34,16 +34,6 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             };
 
             let hfn = handle_fn(&salvo, sig)?;
-            println!(
-                "{}",
-                quote! {
-                    #sdef
-                    #[#salvo::async_trait]
-                    impl #salvo::Handler for #name {
-                        #hfn
-                    }
-                }
-            );
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -114,8 +104,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
-                    println!("==============hhh=========={:?}", ty);
-
+                  
                     extract_ts.push(quote! {
                         let #id: #ty = match req.extract().await {
                             Ok(data) => data,
@@ -127,6 +116,20 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                                 return;
                             }
                         };
+                    });
+                } else {
+                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
+                }
+            }
+            InputType::LazyExtract(pat) => {
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    call_args.push(ident.ident.clone());
+                    // Maybe extractible type.
+                    let id = &pat.pat;
+                    let ty = omit_type_path_lifetimes(ty);
+                  
+                    extract_ts.push(quote! {
+                        let #id: #ty = #salvo::extract::LazyExtract::new();
                     });
                 } else {
                     return Err(syn::Error::new_spanned(pat, "Invalid param definition."));

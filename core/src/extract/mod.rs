@@ -84,6 +84,7 @@ pub struct LazyExtract<T> {
     #[serde(skip)]
     inner: PhantomData<T>,
 }
+
 impl<'de, T> LazyExtract<T>
 where
     T: Extractible<'de>,

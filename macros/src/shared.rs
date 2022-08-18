@@ -2,8 +2,7 @@ use darling::ToTokens;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use regex::Regex;
-use syn::PathArguments::AngleBracketed;
-use syn::{parse_quote, FnArg, GenericArgument, Ident, Meta, NestedMeta, PatType, Receiver, TypePath};
+use syn::{FnArg, Ident, Meta, NestedMeta, PatType, Receiver, Type, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -13,6 +12,7 @@ pub(crate) enum InputType<'a> {
     Unknown,
     Receiver(&'a Receiver),
     NoReference(&'a PatType),
+    LazyExtract(&'a PatType),
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
@@ -39,7 +39,7 @@ pub(crate) fn salvo_crate(internal: bool) -> syn::Ident {
 #[inline]
 pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
     if let FnArg::Typed(p) = input {
-        if let syn::Type::Reference(ty) = &*p.ty {
+        if let Type::Reference(ty) = &*p.ty {
             if let syn::Type::Path(nty) = &*ty.elem {
                 // the last ident for path type is the real type
                 // such as:
@@ -60,8 +60,16 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
             } else {
                 InputType::Unknown
             }
+        } else if let Type::Path(nty) = &*p.ty {
+            let ident = &nty.path.segments.last().unwrap().ident;
+            if ident == "LazyExtract" {
+                // like owned type or other type
+                InputType::LazyExtract(p)
+            } else {
+                // like owned type or other type
+                InputType::NoReference(p)
+            }
         } else {
-            // like owned type or other type
             InputType::NoReference(p)
         }
     } else if let FnArg::Receiver(r) = input {
@@ -72,11 +80,11 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
     }
 }
 
-pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> syn::TypePath {
+pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
     let reg = Regex::new(r"'\w+").unwrap();
-    let ty_path2 = ty_path.into_token_stream().to_string();
-    let ty_path2 = reg.replace_all(&ty_path2, "'_");
-    parse_quote!(#ty_path)
+    let ty_path = ty_path.into_token_stream().to_string();
+    let ty_path = reg.replace_all(&ty_path, "'_");
+    syn::parse_str(ty_path.as_ref()).unwrap()
 }
 
 pub(crate) fn is_internal<'a>(args: impl Iterator<Item = &'a NestedMeta>) -> bool {
