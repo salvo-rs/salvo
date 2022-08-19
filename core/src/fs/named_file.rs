@@ -15,7 +15,7 @@ use mime_guess::from_path;
 use tokio::fs::File;
 
 use super::{ChunkedState, FileChunk};
-use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, RANGE, IF_NONE_MATCH};
+use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH, RANGE};
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{Depot, Error, Result, Writer};
 
