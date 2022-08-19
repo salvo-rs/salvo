@@ -38,6 +38,17 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
+#[inline]
+pub(crate) fn from_str_multi_val<'de, I, T, C>(input: I) -> Result<T, ValError>
+where
+    I: IntoIterator<Item = C> + 'de,
+    T: Deserialize<'de>,
+    C: Into<Cow<'de, str>> + std::cmp::Eq + 'de,
+{
+    let iter = input.into_iter().map(|v| CowValue(v.into()));
+    T::deserialize(VecValue(iter))
+}
+
 macro_rules! forward_cow_parsed_value {
     ($($ty:ident => $method:ident,)*) => {
         $(

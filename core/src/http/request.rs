@@ -1,5 +1,9 @@
 //! Http request.
 
+use std::collections::HashMap;
+use std::fmt::{self, Formatter};
+use std::str::FromStr;
+
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::header::{self, HeaderMap};
@@ -11,9 +15,6 @@ pub use hyper::Body;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
-use std::collections::HashMap;
-use std::fmt::{self, Formatter};
-use std::str::FromStr;
 
 use crate::addr::SocketAddr;
 use crate::extract::{Extractible, Metadata};
@@ -21,7 +22,7 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_request, from_str_map, from_str_multi_map};
+use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val};
 
 /// Represents an HTTP request.
 ///
@@ -399,32 +400,62 @@ impl Request {
                 .collect()
         })
     }
+
     /// Get query value from queries.
     #[inline]
-    pub fn query<F>(&self, key: &str) -> Option<F>
+    pub fn query<'de, T>(&'de self, key: &str) -> Option<T>
     where
-        F: FromStr,
+        T: Deserialize<'de>,
     {
-        self.queries().get(key).and_then(|v| v.parse::<F>().ok())
+        self.queries().get_vec(key).and_then(|vs| from_str_multi_val(vs).ok())
     }
 
     /// Get field data from form.
     #[inline]
-    pub async fn form<F>(&mut self, key: &str) -> Option<F>
+    pub async fn form<'de, T>(&'de mut self, key: &str) -> Option<T>
     where
-        F: FromStr,
+        T: Deserialize<'de>,
     {
         self.form_data()
             .await
             .ok()
-            .and_then(|ps| ps.fields.get(key))
-            .and_then(|v| v.parse::<F>().ok())
+            .and_then(|ps| ps.fields.get_vec(key))
+            .and_then(|vs| from_str_multi_val(vs).ok())
     }
+
+    /// Get field data from form, if key is not found in form data, then get from query.
+    #[inline]
+    pub async fn form_or_query<'de, T>(&'de mut self, key: &str) -> Option<T>
+    where
+        T: Deserialize<'de>,
+    {
+        if let Ok(form_data) = self.form_data().await {
+            if form_data.fields.contains_key(key) {
+                return self.form(key).await;
+            }
+        }
+        self.query(key)
+    }
+
+    /// Get value from query, if key is not found in queries, then get from form.
+    #[inline]
+    pub async fn query_or_form<'de, T>(&'de mut self, key: &str) -> Option<T>
+    where
+        T: Deserialize<'de>,
+    {
+        if self.queries().contains_key(key) {
+            self.query(key)
+        } else {
+            self.form(key).await
+        }
+    }
+
     /// Get [`FilePart`] reference from request.
     #[inline]
     pub async fn file<'a>(&'a mut self, key: &'a str) -> Option<&'a FilePart> {
         self.form_data().await.ok().and_then(|ps| ps.files.get(key))
     }
+
     /// Get [`FilePart`] reference from request.
     #[inline]
     pub async fn first_file(&mut self) -> Option<&FilePart> {
@@ -434,11 +465,13 @@ impl Request {
             .and_then(|ps| ps.files.iter().next())
             .map(|(_, f)| f)
     }
+
     /// Get [`FilePart`] list reference from request.
     #[inline]
     pub async fn files<'a>(&'a mut self, key: &'a str) -> Option<&'a Vec<FilePart>> {
         self.form_data().await.ok().and_then(|ps| ps.files.get_vec(key))
     }
+
     /// Get [`FilePart`] list reference from request.
     #[inline]
     pub async fn all_files(&mut self) -> Vec<&FilePart> {
@@ -447,22 +480,6 @@ impl Request {
             .ok()
             .map(|ps| ps.files.iter().map(|(_, f)| f).collect())
             .unwrap_or_default()
-    }
-    /// Get value from form first if not found then get from query.
-    #[inline]
-    pub async fn form_or_query<F>(&mut self, key: &str) -> Option<F>
-    where
-        F: FromStr,
-    {
-        self.form(key.as_ref()).await.or_else(|| self.query(key))
-    }
-    /// Get value from query first if not found then get from form.
-    #[inline]
-    pub async fn query_or_form<F>(&mut self, key: &str) -> Option<F>
-    where
-        F: FromStr,
-    {
-        self.query(key.as_ref()).or(self.form(key).await)
     }
 
     /// Get request payload.
@@ -562,6 +579,7 @@ impl Request {
     {
         self.parse_queries()
     }
+
     /// Parse queries as type `T` from request.
     #[inline]
     pub fn parse_queries<'de, T>(&'de mut self) -> Result<T, ParseError>
@@ -625,6 +643,7 @@ impl Request {
     {
         self.parse_json().await
     }
+
     /// Parse json body as type `T` from request.
     #[inline]
     pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
@@ -654,6 +673,7 @@ impl Request {
     {
         self.parse_form().await
     }
+
     /// Parse form body as type `T` from request.
     #[inline]
     pub async fn parse_form<'de, T>(&'de mut self) -> Result<T, ParseError>
@@ -680,6 +700,7 @@ impl Request {
     {
         self.parse_body().await
     }
+
     /// Parse json body or form body as type `T` from request.
     #[inline]
     pub async fn parse_body<'de, T>(&'de mut self) -> Result<T, ParseError>
@@ -752,10 +773,16 @@ mod tests {
     }
     #[tokio::test]
     async fn test_query() {
-        let mut req = TestClient::get("http://127.0.0.1:7878/hello?q=rust").build();
-        assert_eq!(req.queries().len(), 1);
-        assert_eq!(req.query::<String>("q").unwrap(), "rust");
-        assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
+        let req = TestClient::get("http://127.0.0.1:7979/hello?name=rust&name=25&name=a&name=2&weapons=98&weapons=gun")
+            .build();
+        assert_eq!(req.queries().len(), 2);
+        assert_eq!(req.query::<String>("name").unwrap(), "rust");
+        assert_eq!(req.query::<&str>("name").unwrap(), "rust");
+        assert_eq!(req.query::<i64>("weapons").unwrap(), 98);
+        let names = req.query::<Vec<&str>>("name").unwrap();
+        let weapons = req.query::<(u64, &str)>("weapons").unwrap();
+        assert_eq!(names, vec!["rust", "25", "a", "2"]);
+        assert_eq!(weapons, (98, "gun"));
     }
     #[tokio::test]
     async fn test_form() {
