@@ -318,16 +318,16 @@ impl AcmeListenerBuilder {
         )
         .await?;
 
-        let mut cached_pkey = None;
+        let mut cached_key = None;
         let mut cached_cert = None;
         if let Some(cache_path) = &acme_config.cache_path {
-            let pkey_data = cache_path
+            let key_data = cache_path
                 .read_key(&acme_config.directory_name, &acme_config.domains)
                 .await?;
-            if let Some(pkey_data) = pkey_data {
+            if let Some(key_data) = key_data {
                 tracing::debug!("load private key from cache");
-                match rustls_pemfile::pkcs8_private_keys(&mut pkey_data.as_slice()) {
-                    Ok(pkey) => cached_pkey = pkey.into_iter().next(),
+                match rustls_pemfile::pkcs8_private_keys(&mut key_data.as_slice()) {
+                    Ok(key) => cached_key = key.into_iter().next(),
                     Err(err) => {
                         tracing::warn!("failed to parse cached private key: {}", err)
                     }
@@ -348,7 +348,7 @@ impl AcmeListenerBuilder {
         };
 
         let cert_resolver = Arc::new(ResolveServerCert::default());
-        if let (Some(cached_cert), Some(cached_pkey)) = (cached_cert, cached_pkey) {
+        if let (Some(cached_cert), Some(cached_key)) = (cached_cert, cached_key) {
             let certs = cached_cert
                 .into_iter()
                 .map(tokio_rustls::rustls::Certificate)
@@ -356,7 +356,7 @@ impl AcmeListenerBuilder {
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
-                any_ecdsa_type(&PrivateKey(cached_pkey)).unwrap(),
+                any_ecdsa_type(&PrivateKey(cached_key)).unwrap(),
             )));
         }
 

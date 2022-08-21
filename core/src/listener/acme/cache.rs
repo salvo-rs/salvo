@@ -49,7 +49,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the certificate was unable to be written
     /// sucessfully.
-    async fn write_pkey(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
+    async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 
     /// Returns the previously written certificate retrieved from `Acme`. The parameters are:
     ///
@@ -79,7 +79,7 @@ pub trait AcmeCache {
     async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 }
 
-static PKEY_PEM_PREFIX: &str = "pkey-";
+static KEY_PEM_PREFIX: &str = "key-";
 static CERT_PEM_PREFIX: &str = "cert-";
 #[async_trait]
 impl<P> AcmeCache for P
@@ -93,7 +93,7 @@ where
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
             "{}{}-{}",
-            PKEY_PEM_PREFIX,
+            KEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
         ));
@@ -106,12 +106,12 @@ where
         }
     }
     #[inline]
-    async fn write_pkey(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
+    async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         create_dir_all(&path).await?;
         path.push(format!(
             "{}{}-{}",
-            PKEY_PEM_PREFIX,
+            KEY_PEM_PREFIX,
             directory_name,
             file_hash_part(domains)
         ));

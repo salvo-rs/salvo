@@ -117,7 +117,7 @@ pub(crate) async fn issue_cert(
         .await?
         .as_ref()
         .to_vec();
-    let pkey_pem = cert.serialize_private_key_pem();
+    let key_pem = cert.serialize_private_key_pem();
     let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice())
         .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid pem: {}", e)))?
         .into_iter()
@@ -128,7 +128,7 @@ pub(crate) async fn issue_cert(
     tracing::debug!("certificate obtained");
     if let Some(cache_path) = &config.cache_path {
         cache_path
-            .write_pkey(&config.directory_name, &config.domains, pkey_pem.as_bytes())
+            .write_key(&config.directory_name, &config.domains, key_pem.as_bytes())
             .await?;
         cache_path
             .write_cert(&config.directory_name, &config.domains, &cert_pem)
