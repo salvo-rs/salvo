@@ -49,6 +49,15 @@ where
     T::deserialize(VecValue(iter))
 }
 
+#[inline]
+pub(crate) fn from_str_val<'de, I, T>(input: I) -> Result<T, ValError>
+where
+    I: Into<Cow<'de, str>>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(CowValue(input.into()))
+}
+
 macro_rules! forward_cow_parsed_value {
     ($($ty:ident => $method:ident,)*) => {
         $(

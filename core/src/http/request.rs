@@ -22,7 +22,7 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::header::HeaderValue;
 use crate::http::Mime;
 use crate::http::ParseError;
-use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val};
+use crate::serde::{from_request, from_str_map, from_str_val, from_str_multi_map, from_str_multi_val};
 
 /// Represents an HTTP request.
 ///
@@ -385,11 +385,11 @@ impl Request {
 
     /// Get param value from params.
     #[inline]
-    pub fn param<T>(&self, key: &str) -> Option<T>
+    pub fn param<'de,  T>(&'de self, key: &str) -> Option<T>
     where
-        T: FromStr,
+        T: Deserialize<'de>,
     {
-        self.params.get(key).and_then(|v| v.parse::<T>().ok())
+        self.params.get(key).and_then(|v| from_str_val(v).ok())
     }
 
     /// Get queries reference.
