@@ -72,16 +72,14 @@ where
     V: BasicAuthValidator + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(auth) = req.headers().get(AUTHORIZATION) {
-            if let Ok(auth) = auth.to_str() {
-                if auth.starts_with("Basic") {
-                    if let Some((_, auth)) = auth.split_once(' ') {
-                        if let Ok((username, password)) = self.parse_authorization(auth) {
-                            if self.validator.validate(&username, &password).await {
-                                depot.insert(USERNAME_KEY, username);
-                                ctrl.call_next(req, depot, res).await;
-                                return;
-                            }
+        if let Some(auth) = req.headers().get(AUTHORIZATION).and_then(|auth| auth.to_str().ok()) {
+            if auth.starts_with("Basic") {
+                if let Some((_, auth)) = auth.split_once(' ') {
+                    if let Ok((username, password)) = self.parse_authorization(auth) {
+                        if self.validator.validate(&username, &password).await {
+                            depot.insert(USERNAME_KEY, username);
+                            ctrl.call_next(req, depot, res).await;
+                            return;
                         }
                     }
                 }
