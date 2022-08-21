@@ -322,7 +322,7 @@ impl AcmeListenerBuilder {
         let mut cached_cert = None;
         if let Some(cache_path) = &acme_config.cache_path {
             let pkey_data = cache_path
-                .read_pkey(&acme_config.directory_name, &acme_config.domains)
+                .read_key(&acme_config.directory_name, &acme_config.domains)
                 .await?;
             if let Some(pkey_data) = pkey_data {
                 tracing::debug!("load private key from cache");

@@ -35,7 +35,7 @@ pub trait AcmeCache {
     ///
     /// Returns an error when the private key was unable to be written
     /// sucessfully.
-    async fn read_pkey(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
+    async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
     ///
@@ -89,7 +89,7 @@ where
     type Error = IoError;
 
     #[inline]
-    async fn read_pkey(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
+    async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut path = self.as_ref().to_path_buf();
         path.push(format!(
             "{}{}-{}",

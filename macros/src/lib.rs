@@ -64,3 +64,90 @@ pub fn derive_extractible(input: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+    use syn::parse2;
+
+    use super::*;
+
+    #[test]
+    fn test_handler_for_fn() {
+        let input = quote! {
+            #[handler]
+            async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+                res.render_plain_text("Hello World");
+            }
+        };
+        let item = parse2(input).unwrap();
+        assert_eq!(
+            handler::generate(false, item).unwrap().to_string(),
+            quote! {
+                #[allow(non_camel_case_types)]
+                #[derive(Debug)]
+                struct hello;
+                impl hello {
+                    #[handler]
+                    async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+                        {
+                            res.render_plain_text("Hello World");
+                        }
+                    }
+                }
+                #[salvo::async_trait]
+                impl salvo::Handler for hello {
+                    #[inline]
+                    async fn handle(
+                        &self,
+                        req: &mut salvo::Request,
+                        depot: &mut salvo::Depot,
+                        res: &mut salvo::Response,
+                        ctrl: &mut salvo::routing::FlowCtrl
+                    ) {
+                        Self::hello(req, depot, res, ctrl).await
+                    }
+                }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn test_handler_for_impl() {
+        let input = quote! {
+            #[handler]
+            impl Hello {
+                fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                    res.render_plain_text("Hello World");
+                }
+            }
+        };
+        let item = parse2(input).unwrap();
+        assert_eq!(
+            handler::generate(false, item).unwrap().to_string(),
+            quote! {
+                #[handler]
+                impl Hello {
+                    fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                        res.render_plain_text("Hello World");
+                    }
+                }
+                #[salvo::async_trait]
+                impl salvo::Handler for Hello {
+                    #[inline]
+                    async fn handle(
+                        &self,
+                        req: &mut salvo::Request,
+                        depot: &mut salvo::Depot,
+                        res: &mut salvo::Response,
+                        ctrl: &mut salvo::routing::FlowCtrl
+                    ) {
+                        Self::handle(req, depot, res)
+                    }
+                }
+            }
+            .to_string()
+        );
+    }
+}
