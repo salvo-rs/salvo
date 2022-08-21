@@ -59,7 +59,7 @@ jobs:
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/main' || github.event_name == 'push')
         run: |
           cargo install cargo-tarpaulin
-          cargo tarpaulin --all-features -p salvo_macros -p salvo_core -p salvo_extra --out Xml
+          cargo tarpaulin --all-features -p salvo* --out Xml
 
       - name: Upload to codecov
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/main' || github.event_name == 'push')
