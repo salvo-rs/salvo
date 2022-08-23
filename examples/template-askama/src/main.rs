@@ -1,15 +1,17 @@
-use salvo::prelude::*;
 use askama::Template;
+use salvo::prelude::*;
 
 #[derive(Template)]
-#[template(path = "hello.html")] 
+#[template(path = "hello.html")]
 struct HelloTemplate<'a> {
     name: &'a str,
 }
 
 #[handler]
-async fn hello_world(req: &mut Request, res: &mut Response) { 
-    let hello = HelloTemplate { name: req.param::<&str>("name").unwrap_or("World") };
+async fn hello_world(req: &mut Request, res: &mut Response) {
+    let hello = HelloTemplate {
+        name: req.param::<&str>("name").unwrap_or("World"),
+    };
     res.render(Text::Html(hello.render().unwrap()));
 }
 
