@@ -1,5 +1,5 @@
+use salvo::extra::session::{MemoryStore, Session, SessionDepotExt, SessionHandler};
 use salvo::prelude::*;
-use salvo::extra::session::{Session, MemoryStore, SessionHandler, SessionDepotExt};
 
 #[tokio::main]
 async fn main() {
@@ -8,8 +8,12 @@ async fn main() {
 }
 
 pub(crate) async fn start_server() {
-    let session_handler = SessionHandler::new(MemoryStore::new(), b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab");
-    let router = Router::new().hoop(session_handler)
+    let session_handler = SessionHandler::new(
+        MemoryStore::new(),
+        b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+    );
+    let router = Router::new()
+        .hoop(session_handler)
         .get(home)
         .push(Router::with_path("login").get(login).post(login))
         .push(Router::with_path("logout").get(logout));
@@ -21,7 +25,9 @@ pub(crate) async fn start_server() {
 pub async fn login(req: &mut Request, depot: &mut Depot, res: &mut Response) {
     if req.method() == salvo::http::Method::POST {
         let mut session = Session::new();
-        session.insert("username", req.form::<String>("username").await.unwrap()).unwrap();
+        session
+            .insert("username", req.form::<String>("username").await.unwrap())
+            .unwrap();
         depot.set_session(session);
         res.redirect_other("/").unwrap();
     } else {
