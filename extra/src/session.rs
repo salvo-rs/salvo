@@ -4,6 +4,8 @@
 Salvo session middleware is built on top of
 [`async-session`](https://github.com/http-rs/async-session).
 
+An example: [`session-login`](https://github.com/salvo-rs/salvo/tree/main/examples/session-login)
+
 Sessions allows salvo to securely attach data to a browser session
 allowing for retrieval and modification of this data within salvo
 on subsequent visits. Session data is generally only retained for the
