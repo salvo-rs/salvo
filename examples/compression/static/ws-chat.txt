@@ -75,7 +75,7 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Sta
     Ok(())
 }
 async fn user_message(my_id: usize, msg: Message) {
-    let msg = if let Some(s) = msg.to_str() {
+    let msg = if let Ok(s) = msg.to_str() {
         s
     } else {
         return;
