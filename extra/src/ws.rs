@@ -339,10 +339,10 @@ impl Message {
 
     /// Try to get a reference to the string text, if this is a Text message.
     #[inline]
-    pub fn to_str(&self) -> Option<&str> {
+    pub fn to_str(&self) -> Result<&str, Error> {
         match self.inner {
-            protocol::Message::Text(ref s) => Some(s),
-            _ => None,
+            protocol::Message::Text(ref s) => Ok(s),
+            _ => Err(Error::Other("not a text message".into())),
         }
     }
 
