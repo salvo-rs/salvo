@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 
+use salvo::extra::size_limiter;
 use salvo::prelude::*;
 
 use self::models::*;
@@ -14,6 +15,7 @@ async fn main() {
 
 pub(crate) async fn start_server() {
     let router = Router::with_path("todos")
+        .hoop(size_limiter::max_size(1024 * 16))
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
