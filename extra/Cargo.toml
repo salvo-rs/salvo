@@ -33,7 +33,7 @@ serve-static = ["dep:chrono", "dep:mime", "dep:percent-encoding", "tokio", "dep:
 session = ["dep:async-session", "dep:cookie", "dep:tracing"]
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 timeout = ["tokio/macros"]
-ws = ["dep:futures-util", "tokio", "tokio-tungstenite", "dep:tracing"]
+ws = ["dep:futures-util", "dep:hyper", "tokio-tungstenite", "dep:tracing"]
 
 [dependencies]
 aead = { version = "0.5", features = ["alloc"], optional = true }
