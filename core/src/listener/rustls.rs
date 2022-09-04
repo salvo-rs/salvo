@@ -54,14 +54,14 @@ impl Keycert {
             ocsp_resp: vec![],
         }
     }
-    /// Sets the Tls private key via File Path, returns `IoError` if the file cannot be open.
+    /// Set the Tls private key via File Path, returns `IoError` if the file cannot be open.
     #[inline]
     pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key_path = Some(path.as_ref().into());
         self
     }
 
-    /// Sets the Tls private key via bytes slice.
+    /// Set the Tls private key via bytes slice.
     #[inline]
     pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = key.into();
@@ -75,7 +75,7 @@ impl Keycert {
         self
     }
 
-    /// Sets the Tls certificate via bytes slice
+    /// Set the Tls certificate via bytes slice
     #[inline]
     pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = cert.into();
@@ -192,7 +192,7 @@ impl RustlsConfig {
         }
     }
 
-    /// Sets the trust anchor for optional Tls client authentication via file path.
+    /// Set the trust anchor for optional Tls client authentication via file path.
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
@@ -205,7 +205,7 @@ impl RustlsConfig {
         Ok(self)
     }
 
-    /// Sets the trust anchor for optional Tls client authentication via bytes slice.
+    /// Set the trust anchor for optional Tls client authentication via bytes slice.
     ///
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
@@ -214,7 +214,7 @@ impl RustlsConfig {
         self
     }
 
-    /// Sets the trust anchor for required Tls client authentication via file path.
+    /// Set the trust anchor for required Tls client authentication via file path.
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
@@ -227,7 +227,7 @@ impl RustlsConfig {
         Ok(self)
     }
 
-    /// Sets the trust anchor for required Tls client authentication via bytes slice.
+    /// Set the trust anchor for required Tls client authentication via bytes slice.
     ///
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.

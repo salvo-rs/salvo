@@ -215,7 +215,7 @@ impl AcmeListenerBuilder {
         }
     }
 
-    /// Sets the directory.
+    /// Set the directory.
     ///
     /// Defaults to lets encrypt.
     #[inline]
@@ -285,7 +285,7 @@ impl AcmeListenerBuilder {
         }
     }
 
-    /// Sets the cache path for caching certificates.
+    /// Set the cache path for caching certificates.
     ///
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be

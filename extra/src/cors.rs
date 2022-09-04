@@ -7,8 +7,8 @@
 //! use salvo_extra::cors::CorsHandler;
 //!
 //! let cors_handler = CorsHandler::builder()
-//!     .with_allow_origin("https://salvo.rs")
-//!     .with_allow_methods(vec!["GET", "POST", "DELETE"]).build();
+//!     .allow_origin("https://salvo.rs")
+//!     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
 //!
 //! let router = Router::new().hoop(cors_handler).post(upload_file);
 //! #[handler]
@@ -21,7 +21,7 @@
 //! use salvo_core::prelude::*;
 //! use salvo_extra::cors::CorsHandler;
 //! let cors_handler = CorsHandler::builder()
-//!     .with_allow_any_origin().build();
+//!     .allow_any_origin().build();
 //! ```
 
 use std::collections::HashSet;
@@ -68,9 +68,9 @@ impl HandlerBuilder {
             origins: None,
         }
     }
-    /// Sets whether to add the `Access-Control-Allow-Credentials` header.
+    /// Set whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
-    pub fn with_allow_credentials(mut self, allow: bool) -> Self {
+    pub fn allow_credentials(mut self, allow: bool) -> Self {
         self.credentials = allow;
         self
     }
@@ -81,7 +81,7 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `http::Method`.
     #[inline]
-    pub fn with_allow_method<M>(mut self, method: M) -> Self
+    pub fn allow_method<M>(mut self, method: M) -> Self
     where
         Method: TryFrom<M>,
     {
@@ -99,7 +99,7 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `http::Method`.
     #[inline]
-    pub fn with_allow_methods<I>(mut self, methods: I) -> Self
+    pub fn allow_methods<I>(mut self, methods: I) -> Self
     where
         I: IntoIterator,
         Method: TryFrom<I::Item>,
@@ -120,7 +120,7 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn with_allow_header<H>(mut self, header: H) -> Self
+    pub fn allow_header<H>(mut self, header: H) -> Self
     where
         HeaderName: TryFrom<H>,
     {
@@ -140,7 +140,7 @@ impl HandlerBuilder {
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn with_allow_headers<I>(mut self, headers: I) -> Self
+    pub fn allow_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator,
         HeaderName: TryFrom<I::Item>,
@@ -159,7 +159,7 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn with_expose_header<H>(mut self, header: H) -> Self
+    pub fn expose_header<H>(mut self, header: H) -> Self
     where
         HeaderName: TryFrom<H>,
     {
@@ -177,7 +177,7 @@ impl HandlerBuilder {
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn with_expose_headers<I>(mut self, headers: I) -> Self
+    pub fn expose_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator,
         HeaderName: TryFrom<I::Item>,
@@ -190,14 +190,14 @@ impl HandlerBuilder {
         self
     }
 
-    /// Sets that *any* `Origin` header is allowed.
+    /// Set that *any* `Origin` header is allowed.
     ///
     /// # Warning
     ///
     /// This can allow websites you didn't intend to access this resource,
     /// it is usually better to set an explicit list.
     #[inline]
-    pub fn with_allow_any_origin(mut self) -> Self {
+    pub fn allow_any_origin(mut self) -> Self {
         self.origins = None;
         self
     }
@@ -208,8 +208,8 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `Origin`.
     #[inline]
-    pub fn with_allow_origin(self, origin: impl IntoOrigin) -> Self {
-        self.with_allow_origins(Some(origin))
+    pub fn allow_origin(self, origin: impl IntoOrigin) -> Self {
+        self.allow_origins(Some(origin))
     }
 
     /// Add multiple origins to the existing list of allowed `Origin`s.
@@ -218,7 +218,7 @@ impl HandlerBuilder {
     ///
     /// Panics if the provided argument is not a valid `Origin`.
     #[inline]
-    pub fn with_allow_origins<I>(mut self, origins: I) -> Self
+    pub fn allow_origins<I>(mut self, origins: I) -> Self
     where
         I: IntoIterator,
         I::Item: IntoOrigin,
@@ -235,7 +235,7 @@ impl HandlerBuilder {
         self
     }
 
-    /// Sets the `Access-Control-Max-Age` header.
+    /// Set the `Access-Control-Max-Age` header.
     ///
     /// # Example
     ///
@@ -245,11 +245,11 @@ impl HandlerBuilder {
     /// use salvo_core::prelude::*;;
     ///
     /// let cors = salvo_extra::cors::CorsHandler::builder()
-    ///     .with_max_age(30) // 30u32 seconds
-    ///     .with_max_age(Duration::from_secs(30)); // or a Duration
+    ///     .max_age(30) // 30u32 seconds
+    ///     .max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]
-    pub fn with_max_age(mut self, seconds: impl Seconds) -> Self {
+    pub fn max_age(mut self, seconds: impl Seconds) -> Self {
         self.max_age = Some(seconds.seconds());
         self
     }
@@ -510,9 +510,9 @@ mod tests {
     #[tokio::test]
     async fn test_cors() {
         let cors_handler = CorsHandler::builder()
-            .with_allow_origin("https://salvo.rs")
-            .with_allow_methods(vec!["GET", "POST", "OPTIONS"])
-            .with_allow_headers(vec![
+            .allow_origin("https://salvo.rs")
+            .allow_methods(vec!["GET", "POST", "OPTIONS"])
+            .allow_headers(vec![
                 "CONTENT-TYPE",
                 "Access-Control-Request-Method",
                 "Access-Control-Allow-Origin",

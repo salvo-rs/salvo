@@ -51,20 +51,20 @@ impl NativeTlsConfig {
         }
     }
 
-    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
+    /// Set the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
     #[inline]
     pub fn with_pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12_path = Some(path.as_ref().into());
         self
     }
 
-    /// Sets the pkcs12 via bytes slice
+    /// Set the pkcs12 via bytes slice
     #[inline]
     pub fn with_pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
         self.pkcs12 = pkcs12.into();
         self
     }
-    /// Sets the password
+    /// Set the password
     #[inline]
     pub fn with_password(mut self, password: impl Into<String>) -> Self {
         self.password = password.into();
@@ -131,11 +131,11 @@ impl NativeTlsListener<stream::Once<Ready<Identity>>> {
         config: NativeTlsConfig,
     ) -> Result<NativeTlsListenerBuilder<stream::Once<Ready<Identity>>>, IoError> {
         let identity = config.identity()?;
-        Ok(Self::with_identity(identity))
+        Ok(Self::identity(identity))
     }
     /// Create new NativeTlsListenerBuilder with Identity.
     #[inline]
-    pub fn with_identity(identity: impl Into<Identity>) -> NativeTlsListenerBuilder<stream::Once<Ready<Identity>>> {
+    pub fn identity(identity: impl Into<Identity>) -> NativeTlsListenerBuilder<stream::Once<Ready<Identity>>> {
         let stream = futures_util::stream::once(futures_util::future::ready(identity.into()));
         Self::with_config_stream(stream)
     }

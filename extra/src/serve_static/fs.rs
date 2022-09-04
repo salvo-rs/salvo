@@ -26,7 +26,7 @@ impl FileHandler {
     /// The default is 1M.
     #[inline]
     pub fn chunk_size(self, size: u64) -> Self {
-        Self(self.0.with_buffer_size(size))
+        Self(self.0.buffer_size(size))
     }
 }
 

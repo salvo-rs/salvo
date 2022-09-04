@@ -112,7 +112,6 @@ impl Display for SocketAddr {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[tokio::test]
@@ -128,6 +127,7 @@ mod tests {
         #[cfg(target_os = "linux")]
         assert!(ipv4.as_unix().is_none());
     }
+    
     #[tokio::test]
     async fn test_addr_ipv6() {
         let ipv6 = std::net::SocketAddr::new(

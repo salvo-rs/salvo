@@ -132,7 +132,7 @@ impl CsrfHandler {
         }
     }
 
-    /// Sets the protection ttl. This will be used for both the cookie
+    /// Set the protection ttl. This will be used for both the cookie
     /// expiry and the time window over which CSRF tokens are considered
     /// valid.
     ///
@@ -143,7 +143,7 @@ impl CsrfHandler {
         self
     }
 
-    /// Sets the name of the HTTP header where the middleware will look
+    /// Set the name of the HTTP header where the middleware will look
     /// for the CSRF token.
     ///
     /// Defaults to "x-csrf-token".
@@ -153,7 +153,7 @@ impl CsrfHandler {
         self
     }
 
-    /// Sets the name of the query parameter where the middleware will
+    /// Set the name of the query parameter where the middleware will
     /// look for the CSRF token.
     ///
     /// Defaults to "csrf-token".
@@ -163,7 +163,7 @@ impl CsrfHandler {
         self
     }
 
-    /// Sets the name of the form field where the middleware will look
+    /// Set the name of the form field where the middleware will look
     /// for the CSRF token.
     ///
     /// Defaults to "csrf-token".
@@ -173,7 +173,7 @@ impl CsrfHandler {
         self
     }
 
-    /// Sets the list of methods that will be protected by this
+    /// Set the list of methods that will be protected by this
     /// middleware.
     ///
     /// Defaults to `[POST, PUT, PATCH, DELETE]`

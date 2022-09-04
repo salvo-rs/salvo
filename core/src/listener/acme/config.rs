@@ -72,7 +72,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Sets the directory url.
+    /// Set the directory url.
     ///
     /// Defaults to lets encrypt production.
     #[inline]
@@ -110,7 +110,7 @@ impl AcmeConfigBuilder {
         self
     }
 
-    /// Sets the challenge type Http01
+    /// Set the challenge type Http01
     #[inline]
     pub fn http01_challege(self) -> Self {
         Self {
@@ -119,7 +119,7 @@ impl AcmeConfigBuilder {
             ..self
         }
     }
-    /// Sets the challenge type TlsAlpn01
+    /// Set the challenge type TlsAlpn01
     #[inline]
     pub fn tls_alpn01_challege(self) -> Self {
         Self {
@@ -129,7 +129,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Sets the cache path for caching certificates.
+    /// Set the cache path for caching certificates.
     ///
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be
@@ -142,7 +142,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Sets the duration update certificate before it expired.
+    /// Set the duration update certificate before it expired.
     #[inline]
     pub fn before_expired(self, before_expired: Duration) -> Self {
         Self { before_expired, ..self }
