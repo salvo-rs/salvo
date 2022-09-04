@@ -169,7 +169,7 @@ pub(crate) enum TlsClientAuth {
 
 /// Builder to set the configuration for the Tls server.
 pub struct RustlsConfig {
-    backup: Option<Keycert>,
+    fallback: Option<Keycert>,
     keycerts: HashMap<String, Keycert>,
     client_auth: TlsClientAuth,
 }
@@ -184,9 +184,9 @@ impl fmt::Debug for RustlsConfig {
 impl RustlsConfig {
     /// Create new `RustlsConfig`
     #[inline]
-    pub fn new(backup: impl Into<Option<Keycert>>) -> Self {
+    pub fn new(fallback: impl Into<Option<Keycert>>) -> Self {
         RustlsConfig {
-            backup: backup.into(),
+            fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
         }
@@ -245,10 +245,10 @@ impl RustlsConfig {
     }
     /// ServerConfig
     fn build_server_config(mut self) -> io::Result<ServerConfig> {
-        let backup = self
-            .backup
+        let fallback = self
+            .fallback
             .as_mut()
-            .map(|backup| backup.build_certified_key())
+            .map(|fallback| fallback.build_certified_key())
             .transpose()?
             .map(Arc::new);
         let mut certified_keys = HashMap::new();
@@ -268,14 +268,14 @@ impl RustlsConfig {
         let mut config = ServerConfig::builder()
             .with_safe_defaults()
             .with_client_cert_verifier(client_auth)
-            .with_cert_resolver(Arc::new(CertResolver { certified_keys, backup }));
+            .with_cert_resolver(Arc::new(CertResolver { certified_keys, fallback }));
         config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
         Ok(config)
     }
 }
 
 struct CertResolver {
-    backup: Option<Arc<CertifiedKey>>,
+    fallback: Option<Arc<CertifiedKey>>,
     certified_keys: HashMap<String, Arc<CertifiedKey>>,
 }
 
@@ -284,7 +284,7 @@ impl ResolvesServerCert for CertResolver {
         client_hello
             .server_name()
             .and_then(|name| self.certified_keys.get(name).map(Arc::clone))
-            .or_else(|| self.backup.clone())
+            .or_else(|| self.fallback.clone())
     }
 }
 
