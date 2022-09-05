@@ -43,18 +43,6 @@ pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
-/// `handler` is a pro macro to help create `Handler` from function easily.
-///
-/// Note: This is a deprecated version, please use `handler` instead, this will be removed in the future.
-#[deprecated(
-    since = "0.27.0",
-    note = "please use `handler` instead, this will be removed in the future"
-)]
-#[proc_macro_attribute]
-pub fn fn_handler(args: TokenStream, input: TokenStream) -> TokenStream {
-    handler(args, input)
-}
-
 /// Generate code for extractible type.
 #[proc_macro_derive(Extractible, attributes(extract))]
 pub fn derive_extractible(input: TokenStream) -> TokenStream {
