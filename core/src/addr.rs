@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 /// Network socket address
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum SocketAddr {
     /// IPv4 socket address
     IPv4(std::net::SocketAddrV4),

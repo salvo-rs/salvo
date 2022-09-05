@@ -82,6 +82,8 @@ impl Piece for String {
 }
 
 /// Write text content to response as text content.
+
+#[non_exhaustive]
 pub enum Text<C> {
     /// It will set ```content-type``` to ```text/plain; charset=utf-8```.
     Plain(C),

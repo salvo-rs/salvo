@@ -116,6 +116,7 @@ const CHALLENGE_TYPE_TLS_ALPN_01: &str = "tls-alpn-01";
 
 /// Challenge type
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum ChallengeType {
     /// HTTP-01 challenge
     ///

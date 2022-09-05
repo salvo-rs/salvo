@@ -15,6 +15,7 @@ use salvo_core::prelude::*;
 
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum CompressionAlgo {
     /// Gzip
     Gzip,

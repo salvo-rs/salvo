@@ -7,6 +7,7 @@ use self::RenameRule::*;
 
 /// Source from for a field.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[non_exhaustive]
 pub enum SourceFrom {
     /// The field will extracted from url param.
     Param,
@@ -42,6 +43,7 @@ impl FromStr for SourceFrom {
 
 /// Rename rule for a field.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[non_exhaustive]
 pub enum RenameRule {
     /// Rename direct children to "lowercase" style.
     LowerCase,
@@ -107,6 +109,7 @@ impl RenameRule {
 /// Source format for a source. This format is just means that field format, not the request mime type.
 /// For example, the request is posted as form, but if the field is string as json format, it can be parsed as json.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[non_exhaustive]
 pub enum SourceFormat {
     /// MulitMap format. This is the default.
     MultiMap,

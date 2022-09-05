@@ -13,6 +13,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 /// ParseError, errors happened when read data from http request.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum ParseError {
     /// The Hyper request did not have a valid Content-Type header.
     #[error("The Hyper request did not have a valid Content-Type header.")]

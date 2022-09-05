@@ -12,6 +12,7 @@ type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Errors that can happen inside salvo.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error happened in hyper.
     Hyper(hyper::Error),

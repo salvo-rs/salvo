@@ -19,6 +19,7 @@ use sha2::Sha256;
 
 /// An `enum` of all CSRF related errors.
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
+#[non_exhaustive]
 pub enum CsrfError {
     /// There was an internal error.
     InternalError,

@@ -23,6 +23,7 @@ use bytes::Bytes;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
+#[non_exhaustive]
 pub enum Body {
     /// None body.
     None,
