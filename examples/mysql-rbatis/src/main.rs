@@ -33,7 +33,7 @@ async fn main() {
 
     // mysql connect info
     let mysql_uri = "mysql://root:123456@localhost/test";
-    RB.init(MysqlDriver {}, mysql_uri).await.unwrap();
+    RB.init(MysqlDriver {}, mysql_uri).unwrap();
 
     // router
     let router = Router::with_path("users").get(get_user);
