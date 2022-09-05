@@ -1,25 +1,40 @@
 //! Compress the body of a response.
+use std::collections::BTreeSet;
 use std::io::{Error as IoError, ErrorKind};
+use std::str::FromStr;
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
+use bytes::BytesMut;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
-use bytes::BytesMut;
 
 use salvo_core::async_trait;
-use salvo_core::http::header::{HeaderValue, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
+use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
 
 /// CompressionAlgo
-#[derive(Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
 pub enum CompressionAlgo {
-    /// Brotli
-    Brotli,
-    /// Deflate
-    Deflate,
     /// Gzip
     Gzip,
+    /// Deflate
+    Deflate,
+    /// Brotli
+    Brotli,
+}
+
+impl FromStr for CompressionAlgo {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "gzip" => Ok(CompressionAlgo::Gzip),
+            "deflate" => Ok(CompressionAlgo::Deflate),
+            "br" => Ok(CompressionAlgo::Brotli),
+            _ => Err(format!("unknown compression algorithm: {}", s)),
+        }
+    }
 }
 
 impl From<CompressionAlgo> for HeaderValue {
@@ -36,7 +51,7 @@ impl From<CompressionAlgo> for HeaderValue {
 /// CompressionHandler
 #[derive(Clone, Debug)]
 pub struct CompressionHandler {
-    algo: CompressionAlgo,
+    algos: BTreeSet<CompressionAlgo>,
     content_types: Vec<String>,
     min_length: usize,
 }
@@ -44,16 +59,8 @@ pub struct CompressionHandler {
 impl Default for CompressionHandler {
     #[inline]
     fn default() -> Self {
-        Self::new(CompressionAlgo::Gzip)
-    }
-}
-
-impl CompressionHandler {
-    /// Create a new `CompressionHandler`.
-    #[inline]
-    pub fn new(algo: CompressionAlgo) -> Self {
-        CompressionHandler {
-            algo,
+        Self {
+            algos: [CompressionAlgo::Gzip, CompressionAlgo::Deflate, CompressionAlgo::Brotli].into_iter().collect(),
             content_types: vec![
                 "text/".into(),
                 "application/javascript".into(),
@@ -65,10 +72,19 @@ impl CompressionHandler {
             min_length: 1024,
         }
     }
-    /// Create a new `CompressionHandler` with algo.
+}
+
+impl CompressionHandler {
+    /// Create a new `CompressionHandler`.
     #[inline]
-    pub fn with_algo(mut self, algo: CompressionAlgo) -> Self {
-        self.algo = algo;
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Set `CompressionHandler` with algos.
+    #[inline]
+    pub fn with_algos(mut self, algos: &[CompressionAlgo]) -> Self {
+        self.algos = algos.iter().copied().collect();
         self
     }
 
@@ -83,7 +99,7 @@ impl CompressionHandler {
     pub fn set_min_length(&mut self, size: usize) {
         self.min_length = size;
     }
-    /// Create a new `CompressionHandler` with min_length.
+    /// Set `CompressionHandler` with min_length.
     #[inline]
     pub fn with_min_length(mut self, min_length: usize) -> Self {
         self.min_length = min_length;
@@ -100,12 +116,50 @@ impl CompressionHandler {
     pub fn content_types_mut(&mut self) -> &mut Vec<String> {
         &mut self.content_types
     }
-    /// Create a new `CompressionHandler` with content types list.
+    /// Set `CompressionHandler` with content types list.
     #[inline]
     pub fn with_content_types(mut self, content_types: &[String]) -> Self {
         self.content_types = content_types.to_vec();
         self
     }
+
+    fn negotiate(&self, header: &str) -> Option<CompressionAlgo> {
+        parse_accept_encoding(header).into_iter().find_map(
+            |(algo, _)| {
+                if self.algos.contains(&algo) {
+                    Some(algo)
+                } else {
+                    None
+                }
+            },
+        )
+    }
+}
+
+fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
+    let mut vec = header
+        .split(',')
+        .filter_map(|s| {
+            let mut iter = s.trim().split(';');
+            let (algo, q) = (iter.next()?, iter.next());
+            let algo = algo.trim().parse().ok()?;
+            let q = q
+                .and_then(|q| {
+                    q.trim()
+                        .strip_prefix("q=")
+                        .and_then(|q| q.parse::<f32>().map(|f| (f * 100.0) as u8).ok())
+                })
+                .unwrap_or(100u8);
+            Some((algo, q))
+        })
+        .collect::<Vec<(CompressionAlgo, u8)>>();
+
+    vec.sort_by(|(algo_a, a), (algo_b, b)| match b.cmp(a) {
+        std::cmp::Ordering::Equal => algo_a.cmp(algo_b),
+        other => other,
+    });
+
+    vec
 }
 
 #[async_trait]
@@ -126,6 +180,18 @@ impl Handler for CompressionHandler {
         {
             return;
         }
+
+        let algo = if let Some(algo) = req
+            .headers()
+            .get(ACCEPT_ENCODING)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| self.negotiate(v))
+        {
+            algo
+        } else {
+            return;
+        };
+
         match res.take_body() {
             Body::None => {
                 return;
@@ -135,8 +201,9 @@ impl Handler for CompressionHandler {
                     res.set_body(Body::Once(bytes));
                     return;
                 }
+
                 let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
-                match self.algo {
+                match algo {
                     CompressionAlgo::Gzip => {
                         let stream = ReaderStream::new(GzipEncoder::new(reader));
                         if let Err(e) = res.streaming(stream) {
@@ -158,7 +225,7 @@ impl Handler for CompressionHandler {
                 }
             }
             Body::Chunks(chunks) => {
-                let len = chunks.iter().map(|c|c.len()).sum();
+                let len = chunks.iter().map(|c| c.len()).sum();
                 if len < self.min_length {
                     res.set_body(Body::Chunks(chunks));
                     return;
@@ -168,7 +235,7 @@ impl Handler for CompressionHandler {
                     bytes.extend_from_slice(&*chunk);
                 }
                 let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
-                match self.algo {
+                match algo {
                     CompressionAlgo::Gzip => {
                         let stream = ReaderStream::new(GzipEncoder::new(reader));
                         if let Err(e) = res.streaming(stream) {
@@ -192,7 +259,7 @@ impl Handler for CompressionHandler {
             Body::Stream(stream) => {
                 let stream = stream.map(|item| item.map_err(|_| ErrorKind::Other));
                 let reader = StreamReader::new(stream);
-                match self.algo {
+                match algo {
                     CompressionAlgo::Gzip => {
                         let stream = ReaderStream::new(GzipEncoder::new(reader));
                         if let Err(e) = res.streaming(stream) {
@@ -215,69 +282,13 @@ impl Handler for CompressionHandler {
             }
         }
         res.headers_mut().remove(CONTENT_LENGTH);
-        res.headers_mut().append(CONTENT_ENCODING, self.algo.into());
+        res.headers_mut().append(CONTENT_ENCODING, algo.into());
     }
-}
-
-/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
-/// using gzip, adding `content-encoding: gzip` to the Response's [`HeaderMap`](hyper::HeaderMap)
-///
-/// # Example
-///
-/// ```
-/// use salvo_core::prelude::*;
-/// use salvo_extra::compression;
-/// use salvo_extra::serve_static::FileHandler;
-///
-/// let router = Router::new()
-///     .hoop(compression::gzip())
-///     .get(FileHandler::new("./README.md"));
-/// ```
-#[inline]
-pub fn gzip() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::Gzip)
-}
-
-/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
-/// using deflate, adding `content-encoding: deflate` to the Response's [`HeaderMap`](hyper::HeaderMap)
-///
-/// # Example
-///
-/// ```
-/// use salvo_core::prelude::*;
-/// use salvo_extra::compression;
-/// use salvo_extra::serve_static::FileHandler;
-///
-/// let router = Router::new()
-///     .hoop(compression::deflate())
-///     .get(FileHandler::new("./README.md"));
-/// ```
-#[inline]
-pub fn deflate() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::Deflate)
-}
-
-/// Create a middleware that compresses the [`Body`](salvo_core::http::response::Body)
-/// using brotli, adding `content-encoding: br` to the Response's [`HeaderMap`](hyper::HeaderMap)
-///
-/// # Example
-///
-/// ```
-/// use salvo_core::prelude::*;
-/// use salvo_extra::compression;
-/// use salvo_extra::serve_static::FileHandler;
-///
-/// let router = Router::new()
-///     .hoop(compression::brotli())
-///     .get(FileHandler::new("./README.md"));
-/// ```
-#[inline]
-pub fn brotli() -> CompressionHandler {
-    CompressionHandler::new(CompressionAlgo::Brotli)
 }
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING};
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -290,33 +301,42 @@ mod tests {
 
     #[tokio::test]
     async fn test_gzip() {
-        let comp_handler = gzip().with_min_length(1);
+        let comp_handler = CompressionHandler::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
-        assert_eq!(res.headers().get("content-encoding").unwrap(), "gzip");
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+            .insert_header(ACCEPT_ENCODING, "gzip")
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
         let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
     #[tokio::test]
     async fn test_brotli() {
-        let comp_handler = brotli().with_min_length(1);
+        let comp_handler = CompressionHandler::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-        
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
-        assert_eq!(res.headers().get("content-encoding").unwrap(), "br");
+
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+            .insert_header(ACCEPT_ENCODING, "br")
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
         let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
 
     #[tokio::test]
     async fn test_deflate() {
-        let comp_handler = deflate().with_min_length(1);
+        let comp_handler = CompressionHandler::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
-       
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello").send(router).await;
-        assert_eq!(res.headers().get("content-encoding").unwrap(), "deflate");
+
+        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+            .insert_header(ACCEPT_ENCODING, "deflate")
+            .send(router)
+            .await;
+        assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "deflate");
         let content = res.take_string().await.unwrap();
         assert_eq!(content, "hello");
     }
