@@ -11,7 +11,9 @@ pub(crate) async fn start_server() {
     let session_handler = SessionHandler::builder(
         MemoryStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
-    ).build().unwrap();
+    )
+    .build()
+    .unwrap();
     let router = Router::new()
         .hoop(session_handler)
         .get(home)
