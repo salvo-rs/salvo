@@ -1,5 +1,4 @@
 //! Compress the body of a response.
-use std::collections::BTreeSet;
 use std::io::{Error as IoError, ErrorKind};
 use std::str::FromStr;
 
@@ -14,7 +13,7 @@ use salvo_core::http::response::Body;
 use salvo_core::prelude::*;
 
 /// CompressionAlgo
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum CompressionAlgo {
     /// Gzip
@@ -52,7 +51,7 @@ impl From<CompressionAlgo> for HeaderValue {
 /// CompressionHandler
 #[derive(Clone, Debug)]
 pub struct CompressionHandler {
-    algos: BTreeSet<CompressionAlgo>,
+    algos: Vec<CompressionAlgo>,
     content_types: Vec<String>,
     min_length: usize,
 }
@@ -155,8 +154,8 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
         })
         .collect::<Vec<(CompressionAlgo, u8)>>();
 
-    vec.sort_by(|(algo_a, a), (algo_b, b)| match b.cmp(a) {
-        std::cmp::Ordering::Equal => algo_a.cmp(algo_b),
+    vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
+        std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
         other => other,
     });
 
@@ -281,6 +280,7 @@ impl Handler for CompressionHandler {
                     }
                 }
             }
+            _ => {}
         }
         res.headers_mut().remove(CONTENT_LENGTH);
         res.headers_mut().append(CONTENT_ENCODING, algo.into());

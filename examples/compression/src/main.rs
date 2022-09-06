@@ -14,22 +14,23 @@ async fn main() {
     println!("Base Dir: {:?}", base_dir);
 
     let router = Router::new()
-        .push(Router::with_path("ws_chat").get(FileHandler::new(base_dir.join("ws_chat.txt"))))
         .push(
-            Router::new()
-                .hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Brotli]))
+            Router::with_hoop(CompressionHandler::new())
+                .path("ws_chat")
+                .get(FileHandler::new(base_dir.join("ws_chat.txt"))),
+        )
+        .push(
+            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Brotli]))
                 .path("sse_chat")
                 .get(FileHandler::new(base_dir.join("sse_chat.txt"))),
         )
         .push(
-            Router::new()
-                .hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Deflate]))
+            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Deflate]))
                 .path("todos")
                 .get(FileHandler::new(base_dir.join("todos.txt"))),
         )
         .push(
-            Router::new()
-                .hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Gzip]))
+            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Gzip]))
                 .path("<*path>")
                 .get(DirHandler::new(base_dir)),
         );
