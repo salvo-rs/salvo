@@ -29,9 +29,9 @@ impl FromStr for CompressionAlgo {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "br" => Ok(CompressionAlgo::Brotli),
             "gzip" => Ok(CompressionAlgo::Gzip),
             "deflate" => Ok(CompressionAlgo::Deflate),
-            "br" => Ok(CompressionAlgo::Brotli),
             _ => Err(format!("unknown compression algorithm: {}", s)),
         }
     }
@@ -54,13 +54,16 @@ pub struct CompressionHandler {
     algos: Vec<CompressionAlgo>,
     content_types: Vec<String>,
     min_length: usize,
+    force_priority: bool,
 }
 
 impl Default for CompressionHandler {
     #[inline]
     fn default() -> Self {
         Self {
-            algos: [CompressionAlgo::Gzip, CompressionAlgo::Deflate, CompressionAlgo::Brotli].into_iter().collect(),
+            algos: [CompressionAlgo::Brotli, CompressionAlgo::Gzip, CompressionAlgo::Deflate]
+                .into_iter()
+                .collect(),
             content_types: vec![
                 "text/".into(),
                 "application/javascript".into(),
@@ -70,6 +73,7 @@ impl Default for CompressionHandler {
                 "image/svg+xml".into(),
             ],
             min_length: 1024,
+            force_priority: false,
         }
     }
 }
@@ -105,6 +109,12 @@ impl CompressionHandler {
         self.min_length = min_length;
         self
     }
+    /// Set `CompressionHandler` with force_priority.
+    #[inline]
+    pub fn with_force_priority(mut self, force_priority: bool) -> Self {
+        self.force_priority = force_priority;
+        self
+    }
 
     /// Get content type list reference.
     #[inline]
@@ -124,15 +134,15 @@ impl CompressionHandler {
     }
 
     fn negotiate(&self, header: &str) -> Option<CompressionAlgo> {
-        parse_accept_encoding(header).into_iter().find_map(
-            |(algo, _)| {
-                if self.algos.contains(&algo) {
-                    Some(algo)
-                } else {
-                    None
-                }
-            },
-        )
+        let accept_algos = parse_accept_encoding(header);
+        if self.force_priority {
+            let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
+            self.algos.iter().find(|algo| accept_algos.contains(algo)).copied()
+        } else {
+            accept_algos
+                .into_iter()
+                .find_map(|(algo, _)| if self.algos.contains(&algo) { Some(algo) } else { None })
+        }
     }
 }
 
