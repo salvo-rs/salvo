@@ -42,7 +42,7 @@ pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::listener::Listener;
-pub use self::routing::Router;
+pub use self::routing::{FlowCtrl, Router};
 pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::{Piece, Writer};

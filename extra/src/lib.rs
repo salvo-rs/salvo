@@ -60,7 +60,6 @@ cfg_feature! {
     #![feature = "ws"]
     pub mod ws;
 }
-
 cfg_feature! {
     #![feature =  "size-limiter"]
     pub mod size_limiter;
@@ -68,4 +67,8 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "timeout"]
     pub mod timeout;
+}
+cfg_feature! {
+    #![feature = "caching-headers"]
+    pub mod caching_headers;
 }

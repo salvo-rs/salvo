@@ -40,6 +40,21 @@ impl Body {
     pub fn is_none(&self) -> bool {
         matches!(*self, Body::None)
     }
+    /// Check is that body is once.
+    #[inline]
+    pub fn is_once(&self) -> bool {
+        matches!(*self, Body::Once(_))
+    }
+    /// Check is that body is chunks.
+    #[inline]
+    pub fn is_chunks(&self) -> bool {
+        matches!(*self, Body::Chunks(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
+    pub fn is_stream(&self) -> bool {
+        matches!(*self, Body::Stream(_))
+    }
 }
 
 impl Stream for Body {
