@@ -10,8 +10,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_recursion::async_recursion;
-
 use crate::http::{Request, Response};
 use crate::{Depot, Handler};
 
@@ -151,7 +149,6 @@ impl FlowCtrl {
     ///
     /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
-    #[async_recursion]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if let Some(code) = res.status_code() {
             if code.is_client_error() || code.is_server_error() || code.is_redirection() {
@@ -159,15 +156,23 @@ impl FlowCtrl {
                 return false;
             }
         }
-        if let Some(handler) = self.handlers.get(self.cursor) {
-            self.cursor += 1;
-            handler.clone().handle(req, depot, res, self).await;
-            if self.has_next() {
-                self.call_next(req, depot, res).await;
+        let mut handler = self.handlers.get(self.cursor).cloned();
+        if handler.is_none() {
+            false
+        } else {
+            while let Some(h) = handler.take() {
+                self.cursor += 1;
+                h.handle(req, depot, res, self).await;
+                if let Some(code) = res.status_code() {
+                    if code.is_client_error() || code.is_server_error() || code.is_redirection() {
+                        self.skip_rest();
+                        return false;
+                    }
+                } else if self.has_next() {
+                    handler = self.handlers.get(self.cursor).cloned();
+                }
             }
             true
-        } else {
-            false
         }
     }
     /// Skip all reset handlers.
