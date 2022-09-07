@@ -1,4 +1,4 @@
-use salvo::extra::compression::{CompressionAlgo, Compression};
+use salvo::extra::compression::{Compression, CompressionAlgo};
 use salvo::extra::serve_static::*;
 use salvo::prelude::*;
 

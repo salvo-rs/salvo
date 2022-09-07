@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
-use salvo::extra::jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState, QueryExtractor};
+use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryExtractor};
 use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
