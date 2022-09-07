@@ -171,7 +171,7 @@ impl FlowCtrl {
             true
         }
     }
-    
+
     /// Skip all reset handlers.
     #[inline]
     pub fn skip_rest(&mut self) {
