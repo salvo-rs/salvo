@@ -1,4 +1,4 @@
-//! serve middleware
+//! serve static dir and file middleware
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -12,9 +12,9 @@ use salvo_core::async_trait;
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::routing::FlowCtrl;
+use salvo_core::writer::Redirect;
 use salvo_core::writer::Text;
 use salvo_core::{Depot, Handler, Writer};
-use salvo_core::writer::Redirect;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -101,6 +101,44 @@ impl StaticRoots for PathBuf {
         vec![self]
     }
 }
+
+/// StaticFile
+#[derive(Clone)]
+pub struct StaticFile(NamedFileBuilder);
+
+impl StaticFile {
+    /// Create a new `StaticFile`.
+    #[inline]
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        StaticFile(NamedFile::builder(path))
+    }
+
+    /// During the file chunk read, the maximum read size at one time will affect the
+    /// access experience and the demand for server memory.
+    ///
+    /// Please set it according to your own situation.
+    ///
+    /// The default is 1M.
+    #[inline]
+    pub fn chunk_size(self, size: u64) -> Self {
+        Self(self.0.buffer_size(size))
+    }
+}
+
+#[async_trait]
+impl Handler for StaticFile {
+    #[inline]
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        match self.0.clone().build().await {
+            Ok(file) => file.write(req, depot, res).await,
+            Err(_) => {
+                res.set_status_error(StatusError::not_found());
+            }
+        }
+        ctrl.skip_rest();
+    }
+}
+
 /// StaticDir
 #[derive(Clone)]
 pub struct StaticDir {
@@ -402,7 +440,8 @@ fn list_html(current: &CurrentInfo) -> String {
     write!(
         ftxt,
         r#"<hr/><footer><a href="https://salvo.rs" target="_blank">salvo</a></footer></body>"#
-    ).ok();
+    )
+    .ok();
     ftxt
 }
 #[inline]
@@ -446,44 +485,6 @@ const HTML_STYLE: &str = r#"
 const DIR_ICON: &str = r#"<svg aria-label="Directory" data-icon="dir" width="20" height="20" viewBox="0 0 512 512" version="1.1" role="img"><path fill="currentColor" d="M464 128H272l-64-64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V176c0-26.51-21.49-48-48-48z"></path></svg>"#;
 const FILE_ICON: &str = r#"<svg aria-label="File" data-icon="file" width="20" height="20" viewBox="0 0 384 512" version="1.1" role="img"><path d="M369.9 97.9L286 14C277 5 264.8-.1 252.1-.1H48C21.5 0 0 21.5 0 48v416c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48V131.9c0-12.7-5.1-25-14.1-34zM332.1 128H256V51.9l76.1 76.1zM48 464V48h160v104c0 13.3 10.7 24 24 24h104v288H48z"/></svg>"#;
 const HOME_ICON: &str = r#"<svg aria-hidden="true" data-icon="home" viewBox="0 0 576 512"><path fill="currentColor" d="M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z"></path></svg>"#;
-
-/// StaticFile
-#[derive(Clone)]
-pub struct StaticFile(NamedFileBuilder);
-
-impl StaticFile {
-    /// Create a new `StaticFile`.
-    #[inline]
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        StaticFile(NamedFile::builder(path))
-    }
-
-    /// During the file chunk read, the maximum read size at one time will affect the
-    /// access experience and the demand for server memory. 
-    /// 
-    /// Please set it according to your own situation.
-    /// 
-    /// The default is 1M.
-    #[inline]
-    pub fn chunk_size(self, size: u64) -> Self {
-        Self(self.0.buffer_size(size))
-    }
-}
-
-#[async_trait]
-impl Handler for StaticFile {
-    #[inline]
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        match self.0.clone().build().await {
-            Ok(file) => file.write(req, depot, res).await,
-            Err(_) => {
-                res.set_status_error(StatusError::not_found());
-            }
-        }
-        ctrl.skip_rest();
-    }
-}
-
 
 #[cfg(test)]
 mod tests {

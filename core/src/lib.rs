@@ -49,7 +49,7 @@ pub use self::writer::{Piece, Writer};
 /// Result type wich has salvo::Error as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// A list of things that automatically imports into application use salvo.
+/// A list of things that automatically imports into application use salvo_core.
 pub mod prelude {
     pub use async_trait::async_trait;
     pub use salvo_macros::{handler, Extractible};
