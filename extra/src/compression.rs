@@ -88,7 +88,7 @@ impl Compression {
     /// Set `Compression` with algos.
     #[inline]
     pub fn with_algos(mut self, algos: &[CompressionAlgo]) -> Self {
-        self.algos = algos.iter().copied().collect();
+        self.algos = algos.to_vec();
         self
     }
 
