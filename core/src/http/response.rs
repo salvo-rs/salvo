@@ -11,7 +11,7 @@ use std::task::{self, Poll};
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::{Stream, TryStreamExt};
-use http::header::{self, HeaderMap, IntoHeaderName, HeaderValue};
+use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
