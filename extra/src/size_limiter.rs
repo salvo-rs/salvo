@@ -5,10 +5,10 @@ use salvo_core::async_trait;
 use salvo_core::http::StatusError;
 use salvo_core::prelude::*;
 
-/// MaxSizeHandler
-pub struct MaxSizeHandler(u64);
+/// MaxSize
+pub struct MaxSize(pub u64);
 #[async_trait]
-impl Handler for MaxSizeHandler {
+impl Handler for MaxSize {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
@@ -21,10 +21,10 @@ impl Handler for MaxSizeHandler {
         }
     }
 }
-/// Create a new ```MaxSizeHandler```.
+/// Create a new ```MaxSize```.
 #[inline]
-pub fn max_size(size: u64) -> MaxSizeHandler {
-    MaxSizeHandler(size)
+pub fn max_size(size: u64) -> MaxSize {
+    MaxSize(size)
 }
 
 #[cfg(test)]
@@ -41,7 +41,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_size_limiter() {
-        let limit_handler = MaxSizeHandler(32);
+        let limit_handler = MaxSize(32);
         let router = Router::new()
             .hoop(limit_handler)
             .push(Router::with_path("hello").post(hello));

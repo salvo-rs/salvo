@@ -1,11 +1,11 @@
-use salvo::extra::serve_static::{DirHandler, Options};
+use salvo::extra::serve_static::{StaticDir, Options};
 use salvo::prelude::*;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<**path>").get(DirHandler::width_options(
+    let router = Router::with_path("<**path>").get(StaticDir::width_options(
         vec!["examples/file-list/static/boy", "examples/file-list/static/girl"],
         Options {
             dot_files: false,

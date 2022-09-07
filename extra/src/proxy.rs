@@ -1,4 +1,4 @@
-//! ProxyHandler.
+//! Proxy.
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::sync::Mutex;
@@ -11,19 +11,19 @@ use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
 
-/// ProxyHandler
-pub struct ProxyHandler {
+/// Proxy
+pub struct Proxy {
     upstreams: Vec<String>,
     counter: Mutex<usize>,
 }
 
-impl ProxyHandler {
-    /// Create new `ProxyHandler` with upstreams list.
+impl Proxy {
+    /// Create new `Proxy` with upstreams list.
     pub fn new(upstreams: Vec<String>) -> Self {
         if upstreams.is_empty() {
             panic!("proxy upstreams is empty");
         }
-        ProxyHandler {
+        Proxy {
             upstreams,
             counter: Mutex::new(0),
         }
@@ -46,7 +46,7 @@ impl ProxyHandler {
         self
     }
 }
-impl ProxyHandler {
+impl Proxy {
     fn build_proxied_request(&self, req: &mut Request) -> Result<hyper::Request<hyper::body::Body>> {
         req.headers_mut().remove(CONNECTION);
         let upstream = if self.upstreams.len() > 1 {
@@ -117,7 +117,7 @@ impl ProxyHandler {
 }
 
 #[async_trait]
-impl Handler for ProxyHandler {
+impl Handler for Proxy {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
@@ -168,7 +168,7 @@ impl Handler for ProxyHandler {
             }
         }
         if ctrl.has_next() {
-            tracing::error!("all handlers after ProxyHandler will skipped");
+            tracing::error!("all handlers after Proxy will skipped");
             ctrl.skip_rest();
         }
     }
@@ -184,13 +184,13 @@ mod tests {
     #[tokio::test]
     #[should_panic]
     async fn test_proxy_painc() {
-        ProxyHandler::new(vec![]);
+        Proxy::new(vec![]);
     }
 
     #[tokio::test]
     async fn test_proxy() {
         let router = Router::new()
-            .push(Router::with_path("baidu/<**rest>").handle(ProxyHandler::new(vec!["https://www.baidu.com".into()])));
+            .push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com".into()])));
 
         let content = TestClient::get("http://127.0.0.1:7979/baidu?wd=rust")
             .send(router)
@@ -202,7 +202,7 @@ mod tests {
     }
     #[test]
     fn test_others() {
-        let mut handler = ProxyHandler::new(vec!["https://www.baidu.com".into()]);
+        let mut handler = Proxy::new(vec!["https://www.baidu.com".into()]);
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
         let handler = handler.with_upstreams(vec!["https://www.baidu.com".into(), "https://www.baidu.com".into()]);

@@ -8,12 +8,12 @@ use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
-/// LogHandler
+/// Logger
 #[derive(Default, Debug)]
-pub struct LogHandler;
+pub struct Logger;
 
 #[async_trait]
-impl Handler for LogHandler {
+impl Handler for Logger {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let span = tracing::span!(
             Level::INFO,
@@ -67,7 +67,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .hoop(LogHandler)
+            .hoop(Logger)
             .push(Router::with_path("hello").get(hello));
 
         TestClient::get("http://127.0.0.1:7979/hello")

@@ -6,24 +6,24 @@ use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
-/// TimeoutHandler
-pub struct TimeoutHandler {
-    timeout: Duration,
+/// Timeout
+pub struct Timeout {
+    value: Duration,
 }
-impl TimeoutHandler {
-    /// Create a new `TimeoutHandler`.
+impl Timeout {
+    /// Create a new `Timeout`.
     #[inline]
-    pub fn new(timeout: Duration) -> Self {
-        TimeoutHandler { timeout }
+    pub fn new(value: Duration) -> Self {
+        Timeout { value }
     }
 }
 #[async_trait]
-impl Handler for TimeoutHandler {
+impl Handler for Timeout {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         tokio::select! {
             _ = ctrl.call_next(req, depot, res) => {},
-            _ = tokio::time::sleep(self.timeout) => {
+            _ = tokio::time::sleep(self.value) => {
                 res.set_status_error(StatusError::internal_server_error().with_detail("Server process the request timeout."))
             }
         }
@@ -50,7 +50,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .hoop(TimeoutHandler::new(Duration::from_secs(5)))
+            .hoop(Timeout::new(Duration::from_secs(5)))
             .push(Router::with_path("slow").get(slow))
             .push(Router::with_path("fast").get(fast));
         let service = Service::new(router);

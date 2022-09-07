@@ -38,11 +38,11 @@ See [`etag::EntityTag`](https://docs.rs/etag/3.0.0/etag/struct.EntityTag.html#co
 for further documentation.
 */
 #[derive(Default, Clone, Copy, Debug)]
-pub struct Etag {
+pub struct ETagHandler {
     strong: bool,
 }
 
-impl Etag {
+impl ETagHandler {
     /// constructs a new Etag handler
     pub fn new() -> Self {
         Self::default()
@@ -59,7 +59,7 @@ impl Etag {
 }
 
 #[async_trait]
-impl Handler for Etag {
+impl Handler for ETagHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
@@ -120,11 +120,11 @@ This handler does not set a `Last-Modified` header on its own, but
 relies on other handlers doing so.
 */
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Modified {
+pub struct ModifiedHandler {
     _private: (),
 }
 
-impl Modified {
+impl ModifiedHandler {
     /// Constructs a new Modified handler
     pub fn new() -> Self {
         Self { _private: () }
@@ -132,7 +132,7 @@ impl Modified {
 }
 
 #[async_trait]
-impl Handler for Modified {
+impl Handler for ModifiedHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
@@ -155,7 +155,7 @@ impl Handler for Modified {
 A combined handler that provides both [`ETagHandler`] and [`Modified`] behavior.
 */
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CachingHeaders(Modified, Etag);
+pub struct CachingHeaders(ModifiedHandler, ETagHandler);
 
 impl CachingHeaders {
     /// Constructs a new combination modified and etag handler

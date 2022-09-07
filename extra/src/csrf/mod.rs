@@ -69,7 +69,7 @@ impl CsrfDepotExt for Depot {
 }
 
 /// Cross-Site Request Forgery (CSRF) protection middleware.
-pub struct CsrfHandler {
+pub struct Csrf {
     cookie_path: String,
     cookie_name: String,
     cookie_domain: Option<String>,
@@ -81,10 +81,10 @@ pub struct CsrfHandler {
     protect: AesGcmCsrfProtection,
 }
 
-impl fmt::Debug for CsrfHandler {
+impl fmt::Debug for Csrf {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CsrfHandler")
+        f.debug_struct("Csrf")
             .field("cookie_path", &self.cookie_path)
             .field("cookie_name", &self.cookie_name)
             .field("cookie_domain", &self.cookie_domain)
@@ -97,12 +97,12 @@ impl fmt::Debug for CsrfHandler {
     }
 }
 
-impl CsrfHandler {
+impl Csrf {
     /// Create a new instance.
     ///
     /// # Defaults
     ///
-    /// The defaults for CsrfHandler are:
+    /// The defaults for Csrf are:
     /// - cookie path: `/`
     /// - cookie name: `salvo.extra.csrf`
     /// - cookie domain: None
@@ -285,7 +285,7 @@ impl CsrfHandler {
 }
 
 #[salvo_core::async_trait]
-impl Handler for CsrfHandler {
+impl Handler for Csrf {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         // We always begin by trying to find the existing CSRF cookie,
         // even if we do not need to protect this method. A new token is
@@ -370,14 +370,14 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_exposes_csrf_request_extensions() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index);
         let res = TestClient::get("http://127.0.0.1:7979").send(router).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn middleware_adds_csrf_cookie_sets_request_token() {
-        let router = Router::new().hoop(CsrfHandler::new(&SECRET)).get(get_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(router).await;
 
@@ -389,7 +389,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_header() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET))
+            .hoop(Csrf::new(&SECRET))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -415,7 +415,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_alternate_header() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET).with_header_name(HeaderName::from_static("x-mycsrf-header")))
+            .hoop(Csrf::new(&SECRET).with_header_name(HeaderName::from_static("x-mycsrf-header")))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -441,7 +441,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_query() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET))
+            .hoop(Csrf::new(&SECRET))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -465,7 +465,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_alternate_query() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET).with_query_param("my-csrf-token"))
+            .hoop(Csrf::new(&SECRET).with_query_param("my-csrf-token"))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -490,7 +490,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_form() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET).with_query_param("my-csrf-token"))
+            .hoop(Csrf::new(&SECRET).with_query_param("my-csrf-token"))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -515,7 +515,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_validates_token_in_alternate_form() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET).with_form_field("my-csrf-token"))
+            .hoop(Csrf::new(&SECRET).with_form_field("my-csrf-token"))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -540,7 +540,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_rejects_short_token() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET))
+            .hoop(Csrf::new(&SECRET))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -564,7 +564,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_rejects_invalid_base64_token() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET))
+            .hoop(Csrf::new(&SECRET))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);
@@ -588,7 +588,7 @@ mod tests {
     #[tokio::test]
     async fn middleware_rejects_mismatched_token() {
         let router = Router::new()
-            .hoop(CsrfHandler::new(&SECRET))
+            .hoop(Csrf::new(&SECRET))
             .get(get_index)
             .post(post_index);
         let service = Service::new(router);

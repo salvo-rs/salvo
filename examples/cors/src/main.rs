@@ -1,4 +1,4 @@
-use salvo::extra::cors::CorsHandler;
+use salvo::extra::cors::Cors;
 use salvo::prelude::*;
 
 #[handler]
@@ -10,7 +10,7 @@ async fn hello() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let cors_handler = CorsHandler::builder()
+    let cors_handler = Cors::builder()
         .allow_origin("https://salvo.rs")
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .build();

@@ -48,16 +48,16 @@ impl From<CompressionAlgo> for HeaderValue {
     }
 }
 
-/// CompressionHandler
+/// Compression
 #[derive(Clone, Debug)]
-pub struct CompressionHandler {
+pub struct Compression {
     algos: Vec<CompressionAlgo>,
     content_types: Vec<String>,
     min_length: usize,
     force_priority: bool,
 }
 
-impl Default for CompressionHandler {
+impl Default for Compression {
     #[inline]
     fn default() -> Self {
         Self {
@@ -78,14 +78,14 @@ impl Default for CompressionHandler {
     }
 }
 
-impl CompressionHandler {
-    /// Create a new `CompressionHandler`.
+impl Compression {
+    /// Create a new `Compression`.
     #[inline]
     pub fn new() -> Self {
         Default::default()
     }
 
-    /// Set `CompressionHandler` with algos.
+    /// Set `Compression` with algos.
     #[inline]
     pub fn with_algos(mut self, algos: &[CompressionAlgo]) -> Self {
         self.algos = algos.iter().copied().collect();
@@ -103,13 +103,13 @@ impl CompressionHandler {
     pub fn set_min_length(&mut self, size: usize) {
         self.min_length = size;
     }
-    /// Set `CompressionHandler` with min_length.
+    /// Set `Compression` with min_length.
     #[inline]
     pub fn with_min_length(mut self, min_length: usize) -> Self {
         self.min_length = min_length;
         self
     }
-    /// Set `CompressionHandler` with force_priority.
+    /// Set `Compression` with force_priority.
     #[inline]
     pub fn with_force_priority(mut self, force_priority: bool) -> Self {
         self.force_priority = force_priority;
@@ -126,7 +126,7 @@ impl CompressionHandler {
     pub fn content_types_mut(&mut self) -> &mut Vec<String> {
         &mut self.content_types
     }
-    /// Set `CompressionHandler` with content types list.
+    /// Set `Compression` with content types list.
     #[inline]
     pub fn with_content_types(mut self, content_types: &[String]) -> Self {
         self.content_types = content_types.to_vec();
@@ -173,7 +173,7 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
 }
 
 #[async_trait]
-impl Handler for CompressionHandler {
+impl Handler for Compression {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
@@ -312,7 +312,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gzip() {
-        let comp_handler = CompressionHandler::new().with_min_length(1);
+        let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")
@@ -326,7 +326,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_brotli() {
-        let comp_handler = CompressionHandler::new().with_min_length(1);
+        let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")
@@ -340,7 +340,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_deflate() {
-        let comp_handler = CompressionHandler::new().with_min_length(1);
+        let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")

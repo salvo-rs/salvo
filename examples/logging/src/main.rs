@@ -1,4 +1,4 @@
-use salvo::extra::logging::LogHandler;
+use salvo::extra::logging::Logger;
 use salvo::prelude::*;
 
 #[handler]
@@ -27,7 +27,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new()
-        .hoop(LogHandler)
+        .hoop(Logger)
         .get(hello_world)
         .push(Router::with_path("hello1").get(hello_world1))
         .push(Router::with_path("hello2").get(hello_world2))

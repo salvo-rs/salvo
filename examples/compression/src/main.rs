@@ -1,4 +1,4 @@
-use salvo::extra::compression::{CompressionAlgo, CompressionHandler};
+use salvo::extra::compression::{CompressionAlgo, Compression};
 use salvo::extra::serve_static::*;
 use salvo::prelude::*;
 
@@ -15,24 +15,24 @@ async fn main() {
 
     let router = Router::new()
         .push(
-            Router::with_hoop(CompressionHandler::new().with_force_priority(true))
+            Router::with_hoop(Compression::new().with_force_priority(true))
                 .path("ws_chat")
-                .get(FileHandler::new(base_dir.join("ws_chat.txt"))),
+                .get(StaticFile::new(base_dir.join("ws_chat.txt"))),
         )
         .push(
-            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Brotli]))
+            Router::with_hoop(Compression::new().with_algos(&[CompressionAlgo::Brotli]))
                 .path("sse_chat")
-                .get(FileHandler::new(base_dir.join("sse_chat.txt"))),
+                .get(StaticFile::new(base_dir.join("sse_chat.txt"))),
         )
         .push(
-            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Deflate]))
+            Router::with_hoop(Compression::new().with_algos(&[CompressionAlgo::Deflate]))
                 .path("todos")
-                .get(FileHandler::new(base_dir.join("todos.txt"))),
+                .get(StaticFile::new(base_dir.join("todos.txt"))),
         )
         .push(
-            Router::with_hoop(CompressionHandler::new().with_algos(&[CompressionAlgo::Gzip]))
+            Router::with_hoop(Compression::new().with_algos(&[CompressionAlgo::Gzip]))
                 .path("<*path>")
-                .get(DirHandler::new(base_dir)),
+                .get(StaticDir::new(base_dir)),
         );
     tracing::info!("Listening on http://127.0.0.1:7878");
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;

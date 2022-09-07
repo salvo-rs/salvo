@@ -26,20 +26,20 @@ impl BasicAuthDepotExt for Depot {
     }
 }
 
-/// BasicAuthHandler
-pub struct BasicAuthHandler<V: BasicAuthValidator> {
+/// BasicAuth
+pub struct BasicAuth<V: BasicAuthValidator> {
     realm: String,
     validator: V,
 }
 
-impl<V> BasicAuthHandler<V>
+impl<V> BasicAuth<V>
 where
     V: BasicAuthValidator,
 {
     /// Create new `BasicAuthValidator`.
     #[inline]
     pub fn new(validator: V) -> Self {
-        BasicAuthHandler {
+        BasicAuth {
             realm: "realm".to_owned(),
             validator,
         }
@@ -67,7 +67,7 @@ where
 }
 
 #[async_trait]
-impl<V> Handler for BasicAuthHandler<V>
+impl<V> Handler for BasicAuth<V>
 where
     V: BasicAuthValidator + 'static,
 {
@@ -112,7 +112,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_auth() {
-        let auth_handler = BasicAuthHandler::new(Validator);
+        let auth_handler = BasicAuth::new(Validator);
         let router = Router::with_hoop(auth_handler).handle(hello);
         let service = Service::new(router);
 

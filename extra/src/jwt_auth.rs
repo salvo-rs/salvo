@@ -285,8 +285,8 @@ impl JwtAuthDepotExt for Depot {
     }
 }
 
-/// JwtAuthHandler, used as middleware.
-pub struct JwtAuthHandler<C> {
+/// JwtAuth, used as middleware.
+pub struct JwtAuth<C> {
     secret: String,
     response_error: bool,
     claims: PhantomData<C>,
@@ -294,14 +294,14 @@ pub struct JwtAuthHandler<C> {
     extractors: Vec<Box<dyn JwtTokenExtractor>>,
 }
 
-impl<C> JwtAuthHandler<C>
+impl<C> JwtAuth<C>
 where
     C: DeserializeOwned + Send + Sync + 'static,
 {
-    /// Create new `JwtAuthHandler`.
+    /// Create new `JwtAuth`.
     #[inline]
-    pub fn new(secret: String) -> JwtAuthHandler<C> {
-        JwtAuthHandler {
+    pub fn new(secret: String) -> JwtAuth<C> {
+        JwtAuth {
             response_error: true,
             secret,
             claims: PhantomData::<C>,
@@ -367,7 +367,7 @@ where
 }
 
 #[async_trait]
-impl<C> Handler for JwtAuthHandler<C>
+impl<C> Handler for JwtAuth<C>
 where
     C: DeserializeOwned + Send + Sync + 'static,
 {
@@ -416,7 +416,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtAuthHandler<JwtClaims> = JwtAuthHandler::new("ABCDEF".into())
+        let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new("ABCDEF".into())
             .with_response_error(true)
             .with_extractors(vec![
                 Box::new(HeaderExtractor::new()),

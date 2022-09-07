@@ -4,9 +4,9 @@
 //!
 //! ```
 //! use salvo_core::prelude::*;
-//! use salvo_extra::cors::CorsHandler;
+//! use salvo_extra::cors::Cors;
 //!
-//! let cors_handler = CorsHandler::builder()
+//! let cors_handler = Cors::builder()
 //!     .allow_origin("https://salvo.rs")
 //!     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
 //!
@@ -19,8 +19,8 @@
 //! If you want to allow any route:
 //! ```
 //! use salvo_core::prelude::*;
-//! use salvo_extra::cors::CorsHandler;
-//! let cors_handler = CorsHandler::builder()
+//! use salvo_extra::cors::Cors;
+//! let cors_handler = Cors::builder()
 //!     .allow_any_origin().build();
 //! ```
 
@@ -38,9 +38,9 @@ use salvo_core::http::{Method, Request, Response, StatusCode};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::{Depot, Handler};
 
-/// A constructed via `salvo_extra::cors::CorsHandler::builder()`.
+/// A constructed via `salvo_extra::cors::Cors::builder()`.
 #[derive(Clone, Debug)]
-pub struct HandlerBuilder {
+pub struct CorsBuilder {
     credentials: bool,
     allowed_headers: HashSet<HeaderName>,
     exposed_headers: HashSet<HeaderName>,
@@ -48,18 +48,18 @@ pub struct HandlerBuilder {
     methods: HashSet<Method>,
     origins: Option<HashSet<HeaderValue>>,
 }
-impl Default for HandlerBuilder {
+impl Default for CorsBuilder {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl HandlerBuilder {
-    /// Create new `HandlerBuilder`.
+impl CorsBuilder {
+    /// Create new `CorsBuilder`.
     #[inline]
     pub fn new() -> Self {
-        HandlerBuilder {
+        CorsBuilder {
             credentials: false,
             allowed_headers: HashSet::new(),
             exposed_headers: HashSet::new(),
@@ -244,7 +244,7 @@ impl HandlerBuilder {
     /// use std::time::Duration;
     /// use salvo_core::prelude::*;;
     ///
-    /// let cors = salvo_extra::cors::CorsHandler::builder()
+    /// let cors = salvo_extra::cors::Cors::builder()
     ///     .max_age(30) // 30u32 seconds
     ///     .max_age(Duration::from_secs(30)); // or a Duration
     /// ```
@@ -256,10 +256,10 @@ impl HandlerBuilder {
 
     /// Builds the `Cors` wrapper from the configured settings.
     ///
-    /// This step isn't *required*, as the `HandlerBuilder` itself can be passed
+    /// This step isn't *required*, as the `CorsBuilder` itself can be passed
     /// to `Filter::with`. This just allows constructing once, thus not needing
     /// to pay the cost of "building" every time.
-    pub fn build(self) -> CorsHandler {
+    pub fn build(self) -> Cors {
         let expose_headers_header = if self.exposed_headers.is_empty() {
             None
         } else {
@@ -268,7 +268,7 @@ impl HandlerBuilder {
         let allowed_headers_header = self.allowed_headers.iter().cloned().collect();
         let methods_header = self.methods.iter().cloned().collect();
 
-        let HandlerBuilder {
+        let CorsBuilder {
             credentials,
             allowed_headers,
             // exposed_headers,
@@ -278,7 +278,7 @@ impl HandlerBuilder {
             ..
         } = self;
 
-        CorsHandler {
+        Cors {
             credentials,
             allowed_headers,
             // exposed_headers,
@@ -325,9 +325,9 @@ enum Validated {
     NotCors,
 }
 
-/// CorsHandler
+/// Cors
 #[derive(Debug)]
-pub struct CorsHandler {
+pub struct Cors {
     credentials: bool,
     allowed_headers: HashSet<HeaderName>,
     // exposed_headers: HashSet<HeaderName>,
@@ -338,11 +338,11 @@ pub struct CorsHandler {
     expose_headers_header: Option<AccessControlExposeHeaders>,
     methods_header: AccessControlAllowMethods,
 }
-impl CorsHandler {
-    /// Returns `HandlerBuilder` instance for build `CorsHandler`.
+impl Cors {
+    /// Returns `CorsBuilder` instance for build `Cors`.
     #[inline]
-    pub fn builder() -> HandlerBuilder {
-        HandlerBuilder::default()
+    pub fn builder() -> CorsBuilder {
+        CorsBuilder::default()
     }
     fn check_request(&self, method: &Method, headers: &HeaderMap) -> Result<Validated, Forbidden> {
         match (headers.get(header::ORIGIN), method) {
@@ -438,7 +438,7 @@ impl CorsHandler {
 }
 
 #[async_trait]
-impl Handler for CorsHandler {
+impl Handler for Cors {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let validated = self.check_request(req.method(), req.headers());
 
@@ -454,7 +454,7 @@ impl Handler for CorsHandler {
                 ctrl.call_next(req, depot, res).await;
             }
             Err(err) => {
-                tracing::error!(error = %err, "CorsHandler validate error");
+                tracing::error!(error = %err, "Cors validate error");
                 res.set_status_code(StatusCode::FORBIDDEN);
                 ctrl.skip_rest();
             }
@@ -509,7 +509,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors() {
-        let cors_handler = CorsHandler::builder()
+        let cors_handler = Cors::builder()
             .allow_origin("https://salvo.rs")
             .allow_methods(vec!["GET", "POST", "OPTIONS"])
             .allow_headers(vec![
