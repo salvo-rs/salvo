@@ -93,7 +93,6 @@ impl Piece for String {
 mod tests {
     use crate::prelude::*;
 
-    use super::*;
     use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
