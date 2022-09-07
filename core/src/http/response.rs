@@ -1,11 +1,6 @@
 //! Http response.
 
 #[cfg(feature = "cookie")]
-use cookie::{Cookie, CookieJar};
-use futures_util::stream::{Stream, TryStreamExt};
-use http::version::Version;
-use mime::Mime;
-#[cfg(feature = "cookie")]
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
@@ -13,10 +8,15 @@ use std::fmt::{self, Display, Formatter};
 use std::pin::Pin;
 use std::task::{self, Poll};
 
+#[cfg(feature = "cookie")]
+use cookie::{Cookie, CookieJar};
+use futures_util::stream::{Stream, TryStreamExt};
+use http::header::{self, HeaderMap, IntoHeaderName, HeaderValue};
 pub use http::response::Parts;
+use http::version::Version;
+use mime::Mime;
 
 use super::errors::*;
-use super::header::{self, HeaderMap};
 use crate::http::StatusCode;
 use crate::{Error, Piece};
 use bytes::Bytes;
@@ -171,6 +171,40 @@ impl Response {
         self.headers = headers
     }
 
+    /// Modify a header for this response.
+    ///
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    #[inline]
+    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
+    where
+        N: IntoHeaderName,
+        V: TryInto<HeaderValue>,
+    {
+        self.add_header(name, value, overwrite)?;
+        Ok(self)
+    }
+
+    /// Modify a header for this response.
+    ///
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<()>
+    where
+        N: IntoHeaderName,
+        V: TryInto<HeaderValue>,
+    {
+        let value = value
+            .try_into()
+            .map_err(|_| Error::Other("invalid header value".into()))?;
+        if overwrite {
+            self.headers.insert(name, value);
+        } else {
+            self.headers.append(name, value);
+        }
+        Ok(())
+    }
+
     /// Get version.
     #[inline]
     pub fn version(&self) -> Version {
@@ -196,6 +230,13 @@ impl Response {
     #[inline]
     pub fn set_body(&mut self, body: Body) {
         self.body = body
+    }
+
+    /// Set body.
+    #[inline]
+    pub fn with_body(&mut self, body: Body) -> &mut Self {
+        self.body = body;
+        self
     }
 
     /// Set body to a new value and returns old value.
@@ -283,6 +324,14 @@ impl Response {
         pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
             self.cookies.add(cookie);
         }
+
+        /// Helper function for add cookie.
+        #[inline]
+        pub fn with_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
+            self.add_cookie(cookie);
+            self
+        }
+
         /// Helper function for remove cookie.
         #[inline]
         pub fn remove_cookie<T>(&mut self, name: T)
@@ -308,6 +357,13 @@ impl Response {
         }
     }
 
+    /// Set status code.
+    #[inline]
+    pub fn with_status_code(&mut self, code: StatusCode) -> &mut Self {
+        self.set_status_code(code);
+        self
+    }
+
     /// Get content type.
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
@@ -327,6 +383,12 @@ impl Response {
     pub fn set_status_error(&mut self, err: StatusError) {
         self.status_code = Some(err.code);
         self.status_error = Some(err);
+    }
+    /// Set http error.
+    #[inline]
+    pub fn with_status_error(&mut self, err: StatusError) -> &mut Self {
+        self.set_status_error(err);
+        self
     }
 
     /// Render content.

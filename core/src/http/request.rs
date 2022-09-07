@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{self, HeaderMap};
+use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
@@ -19,10 +19,9 @@ use serde::de::Deserialize;
 use crate::addr::SocketAddr;
 use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
-use crate::http::header::HeaderValue;
-use crate::http::Mime;
-use crate::http::ParseError;
+use crate::http::{Mime, ParseError};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
+use crate::Error;
 
 /// Represents an HTTP request.
 ///
@@ -260,6 +259,40 @@ impl Request {
             .get(key)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<T>().ok())
+    }
+
+    /// Modify a header for this request.
+    ///
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    #[inline]
+    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
+    where
+        N: IntoHeaderName,
+        V: TryInto<HeaderValue>,
+    {
+        self.add_header(name, value, overwrite)?;
+        Ok(self)
+    }
+
+    /// Modify a header for this request.
+    ///
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<()>
+    where
+        N: IntoHeaderName,
+        V: TryInto<HeaderValue>,
+    {
+        let value = value
+            .try_into()
+            .map_err(|_| Error::Other("invalid header value".into()))?;
+        if overwrite {
+            self.headers.insert(name, value);
+        } else {
+            self.headers.append(name, value);
+        }
+        Ok(())
     }
 
     /// Returns a reference to the associated HTTP body.
@@ -710,7 +743,7 @@ mod tests {
     #[tokio::test]
     async fn test_form() {
         let mut req = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
-            .insert_header("content-type", "application/x-www-form-urlencoded")
+            .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("lover=dog&money=sh*t&q=firefox")
             .build();
         assert_eq!(req.form::<String>("money").await.unwrap(), "sh*t");
@@ -718,9 +751,10 @@ mod tests {
         assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
         let mut req: Request = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
-            .insert_header(
+            .add_header(
                 "content-type",
                 "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",
+                true,
             )
             .body(
                 "------WebKitFormBoundary0mkL0yrNNupCojyz\r\n\
