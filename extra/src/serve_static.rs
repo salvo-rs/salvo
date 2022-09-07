@@ -14,6 +14,7 @@ use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::routing::FlowCtrl;
 use salvo_core::writer::Text;
 use salvo_core::{Depot, Handler, Writer};
+use salvo_core::writer::Redirect;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -207,7 +208,7 @@ impl Handler for StaticDir {
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req_path.ends_with('/') {
-                    res.redirect_found(format!("{}/", req_path));
+                    res.render(Redirect::found(&format!("{}/", req_path)));
                     return;
                 }
                 for ifile in &self.options.defaults {

@@ -31,7 +31,7 @@ pub async fn login(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .insert("username", req.form::<String>("username").await.unwrap())
             .unwrap();
         depot.set_session(session);
-        res.redirect_other("/").unwrap();
+        res.render(Redirect::other("/"));
     } else {
         res.render(Text::Html(LOGIN_HTML));
     }
@@ -42,7 +42,7 @@ pub async fn logout(depot: &mut Depot, res: &mut Response) {
     if let Some(session) = depot.session_mut() {
         session.remove("username");
     }
-    res.redirect_other("/").unwrap();
+    res.render(Redirect::other("/"));
 }
 
 #[handler]

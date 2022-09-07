@@ -16,7 +16,7 @@ use std::task::{self, Poll};
 pub use http::response::Parts;
 
 use super::errors::*;
-use super::header::{self, HeaderMap, HeaderValue, InvalidHeaderValue};
+use super::header::{self, HeaderMap};
 use crate::http::StatusCode;
 use crate::{Error, Piece};
 use bytes::Bytes;
@@ -395,38 +395,6 @@ impl Response {
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
         self.body = Body::Stream(Box::pin(mapped));
-        Ok(())
-    }
-
-    /// Redirect temporary.
-    #[inline]
-    pub fn redirect_temporary<U: AsRef<str>>(&mut self, url: U) {
-        self.status_code = Some(StatusCode::MOVED_PERMANENTLY);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers
-                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
-        }
-        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
-    }
-    /// Redirect found.
-    #[inline]
-    pub fn redirect_found<U: AsRef<str>>(&mut self, url: U) {
-        self.status_code = Some(StatusCode::FOUND);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers
-                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
-        }
-        self.headers.insert(header::LOCATION, url.as_ref().parse().unwrap());
-    }
-    /// Redirect other.
-    #[inline]
-    pub fn redirect_other<U: AsRef<str>>(&mut self, url: U) -> Result<(), InvalidHeaderValue> {
-        self.status_code = Some(StatusCode::SEE_OTHER);
-        if !self.headers().contains_key(header::CONTENT_TYPE) {
-            self.headers
-                .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html"));
-        }
-        self.headers.insert(header::LOCATION, url.as_ref().parse()?);
         Ok(())
     }
 }
