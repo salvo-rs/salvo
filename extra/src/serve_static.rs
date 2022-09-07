@@ -506,7 +506,7 @@ mod tests {
 
         async fn access(service: &Service, accept: &str, url: &str) -> String {
             TestClient::get(url)
-                .insert_header("accept", accept)
+                .add_header("accept", accept, true)
                 .send(service)
                 .await
                 .take_string()

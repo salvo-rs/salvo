@@ -533,9 +533,9 @@ mod tests {
 
         async fn options_access(service: &Service, origin: &str) -> Response {
             TestClient::options("http://127.0.0.1:7979/hello")
-                .insert_header("Origin", origin)
-                .insert_header("Access-Control-Request-Method", "POST")
-                .insert_header("Access-Control-Request-Headers", "Content-Type")
+                .add_header("Origin", origin, true)
+                .add_header("Access-Control-Request-Method", "POST", true)
+                .add_header("Access-Control-Request-Headers", "Content-Type", true)
                 .send(service)
                 .await
         }
@@ -557,7 +557,7 @@ mod tests {
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
 
         let content = TestClient::get("https://salvo.rs/hello")
-            .insert_header("origin", "https://salvo.rs")
+            .add_header("origin", "https://salvo.rs", true)
             .send(&service)
             .await
             .take_string()
@@ -574,7 +574,7 @@ mod tests {
         assert!(content.contains("hello"));
 
         let content = TestClient::get("https://google.rs/hello")
-            .insert_header("origin", "https://google.rs")
+            .add_header("origin", "https://google.rs", true)
             .send(&service)
             .await
             .take_string()

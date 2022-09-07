@@ -106,7 +106,6 @@ impl RequestBuilder {
     //     self
     // }
 
-
     /// Enable HTTP basic authentication.
     pub fn basic_auth(self, username: impl std::fmt::Display, password: Option<impl std::fmt::Display>) -> Self {
         let auth = match password {
@@ -115,12 +114,12 @@ impl RequestBuilder {
         };
         let mut encoded = String::from("Basic ");
         base64::encode_config_buf(auth.as_bytes(), base64::STANDARD, &mut encoded);
-        self.insert_header(http::header::AUTHORIZATION, encoded)
+        self.add_header(http::header::AUTHORIZATION, encoded, true)
     }
 
     /// Enable HTTP bearer authentication.
     pub fn bearer_auth(self, token: impl Into<String>) -> Self {
-        self.insert_header(http::header::AUTHORIZATION, format!("Bearer {}", token.into()))
+        self.add_header(http::header::AUTHORIZATION, format!("Bearer {}", token.into()), true)
     }
 
     /// Set the body of this request.
@@ -188,41 +187,24 @@ impl RequestBuilder {
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
         self.body(value.into())
     }
-
-    /// Modify a header for this request.
+    /// Modify a header for this response.
     ///
-    /// If the header is already present, the value will be replaced. If you wish to append a new header,
-    /// use `header_append`.
-    pub fn insert_header<H, V>(mut self, header: H, value: V) -> Self
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    pub fn add_header<N, V>(mut self, name: N, value: V, overwrite: bool) -> Self
     where
-        H: IntoHeaderName,
+        N: IntoHeaderName,
         V: TryInto<HeaderValue>,
     {
-        self.headers.insert(
-            header,
-            value
-                .try_into()
-                .map_err(|_| Error::Other("invalid header value".into()))
-                .unwrap(),
-        );
-        self
-    }
-
-    /// Append a new header to this request.
-    ///
-    /// The new header is always appended to the request, even if the header already exists.
-    pub fn append_header<H, V>(mut self, header: H, value: V) -> Self
-    where
-        H: IntoHeaderName,
-        V: TryInto<HeaderValue>,
-    {
-        self.headers.append(
-            header,
-            value
-                .try_into()
-                .map_err(|_| Error::Other("invalid header value".into()))
-                .unwrap(),
-        );
+        let value = value
+            .try_into()
+            .map_err(|_| Error::Other("invalid header value".into()))
+            .unwrap();
+        if overwrite {
+            self.headers.insert(name, value);
+        } else {
+            self.headers.append(name, value);
+        }
         self
     }
 

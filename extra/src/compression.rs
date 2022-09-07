@@ -316,7 +316,7 @@ mod tests {
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")
-            .insert_header(ACCEPT_ENCODING, "gzip")
+            .add_header(ACCEPT_ENCODING, "gzip", true)
             .send(router)
             .await;
         assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "gzip");
@@ -330,7 +330,7 @@ mod tests {
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")
-            .insert_header(ACCEPT_ENCODING, "br")
+            .add_header(ACCEPT_ENCODING, "br", true)
             .send(router)
             .await;
         assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "br");
@@ -344,7 +344,7 @@ mod tests {
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:7979/hello")
-            .insert_header(ACCEPT_ENCODING, "deflate")
+            .add_header(ACCEPT_ENCODING, "deflate", true)
             .send(router)
             .await;
         assert_eq!(res.headers().get(CONTENT_ENCODING).unwrap(), "deflate");

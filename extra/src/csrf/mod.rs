@@ -404,8 +404,8 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("x-csrf-token", csrf_token)
-            .insert_header("cookie", cookie.to_string())
+            .add_header("x-csrf-token", csrf_token, true)
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -430,8 +430,8 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("x-mycsrf-header", csrf_token)
-            .insert_header("cookie", cookie.to_string())
+            .add_header("x-mycsrf-header", csrf_token, true)
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -456,7 +456,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post(format!("http://127.0.0.1:7979?a=1&csrf-token={}&b=2", csrf_token))
-            .insert_header("cookie", cookie.to_string())
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -480,7 +480,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post(format!("http://127.0.0.1:7979?a=1&my-csrf-token={}&b=2", csrf_token))
-            .insert_header("cookie", cookie.to_string())
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -505,7 +505,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let mut res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("cookie", cookie.to_string())
+            .add_header("cookie", cookie.to_string(), true)
             .form(&[("a", "1"), ("csrf-token", &*csrf_token), ("b", "2")])
             .send(&service)
             .await;
@@ -529,7 +529,7 @@ mod tests {
         let res = TestClient::post("http://127.0.0.1:7979").send(&service).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
         let mut res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("cookie", cookie.to_string())
+            .add_header("cookie", cookie.to_string(), true)
             .form(&[("a", "1"), ("my-csrf-token", &*csrf_token), ("b", "2")])
             .send(&service)
             .await;
@@ -554,8 +554,8 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("x-csrf-token", "aGVsbG8=")
-            .insert_header("cookie", cookie.to_string())
+            .add_header("x-csrf-token", "aGVsbG8=", true)
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
@@ -578,8 +578,8 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("x-csrf-token", "aGVsbG8")
-            .insert_header("cookie", cookie.to_string())
+            .add_header("x-csrf-token", "aGVsbG8", true)
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
@@ -605,8 +605,8 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
 
         let res = TestClient::post("http://127.0.0.1:7979")
-            .insert_header("x-csrf-token", csrf_token)
-            .insert_header("cookie", cookie.to_string())
+            .add_header("x-csrf-token", csrf_token, true)
+            .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
         assert_eq!(res.status_code().unwrap(), StatusCode::FORBIDDEN);
