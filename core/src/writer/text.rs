@@ -1,6 +1,6 @@
-use crate::http::header::{HeaderValue, CONTENT_TYPE};
-use crate::http::{Response};
 use super::Piece;
+use crate::http::header::{HeaderValue, CONTENT_TYPE};
+use crate::http::Response;
 
 /// Write text content to response as text content.
 #[non_exhaustive]

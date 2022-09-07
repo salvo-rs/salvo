@@ -81,7 +81,7 @@ pub mod prelude {
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
-    pub use crate::writer::{Json, Piece, Text, Writer, Redirect};
+    pub use crate::writer::{Json, Piece, Redirect, Text, Writer};
     pub use crate::Handler;
 }
 

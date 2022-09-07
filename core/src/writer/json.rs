@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use serde::Serialize;
 
+use super::Piece;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::{Response, StatusError};
-use super::Piece;
 
 /// Write serializable content to response as json content. It will set ```content-type``` to ```application/json; charset=utf-8```.
 pub struct Json<T>(pub T);

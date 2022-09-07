@@ -1,12 +1,12 @@
 //! Writer trait and it's implements.
 use async_trait::async_trait;
 
-mod redirect;
 mod json;
+mod redirect;
 mod text;
 
-pub use redirect::Redirect;
 pub use json::Json;
+pub use redirect::Redirect;
 pub use text::Text;
 
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
@@ -87,7 +87,6 @@ impl Piece for String {
         res.write_body(self).ok();
     }
 }
-
 
 #[cfg(test)]
 mod tests {
