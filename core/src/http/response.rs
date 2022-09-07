@@ -251,6 +251,18 @@ impl Response {
         std::mem::replace(&mut self.body, Body::None)
     }
 
+    // If return `true`, it means this response is ready for write back and the reset handlers should be skipped.
+    #[doc(hidden)]
+    #[inline]
+    pub fn is_stamped(&mut self) -> bool {
+        if let Some(code) = self.status_code() {
+            if code.is_client_error() || code.is_server_error() || code.is_redirection() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// `write_back` is used to put all the data added to `self`
     /// back onto an `hyper::Response` so that it is sent back to the
     /// client.

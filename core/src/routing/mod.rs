@@ -150,11 +150,9 @@ impl FlowCtrl {
     /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
-        if let Some(code) = res.status_code() {
-            if code.is_client_error() || code.is_server_error() || code.is_redirection() {
-                self.skip_rest();
-                return false;
-            }
+        if res.is_stamped() {
+            self.skip_rest();
+            return false;
         }
         let mut handler = self.handlers.get(self.cursor).cloned();
         if handler.is_none() {
@@ -163,11 +161,9 @@ impl FlowCtrl {
             while let Some(h) = handler.take() {
                 self.cursor += 1;
                 h.handle(req, depot, res, self).await;
-                if let Some(code) = res.status_code() {
-                    if code.is_client_error() || code.is_server_error() || code.is_redirection() {
-                        self.skip_rest();
-                        return false;
-                    }
+                if res.is_stamped() {
+                    self.skip_rest();
+                    return true;
                 } else if self.has_next() {
                     handler = self.handlers.get(self.cursor).cloned();
                 }
@@ -175,6 +171,7 @@ impl FlowCtrl {
             true
         }
     }
+    
     /// Skip all reset handlers.
     #[inline]
     pub fn skip_rest(&mut self) {
