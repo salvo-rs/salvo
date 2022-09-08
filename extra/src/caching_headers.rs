@@ -1,6 +1,6 @@
 /*!
 # Salvo handlers for etag and last-modified-since headers.
-This crate provides three handlers: [`ETagHandler`], [`Modified`], and
+This crate provides three handlers: [`ETag`], [`Modified`], and
 [`CachingHeaders`].
 Unless you are sure that you _don't_ want either etag or last-modified
 behavior, please use the combined [`CachingHeaders`] handler.
@@ -38,11 +38,11 @@ See [`etag::EntityTag`](https://docs.rs/etag/3.0.0/etag/struct.EntityTag.html#co
 for further documentation.
 */
 #[derive(Default, Clone, Copy, Debug)]
-pub struct ETagHandler {
+pub struct ETag {
     strong: bool,
 }
 
-impl ETagHandler {
+impl ETag {
     /// constructs a new Etag handler
     pub fn new() -> Self {
         Self::default()
@@ -59,7 +59,7 @@ impl ETagHandler {
 }
 
 #[async_trait]
-impl Handler for ETagHandler {
+impl Handler for ETag {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
@@ -120,11 +120,11 @@ This handler does not set a `Last-Modified` header on its own, but
 relies on other handlers doing so.
 */
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ModifiedHandler {
+pub struct Modified {
     _private: (),
 }
 
-impl ModifiedHandler {
+impl Modified {
     /// Constructs a new Modified handler
     pub fn new() -> Self {
         Self { _private: () }
@@ -132,7 +132,7 @@ impl ModifiedHandler {
 }
 
 #[async_trait]
-impl Handler for ModifiedHandler {
+impl Handler for Modified {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
@@ -152,10 +152,10 @@ impl Handler for ModifiedHandler {
 }
 
 /**
-A combined handler that provides both [`ETagHandler`] and [`Modified`] behavior.
+A combined handler that provides both [`ETag`] and [`Modified`] behavior.
 */
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CachingHeaders(ModifiedHandler, ETagHandler);
+pub struct CachingHeaders(Modified, ETag);
 
 impl CachingHeaders {
     /// Constructs a new combination modified and etag handler
