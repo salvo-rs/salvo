@@ -1,24 +1,26 @@
 use futures_util::{FutureExt, StreamExt};
 
-use salvo::extra::ws::WsHandler;
+use salvo::extra::ws::{WebSocket, WebSocketUpgrade};
 use salvo::prelude::*;
 
 #[handler]
 async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
-    let fut = WsHandler::new().handle(req, res)?;
-    let fut = async move {
-        if let Some(ws) = fut.await {
-            let (tx, rx) = ws.split();
-            let fut = rx.forward(tx).map(|result| {
-                if let Err(e) = result {
-                    tracing::error!(error = ?e, "websocket error");
-                }
-            });
-            tokio::task::spawn(fut);
+    WebSocketUpgrade::new().handle(req, res, handle_socket).await
+}
+async fn handle_socket(mut ws: WebSocket) {
+    while let Some(msg) = ws.recv().await {
+        let msg = if let Ok(msg) = msg {
+            msg
+        } else {
+            // client disconnected
+            return;
+        };
+
+        if socket.send(msg).await.is_err() {
+            // client disconnected
+            return;
         }
-    };
-    tokio::task::spawn(fut);
-    Ok(())
+    }
 }
 
 #[tokio::main]

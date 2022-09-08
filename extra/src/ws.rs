@@ -2,7 +2,7 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
 
-//! Websocket
+//! WebSocket
 
 use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
@@ -10,8 +10,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures_util::sink::Sink;
-use futures_util::stream::Stream;
+use futures_util::sink::{Sink, SinkExt};
+use futures_util::stream::{Stream, StreamExt};
 use futures_util::{future, ready, FutureExt, TryFutureExt};
 use hyper::upgrade::OnUpgrade;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
@@ -23,7 +23,7 @@ use tokio_tungstenite::{
     WebSocketStream,
 };
 
-/// Creates a Websocket Handler.
+/// Creates a WebSocket Handler.
 /// Request:
 /// - Method must be `GET`
 /// - Header `connection` must be `upgrade`
@@ -37,27 +37,28 @@ use tokio_tungstenite::{
 /// - Header `upgrade: websocket`
 /// - Header `sec-websocket-accept` with the hash value of the received key.
 #[allow(missing_debug_implementations)]
-pub struct WsHandler {
+pub struct WebSocketUpgrade {
     config: Option<WebSocketConfig>,
 }
 
-impl Default for WsHandler {
+impl Default for WebSocketUpgrade {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl WsHandler {
-    /// Create new `WsHandler`.
+impl WebSocketUpgrade {
+    /// Create new `WebSocketUpgrade`.
     #[inline]
     pub fn new() -> Self {
-        WsHandler { config: None }
+        WebSocketUpgrade { config: None }
     }
-    /// Create new `WsHandler` with config.
+
+    /// Create new `WebSocketUpgrade` with config.
     #[inline]
     pub fn with_config(config: WebSocketConfig) -> Self {
-        WsHandler { config: Some(config) }
+        WebSocketUpgrade { config: Some(config) }
     }
 
     /// Set the size of the internal message send queue.
@@ -84,11 +85,12 @@ impl WsHandler {
     }
 
     /// Handle websocket request.
-    pub fn handle(
-        &self,
-        req: &mut Request,
-        res: &mut Response,
-    ) -> Result<impl Future<Output = Option<WebSocket>>, StatusError> {
+    #[inline]
+    pub async fn handle<F, Fut>(&self, req: &mut Request, res: &mut Response, callback: F) -> Result<(), StatusError>
+    where
+        F: FnOnce(WebSocket) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
         let req_headers = req.headers();
         let matched = req_headers
             .typed_get::<Connection>()
@@ -131,16 +133,17 @@ impl WsHandler {
 
         if let Some(on_upgrade) = req.extensions_mut().remove::<OnUpgrade>() {
             let config = self.config;
-            let fut = async move {
-                on_upgrade
+            tokio::spawn(async move {
+                let socket = on_upgrade
                     .and_then(move |upgraded| {
                         tracing::debug!("websocket upgrade complete");
                         WebSocket::from_raw_socket(upgraded, protocol::Role::Server, config).map(Ok)
                     })
                     .await
-                    .ok()
-            };
-            Ok(fut)
+                    .expect("connection upgrade failed");
+                callback(socket).await;
+            });
+            Ok(())
         } else {
             tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
             Err(StatusError::bad_request().with_summary("ws couldn't be upgraded since no upgrade state was present"))
@@ -167,6 +170,21 @@ impl WebSocket {
         WebSocketStream::from_raw_socket(upgraded, role, config)
             .map(|inner| WebSocket { inner })
             .await
+    }
+
+    /// Receive another message.
+    ///
+    /// Returns `None` if the stream has closed.
+    pub async fn recv(&mut self) -> Option<Result<Message, Error>> {
+        self.next().await
+    }
+
+    /// Send a message.
+    pub async fn send(&mut self, msg: Message) -> Result<(), Error> {
+        self.inner
+            .send(msg.inner)
+            .await
+            .map_err(Error::other)
     }
 
     /// Gracefully close this websocket.
@@ -200,40 +218,22 @@ impl Sink<Message> for WebSocket {
 
     #[inline]
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match ready!(Pin::new(&mut self.inner).poll_ready(cx)) {
-            Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::other(e))),
-        }
+        Pin::new(&mut self.inner).poll_ready(cx).map_err(Error::other)
     }
 
     #[inline]
     fn start_send(mut self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
-        match Pin::new(&mut self.inner).start_send(item.inner) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                tracing::debug!("websocket start_send error: {}", e);
-                Err(Error::other(e))
-            }
-        }
+        Pin::new(&mut self.inner).start_send(item.inner).map_err(Error::other)
     }
 
     #[inline]
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        match ready!(Pin::new(&mut self.inner).poll_flush(cx)) {
-            Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => Poll::Ready(Err(Error::other(e))),
-        }
+        Pin::new(&mut self.inner).poll_flush(cx).map_err(Error::other)
     }
 
     #[inline]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        match ready!(Pin::new(&mut self.inner).poll_close(cx)) {
-            Ok(()) => Poll::Ready(Ok(())),
-            Err(e) => {
-                tracing::debug!("websocket close error: {}", e);
-                Poll::Ready(Err(Error::other(e)))
-            }
-        }
+        Pin::new(&mut self.inner).poll_close(cx).map_err(Error::other)
     }
 }
 

@@ -37,7 +37,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
    - Unified middleware and handle interface;
    - Routing supports multi-level nesting, and middleware can be added at any level;
    - Integrated Multipart form processing;
-   - Support Websocket;
+   - Support WebSocket;
    - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
@@ -53,7 +53,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "0.32"
+salvo = "0.33"
 tokio = { version = "1", features = ["macros"] }
 ```
 
