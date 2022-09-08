@@ -98,6 +98,6 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="ws"]
-        pub use salvo_extra::ws::WsHandler;
+        pub use salvo_extra::ws::WebSocketUpgrade;
     }
 }
