@@ -5,18 +5,26 @@ use crate::http::Response;
 /// Write text content to response as text content.
 #[non_exhaustive]
 pub enum Text<C> {
-    /// It will set ```content-type``` to ```text/plain; charset=utf-8```.
+    /// It will set `content-type` to `text/plain; charset=utf-8`.
     Plain(C),
-    /// It will set ```content-type``` to ```application/json; charset=utf-8```.
+    /// It will set `content-type` to `application/json; charset=utf-8`.
     Json(C),
-    /// It will set ```content-type``` to ```application/xml; charset=utf-8```.
+    /// It will set `content-type` to `application/xml; charset=utf-8`.
     Xml(C),
-    /// It will set ```content-type``` to ```text/html; charset=utf-8```.
+    /// It will set `content-type` to `text/html; charset=utf-8`.
     Html(C),
-    /// It will set ```content-type``` to ```text/javascript; charset=utf-8```.
+    /// It will set `content-type` to `text/javascript; charset=utf-8`.
     Js(C),
-    /// It will set ```content-type``` to ```text/css; charset=utf-8```.
+    /// It will set `content-type` to `text/css; charset=utf-8`.
     Css(C),
+    /// It will set `content-type` to `text/csv; charset=utf-8`.
+    Csv(C),
+    /// It will set `content-type` to `application/atom+xml; charset=utf-8`.
+    Atom(C),
+    /// It will set `content-type` to `application/rss+xml; charset=utf-8`.
+    Rss(C),
+    /// It will set `content-type` to `application/rdf+xml; charset=utf-8`.
+    Rdf(C),
 }
 
 impl<C> Text<C>
@@ -31,6 +39,10 @@ where
             Self::Html(content) => (HeaderValue::from_static("text/html; charset=utf-8"), content),
             Self::Js(content) => (HeaderValue::from_static("text/javascript; charset=utf-8"), content),
             Self::Css(content) => (HeaderValue::from_static("text/css; charset=utf-8"), content),
+            Self::Csv(content) => (HeaderValue::from_static("text/csv; charset=utf-8"), content),
+            Self::Atom(content) => (HeaderValue::from_static("application/atom+xml; charset=utf-8"), content),
+            Self::Rss(content) => (HeaderValue::from_static("application/rss+xml; charset=utf-8"), content),
+            Self::Rdf(content) => (HeaderValue::from_static("application/rdf+xml; charset=utf-8"), content),
         };
         res.headers_mut().insert(CONTENT_TYPE, ctype);
         content
