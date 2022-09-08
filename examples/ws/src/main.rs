@@ -1,5 +1,3 @@
-use futures_util::{FutureExt, StreamExt};
-
 use salvo::extra::ws::{WebSocket, WebSocketUpgrade};
 use salvo::prelude::*;
 
@@ -16,7 +14,7 @@ async fn handle_socket(mut ws: WebSocket) {
             return;
         };
 
-        if socket.send(msg).await.is_err() {
+        if ws.send(msg).await.is_err() {
             // client disconnected
             return;
         }

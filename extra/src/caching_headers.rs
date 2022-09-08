@@ -8,7 +8,7 @@ behavior, please use the combined [`CachingHeaders`] handler.
 
 use etag::EntityTag;
 use salvo_core::http::header::{ETAG, IF_NONE_MATCH};
-use salvo_core::http::headers::*;
+use salvo_core::http::headers::{self, HeaderMapExt};
 use salvo_core::http::response::Body;
 use salvo_core::http::StatusCode;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
@@ -91,7 +91,7 @@ impl Handler for ETag {
                     _ => None,
                 };
 
-                if let Some(etag) = etag.as_ref().and_then(|etag| etag.tag().parse::<ETag>().ok()) {
+                if let Some(etag) = etag.as_ref().and_then(|etag| etag.tag().parse::<headers::ETag>().ok()) {
                     res.headers_mut().typed_insert(etag);
                 }
 
@@ -140,8 +140,8 @@ impl Handler for Modified {
         }
 
         if let (Some(if_modified_since), Some(last_modified)) = (
-            req.headers().typed_get::<IfModifiedSince>(),
-            res.headers().typed_get::<LastModified>(),
+            req.headers().typed_get::<headers::IfModifiedSince>(),
+            res.headers().typed_get::<headers::LastModified>(),
         ) {
             if !if_modified_since.is_modified(last_modified.into()) {
                 res.set_body(Body::None);
