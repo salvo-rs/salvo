@@ -60,6 +60,7 @@ size-limiter = ["salvo_extra/size-limiter"]
 sse = ["salvo_extra/sse"]
 timeout = ["salvo_extra/timeout"]
 ws = ["salvo_extra/ws"]
+caching-headers = ["salvo_extra/caching-headers"]
 
 [dependencies]
 salvo_core = { version = "0.33.0", default-features = false, path = "../core" }
