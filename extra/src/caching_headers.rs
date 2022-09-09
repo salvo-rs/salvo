@@ -91,7 +91,7 @@ impl Handler for ETag {
                     _ => None,
                 };
 
-                if let Some(etag) = etag.as_ref().and_then(|etag| etag.tag().parse::<headers::ETag>().ok()) {
+                if let Some(etag) = etag.as_ref().map(|etag| etag.to_string().parse::<headers::ETag>().unwrap()) {
                     res.headers_mut().typed_insert(etag);
                 }
 
