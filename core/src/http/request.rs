@@ -265,20 +265,6 @@ impl Request {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    #[inline]
-    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
-    where
-        N: IntoHeaderName,
-        V: TryInto<HeaderValue>,
-    {
-        self.add_header(name, value, overwrite)?;
-        Ok(self)
-    }
-
-    /// Modify a header for this request.
-    ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
-    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
     pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<()>
     where
         N: IntoHeaderName,
@@ -293,6 +279,20 @@ impl Request {
             self.headers.append(name, value);
         }
         Ok(())
+    }
+
+    /// Modify a header for this request.
+    ///
+    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
+    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
+    #[inline]
+    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
+    where
+        N: IntoHeaderName,
+        V: TryInto<HeaderValue>,
+    {
+        self.add_header(name, value, overwrite)?;
+        Ok(self)
     }
 
     /// Returns a reference to the associated HTTP body.

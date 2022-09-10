@@ -1,9 +1,10 @@
 //! Compress the body of a response.
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Cursor, Error as IoError, ErrorKind};
 use std::str::FromStr;
 
 use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
 use bytes::BytesMut;
+use tokio::io::AsyncReadExt;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 
@@ -172,6 +173,22 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
     vec
 }
 
+async fn compress_bytes(algo: CompressionAlgo, bytes: &[u8]) -> Result<Vec<u8>, IoError> {
+    let mut data = vec![];
+    match algo {
+        CompressionAlgo::Gzip => {
+            GzipEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+        }
+        CompressionAlgo::Deflate => {
+            DeflateEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+        }
+        CompressionAlgo::Brotli => {
+            BrotliEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+        }
+    };
+    Ok(data)
+}
+
 #[async_trait]
 impl Handler for Compression {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
@@ -211,26 +228,14 @@ impl Handler for Compression {
                     res.set_body(Body::Once(bytes));
                     return;
                 }
-
-                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
-                match algo {
-                    CompressionAlgo::Gzip => {
-                        let stream = ReaderStream::new(GzipEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
+                match compress_bytes(algo, &bytes).await {
+                    Ok(data) => {
+                        res.set_body(Body::Once(data.into()));
                     }
-                    CompressionAlgo::Deflate => {
-                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
-                    }
-                    CompressionAlgo::Brotli => {
-                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
+                    Err(e) => {
+                        tracing::error!(error = ?e, "compression failed");
+                        res.set_body(Body::Once(bytes));
+                        return;
                     }
                 }
             }
@@ -241,28 +246,17 @@ impl Handler for Compression {
                     return;
                 }
                 let mut bytes = BytesMut::with_capacity(len);
-                for chunk in chunks {
+                for chunk in &chunks {
                     bytes.extend_from_slice(&*chunk);
                 }
-                let reader = StreamReader::new(tokio_stream::once(Result::<_, IoError>::Ok(bytes)));
-                match algo {
-                    CompressionAlgo::Gzip => {
-                        let stream = ReaderStream::new(GzipEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
+                match compress_bytes(algo, &bytes).await {
+                    Ok(data) => {
+                        res.set_body(Body::Once(data.into()));
                     }
-                    CompressionAlgo::Deflate => {
-                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
-                    }
-                    CompressionAlgo::Brotli => {
-                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
+                    Err(e) => {
+                        tracing::error!(error = ?e, "compression failed");
+                        res.set_body(Body::Chunks(chunks));
+                        return;
                     }
                 }
             }

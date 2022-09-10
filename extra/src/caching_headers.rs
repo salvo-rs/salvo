@@ -88,13 +88,25 @@ impl Handler for ETag {
                             .concat();
                         Some(EntityTag::from_data(tags.as_bytes()))
                     }
+                    Body::Stream(_) => {
+                        tracing::debug!("etag not supported for streaming body");
+                        None
+                    }
+                    Body::None => {
+                        tracing::debug!("etag not supported for empty body");
+                        None
+                    }
                     _ => None,
                 };
 
-                if let Some(etag) = etag.as_ref().map(|etag| etag.to_string().parse::<headers::ETag>().unwrap()) {
-                    res.headers_mut().typed_insert(etag);
+                if let Some(etag) = &etag {
+                    match etag.to_string().parse::<headers::ETag>() {
+                        Ok(etag) => res.headers_mut().typed_insert(etag),
+                        Err(e) => {
+                            tracing::error!(error = ?e, "failed to parse etag");
+                        }
+                    }
                 }
-
                 etag
             });
 
