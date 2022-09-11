@@ -2,11 +2,10 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::str::FromStr;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{self, HeaderMap, HeaderValue,AsHeaderName, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
@@ -251,14 +250,17 @@ impl Request {
 
     /// Get header with supplied name and try to parse to a 'T', returns None if failed or not found.
     #[inline]
-    pub fn header<T>(&self, key: &str) -> Option<T>
+    pub fn header<'de, T>(&'de self, key: impl AsHeaderName) -> Option<T>
     where
-        T: FromStr,
+        T: Deserialize<'de>,
     {
-        self.headers
-            .get(key)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<T>().ok())
+        let values = self
+            .headers
+            .get_all(key)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .collect::<Vec<_>>();
+        from_str_multi_val(values).ok()
     }
 
     /// Modify a header for this request.
