@@ -5,7 +5,7 @@ use std::fmt::{self, Formatter};
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{self, HeaderMap, HeaderValue,AsHeaderName, IntoHeaderName};
+use http::header::{self, AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
