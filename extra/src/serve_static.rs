@@ -246,8 +246,16 @@ impl Handler for StaticDir {
             if path.is_dir() && self.options.listing {
                 path_exist = true;
                 if !req_path.ends_with('/') {
-                    res.render(Redirect::found(&format!("{}/", req_path)));
-                    return;
+                    match Redirect::found(&format!("{}/", req_path)) {
+                        Ok(redirect) => {
+                            res.render(redirect);
+                            return;
+                        }
+                        Err(e) => {
+                            tracing::error!(error = ?e, "redirect failed");
+                            return;
+                        }
+                    }
                 }
                 for ifile in &self.options.defaults {
                     let ipath = path.join(ifile);
