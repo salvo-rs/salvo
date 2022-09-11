@@ -1,4 +1,4 @@
-//! Taling slash middleware
+//! Tailing slash middleware
 
 use std::borrow::Cow;
 

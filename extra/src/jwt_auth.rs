@@ -244,7 +244,7 @@ impl JwtTokenExtractor for CookieExtractor {
     }
 }
 /// JwtAuthState
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum JwtAuthState {
     /// Authorized.
     Authorized,

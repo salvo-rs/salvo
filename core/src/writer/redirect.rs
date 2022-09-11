@@ -69,11 +69,8 @@ impl Redirect {
         Self::with_status_code(StatusCode::FOUND, uri)
     }
 
-    // This is intentionally not public since other kinds of redirects might not
-    // use the `Location` header, namely `304 Not Modified`.
-    //
-    // We're open to adding more constructors upon request, if they make sense :)
-    fn with_status_code(status_code: StatusCode, uri: impl TryInto<Uri>) -> Result<Self, Error> {
+    /// Create a new [`Redirect`] that uses a status code.
+    pub fn with_status_code(status_code: StatusCode, uri: impl TryInto<Uri>) -> Result<Self, Error> {
         if !status_code.is_redirection() {
             return Err(Error::other("not a redirection status code"));
         }

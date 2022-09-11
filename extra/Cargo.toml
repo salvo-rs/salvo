@@ -19,22 +19,24 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic-auth", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "timeout", "ws"]
+full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "tailing-slash", "timeout", "ws"]
 affix = []
 basic-auth = ["dep:base64"]
-jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie"]
+caching-headers = ["dep:etag"]
 compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
 cors = ["dep:tracing"]
 csrf = ["dep:cookie", "dep:hkdf", "dep:rand", "dep:sha2", "dep:aead", "dep:aes-gcm", "dep:byteorder", "dep:chacha20poly1305", "dep:chrono", "dep:data-encoding", "dep:hmac", "dep:tracing"]
-size-limiter = []
+force-https = []
+jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie"]
 logging = ["dep:tracing"]
 proxy = ["dep:hyper", "hyper-rustls/webpki-tokio", "dep:tracing"]
 serve-static = ["dep:chrono", "dep:mime", "dep:percent-encoding", "tokio", "dep:serde", "dep:serde_json"]
 session = ["dep:async-session", "dep:cookie", "dep:tracing"]
+size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
+tailing-slash = []
 timeout = ["tokio/macros"]
 ws = ["dep:futures-util", "dep:hyper", "tokio-tungstenite", "dep:tracing"]
-caching-headers = ["dep:etag", "dep:httpdate"]
 
 [dependencies]
 aead = { version = "0.5", features = ["alloc"], optional = true }
@@ -52,7 +54,6 @@ etag = { version = "3", features = ["std"], optional = true }
 futures-util = { version = "0.3", default-features = false, optional = true }
 hkdf = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }
-httpdate = { version = "1", optional = true }
 hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
 hyper-rustls = { version = "0.23", features = ["http1", "http2"], optional = true }
 jsonwebtoken = { version = "8", optional = true }

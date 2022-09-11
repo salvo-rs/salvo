@@ -22,6 +22,7 @@ cfg_feature! {
         feature = "compression",
         feature = "cors",
         feature = "csrf",
+        feature = "force-https",
         feature = "jwt-auth",
         feature = "logging",
         feature = "proxy",
@@ -29,6 +30,7 @@ cfg_feature! {
         feature = "session",
         feature = "size-limiter",
         feature = "sse",
+        feature = "tailing-slash",
         feature = "timeout",
         feature = "ws"
     )]
@@ -65,6 +67,10 @@ pub mod prelude {
         pub use salvo_extra::csrf::{CsrfDepotExt, Csrf};
     }
     cfg_feature! {
+        #![feature ="force-https"]
+        pub use salvo_extra::force_https::ForceHttps;
+    }
+    cfg_feature! {
         #![feature ="jwt-auth"]
         pub use salvo_extra::jwt_auth::{JwtAuthDepotExt, JwtAuth};
     }
@@ -91,6 +97,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="sse"]
         pub use salvo_extra::sse::{SseEvent, SseKeepAlive};
+    }
+    cfg_feature! {
+        #![feature ="tailing-slash"]
+        pub use salvo_extra::tailing_slash::{self, TailingSlash, TailingSlashAction};
     }
     cfg_feature! {
         #![feature ="timeout"]
