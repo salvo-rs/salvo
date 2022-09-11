@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "tailing-slash", "timeout", "ws"]
+full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "trailing-slash", "timeout", "ws"]
 affix = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag"]
@@ -34,7 +34,7 @@ serve-static = ["dep:chrono", "dep:mime", "dep:percent-encoding", "tokio", "dep:
 session = ["dep:async-session", "dep:cookie", "dep:tracing"]
 size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
-tailing-slash = []
+trailing-slash = []
 timeout = ["tokio/macros"]
 ws = ["dep:futures-util", "dep:hyper", "tokio-tungstenite", "dep:tracing"]
 

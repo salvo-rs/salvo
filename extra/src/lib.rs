@@ -70,8 +70,8 @@ cfg_feature! {
     pub mod size_limiter;
 }
 cfg_feature! {
-    #![feature = "tailing-slash"]
-    pub mod tailing_slash;
+    #![feature = "trailing-slash"]
+    pub mod trailing_slash;
 }
 cfg_feature! {
     #![feature = "timeout"]

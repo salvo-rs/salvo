@@ -1,4 +1,4 @@
-//! Tailing slash middleware
+//! Trailing slash middleware
 
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -7,9 +7,9 @@ use salvo_core::http::response::Body;
 use salvo_core::http::uri::{PathAndQuery, Uri};
 use salvo_core::prelude::*;
 
-/// TailingSlashAction
+/// TrailingSlashAction
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub enum TailingSlashAction {
+pub enum TrailingSlashAction {
     /// Remove trailing slash.
     Remove,
     /// Add trailing slash.
@@ -17,7 +17,7 @@ pub enum TailingSlashAction {
 }
 
 
-/// Default filter used for `TailingSlash` when it's action is [`TailingSlashAction::Add`].
+/// Default filter used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
 pub fn default_add_filter(req: &Request) -> bool {
     if let Some((_, name)) = req.uri().path().rsplit_once('/') {
         !name.contains('.')
@@ -26,7 +26,7 @@ pub fn default_add_filter(req: &Request) -> bool {
     }
 }
 
-/// Default filter used for `TailingSlash` when it's action is [`TailingSlashAction::Remove`].
+/// Default filter used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
 pub fn default_remove_filter(req: &Request) -> bool {
     if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
         name.contains('.')
@@ -35,44 +35,44 @@ pub fn default_remove_filter(req: &Request) -> bool {
     }
 }
 
-/// TailingSlash
-pub struct TailingSlash {
-    /// Action of this `TailingSlash`.
-    pub action: TailingSlashAction,
+/// TrailingSlash
+pub struct TrailingSlash {
+    /// Action of this `TrailingSlash`.
+    pub action: TrailingSlashAction,
     /// Remove or add slash only when filter is returns `true`.
     pub filter: Option<Box<dyn Fn(&Request) -> bool + Send + Sync>>,
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
-impl TailingSlash {
-    /// Create new `TailingSlash`.
+impl TrailingSlash {
+    /// Create new `TrailingSlash`.
     #[inline]
-    pub fn new(action: TailingSlashAction) -> Self {
+    pub fn new(action: TrailingSlashAction) -> Self {
         Self {
             action,
             filter: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
-    /// Create new `TailingSlash` and sets it's action as [`TailingSlashAction::Add`].
+    /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Add`].
     #[inline]
     pub fn new_add() -> Self {
         Self {
-            action: TailingSlashAction::Add,
+            action: TrailingSlashAction::Add,
             filter: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
-    /// Create new `TailingSlash` and sets it's action as [`TailingSlashAction::Remove`].
+    /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Remove`].
     #[inline]
     pub fn new_remove() -> Self {
         Self {
-            action: TailingSlashAction::Remove,
+            action: TrailingSlashAction::Remove,
             filter: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
-    /// Set filter and returns new `TailingSlash`.
+    /// Set filter and returns new `TrailingSlash`.
     #[inline]
     pub fn with_filter(self, filter: impl Fn(&Request) -> bool + Send + Sync + 'static) -> Self {
         Self {
@@ -81,7 +81,7 @@ impl TailingSlash {
         }
     }
 
-    /// Set redirect code and returns new `TailingSlash`.
+    /// Set redirect code and returns new `TrailingSlash`.
     #[inline]
     pub fn with_redirect_code(self, redirect_code: StatusCode) -> Self {
         Self { redirect_code, ..self }
@@ -89,7 +89,7 @@ impl TailingSlash {
 }
 
 #[async_trait]
-impl Handler for TailingSlash {
+impl Handler for TrailingSlash {
     #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if !self.filter.as_ref().map(|f| f(req)).unwrap_or(true) {
@@ -99,9 +99,9 @@ impl Handler for TailingSlash {
         let original_path = req.uri().path();
         if !original_path.is_empty() {
             let ends_with_slash = original_path.ends_with('/');
-            let new_uri = if self.action == TailingSlashAction::Add && !ends_with_slash {
+            let new_uri = if self.action == TrailingSlashAction::Add && !ends_with_slash {
                 Some(replace_uri_path(req.uri(), &format!("{}/", original_path)))
-            } else if self.action == TailingSlashAction::Remove && ends_with_slash {
+            } else if self.action == TrailingSlashAction::Remove && ends_with_slash {
                 Some(replace_uri_path(
                     req.uri(),
                     &original_path.trim_end_matches('/').to_string(),
@@ -138,14 +138,14 @@ fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
 
 /// Create an add slash middleware.
 #[inline]
-pub fn add_slash() -> TailingSlash {
-    TailingSlash::new(TailingSlashAction::Add).with_filter(default_add_filter)
+pub fn add_slash() -> TrailingSlash {
+    TrailingSlash::new(TrailingSlashAction::Add).with_filter(default_add_filter)
 }
 
 /// Create a remove slash middleware.
 #[inline]
-pub fn remove_slash() -> TailingSlash {
-    TailingSlash::new(TailingSlashAction::Remove).with_filter(default_remove_filter)
+pub fn remove_slash() -> TrailingSlash {
+    TrailingSlash::new(TrailingSlashAction::Remove).with_filter(default_remove_filter)
 }
 
 #[cfg(test)]

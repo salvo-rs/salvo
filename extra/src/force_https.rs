@@ -1,4 +1,4 @@
-//! Tailing slash middleware
+//! Force https middleware
 
 use std::borrow::Cow;
 

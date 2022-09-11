@@ -30,7 +30,7 @@ cfg_feature! {
         feature = "session",
         feature = "size-limiter",
         feature = "sse",
-        feature = "tailing-slash",
+        feature = "trailing-slash",
         feature = "timeout",
         feature = "ws"
     )]
@@ -99,8 +99,8 @@ pub mod prelude {
         pub use salvo_extra::sse::{SseEvent, SseKeepAlive};
     }
     cfg_feature! {
-        #![feature ="tailing-slash"]
-        pub use salvo_extra::tailing_slash::{self, TailingSlash, TailingSlashAction};
+        #![feature ="trailing-slash"]
+        pub use salvo_extra::trailing_slash::{self, TrailingSlash, TrailingSlashAction};
     }
     cfg_feature! {
         #![feature ="timeout"]
