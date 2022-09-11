@@ -83,8 +83,9 @@ impl Redirect {
             location: uri
                 .try_into()
                 .map_err(|_| Error::other("It isn't a valid URI"))
-                .and_then(|uri| HeaderValue::try_from(uri.to_string()).map_err(|_| Error::other("URI isn't a valid header value")))
-                ?,
+                .and_then(|uri| {
+                    HeaderValue::try_from(uri.to_string()).map_err(|_| Error::other("URI isn't a valid header value"))
+                })?,
         })
     }
 }
