@@ -20,6 +20,11 @@ cfg_feature! {
 }
 
 cfg_feature! {
+    #![feature = "force-https"]
+    pub mod force_https;
+}
+
+cfg_feature! {
     #![feature = "jwt-auth"]
     pub mod jwt_auth;
 }
@@ -63,6 +68,10 @@ cfg_feature! {
 cfg_feature! {
     #![feature =  "size-limiter"]
     pub mod size_limiter;
+}
+cfg_feature! {
+    #![feature = "tailing-slash"]
+    pub mod tailing_slash;
 }
 cfg_feature! {
     #![feature = "timeout"]
