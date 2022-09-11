@@ -7,7 +7,6 @@ async fn main() {
 
     let router = Router::new()
         .push(Router::with_path("google/<**rest>").handle(Proxy::new(vec!["https://www.google.com".into()])))
-        .push(Router::with_path("haishu_zx/<**rest>").handle(Proxy::new(vec!["http://127.0.0.1:10000".into()])))
         .push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com".into()])));
     println!("{:?}", router);
     tracing::info!("Listening on http://127.0.0.1:7878");
