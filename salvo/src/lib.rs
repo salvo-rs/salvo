@@ -84,7 +84,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="serve-static"]
-        pub use salvo_extra::serve_static::{StaticDir, StaticFile, static_embed, static_embed_with_index, StaticEmbed};
+        pub use salvo_extra::serve_static::{StaticDir, StaticFile, static_embed, StaticEmbed};
     }
     cfg_feature! {
         #![feature ="session"]
