@@ -1,6 +1,6 @@
 [package]
 name = "salvo_core"
-version = "0.33.2"
+version = "0.34.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
 edition = "2021"
 description = """
@@ -62,7 +62,7 @@ rcgen = { version = "0.9", optional = true }
 regex = "1"
 ring = { version = "0.16", optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
-salvo_macros = { version = "0.33.2", path = "../macros" }
+salvo_macros = { version = "0.34.0", path = "../macros" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 serde_urlencoded = { version = "0.7", optional = true }
