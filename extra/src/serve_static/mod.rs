@@ -17,7 +17,7 @@ mod tests {
     #[tokio::test]
     async fn test_serve_static_files() {
         let router = Router::with_path("<**path>").get(StaticDir::width_options(
-            vec!["../examples/file-list/static/test"],
+            vec!["../examples/static-dir-list/static/test"],
             StaticDirOptions {
                 dot_files: false,
                 listing: true,
