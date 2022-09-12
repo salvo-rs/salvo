@@ -1,9 +1,10 @@
 //! serve static dir and file middleware
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fmt::Write;
 use std::fs::Metadata;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::SystemTime;
 
 use chrono::prelude::*;
@@ -59,37 +60,13 @@ impl<'a> StaticRoots for &'a str {
         vec![PathBuf::from(self)]
     }
 }
-impl<'a> StaticRoots for Vec<&'a str> {
-    #[inline]
-    fn collect(self) -> Vec<PathBuf> {
-        self.iter().map(PathBuf::from).collect()
-    }
-}
 impl<'a> StaticRoots for &'a String {
     #[inline]
     fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
     }
 }
-impl<'a> StaticRoots for Vec<&'a String> {
-    #[inline]
-    fn collect(self) -> Vec<PathBuf> {
-        self.iter().map(PathBuf::from).collect()
-    }
-}
 impl StaticRoots for String {
-    #[inline]
-    fn collect(self) -> Vec<PathBuf> {
-        vec![PathBuf::from(self)]
-    }
-}
-impl StaticRoots for Vec<String> {
-    #[inline]
-    fn collect(self) -> Vec<PathBuf> {
-        self.iter().map(PathBuf::from).collect()
-    }
-}
-impl<'a> StaticRoots for &'a Path {
     #[inline]
     fn collect(self) -> Vec<PathBuf> {
         vec![PathBuf::from(self)]
@@ -99,6 +76,24 @@ impl StaticRoots for PathBuf {
     #[inline]
     fn collect(self) -> Vec<PathBuf> {
         vec![self]
+    }
+}
+impl<T> StaticRoots for Vec<T>
+where
+    T: Into<PathBuf> + AsRef<OsStr>,
+{
+    #[inline]
+    fn collect(self) -> Vec<PathBuf> {
+        self.iter().map(Into::into).collect()
+    }
+}
+impl<T, const N: usize> StaticRoots for [T; N]
+where
+    T: Into<PathBuf> + AsRef<OsStr>,
+{
+    #[inline]
+    fn collect(self) -> Vec<PathBuf> {
+        self.iter().map(Into::into).collect()
     }
 }
 
