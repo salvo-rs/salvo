@@ -29,14 +29,12 @@ use std::convert::TryFrom;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use salvo_core::async_trait;
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::headers::{
     AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
 };
 use salvo_core::http::{Method, Request, Response, StatusCode};
-use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
+use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
 
 /// A constructed via `salvo_extra::cors::Cors::builder()`.
 #[derive(Clone, Debug)]

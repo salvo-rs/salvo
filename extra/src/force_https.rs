@@ -2,11 +2,12 @@
 
 use std::borrow::Cow;
 
-use salvo_core::async_trait;
 use salvo_core::http::header;
 use salvo_core::http::response::Body;
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::prelude::*;
+use salvo_core::writer::Redirect;
+use salvo_core::http::{Request, Response};
+use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
 
 type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
 

@@ -7,11 +7,9 @@ pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 
-use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Method, Request, Response, StatusError};
-use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
+use salvo_core::{Depot,async_trait, Handler, FlowCtrl};
 
 /// key used to insert auth decoded data to depot.
 pub const AUTH_DATA_KEY: &str = "::salvo::extra::jwt_auth::auth_data";

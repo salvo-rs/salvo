@@ -8,10 +8,9 @@ use tokio::io::AsyncReadExt;
 use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 
-use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::response::Body;
-use salvo_core::prelude::*;
+use salvo_core::{async_trait, Depot, Handler, Request, Response, FlowCtrl};
 
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]

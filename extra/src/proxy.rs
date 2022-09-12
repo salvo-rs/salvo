@@ -7,11 +7,10 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Body as HyperBody, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use once_cell::sync::OnceCell;
-use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::uri::Scheme;
-use salvo_core::prelude::*;
-use salvo_core::{BoxedError, Error};
+use salvo_core::http::StatusCode;
+use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<HyperBody>;
@@ -287,8 +286,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy() {
-        let router = Router::new()
-            .push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com"])));
+        let router =
+            Router::new().push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com"])));
 
         let content = TestClient::get("http://127.0.0.1:7979/baidu?wd=rust")
             .send(router)

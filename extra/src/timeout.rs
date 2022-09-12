@@ -1,10 +1,8 @@
 //! basic auth middleware
 use std::time::Duration;
 
-use salvo_core::async_trait;
 use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
+use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
 
 /// Timeout
 pub struct Timeout {

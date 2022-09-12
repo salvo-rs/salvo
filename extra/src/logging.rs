@@ -3,10 +3,8 @@ use std::time::Instant;
 
 use tracing::{Instrument, Level};
 
-use salvo_core::async_trait;
 use salvo_core::http::{Request, Response, StatusCode};
-use salvo_core::routing::FlowCtrl;
-use salvo_core::{Depot, Handler};
+use salvo_core::{Depot, async_trait, Handler, FlowCtrl};
 
 /// Logger
 #[derive(Default, Debug)]

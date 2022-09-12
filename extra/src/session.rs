@@ -73,8 +73,7 @@ use async_session::hmac::{Hmac, Mac, NewMac};
 use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
-use salvo_core::routing::FlowCtrl;
-use salvo_core::{async_trait, Depot, Error, Handler, Request, Response};
+use salvo_core::{async_trait, Depot, Error, Handler, Request, Response, FlowCtrl};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::extra::session";

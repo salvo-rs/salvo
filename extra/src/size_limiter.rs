@@ -1,9 +1,9 @@
 //! size limiter middleware
 
 use salvo_core::hyper::body::HttpBody;
-use salvo_core::async_trait;
 use salvo_core::http::StatusError;
-use salvo_core::prelude::*;
+use salvo_core::http::{Request, Response};
+use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
 
 /// MaxSize
 pub struct MaxSize(pub u64);
