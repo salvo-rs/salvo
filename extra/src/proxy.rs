@@ -178,7 +178,7 @@ where
             });
             client.request(proxied_request).await?
         } else {
-            let client = self.http_client.get_or_init(|| Client::new());
+            let client = self.http_client.get_or_init(Client::new);
             client.request(proxied_request).await?
         };
 
