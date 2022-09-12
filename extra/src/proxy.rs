@@ -202,7 +202,6 @@ impl Handler for Proxy {
                             },
                             body,
                         ) = response.into_parts();
-                        println!("==============={:?}  =={:?}  {:#?}", req.uri(), status, headers);
                         res.set_status_code(status);
                         res.set_headers(headers);
                         res.set_body(body.into());
@@ -224,7 +223,6 @@ impl Handler for Proxy {
     }
 }
 fn get_upgrade_type(headers: &HeaderMap) -> Option<String> {
-    println!("===xxxxx {:?}", headers.get(&CONNECTION_HEADER));
     if headers
         .get(&CONNECTION_HEADER)
         .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE_HEADER))
