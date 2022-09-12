@@ -1,4 +1,4 @@
-use salvo::extra::serve_static::{Options, StaticDir};
+use salvo::extra::serve_static::{StaticDirOptions, StaticDir};
 use salvo::prelude::*;
 
 #[tokio::main]
@@ -7,7 +7,7 @@ async fn main() {
 
     let router = Router::with_path("<**path>").get(StaticDir::width_options(
         ["examples/file-list/static/boy", "examples/file-list/static/girl"],
-        Options {
+        StaticDirOptions {
             dot_files: false,
             listing: true,
             defaults: vec!["index.html".to_owned()],
