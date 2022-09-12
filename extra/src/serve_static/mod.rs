@@ -5,7 +5,7 @@ mod embed;
 mod file;
 
 pub use dir::{StaticDir, StaticDirOptions};
-pub use embed::{static_embed, static_embed_with_index, StaticEmbed};
+pub use embed::{static_embed, StaticEmbed};
 pub use file::StaticFile;
 
 #[cfg(test)]

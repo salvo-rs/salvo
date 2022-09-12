@@ -1,31 +1,23 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
+use rust_embed::RustEmbed;
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-use rust_embed::RustEmbed;
 
 /// Serve static embed assets.
 #[derive(Default)]
 pub struct StaticEmbed<T> {
     assets: PhantomData<T>,
-    index: Option<String>,
+    fallback: Option<String>,
 }
 
 /// Create a new `StaticEmbed` middleware.
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
         assets: PhantomData,
-        index: None,
-    }
-}
-
-/// Create a new `StaticEmbed` middleware with index file.
-pub fn static_embed_with_index<T: RustEmbed>(index: impl Into<String>) -> StaticEmbed<T> {
-    StaticEmbed {
-        assets: PhantomData,
-        index: Some(index.into()),
+        fallback: None,
     }
 }
 
@@ -37,14 +29,14 @@ where
     pub fn new() -> Self {
         Self {
             assets: PhantomData,
-            index: None,
+            fallback: None,
         }
     }
 
-    /// Create a new `StaticEmbed` with index.
-    pub fn with_index(self, index: impl Into<String>) -> Self {
+    /// Create a new `StaticEmbed` with fallback.
+    pub fn with_fallback(self, fallback: impl Into<String>) -> Self {
         Self {
-            index: Some(index.into()),
+            fallback: Some(fallback.into()),
             ..self
         }
     }
@@ -57,9 +49,13 @@ where
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let path = if let Some((_, value)) = param {
-            value
+            if !value.is_empty() {
+                value
+            } else {
+                self.fallback.as_deref().unwrap_or_default()
+            }
         } else {
-            self.index.as_deref().unwrap_or_default()
+            self.fallback.as_deref().unwrap_or_default()
         };
         if path.is_empty() {
             res.set_status_code(StatusCode::NOT_FOUND);
