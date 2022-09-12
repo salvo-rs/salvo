@@ -29,7 +29,7 @@ csrf = ["dep:cookie", "dep:hkdf", "dep:rand", "dep:sha2", "dep:aead", "dep:aes-g
 force-https = []
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie"]
 logging = ["dep:tracing"]
-proxy = ["dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
+proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
 serve-static = ["dep:chrono", "dep:mime", "dep:percent-encoding", "tokio", "dep:serde", "dep:serde_json"]
 session = ["dep:async-session", "dep:cookie", "dep:tracing"]
 size-limiter = []
@@ -51,6 +51,7 @@ chrono = { version = "0.4", features = ["serde"], optional = true }
 cookie = { version = "0.16", features = ["percent-encode", "signed"], optional = true }
 data-encoding = { version = "2", optional = true }
 etag = { version = "3", features = ["std"], optional = true }
+fastrand = {version = "1", optional = true}
 futures-util = { version = "0.3", default-features = false, optional = true }
 hkdf = { version = "0.12", optional = true }
 hmac = { version = "0.12", optional = true }

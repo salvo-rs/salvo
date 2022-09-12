@@ -1,7 +1,6 @@
 //! Proxy.
 use std::borrow::Cow;
-use std::convert::TryFrom;
-use std::sync::Mutex;
+use std::convert::{Infallible, TryFrom};
 
 use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
@@ -12,7 +11,7 @@ use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
-use salvo_core::{Error, Result};
+use salvo_core::{BoxedError, Error};
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<HyperBody>;
@@ -21,23 +20,68 @@ type HyperResponse = hyper::Response<HyperBody>;
 static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
 static UPGRADE_HEADER: HeaderName = HeaderName::from_static("upgrade");
 
+/// Upstreams trait.
+pub trait Upstreams: Send + Sync + 'static {
+    /// Error type.
+    type Err;
+    /// Elect a upstream to process current request.
+    fn elect(&self) -> Result<&str, Self::Err>;
+}
+impl Upstreams for &'static str {
+    type Err = Infallible;
+
+    fn elect(&self) -> Result<&str, Self::Err> {
+        Ok(*self)
+    }
+}
+impl Upstreams for String {
+    type Err = Infallible;
+    fn elect(&self) -> Result<&str, Self::Err> {
+        Ok(self.as_str())
+    }
+}
+
+impl<const N: usize> Upstreams for [&'static str; N] {
+    type Err = Error;
+    fn elect(&self) -> Result<&str, Self::Err> {
+        if self.is_empty() {
+            return Err(Error::other("upstreams is empty"));
+        }
+        let index = fastrand::usize(..self.len());
+        Ok(self[index])
+    }
+}
+
+impl<T> Upstreams for Vec<T>
+where
+    T: AsRef<str> + Send + Sync + 'static,
+{
+    type Err = Error;
+    fn elect(&self) -> Result<&str, Self::Err> {
+        if self.is_empty() {
+            return Err(Error::other("upstreams is empty"));
+        }
+        let index = fastrand::usize(..self.len());
+        Ok(self[index].as_ref())
+    }
+}
+
 /// Proxy
-pub struct Proxy {
-    upstreams: Vec<String>,
-    counter: Mutex<usize>,
+pub struct Proxy<U> {
+    upstreams: U,
     http_client: OnceCell<Client<HttpConnector, HyperBody>>,
     https_client: OnceCell<Client<HttpsConnector<HttpConnector>, HyperBody>>,
 }
 
-impl Proxy {
+impl<U> Proxy<U>
+where
+    U: Upstreams,
+    U::Err: Into<BoxedError>,
+{
     /// Create new `Proxy` with upstreams list.
-    pub fn new(upstreams: Vec<String>) -> Self {
-        if upstreams.is_empty() {
-            panic!("proxy upstreams is empty");
-        }
+    pub fn new(upstreams: U) -> Self {
         Proxy {
             upstreams,
-            counter: Mutex::new(0),
             http_client: OnceCell::new(),
             https_client: OnceCell::new(),
         }
@@ -45,36 +89,18 @@ impl Proxy {
 
     /// Get upstreams list.
     #[inline]
-    pub fn upstreams(&self) -> &Vec<String> {
+    pub fn upstreams(&self) -> &U {
         &self.upstreams
     }
     /// Get upstreams mutable list.
     #[inline]
-    pub fn upstreams_mut(&mut self) -> &mut Vec<String> {
+    pub fn upstreams_mut(&mut self) -> &mut U {
         &mut self.upstreams
     }
-    /// Set upstreams list and return Self.
+
     #[inline]
-    pub fn with_upstreams(mut self, upstreams: Vec<String>) -> Self {
-        self.upstreams = upstreams;
-        self
-    }
-}
-impl Proxy {
-    fn build_proxied_request(&self, req: &mut Request) -> Result<HyperRequest> {
-        let upstream = if self.upstreams.len() > 1 {
-            let mut counter = self.counter.lock().unwrap();
-            let upstream = self.upstreams.get(*counter);
-            *counter = (*counter + 1) % self.upstreams.len();
-            upstream
-        } else if !self.upstreams.is_empty() {
-            self.upstreams.get(0)
-        } else {
-            tracing::error!("upstreams is empty");
-            return Err(Error::other("upstreams is empty"));
-        }
-        .map(|s| &**s)
-        .unwrap_or_default();
+    fn build_proxied_request(&self, req: &mut Request) -> Result<HyperRequest, Error> {
+        let upstream = self.upstreams.elect().map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
@@ -128,12 +154,13 @@ impl Proxy {
         build.body(req.take_body().unwrap_or_default()).map_err(Error::other)
     }
 
+    #[inline]
     async fn call_proxied_server(
         &self,
         proxied_request: HyperRequest,
         request_upgraded: Option<OnUpgrade>,
-    ) -> Result<HyperResponse> {
-        let request_upgrade_type = get_upgrade_type(proxied_request.headers());
+    ) -> Result<HyperResponse, Error> {
+        let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
         let is_https = proxied_request
             .uri()
             .scheme()
@@ -159,7 +186,7 @@ impl Proxy {
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = get_upgrade_type(response.headers());
 
-            if request_upgrade_type == response_upgrade_type {
+            if request_upgrade_type.as_deref() == response_upgrade_type {
                 let mut response_upgraded = response
                     .extensions_mut()
                     .remove::<OnUpgrade>()
@@ -191,7 +218,12 @@ impl Proxy {
 }
 
 #[async_trait]
-impl Handler for Proxy {
+impl<U> Handler for Proxy<U>
+where
+    U: Upstreams,
+    U::Err: Into<BoxedError>,
+{
+    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
@@ -230,19 +262,16 @@ impl Handler for Proxy {
         }
     }
 }
-fn get_upgrade_type(headers: &HeaderMap) -> Option<String> {
+#[inline]
+fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
         .get(&CONNECTION_HEADER)
         .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE_HEADER))
         .unwrap_or(false)
     {
         if let Some(upgrade_value) = headers.get(&UPGRADE_HEADER) {
-            tracing::debug!(
-                "Found upgrade header with value: {}",
-                upgrade_value.to_str().unwrap().to_owned()
-            );
-
-            return Some(upgrade_value.to_str().unwrap().to_owned());
+            tracing::debug!("Found upgrade header with value: {:?}", upgrade_value.to_str());
+            return upgrade_value.to_str().ok();
         }
     }
 
