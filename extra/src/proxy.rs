@@ -3,13 +3,21 @@ use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::sync::Mutex;
 
+use hyper::upgrade::OnUpgrade;
 use hyper::{Client, Uri};
 use hyper_rustls::HttpsConnectorBuilder;
 use salvo_core::async_trait;
-use salvo_core::http::header::{HeaderName, HeaderValue, CONNECTION};
+use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
+use tokio::io::copy_bidirectional;
+
+type HyperRequest = hyper::Request<hyper::body::Body>;
+type HyperResponse = hyper::Response<hyper::body::Body>;
+
+static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
+static UPGRADE_HEADER: HeaderName = HeaderName::from_static("upgrade");
 
 /// Proxy
 pub struct Proxy {
@@ -47,8 +55,7 @@ impl Proxy {
     }
 }
 impl Proxy {
-    fn build_proxied_request(&self, req: &mut Request) -> Result<hyper::Request<hyper::body::Body>> {
-        req.headers_mut().remove(CONNECTION);
+    fn build_proxied_request(&self, req: &mut Request) -> Result<HyperRequest> {
         let upstream = if self.upstreams.len() > 1 {
             let mut counter = self.counter.lock().unwrap();
             let upstream = self.upstreams.get(*counter);
@@ -114,6 +121,65 @@ impl Proxy {
         // }
         build.body(req.take_body().unwrap_or_default()).map_err(Error::other)
     }
+
+    async fn call_proxied_server(
+        &self,
+        proxied_request: HyperRequest,
+        request_upgraded: Option<OnUpgrade>,
+    ) -> Result<HyperResponse> {
+        let request_upgrade_type = get_upgrade_type(proxied_request.headers());
+        let is_https = proxied_request
+            .uri()
+            .scheme()
+            .map(|s| s == &Scheme::HTTPS)
+            .unwrap_or(false);
+        let mut response = if is_https {
+            let client = Client::builder().build::<_, hyper::Body>(
+                HttpsConnectorBuilder::new()
+                    .with_webpki_roots()
+                    .https_or_http()
+                    .enable_http1()
+                    .enable_http2()
+                    .build(),
+            );
+            client.request(proxied_request).await?
+        } else {
+            let client = Client::new();
+            client.request(proxied_request).await?
+        };
+
+        if response.status() == StatusCode::SWITCHING_PROTOCOLS {
+            let response_upgrade_type = get_upgrade_type(response.headers());
+
+            if request_upgrade_type == response_upgrade_type {
+                let mut response_upgraded = response
+                    .extensions_mut()
+                    .remove::<OnUpgrade>()
+                    .ok_or_else(|| Error::other("response does not have an upgrade extension"))?
+                    .await?;
+                if let Some(request_upgraded) = request_upgraded {
+                    tokio::spawn(async move {
+                        match request_upgraded.await {
+                            Ok(mut request_upgraded) => {
+                                if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
+                                {
+                                    tracing::error!(error = ?e, "coping between upgraded connections failed");
+                                }
+                            }
+                            Err(e) => {
+                                tracing::error!(error = ?e, "upgrade request failed");
+                            }
+                        }
+                    });
+                } else {
+                    return Err(Error::other("request does not have an upgrade extension"));
+                }
+            } else {
+                return Err(Error::other("upgrade type mismatch"));
+            }
+        }
+        Ok(response)
+    }
 }
 
 #[async_trait]
@@ -121,26 +187,10 @@ impl Handler for Proxy {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req) {
             Ok(proxied_request) => {
-                let response = if proxied_request
-                    .uri()
-                    .scheme()
-                    .map(|s| s == &Scheme::HTTPS)
-                    .unwrap_or(false)
+                match self
+                    .call_proxied_server(proxied_request, req.extensions_mut().remove())
+                    .await
                 {
-                    let client = Client::builder().build::<_, hyper::Body>(
-                        HttpsConnectorBuilder::new()
-                            .with_webpki_roots()
-                            .https_or_http()
-                            .enable_http1()
-                            .enable_http2()
-                            .build(),
-                    );
-                    client.request(proxied_request).await
-                } else {
-                    let client = Client::new();
-                    client.request(proxied_request).await
-                };
-                match response {
                     Ok(response) => {
                         let (
                             salvo_core::http::response::Parts {
@@ -152,26 +202,45 @@ impl Handler for Proxy {
                             },
                             body,
                         ) = response.into_parts();
+                        println!("==============={:?}  =={:?}  {:#?}", req.uri(), status, headers);
                         res.set_status_code(status);
                         res.set_headers(headers);
                         res.set_body(body.into());
                     }
                     Err(e) => {
-                        tracing::error!("error: {}", e);
+                        tracing::error!(error = ?e, uri = ?req.uri(), "get response data failed");
                         res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                res.headers_mut().remove(CONNECTION);
             }
             Err(e) => {
-                tracing::error!("error when build proxied request: {}", e);
+                tracing::error!(error = ?e, "build proxied request failed");
             }
         }
         if ctrl.has_next() {
-            tracing::error!("all handlers after Proxy will skipped");
+            tracing::error!("all handlers after proxy will skipped");
             ctrl.skip_rest();
         }
     }
+}
+fn get_upgrade_type(headers: &HeaderMap) -> Option<String> {
+    println!("===xxxxx {:?}", headers.get(&CONNECTION_HEADER));
+    if headers
+        .get(&CONNECTION_HEADER)
+        .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE_HEADER))
+        .unwrap_or(false)
+    {
+        if let Some(upgrade_value) = headers.get(&UPGRADE_HEADER) {
+            tracing::debug!(
+                "Found upgrade header with value: {}",
+                upgrade_value.to_str().unwrap().to_owned()
+            );
+
+            return Some(upgrade_value.to_str().unwrap().to_owned());
+        }
+    }
+
+    None
 }
 
 #[cfg(test)]
