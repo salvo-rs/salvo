@@ -247,7 +247,7 @@ impl Handler for Compression {
                 }
                 let mut bytes = BytesMut::with_capacity(len);
                 for chunk in &chunks {
-                    bytes.extend_from_slice(&*chunk);
+                    bytes.extend_from_slice(chunk);
                 }
                 match compress_bytes(algo, &bytes).await {
                     Ok(data) => {

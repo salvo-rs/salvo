@@ -7,7 +7,7 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Client, Uri};
 use hyper_rustls::HttpsConnectorBuilder;
 use salvo_core::async_trait;
-use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION};
+use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::uri::Scheme;
 use salvo_core::prelude::*;
 use salvo_core::{Error, Result};

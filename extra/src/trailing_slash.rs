@@ -7,6 +7,8 @@ use salvo_core::http::response::Body;
 use salvo_core::http::uri::{PathAndQuery, Uri};
 use salvo_core::prelude::*;
 
+type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
+
 /// TrailingSlashAction
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum TrailingSlashAction {
@@ -15,7 +17,6 @@ pub enum TrailingSlashAction {
     /// Add trailing slash.
     Add,
 }
-
 
 /// Default filter used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
 pub fn default_add_filter(req: &Request) -> bool {
@@ -40,7 +41,7 @@ pub struct TrailingSlash {
     /// Action of this `TrailingSlash`.
     pub action: TrailingSlashAction,
     /// Remove or add slash only when filter is returns `true`.
-    pub filter: Option<Box<dyn Fn(&Request) -> bool + Send + Sync>>,
+    pub filter: Option<FilterFn>,
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
@@ -102,10 +103,7 @@ impl Handler for TrailingSlash {
             let new_uri = if self.action == TrailingSlashAction::Add && !ends_with_slash {
                 Some(replace_uri_path(req.uri(), &format!("{}/", original_path)))
             } else if self.action == TrailingSlashAction::Remove && ends_with_slash {
-                Some(replace_uri_path(
-                    req.uri(),
-                    &original_path.trim_end_matches('/').to_string(),
-                ))
+                Some(replace_uri_path(req.uri(), original_path.trim_end_matches('/')))
             } else {
                 None
             };
