@@ -18,7 +18,7 @@ mod tests {
     async fn test_serve_static_files() {
         let router = Router::with_path("<**path>").get(StaticDir::width_options(
             vec!["../examples/file-list/static/test"],
-            Options {
+            StaticDirOptions {
                 dot_files: false,
                 listing: true,
                 defaults: vec!["index.html".to_owned()],
