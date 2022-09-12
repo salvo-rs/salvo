@@ -8,7 +8,8 @@ use async_trait::async_trait;
 use crate::http::{ParseError, StatusError};
 use crate::{Depot, Request, Response, Writer};
 
-type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+/// BoxedError
+pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Errors that can happen inside salvo.
 #[derive(Debug)]
