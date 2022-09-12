@@ -3,9 +3,11 @@ use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::sync::Mutex;
 
+use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
-use hyper::{Client, Uri};
-use hyper_rustls::HttpsConnectorBuilder;
+use hyper::{Body as HyperBody, Uri};
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use once_cell::sync::OnceCell;
 use salvo_core::async_trait;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue};
 use salvo_core::http::uri::Scheme;
@@ -13,8 +15,8 @@ use salvo_core::prelude::*;
 use salvo_core::{Error, Result};
 use tokio::io::copy_bidirectional;
 
-type HyperRequest = hyper::Request<hyper::body::Body>;
-type HyperResponse = hyper::Response<hyper::body::Body>;
+type HyperRequest = hyper::Request<HyperBody>;
+type HyperResponse = hyper::Response<HyperBody>;
 
 static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
 static UPGRADE_HEADER: HeaderName = HeaderName::from_static("upgrade");
@@ -23,6 +25,8 @@ static UPGRADE_HEADER: HeaderName = HeaderName::from_static("upgrade");
 pub struct Proxy {
     upstreams: Vec<String>,
     counter: Mutex<usize>,
+    http_client: OnceCell<Client<HttpConnector, HyperBody>>,
+    https_client: OnceCell<Client<HttpsConnector<HttpConnector>, HyperBody>>,
 }
 
 impl Proxy {
@@ -34,6 +38,8 @@ impl Proxy {
         Proxy {
             upstreams,
             counter: Mutex::new(0),
+            http_client: OnceCell::new(),
+            https_client: OnceCell::new(),
         }
     }
 
@@ -134,17 +140,19 @@ impl Proxy {
             .map(|s| s == &Scheme::HTTPS)
             .unwrap_or(false);
         let mut response = if is_https {
-            let client = Client::builder().build::<_, hyper::Body>(
-                HttpsConnectorBuilder::new()
-                    .with_webpki_roots()
-                    .https_or_http()
-                    .enable_http1()
-                    .enable_http2()
-                    .build(),
-            );
+            let client = self.https_client.get_or_init(|| {
+                Client::builder().build::<_, HyperBody>(
+                    HttpsConnectorBuilder::new()
+                        .with_webpki_roots()
+                        .https_or_http()
+                        .enable_http1()
+                        .enable_http2()
+                        .build(),
+                )
+            });
             client.request(proxied_request).await?
         } else {
-            let client = Client::new();
+            let client = self.http_client.get_or_init(|| Client::new());
             client.request(proxied_request).await?
         };
 
