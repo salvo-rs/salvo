@@ -5,7 +5,7 @@ use salvo::prelude::*;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:7878".into()]));
+    let router = Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:7878"]));
     println!("{:?}", router);
     tracing::info!("Listening on http://127.0.0.1:8888");
     tracing::info!("Run `cargo run --bin example-ws-chat` to start websocket chat server");

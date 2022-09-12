@@ -286,15 +286,9 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[should_panic]
-    async fn test_proxy_painc() {
-        Proxy::new(vec![]);
-    }
-
-    #[tokio::test]
     async fn test_proxy() {
         let router = Router::new()
-            .push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com".into()])));
+            .push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com"])));
 
         let content = TestClient::get("http://127.0.0.1:7979/baidu?wd=rust")
             .send(router)
@@ -306,10 +300,8 @@ mod tests {
     }
     #[test]
     fn test_others() {
-        let mut handler = Proxy::new(vec!["https://www.baidu.com".into()]);
+        let mut handler = Proxy::new(["https://www.baidu.com"]);
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
-        let handler = handler.with_upstreams(vec!["https://www.baidu.com".into(), "https://www.baidu.com".into()]);
-        assert_eq!(handler.upstreams().len(), 2);
     }
 }
