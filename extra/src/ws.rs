@@ -5,7 +5,7 @@
 //! WebSocket
 
 use std::borrow::Cow;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -380,16 +380,3 @@ impl Into<Vec<u8>> for Message {
         self.into_bytes()
     }
 }
-
-/// Connection header did not include 'upgrade'
-#[derive(Debug)]
-pub struct MissingConnectionUpgrade;
-
-impl Display for MissingConnectionUpgrade {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Connection header did not include 'upgrade'")
-    }
-}
-
-impl ::std::error::Error for MissingConnectionUpgrade {}
