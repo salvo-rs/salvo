@@ -4,7 +4,7 @@ use std::str;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{HeaderMap, HeaderValue, IntoHeaderName, SET_COOKIE};
 use http::Method;
 use hyper::Body;
 use url::Url;
@@ -223,7 +223,18 @@ impl RequestBuilder {
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
     pub async fn send(self, target: impl SendTarget) -> Response {
-        target.call(self.build()).await
+        let mut response = target.call(self.build()).await;
+        #[cfg(feature = "cookie")]
+        {
+            let values = response
+                .cookies
+                .delta()
+                .filter_map(|c| c.encoded().to_string().parse().ok()).collect::<Vec<_>>();
+            for hv in values {
+                response.headers_mut().insert(SET_COOKIE, hv);
+            }
+        }
+        response
     }
 }
 #[async_trait]

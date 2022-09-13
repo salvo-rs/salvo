@@ -70,3 +70,38 @@ impl AffixList {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+
+    use super::*;
+    
+    struct User {
+        name: String,
+    }
+    #[handler]
+    async fn hello_world(depot: &mut Depot) -> String {
+        format!(
+            "{}:{}",
+            depot.obtain::<Arc<User>>().map(|u| u.name.clone()).unwrap_or_default(),
+            depot.get::<&str>("data1").map(|s|*s).unwrap_or_default()
+        )
+    }
+    #[tokio::test]
+    async fn test_affix() {
+        let user = User {
+            name: "salvo".to_string(),
+        };
+        let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).handle(hello_world);
+        let content = TestClient::get("http://127.0.0.1:7878/")
+            .send(router)
+            .await
+            .take_string()
+            .await;
+        assert_eq!(content.unwrap(), "salvo:powerful");
+    }
+}

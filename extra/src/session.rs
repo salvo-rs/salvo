@@ -73,7 +73,7 @@ use async_session::hmac::{Hmac, Mac, NewMac};
 use async_session::sha2::Sha256;
 use cookie::{Cookie, Key, SameSite};
 use salvo_core::http::uri::Scheme;
-use salvo_core::{async_trait, Depot, Error, Handler, Request, Response, FlowCtrl};
+use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::extra::session";
@@ -429,6 +429,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::http::Method;
+    use salvo_core::http::header::*;
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::writer::Redirect;
+
     use super::*;
 
     #[test]
@@ -442,11 +448,74 @@ mod tests {
         .cookie_path("/abc")
         .same_site_policy(SameSite::Strict)
         .session_ttl(Some(Duration::from_secs(30)))
-        .build().unwrap();
+        .build()
+        .unwrap();
         assert_eq!(handler.cookie_domain, Some("test.domain".into()));
         assert_eq!(handler.cookie_name, "test_cookie");
         assert_eq!(handler.cookie_path, "/abc");
         assert_eq!(handler.same_site_policy, SameSite::Strict);
         assert_eq!(handler.session_ttl, Some(Duration::from_secs(30)));
+    }
+
+    #[tokio::test]
+    async fn test_session_login() {
+        #[handler]
+        pub async fn login(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+            if req.method() == Method::POST {
+                let mut session = Session::new();
+                session
+                    .insert("username", req.form::<String>("username").await.unwrap())
+                    .unwrap();
+                depot.set_session(session);
+                res.render(Redirect::other("/").unwrap());
+            } else {
+                res.render(Text::Html("login page"));
+            }
+        }
+
+        #[handler]
+        pub async fn logout(depot: &mut Depot, res: &mut Response) {
+            if let Some(session) = depot.session_mut() {
+                session.remove("username");
+            }
+            res.render(Redirect::other("/").unwrap());
+        }
+
+        #[handler]
+        pub async fn home(depot: &mut Depot, res: &mut Response) {
+            let mut content = r#"home"#.into();
+            if let Some(session) = depot.session_mut() {
+                if let Some(username) = session.get::<String>("username") {
+                    content = username;
+                }
+            }
+            res.render(Text::Html(content));
+        }
+        
+        let session_handler = SessionHandler::builder(
+            MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+        let router = Router::new()
+            .hoop(session_handler)
+            .get(home)
+            .push(Router::with_path("login").get(login).post(login))
+            .push(Router::with_path("logout").get(logout));
+        let service = Service::new(router);
+
+        let respone = TestClient::post("http://127.0.0.1:7878/login").raw_form("username=salvo").send(&service).await;
+        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
+        let cookie = respone.headers().get(SET_COOKIE).unwrap();
+        
+        let mut respone = TestClient::get("http://127.0.0.1:7878/").add_header(COOKIE, cookie, true).send(&service).await;
+        assert_eq!(respone.take_string().await.unwrap(), "salvo");
+        
+        let respone = TestClient::get("http://127.0.0.1:7878/logout").send(&service).await;
+        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/").send(&service).await;
+        assert_eq!(respone.take_string().await.unwrap(), "home");
     }
 }

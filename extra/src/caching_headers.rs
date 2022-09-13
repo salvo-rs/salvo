@@ -185,3 +185,34 @@ impl Handler for CachingHeaders {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::*;
+    use salvo_core::prelude::*;
+    use salvo_core::test::TestClient;
+
+    use super::*;
+
+    #[handler]
+    async fn hello_world() -> &'static str {
+        "Hello World"
+    }
+
+    #[tokio::test]
+    async fn test_affix() {
+        let router = Router::with_hoop(CachingHeaders::new()).get(hello_world);
+        let service = Service::new(router);
+
+        let respone = TestClient::get("http://127.0.0.1:7878/").send(&service).await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+
+        let etag = respone.headers().get(ETAG).unwrap();
+        let respone = TestClient::get("http://127.0.0.1:7878/")
+            .add_header(IF_NONE_MATCH, etag, true)
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::NOT_MODIFIED));
+        assert!(respone.body().is_none());
+    }
+}

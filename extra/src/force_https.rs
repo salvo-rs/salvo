@@ -78,8 +78,6 @@ fn redirect_host(host: &str, https_port: Option<u16>) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::Router;
-
     use salvo_core::http::header::{HOST, LOCATION};
     use salvo_core::prelude::*;
     use salvo_core::test::TestClient;

@@ -11,7 +11,7 @@ use std::task::{self, Poll};
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::{Stream, TryStreamExt};
-use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{HeaderMap, HeaderValue, IntoHeaderName, CONTENT_LENGTH, SET_COOKIE};
 pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
@@ -115,7 +115,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
         ) = res.into_parts();
         #[cfg(feature = "cookie")]
         // Set the request cookies, if they exist.
-        let cookies = if let Some(header) = headers.get(header::SET_COOKIE) {
+        let cookies = if let Some(header) = headers.get(SET_COOKIE) {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
                 for cookie_str in header.split(';').map(|s| s.trim()) {
@@ -284,7 +284,7 @@ impl Response {
         #[cfg(feature = "cookie")]
         for cookie in cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
-                headers.append(header::SET_COOKIE, hv);
+                headers.append(SET_COOKIE, hv);
             }
         }
         *res.headers_mut() = headers;
@@ -294,8 +294,7 @@ impl Response {
 
         match body {
             Body::None => {
-                res.headers_mut()
-                    .insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                res.headers_mut().insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
             }
             Body::Once(bytes) => {
                 *res.body_mut() = hyper::Body::from(bytes);
