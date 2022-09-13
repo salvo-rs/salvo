@@ -84,9 +84,9 @@ impl WebSocketUpgrade {
         self
     }
 
-    /// Handle websocket request.
+    /// Upgrade websocket request.
     #[inline]
-    pub async fn handle<F, Fut>(&self, req: &mut Request, res: &mut Response, callback: F) -> Result<(), StatusError>
+    pub async fn upgrade<F, Fut>(&self, req: &mut Request, res: &mut Response, callback: F) -> Result<(), StatusError>
     where
         F: FnOnce(WebSocket) -> Fut + Send + 'static,
         Fut: Future<Output = ()> + Send + 'static,

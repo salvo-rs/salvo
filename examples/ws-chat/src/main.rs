@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use salvo::extra::ws::{Message, WebSocket, WebSocketUpgrade};
+use salvo::extra::ws::{Message, WebSocket, WebsocketUpgrade};
 use salvo::prelude::*;
 
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
@@ -30,8 +30,8 @@ async fn main() {
 }
 
 #[handler]
-async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
-    WebSocketUpgrade::new().handle(req, res, handle_socket).await
+async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Statu`sError> {
+    WebsocketUpgrade::new().upgrade(req, res, handle_socket).await
 }
 async fn handle_socket(ws: WebSocket) {
     // Use a counter to assign a new unique ID for this user.
