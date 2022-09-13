@@ -30,7 +30,7 @@ async fn main() {
 }
 
 #[handler]
-async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Statu`sError> {
+async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
     WebsocketUpgrade::new().upgrade(req, res, handle_socket).await
 }
 async fn handle_socket(ws: WebSocket) {
