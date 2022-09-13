@@ -5,9 +5,9 @@ use std::borrow::Cow;
 use salvo_core::http::header;
 use salvo_core::http::response::Body;
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::writer::Redirect;
 use salvo_core::http::{Request, Response};
-use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
+use salvo_core::writer::Redirect;
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
 
@@ -78,6 +78,12 @@ fn redirect_host(host: &str, https_port: Option<u16>) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::Router;
+
+    use salvo_core::http::header::{HOST, LOCATION};
+    use salvo_core::prelude::*;
+    use salvo_core::test::TestClient;
+
     use super::*;
 
     #[test]
@@ -87,5 +93,20 @@ mod tests {
         assert_eq!(redirect_host("example.com", Some(1234)), "example.com:1234");
         assert_eq!(redirect_host("example.com:1234", None), "example.com:1234");
         assert_eq!(redirect_host("example.com", None), "example.com");
+    }
+
+    #[handler]
+    async fn hello_world() -> &'static str {
+        "Hello World"
+    }
+    #[tokio::test]
+    async fn test_redirect_handler() {
+        let router = Router::with_hoop(ForceHttps::new().https_port(1234)).handle(hello_world);
+        let response = TestClient::get("http://127.0.0.1:7878/")
+            .add_header(HOST, "127.0.0.1:7878", true)
+            .send(router)
+            .await;
+        assert_eq!(response.status_code(), Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(response.headers().get(LOCATION), Some(&"https://127.0.0.1:1234/".parse().unwrap()));
     }
 }
