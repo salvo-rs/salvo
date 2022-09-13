@@ -266,9 +266,6 @@ cargo run --bin example-basic-auth
 
 您可以使用任何你想運行的示例名稱替代這裏的 ```basic-auth```.
 
-這裏有一個真實的項目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
-
-
 ## 🚀 性能
 Benchmark 測試結果可以從這裏查看:
 
