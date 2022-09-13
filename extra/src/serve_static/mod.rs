@@ -4,9 +4,41 @@ pub mod dir;
 mod embed;
 mod file;
 
+use percent_encoding::{utf8_percent_encode, CONTROLS};
+
 pub use dir::{StaticDir, StaticDirOptions};
 pub use embed::{static_embed, StaticEmbed};
 pub use file::StaticFile;
+
+#[inline]
+pub(crate) fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+#[inline]
+pub(crate) fn decode_url_path_safely(path: &str) -> String {
+    percent_encoding::percent_decode_str(path)
+        .decode_utf8_lossy()
+        .to_string()
+}
+
+#[inline]
+pub(crate) fn format_url_path_safely(path: &str) -> String {
+    let mut used_parts = Vec::with_capacity(8);
+    for part in path.split(['/', '\\']) {
+        if part.is_empty() || part == "." {
+            continue;
+        } else if part == ".." {
+            used_parts.pop();
+        } else {
+            used_parts.push(part);
+        }
+    }
+    used_parts.join("/")
+}
 
 #[cfg(test)]
 mod tests {

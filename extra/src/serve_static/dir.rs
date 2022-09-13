@@ -7,15 +7,16 @@ use std::fs::Metadata;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use chrono::{Local, DateTime};
-use percent_encoding::{utf8_percent_encode, CONTROLS};
+use chrono::{DateTime, Local};
 use salvo_core::fs::NamedFile;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::writer::Redirect;
 use salvo_core::writer::Text;
-use salvo_core::{Depot, async_trait, Handler, FlowCtrl};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+
+use super::{decode_url_path_safely, encode_url_path, format_url_path_safely};
 
 /// Options
 #[derive(Clone, Debug)]
@@ -183,17 +184,7 @@ impl Handler for StaticDir {
         } else {
             decode_url_path_safely(req_path)
         };
-        let mut used_parts = Vec::with_capacity(8);
-        for part in rel_path.split(['/', '\\']) {
-            if part.is_empty() || part == "." {
-                continue;
-            } else if part == ".." {
-                used_parts.pop();
-            } else {
-                used_parts.push(part);
-            }
-        }
-        let rel_path: String = used_parts.join("/");
+        let rel_path = format_url_path_safely(&rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let mut path_exist = false;
@@ -291,21 +282,6 @@ impl Handler for StaticDir {
             _ => res.render(Text::Html(list_html(&root))),
         }
     }
-}
-
-#[inline]
-fn encode_url_path(path: &str) -> String {
-    path.split('/')
-        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-#[inline]
-fn decode_url_path_safely(path: &str) -> String {
-    percent_encoding::percent_decode_str(path)
-        .decode_utf8_lossy()
-        .to_string()
 }
 
 #[inline]
