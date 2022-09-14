@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
-use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
 use futures_util::stream::StreamExt;
@@ -11,7 +10,7 @@ use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
 
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{Body, Response};
-use crate::Error;
+use crate::{async_trait, Error};
 
 /// More utils functions for response.
 #[async_trait]

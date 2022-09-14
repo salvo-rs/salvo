@@ -3,10 +3,8 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
-use async_trait::async_trait;
-
 use crate::http::{ParseError, StatusError};
-use crate::{Depot, Request, Response, Writer};
+use crate::{async_trait, Depot, Request, Response, Writer};
 
 /// BoxedError
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;

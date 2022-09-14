@@ -1,8 +1,5 @@
-use async_trait::async_trait;
 
-use crate::http::{Request, Response};
-use crate::routing::FlowCtrl;
-use crate::Depot;
+use crate::{async_trait, Request, Response, FlowCtrl, Depot};
 
 /// `Handler` is used for handle [`Request`].
 ///

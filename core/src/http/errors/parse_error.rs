@@ -1,12 +1,11 @@
 use std::io::Error as IoError;
 use std::str::Utf8Error;
 
-use async_trait::async_trait;
 use serde::de::value::Error as DeError;
 use thiserror::Error;
 
 use crate::http::StatusError;
-use crate::{Depot, Request, Response, Writer};
+use crate::{async_trait, Depot, Request, Response, Writer};
 
 /// Resut type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;

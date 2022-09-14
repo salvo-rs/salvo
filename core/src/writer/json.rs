@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use serde::Serialize;
+use async_trait::async_trait;
 
 use super::Piece;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};

@@ -2,20 +2,20 @@
 //!
 //! Reference: <https://datatracker.ietf.org/doc/html/rfc8555>
 //! Reference: <https://datatracker.ietf.org/doc/html/rfc8737>
-//! 
+//!
 //! * HTTP-01
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use salvo_core::listener::{AcmeListener, TcpListener};
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! #[handler]
 //! async fn hello_world() -> &'static str {
 //!     "Hello World"
 //! }
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() {
 //!     let mut router = Router::new().get(hello_world);
@@ -32,20 +32,20 @@
 //!         .await;
 //! }
 //! ```
-//! 
+//!
 //! * TLS ALPN-01
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use salvo_core::listener::AcmeListener;
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! #[handler]
 //! async fn hello_world() -> &'static str {
 //!     "Hello World"
 //! }
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() {
 //!     let router = Router::new().get(hello_world);
@@ -77,10 +77,8 @@ use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use async_trait::async_trait;
 use client::AcmeClient;
-use futures_util::ready;
-use futures_util::Future;
+use futures_util::{ready, Future};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
 use parking_lot::RwLock;
@@ -94,9 +92,8 @@ use tokio_rustls::rustls::PrivateKey;
 use crate::addr::SocketAddr;
 use crate::http::StatusError;
 use crate::listener::{IntoAddrIncoming, Listener};
-use crate::routing::FlowCtrl;
 use crate::transport::Transport;
-use crate::{Depot, Handler, Request, Response, Router};
+use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 

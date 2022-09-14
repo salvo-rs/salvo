@@ -4,10 +4,8 @@ allows the use of a local directory as cache.
 Note that the files contain private keys.
 */
 
-use std::{
-    io::{Error as IoError, ErrorKind},
-    path::Path,
-};
+use std::io::{Error as IoError, ErrorKind};
+use std::path::Path;
 
 use async_trait::async_trait;
 use ring::digest::{Context, SHA256};

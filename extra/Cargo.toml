@@ -60,7 +60,7 @@ hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "t
 hyper-rustls = { version = "0.23", features = ["http1", "http2"], optional = true }
 jsonwebtoken = { version = "8", optional = true }
 mime = { version = "0.3", optional = true }
-mime_guess = {version = "2", optional = true}
+mime_guess = { version = "2", optional = true }
 once_cell = { version = "1", optional = true }
 percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
@@ -79,3 +79,4 @@ tracing = { version = "0.1", optional = true }
 [dev-dependencies]
 salvo_core = { features = ["test"], path = "../core" }
 tracing-test = "0.2.1"
+reqwest = "0.11"

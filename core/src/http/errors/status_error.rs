@@ -1,10 +1,9 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use async_trait::async_trait;
 use http::StatusCode;
 
-use crate::{Depot, Request, Response, Writer};
+use crate::{async_trait, Depot, Request, Response, Writer};
 
 /// Resut type with `StatusError` has it's error type.
 pub type StatusResult<T> = Result<T, StatusError>;

@@ -3,14 +3,11 @@ use std::convert::{From, TryInto};
 use std::str;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use http::header::{HeaderMap, HeaderValue, IntoHeaderName, SET_COOKIE};
-use http::Method;
-use hyper::Body;
+use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
+use hyper::{Body, Method};
 use url::Url;
 
-use crate::routing::FlowCtrl;
-use crate::{Depot, Error, Handler, Request, Response, Router, Service};
+use crate::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router, Service};
 
 /// `RequestBuilder` is the main way of building requests.
 ///
@@ -114,12 +111,12 @@ impl RequestBuilder {
         };
         let mut encoded = String::from("Basic ");
         base64::encode_config_buf(auth.as_bytes(), base64::STANDARD, &mut encoded);
-        self.add_header(http::header::AUTHORIZATION, encoded, true)
+        self.add_header(header::AUTHORIZATION, encoded, true)
     }
 
     /// Enable HTTP bearer authentication.
     pub fn bearer_auth(self, token: impl Into<String>) -> Self {
-        self.add_header(http::header::AUTHORIZATION, format!("Bearer {}", token.into()), true)
+        self.add_header(header::AUTHORIZATION, format!("Bearer {}", token.into()), true)
     }
 
     /// Set the body of this request.
@@ -133,7 +130,7 @@ impl RequestBuilder {
     /// If the `Content-Type` header is unset, it will be set to `text/plain` and the charset to UTF-8.
     pub fn text(mut self, body: impl Into<String>) -> Self {
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("text/plain; charset=utf-8"));
         self.body(body.into())
     }
@@ -143,7 +140,7 @@ impl RequestBuilder {
     /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
     pub fn bytes(mut self, body: Vec<u8>) -> Self {
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/octet-stream"));
         self.body(body)
     }
@@ -153,7 +150,7 @@ impl RequestBuilder {
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
     pub fn json<T: serde::Serialize>(mut self, value: &T) -> Self {
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
         self.body(serde_json::to_vec(value).unwrap())
     }
@@ -163,7 +160,7 @@ impl RequestBuilder {
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
     pub fn raw_json(mut self, value: impl Into<String>) -> Self {
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/json; charset=utf-8"));
         self.body(value.into())
     }
@@ -174,7 +171,7 @@ impl RequestBuilder {
     pub fn form<T: serde::Serialize>(mut self, value: &T) -> Self {
         let body = serde_urlencoded::to_string(value).unwrap().into_bytes();
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
         self.body(body)
     }
@@ -183,7 +180,7 @@ impl RequestBuilder {
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
     pub fn raw_form(mut self, value: impl Into<String>) -> Self {
         self.headers
-            .entry(http::header::CONTENT_TYPE)
+            .entry(header::CONTENT_TYPE)
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
         self.body(value.into())
     }
@@ -210,6 +207,11 @@ impl RequestBuilder {
 
     /// Build final request.
     pub fn build(self) -> Request {
+        self.build_hyper().into()
+    }
+
+    /// Build hyper request.
+    pub fn build_hyper(self) -> hyper::Request<Body> {
         let Self {
             url,
             method,
@@ -218,20 +220,21 @@ impl RequestBuilder {
         } = self;
         let mut req = hyper::Request::builder().method(method).uri(url.to_string());
         (*req.headers_mut().unwrap()) = headers;
-        req.body(body).unwrap().into()
+        req.body(body).unwrap()
     }
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
-    pub async fn send(self, target: impl SendTarget) -> Response {
+    pub async fn send(mut self, target: impl SendTarget) -> Response {
         let mut response = target.call(self.build()).await;
         #[cfg(feature = "cookie")]
         {
             let values = response
                 .cookies
                 .delta()
-                .filter_map(|c| c.encoded().to_string().parse().ok()).collect::<Vec<_>>();
+                .filter_map(|c| c.encoded().to_string().parse().ok())
+                .collect::<Vec<_>>();
             for hv in values {
-                response.headers_mut().insert(SET_COOKIE, hv);
+                response.headers_mut().insert(header::SET_COOKIE, hv);
             }
         }
         response

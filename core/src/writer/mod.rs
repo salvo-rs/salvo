@@ -1,5 +1,4 @@
 //! Writer trait and it's implements.
-use async_trait::async_trait;
 
 mod json;
 mod redirect;
@@ -10,8 +9,7 @@ pub use redirect::Redirect;
 pub use text::Text;
 
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
-use crate::http::{Request, Response};
-use crate::Depot;
+use crate::{async_trait, Depot, Request, Response};
 
 /// Writer is used to write data to response.
 #[async_trait]
