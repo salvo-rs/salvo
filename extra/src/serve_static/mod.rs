@@ -7,7 +7,7 @@ mod file;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 
 pub use dir::{StaticDir, StaticDirOptions};
-pub use embed::{static_embed, StaticEmbed};
+pub use embed::{render_embedded_file, static_embed, EmbeddedFileExt, StaticEmbed};
 pub use file::StaticFile;
 
 #[inline]
