@@ -48,15 +48,10 @@ where
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let path = if let Some((_, value)) = param {
-            if !value.is_empty() {
-                value
-            } else {
-                self.fallback.as_deref().unwrap_or_default()
-            }
-        } else {
-            self.fallback.as_deref().unwrap_or_default()
-        };
+        let mut path = param.map(|(_, v)| &**v).unwrap_or_default();
+        if path.is_empty() {
+            path = self.fallback.as_deref().unwrap_or_default();
+        }
         if path.is_empty() {
             res.set_status_code(StatusCode::NOT_FOUND);
             return;
@@ -67,7 +62,22 @@ where
                 let mime = mime_guess::from_path(path).first_or_octet_stream();
                 render_embedded_file(file, req, res, Some(mime));
             }
-            None => res.set_status_code(StatusCode::NOT_FOUND),
+            None => {
+                let path = self.fallback.as_deref().unwrap_or_default();
+                if !path.is_empty() {
+                    match T::get(path) {
+                        Some(file) => {
+                            let mime = mime_guess::from_path(path).first_or_octet_stream();
+                            render_embedded_file(file, req, res, Some(mime));
+                        }
+                        None => {
+                            res.set_status_code(StatusCode::NOT_FOUND);
+                        }
+                    }
+                } else {
+                    res.set_status_code(StatusCode::NOT_FOUND);
+                }
+            }
         }
     }
 }
