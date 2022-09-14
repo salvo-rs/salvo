@@ -52,22 +52,22 @@ impl HeaderExtractor {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cated methods list reference.
+    /// Get cared methods list reference.
     #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
-    /// Get cated methods list mutable reference.
+    /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cated methods list.
+    /// Set cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and returns Self.
+    /// Set cared methods list and returns Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -105,22 +105,22 @@ impl FormExtractor {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cated methods list reference.
+    /// Get cared methods list reference.
     #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
-    /// Get cated methods list mutable reference.
+    /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cated methods list.
+    /// Set cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and return Self.
+    /// Set cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -153,22 +153,22 @@ impl QueryExtractor {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cated methods list reference.
+    /// Get cared methods list reference.
     #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
-    /// Get cated methods list mutable reference.
+    /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cated methods list.
+    /// Set cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and return Self.
+    /// Set cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -208,22 +208,22 @@ impl CookieExtractor {
             ],
         }
     }
-    /// Get cated methods list reference.
+    /// Get cared methods list reference.
     #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
         &self.cared_methods
     }
-    /// Get cated methods list mutable reference.
+    /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cated methods list.
+    /// Set cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cated methods list and return Self.
+    /// Set cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
