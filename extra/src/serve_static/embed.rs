@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
-use rust_embed::{EmbeddedFile, RustEmbed};
+use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{Mime, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
@@ -23,7 +23,18 @@ pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
 
 /// Render [`EmbeddedFile`] to [`Response`].
 pub fn render_embedded_file(file: EmbeddedFile, req: &Request, res: &mut Response, mime: Option<Mime>) {
-    let hash = hex::encode(file.metadata.sha256_hash());
+    let EmbeddedFile { data, metadata, .. } = file;
+    render_embedded_data(data, &metadata, req, res, mime);
+}
+
+fn render_embedded_data(
+    data: Cow<'static, [u8]>,
+    metadata: &Metadata,
+    req: &Request,
+    res: &mut Response,
+    mime: Option<Mime>,
+) {
+    let hash = hex::encode(metadata.sha256_hash());
     // if etag is matched, return 304
     if req
         .headers()
@@ -40,7 +51,7 @@ pub fn render_embedded_file(file: EmbeddedFile, req: &Request, res: &mut Respons
 
     let mime = mime.unwrap_or_else(|| mime_guess::from_path(req.uri().path()).first_or_octet_stream());
     res.headers_mut().insert(CONTENT_TYPE, mime.as_ref().parse().unwrap());
-    match file.data {
+    match data {
         Cow::Borrowed(data) => {
             res.write_body(data).ok();
         }
@@ -111,14 +122,29 @@ where
     }
 }
 
+/// Handler for [`EmbeddedFile`].
+pub struct EmbeddedFileHandler(pub EmbeddedFile);
+
+#[async_trait]
+impl Handler for EmbeddedFileHandler {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+        render_embedded_data(self.0.data.clone(), &self.0.metadata, req, res, None);
+    }
+}
+
 /// Extension trait for [`EmbeddedFile`].
 pub trait EmbeddedFileExt {
     /// Render the embedded file.
     fn render(self, req: &Request, res: &mut Response);
+    /// Create a handler for the embedded file.
+    fn into_handler(self) -> EmbeddedFileHandler;
 }
 
 impl EmbeddedFileExt for EmbeddedFile {
     fn render(self, req: &Request, res: &mut Response) {
         render_embedded_file(self, req, res, None);
+    }
+    fn into_handler(self) -> EmbeddedFileHandler {
+        EmbeddedFileHandler(self)
     }
 }

@@ -134,6 +134,7 @@ mod tests {
         struct Assets;
 
         let router = Router::new()
+            .push(Router::with_path("test1.txt").get(Assets::get("test1.txt").unwrap().into_handler()))
             .push(Router::with_path("files/<**path>").get(serve_file))
             .push(Router::with_path("dir/<**path>").get(static_embed::<Assets>().with_fallback("index.html")))
             .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
