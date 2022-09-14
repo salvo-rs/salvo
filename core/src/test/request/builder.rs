@@ -224,7 +224,7 @@ impl RequestBuilder {
     }
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
-    pub async fn send(mut self, target: impl SendTarget) -> Response {
+    pub async fn send(self, target: impl SendTarget) -> Response {
         let mut response = target.call(self.build()).await;
         #[cfg(feature = "cookie")]
         {

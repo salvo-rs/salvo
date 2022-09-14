@@ -426,8 +426,7 @@ mod tests {
             .send()
             .await
             .unwrap();
-        println!("{:?}", response.headers());
-        // assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::SWITCHING_PROTOCOLS);
         server.abort();
     }
 }
