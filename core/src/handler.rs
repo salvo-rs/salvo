@@ -1,5 +1,4 @@
-
-use crate::{async_trait, Request, Response, FlowCtrl, Depot};
+use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
 /// `Handler` is used for handle [`Request`].
 ///
