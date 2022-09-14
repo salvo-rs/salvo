@@ -281,5 +281,38 @@ mod tests {
         ] {
             assert_eq!(key.parse::<SourceFrom>().unwrap(), value);
         }
+        assert!("abcd".parse::<SourceFrom>().is_err());
+    }
+
+    #[test]
+    fn test_parse_source_format() {
+        for (key, value) in [
+            ("multimap", SourceFormat::MultiMap),
+            ("json", SourceFormat::Json),
+            ("request", SourceFormat::Request),
+        ] {
+            assert_eq!(key.parse::<SourceFormat>().unwrap(), value);
+        }
+        assert!("abcd".parse::<SourceFormat>().is_err());
+    }
+
+    #[test]
+    fn test_parse_rename_rule() {
+        for (key, value) in RENAME_RULES {
+            assert_eq!(key.parse::<RenameRule>().unwrap(), *value);
+        }
+        assert!("abcd".parse::<RenameRule>().is_err());
+    }
+
+    #[test]
+    fn test_rename_rule() {
+        assert_eq!(PascalCase.rename("rename_rule"), "RenameRule");
+        assert_eq!(LowerCase.rename("RenameRule"), "renamerule");
+        assert_eq!(UpperCase.rename("rename_rule"), "RENAME_RULE");
+        assert_eq!(CamelCase.rename("RenameRule"), "renameRule");
+        assert_eq!(SnakeCase.rename("RenameRule"), "rename_rule");
+        assert_eq!(ScreamingSnakeCase.rename("rename_rule"), "RENAME_RULE");
+        assert_eq!(KebabCase.rename("rename_rule"), "rename-rule");
+        assert_eq!(ScreamingKebabCase.rename("rename_rule"), "RENAME-RULE");
     }
 }

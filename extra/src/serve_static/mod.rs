@@ -112,12 +112,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_serve_static_file() {
-        let router =
-            Router::with_path("test1.txt").get(StaticFile::new("../examples/static-dir-list/static/test/test1.txt"));
+        let router = Router::new()
+            .push(Router::with_path("test1.txt").get(StaticFile::new("test/static/test1.txt").chunk_size(1024)))
+            .push(Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")));
+        let service = Service::new(router);
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/test1.txt").send(router).await;
+        let mut response = TestClient::get("http://127.0.0.1:7979/test1.txt").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
+
+        let response = TestClient::get("http://127.0.0.1:7979/notexist.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
@@ -128,7 +135,9 @@ mod tests {
 
         let router = Router::new()
             .push(Router::with_path("files/<**path>").get(serve_file))
-            .push(Router::with_path("dir/<**path>").get(static_embed::<Assets>().with_fallback("index.html")));
+            .push(Router::with_path("dir/<**path>").get(static_embed::<Assets>().with_fallback("index.html")))
+            .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
+            .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().with_fallback("notexist.html")));
         let service = Service::new(router);
 
         #[handler]
@@ -150,5 +159,21 @@ mod tests {
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
+
+        let mut response = TestClient::get("http://127.0.0.1:7979/dir/test1111.txt")
+            .send(&service)
+            .await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert!(response.take_string().await.unwrap().contains("Index page"));
+
+        let mut response = TestClient::get("http://127.0.0.1:7979/dir/").send(&service).await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert!(response.take_string().await.unwrap().contains("Index page"));
+
+        let response = TestClient::get("http://127.0.0.1:7979/dir2/").send(&service).await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
+
+        let response = TestClient::get("http://127.0.0.1:7979/dir3/abc.txt").send(&service).await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
     }
 }
