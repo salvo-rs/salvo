@@ -145,8 +145,9 @@ impl WebSocketUpgrade {
             });
             Ok(())
         } else {
-            tracing::debug!("ws couldn't be upgraded since no upgrade state was present");
-            Err(StatusError::bad_request().with_summary("ws couldn't be upgraded since no upgrade state was present"))
+            tracing::debug!("websocket couldn't be upgraded since no upgrade state was present");
+            Err(StatusError::bad_request()
+                .with_summary("websocket couldn't be upgraded since no upgrade state was present"))
         }
     }
 }
@@ -181,10 +182,7 @@ impl WebSocket {
 
     /// Send a message.
     pub async fn send(&mut self, msg: Message) -> Result<(), Error> {
-        self.inner
-            .send(msg.inner)
-            .await
-            .map_err(Error::other)
+        self.inner.send(msg.inner).await.map_err(Error::other)
     }
 
     /// Gracefully close this websocket.
@@ -378,5 +376,58 @@ impl Into<Vec<u8>> for Message {
     #[inline]
     fn into(self) -> Vec<u8> {
         self.into_bytes()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use salvo_core::http::header::*;
+    use salvo_core::prelude::*;
+
+    use super::*;
+
+    #[handler]
+    async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
+        WebSocketUpgrade::new()
+            .upgrade(req, res, |mut ws| async move {
+                while let Some(msg) = ws.recv().await {
+                    let msg = if let Ok(msg) = msg {
+                        msg
+                    } else {
+                        return;
+                    };
+
+                    if ws.send(msg).await.is_err() {
+                        return;
+                    }
+                }
+            })
+            .await
+    }
+
+    #[tokio::test]
+    async fn test_websocket() {
+        let router = Router::new().handle(connect);
+        let listener = TcpListener::bind("127.0.0.1:0");
+        let addr = listener.local_addr();
+        let server = tokio::task::spawn(async {
+            Server::new(listener).serve(router).await;
+        });
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        let base_url = format!("http://{}", addr);
+        let client = reqwest::Client::new();
+        let response = client
+            .get(&base_url)
+            .header(UPGRADE, "websocket")
+            .header(CONNECTION, "Upgrade")
+            .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
+            .header(SEC_WEBSOCKET_VERSION, "13")
+            .send()
+            .await
+            .unwrap();
+        println!("{:?}", response.headers());
+        // assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        server.abort();
     }
 }
