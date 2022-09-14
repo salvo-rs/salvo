@@ -263,3 +263,23 @@ impl Metadata {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_source_from() {
+        for (key, value) in [
+            ("param", SourceFrom::Param),
+            ("query", SourceFrom::Query),
+            ("header", SourceFrom::Header),
+            #[cfg(feature = "cookie")]
+            ("cookie", SourceFrom::Cookie),
+            ("body", SourceFrom::Body),
+            ("request", SourceFrom::Request),
+        ] {
+            assert_eq!(key.parse::<SourceFrom>().unwrap(), value);
+        }
+    }
+}
