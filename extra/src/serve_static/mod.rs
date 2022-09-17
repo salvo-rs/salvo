@@ -70,11 +70,10 @@ mod tests {
                 .await
                 .unwrap()
         }
-        // let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
-        // assert!(content.contains("Index page"));
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
+        assert!(content.contains("Index page"));
 
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/").await;
-        println!("xxxxxxxx {}", content);
         assert!(content.contains("test3.txt") && content.contains("dir2"));
 
         let content = access(&service, "text/xml", "http://127.0.0.1:7979/dir1/").await;
