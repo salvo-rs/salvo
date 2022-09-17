@@ -10,10 +10,12 @@ use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 #[derive(Default)]
 pub struct StaticEmbed<T> {
     assets: PhantomData<T>,
-    fallback: Option<String>,
+    /// Fallback file name. This is used when the requested file is not found.
+    pub fallback: Option<String>,
 }
 
 /// Create a new `StaticEmbed` middleware.
+#[inline]
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
         assets: PhantomData,
@@ -22,11 +24,13 @@ pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
 }
 
 /// Render [`EmbeddedFile`] to [`Response`].
+#[inline]
 pub fn render_embedded_file(file: EmbeddedFile, req: &Request, res: &mut Response, mime: Option<Mime>) {
     let EmbeddedFile { data, metadata, .. } = file;
     render_embedded_data(data, &metadata, req, res, mime);
 }
 
+#[inline]
 fn render_embedded_data(
     data: Cow<'static, [u8]>,
     metadata: &Metadata,
@@ -66,6 +70,7 @@ where
     T: RustEmbed + Send + Sync + 'static,
 {
     /// Create a new `StaticEmbed`.
+    #[inline]
     pub fn new() -> Self {
         Self {
             assets: PhantomData,
@@ -74,6 +79,7 @@ where
     }
 
     /// Create a new `StaticEmbed` with fallback.
+    #[inline]
     pub fn with_fallback(self, fallback: impl Into<String>) -> Self {
         Self {
             fallback: Some(fallback.into()),
@@ -86,6 +92,7 @@ impl<T> Handler for StaticEmbed<T>
 where
     T: RustEmbed + Send + Sync + 'static,
 {
+    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
         let mut path = param.map(|(_, v)| &**v).unwrap_or_default();
@@ -127,6 +134,7 @@ pub struct EmbeddedFileHandler(pub EmbeddedFile);
 
 #[async_trait]
 impl Handler for EmbeddedFileHandler {
+    #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         render_embedded_data(self.0.data.clone(), &self.0.metadata, req, res, None);
     }
@@ -141,9 +149,11 @@ pub trait EmbeddedFileExt {
 }
 
 impl EmbeddedFileExt for EmbeddedFile {
+    #[inline]
     fn render(self, req: &Request, res: &mut Response) {
         render_embedded_file(self, req, res, None);
     }
+    #[inline]
     fn into_handler(self) -> EmbeddedFileHandler {
         EmbeddedFileHandler(self)
     }
