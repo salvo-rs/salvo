@@ -80,11 +80,9 @@ where
 
     /// Create a new `StaticEmbed` with fallback.
     #[inline]
-    pub fn with_fallback(self, fallback: impl Into<String>) -> Self {
-        Self {
-            fallback: Some(fallback.into()),
-            ..self
-        }
+    pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
+        self.fallback = Some(fallback.into());
+        self
     }
 }
 #[async_trait]

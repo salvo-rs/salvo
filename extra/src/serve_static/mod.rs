@@ -6,7 +6,7 @@ mod file;
 
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 
-pub use dir::{StaticDir, StaticDirOptions};
+pub use dir::StaticDir;
 pub use embed::{render_embedded_file, static_embed, EmbeddedFileExt, StaticEmbed};
 pub use file::StaticFile;
 
@@ -50,15 +50,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_serve_static_files() {
-        let router = Router::with_path("<**path>").get(StaticDir::width_options(
-            vec!["test/static"],
-            StaticDirOptions {
-                dot_files: false,
-                listing: true,
-                defaults: vec!["index.html".to_owned()],
-                fallback: None,
-            },
-        ));
+        let router = Router::with_path("<**path>").get(
+            StaticDir::new(vec!["test/static"])
+                .with_dot_files(false)
+                .with_listing(true)
+                .with_defaults("index.html"),
+        );
         let service = Service::new(router);
 
         async fn access(service: &Service, accept: &str, url: &str) -> String {

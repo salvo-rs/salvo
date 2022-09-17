@@ -18,68 +18,6 @@ use serde_json::json;
 
 use super::{decode_url_path_safely, encode_url_path, format_url_path_safely};
 
-/// Options
-#[derive(Clone, Debug)]
-pub struct StaticDirOptions {
-    /// List dot files.
-    pub dot_files: bool,
-    /// Listing dir
-    pub listing: bool,
-    /// Default file names list.
-    pub defaults: Vec<String>,
-    /// Fallback file name. This is used when the requested file is not found.
-    pub fallback: Option<String>,
-}
-
-impl StaticDirOptions {
-    /// Create a new `StaticDirOptions`.
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            dot_files: false,
-            listing: false,
-            defaults: vec![],
-            fallback: None,
-        }
-    }
-
-    /// Set dot_files and returns a new `StaticDirOptions`.
-    #[inline]
-    pub fn dot_files(self, dot_files: bool) -> Self {
-        Self { dot_files, ..self }
-    }
-
-    /// Set listing and returns a new `StaticDirOptions`.
-    #[inline]
-    pub fn listing(self, listing: bool) -> Self {
-        Self { listing, ..self }
-    }
-
-    /// Set defaults and returns a new `StaticDirOptions`.
-    #[inline]
-    pub fn defaults(self, defaults: impl IntoVecString) -> Self {
-        Self {
-            defaults: defaults.into_vec_string(),
-            ..self
-        }
-    }
-
-    /// Set fallback and returns a new `StaticDirOptions`.
-    pub fn fallback(self, fallback: impl Into<String>) -> Self {
-        Self {
-            fallback: Some(fallback.into()),
-            ..self
-        }
-    }
-}
-
-impl Default for StaticDirOptions {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Static roots.
 pub trait StaticRoots {
     /// Collect all static roots.
@@ -132,25 +70,64 @@ where
 /// StaticDir
 #[derive(Clone)]
 pub struct StaticDir {
-    roots: Vec<PathBuf>,
-    options: StaticDirOptions,
-    chunk_size: Option<u64>,
+    /// Static roots.
+    pub roots: Vec<PathBuf>,
+    /// During the file chunk read, the maximum read size at one time will affect the
+    /// access experience and the demand for server memory.
+    ///
+    /// Please set it according to your own situation.
+    ///
+    /// The default is 1M. 
+    pub chunk_size: Option<u64>,
+    /// List dot files.
+    pub dot_files: bool,
+    /// Listing dir
+    pub listing: bool,
+    /// Default file names list.
+    pub defaults: Vec<String>,
+    /// Fallback file name. This is used when the requested file is not found.
+    pub fallback: Option<String>,
 }
 impl StaticDir {
     /// Create new `StaticDir`.
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
-        StaticDir::width_options(roots, StaticDirOptions::default())
-    }
-    /// Create new `StaticDir` with options.
-    #[inline]
-    pub fn width_options<T: StaticRoots + Sized>(roots: T, options: StaticDirOptions) -> Self {
         StaticDir {
-            roots: roots.collect(),
-            options,
+            roots: roots.collect(), 
             chunk_size: None,
+            dot_files: false,
+            listing: false,
+            defaults: vec![],
+            fallback: None,
         }
     }
+ 
+     /// Set dot_files and returns a new `StaticDirOptions`.
+     #[inline]
+     pub fn with_dot_files(mut self, dot_files: bool) -> Self {
+         self.dot_files = dot_files;
+         self
+     }
+ 
+     /// Set listing and returns a new `StaticDirOptions`.
+     #[inline]
+     pub fn with_listing(mut self, listing: bool) -> Self {
+         self.listing = listing;
+         self
+     }
+ 
+     /// Set defaults and returns a new `StaticDirOptions`.
+     #[inline]
+     pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
+        self.defaults = defaults.into_vec_string();
+        self
+     }
+ 
+     /// Set fallback and returns a new `StaticDirOptions`.
+     pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
+        self.fallback = Some(fallback.into());
+        self
+     }
 
     /// During the file chunk read, the maximum read size at one time will affect the
     /// access experience and the demand for server memory.
@@ -159,7 +136,7 @@ impl StaticDir {
     ///
     /// The default is 1M.
     #[inline]
-    pub fn chunk_size(mut self, size: u64) -> Self {
+    pub fn with_chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
     }
@@ -226,8 +203,8 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        let fallback = self.options.fallback.as_deref().unwrap_or_default();
-        if self.options.dot_files || !is_dot_file {
+        let fallback = self.fallback.as_deref().unwrap_or_default();
+        if self.dot_files || !is_dot_file {
             for root in &self.roots {
                 let path = root.join(&rel_path);
                 if path.is_dir() {
@@ -244,16 +221,16 @@ impl Handler for StaticDir {
                         }
                     }
 
-                    if self.options.listing {
-                        abs_path = Some(path);
-                    } else {
-                        for ifile in &self.options.defaults {
-                            let ipath = path.join(ifile);
-                            if ipath.is_file() {
-                                abs_path = Some(ipath);
-                                break;
-                            }
+                    for ifile in &self.defaults {
+                        let ipath = path.join(ifile);
+                        if ipath.is_file() {
+                            abs_path = Some(ipath);
+                            break;
                         }
+                    }
+
+                    if self.listing && abs_path.is_none() {
+                        abs_path = Some(path);
                     }
                     if abs_path.is_some() {
                         break;
@@ -304,7 +281,7 @@ impl Handler for StaticDir {
                                 .or_insert(metadata);
                         } else {
                             let file_name = entry.file_name().to_string_lossy().to_string();
-                            if !self.options.dot_files && file_name.starts_with('.') {
+                            if !self.dot_files && file_name.starts_with('.') {
                                 continue;
                             }
                             files.entry(file_name).or_insert(metadata);
