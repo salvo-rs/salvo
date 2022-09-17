@@ -1,8 +1,8 @@
+use futures::stream::TryStreamExt;
+use mongodb::{bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection, IndexModel};
 use once_cell::sync::OnceCell;
 use salvo::prelude::*;
-use futures::stream::TryStreamExt;
 use serde::{Deserialize, Serialize};
-use mongodb::{bson::doc, bson::oid::ObjectId, bson::Document, options::IndexOptions, Client, Collection, IndexModel};
 
 const DB_NAME: &str = "myApp";
 const COLL_NAME: &str = "users";
@@ -12,15 +12,14 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("MongoDB Error")]
-    ErrorMongo(#[from] mongodb::error::Error)
+    ErrorMongo(#[from] mongodb::error::Error),
 }
 
 pub type AppResult<T> = Result<T, Error>;
 
 #[async_trait]
 impl Writer for Error {
-    async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    }
+    async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,14 +77,9 @@ async fn get_user(req: &mut Request, res: &mut Response) {
     let coll_users: Collection<User> = client.database(DB_NAME).collection(COLL_NAME);
 
     let username = req.param::<String>("username").unwrap();
-    match coll_users
-        .find_one(doc! { "username": &username }, None)
-        .await
-    {
+    match coll_users.find_one(doc! { "username": &username }, None).await {
         Ok(Some(user)) => res.render(Json(user)),
-        Ok(None) => {
-            res.render(format!("No user found with username {username}"))
-        }
+        Ok(None) => res.render(format!("No user found with username {username}")),
         Err(err) => res.render(format!("Error {:?}", err)),
     }
 }
@@ -118,8 +112,7 @@ async fn main() {
     let router = Router::with_path("users")
         .get(get_users)
         .post(add_user)
-        .push(Router::with_path("<username>").get(get_user))
-        ;
+        .push(Router::with_path("<username>").get(get_user));
 
     tracing::info!("Listening on http://127.0.0.1:7878");
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
