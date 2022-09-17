@@ -19,7 +19,7 @@ pub type AppResult<T> = Result<T, Error>;
 
 #[async_trait]
 impl Writer for Error {
-    async fn write(mut self, _req: &mut Request, depot: &mut Depot, res: &mut Response) {}
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, _res: &mut Response) {}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
