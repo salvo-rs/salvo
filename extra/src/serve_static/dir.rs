@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Write;
 use std::fs::Metadata;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
@@ -12,7 +12,7 @@ use salvo_core::fs::NamedFile;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::writer::Redirect;
 use salvo_core::writer::Text;
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -27,15 +27,48 @@ pub struct StaticDirOptions {
     pub listing: bool,
     /// Default file names list.
     pub defaults: Vec<String>,
+    /// Fallback file name. This is used when the requested file is not found.
+    pub fallback: Option<String>,
 }
 
 impl StaticDirOptions {
+    /// Create a new `StaticDirOptions`.
     #[inline]
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             dot_files: false,
             listing: false,
-            defaults: vec!["index.html".to_owned()],
+            defaults: vec![],
+            fallback: None,
+        }
+    }
+
+    /// Set dot_files and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn dot_files(self, dot_files: bool) -> Self {
+        Self { dot_files, ..self }
+    }
+
+    /// Set listing and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn listing(self, listing: bool) -> Self {
+        Self { listing, ..self }
+    }
+
+    /// Set defaults and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn defaults(self, defaults: impl IntoVecString) -> Self {
+        Self {
+            defaults: defaults.into_vec_string(),
+            ..self
+        }
+    }
+
+    /// Set fallback and returns a new `StaticDirOptions`.
+    pub fn fallback(self, fallback: impl Into<String>) -> Self {
+        Self {
+            fallback: Some(fallback.into()),
+            ..self
         }
     }
 }
@@ -187,99 +220,118 @@ impl Handler for StaticDir {
         let rel_path = format_url_path_safely(&rel_path);
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
-        let mut path_exist = false;
-        for root in &self.roots {
-            let path = root.join(&rel_path);
-            if path.is_dir() && self.options.listing {
-                path_exist = true;
-                if !req_path.ends_with('/') {
-                    match Redirect::found(&format!("{}/", req_path)) {
-                        Ok(redirect) => {
-                            res.render(redirect);
-                            return;
-                        }
-                        Err(e) => {
-                            tracing::error!(error = ?e, "redirect failed");
-                            return;
-                        }
-                    }
-                }
-                for ifile in &self.options.defaults {
-                    let ipath = path.join(ifile);
-                    if ipath.exists() {
-                        let builder = {
-                            let mut builder = NamedFile::builder(ipath);
-                            if let Some(size) = self.chunk_size {
-                                builder = builder.buffer_size(size);
+        let is_dot_file = Path::new(&rel_path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.starts_with('.'))
+            .unwrap_or(false);
+        let mut abs_path = None;
+        let fallback = self.options.fallback.as_deref().unwrap_or_default();
+        if self.options.dot_files || !is_dot_file {
+            for root in &self.roots {
+                let path = root.join(&rel_path);
+                if path.is_dir() {
+                    if !req_path.ends_with('/') {
+                        match Redirect::found(&format!("{}/", req_path)) {
+                            Ok(redirect) => {
+                                res.render(redirect);
+                                return;
                             }
-                            builder
-                        };
-                        if let Ok(named_file) = builder.build().await {
-                            named_file.send(req.headers(), res).await;
-                        } else {
-                            res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
-                        }
-                        return;
-                    }
-                }
-                // list the dir
-                if let Ok(mut entries) = tokio::fs::read_dir(&path).await {
-                    while let Ok(Some(entry)) = entries.next_entry().await {
-                        if let Ok(metadata) = entry.metadata().await {
-                            if metadata.is_dir() {
-                                dirs.entry(entry.file_name().to_string_lossy().to_string())
-                                    .or_insert(metadata);
-                            } else {
-                                let file_name = entry.file_name().to_string_lossy().to_string();
-                                if !self.options.dot_files && file_name.starts_with('.') {
-                                    continue;
-                                }
-                                files.entry(file_name).or_insert(metadata);
+                            Err(e) => {
+                                tracing::error!(error = ?e, "redirect failed");
+                                return;
                             }
                         }
                     }
+
+                    if self.options.listing {
+                        abs_path = Some(path);
+                    } else {
+                        for ifile in &self.options.defaults {
+                            let ipath = path.join(ifile);
+                            if ipath.is_file() {
+                                abs_path = Some(ipath);
+                                break;
+                            }
+                        }
+                    }
+                    if abs_path.is_some() {
+                        break;
+                    }
+                } else if path.is_file() {
+                    abs_path = Some(path);
                 }
-            } else if path.is_file() {
-                if !self.options.dot_files
-                    && path
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .map(|s| s.starts_with('.'))
-                        .unwrap_or(false)
-                {
-                    res.set_status_error(StatusError::not_found());
-                    return;
-                }
-                if let Ok(named_file) = NamedFile::open(path).await {
-                    named_file.send(req.headers(), res).await;
-                } else {
-                    res.set_status_error(StatusError::internal_server_error().with_summary("file read error"));
-                }
-                return;
             }
         }
-        if !path_exist || !self.options.listing {
-            res.set_status_error(StatusError::not_found());
-            return;
+        if abs_path.is_none() && !fallback.is_empty() {
+            for root in &self.roots {
+                let path = root.join(fallback);
+                if path.is_file() {
+                    abs_path = Some(path);
+                    break;
+                }
+            }
         }
-        let format = req.first_accept().unwrap_or(mime::TEXT_HTML);
-        let mut files: Vec<FileInfo> = files
-            .into_iter()
-            .map(|(name, metadata)| FileInfo::new(name, metadata))
-            .collect();
-        files.sort_by(|a, b| a.name.cmp(&b.name));
-        let mut dirs: Vec<DirInfo> = dirs
-            .into_iter()
-            .map(|(name, metadata)| DirInfo::new(name, metadata))
-            .collect();
-        dirs.sort_by(|a, b| a.name.cmp(&b.name));
-        let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
-        res.set_status_code(StatusCode::OK);
-        match format.subtype().as_ref() {
-            "plain" => res.render(Text::Plain(list_text(&root))),
-            "json" => res.render(Text::Json(list_json(&root))),
-            "xml" => res.render(Text::Xml(list_xml(&root))),
-            _ => res.render(Text::Html(list_html(&root))),
+
+        let abs_path = match abs_path {
+            Some(path) => path,
+            None => {
+                res.set_status_error(StatusError::not_found());
+                return;
+            }
+        };
+
+        if abs_path.is_file() {
+            let builder = {
+                let mut builder = NamedFile::builder(abs_path);
+                if let Some(size) = self.chunk_size {
+                    builder = builder.buffer_size(size);
+                }
+                builder
+            };
+            if let Ok(named_file) = builder.build().await {
+                named_file.send(req.headers(), res).await;
+            } else {
+                res.set_status_error(StatusError::internal_server_error().with_summary("read file failed"));
+            }
+        } else if abs_path.is_dir() {
+            // list the dir
+            if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    if let Ok(metadata) = entry.metadata().await {
+                        if metadata.is_dir() {
+                            dirs.entry(entry.file_name().to_string_lossy().to_string())
+                                .or_insert(metadata);
+                        } else {
+                            let file_name = entry.file_name().to_string_lossy().to_string();
+                            if !self.options.dot_files && file_name.starts_with('.') {
+                                continue;
+                            }
+                            files.entry(file_name).or_insert(metadata);
+                        }
+                    }
+                }
+            }
+
+            let format = req.first_accept().unwrap_or(mime::TEXT_HTML);
+            let mut files: Vec<FileInfo> = files
+                .into_iter()
+                .map(|(name, metadata)| FileInfo::new(name, metadata))
+                .collect();
+            files.sort_by(|a, b| a.name.cmp(&b.name));
+            let mut dirs: Vec<DirInfo> = dirs
+                .into_iter()
+                .map(|(name, metadata)| DirInfo::new(name, metadata))
+                .collect();
+            dirs.sort_by(|a, b| a.name.cmp(&b.name));
+            let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
+            res.set_status_code(StatusCode::OK);
+            match format.subtype().as_ref() {
+                "plain" => res.render(Text::Plain(list_text(&root))),
+                "json" => res.render(Text::Json(list_json(&root))),
+                "xml" => res.render(Text::Xml(list_xml(&root))),
+                _ => res.render(Text::Html(list_html(&root))),
+            }
         }
     }
 }
