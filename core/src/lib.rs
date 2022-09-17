@@ -153,3 +153,43 @@ pub fn run_with_threads<F: Future>(future: F, threads: usize) {
     let runtime = crate::new_runtime(threads);
     let _ = runtime.block_on(async { future.await });
 }
+
+#[doc(hidden)]
+pub trait IntoVecString {
+    fn into_vec_string(self) -> Vec<String>;
+}
+
+impl IntoVecString for &'static str {
+    fn into_vec_string(self) -> Vec<String> {
+        vec![self.to_string()]
+    }
+}
+impl IntoVecString for String {
+    fn into_vec_string(self) -> Vec<String> {
+        vec![self]
+    }
+}
+
+impl<const N: usize> IntoVecString for [&'static str; N] {
+    fn into_vec_string(self) -> Vec<String> {
+        self.into_iter().map(|s| s.into()).collect()
+    }
+}
+
+impl<T> IntoVecString for Vec<T>
+where
+    T: Into<String>,
+{
+    fn into_vec_string(self) -> Vec<String> {
+        self.into_iter().map(|s| s.into()).collect()
+    }
+}
+
+impl<'a, T> IntoVecString for &'a Vec<T>
+where
+    T: Into<String> + Clone
+{
+    fn into_vec_string(self) -> Vec<String> {
+        self.iter().map(|s| s.clone().into()).collect()
+    }
+}
