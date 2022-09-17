@@ -187,7 +187,7 @@ where
 
 impl<'a, T> IntoVecString for &'a Vec<T>
 where
-    T: Into<String> + Clone
+    T: Into<String> + Clone,
 {
     fn into_vec_string(self) -> Vec<String> {
         self.iter().map(|s| s.clone().into()).collect()
