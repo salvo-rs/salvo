@@ -7,7 +7,7 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Body as HyperBody, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use once_cell::sync::OnceCell;
-use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue};
+use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::StatusCode;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
@@ -15,9 +15,6 @@ use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<HyperBody>;
 type HyperResponse = hyper::Response<HyperBody>;
-
-static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
-static UPGRADE_HEADER: HeaderName = HeaderName::from_static("upgrade");
 
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
@@ -125,8 +122,10 @@ where
         let forward_url: Uri = TryFrom::try_from(forward_url).map_err(Error::other)?;
         let mut build = hyper::Request::builder().method(req.method()).uri(&forward_url);
         for (key, value) in req.headers() {
-            if key.as_str() != "host" {
+            if key != HOST {
                 build = build.header(key, value);
+            } else {
+                build = build.header(HOST, forward_url.host().unwrap());
             }
         }
         if let Some(host) = forward_url.host().and_then(|host| HeaderValue::from_str(host).ok()) {
@@ -264,11 +263,11 @@ where
 #[inline]
 fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     if headers
-        .get(&CONNECTION_HEADER)
-        .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE_HEADER))
+        .get(&CONNECTION)
+        .map(|value| value.to_str().unwrap().split(',').any(|e| e.trim() == UPGRADE))
         .unwrap_or(false)
     {
-        if let Some(upgrade_value) = headers.get(&UPGRADE_HEADER) {
+        if let Some(upgrade_value) = headers.get(&UPGRADE) {
             tracing::debug!("Found upgrade header with value: {:?}", upgrade_value.to_str());
             return upgrade_value.to_str().ok();
         }
@@ -287,19 +286,19 @@ mod tests {
     #[tokio::test]
     async fn test_proxy() {
         let router =
-            Router::new().push(Router::with_path("baidu/<**rest>").handle(Proxy::new(vec!["https://www.baidu.com"])));
+            Router::new().push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
-        let content = TestClient::get("http://127.0.0.1:7979/baidu?wd=rust")
+        let content = TestClient::get("http://127.0.0.1:7979/rust/tools/install")
             .send(router)
             .await
             .take_string()
             .await
             .unwrap();
-        assert!(content.contains("baidu"));
+        assert!(content.contains("Install Rust"));
     }
     #[test]
     fn test_others() {
-        let mut handler = Proxy::new(["https://www.baidu.com"]);
+        let mut handler = Proxy::new(["https://www.bing.com"]);
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
     }
