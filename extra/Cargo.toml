@@ -22,19 +22,19 @@ default = ["full"]
 full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "session", "size-limiter", "trailing-slash", "timeout", "ws"]
 affix = []
 basic-auth = ["dep:base64"]
-caching-headers = ["dep:etag"]
+caching-headers = ["dep:etag", "dep:tracing"]
 compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
 cors = ["dep:tracing"]
 csrf = ["dep:cookie", "dep:hkdf", "dep:rand", "dep:sha2", "dep:aead", "dep:aes-gcm", "dep:byteorder", "dep:chacha20poly1305", "dep:chrono", "dep:data-encoding", "dep:hmac", "dep:tracing"]
-force-https = []
-jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie"]
+force-https = ["dep:tracing"]
+jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
 proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
-serve-static = ["dep:chrono", "dep:hex", "dep:mime", "dep:mime_guess", "dep:percent-encoding", "dep:rust-embed", "tokio", "dep:serde", "dep:serde_json"]
+serve-static = ["dep:chrono", "dep:hex", "dep:mime", "dep:mime_guess", "dep:path-slash", "dep:percent-encoding", "dep:rust-embed", "dep:tracing", "tokio", "dep:serde", "dep:serde_json"]
 session = ["dep:async-session", "dep:cookie", "dep:tracing"]
 size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
-trailing-slash = []
+trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
 ws = ["dep:futures-util", "dep:hyper", "tokio-tungstenite", "dep:tracing"]
 
@@ -62,6 +62,7 @@ jsonwebtoken = { version = "8", optional = true }
 mime = { version = "0.3", optional = true }
 mime_guess = { version = "2", optional = true }
 once_cell = { version = "1", optional = true }
+path-slash = { version ="0.2", optional = true }
 percent-encoding = { version = "2", optional = true }
 pin-project = { version = "1", optional = true }
 rand = { version = "0.8", optional = true }
