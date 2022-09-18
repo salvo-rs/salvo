@@ -4,12 +4,28 @@ use std::marker::PhantomData;
 use rust_embed::{EmbeddedFile, Metadata, RustEmbed};
 use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{Mime, Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
+
+use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url};
+
+macro_rules! join_path {
+    ($($part:expr),+) => {
+        {
+            let mut p = std::path::PathBuf::new();
+            $(
+                p.push($part);
+            )*
+            path_slash::PathBufExt::to_slash_lossy(&p).to_string()
+        }
+    }
+}
 
 /// Serve static embed assets.
 #[derive(Default)]
 pub struct StaticEmbed<T> {
     assets: PhantomData<T>,
+    /// Default file names list.
+    pub defaults: Vec<String>,
     /// Fallback file name. This is used when the requested file is not found.
     pub fallback: Option<String>,
 }
@@ -19,6 +35,7 @@ pub struct StaticEmbed<T> {
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
         assets: PhantomData,
+        defaults: vec![],
         fallback: None,
     }
 }
@@ -74,8 +91,16 @@ where
     pub fn new() -> Self {
         Self {
             assets: PhantomData,
+            defaults: vec![],
             fallback: None,
         }
+    }
+
+    /// Create a new `StaticEmbed` with defaults.
+    #[inline]
+    pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
+        self.defaults = defaults.into_vec_string();
+        self
     }
 
     /// Create a new `StaticEmbed` with fallback.
@@ -93,35 +118,45 @@ where
     #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let mut path = param.map(|(_, v)| &**v).unwrap_or_default();
-        if path.is_empty() {
-            path = self.fallback.as_deref().unwrap_or_default();
+        let req_path = if let Some((_, value)) = param {
+            value.clone()
+        } else {
+            decode_url_path_safely(req.uri().path())
+        };
+        let req_path = format_url_path_safely(&req_path);
+        let mut key_path = Cow::Borrowed(&*req_path);
+        let mut embedded_file = T::get(req_path.as_str());
+        if embedded_file.is_none() {
+            for ifile in &self.defaults {
+                let ipath = join_path!(&req_path, ifile);
+                if let Some(file) = T::get(&ipath) {
+                    embedded_file = Some(file);
+                    key_path = Cow::from(ipath);
+                    break;
+                }
+            }
+            if embedded_file.is_some() && !req_path.ends_with('/') && !req_path.is_empty() {
+                redirect_to_dir_url(req.uri(), res);
+                return;
+            }
         }
-        if path.is_empty() {
-            res.set_status_code(StatusCode::NOT_FOUND);
-            return;
+        if embedded_file.is_none() {
+            let fallback = self.fallback.as_deref().unwrap_or_default();
+            if !fallback.is_empty() {
+                if let Some(file) = T::get(fallback) {
+                    embedded_file = Some(file);
+                    key_path = Cow::from(fallback);
+                }
+            }
         }
 
-        match T::get(path) {
+        match embedded_file {
             Some(file) => {
-                let mime = mime_guess::from_path(path).first_or_octet_stream();
+                let mime = mime_guess::from_path(&*key_path).first_or_octet_stream();
                 render_embedded_file(file, req, res, Some(mime));
             }
             None => {
-                let path = self.fallback.as_deref().unwrap_or_default();
-                if !path.is_empty() {
-                    match T::get(path) {
-                        Some(file) => {
-                            let mime = mime_guess::from_path(path).first_or_octet_stream();
-                            render_embedded_file(file, req, res, Some(mime));
-                        }
-                        None => {
-                            res.set_status_code(StatusCode::NOT_FOUND);
-                        }
-                    }
-                } else {
-                    res.set_status_code(StatusCode::NOT_FOUND);
-                }
+                res.set_status_code(StatusCode::NOT_FOUND);
             }
         }
     }

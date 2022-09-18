@@ -5,6 +5,9 @@ mod embed;
 mod file;
 
 use percent_encoding::{utf8_percent_encode, CONTROLS};
+use salvo_core::http::uri::{Parts as UriParts, Uri};
+use salvo_core::writer::Redirect;
+use salvo_core::Response;
 
 pub use dir::StaticDir;
 pub use embed::{render_embedded_file, static_embed, EmbeddedFileExt, StaticEmbed};
@@ -40,6 +43,32 @@ pub(crate) fn format_url_path_safely(path: &str) -> String {
     used_parts.join("/")
 }
 
+#[inline]
+pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
+    let UriParts {
+        scheme,
+        authority,
+        path_and_query,
+        ..
+    } = req_uri.clone().into_parts();
+    let mut builder = Uri::builder();
+    if let Some(scheme) = scheme {
+        builder = builder.scheme(scheme);
+    }
+    if let Some(authority) = authority {
+        builder = builder.authority(authority);
+    }
+    if let Some(path_and_query) = path_and_query {
+        if let Some(query) = path_and_query.query() {
+            builder = builder.path_and_query(format!("{}/?{}", path_and_query.path(), query));
+        } else {
+            builder = builder.path_and_query(format!("{}/", path_and_query.path()));
+        }
+    }
+    let redirect_uri = builder.build().unwrap();
+    res.render(Redirect::found(redirect_uri).unwrap());
+}
+
 #[cfg(test)]
 mod tests {
     use rust_embed::RustEmbed;
@@ -49,7 +78,7 @@ mod tests {
     use crate::serve_static::*;
 
     #[tokio::test]
-    async fn test_serve_static_files() {
+    async fn test_serve_static_dir() {
         let router = Router::with_path("<**path>").get(
             StaticDir::new(vec!["test/static"])
                 .with_dot_files(false)
@@ -67,6 +96,8 @@ mod tests {
                 .await
                 .unwrap()
         }
+        let content = access(&service, "text/plain", "http://127.0.0.1:7979").await;
+        assert!(content.contains("Index page"));
         let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
         assert!(content.contains("Index page"));
 
@@ -134,7 +165,13 @@ mod tests {
         let router = Router::new()
             .push(Router::with_path("test1.txt").get(Assets::get("test1.txt").unwrap().into_handler()))
             .push(Router::with_path("files/<**path>").get(serve_file))
-            .push(Router::with_path("dir/<**path>").get(static_embed::<Assets>().with_fallback("index.html")))
+            .push(
+                Router::with_path("dir/<**path>").get(
+                    static_embed::<Assets>()
+                        .with_defaults("index.html")
+                        .with_fallback("fallback.html"),
+                ),
+            )
             .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
             .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().with_fallback("notexist.html")));
         let service = Service::new(router);
@@ -163,7 +200,10 @@ mod tests {
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
-        assert!(response.take_string().await.unwrap().contains("Index page"));
+        assert!(response.take_string().await.unwrap().contains("Fallback page"));
+
+        let response = TestClient::get("http://127.0.0.1:7979/dir").send(&service).await;
+        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
 
         let mut response = TestClient::get("http://127.0.0.1:7979/dir/").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);

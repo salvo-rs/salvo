@@ -10,13 +10,12 @@ use std::time::SystemTime;
 use chrono::{DateTime, Local};
 use salvo_core::fs::NamedFile;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
-use salvo_core::writer::Redirect;
 use salvo_core::writer::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::{decode_url_path_safely, encode_url_path, format_url_path_safely};
+use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url};
 
 /// Static roots.
 pub trait StaticRoots {
@@ -77,7 +76,7 @@ pub struct StaticDir {
     ///
     /// Please set it according to your own situation.
     ///
-    /// The default is 1M. 
+    /// The default is 1M.
     pub chunk_size: Option<u64>,
     /// List dot files.
     pub dot_files: bool,
@@ -93,7 +92,7 @@ impl StaticDir {
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
         StaticDir {
-            roots: roots.collect(), 
+            roots: roots.collect(),
             chunk_size: None,
             dot_files: false,
             listing: false,
@@ -101,33 +100,33 @@ impl StaticDir {
             fallback: None,
         }
     }
- 
-     /// Set dot_files and returns a new `StaticDirOptions`.
-     #[inline]
-     pub fn with_dot_files(mut self, dot_files: bool) -> Self {
-         self.dot_files = dot_files;
-         self
-     }
- 
-     /// Set listing and returns a new `StaticDirOptions`.
-     #[inline]
-     pub fn with_listing(mut self, listing: bool) -> Self {
-         self.listing = listing;
-         self
-     }
- 
-     /// Set defaults and returns a new `StaticDirOptions`.
-     #[inline]
-     pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
+
+    /// Set dot_files and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn with_dot_files(mut self, dot_files: bool) -> Self {
+        self.dot_files = dot_files;
+        self
+    }
+
+    /// Set listing and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn with_listing(mut self, listing: bool) -> Self {
+        self.listing = listing;
+        self
+    }
+
+    /// Set defaults and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
-     }
- 
-     /// Set fallback and returns a new `StaticDirOptions`.
-     pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
+    }
+
+    /// Set fallback and returns a new `StaticDirOptions`.
+    pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
-     }
+    }
 
     /// During the file chunk read, the maximum read size at one time will affect the
     /// access experience and the demand for server memory.
@@ -203,22 +202,13 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        let fallback = self.fallback.as_deref().unwrap_or_default();
         if self.dot_files || !is_dot_file {
             for root in &self.roots {
                 let path = root.join(&rel_path);
                 if path.is_dir() {
-                    if !req_path.ends_with('/') {
-                        match Redirect::found(&format!("{}/", req_path)) {
-                            Ok(redirect) => {
-                                res.render(redirect);
-                                return;
-                            }
-                            Err(e) => {
-                                tracing::error!(error = ?e, "redirect failed");
-                                return;
-                            }
-                        }
+                    if !req_path.ends_with('/') && !req_path.is_empty() {
+                        redirect_to_dir_url(req.uri(), res);
+                        return;
                     }
 
                     for ifile in &self.defaults {
@@ -240,6 +230,7 @@ impl Handler for StaticDir {
                 }
             }
         }
+        let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() {
             for root in &self.roots {
                 let path = root.join(fallback);

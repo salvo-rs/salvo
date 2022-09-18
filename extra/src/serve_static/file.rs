@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::{Request, Response, StatusError};
-use salvo_core::{async_trait, Depot, Handler, Writer, FlowCtrl};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Writer};
 
 /// StaticFile
 #[derive(Clone)]
