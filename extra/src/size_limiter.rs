@@ -18,6 +18,9 @@ impl Handler for MaxSize {
             } else {
                 ctrl.call_next(req, depot, res).await;
             }
+        } else {
+            res.set_status_error(StatusError::bad_request().with_detial("body size is unknown"));
+            ctrl.skip_rest();
         }
     }
 }
