@@ -9,6 +9,9 @@ use salvo::writer::Text;
 use sea_orm::{entity::*, query::*, DatabaseConnection};
 use tera::Tera;
 
+mod entity;
+mod migration;
+
 const DEFAULT_POSTS_PER_PAGE: u64 = 5;
 type Result<T> = std::result::Result<T, StatusError>;
 
@@ -156,15 +159,13 @@ async fn main() {
     std::env::set_var("RUST_LOG", "debug");
     tracing_subscriber::fmt::init();
 
-    // get env vars
-    dotenv::dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
+    let db_url = "sqlite::memory:";
     let host = env::var("HOST").unwrap_or("0.0.0.0".to_owned());
-    let port = env::var("PORT").unwrap_or("8080".to_owned());
+    let port = env::var("PORT").unwrap_or("7878".to_owned());
     let server_url = format!("{}:{}", host, port);
 
     // create post table if not exists
-    let conn = sea_orm::Database::connect(&db_url).await.unwrap();
+    let conn = sea_orm::Database::connect(db_url).await.unwrap();
     Migrator::up(&conn, None).await.unwrap();
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let state = AppState { templates, conn };
