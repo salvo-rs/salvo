@@ -1,9 +1,9 @@
 //! size limiter middleware
 
-use salvo_core::hyper::body::HttpBody;
 use salvo_core::http::StatusError;
 use salvo_core::http::{Request, Response};
-use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
+use salvo_core::hyper::body::HttpBody;
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxSize
 pub struct MaxSize(pub u64);
@@ -19,7 +19,7 @@ impl Handler for MaxSize {
                 ctrl.call_next(req, depot, res).await;
             }
         } else {
-            res.set_status_error(StatusError::bad_request().with_detial("body size is unknown"));
+            res.set_status_error(StatusError::bad_request().with_detail("body size is unknown"));
             ctrl.skip_rest();
         }
     }
