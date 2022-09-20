@@ -155,9 +155,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let db_url = "sqlite::memory:";
-    let host = env::var("HOST").unwrap_or("0.0.0.0".to_owned());
-    let port = env::var("PORT").unwrap_or("7878".to_owned());
-    let server_url = format!("{}:{}", host, port);
+    let server_url = "0.0.0.0:7878";
 
     // create post table if not exists
     let conn = sea_orm::Database::connect(db_url).await.unwrap();
