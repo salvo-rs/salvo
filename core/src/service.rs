@@ -109,6 +109,17 @@ impl Service {
         self.allowed_media_types.clone()
     }
 
+    #[doc(hidden)]
+    #[inline]
+    pub fn hyper_handler(&self) -> HyperHandler {
+        HyperHandler {
+            remote_addr: None,
+            router: self.router.clone(),
+            catchers: self.catchers.clone(),
+            allowed_media_types: self.allowed_media_types.clone(),
+        }
+    }
+
     /// Handle [`Request`] and returns [`Response`].
     ///
     /// This function is useful for testing application.
@@ -132,13 +143,7 @@ impl Service {
     /// ```
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        let handler = HyperHandler {
-            remote_addr: None,
-            router: self.router.clone(),
-            catchers: self.catchers.clone(),
-            allowed_media_types: self.allowed_media_types.clone(),
-        };
-        handler.handle(request.into()).await
+        self.hyper_handler().handle(request.into()).await
     }
 }
 impl<'t, T> hyper::service::Service<&'t T> for Service
@@ -159,12 +164,7 @@ where
     #[inline]
     fn call(&mut self, target: &T) -> Self::Future {
         let remote_addr = target.remote_addr();
-        future::ok(HyperHandler {
-            remote_addr,
-            router: self.router.clone(),
-            catchers: self.catchers.clone(),
-            allowed_media_types: self.allowed_media_types.clone(),
-        })
+        future::ok(self.hyper_handler())
     }
 }
 
@@ -179,6 +179,7 @@ where
 }
 
 #[doc(hidden)]
+#[derive(Clone)]
 pub struct HyperHandler {
     pub(crate) remote_addr: Option<SocketAddr>,
     pub(crate) router: Arc<Router>,
@@ -186,6 +187,7 @@ pub struct HyperHandler {
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 impl HyperHandler {
+    /// Handle [`Request`] and returns [`Response`].
     #[inline]
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
