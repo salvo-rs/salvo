@@ -36,7 +36,8 @@ Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需�
 
   - 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
   - 统一的中间件和句柄接口;
-  - 路由支持多层次嵌套, 在任何层都可以添加中间件;
+  - 路由支持无限层次嵌套;
+  - 每一个路由都可以拥有一个或者多个中间件;
   - 集成 Multipart 表单处理;
   - 支持 WebSocket;
   - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
@@ -264,6 +265,8 @@ cargo run --bin example-basic-auth
 ```
 
 您可以使用任何你想运行的示例名称替代这里的 ```basic-auth```.
+
+中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🚀 性能
 
