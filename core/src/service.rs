@@ -111,9 +111,9 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn hyper_handler(&self) -> HyperHandler {
+    pub fn hyper_handler(&self, remote_addr: Option<SocketAddr>) -> HyperHandler {
         HyperHandler {
-            remote_addr: None,
+            remote_addr,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
@@ -143,7 +143,7 @@ impl Service {
     /// ```
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler().handle(request.into()).await
+        self.hyper_handler(None).handle(request.into()).await
     }
 }
 impl<'t, T> hyper::service::Service<&'t T> for Service
@@ -163,8 +163,7 @@ where
 
     #[inline]
     fn call(&mut self, target: &T) -> Self::Future {
-        let remote_addr = target.remote_addr();
-        future::ok(self.hyper_handler())
+        future::ok(self.hyper_handler(target.remote_addr()))
     }
 }
 
