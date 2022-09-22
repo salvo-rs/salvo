@@ -1,6 +1,6 @@
 [package]
 name = "salvo"
-version = "0.35.1"
+version = "0.35.2"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -65,5 +65,5 @@ ws = ["salvo_extra/ws"]
 caching-headers = ["salvo_extra/caching-headers"]
 
 [dependencies]
-salvo_core = { version = "0.35.1", default-features = false, path = "../core" }
-salvo_extra = { version = "0.35.1", default-features = false, optional = true, path = "../extra" }
+salvo_core = { version = "0.35.2", default-features = false, path = "../core" }
+salvo_extra = { version = "0.35.2", default-features = false, optional = true, path = "../extra" }
