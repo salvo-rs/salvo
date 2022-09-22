@@ -546,7 +546,7 @@ impl DerefMut for NamedFile {
     }
 }
 
-/// Returns true if `req` has no `If-Match` header or one which matches `etag`.
+/// Returns true if `req_headers` has no `If-Match` header or one which matches `etag`.
 fn any_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
     match req_headers.typed_get::<IfMatch>() {
         None => true,
@@ -562,15 +562,15 @@ fn any_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
     }
 }
 
-/// Returns true if `req` doesn't have an `If-None-Match` header matching `req`.
+/// Returns true if `req_headers` doesn't have an `If-None-Match` header matching `req`.
 fn none_match(etag: Option<&ETag>, req_headers: &HeaderMap) -> bool {
-    match req_headers.typed_get::<IfMatch>() {
+    match req_headers.typed_get::<IfNoneMatch>() {
         None => true,
-        Some(if_match) => {
-            if if_match == IfMatch::any() {
+        Some(if_none_match) => {
+            if if_none_match == IfNoneMatch::any() {
                 false
             } else if let Some(etag) = etag {
-                !if_match.precondition_passes(etag)
+                if_none_match.precondition_passes(etag)
             } else {
                 true
             }

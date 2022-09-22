@@ -31,12 +31,7 @@ acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring
 [dependencies]
 Inflector = "0.11"
 anyhow = { version = "1", optional = true }
-async-compression = { version = "0.3", features = [
-  "brotli",
-  "deflate",
-  "gzip",
-  "tokio",
-], optional = true }
+async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-trait = "0.1"
 base64 = { version = "0.13", optional = true }
 bytes = "1"
