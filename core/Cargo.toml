@@ -29,7 +29,7 @@ test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_url
 acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
-Inflector = "0.11"
+cruet = "0.13"
 anyhow = { version = "1", optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-trait = "0.1"

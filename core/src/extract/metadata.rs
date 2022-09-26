@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use inflector::Inflector;
+use cruet::Inflector;
 
 use self::RenameRule::*;
 
