@@ -7,13 +7,13 @@ use std::fmt::{self, Formatter};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 use serde::{Deserialize, Serialize};
 
-// /// Helper function to create a new `FlashStore`.
+// /// Helper function to create a new `SessionStore`.
 // pub fn session_store() -> SessionStore {
-//     FlashStore::new()
+//     SessionStore::new()
 // }
 /// Helper function to create a new `CookieStore`.
 pub fn cookie_store() -> CookieStore {
-    FlashStore::new()
+    CookieStore::new()
 }
 
 /// Key for incoming flash messages in depot.
@@ -21,6 +21,8 @@ pub const INCOMING_FLASH_KEY: &str = "::salvo::extra::flash::incoming_flash";
 
 /// Key for outgoing flash messages in depot.
 pub const OUTGOING_FLASH_KEY: &str = "::salvo::extra::flash::outgoing_flash";
+
+pub type Flash = Vec<FlashMessage>;
 
 /// FlashDepotExt
 pub trait FlashDepotExt {
@@ -48,32 +50,35 @@ pub trait FlashDepotExt {
     fn flash_push(&mut self, level: FlashLevel, message: impl Into<String>) -> &mut Self;
 
     /// Set incoming flash messages.
-    fn set_incoming_flash(&mut self, messages: Vec<FlashMessage>) -> &mut Self;
+    fn set_incoming_flash(&mut self, messages: Flash) -> &mut Self;
 
     /// Take outgoing flash messages.
-    fn take_outgoing_flash(&mut self) -> Option<Vec<FlashMessage>>;
+    fn take_outgoing_flash(&mut self) -> Option<Flash>;
 }
 
 impl FlashDepotExt for Depot {
     fn flash_push(&mut self, level: FlashLevel, message: impl Into<String>) -> &mut Self {
-        self.get_mut::<Flash>(OUTGOING_FLASH_KEY).push(FlashMessage {
+        let msg = FlashMessage {
             level,
             value: message.into(),
-        });
+        };
+        if let Some(flash) = self.get_mut::<Flash>(OUTGOING_FLASH_KEY) {
+            flash.push(msg)
+        } else {
+            self.insert(OUTGOING_FLASH_KEY, vec![msg]);
+        }
         self
     }
     /// Set incoming flash messages.
-    fn set_incoming_flash(&mut self, messages: Vec<FlashMessage>) -> &mut Self {
+    fn set_incoming_flash(&mut self, messages: Flash) -> &mut Self {
         self.insert(INCOMING_FLASH_KEY, messages)
     }
 
     /// Take outgoing flash messages.
-    fn take_outgoing_flash(&mut self) -> Option<Vec<FlashMessage>> {
-        self.take(OUTGOING_FLASH_KEY)
+    fn take_outgoing_flash(&mut self) -> Option<Flash> {
+        self.remove(OUTGOING_FLASH_KEY)
     }
 }
-
-pub type Flash = Vec<FlashMessage>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlashMessage {
@@ -112,17 +117,19 @@ where
     S: FlashStore,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        depot.set_incoming_flash(self.store.load_flash().await);
+        if let Some(flash) = self.store.load_flash(req).await {
+            depot.set_incoming_flash(flash);
+        }
 
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
             return;
         }
 
-        self.store.clear_flash(res);
+        self.store.clear_flash(res).await;
         let flash = depot.take_outgoing_flash().unwrap_or_default();
         if !flash.is_empty() {
-            self.store.save_flash(flash, res);
+            self.store.save_flash(flash, res).await;
         }
     }
 }

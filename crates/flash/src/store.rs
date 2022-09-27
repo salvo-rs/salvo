@@ -1,6 +1,5 @@
-use salvo_core::http::cookie::{Cookie, Expiration, SameSite};
-use salvo_core::{async_trait, FlowCtrl, Request, Response, Handler, Depot};
-use std::time;
+use salvo_core::http::cookie::{time, Cookie, SameSite};
+use salvo_core::{async_trait, Request, Response};
 
 use super::Flash;
 
@@ -11,13 +10,18 @@ pub trait FlashStore: std::fmt::Debug + Send + Sync + 'static {
     async fn clear_flash(&self, res: &mut Response);
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CookieStore {
     pub max_age: time::Duration,
     pub site: SameSite,
     pub http_only: bool,
     pub path: String,
     pub name: String,
+}
+impl Default for CookieStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CookieStore {
@@ -78,7 +82,7 @@ impl FlashStore for CookieStore {
     }
     async fn save_flash(&self, flash: Flash, res: &mut Response) {
         res.add_cookie(
-            Cookie::build(self.name, serde_json::to_string(&flash).unwrap_or_default())
+            Cookie::build(self.name.clone(), serde_json::to_string(&flash).unwrap_or_default())
                 .max_age(self.max_age)
                 .path(self.path.clone())
                 .same_site(self.site)
@@ -87,12 +91,12 @@ impl FlashStore for CookieStore {
         );
     }
     async fn clear_flash(&self, res: &mut Response) {
-        res.insert_cookie(
+        res.add_cookie(
             Cookie::build("_flash", "")
                 .max_age(time::Duration::seconds(0))
-                .same_site(self.config.site)
-                .http_only(self.config.http_only)
-                .path(self.config.path.clone())
+                .same_site(self.site)
+                .http_only(self.http_only)
+                .path(self.path.clone())
                 .finish(),
         );
     }
