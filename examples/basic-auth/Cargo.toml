@@ -6,7 +6,7 @@ publish = false
 
 
 [dependencies]
-salvo = { path = "../../salvo", features = ["basic-auth", "test"] }
+salvo = { path = "../../crates/salvo", features = ["basic-auth", "test"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

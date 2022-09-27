@@ -1,0 +1,29 @@
+[package]
+name = "salvo-session"
+version = "0.35.2"
+authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
+edition = "2021"
+description = """
+Session support for salvo web server framework.
+"""
+homepage = "https://salvo.rs"
+repository = "https://github.com/salvo-rs/salvo"
+readme = "../README.md"
+keywords = ["http", "session", "web", "framework", "server"]
+license = "MIT OR Apache-2.0"
+categories = ["web-programming::http-server", "network-programming", "asynchronous"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+async-session = { version = "3"}
+cookie = { version = "0.16", features = ["percent-encode", "signed"] }
+salvo_core = { version = "0.35.2", default-features = false, path = "../core" }
+tracing = { version = "0.1" }
+
+[dev-dependencies]
+salvo_core = { features = ["test"], path = "../core" }
+tracing-test = "0.2.1"
+reqwest = "0.11"

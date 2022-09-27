@@ -12,7 +12,7 @@ rbatis = "4.0.35"
 rbdc = "0.1.20"
 rbdc-mysql = "0.1.15"
 rbs = "0.1.11"
-salvo = { path = "../../salvo" }
+salvo = { path = "../../crates/salvo" }
 serde = { version = "1.0.143", features = ["derive"] }
 tokio = { version = "1.20.1", features = ["macros"] }
 tracing = "0.1.36"

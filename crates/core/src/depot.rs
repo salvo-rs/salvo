@@ -49,7 +49,7 @@ impl Depot {
     ///
     /// The depot will be able to hold at least capacity elements without reallocating. If capacity is 0, the depot will not allocate.
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Depot {
+    pub fn with_capacity(capacity: usize) -> Self {
         Depot {
             map: HashMap::with_capacity(capacity),
         }
@@ -62,8 +62,9 @@ impl Depot {
 
     /// Inject a value into the depot.
     #[inline]
-    pub fn inject<V: Any + Send>(&mut self, value: V) {
+    pub fn inject<V: Any + Send>(&mut self, value: V) -> &mut Self {
         self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
+        self
     }
     /// Obtain a reference to a value previous inject to the depot.
     #[inline]
@@ -73,12 +74,13 @@ impl Depot {
 
     /// Inserts a key-value pair into the depot.
     #[inline]
-    pub fn insert<K, V>(&mut self, key: K, value: V)
+    pub fn insert<K, V>(&mut self, key: K, value: V) -> &mut Self
     where
         K: Into<String>,
         V: Any + Send,
     {
         self.map.insert(key.into(), Box::new(value));
+        self
     }
 
     /// Check is there a value stored in depot with this key.
@@ -107,12 +109,12 @@ impl Depot {
 
     /// Transfer all data to a new instance.
     #[inline]
-    pub fn transfer(&mut self) -> Depot {
+    pub fn transfer(&mut self) -> Self {
         let mut map = HashMap::with_capacity(self.map.len());
         for (k, v) in self.map.drain() {
             map.insert(k, v);
         }
-        Depot { map }
+        Self { map }
     }
 }
 

@@ -54,10 +54,6 @@ cfg_feature! {
     pub mod serve_static;
 }
 cfg_feature! {
-    #![feature = "session"]
-    pub mod session;
-}
-cfg_feature! {
     #![feature = "sse"]
     pub mod sse;
 }

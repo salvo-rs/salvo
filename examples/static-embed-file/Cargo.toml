@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 rust-embed = "6"
-salvo = { path = "../../salvo", features = ["serve-static"] }
+salvo = { path = "../../crates/salvo", features = ["serve-static"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
