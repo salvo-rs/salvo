@@ -239,9 +239,7 @@ where
 mod tests {
     use std::fmt::Write;
 
-    use salvo_core::http::header::*;
     use salvo_core::prelude::*;
-    use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::writer::Redirect;
 
     use super::*;
