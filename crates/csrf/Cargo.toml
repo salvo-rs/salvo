@@ -3,7 +3,9 @@ name = "salvo-csrf"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description.workspace = true
+description = """
+CSRF support for salvo web server framework.
+"""
 homepage.workspace = true
 repository.workspace = true
 readme.workspace = true
