@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use salvo::prelude::*;
-use salvo_flash::{SessionStore, FlashDepotExt};
+use salvo_flash::{FlashDepotExt, SessionStore};
 
 #[handler]
 pub async fn set_flash(depot: &mut Depot, res: &mut Response) {

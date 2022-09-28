@@ -1,5 +1,5 @@
-use salvo_session::{MemoryStore, Session, SessionDepotExt, SessionHandler};
 use salvo::prelude::*;
+use salvo_session::{MemoryStore, Session, SessionDepotExt, SessionHandler};
 
 #[tokio::main]
 async fn main() {

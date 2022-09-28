@@ -430,8 +430,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use salvo_core::http::Method;
     use salvo_core::http::header::*;
+    use salvo_core::http::Method;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::writer::Redirect;
@@ -492,7 +492,7 @@ mod tests {
             }
             res.render(Text::Html(content));
         }
-        
+
         let session_handler = SessionHandler::builder(
             MemoryStore::new(),
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
@@ -506,13 +506,19 @@ mod tests {
             .push(Router::with_path("logout").get(logout));
         let service = Service::new(router);
 
-        let respone = TestClient::post("http://127.0.0.1:7878/login").raw_form("username=salvo").send(&service).await;
+        let respone = TestClient::post("http://127.0.0.1:7878/login")
+            .raw_form("username=salvo")
+            .send(&service)
+            .await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
-        
-        let mut respone = TestClient::get("http://127.0.0.1:7878/").add_header(COOKIE, cookie, true).send(&service).await;
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
         assert_eq!(respone.take_string().await.unwrap(), "salvo");
-        
+
         let respone = TestClient::get("http://127.0.0.1:7878/logout").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
