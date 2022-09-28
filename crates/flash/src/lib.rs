@@ -8,14 +8,14 @@ use serde::{Deserialize, Serialize};
 mod cfg;
 
 cfg_feature! {
-    #![feature = "cookie_store"]
+    #![feature = "cookie-store"]
 
     mod cookie_store;
     pub use cookie_store::CookieStore;
 }
 
 cfg_feature! {
-    #![feature = "session_store"]
+    #![feature = "session-store"]
 
     mod session_store;
     pub use session_store::SessionStore;

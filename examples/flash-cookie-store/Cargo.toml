@@ -1,5 +1,5 @@
 [package]
-name = "example-flash-cookie"
+name = "example-flash-cookie-store"
 version = "0.1.0"
 edition = "2021"
 publish = false
