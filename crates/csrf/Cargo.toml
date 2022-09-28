@@ -17,10 +17,10 @@ categories.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[features]
-default = ["cookie-store"]
-cookie-store = ["salvo_core/cookie", "dep:cookie"]
-session-store = ["dep:salvo-session"]
+# [features]
+# default = ["cookie-store"]
+# cookie-store = ["salvo_core/cookie", "dep:cookie"]
+# session-store = ["dep:salvo-session"]
 
 [dependencies]
 aead = { workspace = true, features = ["alloc"], optional = true }
