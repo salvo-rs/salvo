@@ -4,7 +4,7 @@
 //!
 //! ```
 //! use salvo_core::prelude::*;
-//! use salvo_extra::cors::Cors;
+//! use salvo_cors::Cors;
 //!
 //! let cors_handler = Cors::builder()
 //!     .allow_origin("https://salvo.rs")
@@ -19,7 +19,7 @@
 //! If you want to allow any route:
 //! ```
 //! use salvo_core::prelude::*;
-//! use salvo_extra::cors::Cors;
+//! use salvo_cors::Cors;
 //! let cors_handler = Cors::builder()
 //!     .allow_any_origin().build();
 //! ```
@@ -36,7 +36,7 @@ use salvo_core::http::headers::{
 use salvo_core::http::{Method, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
-/// A constructed via `salvo_extra::cors::Cors::builder()`.
+/// A constructed via `salvo_cors::Cors::builder()`.
 #[derive(Clone, Debug)]
 pub struct CorsBuilder {
     credentials: bool,
@@ -242,7 +242,7 @@ impl CorsBuilder {
     /// use std::time::Duration;
     /// use salvo_core::prelude::*;;
     ///
-    /// let cors = salvo_extra::cors::Cors::builder()
+    /// let cors = salvo_cors::Cors::builder()
     ///     .max_age(30) // 30u32 seconds
     ///     .max_age(Duration::from_secs(30)); // or a Duration
     /// ```

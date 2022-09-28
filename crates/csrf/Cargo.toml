@@ -41,3 +41,4 @@ salvo_core = { workspace = true, default-features = false }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

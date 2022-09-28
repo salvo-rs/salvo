@@ -603,7 +603,7 @@ mod tests {
             mod $md {
                 use super::KEY_32;
                 use data_encoding::BASE64;
-                use $crate::csrf::core::{$strct, CsrfProtection};
+                use $crate::core::{$strct, CsrfProtection};
 
                 #[test]
                 fn verification_succeeds() {

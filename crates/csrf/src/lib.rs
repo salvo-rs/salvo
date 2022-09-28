@@ -355,6 +355,7 @@ fn derive_key(secret: &[u8], key: &mut [u8; 32]) {
 mod tests {
     use super::*;
     use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::prelude::*;
 
     const SECRET: [u8; 32] = *b"secrets must be >= 32 bytes long";
 
