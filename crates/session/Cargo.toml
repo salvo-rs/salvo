@@ -8,7 +8,7 @@ Session support for salvo web server framework.
 """
 homepage.workspace = true
 repository.workspace = true
-readme = "../README.md"
+readme = "./README.md"
 keywords = ["http", "session", "web", "framework", "server"]
 license.workspace = true
 categories.workspace = true
