@@ -1,0 +1,38 @@
+[package]
+name = "salvo-csrf"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["cookie-store"]
+cookie-store = ["salvo_core/cookie", "dep:cookie", "dep:serde_json"]
+session-store = ["dep:salvo-session"]
+
+[dependencies]
+aead = { workspace = true, features = ["alloc"], optional = true }
+cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
+hkdf = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+aes-gcm = { workspace = true, optional = true }
+byteorder = { version = "1", optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
+chrono = { workspace = true, features = ["serde"], optional = true }
+data-encoding = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+
+[dev-dependencies]
+salvo_core = { features = ["test"], path = "../core" }

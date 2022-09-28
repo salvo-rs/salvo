@@ -1,0 +1,23 @@
+[package]
+name = "salvo-cors"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+salvo_core = { workspace = true, default-features = false, path = "../core" }
+tracing = { workspace = true }
+
+[dev-dependencies]
+salvo_core = { features = ["test"], path = "../core" }

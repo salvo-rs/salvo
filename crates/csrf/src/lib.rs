@@ -158,8 +158,8 @@ impl Csrf {
     ///
     /// Defaults to "csrf-token".
     #[inline]
-    pub fn with_query_param(mut self, query_param: impl AsRef<str>) -> Self {
-        self.query_param = query_param.as_ref().into();
+    pub fn with_query_param(mut self, query_param: impl Into<String>) -> Self {
+        self.query_param = query_paraminto();
         self
     }
 
@@ -168,8 +168,8 @@ impl Csrf {
     ///
     /// Defaults to "csrf-token".
     #[inline]
-    pub fn with_form_field(mut self, form_field: impl AsRef<str>) -> Self {
-        self.form_field = form_field.as_ref().into();
+    pub fn with_form_field(mut self, form_field: impl Into<String>) -> Self {
+        self.form_field = form_field.into();
         self
     }
 
@@ -184,9 +184,9 @@ impl Csrf {
     }
 
     #[inline]
-    fn build_cookie(&self, secure: bool, cookie_value: String) -> Cookie<'static> {
+    fn build_cookie(&self, secure: bool, cookie_value: impl Into<String>) -> Cookie<'static> {
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
-        let mut cookie = Cookie::build(self.cookie_name.clone(), cookie_value)
+        let mut cookie = Cookie::build(self.cookie_name.clone(), cookie_value.into())
             .http_only(true)
             .same_site(SameSite::Strict)
             .path(self.cookie_path.clone())
@@ -369,14 +369,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_exposes_csrf_request_extensions() {
+    async fn test_exposes_csrf_request_extensions() {
         let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index);
         let res = TestClient::get("http://127.0.0.1:7979").send(router).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
     }
 
     #[tokio::test]
-    async fn middleware_adds_csrf_cookie_sets_request_token() {
+    async fn test_adds_csrf_cookie_sets_request_token() {
         let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(router).await;
@@ -387,7 +387,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_header() {
+    async fn test_validates_token_in_header() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET))
             .get(get_index)
@@ -413,7 +413,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_alternate_header() {
+    async fn test_validates_token_in_alternate_header() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET).with_header_name(HeaderName::from_static("x-mycsrf-header")))
             .get(get_index)
@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_query() {
+    async fn test_validates_token_in_query() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET))
             .get(get_index)
@@ -463,7 +463,7 @@ mod tests {
         assert_eq!(res.take_string().await.unwrap(), "POST");
     }
     #[tokio::test]
-    async fn middleware_validates_token_in_alternate_query() {
+    async fn test_validates_token_in_alternate_query() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET).with_query_param("my-csrf-token"))
             .get(get_index)
@@ -488,7 +488,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_validates_token_in_form() {
+    async fn test_validates_token_in_form() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET).with_query_param("my-csrf-token"))
             .get(get_index)
@@ -513,7 +513,7 @@ mod tests {
         assert_eq!(res.take_string().await.unwrap(), "POST");
     }
     #[tokio::test]
-    async fn middleware_validates_token_in_alternate_form() {
+    async fn test_validates_token_in_alternate_form() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET).with_form_field("my-csrf-token"))
             .get(get_index)
@@ -538,7 +538,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_rejects_short_token() {
+    async fn test_rejects_short_token() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET))
             .get(get_index)
@@ -562,7 +562,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_rejects_invalid_base64_token() {
+    async fn test_rejects_invalid_base64_token() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET))
             .get(get_index)
@@ -586,7 +586,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn middleware_rejects_mismatched_token() {
+    async fn test_rejects_mismatched_token() {
         let router = Router::new()
             .hoop(Csrf::new(&SECRET))
             .get(get_index)

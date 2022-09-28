@@ -17,13 +17,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "cors", "csrf", "logging", "proxy", "serve-static", "sse", "size-limiter", "trailing-slash", "timeout", "ws"]
+full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "logging", "proxy", "serve-static", "sse", "size-limiter", "trailing-slash", "timeout", "ws"]
 affix = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
 compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
-cors = ["dep:tracing"]
-csrf = ["dep:cookie", "dep:hkdf", "dep:rand", "dep:sha2", "dep:aead", "dep:aes-gcm", "dep:byteorder", "dep:chacha20poly1305", "dep:chrono", "dep:data-encoding", "dep:hmac", "dep:tracing"]
 force-https = ["dep:tracing"]
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
@@ -36,23 +34,15 @@ timeout = ["tokio/macros"]
 ws = ["dep:futures-util", "dep:hyper", "tokio-tungstenite", "dep:tracing"]
 
 [dependencies]
-aead = { workspace = true, features = ["alloc"], optional = true }
-aes-gcm = { workspace = true, optional = true }
-chacha20poly1305 = { workspace = true, optional = true }
 async-compression = { workspace = true, features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
-byteorder = { version = "1", optional = true }
 bytes = { workspace = true, optional = true }
 chrono = { workspace = true, features = ["serde"], optional = true }
-cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
-data-encoding = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 fastrand = { workspace = true, optional = true }
 futures-util = { workspace = true, default-features = false, optional = true }
 hex = { workspace = true, optional = true }
-hkdf = { workspace = true, optional = true }
-hmac = { workspace = true, optional = true }
 hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
 hyper-rustls = { workspace = true, features = ["http1", "http2"], optional = true }
 jsonwebtoken = { workspace = true, optional = true }
@@ -62,12 +52,10 @@ once_cell = { workspace = true, optional = true }
 path-slash = { workspace = true, optional = true }
 percent-encoding = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
 rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false, path = "../core" }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, default-features = false, optional = true }

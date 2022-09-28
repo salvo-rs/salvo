@@ -34,14 +34,6 @@ cfg_feature! {
     pub mod compression;
 }
 cfg_feature! {
-    #![feature = "cors"]
-    pub mod cors;
-}
-cfg_feature! {
-    #![feature = "csrf"]
-    pub mod csrf;
-}
-cfg_feature! {
     #![feature = "logging"]
     pub mod logging;
 }
