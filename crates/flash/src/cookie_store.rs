@@ -1,14 +1,7 @@
 use salvo_core::http::cookie::{time, Cookie, SameSite};
-use salvo_core::{async_trait, Request, Response};
+use salvo_core::{async_trait, Request, Depot, Response};
 
-use super::Flash;
-
-#[async_trait]
-pub trait FlashStore: std::fmt::Debug + Send + Sync + 'static {
-    async fn load_flash(&self, req: &mut Request) -> Option<Flash>;
-    async fn save_flash(&self, flash: Flash, res: &mut Response);
-    async fn clear_flash(&self, res: &mut Response);
-}
+use super::{Flash, FlashStore, FlashHandler};
 
 #[derive(Debug)]
 pub struct CookieStore {
@@ -21,6 +14,12 @@ pub struct CookieStore {
 impl Default for CookieStore {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Into<FlashHandler<CookieStore>> for CookieStore {
+    fn into(self) -> FlashHandler<CookieStore> {
+        FlashHandler::new(self)
     }
 }
 
@@ -65,11 +64,16 @@ impl CookieStore {
         self.name = name.into();
         self
     }
+
+    /// Into `FlashHandler`.
+    pub fn into_handler(self) -> FlashHandler<CookieStore> {
+        FlashHandler::new(self)
+    }
 }
 #[async_trait]
 impl FlashStore for CookieStore {
-    async fn load_flash(&self, req: &mut Request) -> Option<Flash> {
-        match req.cookie("_flash") {
+    async fn load_flash(&self, req: &mut Request, _depot: &mut Depot) -> Option<Flash> {
+        match req.cookie(&self.name) {
             None => None,
             Some(cookie) => match serde_json::from_str(cookie.value()) {
                 Ok(flash) => Some(flash),
@@ -80,7 +84,7 @@ impl FlashStore for CookieStore {
             },
         }
     }
-    async fn save_flash(&self, flash: Flash, res: &mut Response) {
+    async fn save_flash(&self, flash: Flash, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(
             Cookie::build(self.name.clone(), serde_json::to_string(&flash).unwrap_or_default())
                 .max_age(self.max_age)
@@ -90,9 +94,9 @@ impl FlashStore for CookieStore {
                 .finish(),
         );
     }
-    async fn clear_flash(&self, res: &mut Response) {
+    async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(
-            Cookie::build("_flash", "")
+            Cookie::build(self.name.clone(), "")
                 .max_age(time::Duration::seconds(0))
                 .same_site(self.site)
                 .http_only(self.http_only)

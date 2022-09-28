@@ -2,12 +2,13 @@
 **/*.rs.bk
 /Cargo.lock
 /.idea
-/site/public
 /.vscode
 **/target
 /.vs
-examples/_*.rs
-examples/test
+/examples/_*.rs
+/examples/test
+/examples/target
+/examples/*/target
 cobertura.xml
 debug.log
 temp

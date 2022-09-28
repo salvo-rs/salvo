@@ -14,7 +14,7 @@ use hyper::server::conn::{AddrIncoming, AddrStream};
 use openssl::pkey::PKey;
 use openssl::ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
 use openssl::x509::X509;
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 use tokio_openssl::SslStream;
 
@@ -154,16 +154,16 @@ impl OpensslConfig {
     }
 }
 
-pin_project! {
-    /// OpensslListener
-    pub struct OpensslListener<C> {
-        #[pin]
-        config_stream: C,
-        incoming: AddrIncoming,
-        openssl_config: Option<OpensslConfig>,
-        acceptor: Option<Arc<SslAcceptor>>,
-    }
+/// OpensslListener
+#[pin_project]
+pub struct OpensslListener<C> {
+    #[pin]
+    config_stream: C,
+    incoming: AddrIncoming,
+    openssl_config: Option<OpensslConfig>,
+    acceptor: Option<Arc<SslAcceptor>>,
 }
+
 /// OpensslListener
 pub struct OpensslListenerBuilder<C> {
     config_stream: C,

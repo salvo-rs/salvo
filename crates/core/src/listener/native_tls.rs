@@ -11,7 +11,7 @@ use futures_util::future::Ready;
 use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
 use tokio_native_tls::{TlsAcceptor as AsyncTlsAcceptor, TlsStream};
@@ -84,14 +84,13 @@ impl NativeTlsConfig {
     }
 }
 
-pin_project! {
 /// NativeTlsListener
+#[pin_project]
 pub struct NativeTlsListener<C> {
     #[pin]
     config_stream: C,
     incoming: AddrIncoming,
     identity: Option<Identity>,
-}
 }
 
 /// NativeTlsListener
@@ -205,16 +204,16 @@ where
     }
 }
 
-pin_project! {
-    /// NativeTlsStream
-    pub struct NativeTlsStream {
-        #[pin]
-        inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + Send>>,
-        inner_stream: Option<TlsStream<AddrStream>>,
-        remote_addr: SocketAddr,
-        accepted: bool,
-    }
+/// NativeTlsStream
+#[pin_project]
+pub struct NativeTlsStream {
+    #[pin]
+    inner_future: Pin<Box<dyn Future<Output=Result<TlsStream<AddrStream>, tokio_native_tls::native_tls::Error>> + Send>>,
+    inner_stream: Option<TlsStream<AddrStream>>,
+    remote_addr: SocketAddr,
+    accepted: bool,
 }
+    
 impl Transport for NativeTlsStream {
     #[inline]
     fn remote_addr(&self) -> Option<SocketAddr> {

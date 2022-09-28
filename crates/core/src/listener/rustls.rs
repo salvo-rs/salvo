@@ -13,7 +13,7 @@ use futures_util::future::Ready;
 use futures_util::{ready, stream, Stream};
 use hyper::server::accept::Accept;
 use hyper::server::conn::{AddrIncoming, AddrStream};
-use pin_project_lite::pin_project;
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
@@ -300,15 +300,15 @@ fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertStore> {
     Ok(store)
 }
 
-pin_project! {
 /// RustlsListener
+#[pin_project]
 pub struct RustlsListener<C> {
     #[pin]
     config_stream: C,
     incoming: AddrIncoming,
     server_config: Option<Arc<ServerConfig>>,
 }
-}
+
 /// RustlsListener
 pub struct RustlsListenerBuilder<C> {
     config_stream: C,

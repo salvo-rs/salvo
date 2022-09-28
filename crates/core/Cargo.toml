@@ -1,17 +1,15 @@
 [package]
 name = "salvo_core"
-version = "0.35.2"
+version.workspace = true
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
-edition = "2021"
-description = """
-Salvo is a powerful and simplest web server framework in Rust world.
-"""
-homepage = "https://salvo.rs"
-repository = "https://github.com/salvo-rs/salvo"
-readme = "../README.md"
-keywords = ["http", "async", "web", "framework", "server"]
-license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
+edition.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,58 +19,58 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["cookie", "test"]
 full = ["rustls", "anyhow"]
 cookie = ["dep:cookie"]
-rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project-lite"]
-native-tls = ["dep:tokio-native-tls", "dep:pin-project-lite"]
-openssl = ["dep:openssl", "dep:pin-project-lite", "dep:tokio-openssl"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project"]
+native-tls = ["dep:tokio-native-tls", "dep:pin-project"]
+openssl = ["dep:openssl", "dep:pin-project", "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
-cruet = "0.13"
-anyhow = { version = "1", optional = true }
+cruet.workspace = true
+anyhow = { workspace = true, optional = true }
 async-compression = { version = "0.3", features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
-async-trait = "0.1"
-base64 = { version = "0.13", optional = true }
+async-trait.workspace = true
+base64 = { workspace = true, optional = true }
 bytes = "1"
-cookie = { version = "0.16", features = ["percent-encode"], optional = true }
+cookie = { workspace = true, features = ["percent-encode"], optional = true }
 encoding_rs = { version = "0.8", optional = true }
-enumflags2 = "0.7"
-fastrand = "1.5"
+enumflags2.workspace = true
+fastrand.workspace = true
 form_urlencoded = "1"
-futures-util = { version = "0.3", default-features = false, features = ["io"] }
-headers = "0.3"
-http = "0.2"
-hyper = { version = "0.14", features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+futures-util = { workspace = true, default-features = false, features = ["io"] }
+headers.workspace = true
+http.workspace = true
+hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"] }
 hyper-rustls = { version = "0.23", optional = true }
-mime = "0.3"
-mime_guess = "2"
+mime.workspace = true
+mime_guess.workspace = true
 multer = "2"
-multimap = { version = "0.8", features = ["serde"] }
-once_cell = "1"
-parking_lot = "0.12"
-percent-encoding = "2"
-pin-project-lite = { version = "0.2", optional = true }
+multimap = { workspace = true, features = ["serde"] }
+once_cell.workspace = true
+parking_lot.workspace = true
+percent-encoding.workspace = true
+pin-project = { workspace = true, optional = true }
 rcgen = { version = "0.9", optional = true }
-regex = "1"
+regex.workspace = true
 ring = { version = "0.16", optional = true }
 rustls-pemfile = { version = "1.0", optional = true }
-salvo_macros = { version = "0.35.2", path = "../macros" }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["raw_value"] }
-serde_urlencoded = { version = "0.7", optional = true }
+salvo_macros = { workspace = true, path = "../macros" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+serde_urlencoded = { workspace = true, optional = true }
 tempfile = "3"
 textnonce = "1"
-thiserror = "1"
+thiserror.workspace = true
 openssl = { version = "0.10", optional = true }
-tokio = { version = "1", features = ["fs", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.23", optional = true }
 tokio-openssl = { version = "0.6", optional = true }
-tokio-stream = { version = "0.1", default-features = false }
-tracing = "0.1"
-url = { version = "2", optional = true }
+tokio-stream = { workspace = true, default-features = false }
+tracing.workspace = true
+url = { workspace = true, optional = true }
 x509-parser = { version = "0.14", optional = true }
 
 [dev-dependencies]
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }

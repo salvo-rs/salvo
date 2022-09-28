@@ -1,17 +1,17 @@
 [package]
 name = "salvo-session"
-version = "0.35.2"
-authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = """
 Session support for salvo web server framework.
 """
-homepage = "https://salvo.rs"
-repository = "https://github.com/salvo-rs/salvo"
+homepage.workspace = true
+repository.workspace = true
 readme = "../README.md"
 keywords = ["http", "session", "web", "framework", "server"]
-license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "network-programming", "asynchronous"]
+license.workspace = true
+categories.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -25,5 +25,5 @@ tracing = { version = "0.1" }
 
 [dev-dependencies]
 salvo_core = { features = ["test"], path = "../core" }
-tracing-test = "0.2.1"
-reqwest = "0.11"
+tracing-test.workspace = true
+reqwest.workspace = true

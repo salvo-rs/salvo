@@ -1,93 +1,125 @@
-mod store;
-
-pub use store::{CookieStore, FlashStore};
-
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
+use std::ops::Deref;
 
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 use serde::{Deserialize, Serialize};
 
-// /// Helper function to create a new `SessionStore`.
-// pub fn session_store() -> SessionStore {
-//     SessionStore::new()
-// }
-/// Helper function to create a new `CookieStore`.
-pub fn cookie_store() -> CookieStore {
-    CookieStore::new()
+#[macro_use]
+mod cfg;
+
+cfg_feature! {
+    #![feature = "cookie_store"]
+
+    mod cookie_store;
+    pub use cookie_store::CookieStore;
+
+    /// Helper function to create a new `CookieStore`.
+    pub fn cookie_store() -> CookieStore {
+        CookieStore::new()
+    }
+}
+
+cfg_feature! {
+    #![feature = "session_store"]
+
+    mod session_store;
+    pub use session_store::SessionStore;
+
+    /// Helper function to create a new `SessionStore`.
+    pub fn session_store() -> SessionStore {
+        SessionStore::new()
+    }
 }
 
 /// Key for incoming flash messages in depot.
-pub const INCOMING_FLASH_KEY: &str = "::salvo::extra::flash::incoming_flash";
+pub const INCOMING_FLASH_KEY: &str = "::salvo_flash::incoming_flash";
 
 /// Key for outgoing flash messages in depot.
-pub const OUTGOING_FLASH_KEY: &str = "::salvo::extra::flash::outgoing_flash";
+pub const OUTGOING_FLASH_KEY: &str = "::salvo_flash::outgoing_flash";
 
-pub type Flash = Vec<FlashMessage>;
-
-/// FlashDepotExt
-pub trait FlashDepotExt {
-    /// Push an `Debug` flash message.
-    fn flash_debug(&mut self, message: impl Into<String>) -> &mut Self {
-        self.flash_push(FlashLevel::Debug, message)
-    }
-    /// Push an `Info` flash message.
-    fn flash_info(&mut self, message: impl Into<String>) -> &mut Self {
-        self.flash_push(FlashLevel::Info, message)
-    }
-    /// Push an `Success` flash message.
-    fn flash_success(&mut self, message: impl Into<String>) -> &mut Self {
-        self.flash_push(FlashLevel::Success, message)
-    }
-    /// Push an `Warning` flash message.
-    fn flash_warning(&mut self, message: impl Into<String>) -> &mut Self {
-        self.flash_push(FlashLevel::Warning, message)
-    }
-    /// Push an `Error` flash message.
-    fn flash_error(&mut self, message: impl Into<String>) -> &mut Self {
-        self.flash_push(FlashLevel::Error, message)
-    }
-    /// Push a flash message with the given level and message.
-    fn flash_push(&mut self, level: FlashLevel, message: impl Into<String>) -> &mut Self;
-
-    /// Set incoming flash messages.
-    fn set_incoming_flash(&mut self, messages: Flash) -> &mut Self;
-
-    /// Take outgoing flash messages.
-    fn take_outgoing_flash(&mut self) -> Option<Flash>;
-}
-
-impl FlashDepotExt for Depot {
-    fn flash_push(&mut self, level: FlashLevel, message: impl Into<String>) -> &mut Self {
-        let msg = FlashMessage {
-            level,
-            value: message.into(),
-        };
-        if let Some(flash) = self.get_mut::<Flash>(OUTGOING_FLASH_KEY) {
-            flash.push(msg)
-        } else {
-            self.insert(OUTGOING_FLASH_KEY, vec![msg]);
-        }
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+pub struct Flash(pub Vec<FlashMessage>);
+impl Flash {
+    /// Add a new message with level `Debug`.
+    pub fn debug(&mut self, message: impl Into<String>) -> &mut Self {
+        self.0.push(FlashMessage::debug(message));
         self
     }
-    /// Set incoming flash messages.
-    fn set_incoming_flash(&mut self, messages: Flash) -> &mut Self {
-        self.insert(INCOMING_FLASH_KEY, messages)
+    /// Add a new message with level `Info`.
+    pub fn info(&mut self, message: impl Into<String>) -> &mut Self {
+        self.0.push(FlashMessage::info(message));
+        self
     }
-
-    /// Take outgoing flash messages.
-    fn take_outgoing_flash(&mut self) -> Option<Flash> {
-        self.remove(OUTGOING_FLASH_KEY)
+    /// Add a new message with level `Success`.
+    pub fn success(&mut self, message: impl Into<String>) -> &mut Self {
+        self.0.push(FlashMessage::success(message));
+        self
+    }
+    /// Add a new message with level `Waring`.
+    pub fn warning(&mut self, message: impl Into<String>) -> &mut Self {
+        self.0.push(FlashMessage::warning(message));
+        self
+    }
+    /// Add a new message with level `Error`.
+    pub fn error(&mut self, message: impl Into<String>) -> &mut Self {
+        self.0.push(FlashMessage::warning(message));
+        self
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Deref for Flash {
+    type Target = Vec<FlashMessage>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FlashMessage {
     pub level: FlashLevel,
     pub value: String,
 }
+impl FlashMessage {
+    /// Create a new `FlashMessage` with `FlashLevel::Debug`.
+    pub fn debug(message: impl Into<String>) -> Self {
+        Self {
+            level: FlashLevel::Debug,
+            value: message.into(),
+        }
+    }
+    /// Create a new `FlashMessage` with `FlashLevel::Info`.
+    pub fn info(message: impl Into<String>) -> Self {
+        Self {
+            level: FlashLevel::Info,
+            value: message.into(),
+        }
+    }
+    /// Create a new `FlashMessage` with `FlashLevel::Success`.
+    pub fn success(message: impl Into<String>) -> Self {
+        Self {
+            level: FlashLevel::Success,
+            value: message.into(),
+        }
+    }
+    /// Create a new `FlashMessage` with `FlashLevel::Warning`.
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self {
+            level: FlashLevel::Warning,
+            value: message.into(),
+        }
+    }
+    /// create a new `FlashMessage` with `FlashLevel::Error`.
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            level: FlashLevel::Error,
+            value: message.into(),
+        }
+    }
+}
 
 // Verbosity level of a flash message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum FlashLevel {
     #[allow(missing_docs)]
     Debug = 0,
@@ -100,10 +132,82 @@ pub enum FlashLevel {
     #[allow(missing_docs)]
     Error = 4,
 }
+impl FlashLevel {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            FlashLevel::Debug => "debug",
+            FlashLevel::Info => "info",
+            FlashLevel::Success => "success",
+            FlashLevel::Warning => "warning",
+            FlashLevel::Error => "error",
+        }
+    }
+}
+impl Debug for FlashLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
+}
+
+impl Display for FlashLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
+}
+
+#[async_trait]
+pub trait FlashStore: Debug + Send + Sync + 'static {
+    async fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> Option<Flash>;
+    async fn save_flash(&self, flash: Flash, depot: &mut Depot, res: &mut Response);
+    async fn clear_flash(&self, depot: &mut Depot, res: &mut Response);
+}
+
+/// FlashDepotExt
+pub trait FlashDepotExt {
+    /// Get incoming flash.
+    fn incoming_flash(&mut self) -> Option<&Flash>;
+
+    /// Get outgoing flash.
+    fn outgoing_flash(&mut self) -> &Flash;
+    /// Get mutable outgoing flash.
+    fn outgoing_flash_mut(&mut self) -> &mut Flash;
+}
+
+impl FlashDepotExt for Depot {
+    fn incoming_flash(&mut self) -> Option<&Flash> {
+        self.get::<Flash>(INCOMING_FLASH_KEY)
+    }
+
+    fn outgoing_flash(&mut self) -> &Flash {
+        self.get::<Flash>(OUTGOING_FLASH_KEY)
+            .expect("Flash should be initialized")
+    }
+
+    fn outgoing_flash_mut(&mut self) -> &mut Flash {
+        self.get_mut::<Flash>(OUTGOING_FLASH_KEY)
+            .expect("Flash should be initialized")
+    }
+}
 
 /// FlashHandler
 pub struct FlashHandler<S> {
     store: S,
+    pub minimum_level: Option<FlashLevel>,
+}
+impl<S> FlashHandler<S> {
+    /// Create a new `FlashHandler` with the given `FlashStore`.
+    pub fn new(store: S) -> Self {
+        Self {
+            store,
+            minimum_level: None,
+        }
+    }
+
+    /// Set the minimum level of messages to be displayed.
+    pub fn minimum_level(&mut self, level: impl Into<Option<FlashLevel>>) -> &mut Self {
+        self.minimum_level = level.into();
+        self
+    }
 }
 impl<S: FlashStore> fmt::Debug for FlashHandler<S> {
     #[inline]
@@ -117,125 +221,125 @@ where
     S: FlashStore,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(flash) = self.store.load_flash(req).await {
-            depot.set_incoming_flash(flash);
+        let mut has_incoming = false;
+        if let Some(flash) = self.store.load_flash(req, depot).await {
+            has_incoming = !flash.is_empty();
+            depot.insert(INCOMING_FLASH_KEY, flash);
         }
+        depot.insert(OUTGOING_FLASH_KEY, Flash(vec![]));
 
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() {
             return;
         }
 
-        self.store.clear_flash(res).await;
-        let flash = depot.take_outgoing_flash().unwrap_or_default();
-        if !flash.is_empty() {
-            self.store.save_flash(flash, res).await;
+        let mut flash = depot.remove::<Flash>(OUTGOING_FLASH_KEY).unwrap_or_default();
+        if let Some(min_level) = self.minimum_level {
+            flash.0.retain(|msg| msg.level >= min_level);
         }
-    }
-}
-
-impl<S: FlashStore> FlashHandler<S> {
-    /// Create new `FlashHandler`
-    pub fn new(store: S) -> Self {
-        Self { store }
+        if !flash.is_empty() {
+            self.store.save_flash(flash, depot, res).await;
+        } else if has_incoming {
+            self.store.clear_flash(depot, res).await;
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write;
+
     use salvo_core::http::header::*;
-    use salvo_core::http::Method;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::writer::Redirect;
 
     use super::*;
 
-    #[test]
-    fn test_session_data() {
-        let handler = FlashHandler::builder(
-            async_session::CookieStore,
-            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
-        )
-        .cookie_domain("test.domain")
-        .cookie_name("test_cookie")
-        .cookie_path("/abc")
-        .same_site_policy(SameSite::Strict)
-        .session_ttl(Some(Duration::from_secs(30)))
-        .build()
-        .unwrap();
-        assert_eq!(handler.cookie_domain, Some("test.domain".into()));
-        assert_eq!(handler.cookie_name, "test_cookie");
-        assert_eq!(handler.cookie_path, "/abc");
-        assert_eq!(handler.same_site_policy, SameSite::Strict);
-        assert_eq!(handler.session_ttl, Some(Duration::from_secs(30)));
+    #[handler]
+    pub async fn set_flash(depot: &mut Depot, res: &mut Response) {
+        let flash = depot.outgoing_flash_mut();
+        flash.info("Hey there!").debug("How is it going?");
+        res.render(Redirect::other("/get").unwrap());
     }
 
+    #[handler]
+    pub async fn get_flash(depot: &mut Depot, _res: &mut Response) -> String {
+        let mut body = String::new();
+        for message in depot.incoming_flash().unwrap().iter() {
+            writeln!(body, "{} - {}", message.value, message.level).unwrap();
+        }
+        body
+    }
+
+    #[cfg(feature = "cookie_store")]
     #[tokio::test]
-    async fn test_session_login() {
-        #[handler]
-        pub async fn login(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-            if req.method() == Method::POST {
-                let mut session = Session::new();
-                session
-                    .insert("username", req.form::<String>("username").await.unwrap())
-                    .unwrap();
-                depot.set_session(session);
-                res.render(Redirect::other("/").unwrap());
-            } else {
-                res.render(Text::Html("login page"));
-            }
-        }
-
-        #[handler]
-        pub async fn logout(depot: &mut Depot, res: &mut Response) {
-            if let Some(session) = depot.session_mut() {
-                session.remove("username");
-            }
-            res.render(Redirect::other("/").unwrap());
-        }
-
-        #[handler]
-        pub async fn home(depot: &mut Depot, res: &mut Response) {
-            let mut content = r#"home"#.into();
-            if let Some(session) = depot.session_mut() {
-                if let Some(username) = session.get::<String>("username") {
-                    content = username;
-                }
-            }
-            res.render(Text::Html(content));
-        }
-
-        let session_handler = FlashHandler::builder(
-            MemoryStore::new(),
-            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
-        )
-        .build()
-        .unwrap();
+    async fn test_cookie_store() {
+        let cookie_name = "my-custom-cookie-name".to_string();
         let router = Router::new()
-            .hoop(session_handler)
-            .get(home)
-            .push(Router::with_path("login").get(login).post(login))
-            .push(Router::with_path("logout").get(logout));
+            .hoop(cookie_store().with_name(&cookie_name).into_handler())
+            .push(Router::with_path("get").get(get_flash))
+            .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
-        let respone = TestClient::post("http://127.0.0.1:7878/login")
-            .raw_form("username=salvo")
-            .send(&service)
-            .await;
+        let respone = TestClient::get("http://127.0.0.1:7878/set").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
-        let cookie = respone.headers().get(SET_COOKIE).unwrap();
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/")
+        let cookie = respone.headers().get(SET_COOKIE).unwrap();
+        println!("cookie: {:?}", cookie);
+        assert!(cookie.to_str().unwrap().contains(&cookie_name));
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;
-        assert_eq!(respone.take_string().await.unwrap(), "salvo");
+        assert!(respone.take_string().await.unwrap().contains("Hey there!"));
 
-        let respone = TestClient::get("http://127.0.0.1:7878/logout").send(&service).await;
+        let cookie = respone.headers().get(SET_COOKIE).unwrap();
+        assert!(cookie.to_str().unwrap().contains(&cookie_name));
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
+        assert!(respone.take_string().await.unwrap().is_empty());
+    }
+
+    #[cfg(feature = "session_store")]
+    #[tokio::test]
+    async fn test_session_store() {
+        let session_handler = salvo_session::SessionHandler::builder(
+            salvo_session::MemoryStore::new(),
+            b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
+        )
+        .build()
+        .unwrap();
+
+        let session_name = "my-custom-session-name".to_string();
+        let router = Router::new()
+            .hoop(session_handler)
+            .hoop(session_store().with_name(&session_name).into_handler())
+            .push(Router::with_path("get").get(get_flash))
+            .push(Router::with_path("set").get(set_flash));
+        let service = Service::new(router);
+
+        let respone = TestClient::get("http://127.0.0.1:7878/set").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/").send(&service).await;
-        assert_eq!(respone.take_string().await.unwrap(), "home");
+        let cookie = respone.headers().get(SET_COOKIE).unwrap();
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
+        assert!(respone.take_string().await.unwrap().contains("Hey there!"));
+
+        let cookie = respone.headers().get(SET_COOKIE).unwrap();
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+            .add_header(COOKIE, cookie, true)
+            .send(&service)
+            .await;
+        assert!(respone.take_string().await.unwrap().is_empty());
     }
 }

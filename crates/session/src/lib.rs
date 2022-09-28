@@ -82,7 +82,7 @@ const BASE64_DIGEST_LEN: usize = 44;
 /// SessionDepotExt
 pub trait SessionDepotExt {
     /// Set session
-    fn set_session(&mut self, session: Session);
+    fn set_session(&mut self, session: Session) -> &mut Self;
     /// Take session
     fn take_session(&mut self) -> Option<Session>;
     /// Get session reference
@@ -93,8 +93,9 @@ pub trait SessionDepotExt {
 
 impl SessionDepotExt for Depot {
     #[inline]
-    fn set_session(&mut self, session: Session) {
+    fn set_session(&mut self, session: Session) -> &mut Self {
         self.insert(SESSION_KEY, session);
+        self
     }
     #[inline]
     fn take_session(&mut self) -> Option<Session> {

@@ -1,18 +1,18 @@
 [package]
 name = "salvo"
-version = "0.35.2"
-authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = """
 Salvo is a powerful and simplest web server framework in Rust world.
 """
-homepage = "https://salvo.rs"
-repository = "https://github.com/salvo-rs/salvo"
-documentation = "https://docs.rs/salvo/"
-readme = "../README.md"
-keywords = ["http", "async", "web", "framework", "server"]
-license = "MIT OR Apache-2.0"
-categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -65,5 +65,5 @@ ws = ["salvo_extra/ws"]
 caching-headers = ["salvo_extra/caching-headers"]
 
 [dependencies]
-salvo_core = { version = "0.35.2", default-features = false, path = "../core" }
-salvo_extra = { version = "0.35.2", default-features = false, optional = true, path = "../extra" }
+salvo_core = { workspace = true, default-features = false, path = "../core" }
+salvo_extra = { workspace = true, default-features = false, optional = true, path = "../extra" }
