@@ -15,8 +15,7 @@ use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::headers::HeaderName;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};
-use salvo_core::prelude::*;
-use salvo_core::Error;
+use salvo_core::{Request, Response, Depot, FlowCtrl, Error};
 
 /// key used to save csrf data to depot.
 pub const DATA_KEY: &str = "::salvo::extra::csrf::data";

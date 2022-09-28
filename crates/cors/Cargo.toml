@@ -18,8 +18,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false, path = "../core" }
+salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
 
 [dev-dependencies]
-salvo_core = { features = ["test"], path = "../core" }
+salvo_core = {  workspace = true, features = ["test"] }

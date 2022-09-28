@@ -35,7 +35,8 @@ chrono.workspace = true
 data-encoding.workspace = true
 hmac.workspace = true
 tracing.workspace = true
+salvo_core = { workspace = true, default-features = false }
 salvo-session = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
-salvo_core = { features = ["test"], path = "../core" }
+salvo_core = { workspace = true, features = ["test"] }
