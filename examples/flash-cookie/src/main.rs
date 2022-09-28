@@ -1,20 +1,24 @@
+use std::fmt::Write;
+
 use salvo::prelude::*;
+use salvo_flash::{CookieStore, FlashDepotExt};
 
 #[handler]
-async fn hello_world() -> &'static str {
-    "Hello World"
+pub async fn set_flash(depot: &mut Depot, res: &mut Response) {
+    let flash = depot.outgoing_flash_mut();
+    flash.info("Hey there!").debug("How is it going?");
+    res.render(Redirect::other("/get").unwrap());
 }
+
 #[handler]
-async fn hello_world1() -> Result<&'static str, ()> {
-    Ok("Hello World1")
-}
-#[handler]
-async fn hello_world2(res: &mut Response) {
-    res.render("Hello World2");
-}
-#[handler]
-async fn hello_world3(_req: &mut Request, res: &mut Response) {
-    res.render(Text::Plain("Hello World3"));
+pub async fn get_flash(depot: &mut Depot, _res: &mut Response) -> String {
+    let mut body = String::new();
+    if let Some(flash) = depot.incoming_flash() {
+        for message in flash.iter() {
+            writeln!(body, "{} - {}", message.value, message.level).unwrap();
+        }
+    }
+    body
 }
 
 #[tokio::main]
@@ -22,37 +26,9 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
-}
-
-fn route() -> Router {
-    Router::new()
-        .get(hello_world)
-        .push(Router::with_path("hello1").get(hello_world1))
-        .push(Router::with_path("hello2").get(hello_world2))
-        .push(Router::with_path("hello3").get(hello_world3))
-}
-
-#[cfg(test)]
-mod tests {
-    use salvo::prelude::*;
-    use salvo::test::{ResponseExt, TestClient};
-
-    #[tokio::test]
-    async fn test_hello_world() {
-        let service = Service::new(super::route());
-
-        async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
-                .send(service)
-                .await
-                .take_string()
-                .await
-                .unwrap()
-        }
-
-        assert_eq!(access(&service, "hello1").await, "Hello World1");
-        assert_eq!(access(&service, "hello2").await, "Hello World2");
-        assert_eq!(access(&service, "hello3").await, "Hello World3");
-    }
+    let router = Router::new()
+        .hoop(CookieStore::new().into_handler())
+        .push(Router::with_path("get").get(get_flash))
+        .push(Router::with_path("set").get(set_flash));
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

@@ -1,4 +1,4 @@
-use salvo_core::{async_trait, Depot, Request, Response, Result};
+use salvo_core::{async_trait, Depot, Request, Response};
 use salvo_session::SessionDepotExt;
 
 use super::{Flash, FlashHandler, FlashStore};
@@ -45,7 +45,7 @@ impl FlashStore for SessionStore {
         if let Err(e) = depot
             .session_mut()
             .expect("session must be exist")
-            .insert(&self.name, &serde_json::to_string(&flash).unwrap_or_default())
+            .insert(&self.name, &flash)
         {
             tracing::error!(error = ?e, "save flash to session failed");
         }

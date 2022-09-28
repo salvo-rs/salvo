@@ -12,11 +12,6 @@ cfg_feature! {
 
     mod cookie_store;
     pub use cookie_store::CookieStore;
-
-    /// Helper function to create a new `CookieStore`.
-    pub fn cookie_store() -> CookieStore {
-        CookieStore::new()
-    }
 }
 
 cfg_feature! {
@@ -24,11 +19,6 @@ cfg_feature! {
 
     mod session_store;
     pub use session_store::SessionStore;
-
-    /// Helper function to create a new `SessionStore`.
-    pub fn session_store() -> SessionStore {
-        SessionStore::new()
-    }
 }
 
 /// Key for incoming flash messages in depot.
@@ -266,8 +256,10 @@ mod tests {
     #[handler]
     pub async fn get_flash(depot: &mut Depot, _res: &mut Response) -> String {
         let mut body = String::new();
-        for message in depot.incoming_flash().unwrap().iter() {
-            writeln!(body, "{} - {}", message.value, message.level).unwrap();
+        if let Some(flash) = depot.incoming_flash() {
+            for message in flash.iter() {
+                writeln!(body, "{} - {}", message.value, message.level).unwrap();
+            }
         }
         body
     }
@@ -277,7 +269,7 @@ mod tests {
     async fn test_cookie_store() {
         let cookie_name = "my-custom-cookie-name".to_string();
         let router = Router::new()
-            .hoop(cookie_store().with_name(&cookie_name).into_handler())
+            .hoop(CookieStore::new().with_name(&cookie_name).into_handler())
             .push(Router::with_path("get").get(get_flash))
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
@@ -286,7 +278,6 @@ mod tests {
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
-        println!("cookie: {:?}", cookie);
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
 
         let mut respone = TestClient::get("http://127.0.0.1:7878/get")
@@ -318,7 +309,7 @@ mod tests {
         let session_name = "my-custom-session-name".to_string();
         let router = Router::new()
             .hoop(session_handler)
-            .hoop(session_store().with_name(&session_name).into_handler())
+            .hoop(SessionStore::new().with_name(&session_name).into_handler())
             .push(Router::with_path("get").get(get_flash))
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
@@ -333,8 +324,6 @@ mod tests {
             .send(&service)
             .await;
         assert!(respone.take_string().await.unwrap().contains("Hey there!"));
-
-        let cookie = respone.headers().get(SET_COOKIE).unwrap();
 
         let mut respone = TestClient::get("http://127.0.0.1:7878/get")
             .add_header(COOKIE, cookie, true)

@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie_store"]
-cookie_store = ["salvo_core/cookie"]
+cookie_store = ["salvo_core/cookie", "dep:serde_json"]
 session_store = ["dep:salvo-session"]
 
 [dependencies]
@@ -27,9 +27,9 @@ async-session = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 salvo_extra = { workspace = true, default-features = false }
 salvo-session = { workspace = true, default-features = false, optional = true }
-tracing = "0.1"
-serde = "1"
-serde_json = "1"
+tracing.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 salvo_core = {workspace = true, features = ["test"] }
