@@ -9,7 +9,7 @@ use aead::{generic_array::GenericArray, Aead};
 use aes_gcm::Aes256Gcm;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chacha20poly1305::ChaCha20Poly1305;
-use chrono::{Utc, Duration};
+use chrono::{Duration, Utc};
 use data_encoding::{BASE64, BASE64URL};
 use hmac::{Hmac, Mac};
 use rand::rngs::OsRng;

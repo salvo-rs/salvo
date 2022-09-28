@@ -34,7 +34,7 @@ use salvo_core::http::headers::{
     AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
 };
 use salvo_core::http::{Method, Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, Handler, FlowCtrl};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// A constructed via `salvo_extra::cors::Cors::builder()`.
 #[derive(Clone, Debug)]
