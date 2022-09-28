@@ -57,6 +57,10 @@ jobs:
             path: crates/session
           - crate: salvo-flash
             path: crates/flash
+          - crate: salvo-cors
+            path: crates/cors
+          - crate: salvo-csrf
+            path: crates/csrf
     steps:
       - uses: actions-rs/toolchain@v1
         with:
