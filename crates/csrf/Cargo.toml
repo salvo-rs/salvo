@@ -8,7 +8,7 @@ CSRF support for salvo web server framework.
 """
 homepage.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 keywords.workspace = true
 license.workspace = true
 categories.workspace = true
@@ -19,22 +19,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie-store"]
-cookie-store = ["salvo_core/cookie", "dep:cookie", "dep:serde_json"]
+cookie-store = ["salvo_core/cookie", "dep:cookie"]
 session-store = ["dep:salvo-session"]
 
 [dependencies]
 aead = { workspace = true, features = ["alloc"], optional = true }
 cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
-hkdf = { workspace = true, optional = true }
-rand = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-aes-gcm = { workspace = true, optional = true }
-byteorder = { version = "1", optional = true }
-chacha20poly1305 = { workspace = true, optional = true }
-chrono = { workspace = true, features = ["serde"], optional = true }
-data-encoding = { workspace = true, optional = true }
-hmac = { workspace = true, optional = true }
-tracing = { workspace = true, optional = true }
+hkdf.workspace = true
+rand.workspace = true
+sha2.workspace = true
+aes-gcm.workspace = true
+byteorder.workspace = true
+chacha20poly1305.workspace = true
+chrono.workspace = true
+data-encoding.workspace = true
+hmac.workspace = true
+tracing.workspace = true
+salvo-session = { workspace = true, default-features = false, optional = true }
 
 [dev-dependencies]
 salvo_core = { features = ["test"], path = "../core" }
