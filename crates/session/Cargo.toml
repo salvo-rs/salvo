@@ -18,10 +18,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-session = { version = "3"}
-cookie = { version = "0.16", features = ["percent-encode", "signed"] }
-salvo_core = { version = "0.35.2", default-features = false, path = "../core" }
-tracing = { version = "0.1" }
+async-session.workspace = true
+cookie = { workspace = true, features = ["percent-encode", "signed"] }
+salvo_core = { workspace = true, default-features = false }
+tracing.workspace = true
 
 [dev-dependencies]
 salvo_core = { features = ["test"], path = "../core" }

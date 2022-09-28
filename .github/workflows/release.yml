@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           strategy: regex
-          root: "salvo/Cargo.toml"
+          root: "Cargo.toml"
           regex_pattern: "version\\s*=\\s*\"([0-9\\.]+)\""
           tag_prefix: "v"
           # version: "${{ env.NEXT_VERSION }}"
@@ -46,13 +46,17 @@ jobs:
       matrix:
         package:
           - crate: salvo_macros
-            path: macros
+            path: crates/macros
           - crate: salvo_core
-            path: core
+            path: crates/core
           - crate: salvo_extra
-            path: extra
+            path: crates/extra
           - crate: salvo
-            path: salvo
+            path: crates/salvo
+          - crate: salvo-session
+            path: crates/session
+          - crate: salvo-flash
+            path: crates/flash
     steps:
       - uses: actions-rs/toolchain@v1
         with:
