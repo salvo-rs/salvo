@@ -59,14 +59,6 @@ pub mod prelude {
         pub use salvo_extra::compression::{Compression, CompressionAlgo};
     }
     cfg_feature! {
-        #![feature ="cors"]
-        pub use salvo_extra::cors::Cors;
-    }
-    cfg_feature! {
-        #![feature ="csrf"]
-        pub use salvo_extra::csrf::{CsrfDepotExt, Csrf};
-    }
-    cfg_feature! {
         #![feature ="force-https"]
         pub use salvo_extra::force_https::ForceHttps;
     }
@@ -85,10 +77,6 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="serve-static"]
         pub use salvo_extra::serve_static::{StaticDir, StaticFile, static_embed, render_embedded_file, EmbeddedFileExt, StaticEmbed};
-    }
-    cfg_feature! {
-        #![feature ="session"]
-        pub use salvo_extra::session::{Session, SessionDepotExt, SessionHandler, SessionStore, MemoryStore, CookieStore};
     }
     cfg_feature! {
         #![feature ="size-limiter"]

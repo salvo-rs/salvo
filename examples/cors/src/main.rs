@@ -1,4 +1,4 @@
-use salvo::extra::cors::Cors;
+use salvo_cors::Cors;
 use salvo::prelude::*;
 
 #[handler]

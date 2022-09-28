@@ -15,7 +15,7 @@ use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::headers::HeaderName;
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::{Method, StatusCode};
-use salvo_core::{Request, Response, Depot, FlowCtrl, Error};
+use salvo_core::{Depot, Error, FlowCtrl, Handler, Request, Response};
 
 /// key used to save csrf data to depot.
 pub const DATA_KEY: &str = "::salvo::extra::csrf::data";
@@ -158,7 +158,7 @@ impl Csrf {
     /// Defaults to "csrf-token".
     #[inline]
     pub fn with_query_param(mut self, query_param: impl Into<String>) -> Self {
-        self.query_param = query_paraminto();
+        self.query_param = query_param.into();
         self
     }
 
@@ -387,10 +387,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_validates_token_in_header() {
-        let router = Router::new()
-            .hoop(Csrf::new(&SECRET))
-            .get(get_index)
-            .post(post_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index).post(post_index);
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
@@ -439,10 +436,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_validates_token_in_query() {
-        let router = Router::new()
-            .hoop(Csrf::new(&SECRET))
-            .get(get_index)
-            .post(post_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index).post(post_index);
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
@@ -538,10 +532,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_short_token() {
-        let router = Router::new()
-            .hoop(Csrf::new(&SECRET))
-            .get(get_index)
-            .post(post_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index).post(post_index);
         let service = Service::new(router);
 
         let res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
@@ -562,10 +553,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_invalid_base64_token() {
-        let router = Router::new()
-            .hoop(Csrf::new(&SECRET))
-            .get(get_index)
-            .post(post_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index).post(post_index);
         let service = Service::new(router);
 
         let res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
@@ -586,10 +574,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_mismatched_token() {
-        let router = Router::new()
-            .hoop(Csrf::new(&SECRET))
-            .get(get_index)
-            .post(post_index);
+        let router = Router::new().hoop(Csrf::new(&SECRET)).get(get_index).post(post_index);
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
