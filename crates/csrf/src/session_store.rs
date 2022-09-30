@@ -3,9 +3,10 @@ use salvo_session::SessionDepotExt;
 
 use super::CsrfStore;
 
+/// CookieStore is a `CsrfStore` implementation that stores the CSRF secret in a session.
 #[derive(Debug)]
 pub struct SessionStore {
-    pub name: String,
+    name: String,
 }
 impl Default for SessionStore {
     fn default() -> Self {
@@ -16,7 +17,9 @@ impl Default for SessionStore {
 impl SessionStore {
     /// Create a new `SessionStore`.
     pub fn new() -> Self {
-        Self { name: "_flash".into() }
+        Self {
+            name: "salvo.csrf.secret".into(),
+        }
     }
 }
 

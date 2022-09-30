@@ -3,15 +3,25 @@ use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{async_trait, Depot, Error, Request, Response};
 
-use super::CsrfStore;
+use super::{ CsrfStore};
 
+/// CookieStore is a `CsrfStore` implementation that stores the CSRF secret in a cookie.
 #[derive(Debug)]
 pub struct CookieStore {
-    /// CSRF Cookie ttl
-    pub ttl: Duration,
-    pub name: String,
-    pub path: String,
-    pub domain: Option<String>,
+    /// CSRF cookie ttl.
+    ttl: Duration,
+    /// CSRF cookie name.
+    name: String,
+    /// CSRF cookie path.
+    path: String,
+    /// CSRF cookie domain.
+    domain: Option<String>,
+}
+impl Default for CookieStore {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CookieStore {
@@ -19,30 +29,45 @@ impl CookieStore {
     pub fn new() -> Self {
         Self {
             ttl: Duration::days(1),
-            name: "salvo.csrf".into(),
+            name: "salvo.csrf.secret".into(),
             path: "/".into(),
             domain: None,
         }
     }
-
-    /// Set cookie ttl.
-    pub fn with_ttl(mut self, ttl: Duration) -> Self {
-        self.ttl = ttl.into();
-        self
+    /// Get cookie name.
+    pub fn name(&self) -> &String {
+        &self.name
     }
-
     /// Set cookie name.
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
+    /// Get cookie name.
+    pub fn ttl(&self) -> Duration {
+        self.ttl
+    }
+    /// Set cookie ttl.
+    pub fn with_ttl(mut self, ttl: Duration) -> Self {
+        self.ttl = ttl;
+        self
+    }
+
+    /// Get cookie path.
+    pub fn path(&self) -> &String {
+        &self.path
+    }
     /// Set cookie path.
     pub fn with_path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
     }
 
+    /// Get cookie domain.
+    pub fn domain(&self) -> Option<&String> {
+        self.domain.as_ref()
+    }
     /// Set cookie domain.
     pub fn with_domain(mut self, domain: impl Into<Option<String>>) -> Self {
         self.domain = domain.into();

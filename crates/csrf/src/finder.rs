@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use salvo_core::{async_trait,  Request};
+use salvo_core::{async_trait, Request};
 use serde_json::Value;
 
 /// CsrfTokenFinder
@@ -10,16 +10,24 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
 
+/// Find token from http request url query string.
 pub struct QueryFinder {
     query_name: String,
 }
 impl QueryFinder {
     /// Create new `QueryFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(query_name: T) -> Self {
+    pub fn new() -> Self {
         Self {
-            query_name: query_name.into(),
+            query_name: "csrf-token".into(),
         }
+    }
+
+    /// Set query name, it's query_name's default value is `csrf-token`.
+    #[inline]
+    pub fn with_query_name(mut self, name: impl Into<String>) -> Self {
+        self.query_name = name.into();
+        self
     }
 }
 #[async_trait]
@@ -30,16 +38,29 @@ impl CsrfTokenFinder for QueryFinder {
     }
 }
 
+/// Find token from http request header.
 pub struct HeaderFinder {
     header_name: String,
 }
+impl Default for HeaderFinder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl HeaderFinder {
-    /// Create new `HeaderFinder`.
+    /// Create new `HeaderFinder`, it's header_name's default value is `x-csrf-token`.
     #[inline]
-    pub fn new<T: Into<String>>(header_name: T) -> Self {
+    pub fn new() -> Self {
         Self {
-            header_name: header_name.into(),
+            header_name: "x-csrf-token".into(),
         }
+    }
+
+    /// Set header name, it's header_name's default value is `x-csrf-token`.
+    #[inline]
+    pub fn with_header_name(mut self, name: impl Into<String>) -> Self {
+        self.header_name = name.into();
+        self
     }
 }
 #[async_trait]
@@ -50,16 +71,29 @@ impl CsrfTokenFinder for HeaderFinder {
     }
 }
 
+/// Find token from request form body.
 pub struct FormFinder {
     field_name: String,
+}
+impl Default for FormFinder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl FormFinder {
     /// Create new `FormFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(field_name: T) -> Self {
+    pub fn new() -> Self {
         Self {
-            field_name: field_name.into(),
+            field_name: "csrf-token".into(),
         }
+    }
+
+    /// Set field name, it's field_name's default value is `csrf-token`.
+    #[inline]
+    pub fn with_field_name(mut self, name: impl Into<String>) -> Self {
+        self.field_name = name.into();
+        self
     }
 }
 #[async_trait]
@@ -70,16 +104,29 @@ impl CsrfTokenFinder for FormFinder {
     }
 }
 
+/// Find token from request json body.
 pub struct JsonFinder {
     field_name: String,
+}
+impl Default for JsonFinder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl JsonFinder {
     /// Create new `FormFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(field_name: T) -> Self {
+    pub fn new() -> Self {
         Self {
-            field_name: field_name.into(),
+            field_name: "csrf-token".into(),
         }
+    }
+
+    /// Set field name, it's field_name's default value is `csrf-token`.
+    #[inline]
+    pub fn with_field_name(mut self, name: impl Into<String>) -> Self {
+        self.field_name = name.into();
+        self
     }
 }
 #[async_trait]

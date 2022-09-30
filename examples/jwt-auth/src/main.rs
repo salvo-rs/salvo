@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
-use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryExtractor};
+use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryFinder};
 use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -18,10 +18,10 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
-        .with_extractors(vec![
-            // Box::new(HeaderExtractor::new()),
-            Box::new(QueryExtractor::new("jwt_token")),
-            // Box::new(CookieExtractor::new("jwt_token")),
+        .with_finders(vec![
+            // Box::new(HeaderFinder::new()),
+            Box::new(QueryFinder::new("jwt_token")),
+            // Box::new(CookieFinder::new("jwt_token")),
         ])
         .with_response_error(false);
     tracing::info!("Listening on http://127.0.0.1:7878");

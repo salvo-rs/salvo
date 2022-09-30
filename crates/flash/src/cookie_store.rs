@@ -1,15 +1,17 @@
-use salvo_core::http::cookie::{time, Cookie, SameSite};
-use salvo_core::{async_trait, Request, Depot, Response};
+use salvo_core::http::cookie::time::Duration;
+use salvo_core::http::cookie::{Cookie, SameSite};
+use salvo_core::{async_trait, Depot, Request, Response};
 
-use super::{Flash, FlashStore, FlashHandler};
+use super::{Flash, FlashHandler, FlashStore};
 
+/// CookieStore is a `FlashStore` implementation that stores the flash messages in a cookie.
 #[derive(Debug)]
 pub struct CookieStore {
-    pub max_age: time::Duration,
-    pub site: SameSite,
-    pub http_only: bool,
-    pub path: String,
-    pub name: String,
+    max_age: Duration,
+    site: SameSite,
+    http_only: bool,
+    path: String,
+    name: String,
 }
 impl Default for CookieStore {
     fn default() -> Self {
@@ -17,51 +19,65 @@ impl Default for CookieStore {
     }
 }
 
-impl Into<FlashHandler<CookieStore>> for CookieStore {
-    fn into(self) -> FlashHandler<CookieStore> {
-        FlashHandler::new(self)
-    }
-}
-
 impl CookieStore {
     /// Create a new `CookieStore`.
     pub fn new() -> Self {
         Self {
-            max_age: time::Duration::seconds(60),
+            max_age: Duration::seconds(60),
             site: SameSite::Lax,
             http_only: true,
             path: "/".into(),
-            name: "_flash".into(),
+            name: "salvo.flash".into(),
         }
     }
+    /// Get cookie name.
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    /// Set cookie name.
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
 
+
+    /// Get cookie max age.
+    pub fn max_age(&self) -> Duration {
+        self.max_age
+    }
     /// Set cookie max_age.
-    pub fn with_max_age(mut self, max_age: time::Duration) -> Self {
+    pub fn with_max_age(mut self, max_age: Duration) -> Self {
         self.max_age = max_age;
         self
     }
 
+    /// Get cookie site.
+    pub fn site(&self) -> &SameSite {
+        &self.site
+    }
     /// Set cookie site.
     pub fn with_site(mut self, site: SameSite) -> Self {
         self.site = site;
         self
     }
 
-    /// Set cookie path.
+    /// Get cookie http only.
+    pub fn http_only(&self) -> bool {
+        self.http_only
+    }
+    /// Set cookie http only.
     pub fn with_http_only(mut self, http_only: bool) -> Self {
         self.http_only = http_only;
         self
     }
 
+    /// Get cookie path.
+    pub fn path(&self) -> &String {
+        &self.path
+    }
     /// Set cookie path.
     pub fn with_path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
-        self
-    }
-
-    /// Set cookie name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
-        self.name = name.into();
         self
     }
 
@@ -97,7 +113,7 @@ impl FlashStore for CookieStore {
     async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(
             Cookie::build(self.name.clone(), "")
-                .max_age(time::Duration::seconds(0))
+                .max_age(Duration::seconds(0))
                 .same_site(self.site)
                 .http_only(self.http_only)
                 .path(self.path.clone())

@@ -16,13 +16,19 @@
 //! }
 //!
 //! ```
-//! If you want to allow any route:
+//! If you want to allow any router:
 //! ```
 //! use salvo_core::prelude::*;
 //! use salvo_cors::Cors;
 //! let cors_handler = Cors::builder()
 //!     .allow_any_origin().build();
 //! ```
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
 use std::collections::HashSet;
 use std::convert::TryFrom;

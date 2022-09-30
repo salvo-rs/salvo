@@ -63,6 +63,12 @@ will not be used as valid sessions, For most session stores, it is the
 salvo application's responsibility to call cleanup on the session
 store if it requires it.
 */
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::fmt::{self, Formatter};
@@ -76,7 +82,7 @@ use salvo_core::http::uri::Scheme;
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response};
 
 /// Key for store data in depot.
-pub const SESSION_KEY: &str = "::salvo::extra::session";
+pub const SESSION_KEY: &str = "::salvo::session";
 const BASE64_DIGEST_LEN: usize = 44;
 
 /// SessionDepotExt
@@ -151,7 +157,7 @@ where
             store,
             save_unchanged: true,
             cookie_path: "/".into(),
-            cookie_name: "salvo.session_id".into(),
+            cookie_name: "salvo.session.id".into(),
             cookie_domain: None,
             same_site_policy: SameSite::Lax,
             session_ttl: Some(Duration::from_secs(24 * 60 * 60)),
@@ -184,7 +190,7 @@ where
     ///
     /// If you are running multiple tide applications on the same
     /// domain, you will need different values for each
-    /// application. The default value is "tide.sid".
+    /// application. The default value is "salvo.session_id".
     #[inline]
     pub fn cookie_name(mut self, cookie_name: impl AsRef<str>) -> Self {
         self.cookie_name = cookie_name.as_ref().to_owned();

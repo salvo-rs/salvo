@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_csrf::{Csrf, CsrfDepotExt, HmacCipher, JsonFinder};
+use salvo_csrf::{BcryptCipher, Csrf, CsrfDepotExt, JsonFinder};
 use serde::{Deserialize, Serialize};
 
 #[handler]
@@ -68,10 +68,10 @@ async fn main() {
     .build()
     .unwrap();
     let csrf = Csrf::new(
+        BcryptCipher::new(),
         salvo_csrf::session_store(),
-        HmacCipher::new(*b"01234567012345670123456701234567"),
-    )
-    .add_finder(JsonFinder::new("csrf"));
+        JsonFinder::new().with_field_name("csrf"),
+    );
     let router = Router::new()
         .hoop(session_handler)
         .hoop(csrf)

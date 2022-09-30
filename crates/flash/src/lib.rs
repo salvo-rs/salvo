@@ -1,3 +1,11 @@
+//! The flash message lib of Savlo web server framework. Read more: <https://salvo.rs>
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
 use std::fmt::{self, Debug, Display, Formatter};
 use std::ops::Deref;
 
@@ -32,11 +40,12 @@ cfg_feature! {
 }
 
 /// Key for incoming flash messages in depot.
-pub const INCOMING_FLASH_KEY: &str = "::salvo_flash::incoming_flash";
+pub const INCOMING_FLASH_KEY: &str = "::salvo::flash::incoming_flash";
 
 /// Key for outgoing flash messages in depot.
-pub const OUTGOING_FLASH_KEY: &str = "::salvo_flash::outgoing_flash";
+pub const OUTGOING_FLASH_KEY: &str = "::salvo::flash::outgoing_flash";
 
+/// A flash is a list of messages.
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct Flash(pub Vec<FlashMessage>);
 impl Flash {
@@ -80,9 +89,12 @@ impl Deref for Flash {
     }
 }
 
+/// A flash message.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FlashMessage {
+    /// Flash message level.
     pub level: FlashLevel,
+    /// Flash message content.
     pub value: String,
 }
 impl FlashMessage {
@@ -128,7 +140,7 @@ impl FlashMessage {
     }
 }
 
-// Verbosity level of a flash message.
+/// Verbosity level of a flash message.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum FlashLevel {
     #[allow(missing_docs)]
@@ -143,6 +155,7 @@ pub enum FlashLevel {
     Error = 4,
 }
 impl FlashLevel {
+    /// Convert a `FlashLevel` to a `&str`.
     pub fn to_str(&self) -> &'static str {
         match self {
             FlashLevel::Debug => "debug",
@@ -165,10 +178,14 @@ impl Display for FlashLevel {
     }
 }
 
+/// `FlashStore` is for stores flash messages.
 #[async_trait]
 pub trait FlashStore: Debug + Send + Sync + 'static {
+    /// Get the flash messages from the store.
     async fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> Option<Flash>;
+    /// Save the flash messages to the store.
     async fn save_flash(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, flash: Flash);
+    /// Clear the flash store.
     async fn clear_flash(&self, depot: &mut Depot, res: &mut Response);
 }
 
@@ -205,6 +222,7 @@ impl FlashDepotExt for Depot {
 /// FlashHandler
 pub struct FlashHandler<S> {
     store: S,
+    /// Minimum level of messages to be displayed.
     pub minimum_level: Option<FlashLevel>,
 }
 impl<S> FlashHandler<S> {
@@ -253,7 +271,7 @@ where
             flash.0.retain(|msg| msg.level >= min_level);
         }
         if !flash.is_empty() {
-            self.store.save_flash(flash, depot, res).await;
+            self.store.save_flash(req, depot, res, flash).await;
         } else if has_incoming {
             self.store.clear_flash(depot, res).await;
         }

@@ -4,7 +4,7 @@ use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, Error, Handler, FlowCtrl};
 
 /// key used when insert into depot.
-pub const USERNAME_KEY: &str = "::salvo::extra::basic_auth::username";
+pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 
 /// BasicAuthValidator
 #[async_trait]

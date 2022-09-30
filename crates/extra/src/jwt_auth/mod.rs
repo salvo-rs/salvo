@@ -14,11 +14,11 @@ mod finder;
 pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFinder};
 
 /// key used to insert auth decoded data to depot.
-pub const JWT_AUTH_DATA_KEY: &str = "::salvo::extra::jwt_auth::auth_data";
+pub const JWT_AUTH_DATA_KEY: &str = "::salvo::jwt_auth::auth_data";
 /// key used to insert auth state data to depot.
-pub const JWT_AUTH_STATE_KEY: &str = "::salvo::extra::jwt_auth::auth_state";
+pub const JWT_AUTH_STATE_KEY: &str = "::salvo::jwt_auth::auth_state";
 /// key used to insert auth token data to depot.
-pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::extra::jwt_auth::auth_token";
+pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::jwt_auth::auth_token";
 
 static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     vec![

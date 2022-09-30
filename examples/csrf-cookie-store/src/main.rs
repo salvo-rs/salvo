@@ -62,10 +62,10 @@ async fn main() {
 
     tracing::info!("Listening on http://127.0.0.1:7878");
     let csrf = Csrf::new(
-        salvo_csrf::cookie_store(),
         HmacCipher::new(*b"01234567012345670123456701234567"),
-    )
-    .add_finder(JsonFinder::new("csrf"));
+        salvo_csrf::cookie_store(),
+        JsonFinder::new().with_field_name("csrf")
+    );
     let router = Router::new()
         .hoop(csrf)
         .push(Router::with_path("login").get(get_login).post(post_login));
