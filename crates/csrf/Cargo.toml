@@ -17,27 +17,24 @@ categories.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-# [features]
-# default = ["cookie-store"]
-# cookie-store = ["salvo_core/cookie", "dep:cookie"]
-# session-store = ["dep:salvo-session"]
+[features]
+default = ["cookie-store", "bcrypt-cipher"]
+cookie-store = ["salvo_core/cookie", "dep:cookie"]
+session-store = ["dep:salvo-session"]
+hmac-cipher = ["dep:hmac", "dep:sha2"]
+bcrypt-cipher = ["dep:bcrypt"]
 
 [dependencies]
-aead = { workspace = true, features = ["alloc"] }
 base64.workspace = true
-cookie = { workspace = true, features = ["percent-encode", "signed"] }
-hkdf.workspace = true
+cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
 rand.workspace = true
-sha2.workspace = true
-aes-gcm.workspace = true
-byteorder.workspace = true
-chacha20poly1305.workspace = true
-chrono.workspace = true
-data-encoding.workspace = true
-hmac.workspace = true
+sha2 = { workspace = true, optional = true }
+bcrypt = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
 tracing.workspace = true
 salvo_core = { workspace = true, default-features = false }
-# salvo-session = { workspace = true, default-features = false, optional = true }
+salvo-session = { workspace = true, default-features = false, optional = true }
+serde_json.workspace = true
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
