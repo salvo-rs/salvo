@@ -371,7 +371,7 @@ mod tests {
         let csrf = Csrf::new(
             HmacCipher::new(*b"01234567012345670123456701234567"),
             CookieStore::new(),
-            FormFinder::new().with_field_name("my-csrf-token"),
+            FormFinder::new(),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
