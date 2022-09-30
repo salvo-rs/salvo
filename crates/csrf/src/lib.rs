@@ -89,7 +89,7 @@ pub trait CsrfStore: Send + Sync + 'static {
 /// Generate secret and token and valid token.
 pub trait CsrfCipher: Send + Sync + 'static {
     /// Verify token is valid.
-    fn verify(&self, secret: &[u8], token: &[u8]) -> bool;
+    fn verify(&self, token: &[u8], secret: &[u8]) -> bool;
     /// Generate new secret and token.
     fn generate(&self) -> (Vec<u8>, Vec<u8>);
 
@@ -163,8 +163,8 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
 
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         for finder in self.finders.iter() {
-            if let Some(given_token) = finder.find_token(req).await {
-                return Some(given_token);
+            if let Some(token) = finder.find_token(req).await {
+                return Some(token);
             }
         }
         None
@@ -179,11 +179,11 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 tracing::debug!("csrf token: {:?}", token);
                 if let Ok(token) = base64::decode_config(token, URL_SAFE_NO_PAD) {
                     if let Some(secret) = self.store.load_secret(req, depot).await {
-                        let mut valid = self.cipher.verify(&secret, &token);
+                        let mut valid = self.cipher.verify(&token, &secret);
                         if !valid && self.fallback_ciphers.is_empty() {
                             tracing::debug!("try to use fallback ciphers to verify CSRF token");
                             for cipher in &self.fallback_ciphers {
-                                if cipher.verify(&secret, &token) {
+                                if cipher.verify(&token, &secret) {
                                     tracing::debug!("fallback cipher verify CSRF token success");
                                     valid = true;
                                     break;
@@ -217,13 +217,13 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 return;
             }
         }
-        let (origin, encrypted) = self.cipher.generate();
-        if let Err(e) = self.store.save_secret(req, depot, res, &origin).await {
-            tracing::error!(error = ?e, "salve csrf token failed");
+        let (token, secret) = self.cipher.generate();
+        if let Err(e) = self.store.save_secret(req, depot, res, &secret).await {
+            tracing::error!(error = ?e, "salvo csrf token failed");
         }
-        let encrypted = base64::encode_config(&encrypted, URL_SAFE_NO_PAD);
-        tracing::debug!("new token: {:?}", encrypted);
-        depot.insert(CSRF_TOKEN_KEY, encrypted);
+        let token = base64::encode_config(&token, URL_SAFE_NO_PAD);
+        tracing::debug!("new token: {:?}", token);
+        depot.insert(CSRF_TOKEN_KEY, token);
         ctrl.call_next(req, depot, res).await;
     }
 }

@@ -36,12 +36,12 @@ impl BcryptCipher {
 }
 
 impl CsrfCipher for BcryptCipher {
-    fn verify(&self, secret: &[u8], token: &[u8]) -> bool {
-        bcrypt::verify(secret, std::str::from_utf8(token).unwrap_or_default()).unwrap_or(false)
+    fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
+        bcrypt::verify(token, std::str::from_utf8(secret).unwrap_or_default()).unwrap_or(false)
     }
     fn generate(&self) -> (Vec<u8>, Vec<u8>) {
-        let secret = self.random_bytes(self.len);
-        let token = bcrypt::hash(&secret, self.cost).unwrap();
-        (secret.to_vec(), token.as_bytes().to_vec())
+        let token = self.random_bytes(self.len);
+        let secret = bcrypt::hash(&token, self.cost).unwrap();
+        (token, secret.as_bytes().to_vec())
     }
 }
