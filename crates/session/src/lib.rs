@@ -151,7 +151,7 @@ where
             store,
             save_unchanged: true,
             cookie_path: "/".into(),
-            cookie_name: "salvo.sid".into(),
+            cookie_name: "salvo.session_id".into(),
             cookie_domain: None,
             same_site_policy: SameSite::Lax,
             session_ttl: Some(Duration::from_secs(24 * 60 * 60)),
