@@ -41,7 +41,7 @@ impl FlashStore for SessionStore {
     async fn load_flash(&self, _req: &mut Request, depot: &mut Depot) -> Option<Flash> {
         depot.session().and_then(|s| s.get::<Flash>(&self.name))
     }
-    async fn save_flash(&self, flash: Flash, depot: &mut Depot, _res: &mut Response) {
+    async fn save_flash(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, flash: Flash) {
         if let Err(e) = depot
             .session_mut()
             .expect("session must be exist")

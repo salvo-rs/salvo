@@ -12,6 +12,11 @@ cfg_feature! {
 
     mod cookie_store;
     pub use cookie_store::CookieStore;
+
+    /// Helper function to create a `CookieStore`.
+    pub fn cookie_store() -> CookieStore {
+        CookieStore::new()
+    }
 }
 
 cfg_feature! {
@@ -19,6 +24,11 @@ cfg_feature! {
 
     mod session_store;
     pub use session_store::SessionStore;
+
+    /// Helper function to create a `SessionStore`.
+    pub fn session_store() -> SessionStore {
+        SessionStore::new()
+    }
 }
 
 /// Key for incoming flash messages in depot.
@@ -31,26 +41,31 @@ pub const OUTGOING_FLASH_KEY: &str = "::salvo_flash::outgoing_flash";
 pub struct Flash(pub Vec<FlashMessage>);
 impl Flash {
     /// Add a new message with level `Debug`.
+    #[inline]
     pub fn debug(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::debug(message));
         self
     }
     /// Add a new message with level `Info`.
+    #[inline]
     pub fn info(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::info(message));
         self
     }
     /// Add a new message with level `Success`.
+    #[inline]
     pub fn success(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::success(message));
         self
     }
     /// Add a new message with level `Waring`.
+    #[inline]
     pub fn warning(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::warning(message));
         self
     }
     /// Add a new message with level `Error`.
+    #[inline]
     pub fn error(&mut self, message: impl Into<String>) -> &mut Self {
         self.0.push(FlashMessage::warning(message));
         self
@@ -72,6 +87,7 @@ pub struct FlashMessage {
 }
 impl FlashMessage {
     /// Create a new `FlashMessage` with `FlashLevel::Debug`.
+    #[inline]
     pub fn debug(message: impl Into<String>) -> Self {
         Self {
             level: FlashLevel::Debug,
@@ -79,6 +95,7 @@ impl FlashMessage {
         }
     }
     /// Create a new `FlashMessage` with `FlashLevel::Info`.
+    #[inline]
     pub fn info(message: impl Into<String>) -> Self {
         Self {
             level: FlashLevel::Info,
@@ -86,6 +103,7 @@ impl FlashMessage {
         }
     }
     /// Create a new `FlashMessage` with `FlashLevel::Success`.
+    #[inline]
     pub fn success(message: impl Into<String>) -> Self {
         Self {
             level: FlashLevel::Success,
@@ -93,6 +111,7 @@ impl FlashMessage {
         }
     }
     /// Create a new `FlashMessage` with `FlashLevel::Warning`.
+    #[inline]
     pub fn warning(message: impl Into<String>) -> Self {
         Self {
             level: FlashLevel::Warning,
@@ -100,6 +119,7 @@ impl FlashMessage {
         }
     }
     /// create a new `FlashMessage` with `FlashLevel::Error`.
+    #[inline]
     pub fn error(message: impl Into<String>) -> Self {
         Self {
             level: FlashLevel::Error,
@@ -148,7 +168,7 @@ impl Display for FlashLevel {
 #[async_trait]
 pub trait FlashStore: Debug + Send + Sync + 'static {
     async fn load_flash(&self, req: &mut Request, depot: &mut Depot) -> Option<Flash>;
-    async fn save_flash(&self, flash: Flash, depot: &mut Depot, res: &mut Response);
+    async fn save_flash(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, flash: Flash);
     async fn clear_flash(&self, depot: &mut Depot, res: &mut Response);
 }
 
@@ -164,15 +184,18 @@ pub trait FlashDepotExt {
 }
 
 impl FlashDepotExt for Depot {
+    #[inline]
     fn incoming_flash(&mut self) -> Option<&Flash> {
         self.get::<Flash>(INCOMING_FLASH_KEY)
     }
 
+    #[inline]
     fn outgoing_flash(&mut self) -> &Flash {
         self.get::<Flash>(OUTGOING_FLASH_KEY)
             .expect("Flash should be initialized")
     }
 
+    #[inline]
     fn outgoing_flash_mut(&mut self) -> &mut Flash {
         self.get_mut::<Flash>(OUTGOING_FLASH_KEY)
             .expect("Flash should be initialized")
@@ -186,6 +209,7 @@ pub struct FlashHandler<S> {
 }
 impl<S> FlashHandler<S> {
     /// Create a new `FlashHandler` with the given `FlashStore`.
+    #[inline]
     pub fn new(store: S) -> Self {
         Self {
             store,
@@ -194,6 +218,7 @@ impl<S> FlashHandler<S> {
     }
 
     /// Set the minimum level of messages to be displayed.
+    #[inline]
     pub fn minimum_level(&mut self, level: impl Into<Option<FlashLevel>>) -> &mut Self {
         self.minimum_level = level.into();
         self

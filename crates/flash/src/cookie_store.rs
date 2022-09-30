@@ -84,7 +84,7 @@ impl FlashStore for CookieStore {
             },
         }
     }
-    async fn save_flash(&self, flash: Flash, _depot: &mut Depot, res: &mut Response) {
+    async fn save_flash(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, flash: Flash) {
         res.add_cookie(
             Cookie::build(self.name.clone(), serde_json::to_string(&flash).unwrap_or_default())
                 .max_age(self.max_age)
