@@ -7,7 +7,7 @@ use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use chrono::{DateTime, Local};
+use time::{format_description, OffsetDateTime};
 use salvo_core::fs::NamedFile;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::writer::Text;
@@ -156,7 +156,7 @@ impl CurrentInfo {
 struct FileInfo {
     name: String,
     size: u64,
-    modified: DateTime<Local>,
+    modified: OffsetDateTime,
 }
 impl FileInfo {
     #[inline]
@@ -171,7 +171,7 @@ impl FileInfo {
 #[derive(Serialize, Deserialize, Debug)]
 struct DirInfo {
     name: String,
-    modified: DateTime<Local>,
+    modified: OffsetDateTime,
 }
 impl DirInfo {
     #[inline]
@@ -313,12 +313,13 @@ fn list_xml(current: &CurrentInfo) -> String {
     if current.dirs.is_empty() && current.files.is_empty() {
         ftxt.push_str("No files");
     } else {
+        let format = format_description::parse("%Y-%m-%d %H:%M:%S").unwrap();
         for dir in &current.dirs {
             write!(
                 ftxt,
                 "<dir><name>{}</name><modified>{}</modified><link>{}</link></dir>",
                 dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S"),
+                dir.modified.format(&format).unwrap(),
                 encode_url_path(&dir.name),
             )
             .ok();
@@ -328,7 +329,7 @@ fn list_xml(current: &CurrentInfo) -> String {
                 ftxt,
                 "<file><name>{}</name><modified>{}</modified><size>{}</size><link>{}</link></file>",
                 file.name,
-                file.modified.format("%Y-%m-%d %H:%M:%S"),
+                file.modified.format(&format).unwrap(),
                 file.size,
                 encode_url_path(&file.name),
             )
@@ -372,6 +373,7 @@ fn list_html(current: &CurrentInfo) -> String {
             write!(ftxt, "<a href=\"../\">[..]</a>").ok();
         }
         write!(ftxt, "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>").ok();
+        let format = format_description::parse("%Y-%m-%d %H:%M:%S").unwrap();
         for dir in &current.dirs {
             write!(
                 ftxt,
@@ -379,7 +381,7 @@ fn list_html(current: &CurrentInfo) -> String {
                 DIR_ICON,
                 encode_url_path(&dir.name),
                 dir.name,
-                dir.modified.format("%Y-%m-%d %H:%M:%S")
+                dir.modified.format(&format).unwrap(),
             )
             .ok();
         }
@@ -390,7 +392,7 @@ fn list_html(current: &CurrentInfo) -> String {
                 FILE_ICON,
                 encode_url_path(&file.name),
                 file.name,
-                file.modified.format("%Y-%m-%d %H:%M:%S"),
+                file.modified.format(&format).unwrap(),
                 file.size
             )
             .ok();

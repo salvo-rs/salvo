@@ -26,7 +26,7 @@ force-https = ["dep:tracing"]
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
 proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
-serve-static = ["dep:chrono", "dep:hex", "dep:mime", "dep:mime_guess", "dep:path-slash", "dep:percent-encoding", "dep:rust-embed", "dep:tracing", "tokio", "dep:serde", "dep:serde_json"]
+serve-static = ["dep:time", "dep:hex", "dep:mime", "dep:mime_guess", "dep:path-slash", "dep:percent-encoding", "dep:rust-embed", "dep:tracing", "tokio", "dep:serde", "dep:serde_json"]
 size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 trailing-slash = ["dep:tracing"]
@@ -38,7 +38,7 @@ async-compression = { workspace = true, features = ["brotli", "deflate", "gzip",
 async-session = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
-chrono = { workspace = true, features = ["serde"], optional = true }
+time = { workspace = true, features = ["serde"], optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 fastrand = { workspace = true, optional = true }
 futures-util = { workspace = true, default-features = false, optional = true }

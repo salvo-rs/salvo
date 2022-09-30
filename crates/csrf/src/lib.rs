@@ -337,7 +337,7 @@ mod tests {
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
         assert_eq!(res.take_string().await.unwrap(), "POST");
     }
-    #[cfg(feature = "hmac-cipher")]
+    #[cfg(feadture = "hmac-cipher")]
     #[tokio::test]
     async fn test_validates_token_in_alternate_query() {
         let csrf = Csrf::new(
@@ -371,7 +371,7 @@ mod tests {
         let csrf = Csrf::new(
             HmacCipher::new(*b"01234567012345670123456701234567"),
             CookieStore::new(),
-            QueryFinder::new().with_query_name("my-csrf-token"),
+            FormFinder::new().with_field_name("my-csrf-token"),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);

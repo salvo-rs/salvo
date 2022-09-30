@@ -1,9 +1,9 @@
-use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
 use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryFinder};
 use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 
 const SECRET_KEY: &str = "YOUR SECRET_KEY";
 
@@ -40,10 +40,10 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             res.render(Text::Html(LOGIN_HTML));
             return Ok(());
         }
-        let exp = Utc::now() + Duration::days(14);
+        let exp = OffsetDateTime::now_utc() + Duration::days(14);
         let claim = JwtClaims {
             username,
-            exp: exp.timestamp(),
+            exp: exp.unix_timestamp(),
         };
         let token = jsonwebtoken::encode(
             &jsonwebtoken::Header::default(),

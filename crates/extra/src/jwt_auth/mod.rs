@@ -196,7 +196,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use time::{OffsetDateTime, Duration};
     use jsonwebtoken::EncodingKey;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
@@ -242,7 +242,7 @@ mod tests {
 
         let claim = JwtClaims {
             user: "root".into(),
-            exp: (Utc::now() + Duration::days(1)).timestamp(),
+            exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
         };
 
         let token = jsonwebtoken::encode(
