@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_session::{MemoryStore, Session, SessionDepotExt, SessionHandler};
+use salvo_session::{CookieStore, Session, SessionDepotExt, SessionHandler};
 
 #[tokio::main]
 async fn main() {
@@ -9,7 +9,7 @@ async fn main() {
 
 pub(crate) async fn start_server() {
     let session_handler = SessionHandler::builder(
-        MemoryStore::new(),
+        CookieStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
     )
     .build()
