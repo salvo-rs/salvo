@@ -19,27 +19,27 @@ type HyperResponse = hyper::Response<HyperBody>;
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
-    type Err;
+    type Error;
     /// Elect a upstream to process current request.
-    fn elect(&self) -> Result<&str, Self::Err>;
+    fn elect(&self) -> Result<&str, Self::Error>;
 }
 impl Upstreams for &'static str {
-    type Err = Infallible;
+    type Error = Infallible;
 
-    fn elect(&self) -> Result<&str, Self::Err> {
+    fn elect(&self) -> Result<&str, Self::Error> {
         Ok(*self)
     }
 }
 impl Upstreams for String {
-    type Err = Infallible;
-    fn elect(&self) -> Result<&str, Self::Err> {
+    type Error = Infallible;
+    fn elect(&self) -> Result<&str, Self::Error> {
         Ok(self.as_str())
     }
 }
 
 impl<const N: usize> Upstreams for [&'static str; N] {
-    type Err = Error;
-    fn elect(&self) -> Result<&str, Self::Err> {
+    type Error = Error;
+    fn elect(&self) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -52,8 +52,8 @@ impl<T> Upstreams for Vec<T>
 where
     T: AsRef<str> + Send + Sync + 'static,
 {
-    type Err = Error;
-    fn elect(&self) -> Result<&str, Self::Err> {
+    type Error = Error;
+    fn elect(&self) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -72,7 +72,7 @@ pub struct Proxy<U> {
 impl<U> Proxy<U>
 where
     U: Upstreams,
-    U::Err: Into<BoxedError>,
+    U::Error: Into<BoxedError>,
 {
     /// Create new `Proxy` with upstreams list.
     pub fn new(upstreams: U) -> Self {
@@ -219,7 +219,7 @@ where
 impl<U> Handler for Proxy<U>
 where
     U: Upstreams,
-    U::Err: Into<BoxedError>,
+    U::Error: Into<BoxedError>,
 {
     #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
