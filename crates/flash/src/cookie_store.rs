@@ -51,13 +51,13 @@ impl CookieStore {
         self
     }
 
-    /// Get cookie site.
-    pub fn site(&self) -> &SameSite {
-        &self.site
+    /// Get cookie same site.
+    pub fn same_site(&self) -> &SameSite {
+        &self.same_site
     }
-    /// Set cookie site.
-    pub fn with_site(mut self, site: SameSite) -> Self {
-        self.site = site;
+    /// Set cookie same site.
+    pub fn with_same_site(mut self, same_site: SameSite) -> Self {
+        self.same_site = same_site;
         self
     }
 

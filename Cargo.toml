@@ -17,6 +17,8 @@ license = "MIT OR Apache-2.0"
 categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [workspace.dependencies]
+aead = "0.4"
+aes-gcm = "0.10"
 anyhow = "1"
 async-compression = "0.3"
 async-session = "3"

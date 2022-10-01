@@ -47,6 +47,11 @@ cfg_feature! {
 
     mod hmac_cipher;
     pub use hmac_cipher::HmacCipher;
+
+    /// Helper function to create a `Csrf` use `HmacCipher`.
+    pub fn hmac_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, S> where S: CsrfStore {
+        Csrf::new(HmacCipher::new(key), store, finder)
+    }
 }
 cfg_feature! {
     #![feature = "bcrypt-cipher"]
@@ -57,6 +62,17 @@ cfg_feature! {
     /// Helper function to create a `Csrf` use `BcryptCipher`.
     pub fn bcrypt_csrf<S>(store: S, finder: impl CsrfTokenFinder ) -> Csrf<BcryptCipher, S> where S: CsrfStore {
         Csrf::new(BcryptCipher::new(), store, finder)
+    }
+}
+cfg_feature! {
+    #![feature = "aes-gcm-cipher"]
+
+    mod aes_gcm_cipher;
+    pub use aes_gcm_cipher::AesGcmCipher;
+
+    /// Helper function to create a `Csrf` use `AesGcmCipher`.
+    pub fn aes_gcm_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, S> where S: CsrfStore {
+        Csrf::new(AesGcmCipher::new(key), store, finder)
     }
 }
 

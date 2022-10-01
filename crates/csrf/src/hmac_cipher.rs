@@ -5,33 +5,34 @@ use super::CsrfCipher;
 
 /// HmacCipher is a CSRF protection implementation that uses HMAC.
 pub struct HmacCipher {
-    key: [u8; 32],
-    len: usize,
+    hmac_key: Vec<u8>,
+    token_len: usize,
 }
 
 impl HmacCipher {
     /// Given an HMAC key, return an `HmacCipher` instance.
     #[inline]
-    pub fn new(key: [u8; 32]) -> Self {
-        Self { key, len: 32 }
+    pub fn new(hmac_key: impl Into<Vec<u8>>) -> Self {
+        Self { hmac_key: hmac_key.into(), token_len: 32 }
     }
 
-    /// Set the length of the secret.
+    /// Set the length of the token.
     #[inline]
-    pub fn with_len(mut self, len: usize) -> Self {
-        self.len = len;
+    pub fn with_token_len(mut self, token_len: usize) -> Self {
+        assert!(token_len >= 8, "length must be larger than 8");
+        self.token_len = token_len;
         self
     }
 
     #[inline]
     fn hmac(&self) -> Hmac<Sha256> {
-        Hmac::<Sha256>::new_from_slice(&self.key).expect("HMAC can take key of any size")
+        Hmac::<Sha256>::new_from_slice(&self.hmac_key).expect("HMAC can take key of any size")
     }
 }
 
 impl CsrfCipher for HmacCipher {
     fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        if secret.len() != self.len {
+        if secret.len() != self.token_len {
             false
         } else {
             let token = token.to_vec();
@@ -41,7 +42,7 @@ impl CsrfCipher for HmacCipher {
         }
     }
     fn generate(&self) -> (Vec<u8>, Vec<u8>) {
-        let token = self.random_bytes(self.len);
+        let token = self.random_bytes(self.token_len);
         let mut hmac = self.hmac();
         hmac.update(&token);
         let mac = hmac.finalize();
