@@ -8,7 +8,7 @@ use super::{Flash, FlashHandler, FlashStore};
 #[derive(Debug)]
 pub struct CookieStore {
     max_age: Duration,
-    site: SameSite,
+    same_site: SameSite,
     http_only: bool,
     path: String,
     name: String,
@@ -24,7 +24,7 @@ impl CookieStore {
     pub fn new() -> Self {
         Self {
             max_age: Duration::seconds(60),
-            site: SameSite::Lax,
+            same_site: SameSite::Lax,
             http_only: true,
             path: "/".into(),
             name: "salvo.flash".into(),
@@ -105,7 +105,7 @@ impl FlashStore for CookieStore {
             Cookie::build(self.name.clone(), serde_json::to_string(&flash).unwrap_or_default())
                 .max_age(self.max_age)
                 .path(self.path.clone())
-                .same_site(self.site)
+                .same_site(self.same_site)
                 .http_only(self.http_only)
                 .finish(),
         );
@@ -114,7 +114,7 @@ impl FlashStore for CookieStore {
         res.add_cookie(
             Cookie::build(self.name.clone(), "")
                 .max_age(Duration::seconds(0))
-                .same_site(self.site)
+                .same_site(self.same_site)
                 .http_only(self.http_only)
                 .path(self.path.clone())
                 .finish(),
