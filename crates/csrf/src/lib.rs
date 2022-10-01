@@ -331,7 +331,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_exposes_csrf_request_extensions() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
         let router = Router::new().hoop(csrf).get(get_index);
         let res = TestClient::get("http://127.0.0.1:7979").send(router).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
@@ -339,7 +343,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_adds_csrf_cookie_sets_request_token() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
         let router = Router::new().hoop(csrf).get(get_index);
 
         let mut res = TestClient::get("http://127.0.0.1:7979").send(router).await;
@@ -351,7 +359,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_validates_token_in_header() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(
+            BcryptCipher::new(),
+            CookieStore::new(),
+            HeaderFinder::new("x-csrf-token"),
+        );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
@@ -378,7 +390,7 @@ mod tests {
         let csrf = Csrf::new(
             BcryptCipher::new(),
             CookieStore::new(),
-            HeaderFinder::new().with_header_name("x-mycsrf-header"),
+            HeaderFinder::new("x-mycsrf-header"),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
@@ -457,7 +469,7 @@ mod tests {
         let csrf = Csrf::new(
             HmacCipher::new(*b"01234567012345670123456701234567"),
             CookieStore::new(),
-            FormFinder::new(),
+            FormFinder::new("csrf-token"),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
@@ -484,7 +496,7 @@ mod tests {
         let csrf = Csrf::new(
             BcryptCipher::new(),
             CookieStore::new(),
-            FormFinder::new().with_field_name("my-csrf-token"),
+            FormFinder::new("my-csrf-token"),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
@@ -508,7 +520,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_short_token() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new("x-csrf-token"));
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
@@ -530,7 +542,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_invalid_base64_token() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new("x-csrf-token"));
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
@@ -552,7 +564,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rejects_mismatched_token() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new());
+        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new("x-csrf-token"));
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
