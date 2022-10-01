@@ -59,7 +59,8 @@ async fn main() {
     .build()
     .unwrap();
     let router = Router::new()
-        .get(home).hoop(session_handler)
+        .get(home)
+        .hoop(session_handler)
         .push(
             Router::with_hoop(bcrypt_csrf)
                 .path("bcrypt")
