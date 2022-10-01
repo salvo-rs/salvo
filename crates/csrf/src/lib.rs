@@ -75,22 +75,22 @@ cfg_feature! {
     pub use hmac_cipher::HmacCipher;
 
     /// Helper function to create a `Csrf` use `HmacCipher`.
-    pub fn hmac_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, S> where S: CsrfStore {
-        Csrf::new(HmacCipher::new(key), store, finder)
+    pub fn hmac_csrf<S>(hmac_key: [u8; 32], store: S, finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, S> where S: CsrfStore {
+        Csrf::new(HmacCipher::new(hmac_key), store, finder)
     }
 }
 cfg_feature! {
     #![all(feature = "hmac-cipher", feature = "cookie-store")]
     /// Helper function to create a `Csrf` use `HmacCipher` and `CookieStore`.
-    pub fn hmac_cookie_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, CookieStore> {
-        Csrf::new(HmacCipher::new(key), CookieStore::new(), finder)
+    pub fn hmac_cookie_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, CookieStore> {
+        Csrf::new(HmacCipher::new(aead_key), CookieStore::new(), finder)
     }
 }
 cfg_feature! {
     #![all(feature = "hmac-cipher", feature = "session-store")]
     /// Helper function to create a `Csrf` use `HmacCipher` and `SessionStore`.
-    pub fn hmac_session_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, SessionStore> {
-        Csrf::new(HmacCipher::new(key), SessionStore::new(), finder)
+    pub fn hmac_session_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<HmacCipher, SessionStore> {
+        Csrf::new(HmacCipher::new(aead_key), SessionStore::new(), finder)
     }
 }
 
@@ -101,22 +101,22 @@ cfg_feature! {
     pub use aes_gcm_cipher::AesGcmCipher;
 
     /// Helper function to create a `Csrf` use `AesGcmCipher`.
-    pub fn aes_gcm_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, S> where S: CsrfStore {
-        Csrf::new(AesGcmCipher::new(key), store, finder)
+    pub fn aes_gcm_csrf<S>(aead_key: [u8; 32], store: S, finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, S> where S: CsrfStore {
+        Csrf::new(AesGcmCipher::new(aead_key), store, finder)
     }
 }
 cfg_feature! {
     #![all(feature = "aes-gcm-cipher", feature = "cookie-store")]
     /// Helper function to create a `Csrf` use `AesGcmCipher` and `CookieStore`.
-    pub fn aes_gcm_cookie_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, CookieStore> {
-        Csrf::new(CcpCipher::new(key), CookieStore::new(), finder)
+    pub fn aes_gcm_cookie_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, CookieStore> {
+        Csrf::new(AesGcmCipher::new(aead_key), CookieStore::new(), finder)
     }
 }
 cfg_feature! {
     #![all(feature = "aes-gcm-cipher", feature = "session-store")]
     /// Helper function to create a `Csrf` use `AesGcmCipher` and `SessionStore`.
-    pub fn aes_gcm_session_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, SessionStore> {
-        Csrf::new(CcpCipher::new(key), SessionStore::new(), finder)
+    pub fn aes_gcm_session_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<AesGcmCipher, SessionStore> {
+        Csrf::new(AesGcmCipher::new(aead_key), SessionStore::new(), finder)
     }
 }
 
@@ -124,25 +124,25 @@ cfg_feature! {
     #![feature = "ccp-cipher"]
 
     mod ccp_cipher;
-    pub use aes_gcm_cipher::CcpCipher;
+    pub use ccp_cipher::CcpCipher;
 
     /// Helper function to create a `Csrf` use `CcpCipher`.
-    pub fn ccp_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, S> where S: CsrfStore {
-        Csrf::new(CcpCipher::new(key), store, finder)
+    pub fn ccp_csrf<S>(aead_key: [u8; 32], store: S, finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, S> where S: CsrfStore {
+        Csrf::new(CcpCipher::new(aead_key), store, finder)
     }
 }
 cfg_feature! {
-    #![all(feature = "ccpcipher", feature = "cookie-store")]
+    #![all(feature = "ccp-cipher", feature = "cookie-store")]
     /// Helper function to create a `Csrf` use `CcpCipher` and `CookieStore`.
-    pub fn ccp_cookie_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, CookieStore> {
-        Csrf::new(CcpCipher::new(key), CookieStore::new(), finder)
+    pub fn ccp_cookie_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, CookieStore> {
+        Csrf::new(CcpCipher::new(aead_key), CookieStore::new(), finder)
     }
 }
 cfg_feature! {
     #![all(feature = "ccp-cipher", feature = "session-store")]
     /// Helper function to create a `Csrf` use `CcpCipher` and `SessionStore`.
-    pub fn ccp_session_csrf(key: impl Into<Vec<u8>>, finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, SessionStore> {
-        Csrf::new(CcpCipher::new(key), SessionStore::new(), finder)
+    pub fn ccp_session_csrf(aead_key: [u8; 32], finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, SessionStore> {
+        Csrf::new(CcpCipher::new(aead_key), SessionStore::new(), finder)
     }
 }
 

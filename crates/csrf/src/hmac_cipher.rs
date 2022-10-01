@@ -5,22 +5,22 @@ use super::CsrfCipher;
 
 /// HmacCipher is a CSRF protection implementation that uses HMAC.
 pub struct HmacCipher {
-    hmac_key: Vec<u8>,
-    token_len: usize,
+    hmac_key: [u8; 32],
+    token_size: usize,
 }
 
 impl HmacCipher {
     /// Given an HMAC key, return an `HmacCipher` instance.
     #[inline]
-    pub fn new(hmac_key: impl Into<Vec<u8>>) -> Self {
-        Self { hmac_key: hmac_key.into(), token_len: 32 }
+    pub fn new(hmac_key: [u8; 32]) -> Self {
+        Self { hmac_key, token_size: 32 }
     }
 
     /// Set the length of the token.
     #[inline]
-    pub fn with_token_len(mut self, token_len: usize) -> Self {
-        assert!(token_len >= 8, "length must be larger than 8");
-        self.token_len = token_len;
+    pub fn with_token_size(mut self, token_size: usize) -> Self {
+        assert!(token_size >= 8, "length must be larger than 8");
+        self.token_size = token_size;
         self
     }
 
@@ -32,7 +32,7 @@ impl HmacCipher {
 
 impl CsrfCipher for HmacCipher {
     fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        if secret.len() != self.token_len {
+        if secret.len() != self.token_size {
             false
         } else {
             let token = token.to_vec();
@@ -42,7 +42,7 @@ impl CsrfCipher for HmacCipher {
         }
     }
     fn generate(&self) -> (Vec<u8>, Vec<u8>) {
-        let token = self.random_bytes(self.token_len);
+        let token = self.random_bytes(self.token_size);
         let mut hmac = self.hmac();
         hmac.update(&token);
         let mac = hmac.finalize();

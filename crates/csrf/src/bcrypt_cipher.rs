@@ -3,7 +3,7 @@ use super::CsrfCipher;
 /// BcryptCipher is a CSRF protection implementation that uses bcrypt.
 pub struct BcryptCipher {
     cost: u32,
-    token_len: usize,
+    token_size: usize,
 }
 impl Default for BcryptCipher {
     fn default() -> Self {
@@ -15,14 +15,14 @@ impl BcryptCipher {
     /// Create a new `BcryptCipher`.
     #[inline]
     pub fn new() -> Self {
-        Self { cost: 8, token_len: 32 }
+        Self { cost: 8, token_size: 32 }
     }
 
     /// Set the length of the token.
     #[inline]
-    pub fn with_token_len(mut self, token_len: usize) -> Self {
-        assert!(token_len >= 1 && token_len <= 72, "length must be between 1 and 72");
-        self.token_len = token_len;
+    pub fn with_token_size(mut self, token_size: usize) -> Self {
+        assert!(token_size >= 1 && token_size <= 72, "length must be between 1 and 72");
+        self.token_size = token_size;
         self
     }
 
@@ -40,7 +40,7 @@ impl CsrfCipher for BcryptCipher {
         bcrypt::verify(token, std::str::from_utf8(secret).unwrap_or_default()).unwrap_or(false)
     }
     fn generate(&self) -> (Vec<u8>, Vec<u8>) {
-        let token = self.random_bytes(self.token_len);
+        let token = self.random_bytes(self.token_size);
         let secret = bcrypt::hash(&token, self.cost).unwrap();
         (token, secret.as_bytes().to_vec())
     }

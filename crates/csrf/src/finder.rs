@@ -11,6 +11,7 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
 }
 
 /// Find token from http request url query string.
+#[derive(Clone, Debug)]
 pub struct QueryFinder {
     query_name: String,
 }
@@ -39,6 +40,7 @@ impl CsrfTokenFinder for QueryFinder {
 }
 
 /// Find token from http request header.
+#[derive(Clone, Debug)]
 pub struct HeaderFinder {
     header_name: String,
 }
@@ -72,6 +74,7 @@ impl CsrfTokenFinder for HeaderFinder {
 }
 
 /// Find token from request form body.
+#[derive(Clone, Debug)]
 pub struct FormFinder {
     field_name: String,
 }
@@ -105,6 +108,7 @@ impl CsrfTokenFinder for FormFinder {
 }
 
 /// Find token from request json body.
+#[derive(Clone, Debug)]
 pub struct JsonFinder {
     field_name: String,
 }

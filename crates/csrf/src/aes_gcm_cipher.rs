@@ -1,30 +1,30 @@
 use aead::generic_array::GenericArray;
-use aes_gcm::aead::{Aead, KeyInit};
+use aead::{Aead, KeyInit};
 use aes_gcm::Aes256Gcm;
 
 use super::CsrfCipher;
 
 /// AesGcmCipher is a CSRF protection implementation that uses HMAC.
 pub struct AesGcmCipher {
-    aead_key: Vec<u8>,
-    token_len: usize,
+    aead_key: [u8; 32],
+    token_size: usize,
 }
 
 impl AesGcmCipher {
     /// Given an HMAC key, return an `AesGcmCipher` instance.
     #[inline]
-    pub fn new(aead_key: impl Into<Vec<u8>>) -> Self {
+    pub fn new(aead_key: [u8; 32]) -> Self {
         Self {
-            aead_key: aead_key.into(),
-            token_len: 32,
+            aead_key,
+            token_size: 32,
         }
     }
 
     /// Set the length of the token.
     #[inline]
-    pub fn with_token_len(mut self, token_len: usize) -> Self {
-        assert!(token_len >= 8, "length must be larger than 8");
-        self.token_len = token_len;
+    pub fn with_token_size(mut self, token_size: usize) -> Self {
+        assert!(token_size >= 8, "length must be larger than 8");
+        self.token_size = token_size;
         self
     }
 
@@ -37,18 +37,18 @@ impl AesGcmCipher {
 
 impl CsrfCipher for AesGcmCipher {
     fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        if token.len() < 8 || secret.len() < 16 {
+        if token.len() < 8 || secret.len() < 20 {
             false
         } else {
-            let nonce = GenericArray::from_slice(&secret[0..8]);
+            let nonce = GenericArray::from_slice(&secret[0..12]);
             let aead = self.aead();
-            aead.decrypt(nonce, &secret[8..]).map(|p| p == token).unwrap_or(false)
+            aead.decrypt(nonce, &secret[12..]).map(|p| p == token).unwrap_or(false)
         }
     }
     fn generate(&self) -> (Vec<u8>, Vec<u8>) {
-        let token = self.random_bytes(self.token_len);
+        let token = self.random_bytes(self.token_size);
         let aead = self.aead();
-        let mut secret = self.random_bytes(8);
+        let mut secret = self.random_bytes(12);
         let nonce = GenericArray::from_slice(&secret);
         secret.append(&mut aead.encrypt(nonce, token.as_slice()).unwrap());
         (token, secret)
