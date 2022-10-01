@@ -44,25 +44,13 @@ impl CsrfTokenFinder for QueryFinder {
 pub struct HeaderFinder {
     header_name: String,
 }
-impl Default for HeaderFinder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 impl HeaderFinder {
-    /// Create new `HeaderFinder`, it's header_name's default value is `x-csrf-token`.
+    /// Create new `HeaderFinder`, you can use value like `x-csrf-token`.
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(header_name: impl Into<String>) -> Self {
         Self {
-            header_name: "x-csrf-token".into(),
+            header_name: header_name.into(),
         }
-    }
-
-    /// Set header name, it's header_name's default value is `x-csrf-token`.
-    #[inline]
-    pub fn with_header_name(mut self, name: impl Into<String>) -> Self {
-        self.header_name = name.into();
-        self
     }
 }
 #[async_trait]
@@ -78,25 +66,13 @@ impl CsrfTokenFinder for HeaderFinder {
 pub struct FormFinder {
     field_name: String,
 }
-impl Default for FormFinder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 impl FormFinder {
     /// Create new `FormFinder`.
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(field_name: impl Into<String>) -> Self {
         Self {
-            field_name: "csrf-token".into(),
+            field_name: field_name.into(),
         }
-    }
-
-    /// Set field name, it's field_name's default value is `csrf-token`.
-    #[inline]
-    pub fn with_field_name(mut self, name: impl Into<String>) -> Self {
-        self.field_name = name.into();
-        self
     }
 }
 #[async_trait]
@@ -112,25 +88,13 @@ impl CsrfTokenFinder for FormFinder {
 pub struct JsonFinder {
     field_name: String,
 }
-impl Default for JsonFinder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 impl JsonFinder {
     /// Create new `FormFinder`.
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(field_name: impl Into<String>) -> Self {
         Self {
-            field_name: "csrf-token".into(),
+            field_name: field_name.into(),
         }
-    }
-
-    /// Set field name, it's field_name's default value is `csrf-token`.
-    #[inline]
-    pub fn with_field_name(mut self, name: impl Into<String>) -> Self {
-        self.field_name = name.into();
-        self
     }
 }
 #[async_trait]
