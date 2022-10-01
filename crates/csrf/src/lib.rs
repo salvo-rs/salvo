@@ -75,6 +75,17 @@ cfg_feature! {
         Csrf::new(AesGcmCipher::new(key), store, finder)
     }
 }
+cfg_feature! {
+    #![feature = "ccp-cipher"]
+
+    mod ccp_cipher;
+    pub use aes_gcm_cipher::CcpCipher;
+
+    /// Helper function to create a `Csrf` use `CcpCipher`.
+    pub fn ccp_csrf<S>(key: impl Into<Vec<u8>>, store: S, finder: impl CsrfTokenFinder ) -> Csrf<CcpCipher, S> where S: CsrfStore {
+        Csrf::new(CcpCipher::new(key), store, finder)
+    }
+}
 
 type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
 
