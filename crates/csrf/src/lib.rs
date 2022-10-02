@@ -146,13 +146,11 @@ cfg_feature! {
     }
 }
 
-type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
-
 /// key used to insert auth decoded data to depot.
 pub const CSRF_TOKEN_KEY: &str = "salvo.csrf.token";
 
-fn default_filter(req: &Request) -> bool {
-    [Method::POST, Method::PATCH, Method::DELETE, Method::PUT].contains(req.method())
+fn default_skipper(req: &mut Request, &Depot) -> bool {
+    ![Method::POST, Method::PATCH, Method::DELETE, Method::PUT].contains(req.method())
 }
 
 /// Store secret.
@@ -202,7 +200,7 @@ impl CsrfDepotExt for Depot {
 pub struct Csrf<C, S> {
     cipher: C,
     store: S,
-    filter: FilterFn,
+    skipper: Box<dyn Skipper>,
     finders: Vec<Box<dyn CsrfTokenFinder>>,
     fallback_ciphers: Vec<Box<dyn CsrfCipher>>,
 }
@@ -214,7 +212,7 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
         Self {
             cipher,
             store,
-            filter: Box::new(default_filter),
+            skipper: Box::new(default_skipper),
             finders: vec![Box::new(finder)],
             fallback_ciphers: vec![],
         }

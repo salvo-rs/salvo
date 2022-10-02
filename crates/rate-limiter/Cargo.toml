@@ -20,6 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
+serde.workspace = true
 
 [dev-dependencies]
 salvo_core = {  workspace = true, features = ["test"] }

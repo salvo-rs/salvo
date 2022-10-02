@@ -1,40 +1,41 @@
+//! `Handler` is used for handle [`Request`].
+//!
+//! * `Handler` can be used as middleware to handle [`Request`].
+//!
+//! # Example
+//!
+//! ```
+//! use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn middleware() {
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Router::new().hoop(middleware);
+//! }
+//! ```
+//!
+//! * `Handler` can be used as endpoint to handle [`Request`].
+//!
+//! # Example
+//!
+//! ```
+//! # use salvo_core::prelude::*;
+//!
+//! #[handler]
+//! async fn middleware() {
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     Router::new().handle(middleware);
+//! }
+//! ```
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
-/// `Handler` is used for handle [`Request`].
-///
-/// * `Handler` can be used as middleware to handle [`Request`].
-///
-/// # Example
-///
-/// ```
-/// use salvo_core::prelude::*;
-///
-/// #[handler]
-/// async fn middleware() {
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     Router::new().hoop(middleware);
-/// }
-/// ```
-///
-/// * `Handler` can be used as endpoint to handle [`Request`].
-///
-/// # Example
-///
-/// ```
-/// # use salvo_core::prelude::*;
-///
-/// #[handler]
-/// async fn middleware() {
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     Router::new().handle(middleware);
-/// }
-/// ```
+/// Handler
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
     #[doc(hidden)]
@@ -48,6 +49,20 @@ pub trait Handler: Send + Sync + 'static {
     /// Handle http request.
     #[must_use = "handle future must be used"]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
+}
+
+/// `Skipper` is used in many middlewares.
+pub trait Skipper: Send + Sync + 'static {
+    /// Check if the request should be skipped.
+    fn skipped(&self, req: &mut Request, depot: &Depot) -> bool;
+}
+impl<F> Skipper for F
+where
+    F: Fn(&mut Request, &Depot) -> bool + Send + Sync + 'static,
+{
+    fn skipped(&self, req: &mut Request, depot: &Depot) -> bool {
+        (self)(req, depot)
+    }
 }
 
 macro_rules! handler_tuple_impls {

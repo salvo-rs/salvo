@@ -3,11 +3,10 @@
 use std::borrow::Cow;
 use std::str::FromStr;
 
+use salvo_core::handler::Skipper;
 use salvo_core::http::response::Body;
 use salvo_core::http::uri::{PathAndQuery, Uri};
 use salvo_core::prelude::*;
-
-type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
 
 /// TrailingSlashAction
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -40,8 +39,8 @@ pub fn default_remove_filter(req: &Request) -> bool {
 pub struct TrailingSlash {
     /// Action of this `TrailingSlash`.
     pub action: TrailingSlashAction,
-    /// Remove or add slash only when filter is returns `true`.
-    pub filter: Option<FilterFn>,
+    /// Skip to Remove or add slash when skipper is returns `true`.
+    pub skipper: Option<Box<dyn Skipper>>,
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
@@ -51,7 +50,7 @@ impl TrailingSlash {
     pub fn new(action: TrailingSlashAction) -> Self {
         Self {
             action,
-            filter: None,
+            skipper: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
@@ -60,7 +59,7 @@ impl TrailingSlash {
     pub fn new_add() -> Self {
         Self {
             action: TrailingSlashAction::Add,
-            filter: None,
+            skipper: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
@@ -69,23 +68,22 @@ impl TrailingSlash {
     pub fn new_remove() -> Self {
         Self {
             action: TrailingSlashAction::Remove,
-            filter: None,
+            skipper: None,
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
-    /// Set filter and returns new `TrailingSlash`.
+    /// Set skipper and returns new `TrailingSlash`.
     #[inline]
-    pub fn with_filter(self, filter: impl Fn(&Request) -> bool + Send + Sync + 'static) -> Self {
-        Self {
-            filter: Some(Box::new(filter)),
-            ..self
-        }
+    pub fn with_skipper(mut self, skipper: impl Fn(&Request) -> bool + Send + Sync + 'static) -> Self {
+        self.skipper = Some(Box::new(skipper));
+        self
     }
 
     /// Set redirect code and returns new `TrailingSlash`.
     #[inline]
-    pub fn with_redirect_code(self, redirect_code: StatusCode) -> Self {
-        Self { redirect_code, ..self }
+    pub fn with_redirect_code(mut self, redirect_code: StatusCode) -> Self {
+        self.redirect_code = redirect_code;
+        self
     }
 }
 

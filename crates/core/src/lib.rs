@@ -21,7 +21,7 @@ mod depot;
 mod error;
 pub mod extract;
 pub mod fs;
-mod handler;
+pub mod handler;
 pub mod http;
 pub mod listener;
 pub mod routing;

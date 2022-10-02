@@ -9,13 +9,13 @@ use salvo_core::http::{Request, Response};
 use salvo_core::writer::Redirect;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
-type FilterFn = Box<dyn Fn(&Request) -> bool + Send + Sync>;
+use super::Skipper;
 
 /// Middleware for force redirect to http uri.
 #[derive(Default)]
 pub struct ForceHttps {
     https_port: Option<u16>,
-    filter: Option<FilterFn>,
+    skipper: Option<Box<dyn Skipper>>,
 }
 impl ForceHttps {
     /// Create new `ForceHttps` middleware.
@@ -32,9 +32,9 @@ impl ForceHttps {
     }
 
     /// Uses a closure to determine if a request should be redirect.
-    pub fn filter(self, filter: impl Fn(&Request) -> bool + Send + Sync + 'static) -> Self {
+    pub fn skipper(self, skipper: impl Skipper) -> Self {
         Self {
-            filter: Some(Box::new(filter)),
+            skipper: Some(Box::new(skipper)),
             ..self
         }
     }
