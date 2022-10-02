@@ -1,5 +1,14 @@
+
+//TODO
+
+use std::convert::Infallible;
 use std::time::{Duration, Instant};
 
+use salvo_core::async_trait;
+
+use super::{RateStore, RateStrategy};
+
+#[derive(Clone, Debug)]
 pub struct SlidingWindow {
     /// The number of requests allowed in the window.
     limit: usize,
@@ -22,9 +31,9 @@ impl SlidingWindow {
     }
 }
 
+#[async_trait]
 impl RateStrategy for SlidingWindow {
-    type Error = Error;
-    fn allow(&mut self) -> Result<bool, Self::Error> {
+    async fn check(&mut self) -> bool {
         if Instant::now() > self.reset {
             self.reset = Instant::now() + self.window;
             self.count = 0;

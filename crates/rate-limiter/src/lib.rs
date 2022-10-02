@@ -7,24 +7,61 @@
 #![warn(missing_docs)]
 
 use std::error::Error as StdError;
+use std::hash::Hash;
 
 use salvo_core::addr::SocketAddr;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-use serde::de::DeserializeOwned;
-use serde::{Serialize};
+
+#[macro_use]
+mod cfg;
+
+cfg_feature! {
+    #![feature = "memory-store"]
+
+    mod memory_store;
+    pub use memory_store::MemoryStore;
+}
+
+cfg_feature! {
+    #![feature = "fixed-window"]
+
+    mod fixed_window;
+    pub use fixed_window::FixedWindow;
+}
+cfg_feature! {
+    #![feature = "sliding-window"]
+
+    mod sliding_window;
+    pub use sliding_window::SlidingWindow;
+}
+cfg_feature! {
+    #![feature = "leaky-bucket"]
+
+    mod leaky_bucket;
+    pub use leaky_bucket::LeakyBucket;
+}
+cfg_feature! {
+    #![feature = "token-bucket"]
+
+    mod token_bucket;
+    pub use token_bucket::TokenBucket;
+}
 
 /// Identifer
 pub trait Identifer: Send + Sync + 'static {
+    type Key: Hash + Eq + Send + Clone + 'static;
     /// Get the identifier.
-    fn get(&self, req: &mut Request, depot: &Depot) -> Option<String>;
+    fn get(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
 }
-impl<F> Identifer for F
+impl<F, K> Identifer for F
 where
-    F: Fn(&mut Request, &Depot) -> Option<String> + Send + Sync + 'static,
+    F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
+    K: Send + Eq + Hash + Clone + 'static,
 {
-    fn get(&self, req: &mut Request, depot: &Depot) -> Option<String> {
+    type Key = K;
+    fn get(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
         (self)(req, depot)
     }
 }
@@ -41,38 +78,39 @@ pub fn real_ip_identifer(req: &mut Request, _depot: &Depot) -> Option<String> {
 
 /// RateStrategy
 #[async_trait]
-pub trait RateStrategy: Serialize + DeserializeOwned + Send + Sync + 'static {
-    /// Error
-    type Error: StdError + Send + Sync + 'static;
-    /// Check if the request is allowed.
-    fn allow(&self, identifer: &str) -> Result<bool, Self::Error>;
+pub trait RateStrategy: Clone + Send + Sync + 'static {
+    async fn check(&mut self) -> bool;
 }
 
 /// Store rate.
 #[async_trait]
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
-    type Error: std::error::Error + Send + Sync + 'static;
+    type Error: StdError + Send + Sync + 'static;
+    /// Key
+    type Key: Hash + Eq + Send + Clone + 'static;
     /// Saved strategy.
-    type Strategy: RateStrategy;
+    type Strategy;
     /// Get the strategy from the store.
-    async fn load_strategy(&self, identifer: &str) -> Result<Self::Strategy, Self::Error>;
-    /// Save the strategy from the store.
-    async fn save_strategy(&self, identifer: &str, strategy: Self::Strategy) -> Result<(), Self::Error>;
+    async fn load_strategy(&self, key: &Self::Key, config: &Self::Strategy) -> Result<Self::Strategy, Self::Error>;
+    // Save the strategy from the store.
+    async fn save_strategy(&self, key: Self::Key, strategy: Self::Strategy) -> Result<(), Self::Error>;
 }
 
 /// RateLimiter
-pub struct RateLimiter<S, I> {
+pub struct RateLimiter<G, S, I> {
+    strategy: G,
     store: S,
     identifier: I,
     skipper: Option<Box<dyn Skipper>>,
 }
 
-impl<S: RateStore, I: Identifer> RateLimiter<S, I> {
+impl<G: RateStrategy, S: RateStore, I: Identifer> RateLimiter<G, S, I> {
     /// Create a new RateLimiter
     #[inline]
-    pub fn new(store: S, identifier: I) -> Self {
+    pub fn new(strategy: G, store: S, identifier: I) -> Self {
         Self {
+            strategy,
             store,
             identifier,
             skipper: None,
@@ -88,10 +126,12 @@ impl<S: RateStore, I: Identifer> RateLimiter<S, I> {
 }
 
 #[async_trait]
-impl<S, I> Handler for RateLimiter<S, I>
+impl<G, S, I> Handler for RateLimiter<G, S, I>
 where
-    S: RateStore,
+    G: RateStrategy,
+    S: RateStore<Key = I::Key, Strategy = G>,
     I: Identifer,
+    I::Key: Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(skipper) = &self.skipper {
@@ -101,14 +141,26 @@ where
         }
         let identifier = self.identifier.get(req, depot);
         if let Some(identifier) = identifier {
-            let strategy = self
-                .store
-                .load_strategy(&identifier)
-                .await
-                .expect("rate limit strategy should loaded from store");
-            if !strategy.allow(&identifier).unwrap_or(false) {
-                res.set_status_code(StatusCode::TOO_MANY_REQUESTS);
-                ctrl.skip_rest();
+            let strategy = {
+                let key = identifier.clone();
+                self.store.load_strategy(&key, &self.strategy).await
+            };
+            match strategy {
+                Ok(mut strategy) => {
+                    let allowed = strategy.check().await;
+                    if !allowed {
+                        res.set_status_code(StatusCode::TOO_MANY_REQUESTS);
+                        ctrl.skip_rest();
+                    }
+                    if let Err(e) = self.store.save_strategy(identifier, strategy).await {
+                        tracing::error!(error = ?e, "RateLimiter save strategy failed");
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "RateLimiter error");
+                    res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    ctrl.skip_rest();
+                }
             }
         } else {
             res.set_status_error(StatusError::bad_request().with_detail("invalid identifier"));

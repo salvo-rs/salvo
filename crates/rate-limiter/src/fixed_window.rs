@@ -1,14 +1,11 @@
 
 use std::time::{Duration, Instant};
 
+#[derive(Clone, Debug)]
 pub struct FixedWindow {
-    /// The number of requests allowed in the window.
     limit: usize,
-    /// The duration of the window.
     window: Duration,
-    /// The time at which the window resets.
     reset: Instant,
-    /// The number of requests made in the window.
     count: usize,
 }
 
@@ -24,8 +21,7 @@ impl FixedWindow {
 }
 
 impl RateStrategy for FixedWindow {
-    type Error = Error;
-    fn allow(&mut self) -> Result<bool, Self::Error> {
+    fn check(&mut self) -> bool {
         if Instant::now() > self.reset {
             self.reset = Instant::now() + self.window;
             self.count = 0;

@@ -17,10 +17,20 @@ categories.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = ["memory-store", "sliding-window"]
+all = ["memory-store", "fixed-window", "sliding-window", "leaky-bucket", "token-bucket"]
+memory-store = []
+fixed-window= []
+sliding-window= []
+leaky-bucket= []
+token-bucket= []
+
 [dependencies]
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
 serde.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 salvo_core = {  workspace = true, features = ["test"] }
