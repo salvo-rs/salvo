@@ -19,7 +19,7 @@ pub enum TrailingSlashAction {
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
 pub fn default_remove_skipper(req: &mut Request, _depot: &Depot) -> bool {
-    if let Some((_, name)) = req.uri().path().rsplit_once('/') {
+    if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
         !name.contains('.')
     } else {
         false
@@ -28,7 +28,7 @@ pub fn default_remove_skipper(req: &mut Request, _depot: &Depot) -> bool {
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
 pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
-    if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
+    if let Some((_, name)) = req.uri().path().rsplit_once('/') {
         name.contains('.')
     } else {
         false

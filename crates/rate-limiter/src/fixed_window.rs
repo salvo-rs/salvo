@@ -1,6 +1,10 @@
 
 use std::time::{Duration, Instant};
 
+use salvo_core::async_trait;
+
+use super::{RateStore, RateStrategy};
+
 #[derive(Clone, Debug)]
 pub struct FixedWindow {
     limit: usize,
@@ -20,8 +24,9 @@ impl FixedWindow {
     }
 }
 
+#[async_trait]
 impl RateStrategy for FixedWindow {
-    fn check(&mut self) -> bool {
+    async fn check(&mut self) -> bool {
         if Instant::now() > self.reset {
             self.reset = Instant::now() + self.window;
             self.count = 0;

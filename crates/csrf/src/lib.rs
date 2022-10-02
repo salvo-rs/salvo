@@ -15,6 +15,7 @@ pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder, QueryFin
 use base64::URL_SAFE_NO_PAD;
 use rand::distributions::Standard;
 use rand::Rng;
+use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
@@ -151,7 +152,7 @@ cfg_feature! {
 /// key used to insert auth decoded data to depot.
 pub const CSRF_TOKEN_KEY: &str = "salvo.csrf.token";
 
-fn default_skipper(req: &mut Request, &Depot) -> bool {
+fn default_skipper(req: &mut Request, _depot: &Depot) -> bool {
     ![Method::POST, Method::PATCH, Method::DELETE, Method::PUT].contains(req.method())
 }
 
@@ -260,7 +261,7 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
 #[async_trait]
 impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if (self.filter)(req) {
+        if !self.skipper.skipped(req, depot) {
             if let Some(token) = &self.find_token(req).await {
                 tracing::debug!("csrf token: {:?}", token);
                 if let Ok(token) = base64::decode_config(token, URL_SAFE_NO_PAD) {

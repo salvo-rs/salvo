@@ -2,6 +2,10 @@
 //TODO
 use std::time::{Duration, Instant};
 
+use salvo_core::async_trait;
+
+use super::{RateStore, RateStrategy};
+
 #[derive(Clone, Debug)]
 pub struct LeakyBucket {
     /// The number of requests allowed in the window.
@@ -25,8 +29,9 @@ impl LeakyBucket {
     }
 }
 
+#[async_trait]
 impl RateStrategy for LeakyBucket {
-    fn check(&mut self) -> bool {
+    async fn check(&mut self) -> bool {
         if Instant::now() > self.reset {
             self.reset = Instant::now() + self.window;
             self.count = 0;

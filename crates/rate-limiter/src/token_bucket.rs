@@ -2,6 +2,10 @@
 //TODO
 use std::time::{Duration, Instant};
 
+use salvo_core::async_trait;
+
+use super::{RateStore, RateStrategy};
+
 #[derive(Clone, Debug)]
 pub struct TokenBucket {
     limit: usize,
@@ -15,16 +19,17 @@ impl TokenBucket {
         Self {
             limit,
             period,
-            reset: Instant::now() + window,
+            reset: Instant::now() + period,
             count: 0,
         }
     }
 }
 
+#[async_trait]
 impl RateStrategy for TokenBucket {
-    fn allow(&mut self) -> bool {
+    async fn check(&mut self) -> bool {
         if Instant::now() > self.reset {
-            self.reset = Instant::now() + self.window;
+            self.reset = Instant::now() + self.period;
             self.count = 0;
         }
         if self.count < self.limit {
