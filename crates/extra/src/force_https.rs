@@ -2,14 +2,13 @@
 
 use std::borrow::Cow;
 
+use salvo_core::handler::Skipper;
 use salvo_core::http::header;
 use salvo_core::http::response::Body;
 use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::{Request, Response};
 use salvo_core::writer::Redirect;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-
-use super::Skipper;
 
 /// Middleware for force redirect to http uri.
 #[derive(Default)]
@@ -43,8 +42,8 @@ impl ForceHttps {
 #[async_trait]
 impl Handler for ForceHttps {
     #[inline]
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if req.uri().scheme() == Some(&Scheme::HTTPS) || !self.filter.as_ref().map(|f| f(req)).unwrap_or(true) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        if req.uri().scheme() == Some(&Scheme::HTTPS) || !self.skipper.as_ref().map(|skipper| skipper.skipped(req, depot)).unwrap_or(false) {
             return;
         }
         if let Some(host) = req.header::<String>(header::HOST) {
@@ -105,6 +104,9 @@ mod tests {
             .send(router)
             .await;
         assert_eq!(response.status_code(), Some(StatusCode::PERMANENT_REDIRECT));
-        assert_eq!(response.headers().get(LOCATION), Some(&"https://127.0.0.1:1234/".parse().unwrap()));
+        assert_eq!(
+            response.headers().get(LOCATION),
+            Some(&"https://127.0.0.1:1234/".parse().unwrap())
+        );
     }
 }

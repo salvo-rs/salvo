@@ -9,7 +9,7 @@ use salvo_core::http::uri::{PathAndQuery, Uri};
 use salvo_core::prelude::*;
 
 /// TrailingSlashAction
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Debug, Copy)]
 pub enum TrailingSlashAction {
     /// Remove trailing slash.
     Remove,
@@ -17,8 +17,8 @@ pub enum TrailingSlashAction {
     Add,
 }
 
-/// Default filter used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
-pub fn default_add_filter(req: &Request) -> bool {
+/// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
+pub fn default_remove_skipper(req: &mut Request, _depot: &Depot) -> bool {
     if let Some((_, name)) = req.uri().path().rsplit_once('/') {
         !name.contains('.')
     } else {
@@ -26,8 +26,8 @@ pub fn default_add_filter(req: &Request) -> bool {
     }
 }
 
-/// Default filter used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
-pub fn default_remove_filter(req: &Request) -> bool {
+/// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
+pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
     if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
         name.contains('.')
     } else {
@@ -74,7 +74,7 @@ impl TrailingSlash {
     }
     /// Set skipper and returns new `TrailingSlash`.
     #[inline]
-    pub fn with_skipper(mut self, skipper: impl Fn(&Request) -> bool + Send + Sync + 'static) -> Self {
+    pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Some(Box::new(skipper));
         self
     }
@@ -90,8 +90,8 @@ impl TrailingSlash {
 #[async_trait]
 impl Handler for TrailingSlash {
     #[inline]
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if !self.filter.as_ref().map(|f| f(req)).unwrap_or(true) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        if self.skipper.as_ref().map(|skipper| skipper.skipped(req, depot)).unwrap_or(false) {
             return;
         }
 
@@ -135,13 +135,13 @@ fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
 /// Create an add slash middleware.
 #[inline]
 pub fn add_slash() -> TrailingSlash {
-    TrailingSlash::new(TrailingSlashAction::Add).with_filter(default_add_filter)
+    TrailingSlash::new(TrailingSlashAction::Add).with_skipper(default_add_skipper)
 }
 
 /// Create a remove slash middleware.
 #[inline]
 pub fn remove_slash() -> TrailingSlash {
-    TrailingSlash::new(TrailingSlashAction::Remove).with_filter(default_remove_filter)
+    TrailingSlash::new(TrailingSlashAction::Remove).with_skipper(default_remove_skipper)
 }
 
 #[cfg(test)]
