@@ -43,7 +43,7 @@ impl ForceHttps {
 impl Handler for ForceHttps {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if req.uri().scheme() == Some(&Scheme::HTTPS) || !self.skipper.as_ref().map(|skipper| skipper.skipped(req, depot)).unwrap_or(false) {
+        if req.uri().scheme() == Some(&Scheme::HTTPS) || self.skipper.as_ref().map(|skipper| skipper.skipped(req, depot)).unwrap_or(false) {
             return;
         }
         if let Some(host) = req.header::<String>(header::HOST) {
