@@ -15,7 +15,7 @@ mod migration;
 const DEFAULT_POSTS_PER_PAGE: u64 = 5;
 type Result<T> = std::result::Result<T, StatusError>;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 struct AppState {
     templates: tera::Tera,
     conn: DatabaseConnection,

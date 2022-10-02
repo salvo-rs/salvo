@@ -131,7 +131,7 @@ impl Handler for ETag {
 This handler does not set a `Last-Modified` header on its own, but
 relies on other handlers doing so.
 */
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Debug, Copy, Default)]
 pub struct Modified {
     _private: (),
 }
@@ -166,7 +166,7 @@ impl Handler for Modified {
 /**
 A combined handler that provides both [`ETag`] and [`Modified`] behavior.
 */
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Debug, Copy, Default)]
 pub struct CachingHeaders(Modified, ETag);
 
 impl CachingHeaders {

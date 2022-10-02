@@ -5,7 +5,7 @@ use crate::http::{Response, StatusCode};
 use crate::Error;
 
 /// Response that redirects the request to another location.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Redirect {
     status_code: StatusCode,
     location: HeaderValue,

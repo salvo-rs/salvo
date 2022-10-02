@@ -2,7 +2,7 @@ use salvo::extra::ws::WebSocketUpgrade;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct User {
     id: usize,
     name: String,

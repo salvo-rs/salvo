@@ -6,6 +6,7 @@ Note that the files contain private keys.
 
 use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
+use std::error::Error as StdError;
 
 use async_trait::async_trait;
 use ring::digest::{Context, SHA256};
@@ -13,9 +14,9 @@ use tokio::fs::{create_dir_all, read, OpenOptions};
 use tokio::io::AsyncWriteExt;
 
 /// An error that can be returned from an [`AcmeCache`].
-pub trait CacheError: std::error::Error + Send + Sync + 'static {}
+pub trait CacheError: StdError + Send + Sync + 'static {}
 
-impl<T> CacheError for T where T: std::error::Error + Send + Sync + 'static {}
+impl<T> CacheError for T where T: StdError + Send + Sync + 'static {}
 /// Trait to define a custom location/mechanism to cache account data and certificates.
 #[async_trait]
 pub trait AcmeCache {

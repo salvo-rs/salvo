@@ -6,6 +6,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+use std::error::Error as StdError;
+
 mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder, QueryFinder};
@@ -157,7 +159,7 @@ fn default_skipper(req: &mut Request, &Depot) -> bool {
 #[async_trait]
 pub trait CsrfStore: Send + Sync + 'static {
     /// Error type for CsrfStore.
-    type Error: std::error::Error + Send + Sync + 'static;
+    type Error: StdError + Send + Sync + 'static;
     /// Get the secret from the store.
     async fn load_secret(&self, req: &mut Request, depot: &mut Depot) -> Option<Vec<u8>>;
     /// Save the secret from the store.
