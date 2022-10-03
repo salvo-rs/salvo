@@ -83,19 +83,15 @@ impl SimpleQuota {
     pub const fn per_hour(burst: usize) -> Self {
         Self::new(burst, Duration::from_secs(3600))
     }
-    pub const fn into_provider(self) -> SimpleQuotaProvider {
-        SimpleQuotaProvider(self)
-    }
 }
 
-pub struct SimpleQuotaProvider(SimpleQuota);
-
 #[async_trait]
-impl<Key> QuotaProvider<Key> for SimpleQuotaProvider
+impl<Key, T> QuotaProvider<Key> for T
 where
     Key: Hash + Eq + Send + Sync + 'static,
+    T: Clone + Send + Sync + 'static,
 {
-    type Quota = SimpleQuota;
+    type Quota = T;
     type Error = Infallible;
 
     async fn get<Q>(&self, _key: &Q) -> Result<Self::Quota, Self::Error>
@@ -103,7 +99,7 @@ where
         Key: Borrow<Q>,
         Q: Hash + Eq + Sync,
     {
-        Ok(self.0.clone())
+        Ok(self.clone())
     }
 }
 

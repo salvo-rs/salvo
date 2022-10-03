@@ -17,7 +17,7 @@ async fn main() {
         SlidingWindow::new(),
         MemoryStore::new(),
         RealIpIssuer,
-        SimpleQuota::new(1, Duration::from_secs(3)).into_provider(),
+        SimpleQuota::new(1, Duration::from_secs(3)),
     );
     let router = Router::with_hoop(limiter).get(hello_world);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
