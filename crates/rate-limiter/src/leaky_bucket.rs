@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use salvo_core::async_trait;
 
-use super::{Strategy, RateGuard};
+use super::{RateStore, RateGuard, SimpleQuota};
 
 #[derive(Clone, Debug)]
 pub struct LeakyBucket {
@@ -31,12 +31,13 @@ impl LeakyBucket {
 
 #[async_trait]
 impl RateGuard for LeakyBucket {
-    async fn pass(&mut self) -> bool {
+    type Quota = SimpleQuota;
+    async fn verify(&mut self, quota: &Self::Quota) -> bool {
         if Instant::now() > self.reset {
-            self.reset = Instant::now() + self.window;
+            self.reset = Instant::now() + quota.period;
             self.count = 0;
         }
-        if self.count < self.limit {
+        if self.count < quota.burst {
             self.count += 1;
             true
         } else {

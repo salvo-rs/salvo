@@ -104,26 +104,29 @@ where
 }
 
 /// Issuer
-pub trait Issuer: Send + Sync + 'static {
+#[async_trait]
+pub trait RateIssuer: Send + Sync + 'static {
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request.
-    fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
+    async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
 }
-impl<F, K> Issuer for F
-where
-    F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
-    K: Hash + Eq + Send + Sync + 'static,
-{
-    type Key = K;
-    fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
-        (self)(req, depot)
-    }
-}
+// #[async_trait]
+// impl<F, K> RateIssuer for F
+// where
+//     F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
+//     K: Hash + Eq + Send + Sync + 'static,
+// {
+//     type Key = K;
+//     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+//         (self)(req, depot)
+//     }
+// }
 
 pub struct RealIpIssuer;
-impl Issuer for RealIpIssuer {
+#[async_trait]
+impl RateIssuer for RealIpIssuer {
     type Key = String;
-    fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+    async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         match req.remote_addr() {
             Some(SocketAddr::IPv4(addr)) => Some(addr.ip().to_string()),
             Some(SocketAddr::IPv6(addr)) => Some(addr.ip().to_string()),
@@ -167,7 +170,7 @@ pub struct RateLimiter<G, S, I, Q> {
     skipper: Option<Box<dyn Skipper>>,
 }
 
-impl<G: RateGuard, S: RateStore, I: Issuer, P: QuotaProvider<I::Key>> RateLimiter<G, S, I, P> {
+impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaProvider<I::Key>> RateLimiter<G, S, I, P> {
     /// Create a new RateLimiter
     #[inline]
     pub fn new(guard: G, store: S, issuer: I, quota_provider: P) -> Self {
@@ -194,7 +197,7 @@ where
     G: RateGuard<Quota = P::Quota>,
     S: RateStore<Key = I::Key, Guard = G>,
     P: QuotaProvider<I::Key>,
-    I: Issuer,
+    I: RateIssuer,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(skipper) = &self.skipper {
@@ -202,7 +205,7 @@ where
                 return;
             }
         }
-        let key = match self.issuer.issue(req, depot) {
+        let key = match self.issuer.issue(req, depot).await {
             Some(key) => key,
             None => {
                 res.set_status_error(StatusError::bad_request().with_detail("invalid identifier"));
