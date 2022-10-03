@@ -82,7 +82,7 @@ pub trait Extractible<'de>: Deserialize<'de> {
 #[derive(Deserialize)]
 pub struct LazyExtract<T> {
     #[serde(skip)]
-    inner: PhantomData<T>,
+    _inner: PhantomData<T>,
 }
 
 impl<'de, T: Extractible<'de>> Default for LazyExtract<T> {
@@ -95,7 +95,7 @@ impl<'de, T: Extractible<'de>> LazyExtract<T> {
     /// Create a new `LazyExtract` instance.
     pub fn new() -> Self {
         LazyExtract {
-            inner: PhantomData::<T>,
+            _inner: PhantomData::<T>,
         }
     }
 

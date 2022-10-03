@@ -6,8 +6,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+use std::borrow::Borrow;
+use std::convert::Infallible;
 use std::error::Error as StdError;
+use std::future::Future;
 use std::hash::Hash;
+use std::marker::PhantomData;
+use std::time::Duration;
 
 use salvo_core::addr::SocketAddr;
 use salvo_core::handler::Skipper;
@@ -49,70 +54,132 @@ cfg_feature! {
     pub use token_bucket::TokenBucket;
 }
 
-/// Identifer
-pub trait Identifer: Send + Sync + 'static {
-    type Key: Hash + Eq + Send + Clone + 'static;
-    /// Get the identifier.
-    fn get(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
+#[async_trait]
+pub trait QuotaProvider<Key>: Send + Sync + 'static {
+    type Quota: Clone + Send + Sync + 'static;
+    type Error: StdError;
+
+    async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
+    where
+        Key: Borrow<Q>,
+        Q: Hash + Eq + Sync;
 }
-impl<F, K> Identifer for F
+
+#[derive(Clone, Debug)]
+pub struct SimpleQuota {
+    burst: usize,
+    period: Duration,
+}
+impl SimpleQuota {
+    pub const fn new(burst: usize, period: Duration) -> Self {
+        Self { burst, period }
+    }
+    pub const fn per_second(burst: usize) -> Self {
+        Self::new(burst, Duration::from_secs(1))
+    }
+    pub const fn per_minute(burst: usize) -> Self {
+        Self::new(burst, Duration::from_secs(60))
+    }
+    pub const fn per_hour(burst: usize) -> Self {
+        Self::new(burst, Duration::from_secs(3600))
+    }
+    pub const fn into_provider(self) -> SimpleQuotaProvider {
+        SimpleQuotaProvider(self)
+    }
+}
+
+pub struct SimpleQuotaProvider(SimpleQuota);
+
+#[async_trait]
+impl<Key> QuotaProvider<Key> for SimpleQuotaProvider
+where
+    Key: Hash + Eq + Send + Sync + 'static,
+{
+    type Quota = SimpleQuota;
+    type Error = Infallible;
+
+    async fn get<Q>(&self, _key: &Q) -> Result<Self::Quota, Self::Error>
+    where
+        Key: Borrow<Q>,
+        Q: Hash + Eq + Sync,
+    {
+        Ok(self.0.clone())
+    }
+}
+
+/// Issuer
+pub trait Issuer: Send + Sync + 'static {
+    type Key: Hash + Eq + Send + Sync + 'static;
+    /// Issue a new key for the request.
+    fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
+}
+impl<F, K> Issuer for F
 where
     F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
-    K: Send + Eq + Hash + Clone + 'static,
+    K: Hash + Eq + Send + Sync + 'static,
 {
     type Key = K;
-    fn get(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+    fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
         (self)(req, depot)
     }
 }
 
-/// Use request ip as identifier.
-pub fn real_ip_identifer(req: &mut Request, _depot: &Depot) -> Option<String> {
-    match req.remote_addr() {
-        Some(SocketAddr::IPv4(addr)) => Some(addr.ip().to_string()),
-        Some(SocketAddr::IPv6(addr)) => Some(addr.ip().to_string()),
-        Some(_) => None,
-        None => None,
+pub struct RealIpIssuer;
+impl Issuer for RealIpIssuer {
+    type Key = String;
+    fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+        match req.remote_addr() {
+            Some(SocketAddr::IPv4(addr)) => Some(addr.ip().to_string()),
+            Some(SocketAddr::IPv6(addr)) => Some(addr.ip().to_string()),
+            Some(_) => None,
+            None => None,
+        }
     }
 }
 
-/// RateStrategy
+/// RateGuard
 #[async_trait]
-pub trait RateStrategy: Clone + Send + Sync + 'static {
-    async fn check(&mut self) -> bool;
+pub trait RateGuard: Clone + Send + Sync + 'static {
+    type Quota: Clone + Send + Sync + 'static;
+    async fn verify(&mut self, quota: &Self::Quota) -> bool;
 }
 
 /// Store rate.
 #[async_trait]
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
-    type Error: StdError + Send + Sync + 'static;
+    type Error: StdError;
     /// Key
     type Key: Hash + Eq + Send + Clone + 'static;
-    /// Saved strategy.
-    type Strategy;
-    /// Get the strategy from the store.
-    async fn load_strategy(&self, key: &Self::Key, config: &Self::Strategy) -> Result<Self::Strategy, Self::Error>;
-    // Save the strategy from the store.
-    async fn save_strategy(&self, key: Self::Key, strategy: Self::Strategy) -> Result<(), Self::Error>;
+    /// Saved guard.
+    type Guard;
+    /// Get the guard from the store.
+    async fn load_guard<Q>(&self, key: &Q, refer: &Self::Guard) -> Result<Self::Guard, Self::Error>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Hash + Eq + Sync;
+    // Save the guard from the store.
+    async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error>;
 }
 
 /// RateLimiter
-pub struct RateLimiter<G, S, I> {
-    strategy: G,
+pub struct RateLimiter<G, S, I, Q> {
+    guard: G,
     store: S,
-    identifier: I,
+    issuer: I,
+    quota_provider: Q,
     skipper: Option<Box<dyn Skipper>>,
 }
 
-impl<G: RateStrategy, S: RateStore, I: Identifer> RateLimiter<G, S, I> {
+impl<G: RateGuard, S: RateStore, I: Issuer, P: QuotaProvider<I::Key>> RateLimiter<G, S, I, P> {
     /// Create a new RateLimiter
     #[inline]
-    pub fn new(strategy: G, store: S, identifier: I) -> Self {
+    pub fn new(guard: G, store: S, issuer: I, quota_provider: P) -> Self {
         Self {
-            strategy,
+            guard,
             store,
-            identifier,
+            quota_provider,
+            issuer,
             skipper: None,
         }
     }
@@ -126,12 +193,12 @@ impl<G: RateStrategy, S: RateStore, I: Identifer> RateLimiter<G, S, I> {
 }
 
 #[async_trait]
-impl<G, S, I> Handler for RateLimiter<G, S, I>
+impl<G, S, I, P> Handler for RateLimiter<G, S, I, P>
 where
-    G: RateStrategy,
-    S: RateStore<Key = I::Key, Strategy = G>,
-    I: Identifer,
-    I::Key: Send + Sync + 'static,
+    G: RateGuard<Quota = P::Quota>,
+    S: RateStore<Key = I::Key, Guard = G>,
+    P: QuotaProvider<I::Key>,
+    I: Issuer,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(skipper) = &self.skipper {
@@ -139,32 +206,39 @@ where
                 return;
             }
         }
-        let identifier = self.identifier.get(req, depot);
-        if let Some(identifier) = identifier {
-            let strategy = {
-                let key = identifier.clone();
-                self.store.load_strategy(&key, &self.strategy).await
-            };
-            match strategy {
-                Ok(mut strategy) => {
-                    let allowed = strategy.check().await;
-                    if !allowed {
-                        res.set_status_code(StatusCode::TOO_MANY_REQUESTS);
-                        ctrl.skip_rest();
-                    }
-                    if let Err(e) = self.store.save_strategy(identifier, strategy).await {
-                        tracing::error!(error = ?e, "RateLimiter save strategy failed");
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "RateLimiter error");
-                    res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-                    ctrl.skip_rest();
-                }
+        let key = match self.issuer.issue(req, depot) {
+            Some(key) => key,
+            None => {
+                res.set_status_error(StatusError::bad_request().with_detail("invalid identifier"));
+                ctrl.skip_rest();
+                return;
             }
-        } else {
-            res.set_status_error(StatusError::bad_request().with_detail("invalid identifier"));
+        };
+        let quota = match self.quota_provider.get(&key).await {
+            Ok(quota) => quota,
+            Err(e) => {
+                tracing::error!(error = ?e, "RateLimiter error");
+                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                ctrl.skip_rest();
+                return;
+            }
+        };
+        let mut guard = match self.store.load_guard(&key, &self.guard).await {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::error!(error = ?e, "RateLimiter error");
+                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                ctrl.skip_rest();
+                return;
+            }
+        };
+        let verified = guard.verify(&quota).await;
+        if !verified {
+            res.set_status_code(StatusCode::TOO_MANY_REQUESTS);
             ctrl.skip_rest();
+        }
+        if let Err(e) = self.store.save_guard(key, guard).await {
+            tracing::error!(error = ?e, "RateLimiter save guard failed");
         }
     }
 }

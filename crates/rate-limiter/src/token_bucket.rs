@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use salvo_core::async_trait;
 
-use super::{RateStore, RateStrategy};
+use super::{RateStore, RateGuard};
 
 #[derive(Clone, Debug)]
 pub struct TokenBucket {
@@ -26,8 +26,8 @@ impl TokenBucket {
 }
 
 #[async_trait]
-impl RateStrategy for TokenBucket {
-    async fn check(&mut self) -> bool {
+impl RateGuard for TokenBucket {
+    async fn pass(&mut self) -> bool {
         if Instant::now() > self.reset {
             self.reset = Instant::now() + self.period;
             self.count = 0;

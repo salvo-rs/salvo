@@ -1,5 +1,6 @@
 //TODO
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::hash::Hash;
@@ -7,13 +8,13 @@ use std::hash::Hash;
 use salvo_core::{async_trait, Handler};
 use tokio::sync::Mutex;
 
-use super::{RateStore, RateStrategy};
+use super::{RateGuard, RateStore};
 
 #[derive(Default, Debug)]
-pub struct MemoryStore<K, G> {
-    inner: Mutex<HashMap<K, G>>,
+pub struct MemoryStore<K, E> {
+    inner: Mutex<HashMap<K, E>>,
 }
-impl<K, G> MemoryStore<K, G>
+impl<K, E> MemoryStore<K, E>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
 {
@@ -28,25 +29,29 @@ where
 impl<K, G> RateStore for MemoryStore<K, G>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
-    G: RateStrategy,
+    G: RateGuard,
 {
     type Error = Infallible;
     type Key = K;
-    type Strategy = G;
+    type Guard = G;
 
-    async fn load_strategy(&self, key: &Self::Key, config: &Self::Strategy) -> Result<Self::Strategy, Self::Error> {
+    async fn load_guard<Q>(&self, key: &Q, refer: &Self::Guard) -> Result<Self::Guard, Self::Error>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Hash + Eq + Sync,
+    {
         let mut inner = self.inner.lock().await;
-        let data = inner.remove(key);
-        if let Some(data) = data {
-            Ok(data)
+        let guard = inner.remove(key);
+        if let Some(guard) = guard {
+            Ok(guard)
         } else {
-            Ok(config.clone())
+            Ok(refer.clone())
         }
     }
 
-    async fn save_strategy(&self, key: Self::Key, strategy: Self::Strategy) -> Result<(), Self::Error> {
+    async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error> {
         let mut inner = self.inner.lock().await;
-        inner.insert(key, strategy);
+        inner.insert(key, guard);
         Ok(())
     }
 }

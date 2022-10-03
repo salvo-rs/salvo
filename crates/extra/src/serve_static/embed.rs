@@ -23,7 +23,7 @@ macro_rules! join_path {
 /// Serve static embed assets.
 #[derive(Default)]
 pub struct StaticEmbed<T> {
-    assets: PhantomData<T>,
+    _assets: PhantomData<T>,
     /// Default file names list.
     pub defaults: Vec<String>,
     /// Fallback file name. This is used when the requested file is not found.
@@ -34,7 +34,7 @@ pub struct StaticEmbed<T> {
 #[inline]
 pub fn static_embed<T: RustEmbed>() -> StaticEmbed<T> {
     StaticEmbed {
-        assets: PhantomData,
+        _assets: PhantomData,
         defaults: vec![],
         fallback: None,
     }
@@ -90,7 +90,7 @@ where
     #[inline]
     pub fn new() -> Self {
         Self {
-            assets: PhantomData,
+            _assets: PhantomData,
             defaults: vec![],
             fallback: None,
         }

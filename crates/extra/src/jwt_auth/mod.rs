@@ -80,7 +80,7 @@ impl JwtAuthDepotExt for Depot {
 pub struct JwtAuth<C> {
     secret: String,
     response_error: bool,
-    claims: PhantomData<C>,
+    _claims: PhantomData<C>,
     validation: Validation,
     finders: Vec<Box<dyn JwtTokenFinder>>,
 }
@@ -95,7 +95,7 @@ where
         JwtAuth {
             response_error: true,
             secret,
-            claims: PhantomData::<C>,
+            _claims: PhantomData::<C>,
             finders: vec![Box::new(HeaderFinder::new())],
             validation: Validation::default(),
         }

@@ -14,9 +14,10 @@ async fn main() {
 
     tracing::info!("Listening on http://127.0.0.1:7878");
     let limiter = RateLimiter::new(
-        SlidingWindow::new(1, Duration::from_secs(5)),
+        SlidingWindow::new(),
         MemoryStore::new(),
         real_ip_identifer,
+        RateQuota::new(120, Duration::from_secs(60)),
     );
     let router = Router::with_hoop(limiter).get(hello_world);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;

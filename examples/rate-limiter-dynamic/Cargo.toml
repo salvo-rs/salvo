@@ -1,5 +1,5 @@
 [package]
-name = "example-rate-limiter"
+name = "example-rate-limiter-dynamic"
 version = "0.1.0"
 edition = "2021"
 publish = false
