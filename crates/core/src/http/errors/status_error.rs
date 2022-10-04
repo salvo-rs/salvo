@@ -37,12 +37,12 @@ pub struct StatusError {
     pub detail: Option<String>,
 }
 impl StatusError {
-    /// Set summary field and returns Self.
+    /// Sets summary field and returns Self.
     pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
         self.summary = Some(summary.into());
         self
     }
-    /// Set detail field and returns Self.
+    /// Sets detail field and returns Self.
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self

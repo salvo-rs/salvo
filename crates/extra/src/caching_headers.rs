@@ -9,8 +9,7 @@ behavior, please use the combined [`CachingHeaders`] handler.
 use etag::EntityTag;
 use salvo_core::http::header::{ETAG, IF_NONE_MATCH};
 use salvo_core::http::headers::{self, HeaderMapExt};
-use salvo_core::http::response::Body;
-use salvo_core::http::StatusCode;
+use salvo_core::http::{ResBody, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 /**
@@ -79,8 +78,8 @@ impl Handler for ETag {
             .and_then(|etag| etag.parse().ok())
             .or_else(|| {
                 let etag = match res.body() {
-                    Body::Once(bytes) => Some(EntityTag::from_data(bytes)),
-                    Body::Chunks(bytes) => {
+                    ResBody::Once(bytes) => Some(EntityTag::from_data(bytes)),
+                    ResBody::Chunks(bytes) => {
                         let tags = bytes
                             .iter()
                             .map(|item| EntityTag::from_data(item).tag().to_owned())
@@ -88,11 +87,11 @@ impl Handler for ETag {
                             .concat();
                         Some(EntityTag::from_data(tags.as_bytes()))
                     }
-                    Body::Stream(_) => {
+                    ResBody::Stream(_) => {
                         tracing::debug!("etag not supported for streaming body");
                         None
                     }
-                    Body::None => {
+                    ResBody::None => {
                         tracing::debug!("etag not supported for empty body");
                         None
                     }
@@ -118,7 +117,7 @@ impl Handler for ETag {
             };
 
             if eq {
-                res.set_body(Body::None);
+                res.set_body(ResBody::None);
                 res.set_status_code(StatusCode::NOT_MODIFIED);
             }
         }
@@ -156,7 +155,7 @@ impl Handler for Modified {
             res.headers().typed_get::<headers::LastModified>(),
         ) {
             if !if_modified_since.is_modified(last_modified.into()) {
-                res.set_body(Body::None);
+                res.set_body(ResBody::None);
                 res.set_status_code(StatusCode::NOT_MODIFIED);
             }
         }

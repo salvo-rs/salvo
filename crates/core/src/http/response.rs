@@ -24,7 +24,7 @@ use bytes::Bytes;
 /// Response body type.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
-pub enum Body {
+pub enum ResBody {
     /// None body.
     None,
     /// Once bytes body.
@@ -34,37 +34,47 @@ pub enum Body {
     /// Stream body.
     Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
 }
-impl Body {
+impl ResBody {
     /// Check is that body is not set.
     #[inline]
     pub fn is_none(&self) -> bool {
-        matches!(*self, Body::None)
+        matches!(*self, ResBody::None)
     }
     /// Check is that body is once.
     #[inline]
     pub fn is_once(&self) -> bool {
-        matches!(*self, Body::Once(_))
+        matches!(*self, ResBody::Once(_))
     }
     /// Check is that body is chunks.
     #[inline]
     pub fn is_chunks(&self) -> bool {
-        matches!(*self, Body::Chunks(_))
+        matches!(*self, ResBody::Chunks(_))
     }
     /// Check is that body is stream.
     #[inline]
     pub fn is_stream(&self) -> bool {
-        matches!(*self, Body::Stream(_))
+        matches!(*self, ResBody::Stream(_))
+    }
+    /// Get body's size.
+    #[inline]
+    pub fn size(&self) -> Option<u64> {
+        match self {
+            ResBody::None => Some(0),
+            ResBody::Once(bytes) => Some(bytes.len() as u64),
+            ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
+            ResBody::Stream(_) => None,
+        }
     }
 }
 
-impl Stream for Body {
+impl Stream for ResBody {
     type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
 
     #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut() {
-            Body::None => Poll::Ready(None),
-            Body::Once(bytes) => {
+            ResBody::None => Poll::Ready(None),
+            ResBody::Once(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
                 } else {
@@ -72,15 +82,15 @@ impl Stream for Body {
                     Poll::Ready(Some(Ok(bytes)))
                 }
             }
-            Body::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
-            Body::Stream(stream) => stream.as_mut().poll_next(cx),
+            ResBody::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
+            ResBody::Stream(stream) => stream.as_mut().poll_next(cx),
         }
     }
 }
-impl From<hyper::Body> for Body {
+impl From<hyper::Body> for ResBody {
     #[inline]
-    fn from(hbody: hyper::Body) -> Body {
-        Body::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
+    fn from(hbody: hyper::Body) -> ResBody {
+        ResBody::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
     }
 }
 
@@ -92,7 +102,7 @@ pub struct Response {
     version: Version,
     #[cfg(feature = "cookie")]
     pub(crate) cookies: CookieJar,
-    pub(crate) body: Body,
+    pub(crate) body: ResBody,
 }
 impl Default for Response {
     #[inline]
@@ -147,7 +157,7 @@ impl Response {
         Response {
             status_code: None,
             status_error: None,
-            body: Body::None,
+            body: ResBody::None,
             version: Version::default(),
             headers: HeaderMap::new(),
             #[cfg(feature = "cookie")]
@@ -165,7 +175,7 @@ impl Response {
     pub fn headers_mut(&mut self) -> &mut HeaderMap {
         &mut self.headers
     }
-    /// Set headers.
+    /// Sets headers.
     #[inline]
     pub fn set_headers(&mut self, headers: HeaderMap) {
         self.headers = headers
@@ -218,37 +228,37 @@ impl Response {
 
     /// Get body reference.
     #[inline]
-    pub fn body(&self) -> &Body {
+    pub fn body(&self) -> &ResBody {
         &self.body
     }
     /// Get mutable body reference.
     #[inline]
-    pub fn body_mut(&mut self) -> &mut Body {
+    pub fn body_mut(&mut self) -> &mut ResBody {
         &mut self.body
     }
-    /// Set body.
+    /// Sets body.
     #[inline]
-    pub fn set_body(&mut self, body: Body) {
+    pub fn set_body(&mut self, body: ResBody) {
         self.body = body
     }
 
-    /// Set body.
+    /// Sets body.
     #[inline]
-    pub fn with_body(&mut self, body: Body) -> &mut Self {
+    pub fn with_body(&mut self, body: ResBody) -> &mut Self {
         self.body = body;
         self
     }
 
-    /// Set body to a new value and returns old value.
+    /// Sets body to a new value and returns old value.
     #[inline]
-    pub fn replace_body(&mut self, body: Body) -> Body {
+    pub fn replace_body(&mut self, body: ResBody) -> ResBody {
         std::mem::replace(&mut self.body, body)
     }
 
     /// Take body from response.
     #[inline]
-    pub fn take_body(&mut self) -> Body {
-        std::mem::replace(&mut self.body, Body::None)
+    pub fn take_body(&mut self) -> ResBody {
+        std::mem::replace(&mut self.body, ResBody::None)
     }
 
     // If return `true`, it means this response is ready for write back and the reset handlers should be skipped.
@@ -263,48 +273,51 @@ impl Response {
         false
     }
 
+    #[cfg(feature = "cookie")]
+    #[doc(hidden)]
+    #[inline]
+    pub fn write_cookies_to_headers(&mut self) {
+        for cookie in self.cookies.delta() {
+            if let Ok(hv) = cookie.encoded().to_string().parse() {
+                self.headers.append(SET_COOKIE, hv);
+            }
+        }
+        self.cookies = CookieJar::new();
+    }
+
     /// `write_back` is used to put all the data added to `self`
     /// back onto an `hyper::Response` so that it is sent back to the
     /// client.
     ///
     /// `write_back` consumes the `Response`.
     #[inline]
-    pub(crate) async fn write_back(self, res: &mut hyper::Response<hyper::Body>) {
+    pub(crate) async fn write_back(mut self, res: &mut hyper::Response<hyper::Body>) {
+        #[cfg(feature = "cookie")]
+        self.write_cookies_to_headers();
         let Self {
             status_code,
-            #[cfg(feature = "cookie")]
-            mut headers,
-            #[cfg(not(feature = "cookie"))]
             headers,
-            #[cfg(feature = "cookie")]
-            cookies,
             body,
             ..
         } = self;
-        #[cfg(feature = "cookie")]
-        for cookie in cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse() {
-                headers.append(SET_COOKIE, hv);
-            }
-        }
         *res.headers_mut() = headers;
 
         // Default to a 404 if no response code was set
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         match body {
-            Body::None => {
+            ResBody::None => {
                 res.headers_mut().insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
             }
-            Body::Once(bytes) => {
+            ResBody::Once(bytes) => {
                 *res.body_mut() = hyper::Body::from(bytes);
             }
-            Body::Chunks(chunks) => {
+            ResBody::Chunks(chunks) => {
                 *res.body_mut() = hyper::Body::wrap_stream(tokio_stream::iter(
                     chunks.into_iter().map(Result::<_, Box<dyn StdError + Send + Sync>>::Ok),
                 ));
             }
-            Body::Stream(stream) => {
+            ResBody::Stream(stream) => {
                 *res.body_mut() = hyper::Body::wrap_stream(stream);
             }
         }
@@ -359,7 +372,7 @@ impl Response {
         self.status_code
     }
 
-    /// Set status code.
+    /// Sets status code.
     #[inline]
     pub fn set_status_code(&mut self, code: StatusCode) {
         self.status_code = Some(code);
@@ -368,7 +381,7 @@ impl Response {
         }
     }
 
-    /// Set status code.
+    /// Sets status code.
     #[inline]
     pub fn with_status_code(&mut self, code: StatusCode) -> &mut Self {
         self.set_status_code(code);
@@ -389,13 +402,13 @@ impl Response {
     pub fn status_error(&self) -> Option<&StatusError> {
         self.status_error.as_ref()
     }
-    /// Set http error.
+    /// Sets http error.
     #[inline]
     pub fn set_status_error(&mut self, err: StatusError) {
         self.status_code = Some(err.code);
         self.status_error = Some(err);
     }
-    /// Set http error.
+    /// Sets http error.
     #[inline]
     pub fn with_status_error(&mut self, err: StatusError) -> &mut Self {
         self.set_status_error(err);
@@ -439,26 +452,26 @@ impl Response {
         self
     }
 
-    /// Write bytes data to body. If body is none, a new `Body` will created.
+    /// Write bytes data to body. If body is none, a new `ResBody` will created.
     #[inline]
     pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
-            Body::None => {
-                self.body = Body::Once(data.into());
+            ResBody::None => {
+                self.body = ResBody::Once(data.into());
             }
-            Body::Once(ref bytes) => {
+            ResBody::Once(ref bytes) => {
                 let mut chunks = VecDeque::new();
                 chunks.push_back(bytes.clone());
                 chunks.push_back(data.into());
-                self.body = Body::Chunks(chunks);
+                self.body = ResBody::Chunks(chunks);
             }
-            Body::Chunks(chunks) => {
+            ResBody::Chunks(chunks) => {
                 chunks.push_back(data.into());
             }
-            Body::Stream(_) => {
-                tracing::error!("current body kind is `Body::Stream`, try to write bytes to it");
+            ResBody::Stream(_) => {
+                tracing::error!("current body kind is `ResBody::Stream`, try to write bytes to it");
                 return Err(Error::other(
-                    "current body kind is `Body::Stream`, try to write bytes to it",
+                    "current body kind is `ResBody::Stream`, try to write bytes to it",
                 ));
             }
         }
@@ -473,19 +486,19 @@ impl Response {
         E: Into<Box<dyn StdError + Send + Sync>> + 'static,
     {
         match &self.body {
-            Body::Once(_) => {
-                return Err(Error::other("current body kind is `Body::Once` already"));
+            ResBody::Once(_) => {
+                return Err(Error::other("current body kind is `ResBody::Once` already"));
             }
-            Body::Chunks(_) => {
-                return Err(Error::other("current body kind is `Body::Chunks` already"));
+            ResBody::Chunks(_) => {
+                return Err(Error::other("current body kind is `ResBody::Chunks` already"));
             }
-            Body::Stream(_) => {
-                return Err(Error::other("current body kind is `Body::Stream` already"));
+            ResBody::Stream(_) => {
+                return Err(Error::other("current body kind is `ResBody::Stream` already"));
             }
             _ => {}
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = Body::Stream(Box::pin(mapped));
+        self.body = ResBody::Stream(Box::pin(mapped));
         Ok(())
     }
 }
@@ -519,15 +532,15 @@ mod test {
 
     #[test]
     fn test_body_empty() {
-        let body = Body::Once(Bytes::from("hello"));
+        let body = ResBody::Once(Bytes::from("hello"));
         assert!(!body.is_none());
-        let body = Body::None;
+        let body = ResBody::None;
         assert!(body.is_none());
     }
 
     #[tokio::test]
     async fn test_body_stream1() {
-        let mut body = Body::Once(Bytes::from("hello"));
+        let mut body = ResBody::Once(Bytes::from("hello"));
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {
@@ -539,7 +552,7 @@ mod test {
 
     #[tokio::test]
     async fn test_body_stream2() {
-        let mut body = Body::Stream(Box::pin(iter(vec![
+        let mut body = ResBody::Stream(Box::pin(iter(vec![
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("Hello").freeze()),
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" World").freeze()),
         ])));

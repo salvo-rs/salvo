@@ -54,7 +54,7 @@ pub struct NamedFileBuilder {
     flags: BitFlags<Flag>,
 }
 impl NamedFileBuilder {
-    /// Set attached filename and returns `Self`.
+    /// Sets attached filename and returns `Self`.
     #[inline]
     pub fn attached_name<T: Into<String>>(mut self, attached_name: T) -> Self {
         self.attached_name = Some(attached_name.into());
@@ -62,7 +62,7 @@ impl NamedFileBuilder {
         self
     }
 
-    /// Set disposition encoding and returns `Self`.
+    /// Sets disposition encoding and returns `Self`.
     #[inline]
     pub fn disposition_type<T: Into<String>>(mut self, disposition_type: T) -> Self {
         self.disposition_type = Some(disposition_type.into());
@@ -78,21 +78,21 @@ impl NamedFileBuilder {
         self.flags.remove(Flag::ContentDisposition);
     }
 
-    /// Set content type and returns `Self`.
+    /// Sets content type and returns `Self`.
     #[inline]
     pub fn content_type<T: Into<mime::Mime>>(mut self, content_type: T) -> Self {
         self.content_type = Some(content_type.into());
         self
     }
 
-    /// Set content encoding and returns `Self`.
+    /// Sets content encoding and returns `Self`.
     #[inline]
     pub fn content_encoding<T: Into<String>>(mut self, content_encoding: T) -> Self {
         self.content_encoding = Some(content_encoding.into());
         self
     }
 
-    /// Set buffer size and returns `Self`.
+    /// Sets buffer size and returns `Self`.
     #[inline]
     pub fn buffer_size(mut self, buffer_size: u64) -> Self {
         self.buffer_size = Some(buffer_size);
@@ -288,7 +288,7 @@ impl NamedFile {
     pub fn content_type(&self) -> &mime::Mime {
         &self.content_type
     }
-    /// Set the MIME Content-Type for serving this file. By default
+    /// Sets the MIME Content-Type for serving this file. By default
     /// the Content-Type is inferred from the filename extension.
     #[inline]
     pub fn set_content_type(&mut self, content_type: mime::Mime) {
@@ -300,7 +300,7 @@ impl NamedFile {
     pub fn content_disposition(&self) -> Option<&HeaderValue> {
         self.content_disposition.as_ref()
     }
-    /// Set the `Content-Disposition` for serving this file. This allows
+    /// Sets the `Content-Disposition` for serving this file. This allows
     /// changing the inline/attachment disposition as well as the filename
     /// sent to the peer.
     ///
@@ -328,7 +328,7 @@ impl NamedFile {
     pub fn content_encoding(&self) -> Option<&HeaderValue> {
         self.content_encoding.as_ref()
     }
-    /// Set content encoding for serving this file
+    /// Sets content encoding for serving this file
     #[inline]
     pub fn set_content_encoding(&mut self, content_encoding: HeaderValue) {
         self.content_encoding = Some(content_encoding);

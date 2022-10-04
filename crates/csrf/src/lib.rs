@@ -241,7 +241,7 @@ impl<C: CsrfCipher, S: CsrfStore> Csrf<C, S> {
     //     self
     // }
 
-    // /// Set all finders.
+    // /// Sets all finders.
     // #[inline]
     // pub fn with_finders(mut self, finders: Vec<Box<dyn CsrfTokenFinder>>) -> Self {
     //     self.finders = finders;

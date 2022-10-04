@@ -255,7 +255,7 @@ impl Router {
         self.filter(FnFilter(func))
     }
 
-    /// Set current router's handler.
+    /// Sets current router's handler.
     #[inline]
     pub fn handle<H: Handler>(mut self, handler: H) -> Self {
         self.handler = Some(Arc::new(handler));

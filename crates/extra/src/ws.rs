@@ -61,14 +61,14 @@ impl WebSocketUpgrade {
         WebSocketUpgrade { config: Some(config) }
     }
 
-    /// Set the size of the internal message send queue.
+    /// Sets the size of the internal message send queue.
     #[inline]
     pub fn max_send_queue(mut self, max: usize) -> Self {
         self.config.get_or_insert_with(WebSocketConfig::default).max_send_queue = Some(max);
         self
     }
 
-    /// Set the maximum message size (defaults to 64 megabytes)
+    /// Sets the maximum message size (defaults to 64 megabytes)
     #[inline]
     pub fn max_message_size(mut self, max: usize) -> Self {
         self.config
@@ -77,7 +77,7 @@ impl WebSocketUpgrade {
         self
     }
 
-    /// Set the maximum frame size (defaults to 16 megabytes)
+    /// Sets the maximum frame size (defaults to 16 megabytes)
     #[inline]
     pub fn max_frame_size(mut self, max: usize) -> Self {
         self.config.get_or_insert_with(WebSocketConfig::default).max_frame_size = Some(max);

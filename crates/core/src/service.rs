@@ -82,7 +82,7 @@ impl Service {
         self.catchers.clone()
     }
 
-    /// Set allowed media types list and returns `Self` for write code chained.
+    /// Sets allowed media types list and returns `Self` for write code chained.
     ///
     /// # Example
     ///

@@ -9,7 +9,7 @@ use textnonce::TextNonce;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
-use crate::http::request::Body;
+use crate::http::request::ReqBody;
 use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -34,7 +34,7 @@ impl FormData {
     }
 
     /// Parse MIME `multipart/*` information from a stream as a [`FormData`].
-    pub(crate) async fn read(headers: &HeaderMap, body: Body) -> Result<FormData, ParseError> {
+    pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
         match headers.get(CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
                 let data = hyper::body::to_bytes(body)

@@ -34,12 +34,12 @@ impl HeaderFinder {
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cared methods list.
+    /// Sets cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cared methods list and returns Self.
+    /// Sets cared methods list and returns Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -87,12 +87,12 @@ impl FormFinder {
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cared methods list.
+    /// Sets cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cared methods list and return Self.
+    /// Sets cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -135,12 +135,12 @@ impl QueryFinder {
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cared methods list.
+    /// Sets cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cared methods list and return Self.
+    /// Sets cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
@@ -190,12 +190,12 @@ impl CookieFinder {
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Set cared methods list.
+    /// Sets cared methods list.
     #[inline]
     pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
         self.cared_methods = methods;
     }
-    /// Set cared methods list and return Self.
+    /// Sets cared methods list and return Self.
     #[inline]
     pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;

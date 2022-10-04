@@ -235,7 +235,7 @@ impl<S> FlashHandler<S> {
         }
     }
 
-    /// Set the minimum level of messages to be displayed.
+    /// Sets the minimum level of messages to be displayed.
     #[inline]
     pub fn minimum_level(&mut self, level: impl Into<Option<FlashLevel>>) -> &mut Self {
         self.minimum_level = level.into();

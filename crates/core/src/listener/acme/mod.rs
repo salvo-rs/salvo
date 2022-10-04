@@ -213,7 +213,7 @@ impl AcmeListenerBuilder {
         }
     }
 
-    /// Set the directory.
+    /// Sets the directory.
     ///
     /// Defaults to lets encrypt.
     #[inline]
@@ -224,7 +224,7 @@ impl AcmeListenerBuilder {
         }
     }
 
-    /// Set domains.
+    /// Sets domains.
     #[inline]
     pub fn domains(self, domains: impl Into<HashSet<String>>) -> Self {
         Self {
@@ -283,7 +283,7 @@ impl AcmeListenerBuilder {
         }
     }
 
-    /// Set the cache path for caching certificates.
+    /// Sets the cache path for caching certificates.
     ///
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be

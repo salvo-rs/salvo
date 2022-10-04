@@ -93,7 +93,7 @@ pub struct SseEvent {
 }
 
 impl SseEvent {
-    /// Set Server-sent event data.
+    /// Sets Server-sent event data.
     ///
     /// Data field(s) ("data:<content>")
     #[inline]
@@ -102,7 +102,7 @@ impl SseEvent {
         self
     }
 
-    /// Set Server-sent event data.
+    /// Sets Server-sent event data.
     ///
     /// data field(s) ("data:<content>")
     #[inline]
@@ -111,7 +111,7 @@ impl SseEvent {
         Ok(self)
     }
 
-    /// Set Server-sent event comment.`
+    /// Sets Server-sent event comment.`
     ///
     /// Comment field (":<comment-text>")
     #[inline]
@@ -120,7 +120,7 @@ impl SseEvent {
         self
     }
 
-    /// Set Server-sent event event.
+    /// Sets Server-sent event event.
     ///
     /// Event name field ("event:<event-name>")
     #[inline]
@@ -129,7 +129,7 @@ impl SseEvent {
         self
     }
 
-    /// Set Server-sent event retry.
+    /// Sets Server-sent event retry.
     ///
     /// Retry timeout field ("retry:<timeout>")
     #[inline]
@@ -138,7 +138,7 @@ impl SseEvent {
         self
     }
 
-    /// Set Server-sent event id.
+    /// Sets Server-sent event id.
     ///
     /// Identifier field ("id:<identifier>")
     #[inline]

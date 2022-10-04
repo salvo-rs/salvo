@@ -29,7 +29,7 @@ impl QueryFinder {
         }
     }
 
-    /// Set query name, it's query_name's default value is `csrf-token`.
+    /// Sets query name, it's query_name's default value is `csrf-token`.
     #[inline]
     pub fn with_query_name(mut self, name: impl Into<String>) -> Self {
         self.query_name = name.into();

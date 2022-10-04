@@ -176,7 +176,7 @@ impl Field {
         }
     }
 
-    /// Set the metadata to the field type.
+    /// Sets the metadata to the field type.
     pub fn metadata(mut self, metadata: &'static Metadata) -> Self {
         self.metadata = Some(metadata);
         self
@@ -188,7 +188,7 @@ impl Field {
         self
     }
 
-    /// Set the aliases list to a new value.
+    /// Sets the aliases list to a new value.
     pub fn set_aliases(mut self, aliases: Vec<&'static str>) -> Self {
         self.aliases = aliases;
         self
@@ -200,7 +200,7 @@ impl Field {
         self
     }
 
-    /// Set the rename to the given value.
+    /// Sets the rename to the given value.
     pub fn rename(mut self, rename: &'static str) -> Self {
         self.rename = Some(rename);
         self
@@ -233,7 +233,7 @@ impl Metadata {
         }
     }
 
-    /// Set the default sources list to a new value.
+    /// Sets the default sources list to a new value.
     pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
         self.default_sources = default_sources;
         self

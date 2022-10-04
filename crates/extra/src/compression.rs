@@ -9,7 +9,7 @@ use tokio_stream::{self, StreamExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::response::Body;
+use salvo_core::http::ResBody;
 use salvo_core::{async_trait, Depot, Handler, Request, Response, FlowCtrl};
 
 /// CompressionAlgo
@@ -85,7 +85,7 @@ impl Compression {
         Default::default()
     }
 
-    /// Set `Compression` with algos.
+    /// Sets `Compression` with algos.
     #[inline]
     pub fn with_algos(mut self, algos: &[CompressionAlgo]) -> Self {
         self.algos = algos.to_vec();
@@ -97,19 +97,19 @@ impl Compression {
     pub fn min_length(&mut self) -> usize {
         self.min_length
     }
-    /// Set minimum compression size, if body less than this value, no compression
+    /// Sets minimum compression size, if body less than this value, no compression
     /// default is 1kb
     #[inline]
     pub fn set_min_length(&mut self, size: usize) {
         self.min_length = size;
     }
-    /// Set `Compression` with min_length.
+    /// Sets `Compression` with min_length.
     #[inline]
     pub fn with_min_length(mut self, min_length: usize) -> Self {
         self.min_length = min_length;
         self
     }
-    /// Set `Compression` with force_priority.
+    /// Sets `Compression` with force_priority.
     #[inline]
     pub fn with_force_priority(mut self, force_priority: bool) -> Self {
         self.force_priority = force_priority;
@@ -126,7 +126,7 @@ impl Compression {
     pub fn content_types_mut(&mut self) -> &mut Vec<String> {
         &mut self.content_types
     }
-    /// Set `Compression` with content types list.
+    /// Sets `Compression` with content types list.
     #[inline]
     pub fn with_content_types(mut self, content_types: &[String]) -> Self {
         self.content_types = content_types.to_vec();
@@ -219,29 +219,29 @@ impl Handler for Compression {
         };
 
         match res.take_body() {
-            Body::None => {
+            ResBody::None => {
                 return;
             }
-            Body::Once(bytes) => {
+            ResBody::Once(bytes) => {
                 if bytes.len() < self.min_length {
-                    res.set_body(Body::Once(bytes));
+                    res.set_body(ResBody::Once(bytes));
                     return;
                 }
                 match compress_bytes(algo, &bytes).await {
                     Ok(data) => {
-                        res.set_body(Body::Once(data.into()));
+                        res.set_body(ResBody::Once(data.into()));
                     }
                     Err(e) => {
                         tracing::error!(error = ?e, "compression failed");
-                        res.set_body(Body::Once(bytes));
+                        res.set_body(ResBody::Once(bytes));
                         return;
                     }
                 }
             }
-            Body::Chunks(chunks) => {
+            ResBody::Chunks(chunks) => {
                 let len = chunks.iter().map(|c| c.len()).sum();
                 if len < self.min_length {
-                    res.set_body(Body::Chunks(chunks));
+                    res.set_body(ResBody::Chunks(chunks));
                     return;
                 }
                 let mut bytes = BytesMut::with_capacity(len);
@@ -250,16 +250,16 @@ impl Handler for Compression {
                 }
                 match compress_bytes(algo, &bytes).await {
                     Ok(data) => {
-                        res.set_body(Body::Once(data.into()));
+                        res.set_body(ResBody::Once(data.into()));
                     }
                     Err(e) => {
                         tracing::error!(error = ?e, "compression failed");
-                        res.set_body(Body::Chunks(chunks));
+                        res.set_body(ResBody::Chunks(chunks));
                         return;
                     }
                 }
             }
-            Body::Stream(stream) => {
+            ResBody::Stream(stream) => {
                 let stream = stream.map(|item| item.map_err(|_| ErrorKind::Other));
                 let reader = StreamReader::new(stream);
                 match algo {

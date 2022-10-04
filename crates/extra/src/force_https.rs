@@ -4,9 +4,8 @@ use std::borrow::Cow;
 
 use salvo_core::handler::Skipper;
 use salvo_core::http::header;
-use salvo_core::http::response::Body;
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::{Request, Response};
+use salvo_core::http::{Request,ResBody, Response};
 use salvo_core::writer::Redirect;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
@@ -54,7 +53,7 @@ impl Handler for ForceHttps {
                 builder = builder.path_and_query(path_and_query);
             }
             if let Ok(uri) = builder.build() {
-                res.set_body(Body::None);
+                res.set_body(ResBody::None);
                 match Redirect::permanent(uri) {
                     Ok(direct) => res.render(direct),
                     Err(e) => {

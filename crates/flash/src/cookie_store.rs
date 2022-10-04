@@ -34,7 +34,7 @@ impl CookieStore {
     pub fn name(&self) -> &String {
         &self.name
     }
-    /// Set cookie name.
+    /// Sets cookie name.
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
@@ -45,7 +45,7 @@ impl CookieStore {
     pub fn max_age(&self) -> Duration {
         self.max_age
     }
-    /// Set cookie max_age.
+    /// Sets cookie max_age.
     pub fn with_max_age(mut self, max_age: Duration) -> Self {
         self.max_age = max_age;
         self
@@ -55,7 +55,7 @@ impl CookieStore {
     pub fn same_site(&self) -> &SameSite {
         &self.same_site
     }
-    /// Set cookie same site.
+    /// Sets cookie same site.
     pub fn with_same_site(mut self, same_site: SameSite) -> Self {
         self.same_site = same_site;
         self
@@ -65,7 +65,7 @@ impl CookieStore {
     pub fn http_only(&self) -> bool {
         self.http_only
     }
-    /// Set cookie http only.
+    /// Sets cookie http only.
     pub fn with_http_only(mut self, http_only: bool) -> Self {
         self.http_only = http_only;
         self
@@ -75,7 +75,7 @@ impl CookieStore {
     pub fn path(&self) -> &String {
         &self.path
     }
-    /// Set cookie path.
+    /// Sets cookie path.
     pub fn with_path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self

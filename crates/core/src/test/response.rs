@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
 
 use crate::http::header::{self, CONTENT_ENCODING};
-use crate::http::response::{Body, Response};
+use crate::http::response::{ResBody, Response};
 use crate::{async_trait, Error};
 
 /// More utils functions for response.
@@ -85,16 +85,16 @@ impl ResponseExt for Response {
     async fn take_bytes(&mut self) -> crate::Result<Bytes> {
         let body = self.take_body();
         let bytes = match body {
-            Body::None => Bytes::new(),
-            Body::Once(bytes) => bytes,
-            Body::Chunks(chunks) => {
+            ResBody::None => Bytes::new(),
+            ResBody::Once(bytes) => bytes,
+            ResBody::Chunks(chunks) => {
                 let mut bytes = BytesMut::new();
                 for chunk in chunks {
                     bytes.extend(chunk);
                 }
                 bytes.freeze()
             },
-            Body::Stream(mut stream) => {
+            ResBody::Stream(mut stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {
                     bytes.extend(chunk?);

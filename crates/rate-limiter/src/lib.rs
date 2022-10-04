@@ -12,7 +12,7 @@ use std::error::Error as StdError;
 use std::hash::Hash;
 
 use salvo_core::addr::SocketAddr;
-use salvo_core::handler::Skipper;
+use salvo_core::handler::{NoneSkipper, Skipper};
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 use serde::{Deserialize, Serialize};
@@ -69,17 +69,17 @@ impl BasicQuota {
         Self { limit, period }
     }
 
-    /// Set the limit of the quota per second.
+    /// Sets the limit of the quota per second.
     pub const fn per_second(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(1))
     }
 
-    /// Set the limit of the quota per minute.
+    /// Sets the limit of the quota per minute.
     pub const fn per_minute(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(60))
     }
 
-    /// Set the limit of the quota per hour.
+    /// Sets the limit of the quota per hour.
     pub const fn per_hour(limit: usize) -> Self {
         Self::new(limit, Duration::seconds(3600))
     }
@@ -98,15 +98,15 @@ impl CelledQuota {
         Self { limit, period, cells }
     }
 
-    /// Set the limit of the quota per second.
+    /// Sets the limit of the quota per second.
     pub const fn per_second(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::seconds(1), cells)
     }
-    /// Set the limit of the quota per minute.
+    /// Sets the limit of the quota per minute.
     pub const fn per_minute(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::seconds(60), cells)
     }
-    /// Set the limit of the quota per hour.
+    /// Sets the limit of the quota per hour.
     pub const fn per_hour(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::seconds(3600), cells)
     }
@@ -151,9 +151,9 @@ where
 }
 
 /// Identify user by IP address.
-pub struct RealIpIssuer;
+pub struct RemoteIpIssuer;
 #[async_trait]
-impl RateIssuer for RealIpIssuer {
+impl RateIssuer for RemoteIpIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         match req.remote_addr() {
@@ -197,27 +197,27 @@ pub struct RateLimiter<G, S, I, Q> {
     guard: G,
     store: S,
     issuer: I,
-    quota_provider: Q,
-    skipper: Option<Box<dyn Skipper>>,
+    quota_getter: Q,
+    skipper: Box<dyn Skipper>,
 }
 
 impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimiter<G, S, I, P> {
-    /// Create a new RateLimiter
+    /// Create a new `RateLimiter`
     #[inline]
-    pub fn new(guard: G, store: S, issuer: I, quota_provider: P) -> Self {
+    pub fn new(guard: G, store: S, issuer: I, quota_getter: P) -> Self {
         Self {
             guard,
             store,
-            quota_provider,
             issuer,
-            skipper: None,
+            quota_getter,
+            skipper: Box::new(NoneSkipper),
         }
     }
 
-    /// Set skipper and returns new `RateLimiter`.
+    /// Sets skipper and returns new `RateLimiter`.
     #[inline]
     pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
-        self.skipper = Some(Box::new(skipper));
+        self.skipper = Box::new(skipper);
         self
     }
 }
@@ -231,10 +231,8 @@ where
     I: RateIssuer,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(skipper) = &self.skipper {
-            if skipper.skipped(req, depot) {
-                return;
-            }
+        if self.skipper.skipped(req, depot) {
+            return;
         }
         let key = match self.issuer.issue(req, depot).await {
             Some(key) => key,
@@ -244,7 +242,7 @@ where
                 return;
             }
         };
-        let quota = match self.quota_provider.get(&key).await {
+        let quota = match self.quota_getter.get(&key).await {
             Ok(quota) => quota,
             Err(e) => {
                 tracing::error!(error = ?e, "RateLimiter error");

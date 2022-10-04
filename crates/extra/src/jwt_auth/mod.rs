@@ -105,7 +105,7 @@ where
     pub fn response_error(&self) -> bool {
         self.response_error
     }
-    /// Set response_error value and return Self.
+    /// Sets response_error value and return Self.
     #[inline]
     pub fn with_response_error(mut self, response_error: bool) -> Self {
         self.response_error = response_error;
@@ -122,7 +122,7 @@ where
     pub fn secret_mut(&mut self) -> &mut String {
         &mut self.secret
     }
-    /// Set secret with new value and return Self.
+    /// Sets secret with new value and return Self.
     #[inline]
     pub fn with_secret(mut self, secret: String) -> Self {
         self.secret = secret;
@@ -139,7 +139,7 @@ where
     pub fn finders_mut(&mut self) -> &mut Vec<Box<dyn JwtTokenFinder>> {
         &mut self.finders
     }
-    /// Set extractor list with new value and return Self.
+    /// Sets extractor list with new value and return Self.
     #[inline]
     pub fn with_finders(mut self, finders: Vec<Box<dyn JwtTokenFinder>>) -> Self {
         self.finders = finders;

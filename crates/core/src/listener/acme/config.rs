@@ -72,7 +72,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Set the directory url.
+    /// Sets the directory url.
     ///
     /// Defaults to lets encrypt production.
     #[inline]
@@ -84,7 +84,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Set domains.
+    /// Sets domains.
     #[inline]
     pub fn domains(mut self, domains: impl Into<HashSet<String>>) -> Self {
         self.domains = domains.into();
@@ -97,7 +97,7 @@ impl AcmeConfigBuilder {
         self
     }
 
-    /// Set contact email for the ACME account.
+    /// Sets contact email for the ACME account.
     #[inline]
     pub fn contacts(mut self, contacts: impl Into<HashSet<String>>) -> Self {
         self.contacts = contacts.into();
@@ -110,7 +110,7 @@ impl AcmeConfigBuilder {
         self
     }
 
-    /// Set the challenge type Http01
+    /// Sets the challenge type Http01
     #[inline]
     pub fn http01_challege(self) -> Self {
         Self {
@@ -119,7 +119,7 @@ impl AcmeConfigBuilder {
             ..self
         }
     }
-    /// Set the challenge type TlsAlpn01
+    /// Sets the challenge type TlsAlpn01
     #[inline]
     pub fn tls_alpn01_challege(self) -> Self {
         Self {
@@ -129,7 +129,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Set the cache path for caching certificates.
+    /// Sets the cache path for caching certificates.
     ///
     /// This is not a necessary option. If you do not configure the cache path,
     /// the obtained certificate will be stored in memory and will need to be
@@ -142,7 +142,7 @@ impl AcmeConfigBuilder {
         }
     }
 
-    /// Set the duration update certificate before it expired.
+    /// Sets the duration update certificate before it expired.
     #[inline]
     pub fn before_expired(self, before_expired: Duration) -> Self {
         Self { before_expired, ..self }

@@ -4,8 +4,8 @@ use std::borrow::Cow;
 use std::str::FromStr;
 
 use salvo_core::handler::Skipper;
-use salvo_core::http::response::Body;
 use salvo_core::http::uri::{PathAndQuery, Uri};
+use salvo_core::http::ResBody;
 use salvo_core::prelude::*;
 
 /// TrailingSlashAction
@@ -18,20 +18,26 @@ pub enum TrailingSlashAction {
 }
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
-pub fn default_remove_skipper(req: &mut Request, _depot: &Depot) -> bool {
-    if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
-        !name.contains('.')
-    } else {
-        false
+pub struct DefaultRemoveSkipper;
+impl Skipper for DefaultRemoveSkipper {
+    fn skipped(&self, req: &mut Request, _depot: &Depot) -> bool {
+        if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
+            !name.contains('.')
+        } else {
+            false
+        }
     }
 }
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
-pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
-    if let Some((_, name)) = req.uri().path().rsplit_once('/') {
-        name.contains('.')
-    } else {
-        false
+pub struct DefaultAddSkipper;
+impl Skipper for DefaultAddSkipper {
+    fn skipped(&self, req: &mut Request, _depot: &Depot) -> bool {
+        if let Some((_, name)) = req.uri().path().rsplit_once('/') {
+            name.contains('.')
+        } else {
+            false
+        }
     }
 }
 
@@ -40,7 +46,7 @@ pub struct TrailingSlash {
     /// Action of this `TrailingSlash`.
     pub action: TrailingSlashAction,
     /// Skip to Remove or add slash when skipper is returns `true`.
-    pub skipper: Option<Box<dyn Skipper>>,
+    pub skipper: Box<dyn Skipper>,
     /// Redirect code is used when redirect url.
     pub redirect_code: StatusCode,
 }
@@ -50,36 +56,31 @@ impl TrailingSlash {
     pub fn new(action: TrailingSlashAction) -> Self {
         Self {
             action,
-            skipper: None,
+            skipper: match action {
+                TrailingSlashAction::Add => Box::new(DefaultAddSkipper),
+                TrailingSlashAction::Remove => Box::new(DefaultRemoveSkipper),
+            },
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Add`].
     #[inline]
     pub fn new_add() -> Self {
-        Self {
-            action: TrailingSlashAction::Add,
-            skipper: None,
-            redirect_code: StatusCode::MOVED_PERMANENTLY,
-        }
+        Self::new(TrailingSlashAction::Add)
     }
     /// Create new `TrailingSlash` and sets it's action as [`TrailingSlashAction::Remove`].
     #[inline]
     pub fn new_remove() -> Self {
-        Self {
-            action: TrailingSlashAction::Remove,
-            skipper: None,
-            redirect_code: StatusCode::MOVED_PERMANENTLY,
-        }
+        Self::new(TrailingSlashAction::Remove)
     }
-    /// Set skipper and returns new `TrailingSlash`.
+    /// Sets skipper and returns new `TrailingSlash`.
     #[inline]
     pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
-        self.skipper = Some(Box::new(skipper));
+        self.skipper = Box::new(skipper);
         self
     }
 
-    /// Set redirect code and returns new `TrailingSlash`.
+    /// Sets redirect code and returns new `TrailingSlash`.
     #[inline]
     pub fn with_redirect_code(mut self, redirect_code: StatusCode) -> Self {
         self.redirect_code = redirect_code;
@@ -91,7 +92,7 @@ impl TrailingSlash {
 impl Handler for TrailingSlash {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if self.skipper.as_ref().map(|skipper| skipper.skipped(req, depot)).unwrap_or(false) {
+        if self.skipper.skipped(req, depot) {
             return;
         }
 
@@ -107,7 +108,7 @@ impl Handler for TrailingSlash {
             };
             if let Some(new_uri) = new_uri {
                 ctrl.skip_rest();
-                res.set_body(Body::None);
+                res.set_body(ResBody::None);
                 match Redirect::with_status_code(self.redirect_code, new_uri) {
                     Ok(redirect) => {
                         res.render(redirect);
@@ -135,13 +136,13 @@ fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
 /// Create an add slash middleware.
 #[inline]
 pub fn add_slash() -> TrailingSlash {
-    TrailingSlash::new(TrailingSlashAction::Add).with_skipper(default_add_skipper)
+    TrailingSlash::new(TrailingSlashAction::Add)
 }
 
 /// Create a remove slash middleware.
 #[inline]
 pub fn remove_slash() -> TrailingSlash {
-    TrailingSlash::new(TrailingSlashAction::Remove).with_skipper(default_remove_skipper)
+    TrailingSlash::new(TrailingSlashAction::Remove)
 }
 
 #[cfg(test)]

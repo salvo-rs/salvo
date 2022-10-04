@@ -48,14 +48,14 @@ impl Keycert {
             cert: vec![],
         }
     }
-    /// Set the Tls private key via File Path, returns `Error::IoError` if the file cannot be open.
+    /// Sets the Tls private key via File Path, returns `Error::IoError` if the file cannot be open.
     #[inline]
     pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
         self.key_path = Some(path.as_ref().into());
         self
     }
 
-    /// Set the Tls private key via bytes slice.
+    /// Sets the Tls private key via bytes slice.
     #[inline]
     pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = key.into();
@@ -69,7 +69,7 @@ impl Keycert {
         self
     }
 
-    /// Set the Tls certificate via bytes slice
+    /// Sets the Tls certificate via bytes slice
     #[inline]
     pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = cert.into();

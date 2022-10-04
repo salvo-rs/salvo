@@ -10,7 +10,7 @@ use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
 use http::{self, Extensions, Uri};
-pub use hyper::Body;
+pub use hyper::Body as ReqBody;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
@@ -33,7 +33,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: Option<Body>,
+    body: Option<ReqBody>,
     extensions: Extensions,
 
     // The request method.
@@ -74,8 +74,8 @@ impl Default for Request {
     }
 }
 
-impl From<hyper::Request<Body>> for Request {
-    fn from(req: hyper::Request<Body>) -> Self {
+impl From<hyper::Request<ReqBody>> for Request {
+    fn from(req: hyper::Request<ReqBody>) -> Self {
         let (
             http::request::Parts {
                 method,
@@ -131,7 +131,7 @@ impl Request {
         Request {
             uri: Uri::default(),
             headers: HeaderMap::default(),
-            body: Some(Body::default()),
+            body: Some(ReqBody::default()),
             extensions: Extensions::default(),
             method: Method::default(),
             #[cfg(feature = "cookie")]
@@ -307,18 +307,18 @@ impl Request {
     /// assert!(req.body().is_some());
     /// ```
     #[inline]
-    pub fn body(&self) -> Option<&Body> {
+    pub fn body(&self) -> Option<&ReqBody> {
         self.body.as_ref()
     }
     /// Returns a mutable reference to the associated HTTP body.
     #[inline]
-    pub fn body_mut(&mut self) -> Option<&mut Body> {
+    pub fn body_mut(&mut self) -> Option<&mut ReqBody> {
         self.body.as_mut()
     }
 
     /// Take body form the request, and set the body to None in the request.
     #[inline]
-    pub fn take_body(&mut self) -> Option<Body> {
+    pub fn take_body(&mut self) -> Option<ReqBody> {
         self.body.take()
     }
 

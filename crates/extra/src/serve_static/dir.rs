@@ -101,28 +101,28 @@ impl StaticDir {
         }
     }
 
-    /// Set dot_files and returns a new `StaticDirOptions`.
+    /// Sets dot_files and returns a new `StaticDirOptions`.
     #[inline]
     pub fn with_dot_files(mut self, dot_files: bool) -> Self {
         self.dot_files = dot_files;
         self
     }
 
-    /// Set listing and returns a new `StaticDirOptions`.
+    /// Sets listing and returns a new `StaticDirOptions`.
     #[inline]
     pub fn with_listing(mut self, listing: bool) -> Self {
         self.listing = listing;
         self
     }
 
-    /// Set defaults and returns a new `StaticDirOptions`.
+    /// Sets defaults and returns a new `StaticDirOptions`.
     #[inline]
     pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
-    /// Set fallback and returns a new `StaticDirOptions`.
+    /// Sets fallback and returns a new `StaticDirOptions`.
     pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self

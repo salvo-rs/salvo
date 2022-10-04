@@ -51,20 +51,20 @@ impl NativeTlsConfig {
         }
     }
 
-    /// Set the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
+    /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
     #[inline]
     pub fn with_pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12_path = Some(path.as_ref().into());
         self
     }
 
-    /// Set the pkcs12 via bytes slice
+    /// Sets the pkcs12 via bytes slice
     #[inline]
     pub fn with_pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
         self.pkcs12 = pkcs12.into();
         self
     }
-    /// Set the password
+    /// Sets the password
     #[inline]
     pub fn with_password(mut self, password: impl Into<String>) -> Self {
         self.password = password.into();

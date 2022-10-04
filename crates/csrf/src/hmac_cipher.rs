@@ -16,7 +16,7 @@ impl HmacCipher {
         Self { hmac_key, token_size: 32 }
     }
 
-    /// Set the length of the token.
+    /// Sets the length of the token.
     #[inline]
     pub fn with_token_size(mut self, token_size: usize) -> Self {
         assert!(token_size >= 8, "length must be larger than 8");

@@ -87,7 +87,7 @@ const BASE64_DIGEST_LEN: usize = 44;
 
 /// SessionDepotExt
 pub trait SessionDepotExt {
-    /// Set session
+    /// Sets session
     fn set_session(&mut self, session: Session) -> &mut Self;
     /// Take session
     fn take_session(&mut self) -> Option<Session>;
@@ -166,7 +166,7 @@ where
         }
     }
 
-    /// Set a cookie path for this session middleware.
+    /// Sets a cookie path for this session middleware.
     ///
     /// The default for this value is "/".
     #[inline]
@@ -175,7 +175,7 @@ where
         self
     }
 
-    /// Set a session ttl. This will be used both for the cookie
+    /// Sets a session ttl. This will be used both for the cookie
     /// expiry and also for the session-internal expiry.
     ///
     /// The default for this value is one day. Set this to None to not
@@ -186,7 +186,7 @@ where
         self
     }
 
-    /// Set the name of the cookie that the session is stored with or in.
+    /// Sets the name of the cookie that the session is stored with or in.
     ///
     /// If you are running multiple tide applications on the same
     /// domain, you will need different values for each
@@ -197,7 +197,7 @@ where
         self
     }
 
-    /// Set the `save_unchanged` value.
+    /// Sets the `save_unchanged` value.
     ///
     /// When `save_unchanged` is enabled, a session will cookie will always be set.
     ///
@@ -212,7 +212,7 @@ where
         self
     }
 
-    /// Set the same site policy for the session cookie. Defaults to
+    /// Sets the same site policy for the session cookie. Defaults to
     /// SameSite::Lax. See [incrementally better
     /// cookies](https://tools.ietf.org/html/draft-west-cookie-incrementalism-01)
     /// for more information about this setting.
@@ -222,13 +222,13 @@ where
         self
     }
 
-    /// Set the domain of the cookie.
+    /// Sets the domain of the cookie.
     #[inline]
     pub fn cookie_domain(mut self, cookie_domain: impl AsRef<str>) -> Self {
         self.cookie_domain = Some(cookie_domain.as_ref().to_owned());
         self
     }
-    /// Set fallbacks.
+    /// Sets fallbacks.
     #[inline]
     pub fn fallback_keys(mut self, keys: Vec<impl Into<Key>>) -> Self {
         self.fallback_keys = keys.into_iter().map(|s| s.into()).collect();

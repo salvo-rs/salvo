@@ -26,7 +26,7 @@ impl SessionStore {
     pub fn name(&self) -> &String {
         &self.name
     }
-    /// Set cookie name.
+    /// Sets cookie name.
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self

@@ -72,7 +72,7 @@ impl CorsBuilder {
             origins: None,
         }
     }
-    /// Set whether to add the `Access-Control-Allow-Credentials` header.
+    /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
     pub fn allow_credentials(mut self, allow: bool) -> Self {
         self.credentials = allow;
@@ -194,7 +194,7 @@ impl CorsBuilder {
         self
     }
 
-    /// Set that *any* `Origin` header is allowed.
+    /// Sets that *any* `Origin` header is allowed.
     ///
     /// # Warning
     ///
@@ -239,7 +239,7 @@ impl CorsBuilder {
         self
     }
 
-    /// Set the `Access-Control-Max-Age` header.
+    /// Sets the `Access-Control-Max-Age` header.
     ///
     /// # Example
     ///

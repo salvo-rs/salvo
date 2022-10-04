@@ -119,13 +119,13 @@ impl RequestBuilder {
         self.add_header(header::AUTHORIZATION, format!("Bearer {}", token.into()), true)
     }
 
-    /// Set the body of this request.
+    /// Sets the body of this request.
     pub fn body(mut self, body: impl Into<Body>) -> Self {
         self.body = body.into();
         self
     }
 
-    /// Set the body of this request to be text.
+    /// Sets the body of this request to be text.
     ///
     /// If the `Content-Type` header is unset, it will be set to `text/plain` and the charset to UTF-8.
     pub fn text(mut self, body: impl Into<String>) -> Self {
@@ -135,7 +135,7 @@ impl RequestBuilder {
         self.body(body.into())
     }
 
-    /// Set the body of this request to be bytes.
+    /// Sets the body of this request to be bytes.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/octet-stream`.
     pub fn bytes(mut self, body: Vec<u8>) -> Self {
@@ -145,7 +145,7 @@ impl RequestBuilder {
         self.body(body)
     }
 
-    /// Set the body of this request to be the JSON representation of the given object.
+    /// Sets the body of this request to be the JSON representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
     pub fn json<T: serde::Serialize>(mut self, value: &T) -> Self {
@@ -155,7 +155,7 @@ impl RequestBuilder {
         self.body(serde_json::to_vec(value).unwrap())
     }
 
-    /// Set the body of this request to be the JSON representation of the given string.
+    /// Sets the body of this request to be the JSON representation of the given string.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/json` and the charset to UTF-8.
     pub fn raw_json(mut self, value: impl Into<String>) -> Self {
@@ -165,7 +165,7 @@ impl RequestBuilder {
         self.body(value.into())
     }
 
-    /// Set the body of this request to be the URL-encoded representation of the given object.
+    /// Sets the body of this request to be the URL-encoded representation of the given object.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
     pub fn form<T: serde::Serialize>(mut self, value: &T) -> Self {
@@ -175,7 +175,7 @@ impl RequestBuilder {
             .or_insert(HeaderValue::from_static("application/x-www-form-urlencoded"));
         self.body(body)
     }
-    /// Set the body of this request to be the URL-encoded representation of the given string.
+    /// Sets the body of this request to be the URL-encoded representation of the given string.
     ///
     /// If the `Content-Type` header is unset, it will be set to `application/x-www-form-urlencoded`.
     pub fn raw_form(mut self, value: impl Into<String>) -> Self {

@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RealIpIssuer};
+use salvo_rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RemoteIpIssuer};
 
 #[handler]
 async fn hello_world() -> &'static str {
@@ -14,7 +14,7 @@ async fn main() {
     let limiter = RateLimiter::new(
         FixedGuard::new(),
         MemoryStore::new(),
-        RealIpIssuer,
+        RemoteIpIssuer,
         BasicQuota::per_second(1),
     );
     let router = Router::with_hoop(limiter).get(hello_world);

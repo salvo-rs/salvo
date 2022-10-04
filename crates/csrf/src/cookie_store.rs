@@ -38,7 +38,7 @@ impl CookieStore {
     pub fn name(&self) -> &String {
         &self.name
     }
-    /// Set cookie name.
+    /// Sets cookie name.
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
@@ -48,7 +48,7 @@ impl CookieStore {
     pub fn ttl(&self) -> Duration {
         self.ttl
     }
-    /// Set cookie ttl.
+    /// Sets cookie ttl.
     pub fn with_ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self
@@ -58,7 +58,7 @@ impl CookieStore {
     pub fn path(&self) -> &String {
         &self.path
     }
-    /// Set cookie path.
+    /// Sets cookie path.
     pub fn with_path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
@@ -68,7 +68,7 @@ impl CookieStore {
     pub fn domain(&self) -> Option<&String> {
         self.domain.as_ref()
     }
-    /// Set cookie domain.
+    /// Sets cookie domain.
     pub fn with_domain(mut self, domain: impl Into<Option<String>>) -> Self {
         self.domain = domain.into();
         self
