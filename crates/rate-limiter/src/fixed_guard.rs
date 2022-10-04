@@ -35,20 +35,18 @@ impl RateGuard for FixedGuard {
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
         if self.quota.is_none() || self.quota.as_ref() != Some(quota) {
             let mut quota = quota.clone();
-            if quota.limit <= 0 {
+            if quota.limit == 0 {
                 quota.limit = 1;
             }
             self.reset = OffsetDateTime::now_utc() + quota.period;
             self.count = 1;
             self.quota = Some(quota);
             true
+        } else if self.count < quota.limit {
+            self.count += 1;
+            true
         } else {
-            if self.count < quota.limit {
-                self.count += 1;
-                true
-            } else {
-                false
-            }
+            false
         }
     }
 }

@@ -35,7 +35,7 @@ impl QuotaGetter<String> for CustomQuotaGetter {
         String: Borrow<Q>,
         Q: Hash + Eq + Sync,
     {
-        USER_QUOTAS.get(key).cloned().ok_or(Error::other("user not found"))
+        USER_QUOTAS.get(key).cloned().ok_or_else(||Error::other("user not found"))
     }
 }
 

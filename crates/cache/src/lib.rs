@@ -9,6 +9,11 @@
 /// A constructed via `salvo_cache::Cache::builder()`.
 #[derive(Clone, Debug)]
 pub struct Cache {}
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Cache {
     /// Create new `Cache`.

@@ -21,7 +21,7 @@ impl BcryptCipher {
     /// Set the length of the token.
     #[inline]
     pub fn with_token_size(mut self, token_size: usize) -> Self {
-        assert!(token_size >= 1 && token_size <= 72, "length must be between 1 and 72");
+        assert!((1..=72).contains(&token_size), "length must be between 1 and 72");
         self.token_size = token_size;
         self
     }
@@ -29,7 +29,7 @@ impl BcryptCipher {
     /// Set the cost for bcrypt.
     #[inline]
     pub fn with_cost(mut self, cost: u32) -> Self {
-        assert!(cost >=4 && cost <= 31, "cost must be between 4 and 31");
+        assert!((4..=31).contains(&cost), "cost must be between 4 and 31");
         self.cost = cost;
         self
     }

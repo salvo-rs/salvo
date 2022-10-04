@@ -15,6 +15,11 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
 pub struct QueryFinder {
     query_name: String,
 }
+impl Default for QueryFinder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl QueryFinder {
     /// Create new `QueryFinder`.
     #[inline]

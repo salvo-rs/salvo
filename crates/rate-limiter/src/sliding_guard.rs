@@ -38,10 +38,10 @@ impl RateGuard for SlidingGuard {
     async fn verify(&mut self, quota: &Self::Quota) -> bool {
         if self.quota.is_none() || self.quota.as_ref() != Some(quota) {
             let mut quota = quota.clone();
-            if quota.limit <= 0 {
+            if quota.limit == 0 {
                 quota.limit = 1;
             }
-            if quota.cells <= 0 {
+            if quota.cells == 0 {
                 quota.cells = 1;
             }
             if quota.cells > quota.limit {
@@ -54,17 +54,15 @@ impl RateGuard for SlidingGuard {
             self.counts[0] = 1;
             self.quota = Some(quota);
             true
-        } else {
-            if self.counts.iter().map(|v| *v).sum::<usize>() < quota.limit {
-                if OffsetDateTime::now_utc() > self.cell_inst + self.cell_span {
-                    self.cell_inst = OffsetDateTime::now_utc();
-                    self.head = (self.head + 1) % self.counts.len();
-                }
-                self.counts[self.head] += 1;
-                true
-            } else {
-                false
+        } else if self.counts.iter().cloned().sum::<usize>() < quota.limit {
+            if OffsetDateTime::now_utc() > self.cell_inst + self.cell_span {
+                self.cell_inst = OffsetDateTime::now_utc();
+                self.head = (self.head + 1) % self.counts.len();
             }
+            self.counts[self.head] += 1;
+            true
+        } else {
+            false
         }
     }
 }
