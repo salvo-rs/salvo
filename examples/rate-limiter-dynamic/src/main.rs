@@ -5,7 +5,7 @@ use std::hash::Hash;
 use once_cell::sync::Lazy;
 use salvo::prelude::*;
 use salvo::Error;
-use salvo_rate_limiter::{MemoryStore, QuotaGetter, RateIssuer, RateLimiter, CelledQuota, SlidingGuard};
+use salvo_rate_limiter::{CelledQuota, MemoryStore, QuotaGetter, RateIssuer, RateLimiter, SlidingGuard};
 
 static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
     let mut map = HashMap::new();
@@ -53,12 +53,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     tracing::info!("Listening on http://127.0.0.1:7878");
-    let limiter = RateLimiter::new(
-        SlidingGuard::new(),
-        MemoryStore::new(),
-        UserIssuer,
-        CustomQuotaGetter,
-    );
+    let limiter = RateLimiter::new(SlidingGuard::new(), MemoryStore::new(), UserIssuer, CustomQuotaGetter);
     let router = Router::new()
         .get(home)
         .push(Router::with_path("limited").hoop(limiter).get(limited));

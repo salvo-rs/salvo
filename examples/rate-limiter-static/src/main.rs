@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use salvo::prelude::*;
-use salvo_rate_limiter::{MemoryStore, RateLimiter, RealIpIssuer, CelledQuota, SlidingGuard};
+use salvo_rate_limiter::{CelledQuota, MemoryStore, RateLimiter, RealIpIssuer, SlidingGuard};
 
 #[handler]
 async fn hello_world() -> &'static str {

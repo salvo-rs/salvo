@@ -8,14 +8,12 @@
 
 /// A constructed via `salvo_cache::Cache::builder()`.
 #[derive(Clone, Debug)]
-pub struct Cache {
-}
+pub struct Cache {}
 
 impl Cache {
     /// Create new `Cache`.
     #[inline]
     pub fn new() -> Self {
-        Cache {
-        }
+        Cache {}
     }
 }

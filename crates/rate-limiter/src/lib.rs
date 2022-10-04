@@ -15,8 +15,8 @@ use salvo_core::addr::SocketAddr;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-use time::{OffsetDateTime, Duration};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 
 #[macro_use]
 mod cfg;
