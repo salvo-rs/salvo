@@ -6,18 +6,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-use std::collections::HashSet;
-use std::convert::TryFrom;
-use std::error::Error as StdError;
-use std::fmt::{self, Display, Formatter};
-
-use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
-use salvo_core::http::headers::{
-    AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
-};
-use salvo_core::http::{Method, Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-
 /// A constructed via `salvo_cache::Cache::builder()`.
 #[derive(Clone, Debug)]
 pub struct Cache {

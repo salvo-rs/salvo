@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::time::Duration;
 
 use once_cell::sync::Lazy;
 use salvo::prelude::*;
@@ -20,7 +19,7 @@ pub struct UserIssuer;
 #[async_trait]
 impl RateIssuer for UserIssuer {
     type Key = String;
-    async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+    async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         req.query::<Self::Key>("user")
     }
 }

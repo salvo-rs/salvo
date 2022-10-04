@@ -9,15 +9,14 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::error::Error as StdError;
-use std::future::Future;
 use std::hash::Hash;
-use std::marker::PhantomData;
-use std::time::Duration;
 
 use salvo_core::addr::SocketAddr;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
+use time::{OffsetDateTime, Duration};
+use serde::{Serialize, Deserialize};
 
 #[macro_use]
 mod cfg;
@@ -30,59 +29,84 @@ cfg_feature! {
 }
 
 cfg_feature! {
+    #![feature = "fixed-guard"]
+
+    mod fixed_guard;
+    pub use fixed_guard::FixedGuard;
+}
+
+cfg_feature! {
     #![feature = "sliding-guard"]
 
     mod sliding_guard;
     pub use sliding_guard::SlidingGuard;
 }
 
+/// `QuotaGetter` is used to get quota. You can config users' quota config in database.
 #[async_trait]
 pub trait QuotaGetter<Key>: Send + Sync + 'static {
+    /// Quota type.
     type Quota: Clone + Send + Sync + 'static;
+    /// Error type.
     type Error: StdError;
 
+    /// Get quota.
     async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
     where
         Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+/// A basic quota.
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct BasicQuota {
     limit: usize,
     period: Duration,
 }
 impl BasicQuota {
+    /// Create new `BasicQuota`.
     pub const fn new(limit: usize, period: Duration) -> Self {
         Self { limit, period }
     }
+
+    /// Set the limit of the quota per second.
     pub const fn per_second(limit: usize) -> Self {
         Self::new(limit, Duration::from_secs(1))
     }
+
+    /// Set the limit of the quota per minute.
     pub const fn per_minute(limit: usize) -> Self {
         Self::new(limit, Duration::from_secs(60))
     }
+
+    /// Set the limit of the quota per hour.
     pub const fn per_hour(limit: usize) -> Self {
         Self::new(limit, Duration::from_secs(3600))
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+/// A common used quota has cells field.
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct CelledQuota {
     limit: usize,
     period: Duration,
     cells: usize,
 }
 impl CelledQuota {
+    /// Create new `CelledQuota`.
     pub const fn new(limit: usize, period: Duration, cells: usize) -> Self {
         Self { limit, period, cells }
     }
+
+    /// Set the limit of the quota per second.
     pub const fn per_second(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::from_secs(1), cells)
     }
+    /// Set the limit of the quota per minute.
     pub const fn per_minute(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::from_secs(60), cells)
     }
+    /// Set the limit of the quota per hour.
     pub const fn per_hour(limit: usize, cells: usize) -> Self {
         Self::new(limit, Duration::from_secs(3600), cells)
     }
@@ -109,6 +133,7 @@ where
 /// Issuer
 #[async_trait]
 pub trait RateIssuer: Send + Sync + 'static {
+    /// The key is used to identify the rate limit.
     type Key: Hash + Eq + Send + Sync + 'static;
     /// Issue a new key for the request.
     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
@@ -125,6 +150,7 @@ where
     }
 }
 
+/// Identify user by IP address.
 pub struct RealIpIssuer;
 #[async_trait]
 impl RateIssuer for RealIpIssuer {
@@ -142,7 +168,9 @@ impl RateIssuer for RealIpIssuer {
 /// RateGuard
 #[async_trait]
 pub trait RateGuard: Clone + Send + Sync + 'static {
+    /// The quota for the rate limit.
     type Quota: Clone + Send + Sync + 'static;
+    /// Verify is current request exceed the quota.
     async fn verify(&mut self, quota: &Self::Quota) -> bool;
 }
 
@@ -160,7 +188,7 @@ pub trait RateStore: Send + Sync + 'static {
     where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync;
-    // Save the guard from the store.
+    /// Save the guard from the store.
     async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error>;
 }
 

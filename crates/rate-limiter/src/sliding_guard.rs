@@ -1,15 +1,12 @@
-//TODO
-
-use std::convert::Infallible;
-use std::time::{Duration, Instant};
-
 use salvo_core::async_trait;
+use time::{Duration, OffsetDateTime};
 
-use super::{CelledQuota, RateGuard, RateStore};
+use super::{CelledQuota, RateGuard};
 
+/// Sliding window implement.
 #[derive(Clone, Debug)]
 pub struct SlidingGuard {
-    cell_inst: Instant,
+    cell_inst: OffsetDateTime,
     cell_span: Duration,
     counts: Vec<usize>,
     head: usize,
@@ -23,9 +20,10 @@ impl Default for SlidingGuard {
 }
 
 impl SlidingGuard {
+    /// Create a new `SlidingGuard`.
     pub fn new() -> Self {
         Self {
-            cell_inst: Instant::now(),
+            cell_inst: OffsetDateTime::now_utc(),
             cell_span: Duration::default(),
             counts: vec![],
             head: 0,
@@ -46,7 +44,10 @@ impl RateGuard for SlidingGuard {
             if quota.cells <= 0 {
                 quota.cells = 1;
             }
-            self.cell_inst = Instant::now();
+            if quota.cells > quota.limit {
+                quota.cells = quota.limit;
+            }
+            self.cell_inst = OffsetDateTime::now_utc();
             self.cell_span = quota.period / (quota.cells as u32);
             self.counts = vec![0; quota.cells];
             self.head = 0;
@@ -54,15 +55,15 @@ impl RateGuard for SlidingGuard {
             self.quota = Some(quota);
             true
         } else {
-            if self.counts.iter().map(|v|*v).sum::<usize>() >= quota.limit {
-                false
-            } else {
+            if self.counts.iter().map(|v| *v).sum::<usize>() < quota.limit {
                 if Instant::now() > self.cell_inst + self.cell_span {
                     self.cell_inst = Instant::now();
                     self.head = (self.head + 1) % self.counts.len();
                 }
                 self.counts[self.head] += 1;
                 true
+            } else {
+                false
             }
         }
     }

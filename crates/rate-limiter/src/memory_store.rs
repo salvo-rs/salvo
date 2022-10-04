@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::hash::Hash;
 
-use salvo_core::{async_trait, Handler};
+use salvo_core::async_trait;
 use tokio::sync::Mutex;
 
 use super::{RateGuard, RateStore};
 
+/// A simple in-memory store for rate limiter.
 #[derive(Default, Debug)]
 pub struct MemoryStore<K, E> {
     inner: Mutex<HashMap<K, E>>,
@@ -18,6 +19,7 @@ impl<K, E> MemoryStore<K, E>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
 {
+    /// Create a new `MemoryStore`.
     pub fn new() -> Self {
         Self {
             inner: Mutex::new(HashMap::new()),

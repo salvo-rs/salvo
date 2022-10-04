@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use salvo::prelude::*;
-use salvo_rate_limiter::{MemoryStore, RateLimiter, RealIpIssuer, BasicQuota, SlidingWindow};
+use salvo_rate_limiter::{MemoryStore, RateLimiter, RealIpIssuer, CelledQuota, SlidingGuard};
 
 #[handler]
 async fn hello_world() -> &'static str {
@@ -14,10 +14,10 @@ async fn main() {
 
     tracing::info!("Listening on http://127.0.0.1:7878");
     let limiter = RateLimiter::new(
-        SlidingWindow::new(),
+        SlidingGuard::new(),
         MemoryStore::new(),
         RealIpIssuer,
-        BasicQuota::new(1, Duration::from_secs(3)),
+        CelledQuota::new(1, Duration::from_secs(3), 2),
     );
     let router = Router::with_hoop(limiter).get(hello_world);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;

@@ -1,5 +1,5 @@
-# salvo-cors
+# salvo-cache
 
-Library to Provide a CORS protection.
+Cache support for Savlo framework.
 
 [![Docs](https://docs.rs/salvo-cors/badge.svg)](https://docs.rs/salvo-cors)
