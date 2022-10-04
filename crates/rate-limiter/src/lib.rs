@@ -16,7 +16,7 @@ use salvo_core::handler::Skipper;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 
 #[macro_use]
 mod cfg;
@@ -71,17 +71,17 @@ impl BasicQuota {
 
     /// Set the limit of the quota per second.
     pub const fn per_second(limit: usize) -> Self {
-        Self::new(limit, Duration::from_secs(1))
+        Self::new(limit, Duration::seconds(1))
     }
 
     /// Set the limit of the quota per minute.
     pub const fn per_minute(limit: usize) -> Self {
-        Self::new(limit, Duration::from_secs(60))
+        Self::new(limit, Duration::seconds(60))
     }
 
     /// Set the limit of the quota per hour.
     pub const fn per_hour(limit: usize) -> Self {
-        Self::new(limit, Duration::from_secs(3600))
+        Self::new(limit, Duration::seconds(3600))
     }
 }
 
@@ -100,15 +100,15 @@ impl CelledQuota {
 
     /// Set the limit of the quota per second.
     pub const fn per_second(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::from_secs(1), cells)
+        Self::new(limit, Duration::seconds(1), cells)
     }
     /// Set the limit of the quota per minute.
     pub const fn per_minute(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::from_secs(60), cells)
+        Self::new(limit, Duration::seconds(60), cells)
     }
     /// Set the limit of the quota per hour.
     pub const fn per_hour(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::from_secs(3600), cells)
+        Self::new(limit, Duration::seconds(3600), cells)
     }
 }
 

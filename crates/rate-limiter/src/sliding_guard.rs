@@ -56,8 +56,8 @@ impl RateGuard for SlidingGuard {
             true
         } else {
             if self.counts.iter().map(|v| *v).sum::<usize>() < quota.limit {
-                if Instant::now() > self.cell_inst + self.cell_span {
-                    self.cell_inst = Instant::now();
+                if OffsetDateTime::now_utc() > self.cell_inst + self.cell_span {
+                    self.cell_inst = OffsetDateTime::now_utc();
                     self.head = (self.head + 1) % self.counts.len();
                 }
                 self.counts[self.head] += 1;

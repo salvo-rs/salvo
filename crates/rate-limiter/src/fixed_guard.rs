@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
