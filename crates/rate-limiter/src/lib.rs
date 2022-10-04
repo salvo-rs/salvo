@@ -30,32 +30,14 @@ cfg_feature! {
 }
 
 cfg_feature! {
-    #![feature = "fixed-window"]
+    #![feature = "sliding-guard"]
 
-    mod fixed_window;
-    pub use fixed_window::FixedWindow;
-}
-cfg_feature! {
-    #![feature = "sliding-window"]
-
-    mod sliding_window;
-    pub use sliding_window::SlidingWindow;
-}
-cfg_feature! {
-    #![feature = "leaky-bucket"]
-
-    mod leaky_bucket;
-    pub use leaky_bucket::LeakyBucket;
-}
-cfg_feature! {
-    #![feature = "token-bucket"]
-
-    mod token_bucket;
-    pub use token_bucket::TokenBucket;
+    mod sliding_guard;
+    pub use sliding_guard::SlidingGuard;
 }
 
 #[async_trait]
-pub trait QuotaProvider<Key>: Send + Sync + 'static {
+pub trait QuotaGetter<Key>: Send + Sync + 'static {
     type Quota: Clone + Send + Sync + 'static;
     type Error: StdError;
 
@@ -65,28 +47,49 @@ pub trait QuotaProvider<Key>: Send + Sync + 'static {
         Q: Hash + Eq + Sync;
 }
 
-#[derive(Clone, Debug)]
-pub struct SimpleQuota {
-    burst: usize,
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct BasicQuota {
+    limit: usize,
     period: Duration,
 }
-impl SimpleQuota {
-    pub const fn new(burst: usize, period: Duration) -> Self {
-        Self { burst, period }
+impl BasicQuota {
+    pub const fn new(limit: usize, period: Duration) -> Self {
+        Self { limit, period }
     }
-    pub const fn per_second(burst: usize) -> Self {
-        Self::new(burst, Duration::from_secs(1))
+    pub const fn per_second(limit: usize) -> Self {
+        Self::new(limit, Duration::from_secs(1))
     }
-    pub const fn per_minute(burst: usize) -> Self {
-        Self::new(burst, Duration::from_secs(60))
+    pub const fn per_minute(limit: usize) -> Self {
+        Self::new(limit, Duration::from_secs(60))
     }
-    pub const fn per_hour(burst: usize) -> Self {
-        Self::new(burst, Duration::from_secs(3600))
+    pub const fn per_hour(limit: usize) -> Self {
+        Self::new(limit, Duration::from_secs(3600))
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct CelledQuota {
+    limit: usize,
+    period: Duration,
+    cells: usize,
+}
+impl CelledQuota {
+    pub const fn new(limit: usize, period: Duration, cells: usize) -> Self {
+        Self { limit, period, cells }
+    }
+    pub const fn per_second(limit: usize, cells: usize) -> Self {
+        Self::new(limit, Duration::from_secs(1), cells)
+    }
+    pub const fn per_minute(limit: usize, cells: usize) -> Self {
+        Self::new(limit, Duration::from_secs(60), cells)
+    }
+    pub const fn per_hour(limit: usize, cells: usize) -> Self {
+        Self::new(limit, Duration::from_secs(3600), cells)
     }
 }
 
 #[async_trait]
-impl<Key, T> QuotaProvider<Key> for T
+impl<Key, T> QuotaGetter<Key> for T
 where
     Key: Hash + Eq + Send + Sync + 'static,
     T: Clone + Send + Sync + 'static,
@@ -110,17 +113,17 @@ pub trait RateIssuer: Send + Sync + 'static {
     /// Issue a new key for the request.
     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key>;
 }
-// #[async_trait]
-// impl<F, K> RateIssuer for F
-// where
-//     F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
-//     K: Hash + Eq + Send + Sync + 'static,
-// {
-//     type Key = K;
-//     async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
-//         (self)(req, depot)
-//     }
-// }
+#[async_trait]
+impl<F, K> RateIssuer for F
+where
+    F: Fn(&mut Request, &Depot) -> Option<K> + Send + Sync + 'static,
+    K: Hash + Eq + Send + Sync + 'static,
+{
+    type Key = K;
+    async fn issue(&self, req: &mut Request, depot: &Depot) -> Option<Self::Key> {
+        (self)(req, depot)
+    }
+}
 
 pub struct RealIpIssuer;
 #[async_trait]
@@ -170,7 +173,7 @@ pub struct RateLimiter<G, S, I, Q> {
     skipper: Option<Box<dyn Skipper>>,
 }
 
-impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaProvider<I::Key>> RateLimiter<G, S, I, P> {
+impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimiter<G, S, I, P> {
     /// Create a new RateLimiter
     #[inline]
     pub fn new(guard: G, store: S, issuer: I, quota_provider: P) -> Self {
@@ -196,7 +199,7 @@ impl<G, S, I, P> Handler for RateLimiter<G, S, I, P>
 where
     G: RateGuard<Quota = P::Quota>,
     S: RateStore<Key = I::Key, Guard = G>,
-    P: QuotaProvider<I::Key>,
+    P: QuotaGetter<I::Key>,
     I: RateIssuer,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {

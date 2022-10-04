@@ -6,13 +6,13 @@ use std::time::Duration;
 use once_cell::sync::Lazy;
 use salvo::prelude::*;
 use salvo::Error;
-use salvo_rate_limiter::{MemoryStore, QuotaProvider, RateIssuer, RateLimiter, SimpleQuota, SlidingWindow};
+use salvo_rate_limiter::{MemoryStore, QuotaGetter, RateIssuer, RateLimiter, CelledQuota, SlidingGuard};
 
-static USER_QUOTAS: Lazy<HashMap<String, SimpleQuota>> = Lazy::new(|| {
+static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert("user1".into(), SimpleQuota::per_minute(1));
-    map.insert("user2".into(), SimpleQuota::per_minute(10));
-    map.insert("user3".into(), SimpleQuota::per_minute(60));
+    map.insert("user1".into(), CelledQuota::per_minute(1, 1));
+    map.insert("user2".into(), CelledQuota::per_minute(10, 5));
+    map.insert("user3".into(), CelledQuota::per_minute(60, 10));
     map
 });
 
@@ -25,10 +25,10 @@ impl RateIssuer for UserIssuer {
     }
 }
 
-pub struct CustomQuotaProvider;
+pub struct CustomQuotaGetter;
 #[async_trait]
-impl QuotaProvider<String> for CustomQuotaProvider {
-    type Quota = SimpleQuota;
+impl QuotaGetter<String> for CustomQuotaGetter {
+    type Quota = CelledQuota;
     type Error = Error;
 
     async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
@@ -55,10 +55,10 @@ async fn main() {
 
     tracing::info!("Listening on http://127.0.0.1:7878");
     let limiter = RateLimiter::new(
-        SlidingWindow::new(),
+        SlidingGuard::new(),
         MemoryStore::new(),
         UserIssuer,
-        CustomQuotaProvider,
+        CustomQuotaGetter,
     );
     let router = Router::new()
         .get(home)

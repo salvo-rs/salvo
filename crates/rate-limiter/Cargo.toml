@@ -18,20 +18,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["memory-store", "sliding-window"]
-all = ["memory-store", "fixed-window", "sliding-window", "leaky-bucket", "token-bucket"]
+default = ["memory-store", "sliding-guard"]
+all = ["memory-store", "sliding-guard"]
 memory-store = []
-fixed-window= []
-sliding-window= []
-leaky-bucket= []
-token-bucket= []
+sliding-guard = []
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false }
-tracing = { workspace = true }
-serde.workspace = true
+tracing.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-salvo_core = {  workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
