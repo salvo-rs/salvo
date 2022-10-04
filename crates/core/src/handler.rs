@@ -65,6 +65,16 @@ where
     }
 }
 
+/// `NoneSkipper` will skipper nothing. 
+/// 
+/// It can be used as default `Skipper` in middleware.
+pub struct NoneSkipper;
+impl Skipper for NoneSkipper {
+    fn skipped(&self, _req: &mut Request, _depot: &Depot) -> bool {
+        false
+    }
+}
+
 macro_rules! handler_tuple_impls {
     ($(
         $Tuple:tt {
@@ -84,8 +94,27 @@ macro_rules! handler_tuple_impls {
         })+
     }
 }
-#[doc(hidden)]
-macro_rules! __for_each_handler_tuple {
+macro_rules! skipper_tuple_impls {
+    ($(
+        $Tuple:tt {
+            $(($idx:tt) -> $T:ident,)+
+        }
+    )+) => {$(
+        impl<$($T,)+> Skipper for ($($T,)+) where $($T: Skipper,)+
+        {
+            fn skipped(&self, req: &mut Request, depot: &Depot) -> bool {
+                $(
+                    if self.$idx.skipped(req, depot) {
+                        return true;
+                    }
+                )+
+                false
+            }
+        })+
+    }
+}
+
+macro_rules! __for_each_tuple {
     ($callback:ident) => {
         $callback! {
             1 {
@@ -144,4 +173,5 @@ macro_rules! __for_each_handler_tuple {
     };
 }
 
-__for_each_handler_tuple!(handler_tuple_impls);
+__for_each_tuple!(handler_tuple_impls);
+__for_each_tuple!(skipper_tuple_impls);
