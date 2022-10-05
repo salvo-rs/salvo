@@ -65,8 +65,8 @@ where
     }
 }
 
-/// `NoneSkipper` will skipper nothing. 
-/// 
+/// `NoneSkipper` will skipper nothing.
+///
 /// It can be used as default `Skipper` in middleware.
 pub struct NoneSkipper;
 impl Skipper for NoneSkipper {

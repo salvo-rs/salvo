@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use salvo::prelude::*;
+use salvo::writer::Text;
 use salvo_cache::{Cache, MemoryStore, RequestIssuer};
 use time::OffsetDateTime;
-use salvo::writer::Text;
 
 #[handler]
 async fn home() -> Text<&'static str> {

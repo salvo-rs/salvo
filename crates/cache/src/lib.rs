@@ -1,16 +1,16 @@
 //! Cache middleware for Salvo.
-//! 
-//! Cache middleware for Salvo designed to intercept responses and cache them. 
-//! This middleware will cache the response's StatusCode, Headers and Body. 
-//! 
+//!
+//! Cache middleware for Salvo designed to intercept responses and cache them.
+//! This middleware will cache the response's StatusCode, Headers and Body.
+//!
 //! You can define your custom [`CacheIssuer`] to determine which responses should be cached,
 //! or you can use the default [`RequestIssuer`].
-//! 
-//! The default cache store is [`MemoryStore`], which is a wrapper of [`moka`]. 
+//!
+//! The default cache store is [`MemoryStore`], which is a wrapper of [`moka`].
 //! You can define your own cache store by implementing [`CacheStore`].
-//! 
+//!
 //! Example: [cache-simple](https://github.com/salvo-rs/salvo/tree/main/examples/cache-simple)
-//! 
+//!
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -20,8 +20,8 @@
 
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-use std::hash::Hash;
 use std::error::Error as StdError;
+use std::hash::Hash;
 
 use bytes::Bytes;
 use salvo_core::handler::Skipper;
@@ -162,7 +162,7 @@ pub trait CacheStore: Send + Sync + 'static {
 }
 
 /// `CachedBody` is used to save response body to `CachedStore`.
-/// 
+///
 /// [`ResBody`] has Stream type, which is not `Send + Sync`, so we need to convert it to `CachedBody`.
 /// If response's body is ['ResBody::Stream`], it will not be cached.
 #[derive(Clone, Debug)]
@@ -202,8 +202,8 @@ pub struct CachedEntry {
     pub status: Option<StatusCode>,
     /// Response headers.
     pub headers: HeaderMap,
-    /// Response body. 
-    /// 
+    /// Response body.
+    ///
     /// *Notice: If the response's body is streaming, it will be ignored an not cached.
     pub body: CachedBody,
 }
@@ -224,7 +224,7 @@ impl CachedEntry {
     }
 
     /// Get the response body.
-    /// 
+    ///
     /// *Notice: If the response's body is streaming, it will be ignored an not cached.
     pub fn body(&self) -> &CachedBody {
         &self.body
