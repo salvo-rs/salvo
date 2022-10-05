@@ -1,13 +1,13 @@
 //! Rate limiter middleware for Salvo.
-//! 
-//! Rate Limiter middleware is used to limiting the amount of requests to the server 
+//!
+//! Rate Limiter middleware is used to limiting the amount of requests to the server
 //! from a particular IP or id within a time period.
-//! 
+//!
 //! [`RateIssuer`] is used to issue a key to request, your can define your custom `RateIssuer`.
 //! If you want just identify user by IP address, you can use [`RemoteIpIssuer`].
-//! 
+//!
 //! [`QuotaGetter`] is used to get quota for every key.
-//! 
+//!
 //! [`RateGuard`] is strategy to verify is the request exceeded quota.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
