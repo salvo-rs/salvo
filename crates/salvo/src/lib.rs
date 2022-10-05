@@ -26,7 +26,6 @@ cfg_feature! {
         feature = "jwt-auth",
         feature = "logging",
         feature = "proxy",
-        feature = "session",
         feature = "size-limiter",
         feature = "sse",
         feature = "trailing-slash",
