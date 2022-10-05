@@ -1,4 +1,4 @@
-use salvo::extra::serve_static::StaticDir;
+use salvo_static::StaticDir;
 use salvo::prelude::*;
 
 #[tokio::main]

@@ -26,7 +26,6 @@ cfg_feature! {
         feature = "jwt-auth",
         feature = "logging",
         feature = "proxy",
-        feature = "serve-static",
         feature = "session",
         feature = "size-limiter",
         feature = "sse",
@@ -73,10 +72,6 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="proxy"]
         pub use salvo_extra::proxy::Proxy;
-    }
-    cfg_feature! {
-        #![feature ="serve-static"]
-        pub use salvo_extra::serve_static::{StaticDir, StaticFile, static_embed, render_embedded_file, EmbeddedFileExt, StaticEmbed};
     }
     cfg_feature! {
         #![feature ="size-limiter"]

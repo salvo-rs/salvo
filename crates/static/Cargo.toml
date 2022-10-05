@@ -1,0 +1,41 @@
+[package]
+name = "salvo-static"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+description = """
+Serve static assets for salvo web server framework.
+"""
+homepage.workspace = true
+repository.workspace = true
+readme = "./README.md"
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+embed = ["dep:rust-embed"]
+
+[dependencies]
+hex.workspace = true
+mime.workspace = true
+mime_guess.workspace = true
+path-slash.workspace = true
+percent-encoding.workspace = true
+rust-embed = { workspace = true, optional = true }
+salvo_core = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+time = {workspace = true, features = ["serde"] }
+tracing.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+reqwest.workspace = true
+salvo_core = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

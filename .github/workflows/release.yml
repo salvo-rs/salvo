@@ -65,6 +65,8 @@ jobs:
             path: crates/cache
           - crate: salvo-rate-limiter
             path: crates/rate-limiter
+          - crate: salvo-static
+            path: crates/static
     steps:
       - uses: actions-rs/toolchain@v1
         with:

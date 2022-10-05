@@ -42,10 +42,6 @@ cfg_feature! {
     pub mod proxy;
 }
 cfg_feature! {
-    #![feature = "serve-static"]
-    pub mod serve_static;
-}
-cfg_feature! {
     #![feature = "sse"]
     pub mod sse;
 }
