@@ -61,6 +61,10 @@ jobs:
             path: crates/cors
           - crate: salvo-csrf
             path: crates/csrf
+          - crate: salvo-cache
+            path: crates/cache
+          - crate: salvo-rate-limiter
+            path: crates/rate-limiter
     steps:
       - uses: actions-rs/toolchain@v1
         with:
