@@ -54,7 +54,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "0.35"
+salvo = "*"
 tokio = { version = "1", features = ["macros"] }
 ```
 
