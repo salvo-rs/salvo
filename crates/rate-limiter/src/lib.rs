@@ -1,4 +1,14 @@
-//! TBD
+//! Rate limiter middleware for Salvo.
+//! 
+//! Rate Limiter middleware is used to limiting the amount of requests to the server 
+//! from a particular IP or id within a time period.
+//! 
+//! [`RateIssuer`] is used to issue a key to request, your can define your custom `RateIssuer`.
+//! If you want just identify user by IP address, you can use [`RemoteIpIssuer`].
+//! 
+//! [`QuotaGetter`] is used to get quota for every key.
+//! 
+//! [`RateGuard`] is strategy to verify is the request exceeded quota.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -130,7 +140,7 @@ where
     }
 }
 
-/// Issuer
+/// Issuer is used to identify every request.
 #[async_trait]
 pub trait RateIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
@@ -165,7 +175,7 @@ impl RateIssuer for RemoteIpIssuer {
     }
 }
 
-/// RateGuard
+/// `RateGuard` is strategy to verify is the request exceeded quota
 #[async_trait]
 pub trait RateGuard: Clone + Send + Sync + 'static {
     /// The quota for the rate limit.
@@ -174,7 +184,7 @@ pub trait RateGuard: Clone + Send + Sync + 'static {
     async fn verify(&mut self, quota: &Self::Quota) -> bool;
 }
 
-/// Store rate.
+/// `RateStore` is used to store rate limit data.
 #[async_trait]
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
@@ -192,7 +202,7 @@ pub trait RateStore: Send + Sync + 'static {
     async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error>;
 }
 
-/// RateLimiter
+/// `RateLimiter` is the main struct to used limit user request.
 pub struct RateLimiter<G, S, I, Q> {
     guard: G,
     store: S,
