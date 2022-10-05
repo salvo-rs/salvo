@@ -1,28 +1,39 @@
-//TODO
-
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::convert::Infallible;
 use std::hash::Hash;
 
+use moka::sync::Cache as MokaCache;
 use salvo_core::async_trait;
-use tokio::sync::Mutex;
 
 use super::{RateGuard, RateStore};
 
 /// A simple in-memory store for rate limiter.
-#[derive(Default, Debug)]
-pub struct MemoryStore<K, E> {
-    inner: Mutex<HashMap<K, E>>,
-}
-impl<K, E> MemoryStore<K, E>
+#[derive(Debug)]
+pub struct MemoryStore<K, G>
 where
     K: Hash + Eq + Send + Sync + Clone + 'static,
+    G: RateGuard,
+{
+    inner: MokaCache<K, G>,
+}
+impl<K, G> Default for MemoryStore<K, G>
+where
+    K: Hash + Eq + Send + Sync + Clone + 'static,
+    G: RateGuard,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<K, G> MemoryStore<K, G>
+where
+    K: Hash + Eq + Send + Sync + Clone + 'static,
+    G: RateGuard,
 {
     /// Create a new `MemoryStore`.
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(HashMap::new()),
+            inner: MokaCache::new(u64::MAX),
         }
     }
 }
@@ -42,8 +53,7 @@ where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync,
     {
-        let mut inner = self.inner.lock().await;
-        let guard = inner.remove(key);
+        let guard = self.inner.get(key);
         if let Some(guard) = guard {
             Ok(guard)
         } else {
@@ -52,8 +62,7 @@ where
     }
 
     async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error> {
-        let mut inner = self.inner.lock().await;
-        inner.insert(key, guard);
+        self.inner.insert(key, guard);
         Ok(())
     }
 }
