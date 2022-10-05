@@ -10,7 +10,7 @@
 //!     .allow_origin("https://salvo.rs")
 //!     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
 //!
-//! let router = Router::new().hoop(cors_handler).post(upload_file);
+//! let router = Router::new().hoop(cors_handler).post(upload_file).options(upload_file);
 //! #[handler]
 //! async fn upload_file(res: &mut Response) {
 //! }

@@ -1,4 +1,16 @@
-//! TBD
+//! Cache middleware for Salvo.
+//! 
+//! Cache middleware for Salvo designed to intercept responses and cache them. 
+//! This middleware will cache the response's StatusCode, Headers and Body. 
+//! 
+//! You can define your custom [`CacheIssuer`] to determine which responses should be cached,
+//! or you can use the default [`RequestIssuer`].
+//! 
+//! The default cache store is [`MemoryStore`], which is a wrapper of [`moka`]. 
+//! You can define your own cache store by implementing [`CacheStore`].
+//! 
+//! Example: [cache-simple](https://github.com/salvo-rs/salvo/tree/main/examples/cache-simple)
+//! 
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

@@ -1,5 +1,5 @@
 # salvo-csrf
 
-Library to Provide a CSRF (Cross-Site Request Forgery) protection.
+CSRF (Cross-Site Request Forgery) middleware for Salvo.
 
 [![Docs](https://docs.rs/salvo-csrf/badge.svg)](https://docs.rs/salvo-csrf)

@@ -1,5 +1,5 @@
 # salvo-cache
 
-Cache support for Savlo framework.
+Cache middleware for Savlo.
 
 [![Docs](https://docs.rs/salvo-cors/badge.svg)](https://docs.rs/salvo-cache)
