@@ -82,7 +82,7 @@ pub mod prelude {
     pub use crate::server::Server;
     pub use crate::service::Service;
     pub use crate::writer::{Json, Piece, Redirect, Text, Writer};
-    pub use crate::handler::{Handler, EmptyHandler};
+    pub use crate::handler::{Handler, empty_handler};
 }
 
 #[doc(hidden)]

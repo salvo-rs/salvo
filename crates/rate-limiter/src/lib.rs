@@ -22,7 +22,7 @@ use std::error::Error as StdError;
 use std::hash::Hash;
 
 use salvo_core::addr::SocketAddr;
-use salvo_core::handler::{NoneSkipper, Skipper};
+use salvo_core::handler::{none_skipper, Skipper};
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 use serde::{Deserialize, Serialize};
@@ -220,7 +220,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
             store,
             issuer,
             quota_getter,
-            skipper: Box::new(NoneSkipper),
+            skipper: Box::new(none_skipper),
         }
     }
 

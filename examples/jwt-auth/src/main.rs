@@ -1,5 +1,6 @@
 use jsonwebtoken::{self, EncodingKey};
 use salvo::http::{Method, StatusError};
+use salvo::jwt_auth::QueryFinder;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
@@ -49,7 +50,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             &claim,
             &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
         )?;
-        res.render(Redirect::other(&format!("/?jwt_token={}", token))?);
+        res.render(Redirect::other(&format!("/?jwt_token={}", token)));
     } else {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {

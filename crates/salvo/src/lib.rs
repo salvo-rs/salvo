@@ -139,7 +139,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="jwt-auth"]
-        pub use salvo_extra::jwt_auth::{JwtAuthDepotExt, JwtAuth};
+        pub use salvo_extra::jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState};
     }
     cfg_feature! {
         #![feature ="logging"]

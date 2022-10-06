@@ -33,8 +33,8 @@
 //!     Router::new().handle(middleware);
 //! }
 //! ```
-use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 use crate::http::StatusCode;
+use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
 /// Handler
 #[async_trait]
@@ -53,12 +53,13 @@ pub trait Handler: Send + Sync + 'static {
 }
 
 /// This is a empty implement for `Handler`.
-/// 
-/// `EmptyHanlder` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
-pub struct EmptyHandler;
+///
+/// `empty_handler` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
+#[allow(non_camel_case_types)]
+pub struct empty_handler;
 #[async_trait]
-impl Handler for EmptyHandler {
-    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl){
+impl Handler for empty_handler {
+    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         res.set_status_code(StatusCode::OK);
     }
 }
@@ -77,14 +78,11 @@ where
     }
 }
 
-/// `NoneSkipper` will skipper nothing.
+/// `none_skipper` will skipper nothing.
 ///
 /// It can be used as default `Skipper` in middleware.
-pub struct NoneSkipper;
-impl Skipper for NoneSkipper {
-    fn skipped(&self, _req: &mut Request, _depot: &Depot) -> bool {
-        false
-    }
+pub fn none_skipper(_req: &mut Request, _depot: &Depot) -> bool {
+    false
 }
 
 macro_rules! handler_tuple_impls {
