@@ -1,7 +1,7 @@
 //! filter
 
 mod opts;
-mod other;
+mod others;
 mod path;
 
 use std::fmt::{self, Formatter};
@@ -102,6 +102,24 @@ impl<F> fmt::Debug for FnFilter<F> {
     }
 }
 
+/// Filter request by uri scheme.
+#[inline]
+pub fn scheme(scheme: Scheme, default: bool) -> SchemeFilter {
+    SchemeFilter(scheme, default)
+}
+
+/// Filter request by uri hostname.
+#[inline]
+pub fn host(host: impl Into<String>, default: bool) -> HostFilter {
+    HostFilter(host.into(), default)
+}
+
+/// Filter request by uri port.
+#[inline]
+pub fn port(port: u16, default: bool) -> PortFilter {
+    PortFilter(port, default)
+}
+
 /// Filter request use ```PathFilter```.
 #[inline]
 pub fn path(path: impl Into<String>) -> PathFilter {
@@ -142,24 +160,6 @@ pub fn put() -> MethodFilter {
 #[inline]
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
-}
-
-/// Filter request by uri scheme.
-#[inline]
-pub fn scheme(scheme: Scheme, default: bool) -> SchemeFilter {
-    SchemeFilter(scheme, default)
-}
-
-/// Filter request by uri hostname.
-#[inline]
-pub fn host(host: impl Into<String>, default: bool) -> HostFilter {
-    HostFilter(host.into(), default)
-}
-
-/// Filter request by uri port.
-#[inline]
-pub fn port(port: u16, default: bool) -> PortFilter {
-    PortFilter(port, default)
 }
 
 #[cfg(test)]
