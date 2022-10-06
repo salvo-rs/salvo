@@ -1,8 +1,8 @@
 use std::time::Duration;
 
+use salvo::cache::{Cache, MemoryStore, RequestIssuer};
 use salvo::prelude::*;
 use salvo::writer::Text;
-use salvo::cache::{Cache, MemoryStore, RequestIssuer};
 use time::OffsetDateTime;
 
 #[handler]

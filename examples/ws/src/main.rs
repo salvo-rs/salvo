@@ -1,5 +1,5 @@
-use salvo::ws::WebSocketUpgrade;
 use salvo::prelude::*;
+use salvo::ws::WebSocketUpgrade;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
