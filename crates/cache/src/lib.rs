@@ -181,7 +181,7 @@ impl TryFrom<&ResBody> for CachedBody {
             ResBody::None => Ok(Self::None),
             ResBody::Once(bytes) => Ok(Self::Once(bytes.to_owned())),
             ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks.to_owned())),
-            _ => Err(Error::other("Unsupported body type")),
+            _ => Err(Error::other("unsupported body type")),
         }
     }
 }

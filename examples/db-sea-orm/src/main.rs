@@ -39,7 +39,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
     .await
     .map_err(|_| StatusError::internal_server_error())?;
 
-    res.render(Redirect::found("/").unwrap());
+    res.render(Redirect::found("/"));
     Ok(())
 }
 
@@ -125,7 +125,7 @@ async fn update(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
     .save(&state.conn)
     .await
     .map_err(|_| StatusError::internal_server_error())?;
-    res.render(Redirect::found("/").unwrap());
+    res.render(Redirect::found("/"));
     Ok(())
 }
 
@@ -145,7 +145,7 @@ async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
         .await
         .map_err(|_| StatusError::internal_server_error())?;
 
-    res.render(Redirect::found("/").unwrap());
+    res.render(Redirect::found("/"));
     Ok(())
 }
 
