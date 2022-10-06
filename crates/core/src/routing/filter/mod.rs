@@ -1,6 +1,6 @@
 //! filter
 
-mod method;
+mod other;
 mod opts;
 mod path;
 
@@ -10,7 +10,7 @@ use self::opts::*;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
 
-pub use method::*;
+pub use other::*;
 pub use path::*;
 
 /// Fiter trait for filter request.
@@ -141,6 +141,18 @@ pub fn put() -> MethodFilter {
 #[inline]
 pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
+}
+
+/// Filter request by uri hostname.
+#[inline]
+pub fn host(host: impl Into<String>, default_value: bool) -> HostFilter {
+    HostFilter(host.into(), default_value)
+}
+
+/// Filter request by uri port.
+#[inline]
+pub fn port(port: u16, default_value: bool) -> PortFilter {
+    PortFilter(port, default_value)
 }
 
 #[cfg(test)]
