@@ -1,13 +1,9 @@
 use salvo::prelude::*;
-use salvo_session::{CookieStore, Session, SessionDepotExt, SessionHandler};
+use salvo::session::{CookieStore, Session, SessionDepotExt, SessionHandler};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    start_server().await;
-}
-
-pub(crate) async fn start_server() {
     let session_handler = SessionHandler::builder(
         CookieStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
