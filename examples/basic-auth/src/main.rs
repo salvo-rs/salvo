@@ -1,4 +1,4 @@
-use salvo::extra::basic_auth::{BasicAuth, BasicAuthValidator};
+use salvo::basic_auth::{BasicAuth, BasicAuthValidator};
 use salvo::prelude::*;
 
 #[tokio::main]

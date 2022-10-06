@@ -1,4 +1,4 @@
-use salvo::extra::proxy::Proxy;
+use salvo::proxy::Proxy;
 use salvo::prelude::*;
 
 #[tokio::main]

@@ -1,4 +1,4 @@
-use salvo::extra::affix;
+use salvo::affix;
 use salvo::prelude::*;
 
 #[handler]

@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_cors::Cors;
+use salvo::cors::Cors;
 
 #[handler]
 async fn hello() -> &'static str {

@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 
-use salvo::extra::size_limiter;
+use salvo::size_limiter;
 use salvo::prelude::*;
 
 use self::models::*;

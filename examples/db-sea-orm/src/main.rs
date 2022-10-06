@@ -2,10 +2,10 @@ use std::env;
 
 use entity::post;
 use migration::{Migrator, MigratorTrait};
-use salvo::extra::affix;
+use salvo::affix;
 use salvo::prelude::*;
 use salvo::writer::Text;
-use salvo_static::StaticDir;
+use salvo::serve_static::StaticDir;
 use sea_orm::{entity::*, query::*, DatabaseConnection};
 use tera::Tera;
 

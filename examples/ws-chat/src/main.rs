@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use salvo::extra::ws::{Message, WebSocket, WebSocketUpgrade};
+use salvo::ws::{Message, WebSocket, WebSocketUpgrade};
 use salvo::prelude::*;
 
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;

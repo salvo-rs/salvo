@@ -12,7 +12,7 @@ use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use salvo::extra::sse::{SseEvent, SseKeepAlive};
+use salvo::sse::{SseEvent, SseKeepAlive};
 use salvo::prelude::*;
 
 type Users = Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>;

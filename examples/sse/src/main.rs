@@ -6,7 +6,7 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use salvo::extra::sse::{self, SseEvent};
+use salvo::sse::{self, SseEvent};
 use salvo::prelude::*;
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;

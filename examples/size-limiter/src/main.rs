@@ -1,7 +1,7 @@
 use std::fs::create_dir_all;
 use std::path::Path;
 
-use salvo::extra::size_limiter::max_size;
+use salvo::size_limiter::max_size;
 use salvo::prelude::*;
 
 #[handler]

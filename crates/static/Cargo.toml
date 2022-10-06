@@ -19,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
+all = ["embed"]
 embed = ["dep:rust-embed"]
 
 [dependencies]

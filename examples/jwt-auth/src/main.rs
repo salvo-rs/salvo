@@ -1,5 +1,5 @@
 use jsonwebtoken::{self, EncodingKey};
-use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryFinder};
+use salvo::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryFinder};
 use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};

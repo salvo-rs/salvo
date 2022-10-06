@@ -1,4 +1,4 @@
-use salvo::extra::ws::WebSocketUpgrade;
+use salvo::ws::WebSocketUpgrade;
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 

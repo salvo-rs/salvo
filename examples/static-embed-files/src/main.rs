@@ -1,6 +1,6 @@
 use rust_embed::RustEmbed;
 use salvo::prelude::*;
-use salvo_static::static_embed;
+use salvo::serve_static::static_embed;
 
 #[derive(RustEmbed)]
 #[folder = "static"]
