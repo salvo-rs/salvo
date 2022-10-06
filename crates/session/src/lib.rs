@@ -474,7 +474,7 @@ mod tests {
                     .insert("username", req.form::<String>("username").await.unwrap())
                     .unwrap();
                 depot.set_session(session);
-                res.render(Redirect::other("/").unwrap());
+                res.render(Redirect::other("/"));
             } else {
                 res.render(Text::Html("login page"));
             }
@@ -485,7 +485,7 @@ mod tests {
             if let Some(session) = depot.session_mut() {
                 session.remove("username");
             }
-            res.render(Redirect::other("/").unwrap());
+            res.render(Redirect::other("/"));
         }
 
         #[handler]

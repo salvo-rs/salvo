@@ -291,7 +291,7 @@ mod tests {
     pub async fn set_flash(depot: &mut Depot, res: &mut Response) {
         let flash = depot.outgoing_flash_mut();
         flash.info("Hey there!").debug("How is it going?");
-        res.render(Redirect::other("/get").unwrap());
+        res.render(Redirect::other("/get"));
     }
 
     #[handler]
