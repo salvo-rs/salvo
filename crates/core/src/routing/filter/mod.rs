@@ -7,10 +7,11 @@ mod path;
 use std::fmt::{self, Formatter};
 
 use self::opts::*;
+use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
 
-pub use other::*;
+pub use others::*;
 pub use path::*;
 
 /// Fiter trait for filter request.
@@ -143,16 +144,22 @@ pub fn delete() -> MethodFilter {
     MethodFilter(Method::DELETE)
 }
 
+/// Filter request by uri scheme.
+#[inline]
+pub fn scheme(scheme: Scheme, default: bool) -> SchemeFilter {
+    SchemeFilter(scheme, default)
+}
+
 /// Filter request by uri hostname.
 #[inline]
-pub fn host(host: impl Into<String>, default_value: bool) -> HostFilter {
-    HostFilter(host.into(), default_value)
+pub fn host(host: impl Into<String>, default: bool) -> HostFilter {
+    HostFilter(host.into(), default)
 }
 
 /// Filter request by uri port.
 #[inline]
-pub fn port(port: u16, default_value: bool) -> PortFilter {
-    PortFilter(port, default_value)
+pub fn port(port: u16, default: bool) -> PortFilter {
+    PortFilter(port, default)
 }
 
 #[cfg(test)]
