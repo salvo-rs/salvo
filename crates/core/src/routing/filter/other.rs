@@ -28,7 +28,7 @@ pub struct HostFilter(pub String, pub bool);
 impl Filter for HostFilter {
     #[inline]
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        req.uri().host().map(|h|h == self.0).unwrap_or(self.1)
+        req.uri().host().map(|h| h == self.0).unwrap_or(self.1)
     }
 }
 
@@ -46,7 +46,7 @@ pub struct PortFilter(pub u16, pub bool);
 impl Filter for PortFilter {
     #[inline]
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
-        req.uri().port_u16().map(|p|p == self.0).unwrap_or(self.1)
+        req.uri().port_u16().map(|p| p == self.0).unwrap_or(self.1)
     }
 }
 

@@ -1,7 +1,7 @@
 //! filter
 
-mod other;
 mod opts;
+mod other;
 mod path;
 
 use std::fmt::{self, Formatter};
