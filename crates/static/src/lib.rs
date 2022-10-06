@@ -73,7 +73,7 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
         }
     }
     let redirect_uri = builder.build().unwrap();
-    res.render(Redirect::found(redirect_uri).unwrap());
+    res.render(Redirect::found(redirect_uri));
 }
 
 #[cfg(test)]

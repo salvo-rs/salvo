@@ -37,8 +37,8 @@ mod cfg;
 cfg_feature! {
     #![feature = "memory-store"]
 
-    mod memory_store;
-    pub use memory_store::MemoryStore;
+    pub mod memory_store;
+    pub use memory_store::{MemoryStore};
 }
 
 /// Issuer

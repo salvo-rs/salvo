@@ -21,52 +21,49 @@ impl Redirect {
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid [`HeaderValue`].
+    /// If `uri` isn't a valid [`Uri`].
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303
-    pub fn other(uri: impl TryInto<Uri>) -> Result<Self, Error> {
-        Self::with_status_code(StatusCode::SEE_OTHER, uri)
+    pub fn other(uri: impl TryInto<Uri>) -> Self {
+        Self::with_status_code(StatusCode::SEE_OTHER, uri).expect("invlid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`307 Temporary Redirect`][mdn] status code.
     ///
-    /// This has the same behavior as [`Redirect::to`], except it will preserve the original HTTP
-    /// method and body.
-    ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid [`HeaderValue`].
+    /// If `uri` isn't a valid [`Uri`].
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307
-    pub fn temporary(uri: impl TryInto<Uri>) -> Result<Self, Error> {
-        Self::with_status_code(StatusCode::TEMPORARY_REDIRECT, uri)
+    pub fn temporary(uri: impl TryInto<Uri>) -> Self {
+        Self::with_status_code(StatusCode::TEMPORARY_REDIRECT, uri).expect("invlid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`308 Permanent Redirect`][mdn] status code.
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid [`HeaderValue`].
+    /// If `uri` isn't a valid [`Uri`].
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/308
-    pub fn permanent(uri: impl TryInto<Uri>) -> Result<Self, Error> {
-        Self::with_status_code(StatusCode::PERMANENT_REDIRECT, uri)
+    pub fn permanent(uri: impl TryInto<Uri>) -> Self {
+        Self::with_status_code(StatusCode::PERMANENT_REDIRECT, uri).expect("invlid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`302 Found`][mdn] status code.
     ///
     /// This is the same as [`Redirect::temporary`], except the status code is older and thus
     /// supported by some legacy applications that doesn't understand the newer one, but some of
-    /// those applications wrongly apply [`Redirect::to`] (`303 See Other`) semantics for this
+    /// those applications wrongly apply [`Redirect::other`] (`303 See Other`) semantics for this
     /// status code. It should be avoided where possible.
     ///
     /// # Panics
     ///
-    /// If `uri` isn't a valid [`HeaderValue`].
+    /// If `uri` isn't a valid [`Uri`].
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
-    pub fn found(uri: impl TryInto<Uri>) -> Result<Self, Error> {
-        Self::with_status_code(StatusCode::FOUND, uri)
+    pub fn found(uri: impl TryInto<Uri>) -> Self {
+        Self::with_status_code(StatusCode::FOUND, uri).expect("invlid uri")
     }
 
     /// Create a new [`Redirect`] that uses a status code.
