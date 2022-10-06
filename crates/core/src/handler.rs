@@ -34,6 +34,7 @@
 //! }
 //! ```
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
+use crate::http::StatusCode;
 
 /// Handler
 #[async_trait]
@@ -49,6 +50,17 @@ pub trait Handler: Send + Sync + 'static {
     /// Handle http request.
     #[must_use = "handle future must be used"]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
+}
+
+/// This is a empty implement for `Handler`.
+/// 
+/// `EmptyHanlder` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
+pub struct EmptyHandler;
+#[async_trait]
+impl Handler for EmptyHandler {
+    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl){
+        res.set_status_code(StatusCode::OK);
+    }
 }
 
 /// `Skipper` is used in many middlewares.
