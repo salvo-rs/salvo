@@ -53,16 +53,25 @@ impl RateGuard for SlidingGuard {
             self.head = 0;
             self.counts[0] = 1;
             self.quota = Some(quota);
-            true
-        } else if self.counts.iter().cloned().sum::<usize>() < quota.limit {
-            if OffsetDateTime::now_utc() > self.cell_inst + self.cell_span {
-                self.cell_inst = OffsetDateTime::now_utc();
-                self.head = (self.head + 1) % self.counts.len();
-            }
-            self.counts[self.head] += 1;
-            true
-        } else {
-            false
+            return true;
         }
+        let mut delta = OffsetDateTime::now_utc() - self.cell_inst;
+        if delta > quota.period {
+            self.counts = vec![0; quota.cells];
+            self.head = 0;
+            self.counts[0] = 1;
+            self.cell_inst = OffsetDateTime::now_utc();
+            return true;
+        } else {
+            while delta > self.cell_span{
+                delta -= self.cell_span;
+                self.head = (self.head + 1) % self.counts.len();
+                self.counts[self.head] = 0;
+            }
+            self.head = (self.head + 1) % self.counts.len();
+            self.counts[self.head] += 1;
+            self.cell_inst = OffsetDateTime::now_utc();
+        }
+        self.counts.iter().cloned().sum::<usize>() <= quota.limit
     }
 }

@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_session_data() {
-        let handler = SessionHandler::builder(
+        let builder = SessionHandler::builder(
             async_session::CookieStore,
             b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
         )
@@ -454,9 +454,11 @@ mod tests {
         .cookie_name("test_cookie")
         .cookie_path("/abc")
         .same_site_policy(SameSite::Strict)
-        .session_ttl(Some(Duration::from_secs(30)))
-        .build()
-        .unwrap();
+        .session_ttl(Some(Duration::from_secs(30)));
+        aesert(format!("{:?}", builder).contains("test_cookie"));
+
+        let handler = builder.build().unwrap();
+        aesert(format!("{:?}", handler).contains("test_cookie"));
         assert_eq!(handler.cookie_domain, Some("test.domain".into()));
         assert_eq!(handler.cookie_name, "test_cookie");
         assert_eq!(handler.cookie_path, "/abc");

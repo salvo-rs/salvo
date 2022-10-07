@@ -305,7 +305,7 @@ mod tests {
         body
     }
 
-    #[cfg(feature = "cookie_store")]
+    #[cfg(feature = "cookie-store")]
     #[tokio::test]
     async fn test_cookie_store() {
         let cookie_name = "my-custom-cookie-name".to_string();
@@ -337,7 +337,7 @@ mod tests {
         assert!(respone.take_string().await.unwrap().is_empty());
     }
 
-    #[cfg(feature = "session_store")]
+    #[cfg(feature = "session-store")]
     #[tokio::test]
     async fn test_session_store() {
         let session_handler = salvo_session::SessionHandler::builder(
