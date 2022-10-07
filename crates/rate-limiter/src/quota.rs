@@ -126,68 +126,67 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_basic_quota() {
-       let quota = BasicQuota::per_second(10);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.period, Duration::seconds(1));
-       
-       let quota = BasicQuota::set_seconds(15, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.period, Duration::seconds(2));
-       
-       let quota = BasicQuota::per_minute(10);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.period, Duration::seconds(60));
-       
-       let quota = BasicQuota::set_minutes(15, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.period, Duration::seconds(120));
-       
-       let quota = BasicQuota::per_hour(10);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.period, Duration::seconds(3600));
-       
-       let quota = BasicQuota::set_hours(15, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.period, Duration::seconds(7200));
+        let quota = BasicQuota::per_second(10);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.period, Duration::seconds(1));
+
+        let quota = BasicQuota::set_seconds(15, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.period, Duration::seconds(2));
+
+        let quota = BasicQuota::per_minute(10);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.period, Duration::seconds(60));
+
+        let quota = BasicQuota::set_minutes(15, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.period, Duration::seconds(120));
+
+        let quota = BasicQuota::per_hour(10);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.period, Duration::seconds(3600));
+
+        let quota = BasicQuota::set_hours(15, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.period, Duration::seconds(7200));
     }
-    
+
     #[test]
     fn test_celled_quota() {
-       let quota = CelledQuota::per_second(10, 3);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.cells, 3);
-       assert_eq!(quota.period, Duration::seconds(1));
-       
-       let quota = CelledQuota::set_seconds(15, 7, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.cells, 7);
-       assert_eq!(quota.period, Duration::seconds(2));
-       
-       let quota = CelledQuota::per_minute(10, 9);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.cells, 9);
-       assert_eq!(quota.period, Duration::seconds(60));
-       
-       let quota = CelledQuota::set_minutes(15, 7, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.cells, 7);
-       assert_eq!(quota.period, Duration::seconds(120));
-       
-       let quota = CelledQuota::per_hour(10, 3);
-       assert_eq!(quota.limit, 10);
-       assert_eq!(quota.cells, 3);
-       assert_eq!(quota.period, Duration::seconds(3600));
-       
-       let quota = CelledQuota::set_hours(15, 6, 2);
-       assert_eq!(quota.limit, 15);
-       assert_eq!(quota.cells, 6);
-       assert_eq!(quota.period, Duration::seconds(7200));
+        let quota = CelledQuota::per_second(10, 3);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.cells, 3);
+        assert_eq!(quota.period, Duration::seconds(1));
+
+        let quota = CelledQuota::set_seconds(15, 7, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.cells, 7);
+        assert_eq!(quota.period, Duration::seconds(2));
+
+        let quota = CelledQuota::per_minute(10, 9);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.cells, 9);
+        assert_eq!(quota.period, Duration::seconds(60));
+
+        let quota = CelledQuota::set_minutes(15, 7, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.cells, 7);
+        assert_eq!(quota.period, Duration::seconds(120));
+
+        let quota = CelledQuota::per_hour(10, 3);
+        assert_eq!(quota.limit, 10);
+        assert_eq!(quota.cells, 3);
+        assert_eq!(quota.period, Duration::seconds(3600));
+
+        let quota = CelledQuota::set_hours(15, 6, 2);
+        assert_eq!(quota.limit, 15);
+        assert_eq!(quota.cells, 6);
+        assert_eq!(quota.period, Duration::seconds(7200));
     }
 }

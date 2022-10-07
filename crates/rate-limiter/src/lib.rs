@@ -243,7 +243,12 @@ mod tests {
                     .ok_or_else(|| Error::other("user not found"))
             }
         }
-        let limiter = RateLimiter::new(FixedGuard::default(), MemoryStore::default(), UserIssuer, CustomQuotaGetter);
+        let limiter = RateLimiter::new(
+            FixedGuard::default(),
+            MemoryStore::default(),
+            UserIssuer,
+            CustomQuotaGetter,
+        );
         let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
         let service = Service::new(router);
 
@@ -319,7 +324,12 @@ mod tests {
                     .ok_or_else(|| Error::other("user not found"))
             }
         }
-        let limiter = RateLimiter::new(SlidingGuard::default(), MemoryStore::default(), UserIssuer, CustomQuotaGetter);
+        let limiter = RateLimiter::new(
+            SlidingGuard::default(),
+            MemoryStore::default(),
+            UserIssuer,
+            CustomQuotaGetter,
+        );
         let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
         let service = Service::new(router);
 
