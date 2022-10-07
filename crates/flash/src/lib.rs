@@ -282,10 +282,10 @@ where
 mod tests {
     use std::fmt::Write;
 
+    use salvo_core::http::header::{COOKIE, SET_COOKIE};
     use salvo_core::prelude::*;
-    use salvo_core::writer::Redirect;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::http::header::{SET_COOKIE, COOKIE};
+    use salvo_core::writer::Redirect;
 
     use super::*;
 
