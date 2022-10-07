@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use super::filter;
 use super::{Filter, FnFilter, PathFilter, PathState};
-use crate::http::Request;
 use crate::http::uri::Scheme;
+use crate::http::Request;
 use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
@@ -272,7 +272,7 @@ impl Router {
     {
         func(self)
     }
-    
+
     /// Add a [`SchemeFilter`] to current router.
     ///
     /// [`SchemeFilter`]: super::filter::HostFilter
