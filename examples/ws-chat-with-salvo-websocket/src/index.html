@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WS Chat</title>
+    <script src="https://unpkg.com/vue@3"></script>
+</head>
+<body>
+<div id="app">
+    <h1>WS Chat</h1>
+    <div id="chat">
+        <p><em>{{connectedText}}</em></p>
+    </div>
+    <div v-if="connected">
+        <p v-for="item in message">
+            {{ item }}
+        </p>
+        <input type="text" v-model="msg"/>
+        <button type="button" @click="on_send(msg)">Submit</button>
+    </div>
+    <div v-else>
+        名称：<input type="text" v-model="name"/>
+        聊天室：<input type="text" v-model="room"/>
+        <button type="button" @click="on_connect">Submit</button>
+    </div>
+</div>
+<script>
+    const {createApp} = Vue
+
+    createApp({
+        data() {
+            return {
+                connected: false,
+                connectedText: 'Connecting...',
+                ws: null,
+                message: [],
+                name: "name",
+                room: "room1",
+                msg: "",
+            }
+        },
+        methods: {
+            on_connect() {
+                console.log("on_connect")
+                this.ws = new WebSocket(`ws://${location.host}/chat?name=${this.name}&room=${this.room}`);
+                this.ws.onopen = () => {
+                    this.connected = true;
+                    this.connectedText = "Connected";
+                };
+
+                this.ws.onmessage = (msg) => {
+                    console.log(msg)
+                    if (msg) {
+                        this.message.push(msg.data);
+                    }
+                };
+
+                this.ws.onclose = () => {
+                    this.connected = false;
+                    this.connectedText = "Disconnected!";
+                };
+            },
+            on_send(message) {
+                this.ws.send(message);
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
