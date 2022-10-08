@@ -1,13 +1,13 @@
 use std::fmt::Write;
 
+use salvo::flash::{FlashDepotExt, SessionStore};
 use salvo::prelude::*;
-use salvo_flash::{FlashDepotExt, SessionStore};
 
 #[handler]
 pub async fn set_flash(depot: &mut Depot, res: &mut Response) {
     let flash = depot.outgoing_flash_mut();
     flash.info("Hey there!").debug("How is it going?");
-    res.render(Redirect::other("/get").unwrap());
+    res.render(Redirect::other("/get"));
 }
 
 #[handler]
@@ -26,8 +26,8 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     tracing::info!("Listening on http://127.0.0.1:7878");
-    let session_handler = salvo_session::SessionHandler::builder(
-        salvo_session::MemoryStore::new(),
+    let session_handler = salvo::session::SessionHandler::builder(
+        salvo::session::MemoryStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
     )
     .build()

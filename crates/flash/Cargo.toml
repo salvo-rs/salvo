@@ -19,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie-store"]
+all = ["cookie-store", "session-store"]
 cookie-store = ["salvo_core/cookie", "dep:serde_json"]
 session-store = ["dep:salvo-session"]
 

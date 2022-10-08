@@ -51,8 +51,6 @@ jobs:
             path: crates/core
           - crate: salvo_extra
             path: crates/extra
-          - crate: salvo
-            path: crates/salvo
           - crate: salvo-session
             path: crates/session
           - crate: salvo-flash
@@ -65,6 +63,10 @@ jobs:
             path: crates/cache
           - crate: salvo-rate-limiter
             path: crates/rate-limiter
+          - crate: salvo-static
+            path: crates/static
+          - crate: salvo
+            path: crates/salvo
     steps:
       - uses: actions-rs/toolchain@v1
         with:

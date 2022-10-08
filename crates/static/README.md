@@ -1,14 +1,15 @@
-# salvo-rate-limiter
+# salvo-static
 
-## Rate limit for Salvo.
+
+## Serve static assets for Salvo.
 
 This is offical crate, so you can enable it in `Cargo.toml` like this:
 
 ```toml
-salvo = { version = "*", features=["rate-limiter"] }
+salvo = { version = "*", features=["serve-static"] }
 ```
 
 ## Documentation & Resources
 
-- [API Documentation](https://docs.rs/salvo-rate-limiter)
+- [API Documentation](https://docs.rs/salvo-static)
 - [Example Projects](https://github.com/salvo-rs/salvo/examples/)

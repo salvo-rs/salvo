@@ -1,10 +1,10 @@
 [package]
-name = "salvo-rate-limiter"
+name = "salvo-static"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 description = """
-Rate limiter middleware for salvo web server framework.
+Serve static assets for salvo web server framework.
 """
 homepage.workspace = true
 repository.workspace = true
@@ -18,21 +18,25 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["memory-store", "fixed-guard", "sliding-guard"]
-all = ["memory-store", "sliding-guard", "fixed-guard"]
-memory-store = ["dep:moka"]
-fixed-guard = []
-sliding-guard = []
+default = []
+all = ["embed"]
+embed = ["dep:rust-embed"]
 
 [dependencies]
-moka = { workspace = true, optional = true }
+hex.workspace = true
+mime.workspace = true
+mime_guess.workspace = true
+path-slash.workspace = true
+percent-encoding.workspace = true
+rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
-serde.workspace = true
-time = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+time = {workspace = true, features = ["serde"] }
 tracing.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+reqwest.workspace = true
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-once_cell.workspace = true

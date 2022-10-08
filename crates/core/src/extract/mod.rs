@@ -78,7 +78,7 @@ pub trait Extractible<'de>: Deserialize<'de> {
     fn metadata() -> &'de Metadata;
 }
 
-/// Wrapper for Extractible type. [`Handler`]'s parameters does not allow two extractible types has lifetime, wrap these types with `LazyExtract`.
+/// Wrapper for Extractible type. `Handler`'s parameters does not allow two extractible types has lifetime, wrap these types with `LazyExtract`.
 #[derive(Deserialize)]
 pub struct LazyExtract<T> {
     #[serde(skip)]

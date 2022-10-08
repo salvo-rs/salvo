@@ -1,16 +1,17 @@
 //! filter
 
-mod method;
 mod opts;
+mod others;
 mod path;
 
 use std::fmt::{self, Formatter};
 
 use self::opts::*;
+use crate::http::uri::Scheme;
 use crate::http::{Method, Request};
 use crate::routing::PathState;
 
-pub use method::*;
+pub use others::*;
 pub use path::*;
 
 /// Fiter trait for filter request.
@@ -99,6 +100,24 @@ impl<F> fmt::Debug for FnFilter<F> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "fn:fn")
     }
+}
+
+/// Filter request by uri scheme.
+#[inline]
+pub fn scheme(scheme: Scheme, default: bool) -> SchemeFilter {
+    SchemeFilter(scheme, default)
+}
+
+/// Filter request by uri hostname.
+#[inline]
+pub fn host(host: impl Into<String>, default: bool) -> HostFilter {
+    HostFilter(host.into(), default)
+}
+
+/// Filter request by uri port.
+#[inline]
+pub fn port(port: u16, default: bool) -> PortFilter {
+    PortFilter(port, default)
 }
 
 /// Filter request use ```PathFilter```.

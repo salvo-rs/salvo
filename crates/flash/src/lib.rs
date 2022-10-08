@@ -282,7 +282,9 @@ where
 mod tests {
     use std::fmt::Write;
 
+    use salvo_core::http::header::{COOKIE, SET_COOKIE};
     use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
     use salvo_core::writer::Redirect;
 
     use super::*;
@@ -291,7 +293,7 @@ mod tests {
     pub async fn set_flash(depot: &mut Depot, res: &mut Response) {
         let flash = depot.outgoing_flash_mut();
         flash.info("Hey there!").debug("How is it going?");
-        res.render(Redirect::other("/get").unwrap());
+        res.render(Redirect::other("/get"));
     }
 
     #[handler]
@@ -305,7 +307,7 @@ mod tests {
         body
     }
 
-    #[cfg(feature = "cookie_store")]
+    #[cfg(feature = "cookie-store")]
     #[tokio::test]
     async fn test_cookie_store() {
         let cookie_name = "my-custom-cookie-name".to_string();
@@ -337,7 +339,7 @@ mod tests {
         assert!(respone.take_string().await.unwrap().is_empty());
     }
 
-    #[cfg(feature = "session_store")]
+    #[cfg(feature = "session-store")]
     #[tokio::test]
     async fn test_session_store() {
         let session_handler = salvo_session::SessionHandler::builder(

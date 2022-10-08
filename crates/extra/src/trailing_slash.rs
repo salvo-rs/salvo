@@ -18,26 +18,20 @@ pub enum TrailingSlashAction {
 }
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Remove`].
-pub struct DefaultRemoveSkipper;
-impl Skipper for DefaultRemoveSkipper {
-    fn skipped(&self, req: &mut Request, _depot: &Depot) -> bool {
-        if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
-            !name.contains('.')
-        } else {
-            false
-        }
+pub fn default_remove_skipper(req: &mut Request, _depot: &Depot) -> bool {
+    if let Some((_, name)) = req.uri().path().trim_end_matches('/').rsplit_once('/') {
+        !name.contains('.')
+    } else {
+        false
     }
 }
 
 /// Default skipper used for `TrailingSlash` when it's action is [`TrailingSlashAction::Add`].
-pub struct DefaultAddSkipper;
-impl Skipper for DefaultAddSkipper {
-    fn skipped(&self, req: &mut Request, _depot: &Depot) -> bool {
-        if let Some((_, name)) = req.uri().path().rsplit_once('/') {
-            name.contains('.')
-        } else {
-            false
-        }
+pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
+    if let Some((_, name)) = req.uri().path().rsplit_once('/') {
+        name.contains('.')
+    } else {
+        false
     }
 }
 
@@ -57,8 +51,8 @@ impl TrailingSlash {
         Self {
             action,
             skipper: match action {
-                TrailingSlashAction::Add => Box::new(DefaultAddSkipper),
-                TrailingSlashAction::Remove => Box::new(DefaultRemoveSkipper),
+                TrailingSlashAction::Add => Box::new(default_add_skipper),
+                TrailingSlashAction::Remove => Box::new(default_remove_skipper),
             },
             redirect_code: StatusCode::MOVED_PERMANENTLY,
         }

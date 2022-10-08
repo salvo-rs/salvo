@@ -1,3 +1,4 @@
+//! memory store module.
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::hash::Hash;
@@ -87,7 +88,7 @@ where
         }
     }
     
-    /// Returns a [`CacheBuilder`], which can builds a `Cache`
+    /// Returns a [`Builder`], which can builds a `MemoryStore`
     pub fn builder() -> Builder<K> {
         Builder {
             inner: MokaCache::builder(),

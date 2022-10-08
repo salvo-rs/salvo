@@ -1,8 +1,8 @@
 #[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() {
-    use salvo::extra::serve_static::StaticDir;
     use salvo::prelude::*;
+    use salvo_static::StaticDir;
 
     let router = Router::with_path("files/<*path>").get(StaticDir::new("./static"));
     Server::new(UnixListener::bind("/tmp/salvo.sock")).serve(router).await;

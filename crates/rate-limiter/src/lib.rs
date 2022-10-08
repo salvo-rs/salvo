@@ -1,4 +1,14 @@
-//! TBD
+//! Rate limiter middleware for Salvo.
+//!
+//! Rate Limiter middleware is used to limiting the amount of requests to the server
+//! from a particular IP or id within a time period.
+//!
+//! [`RateIssuer`] is used to issue a key to request, your can define your custom `RateIssuer`.
+//! If you want just identify user by IP address, you can use [`RemoteIpIssuer`].
+//!
+//! [`QuotaGetter`] is used to get quota for every key.
+//!
+//! [`RateGuard`] is strategy to verify is the request exceeded quota.
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -7,17 +17,16 @@
 #![warn(missing_docs)]
 
 use std::borrow::Borrow;
-use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::hash::Hash;
 
 use salvo_core::addr::SocketAddr;
-use salvo_core::handler::{NoneSkipper, Skipper};
+use salvo_core::handler::{none_skipper, Skipper};
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
-use serde::{Deserialize, Serialize};
-use time::Duration;
 
+mod quota;
+pub use quota::{BasicQuota, CelledQuota, QuotaGetter};
 #[macro_use]
 mod cfg;
 
@@ -42,95 +51,7 @@ cfg_feature! {
     pub use sliding_guard::SlidingGuard;
 }
 
-/// `QuotaGetter` is used to get quota. You can config users' quota config in database.
-#[async_trait]
-pub trait QuotaGetter<Key>: Send + Sync + 'static {
-    /// Quota type.
-    type Quota: Clone + Send + Sync + 'static;
-    /// Error type.
-    type Error: StdError;
-
-    /// Get quota.
-    async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
-    where
-        Key: Borrow<Q>,
-        Q: Hash + Eq + Sync;
-}
-
-/// A basic quota.
-#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
-pub struct BasicQuota {
-    limit: usize,
-    period: Duration,
-}
-impl BasicQuota {
-    /// Create new `BasicQuota`.
-    pub const fn new(limit: usize, period: Duration) -> Self {
-        Self { limit, period }
-    }
-
-    /// Sets the limit of the quota per second.
-    pub const fn per_second(limit: usize) -> Self {
-        Self::new(limit, Duration::seconds(1))
-    }
-
-    /// Sets the limit of the quota per minute.
-    pub const fn per_minute(limit: usize) -> Self {
-        Self::new(limit, Duration::seconds(60))
-    }
-
-    /// Sets the limit of the quota per hour.
-    pub const fn per_hour(limit: usize) -> Self {
-        Self::new(limit, Duration::seconds(3600))
-    }
-}
-
-/// A common used quota has cells field.
-#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
-pub struct CelledQuota {
-    limit: usize,
-    period: Duration,
-    cells: usize,
-}
-impl CelledQuota {
-    /// Create new `CelledQuota`.
-    pub const fn new(limit: usize, period: Duration, cells: usize) -> Self {
-        Self { limit, period, cells }
-    }
-
-    /// Sets the limit of the quota per second.
-    pub const fn per_second(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::seconds(1), cells)
-    }
-    /// Sets the limit of the quota per minute.
-    pub const fn per_minute(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::seconds(60), cells)
-    }
-    /// Sets the limit of the quota per hour.
-    pub const fn per_hour(limit: usize, cells: usize) -> Self {
-        Self::new(limit, Duration::seconds(3600), cells)
-    }
-}
-
-#[async_trait]
-impl<Key, T> QuotaGetter<Key> for T
-where
-    Key: Hash + Eq + Send + Sync + 'static,
-    T: Clone + Send + Sync + 'static,
-{
-    type Quota = T;
-    type Error = Infallible;
-
-    async fn get<Q>(&self, _key: &Q) -> Result<Self::Quota, Self::Error>
-    where
-        Key: Borrow<Q>,
-        Q: Hash + Eq + Sync,
-    {
-        Ok(self.clone())
-    }
-}
-
-/// Issuer
+/// Issuer is used to identify every request.
 #[async_trait]
 pub trait RateIssuer: Send + Sync + 'static {
     /// The key is used to identify the rate limit.
@@ -165,7 +86,7 @@ impl RateIssuer for RemoteIpIssuer {
     }
 }
 
-/// RateGuard
+/// `RateGuard` is strategy to verify is the request exceeded quota
 #[async_trait]
 pub trait RateGuard: Clone + Send + Sync + 'static {
     /// The quota for the rate limit.
@@ -174,7 +95,7 @@ pub trait RateGuard: Clone + Send + Sync + 'static {
     async fn verify(&mut self, quota: &Self::Quota) -> bool;
 }
 
-/// Store rate.
+/// `RateStore` is used to store rate limit data.
 #[async_trait]
 pub trait RateStore: Send + Sync + 'static {
     /// Error type for RateStore.
@@ -192,7 +113,7 @@ pub trait RateStore: Send + Sync + 'static {
     async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error>;
 }
 
-/// RateLimiter
+/// `RateLimiter` is the main struct to used limit user request.
 pub struct RateLimiter<G, S, I, Q> {
     guard: G,
     store: S,
@@ -210,7 +131,7 @@ impl<G: RateGuard, S: RateStore, I: RateIssuer, P: QuotaGetter<I::Key>> RateLimi
             store,
             issuer,
             quota_getter,
-            skipper: Box::new(NoneSkipper),
+            skipper: Box::new(none_skipper),
         }
     }
 
@@ -268,5 +189,193 @@ where
         if let Err(e) = self.store.save_guard(key, guard).await {
             tracing::error!(error = ?e, "RateLimiter save guard failed");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use once_cell::sync::Lazy;
+    use salvo_core::prelude::*;
+    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::Error;
+
+    use super::*;
+
+    struct UserIssuer;
+    #[async_trait]
+    impl RateIssuer for UserIssuer {
+        type Key = String;
+        async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
+            req.query::<Self::Key>("user")
+        }
+    }
+
+    #[handler]
+    async fn limited() -> &'static str {
+        "Limited page"
+    }
+
+    #[tokio::test]
+    async fn test_fixed_dynmaic_quota() {
+        static USER_QUOTAS: Lazy<HashMap<String, BasicQuota>> = Lazy::new(|| {
+            let mut map = HashMap::new();
+            map.insert("user1".into(), BasicQuota::per_second(1));
+            map.insert("user2".into(), BasicQuota::set_seconds(1, 5));
+            map
+        });
+
+        struct CustomQuotaGetter;
+        #[async_trait]
+        impl QuotaGetter<String> for CustomQuotaGetter {
+            type Quota = BasicQuota;
+            type Error = Error;
+
+            async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
+            where
+                String: Borrow<Q>,
+                Q: Hash + Eq + Sync,
+            {
+                USER_QUOTAS
+                    .get(key)
+                    .cloned()
+                    .ok_or_else(|| Error::other("user not found"))
+            }
+        }
+        let limiter = RateLimiter::new(
+            FixedGuard::default(),
+            MemoryStore::default(),
+            UserIssuer,
+            CustomQuotaGetter,
+        );
+        let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
+        let service = Service::new(router);
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+    }
+
+    #[tokio::test]
+    async fn test_sliding_dynmaic_quota() {
+        static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
+            let mut map = HashMap::new();
+            map.insert("user1".into(), CelledQuota::per_second(1, 1));
+            map.insert("user2".into(), CelledQuota::set_seconds(1, 1, 5));
+            map
+        });
+
+        struct CustomQuotaGetter;
+        #[async_trait]
+        impl QuotaGetter<String> for CustomQuotaGetter {
+            type Quota = CelledQuota;
+            type Error = Error;
+
+            async fn get<Q>(&self, key: &Q) -> Result<Self::Quota, Self::Error>
+            where
+                String: Borrow<Q>,
+                Q: Hash + Eq + Sync,
+            {
+                USER_QUOTAS
+                    .get(key)
+                    .cloned()
+                    .ok_or_else(|| Error::other("user not found"))
+            }
+        }
+        let limiter = RateLimiter::new(
+            SlidingGuard::default(),
+            MemoryStore::default(),
+            UserIssuer,
+            CustomQuotaGetter,
+        );
+        let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
+        let service = Service::new(router);
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
+
+        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+            .send(&service)
+            .await;
+        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.take_string().await.unwrap(), "Limited page");
     }
 }

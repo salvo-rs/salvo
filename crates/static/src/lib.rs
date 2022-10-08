@@ -1,7 +1,6 @@
 //! serve static dir and file middleware
 
 pub mod dir;
-mod embed;
 mod file;
 
 use percent_encoding::{utf8_percent_encode, CONTROLS};
@@ -10,8 +9,16 @@ use salvo_core::writer::Redirect;
 use salvo_core::Response;
 
 pub use dir::StaticDir;
-pub use embed::{render_embedded_file, static_embed, EmbeddedFileExt, StaticEmbed};
 pub use file::StaticFile;
+
+#[macro_use]
+mod cfg;
+
+cfg_feature! {
+    #![feature = "embed"]
+    mod embed;
+    pub use embed::{render_embedded_file, static_embed, EmbeddedFileExt, StaticEmbed};
+}
 
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
@@ -66,7 +73,7 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
         }
     }
     let redirect_uri = builder.build().unwrap();
-    res.render(Redirect::found(redirect_uri).unwrap());
+    res.render(Redirect::found(redirect_uri));
 }
 
 #[cfg(test)]
@@ -75,7 +82,7 @@ mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
-    use crate::serve_static::*;
+    use crate::*;
 
     #[tokio::test]
     async fn test_serve_static_dir() {
@@ -156,6 +163,7 @@ mod tests {
         assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
     }
 
+    #[cfg(feature = "embed")]
     #[tokio::test]
     async fn test_serve_embed_files() {
         #[derive(RustEmbed)]

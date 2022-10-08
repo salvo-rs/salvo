@@ -27,17 +27,7 @@ path = "src/lib.rs"
 
 [features]
 default = ["test", "cookie"]
-full = [
-    "test",
-    "cookie",
-    "rustls",
-    "native-tls",
-    "openssl",
-    "unix",
-    "acme",
-    "anyhow",
-    "extra",
-]
+full = ["test", "cookie", "rustls", "native-tls", "openssl", "unix", "acme", "anyhow", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static"]
 cookie = ["salvo_core/cookie"]
 rustls = ["salvo_core/rustls"]
 native-tls = ["salvo_core/native-tls"]
@@ -47,21 +37,33 @@ acme = ["salvo_core/acme"]
 anyhow = ["salvo_core/anyhow"]
 test = ["salvo_core/test"]
 affix = ["salvo_extra/affix"]
-extra = ["salvo_extra/full"]
 basic-auth = ["salvo_extra/basic-auth"]
 force-https = ["salvo_extra/force-https"]
 jwt-auth = ["salvo_extra/jwt-auth"]
 compression = ["salvo_extra/compression"]
 logging = ["salvo_extra/logging"]
 proxy = ["salvo_extra/proxy"]
-serve-static = ["salvo_extra/serve-static"]
 size-limiter = ["salvo_extra/size-limiter"]
 sse = ["salvo_extra/sse"]
 trailing-slash = ["salvo_extra/trailing-slash"]
 timeout = ["salvo_extra/timeout"]
 ws = ["salvo_extra/ws"]
 caching-headers = ["salvo_extra/caching-headers"]
+cache = ["dep:salvo-cache"]
+cors = ["dep:salvo-cors"]
+csrf = ["dep:salvo-csrf"]
+flash = ["dep:salvo-flash"]
+rate-limiter = ["dep:salvo-rate-limiter"]
+session = ["dep:salvo-session"]
+serve-static = ["dep:salvo-static"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false, path = "../core" }
 salvo_extra = { workspace = true, default-features = false, optional = true, path = "../extra" }
+salvo-cache = { workspace = true, optional = true, path = "../cache" }
+salvo-cors = { workspace = true, optional = true, path = "../cors" }
+salvo-csrf = { workspace = true, features = ["all"], optional = true, path = "../csrf" }
+salvo-flash = { workspace = true, features = ["all"], optional = true, path = "../flash" }
+salvo-rate-limiter = { workspace = true, features = ["all"], optional = true, path = "../rate-limiter" }
+salvo-session = { workspace = true, optional = true, path = "../session" }
+salvo-static = { workspace = true, features = ["all"], optional = true, path = "../static" }

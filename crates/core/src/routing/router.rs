@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::filter;
 use super::{Filter, FnFilter, PathFilter, PathState};
+use crate::http::uri::Scheme;
 use crate::http::Request;
 use crate::Handler;
 
@@ -270,6 +271,30 @@ impl Router {
         F: FnOnce(Self) -> Self,
     {
         func(self)
+    }
+
+    /// Add a [`SchemeFilter`] to current router.
+    ///
+    /// [`SchemeFilter`]: super::filter::HostFilter
+    #[inline]
+    pub fn scheme(self, scheme: Scheme, default: bool) -> Self {
+        self.filter(filter::scheme(scheme, default))
+    }
+
+    /// Add a [`HostFilter`] to current router.
+    ///
+    /// [`HostFilter`]: super::filter::HostFilter
+    #[inline]
+    pub fn host(self, host: impl Into<String>, default: bool) -> Self {
+        self.filter(filter::host(host, default))
+    }
+
+    /// Add a [`PortFilter`] to current router.
+    ///
+    /// [`PortFilter`]: super::filter::PortFilter
+    #[inline]
+    pub fn port(self, port: u16, default: bool) -> Self {
+        self.filter(filter::port(port, default))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.

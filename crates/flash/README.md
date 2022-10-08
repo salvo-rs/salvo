@@ -1,6 +1,12 @@
 # salvo-flash
 
-> Flash message for Salvo.
+## Flash message for Salvo.
+
+This is offical crate, so you can enable it in `Cargo.toml` like this:
+
+```toml
+salvo = { version = "*", features=["flash"] }
+```
 
 ## Documentation & Resources
 

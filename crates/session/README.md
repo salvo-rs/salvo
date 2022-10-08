@@ -1,6 +1,12 @@
 # salvo-session
 
-> Session management for Salvo.
+## Session management for Salvo.
+
+This is offical crate, so you can enable it in `Cargo.toml` like this:
+
+```toml
+salvo = { version = "*", features=["session"] }
+```
 
 ## Documentation & Resources
 

@@ -9,13 +9,13 @@ use salvo_rate_limiter::{CelledQuota, MemoryStore, QuotaGetter, RateIssuer, Rate
 
 static USER_QUOTAS: Lazy<HashMap<String, CelledQuota>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert("user1".into(), CelledQuota::per_minute(1, 1));
-    map.insert("user2".into(), CelledQuota::per_minute(10, 5));
-    map.insert("user3".into(), CelledQuota::per_minute(60, 10));
+    map.insert("user1".into(), CelledQuota::per_second(1, 1));
+    map.insert("user2".into(), CelledQuota::set_seconds(1, 1, 5));
+    map.insert("user3".into(), CelledQuota::set_seconds(1, 1, 10));
     map
 });
 
-pub struct UserIssuer;
+struct UserIssuer;
 #[async_trait]
 impl RateIssuer for UserIssuer {
     type Key = String;
@@ -24,7 +24,7 @@ impl RateIssuer for UserIssuer {
     }
 }
 
-pub struct CustomQuotaGetter;
+struct CustomQuotaGetter;
 #[async_trait]
 impl QuotaGetter<String> for CustomQuotaGetter {
     type Quota = CelledQuota;
@@ -75,13 +75,13 @@ static HOME_HTML: &str = r#"
             This example shows how to set limit for different users. 
         </p>
         <p>
-            <a href="/limited?user=user1" target="_blank">Limited page for user1: 1/min</a>
+            <a href="/limited?user=user1" target="_blank">Limited page for user1: 1/second</a>
         </p>
         <p>
-            <a href="/limited?user=user2" target="_blank">Limited page for user2: 10/min</a>
+            <a href="/limited?user=user2" target="_blank">Limited page for user2: 1/5seconds</a>
         </p>
         <p>
-            <a href="/limited?user=user3" target="_blank">Limited page for user3: 60/min</a>
+            <a href="/limited?user=user3" target="_blank">Limited page for user3: 1/10seconds</a>
         </p>
     </body>
 </html>

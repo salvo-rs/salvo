@@ -1,13 +1,9 @@
 use salvo::prelude::*;
-use salvo_session::{CookieStore, Session, SessionDepotExt, SessionHandler};
+use salvo::session::{CookieStore, Session, SessionDepotExt, SessionHandler};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    start_server().await;
-}
-
-pub(crate) async fn start_server() {
     let session_handler = SessionHandler::builder(
         CookieStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
@@ -31,7 +27,7 @@ pub async fn login(req: &mut Request, depot: &mut Depot, res: &mut Response) {
             .insert("username", req.form::<String>("username").await.unwrap())
             .unwrap();
         depot.set_session(session);
-        res.render(Redirect::other("/").unwrap());
+        res.render(Redirect::other("/"));
     } else {
         res.render(Text::Html(LOGIN_HTML));
     }
@@ -42,7 +38,7 @@ pub async fn logout(depot: &mut Depot, res: &mut Response) {
     if let Some(session) = depot.session_mut() {
         session.remove("username");
     }
-    res.render(Redirect::other("/").unwrap());
+    res.render(Redirect::other("/"));
 }
 
 #[handler]
