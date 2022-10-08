@@ -3,13 +3,13 @@
 //
 // port from https://github.com/seanmonstar/warp/blob/master/examples/websocket_chat.rs
 
-use salvo::Error;
 use salvo::extra::ws::{Message, WebSocketUpgrade};
 use salvo::http::ParseError;
 use salvo::prelude::*;
-use tokio::sync::mpsc::UnboundedSender;
+use salvo::Error;
 use salvo_websocket::{handle_socket, WebSocketHandler, WS_CONTROLLER};
 use serde::Deserialize;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Clone, Deserialize)]
 struct User {
@@ -21,12 +21,16 @@ struct User {
 impl WebSocketHandler for User {
     async fn on_connected(&self, ws_id: usize, sender: UnboundedSender<Result<Message, Error>>) {
         tracing::info!("{} connected", ws_id);
-        WS_CONTROLLER.write().await.join_group(self.room.clone(), sender).unwrap();
-        WS_CONTROLLER.write().await.send_group(
-            self.room.clone(),
-            Message::text(format!("{:?} joined!", self.name)
-            ),
-        ).unwrap();
+        WS_CONTROLLER
+            .write()
+            .await
+            .join_group(self.room.clone(), sender)
+            .unwrap();
+        WS_CONTROLLER
+            .write()
+            .await
+            .send_group(self.room.clone(), Message::text(format!("{:?} joined!", self.name)))
+            .unwrap();
     }
 
     async fn on_disconnected(&self, ws_id: usize) {
@@ -41,7 +45,11 @@ impl WebSocketHandler for User {
             return;
         };
         let new_msg = format!("<User#{}>: {}", self.name, msg);
-        WS_CONTROLLER.write().await.send_group(self.room.clone(), Message::text(new_msg.clone())).unwrap();
+        WS_CONTROLLER
+            .write()
+            .await
+            .send_group(self.room.clone(), Message::text(new_msg.clone()))
+            .unwrap();
     }
 
     async fn on_send_message(&self, msg: Message) -> Result<Message, Error> {
@@ -65,13 +73,13 @@ async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), Sta
     let user: Result<User, ParseError> = req.parse_queries();
     match user {
         Ok(user) => {
-            WebSocketUpgrade::new().upgrade(req, res, |ws| async move {
-                handle_socket(ws, user).await;
-            }).await
+            WebSocketUpgrade::new()
+                .upgrade(req, res, |ws| async move {
+                    handle_socket(ws, user).await;
+                })
+                .await
         }
-        Err(_err) => {
-            Err(StatusError::bad_request())
-        }
+        Err(_err) => Err(StatusError::bad_request()),
     }
 }
 
