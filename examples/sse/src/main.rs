@@ -17,7 +17,7 @@ fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
 }
 
 #[handler]
-async fn handle_tick(_req: &mut Request, res: &mut Response) {
+async fn handle_tick(res: &mut Response) {
     let event_stream = {
         let mut counter: u64 = 0;
         let interval = interval(Duration::from_secs(1));

@@ -7,10 +7,10 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-chrono = "0.4"
 jsonwebtoken = "8.0"
-salvo = { path = "../../salvo", features = ["anyhow", "jwt-auth"] }
+salvo = { path = "../../crates/salvo", features = ["anyhow", "jwt-auth"] }
 serde = "1"
+time = "0.3"
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

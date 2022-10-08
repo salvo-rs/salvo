@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 anyhow = "1"
-salvo = { path = "../../salvo", features = ["anyhow"] }
+salvo = { path = "../../crates/salvo", features = ["anyhow"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

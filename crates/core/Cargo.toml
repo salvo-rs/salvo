@@ -1,0 +1,76 @@
+[package]
+name = "salvo_core"
+version.workspace = true
+authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
+edition.workspace = true
+description.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["cookie", "test"]
+full = ["rustls", "anyhow"]
+cookie = ["dep:cookie"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project"]
+native-tls = ["dep:tokio-native-tls", "dep:pin-project"]
+openssl = ["dep:openssl", "dep:pin-project", "dep:tokio-openssl"]
+unix = []
+test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
+acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+
+[dependencies]
+cruet.workspace = true
+anyhow = { workspace = true, optional = true }
+async-compression = { workspace = true, features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
+async-trait.workspace = true
+base64 = { workspace = true, optional = true }
+bytes.workspace = true
+cookie = { workspace = true, features = ["percent-encode"], optional = true }
+encoding_rs = { workspace = true, optional = true }
+enumflags2.workspace = true
+fastrand.workspace = true
+form_urlencoded.workspace = true
+futures-util = { workspace = true, default-features = false, features = ["io"] }
+headers.workspace = true
+http.workspace = true
+hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+hyper-rustls = { workspace = true, optional = true }
+mime.workspace = true
+mime_guess.workspace = true
+multer.workspace = true
+multimap = { workspace = true, features = ["serde"] }
+once_cell.workspace = true
+parking_lot.workspace = true
+percent-encoding.workspace = true
+pin-project = { workspace = true, optional = true }
+rcgen = { workspace = true, optional = true }
+regex.workspace = true
+ring = { workspace = true, optional = true }
+rustls-pemfile = { workspace = true, optional = true }
+salvo_macros = { workspace = true, path = "../macros" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+serde_urlencoded = { workspace = true, optional = true }
+tempfile.workspace = true
+textnonce.workspace = true
+thiserror.workspace = true
+openssl = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
+tokio-native-tls = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true }
+tokio-openssl = { workspace = true, optional = true }
+tokio-stream = { workspace = true, default-features = false }
+tracing.workspace = true
+url = { workspace = true, optional = true }
+x509-parser = { workspace = true, optional = true }
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }

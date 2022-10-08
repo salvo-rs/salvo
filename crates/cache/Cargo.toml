@@ -1,0 +1,33 @@
+[package]
+name = "salvo-cache"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = """
+Cache middleware for Salvo web server framework.
+"""
+homepage.workspace = true
+repository.workspace = true
+readme = "./README.md"
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["memory-store"]
+memory-store = ["dep:moka"]
+
+[dependencies]
+bytes.workspace = true
+moka = { workspace = true, optional = true }
+salvo_core = { workspace = true, default-features = false }
+tracing.workspace = true
+
+[dev-dependencies]
+salvo_core = {  workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+time.workspace = true

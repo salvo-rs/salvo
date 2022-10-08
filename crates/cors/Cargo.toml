@@ -1,0 +1,26 @@
+[package]
+name = "salvo-cors"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = """
+CORS support for salvo web server framework.
+"""
+homepage.workspace = true
+repository.workspace = true
+readme = "./README.md"
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+salvo_core = { workspace = true, default-features = false }
+tracing = { workspace = true }
+
+[dev-dependencies]
+salvo_core = {  workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Get releasing version
-        working-directory: salvo
+        working-directory: .
         run: echo NEXT_VERSION=$(sed -nE 's/^\s*version = "(.*?)"/\1/p' Cargo.toml) >> $GITHUB_ENV
 
       - name: Check published version
@@ -33,7 +33,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           strategy: regex
-          root: "salvo/Cargo.toml"
+          root: Cargo.toml
           regex_pattern: "version\\s*=\\s*\"([0-9\\.]+)\""
           tag_prefix: "v"
           # version: "${{ env.NEXT_VERSION }}"
@@ -46,13 +46,25 @@ jobs:
       matrix:
         package:
           - crate: salvo_macros
-            path: macros
+            path: crates/macros
           - crate: salvo_core
-            path: core
+            path: crates/core
           - crate: salvo_extra
-            path: extra
+            path: crates/extra
           - crate: salvo
-            path: salvo
+            path: crates/salvo
+          - crate: salvo-session
+            path: crates/session
+          - crate: salvo-flash
+            path: crates/flash
+          - crate: salvo-cors
+            path: crates/cors
+          - crate: salvo-csrf
+            path: crates/csrf
+          - crate: salvo-cache
+            path: crates/cache
+          - crate: salvo-rate-limiter
+            path: crates/rate-limiter
     steps:
       - uses: actions-rs/toolchain@v1
         with:

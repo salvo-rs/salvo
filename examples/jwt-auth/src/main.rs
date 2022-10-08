@@ -1,9 +1,9 @@
-use chrono::{Duration, Utc};
 use jsonwebtoken::{self, EncodingKey};
-use salvo::extra::jwt_auth::{JwtAuthDepotExt, JwtAuthHandler, JwtAuthState, QueryExtractor};
+use salvo::extra::jwt_auth::{JwtAuth, JwtAuthDepotExt, JwtAuthState, QueryFinder};
 use salvo::http::{Method, StatusError};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 
 const SECRET_KEY: &str = "YOUR SECRET_KEY";
 
@@ -17,11 +17,11 @@ pub struct JwtClaims {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let auth_handler: JwtAuthHandler<JwtClaims> = JwtAuthHandler::new(SECRET_KEY.to_owned())
-        .with_extractors(vec![
-            // Box::new(HeaderExtractor::new()),
-            Box::new(QueryExtractor::new("jwt_token")),
-            // Box::new(CookieExtractor::new("jwt_token")),
+    let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
+        .with_finders(vec![
+            // Box::new(HeaderFinder::new()),
+            Box::new(QueryFinder::new("jwt_token")),
+            // Box::new(CookieFinder::new("jwt_token")),
         ])
         .with_response_error(false);
     tracing::info!("Listening on http://127.0.0.1:7878");
@@ -40,17 +40,17 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             res.render(Text::Html(LOGIN_HTML));
             return Ok(());
         }
-        let exp = Utc::now() + Duration::days(14);
+        let exp = OffsetDateTime::now_utc() + Duration::days(14);
         let claim = JwtClaims {
             username,
-            exp: exp.timestamp(),
+            exp: exp.unix_timestamp(),
         };
         let token = jsonwebtoken::encode(
             &jsonwebtoken::Header::default(),
             &claim,
             &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
         )?;
-        res.redirect_other(&format!("/?jwt_token={}", token))?;
+        res.render(Redirect::other(&format!("/?jwt_token={}", token))?);
     } else {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {

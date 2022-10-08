@@ -1,0 +1,47 @@
+[package]
+name = "salvo-csrf"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = """
+CSRF support for salvo web server framework.
+"""
+homepage.workspace = true
+repository.workspace = true
+readme = "./README.md"
+keywords.workspace = true
+license.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["cookie-store", "bcrypt-cipher"]
+all = ["cookie-store", "session-store", "bcrypt-cipher", "hmac-cipher", "aes-gcm-cipher", "ccp-cipher"]
+cookie-store = ["salvo_core/cookie", "dep:cookie"]
+session-store = ["dep:salvo-session"]
+bcrypt-cipher = ["dep:bcrypt"]
+hmac-cipher = ["dep:hmac", "dep:sha2"]
+aes-gcm-cipher = ["dep:aead", "dep:aes-gcm"]
+ccp-cipher = ["dep:aead", "dep:chacha20poly1305"]
+
+[dependencies]
+aead = { workspace = true, optional = true }
+aes-gcm = { workspace = true, optional = true }
+base64.workspace = true
+bcrypt = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
+cookie = { workspace = true, features = ["percent-encode", "signed"], optional = true }
+hmac = { workspace = true, optional = true }
+rand.workspace = true
+tracing.workspace = true
+salvo_core = { workspace = true, default-features = false }
+salvo-session = { workspace = true, default-features = false, optional = true }
+serde_json.workspace = true
+sha2 = { workspace = true, optional = true }
+
+[dev-dependencies]
+salvo_core = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

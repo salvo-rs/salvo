@@ -19,7 +19,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2022/04/07/Rust-1.60.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.60%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2022/09/22/Rust-1.64.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.64%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
@@ -36,9 +36,10 @@ Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需�
 
   - 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
   - 統一的中間件和句柄接口;
-  - 路由支持多層次嵌套, 在任何層都可以添加中間件;
+  - 路由支持無限層次嵌套;
+  - 每一個路由都可以擁有一個或者多個中間件;
   - 集成 Multipart 錶單處理;
-  - 支持 Websocket;
+  - 支持 WebSocket;
   - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書.
 
 ## ⚡️ 快速開始
@@ -56,10 +57,9 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "0.29"
+salvo = "*"
 tokio = { version = "1", features = ["macros"] }
 ```
-
 在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello_world`, 這個函數隻是簡單地打印文本 ```"Hello World"```.
 
 ```rust
@@ -206,7 +206,7 @@ struct GoodMan<'a> {
 
 ```rust
 #[handler]
-async fn edit(req: &mut Request) -> String {
+async fn edit(req: &mut Request) {
     let good_man: GoodMan<'_> = req.extract().await.unwrap();
 }
 ```
@@ -216,7 +216,7 @@ async fn edit(req: &mut Request) -> String {
 
 ```rust
 #[handler]
-async fn edit<'a>(good_man: GoodMan<'a>) -> String {
+async fn edit<'a>(good_man: GoodMan<'a>) {
     res.render(Json(good_man));
 }
 ```
@@ -266,10 +266,10 @@ cargo run --bin example-basic-auth
 
 您可以使用任何你想運行的示例名稱替代這裏的 ```basic-auth```.
 
-這裏有一個真實的項目使用了 Salvo：[https://github.com/driftluo/myblog](https://github.com/driftluo/myblog).
-
+中國用戶可以添加我微信(chrislearn), 拉微信討論群.
 
 ## 🚀 性能
+
 Benchmark 測試結果可以從這裏查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)

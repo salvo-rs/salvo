@@ -1,7 +1,6 @@
-use tokio::time::Duration;
-
-use salvo::listener::rustls::RustlsConfig;
+use salvo::listener::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
+use tokio::time::Duration;
 
 #[handler]
 async fn hello_world(res: &mut Response) {
@@ -15,7 +14,7 @@ async fn main() {
     let router = Router::new().get(hello_world);
     let listener = RustlsListener::with_config_stream(async_stream::stream! {
         loop {
-            yield load_rustls_config();
+            yield load_config();
             tokio::time::sleep(Duration::from_secs(60)).await;
         }
     })
@@ -24,8 +23,10 @@ async fn main() {
     Server::new(listener).serve(router).await;
 }
 
-fn load_rustls_config() -> RustlsConfig {
-    RustlsConfig::new()
-        .with_cert(include_bytes!("../certs/end.cert").as_ref())
-        .with_key(include_bytes!("../certs/end.rsa").as_ref())
+fn load_config() -> RustlsConfig {
+    RustlsConfig::new(
+        Keycert::new()
+            .with_cert(include_bytes!("../certs/cert.pem").as_ref())
+            .with_key(include_bytes!("../certs/key.pem").as_ref()),
+    )
 }

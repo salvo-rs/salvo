@@ -1,5 +1,5 @@
-use salvo::extra::cors::CorsHandler;
 use salvo::prelude::*;
+use salvo_cors::Cors;
 
 #[handler]
 async fn hello() -> &'static str {
@@ -10,9 +10,9 @@ async fn hello() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let cors_handler = CorsHandler::builder()
-        .with_allow_origin("https://salvo.rs")
-        .with_allow_methods(vec!["GET", "POST", "DELETE"])
+    let cors_handler = Cors::builder()
+        .allow_origin("https://salvo.rs")
+        .allow_methods(vec!["GET", "POST", "DELETE"])
         .build();
 
     let router = Router::with_hoop(cors_handler).get(hello);
