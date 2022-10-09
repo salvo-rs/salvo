@@ -19,7 +19,7 @@ use crate::http::StatusCode;
 use crate::{Error, Piece};
 use bytes::Bytes;
 
-pub use super::ResBody;
+pub use crate::http::body::ResBody;
 
 /// Represents an HTTP response
 pub struct Response {

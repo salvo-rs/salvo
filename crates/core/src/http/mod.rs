@@ -17,7 +17,6 @@ pub use mime::Mime;
 pub use range::HttpRange;
 pub use request::Request;
 pub mod body;
-pub use body::{ReqBody, ResBody};
 pub use response::Response;
 
 #[inline]

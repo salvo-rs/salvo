@@ -17,7 +17,8 @@ use serde::de::Deserialize;
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError, ReqBody};
+use crate::http::{Mime, ParseError, };
+use crate::http::body::ReqBody;
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 

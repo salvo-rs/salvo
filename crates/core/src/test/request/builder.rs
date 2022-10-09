@@ -6,7 +6,8 @@ use std::sync::Arc;
 use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
 use url::Url;
 
-use crate::http::{ReqBody, Method};
+use crate::http::body::ReqBody;
+use crate::http::Method;
 use crate::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router, Service};
 
 /// `RequestBuilder` is the main way of building requests.

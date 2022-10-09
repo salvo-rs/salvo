@@ -1,15 +1,21 @@
 //! form
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::task::{Context, Poll};
+use std::pin::Pin;
 
+use bytes::Bytes;
+use futures_util::Stream;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use tempfile::Builder;
 use textnonce::TextNonce;
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 
+use crate::http::body::{Body, ReqBody};
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
-use crate::http::{ReqBody, ParseError};
+use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
 #[derive(Debug)]
@@ -20,6 +26,15 @@ pub struct FormData {
     /// Name-value pairs for temporary files. Technically, these are form data parts with a filename
     /// specified in the part's `Content-Disposition`.
     pub files: MultiMap<String, FilePart>,
+}
+
+struct StreamBody(ReqBody);
+impl Stream for StreamBody {
+    type Item = Result<Bytes, hyper::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Body::poll_data(Pin::new(&mut self.0), cx)
+    }
 }
 
 impl FormData {
@@ -51,6 +66,7 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
+                    let body = StreamBody(body);
                     let mut multipart = Multipart::new(body, boundary);
                     while let Some(mut field) = multipart.next_field().await? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {
