@@ -16,13 +16,13 @@ pub use salvo_macros as macros;
 mod cfg;
 
 pub mod catcher;
+pub mod conn;
 mod depot;
 mod error;
 pub mod extract;
 pub mod fs;
 pub mod handler;
 pub mod http;
-pub mod conn;
 pub mod routing;
 pub(crate) mod serde;
 mod server;
@@ -34,12 +34,12 @@ cfg_feature! {
 }
 
 pub use self::catcher::{Catcher, CatcherImpl};
+pub use self::conn::Listener;
 pub use self::depot::Depot;
 pub use self::error::{BoxedError, Error};
 pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
-pub use self::conn::Listener;
 pub use self::routing::{FlowCtrl, Router};
 pub use self::server::Server;
 pub use self::service::Service;
@@ -74,9 +74,9 @@ pub mod prelude {
         #![unix]
         pub use crate::conn::UnixListener;
     }
+    pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::extract::LazyExtract;
     pub use crate::handler::{empty_handler, Handler};
-    pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;

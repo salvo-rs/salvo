@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Acceptor, Accepted};
+use crate::conn::{Accepted, Acceptor};
 use crate::Service;
 
 /// HTTP Server
@@ -40,7 +40,10 @@ where
     /// ```
     #[inline]
     pub fn new(acceptor: A) -> Self {
-        Server { acceptor, protocol: Http::new() }
+        Server {
+            acceptor,
+            protocol: Http::new(),
+        }
     }
 
     /// Use this function to set http protocol.
@@ -200,7 +203,9 @@ where
         local_addr,
         remote_addr,
     } = trans;
-    let conn = protocol.clone().serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
+    let conn = protocol
+        .clone()
+        .serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
         .with_upgrades();
     let _ = conn.await;
 }

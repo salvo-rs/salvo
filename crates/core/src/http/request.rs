@@ -16,9 +16,9 @@ use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
-use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError, };
 use crate::http::body::ReqBody;
+use crate::http::form::{FilePart, FormData};
+use crate::http::{Mime, ParseError};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 
@@ -227,7 +227,6 @@ impl Request {
     pub fn local_addr(&self) -> &SocketAddr {
         &self.local_addr
     }
-
 
     /// Returns a reference to the associated header field map.
     ///

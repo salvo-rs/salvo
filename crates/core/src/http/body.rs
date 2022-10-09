@@ -5,7 +5,7 @@ use std::error::Error as StdError;
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
-use futures_util::stream::{Stream};
+use futures_util::stream::Stream;
 use http::header::HeaderMap;
 pub use http::response::Parts;
 pub use hyper::body::{Body, Recv as ReqBody, SizeHint};

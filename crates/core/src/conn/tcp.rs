@@ -1,14 +1,14 @@
 //! Listener trait and it's implements.
-use std::io::{Error as IoError};
+use std::io::Error as IoError;
 use std::vec;
 
-use tokio::io::{Result as IoResult};
-use tokio::net::{TcpStream, TcpListener as TokioTcpListener, ToSocketAddrs};
+use tokio::io::Result as IoResult;
+use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
 use crate::conn::SocketAddr;
 
-use super::{Acceptor, Listener, Accepted};
+use super::{Accepted, Acceptor, Listener};
 
 /// TcpListener
 pub struct TcpListener {
@@ -27,10 +27,7 @@ impl TcpListener {
     pub async fn try_bind(addr: impl ToSocketAddrs) -> IoResult<Self> {
         let inner = TokioTcpListener::bind(addr).await?;
         let local_addr: SocketAddr = inner.local_addr()?.into();
-        Ok(TcpListener {
-            inner,
-            local_addr,
-        })
+        Ok(TcpListener { inner, local_addr })
     }
 }
 impl Listener for TcpListener {}

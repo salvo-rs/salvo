@@ -7,9 +7,9 @@ use hyper::{Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
 use crate::conn::SocketAddr;
+use crate::http::body::{ReqBody, ResBody};
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
-use crate::http::body::{ReqBody, ResBody};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{Catcher, Depot};
 

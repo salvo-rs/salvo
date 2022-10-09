@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::async_trait;
 use crate::conn::SocketAddr;
 
-use super::{Acceptor, Listener, Accepted};
+use super::{Accepted, Acceptor, Listener};
 
 /// A I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {

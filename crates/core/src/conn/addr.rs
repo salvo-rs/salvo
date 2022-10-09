@@ -16,7 +16,7 @@ pub enum SocketAddr {
     /// Unix socket address
     #[cfg(unix)]
     #[cfg_attr(docsrs, doc(cfg(unix)))]
-    Unix(Arc<tokio::net::unix::SocketAddr>)
+    Unix(Arc<tokio::net::unix::SocketAddr>),
 }
 impl From<std::net::SocketAddr> for SocketAddr {
     #[inline]
