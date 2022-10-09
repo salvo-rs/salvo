@@ -7,6 +7,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum SocketAddr {
+    /// Unknown address
+    Unknown,
     /// IPv4 socket address
     IPv4(std::net::SocketAddrV4),
     /// IPv6 socket address
@@ -14,7 +16,7 @@ pub enum SocketAddr {
     /// Unix socket address
     #[cfg(unix)]
     #[cfg_attr(docsrs, doc(cfg(unix)))]
-    Unix(Arc<tokio::net::unix::SocketAddr>),
+    Unix(Arc<tokio::net::unix::SocketAddr>)
 }
 impl From<std::net::SocketAddr> for SocketAddr {
     #[inline]

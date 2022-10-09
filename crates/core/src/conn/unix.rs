@@ -4,18 +4,17 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use hyper::server::accept::Accept;
 pub use hyper::Server;
+use tokio::net::UnixListener as TokioUnixListener;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use super::Listener;
-use crate::addr::SocketAddr;
-use crate::transport::Transport;
+use super::{Acceptor, Listener, Accepted};
 
 /// Unix domain socket listener.
 #[cfg(unix)]
 pub struct UnixListener {
-    incoming: tokio::net::UnixListener,
+    inner: TokioUnixListener,
+    local_addr: SocketAddr,
 }
 #[cfg(unix)]
 impl UnixListener {
@@ -43,12 +42,13 @@ impl UnixListener {
 #[cfg(unix)]
 impl Listener for UnixListener {}
 #[cfg(unix)]
-impl Accept for UnixListener {
+#[async_trait]
+impl Acceptor for UnixListener {
     type Conn = UnixStream;
     type Error = IoError;
 
     #[inline]
-    fn poll_accept(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+    async fn accept(&self) -> Result<Accepted<Self::Conn>, Self::Error> {
         match self.incoming.poll_accept(cx) {
             Poll::Ready(Ok((stream, remote_addr))) => {
                 Poll::Ready(Some(Ok(UnixStream::new(stream, remote_addr.into()))))
@@ -63,12 +63,6 @@ impl Accept for UnixListener {
 pub struct UnixStream {
     inner_stream: tokio::net::UnixStream,
     remote_addr: SocketAddr,
-}
-impl Transport for UnixStream {
-    #[inline]
-    fn remote_addr(&self) -> Option<SocketAddr> {
-        Some(self.remote_addr.clone())
-    }
 }
 
 impl UnixStream {

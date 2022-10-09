@@ -7,7 +7,7 @@ use hyper_rustls::HttpsConnector;
 use ring::digest::{digest, Digest, SHA256};
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::listener::acme::key_pair::KeyPair;
+use crate::conn::acme::key_pair::KeyPair;
 
 #[derive(Serialize)]
 struct Protected<'a> {
@@ -103,7 +103,7 @@ pub(crate) async fn request(
     nonce: &str,
     uri: &str,
     payload: Option<impl Serialize>,
-) -> IoResult<hyper::Response<hyper::Body>> {
+) -> IoResult<hyper::Response<hyper::body::Recv>> {
     let jwk = match kid {
         None => Some(Jwk::new(key_pair)),
         Some(_) => None,

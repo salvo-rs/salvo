@@ -39,7 +39,8 @@ headers = "0.3"
 http = "0.2"
 hmac = "0.12"
 hex = "0.4"
-hyper = "0.14"
+hyper = {git= "https://github.com/hyperium/hyper.git"}
+hyper-util = {git= "https://github.com/hyperium/hyper-util.git"}
 hyper-rustls = "0.23"
 jsonwebtoken = "8"
 mime = "0.3"

@@ -1,4 +1,4 @@
-use salvo::listener::openssl::{Keycert, OpensslConfig};
+use salvo::listeners::openssl::{Keycert, OpensslConfig};
 use salvo::prelude::*;
 
 #[handler]

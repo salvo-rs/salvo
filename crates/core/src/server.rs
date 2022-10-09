@@ -1,24 +1,30 @@
 //! Server module
 use std::error::Error as StdError;
 use std::future::Future;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use hyper::Server as HyperServer;
+use hyper::server::conn::Http;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::Notify;
+use tokio::time::Duration;
 
-use crate::transport::Transport;
-use crate::{Listener, Service};
+use crate::conn::{Acceptor, Accepted};
+use crate::Service;
 
 /// HTTP Server
 ///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
-pub struct Server<L> {
-    listener: L,
+pub struct Server<A> {
+    acceptor: A,
+    protocol: Http,
 }
 
-impl<L> Server<L>
+impl<A> Server<A>
 where
-    L: Listener,
-    L::Conn: Transport + Send + Unpin + 'static,
-    L::Error: Into<Box<(dyn StdError + Send + Sync + 'static)>>,
+    A: Acceptor,
+    A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Error: Into<Box<(dyn StdError + Send + Sync + 'static)>>,
 {
     /// Create new `Server` with [`Listener`].
     ///
@@ -33,8 +39,13 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn new(listener: L) -> Self {
-        Server { listener }
+    pub fn new(acceptor: A) -> Self {
+        Server { acceptor, protocol: Http::new() }
+    }
+
+    /// Use this function to set http protocol.
+    pub fn protocol_mut(&mut self) -> &mut Http {
+        &mut self.protocol
     }
 
     /// Serve a [`Service`]
@@ -52,7 +63,8 @@ where
     where
         S: Into<Service>,
     {
-        HyperServer::builder(self.listener).serve(service.into()).await
+        self.try_serve_with_graceful_shutdown(service, futures_util::future::pending(), None)
+            .await
     }
 
     /// Serve with graceful shutdown signal.
@@ -85,29 +97,112 @@ where
     /// }
     /// ```
     #[inline]
-    pub async fn serve_with_graceful_shutdown<S, G>(self, addr: S, signal: G)
+    pub async fn serve_with_graceful_shutdown<S, G>(self, service: S, signal: G, timeout: Option<Duration>)
     where
         S: Into<Service>,
         G: Future<Output = ()> + Send + 'static,
     {
-        self.try_serve_with_graceful_shutdown(addr, signal).await.unwrap();
+        self.try_serve_with_graceful_shutdown(service, signal, timeout)
+            .await
+            .unwrap();
     }
 
     /// Serve with graceful shutdown signal.
     #[inline]
-    pub async fn try_serve_with_graceful_shutdown<S, G>(self, service: S, signal: G) -> Result<(), hyper::Error>
+    pub async fn try_serve_with_graceful_shutdown<S, G>(
+        self,
+        service: S,
+        signal: G,
+        timeout: Option<Duration>,
+    ) -> Result<(), hyper::Error>
     where
         S: Into<Service>,
         G: Future<Output = ()> + Send + 'static,
     {
-        let server = HyperServer::builder(self.listener).serve(service.into());
-        if let Err(err) = server.with_graceful_shutdown(signal).await {
-            tracing::error!("server error: {}", err);
-            Err(err)
-        } else {
-            Ok(())
+        let alive_connections = Arc::new(AtomicUsize::new(0));
+        let notify = Arc::new(Notify::new());
+        let timeout_notify = Arc::new(Notify::new());
+
+        let acceptor = self.acceptor;
+
+        tokio::pin!(signal);
+
+        for addr in acceptor.local_addrs() {
+            tracing::info!( addr = %addr, "listening");
         }
+
+        let service = Arc::new(service.into());
+        loop {
+            tokio::select! {
+                _ = &mut signal => {
+                    if let Some(timeout) = timeout {
+                        tracing::info!(
+                            timeout_in_seconds = timeout.as_secs_f32(),
+                            "initiate graceful shutdown",
+                        );
+
+                        let timeout_notify = timeout_notify.clone();
+                        tokio::spawn(async move {
+                            tokio::time::sleep(timeout).await;
+                            timeout_notify.notify_waiters();
+                        });
+                    } else {
+                        tracing::info!("initiate graceful shutdown");
+                    }
+                    break;
+                },
+                 trans = acceptor.accept() => {
+                    if let Ok(trans) = trans {
+                        let service = service.clone();
+                        let alive_connections = alive_connections.clone();
+                        let notify = notify.clone();
+                        let timeout_notify = timeout_notify.clone();
+                        let protocol = self.protocol.clone();
+
+                        tokio::spawn(async move {
+                            alive_connections.fetch_add(1, Ordering::SeqCst);
+
+                            if timeout.is_some() {
+                                tokio::select! {
+                                    _ = serve_connection(protocol.clone(), trans, service) => {}
+                                    _ = timeout_notify.notified() => {}
+                                }
+                            } else {
+                                serve_connection(protocol.clone(), trans, service).await;
+                            }
+
+                            if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
+                                notify.notify_one();
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        drop(acceptor);
+        if alive_connections.load(Ordering::SeqCst) > 0 {
+            tracing::info!("wait for all connections to close.");
+            notify.notified().await;
+        }
+
+        tracing::info!("server stopped");
+        Ok(())
     }
+}
+
+async fn serve_connection<S>(protocol: Http, trans: Accepted<S>, service: Arc<Service>)
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    let Accepted {
+        stream,
+        local_addr,
+        remote_addr,
+    } = trans;
+    let conn = protocol.clone().serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
+        .with_upgrades();
+    let _ = conn.await;
 }
 
 #[cfg(test)]

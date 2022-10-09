@@ -15,7 +15,6 @@ pub use salvo_macros as macros;
 #[macro_use]
 mod cfg;
 
-pub mod addr;
 pub mod catcher;
 mod depot;
 mod error;
@@ -23,12 +22,11 @@ pub mod extract;
 pub mod fs;
 pub mod handler;
 pub mod http;
-pub mod listener;
+pub mod conn;
 pub mod routing;
 pub(crate) mod serde;
 mod server;
 mod service;
-mod transport;
 pub mod writer;
 cfg_feature! {
     #![feature ="test"]
@@ -41,7 +39,7 @@ pub use self::error::{BoxedError, Error};
 pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
-pub use self::listener::Listener;
+pub use self::conn::Listener;
 pub use self::routing::{FlowCtrl, Router};
 pub use self::server::Server;
 pub use self::service::Service;
@@ -58,27 +56,27 @@ pub mod prelude {
     pub use crate::http::{Request, Response, StatusCode, StatusError};
     cfg_feature! {
         #![feature ="acme"]
-        pub use crate::listener::AcmeListener;
+        pub use crate::conn::AcmeListener;
     }
     cfg_feature! {
         #![feature ="rustls"]
-        pub use crate::listener::RustlsListener;
+        pub use crate::conn::RustlsListener;
     }
     cfg_feature! {
         #![feature ="native-tls"]
-        pub use crate::listener::NativeTlsListener;
+        pub use crate::conn::NativeTlsListener;
     }
     cfg_feature! {
         #![feature ="openssl"]
-        pub use crate::listener::OpensslListener;
+        pub use crate::conn::OpensslListener;
     }
     cfg_feature! {
         #![unix]
-        pub use crate::listener::UnixListener;
+        pub use crate::conn::UnixListener;
     }
     pub use crate::extract::LazyExtract;
     pub use crate::handler::{empty_handler, Handler};
-    pub use crate::listener::{JoinedListener, Listener, TcpListener};
+    pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;

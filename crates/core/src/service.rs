@@ -1,16 +1,15 @@
 use std::future::Future;
-use std::io::Error as IoError;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::future;
+use hyper::service::Service as HyperService;
+use hyper::{Request as HyperRequest, Response as HyperResponse};
 
-use crate::addr::SocketAddr;
 use crate::catcher::CatcherImpl;
+use crate::conn::SocketAddr;
 use crate::http::header::CONTENT_TYPE;
-use crate::http::{Mime, Request, Response, StatusCode};
+use crate::http::{Mime, ReqBody, Request, ResBody, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
 /// Service http request.
@@ -111,8 +110,9 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn hyper_handler(&self, remote_addr: Option<SocketAddr>) -> HyperHandler {
+    pub fn hyper_handler(&self, local_addr: SocketAddr, remote_addr: SocketAddr) -> HyperHandler {
         HyperHandler {
+            local_addr,
             remote_addr,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
@@ -120,50 +120,18 @@ impl Service {
         }
     }
 
-    /// Handle [`Request`] and returns [`Response`].
-    ///
-    /// This function is useful for testing application.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use salvo_core::prelude::*;
-    /// use salvo_core::test::{ResponseExt, TestClient};
-    ///
-    /// #[handler]
-    /// async fn hello_world() -> &'static str {
-    ///     "Hello World"
-    /// }
-    /// #[tokio::main]
     /// async fn main() {
     ///     let service: Service = Router::new().get(hello_world).into();
     ///     let mut res = TestClient::get("http://127.0.0.1:7878").send(&service).await;
     ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
     /// }
     /// ```
+    #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler(None).handle(request.into()).await
-    }
-}
-impl<'t, T> hyper::service::Service<&'t T> for Service
-where
-    T: Transport,
-{
-    type Response = HyperHandler;
-    type Error = IoError;
-
-    // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
-
-    #[inline]
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        Ok(()).into()
-    }
-
-    #[inline]
-    fn call(&mut self, target: &T) -> Self::Future {
-        future::ok(self.hyper_handler(target.remote_addr()))
+        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown)
+            .handle(request.into())
+            .await
     }
 }
 
@@ -180,7 +148,8 @@ where
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
-    pub(crate) remote_addr: Option<SocketAddr>,
+    pub(crate) local_addr: SocketAddr,
+    pub(crate) remote_addr: SocketAddr,
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
@@ -266,21 +235,17 @@ impl HyperHandler {
         }
     }
 }
-#[allow(clippy::type_complexity)]
-impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
-    type Response = hyper::Response<hyper::body::Body>;
+
+impl HyperService<HyperRequest<ReqBody>> for HyperHandler {
+    type Response = HyperResponse<ResBody>;
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-    #[inline]
-    fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
+    fn call(&mut self, req: HyperRequest<ReqBody>) -> Self::Future {
         let response = self.handle(req.into());
         let fut = async move {
-            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
+            let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;
             Ok(hyper_response)
         };

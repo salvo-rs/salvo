@@ -1,4 +1,4 @@
-use salvo::listener::rustls::{Keycert, RustlsConfig};
+use salvo::listeners::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 use tokio::time::Duration;
 

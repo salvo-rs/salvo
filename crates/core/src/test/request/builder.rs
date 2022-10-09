@@ -4,9 +4,9 @@ use std::str;
 use std::sync::Arc;
 
 use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
-use hyper::{Body, Method};
 use url::Url;
 
+use crate::http::{ReqBody, Method};
 use crate::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router, Service};
 
 /// `RequestBuilder` is the main way of building requests.
@@ -20,7 +20,7 @@ pub struct RequestBuilder {
     method: Method,
     headers: HeaderMap,
     // params: HashMap<String, String>,
-    body: Body,
+    body: ReqBody,
 }
 
 impl RequestBuilder {
@@ -38,7 +38,7 @@ impl RequestBuilder {
             method,
             headers: HeaderMap::new(),
             // params: HeaderMap::new(),
-            body: Body::default(),
+            body: ReqBody::empty(),
         }
     }
 }
@@ -120,7 +120,7 @@ impl RequestBuilder {
     }
 
     /// Sets the body of this request.
-    pub fn body(mut self, body: impl Into<Body>) -> Self {
+    pub fn body(mut self, body: impl Into<ReqBody>) -> Self {
         self.body = body.into();
         self
     }
@@ -211,7 +211,7 @@ impl RequestBuilder {
     }
 
     /// Build hyper request.
-    pub fn build_hyper(self) -> hyper::Request<Body> {
+    pub fn build_hyper(self) -> hyper::Request<ReqBody> {
         let Self {
             url,
             method,

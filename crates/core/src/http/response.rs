@@ -5,13 +5,11 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
-use std::pin::Pin;
-use std::task::{self, Poll};
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::{Stream, TryStreamExt};
-use http::header::{HeaderMap, HeaderValue, IntoHeaderName, CONTENT_LENGTH, SET_COOKIE};
+use http::header::{HeaderMap, HeaderValue, IntoHeaderName, SET_COOKIE};
 pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
@@ -21,78 +19,7 @@ use crate::http::StatusCode;
 use crate::{Error, Piece};
 use bytes::Bytes;
 
-/// Response body type.
-#[allow(clippy::type_complexity)]
-#[non_exhaustive]
-pub enum ResBody {
-    /// None body.
-    None,
-    /// Once bytes body.
-    Once(Bytes),
-    /// Chunks body.
-    Chunks(VecDeque<Bytes>),
-    /// Stream body.
-    Stream(Pin<Box<dyn Stream<Item = Result<Bytes, Box<dyn StdError + Send + Sync>>> + Send>>),
-}
-impl ResBody {
-    /// Check is that body is not set.
-    #[inline]
-    pub fn is_none(&self) -> bool {
-        matches!(*self, ResBody::None)
-    }
-    /// Check is that body is once.
-    #[inline]
-    pub fn is_once(&self) -> bool {
-        matches!(*self, ResBody::Once(_))
-    }
-    /// Check is that body is chunks.
-    #[inline]
-    pub fn is_chunks(&self) -> bool {
-        matches!(*self, ResBody::Chunks(_))
-    }
-    /// Check is that body is stream.
-    #[inline]
-    pub fn is_stream(&self) -> bool {
-        matches!(*self, ResBody::Stream(_))
-    }
-    /// Get body's size.
-    #[inline]
-    pub fn size(&self) -> Option<u64> {
-        match self {
-            ResBody::None => Some(0),
-            ResBody::Once(bytes) => Some(bytes.len() as u64),
-            ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
-            ResBody::Stream(_) => None,
-        }
-    }
-}
-
-impl Stream for ResBody {
-    type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
-
-    #[inline]
-    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.get_mut() {
-            ResBody::None => Poll::Ready(None),
-            ResBody::Once(bytes) => {
-                if bytes.is_empty() {
-                    Poll::Ready(None)
-                } else {
-                    let bytes = std::mem::replace(bytes, Bytes::new());
-                    Poll::Ready(Some(Ok(bytes)))
-                }
-            }
-            ResBody::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
-            ResBody::Stream(stream) => stream.as_mut().poll_next(cx),
-        }
-    }
-}
-impl From<hyper::Body> for ResBody {
-    #[inline]
-    fn from(hbody: hyper::Body) -> ResBody {
-        ResBody::Stream(Box::pin(hbody.map_err(|e| e.into_cause().unwrap()).into_stream()))
-    }
-}
+pub use super::ResBody;
 
 /// Represents an HTTP response
 pub struct Response {
@@ -110,9 +37,9 @@ impl Default for Response {
         Self::new()
     }
 }
-impl From<hyper::Response<hyper::Body>> for Response {
+impl From<hyper::Response<ResBody>> for Response {
     #[inline]
-    fn from(res: hyper::Response<hyper::Body>) -> Self {
+    fn from(res: hyper::Response<ResBody>) -> Self {
         let (
             http::response::Parts {
                 status,
@@ -142,7 +69,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
         Response {
             status_code: Some(status),
             status_error: None,
-            body: body.into(),
+            body,
             version,
             headers,
             #[cfg(feature = "cookie")]
@@ -150,6 +77,7 @@ impl From<hyper::Response<hyper::Body>> for Response {
         }
     }
 }
+
 impl Response {
     /// Creates a new blank `Response`.
     #[inline]
@@ -291,7 +219,7 @@ impl Response {
     ///
     /// `write_back` consumes the `Response`.
     #[inline]
-    pub(crate) async fn write_back(mut self, res: &mut hyper::Response<hyper::Body>) {
+    pub(crate) async fn write_back(mut self, res: &mut hyper::Response<ResBody>) {
         #[cfg(feature = "cookie")]
         self.write_cookies_to_headers();
         let Self {
@@ -304,23 +232,7 @@ impl Response {
 
         // Default to a 404 if no response code was set
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
-
-        match body {
-            ResBody::None => {
-                res.headers_mut().insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
-            }
-            ResBody::Once(bytes) => {
-                *res.body_mut() = hyper::Body::from(bytes);
-            }
-            ResBody::Chunks(chunks) => {
-                *res.body_mut() = hyper::Body::wrap_stream(tokio_stream::iter(
-                    chunks.into_iter().map(Result::<_, Box<dyn StdError + Send + Sync>>::Ok),
-                ));
-            }
-            ResBody::Stream(stream) => {
-                *res.body_mut() = hyper::Body::wrap_stream(stream);
-            }
-        }
+        *res.body_mut() = body;
     }
 
     cfg_feature! {

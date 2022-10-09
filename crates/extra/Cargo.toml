@@ -40,7 +40,7 @@ bytes = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
 fastrand = { workspace = true, optional = true }
 futures-util = { workspace = true, default-features = false, optional = true }
-hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
+hyper = { workspace = true, features = ["server", "http1", "http2", "client"], optional = true }
 hyper-rustls = { workspace = true, features = ["http1", "http2"], optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }

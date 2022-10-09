@@ -41,7 +41,7 @@ form_urlencoded.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
 http.workspace = true
-hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
 hyper-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true

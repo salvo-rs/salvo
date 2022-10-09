@@ -246,7 +246,7 @@ impl CorsBuilder {
     ///
     /// ```
     /// use std::time::Duration;
-    /// use salvo_core::prelude::*;;
+    /// use salvo_core::prelude::*;
     ///
     /// let cors = salvo_cors::Cors::builder()
     ///     .max_age(30) // 30u32 seconds

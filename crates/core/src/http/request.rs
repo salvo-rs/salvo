@@ -10,15 +10,14 @@ use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
 use http::{self, Extensions, Uri};
-pub use hyper::Body as ReqBody;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
 
-use crate::addr::SocketAddr;
+use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
 use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError};
+use crate::http::{Mime, ParseError, ReqBody};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 
@@ -51,7 +50,8 @@ pub struct Request {
 
     /// The version of the HTTP protocol used.
     version: Version,
-    pub(crate) remote_addr: Option<SocketAddr>,
+    pub(crate) local_addr: SocketAddr,
+    pub(crate) remote_addr: SocketAddr,
 }
 
 impl fmt::Debug for Request {
@@ -63,6 +63,8 @@ impl fmt::Debug for Request {
             .field("headers", self.headers())
             // omits Extensions because not useful
             .field("body", &self.body())
+            .field("local_addr", &self.local_addr)
+            .field("remote_addr", &self.remote_addr)
             .finish()
     }
 }
@@ -119,7 +121,8 @@ impl From<hyper::Request<ReqBody>> for Request {
             payload: tokio::sync::OnceCell::new(),
             // multipart: OnceCell::new(),
             version,
-            remote_addr: None,
+            remote_addr: SocketAddr::Unknown,
+            local_addr: SocketAddr::Unknown,
         }
     }
 }
@@ -131,7 +134,7 @@ impl Request {
         Request {
             uri: Uri::default(),
             headers: HeaderMap::default(),
-            body: Some(ReqBody::default()),
+            body: Some(ReqBody::empty()),
             extensions: Extensions::default(),
             method: Method::default(),
             #[cfg(feature = "cookie")]
@@ -141,7 +144,8 @@ impl Request {
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             version: Version::default(),
-            remote_addr: None,
+            local_addr: SocketAddr::Unknown,
+            remote_addr: SocketAddr::Unknown,
         }
     }
     /// Returns a reference to the associated URI.
@@ -214,9 +218,15 @@ impl Request {
     }
     /// Get request remote address.
     #[inline]
-    pub fn remote_addr(&self) -> Option<&SocketAddr> {
-        self.remote_addr.as_ref()
+    pub fn remote_addr(&self) -> &SocketAddr {
+        &self.remote_addr
     }
+    /// Get request remote address.
+    #[inline]
+    pub fn local_addr(&self) -> &SocketAddr {
+        &self.local_addr
+    }
+
 
     /// Returns a reference to the associated header field map.
     ///

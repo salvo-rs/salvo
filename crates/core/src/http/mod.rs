@@ -15,8 +15,10 @@ pub use http::method::Method;
 pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
 pub use mime::Mime;
 pub use range::HttpRange;
-pub use request::{ReqBody, Request};
-pub use response::{ResBody, Response};
+pub use request::Request;
+pub mod body;
+pub use body::{ReqBody, ResBody};
+pub use response::Response;
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
