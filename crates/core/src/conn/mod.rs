@@ -43,8 +43,8 @@ cfg_feature! {
 
 cfg_feature! {
     #![any(feature = "native-tls", feature = "rustls", feature = "openssl", feature = "acme")]
-    mod handshake_stream;
-    pub use handshake_stream::HandshakeStream;
+    mod tls_conn_stream;
+    pub use tls_conn_stream::TlsConnStream;
 }
 
 /// Acceptor's return type.

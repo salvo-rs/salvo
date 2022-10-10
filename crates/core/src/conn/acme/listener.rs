@@ -11,7 +11,7 @@ use tokio_rustls::rustls::PrivateKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, HandshakeStream, Listener, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, TlsConnStream, Listener, SocketAddr, TcpListener};
 use crate::{async_trait, Router};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
@@ -229,7 +229,7 @@ impl<T: Acceptor> Listener for AcmeListener<T> {}
 
 #[async_trait]
 impl<T: Acceptor> Acceptor for AcmeListener<T> {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Conn = TlsConnStream<TlsStream<T::Conn>>;
     type Error = IoError;
 
     #[inline]
@@ -248,7 +248,7 @@ impl<T: Acceptor> Acceptor for AcmeListener<T> {
             .accept()
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, format!("inner accept error: {}", e)))?;
-        let stream = HandshakeStream::new(self.tls_acceptor.accept(stream));
+        let stream = TlsConnStream::new(self.tls_acceptor.accept(stream));
         return Ok(Accepted {
             stream,
             local_addr,

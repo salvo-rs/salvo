@@ -8,7 +8,7 @@ use tokio_native_tls::native_tls::Identity;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
 
 /// NativeTlsListener
 #[pin_project]
@@ -66,7 +66,7 @@ where
     C: Stream<Item = Identity> + Send + Unpin + 'static,
     T: Acceptor,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Conn = TlsConnStream<TlsStream<T::Conn>>;
     type Error = IoError;
 
     #[inline]
@@ -104,7 +104,7 @@ where
                         None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
                     };
                     let fut = async move { tls_acceptor.accept(stream).await.map_err(|err| IoError::new(ErrorKind::Other, err.to_string())) };
-                    let stream = HandshakeStream::new(fut);
+                    let stream = TlsConnStream::new(fut);
                     return Ok(Accepted {
                         stream, local_addr, remote_addr});
                 }

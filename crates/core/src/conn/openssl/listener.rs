@@ -12,7 +12,7 @@ use tokio_openssl::SslStream;
 pub use super::{Keycert, OpensslConfig};
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
 
 /// OpensslListener
 #[pin_project]
@@ -67,7 +67,7 @@ where
     C::Item: Into<OpensslConfig>,
     T: Acceptor,
 {
-    type Conn = HandshakeStream<SslStream<T::Conn>>;
+    type Conn = TlsConnStream<SslStream<T::Conn>>;
     type Error = IoError;
 
     /// Get the local address bound to this listener.
@@ -111,7 +111,7 @@ where
                         Pin::new(&mut tls_stream).accept().await.map_err(|err|
                             IoError::new(ErrorKind::Other, err.to_string()))?;
                         Ok(tls_stream) };
-                    let stream = HandshakeStream::new(fut);
+                    let stream = TlsConnStream::new(fut);
                     return Ok(Accepted{stream, local_addr, remote_addr});
                 }
             }

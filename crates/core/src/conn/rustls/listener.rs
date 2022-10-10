@@ -8,7 +8,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
 
 /// RustlsListener
 pub struct RustlsListener<C, T> {
@@ -66,7 +66,7 @@ where
     C::Item: Into<ServerConfig>,
     T: Acceptor,
 {
-    type Conn = HandshakeStream<TlsStream<T::Conn>>;
+    type Conn = TlsConnStream<TlsStream<T::Conn>>;
     type Error = IoError;
 
     fn local_addrs(&self) -> Vec<&SocketAddr> {
@@ -96,7 +96,7 @@ where
                         None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
                     };
 
-                    let stream = HandshakeStream::new(tls_acceptor.accept(stream));
+                    let stream = TlsConnStream::new(tls_acceptor.accept(stream));
                     return Ok(Accepted{stream, local_addr, remote_addr});
                 }
             }

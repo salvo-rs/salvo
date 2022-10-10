@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::io::{Error, Result, ErrorKind};
+use std::io::{Error, ErrorKind, Result};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -13,11 +13,11 @@ enum State<S> {
 }
 
 /// A handshake stream for tls.
-pub struct HandshakeStream<S> {
+pub struct TlsConnStream<S> {
     state: State<S>,
 }
 
-impl<S> HandshakeStream<S> {
+impl<S> TlsConnStream<S> {
     pub(crate) fn new<F>(handshake: F) -> Self
     where
         F: Future<Output = Result<S>> + Send + 'static,
@@ -28,15 +28,11 @@ impl<S> HandshakeStream<S> {
     }
 }
 
-impl<S> AsyncRead for HandshakeStream<S>
+impl<S> AsyncRead for TlsConnStream<S>
 where
     S: AsyncRead + Unpin + Send + 'static,
 {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<Result<()>> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<Result<()>> {
         let this = &mut *self;
 
         loop {
@@ -50,13 +46,13 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_read(cx, buf),
-                State::Error => return Poll::Ready(Err(invalid_data_error())),
+                State::Error => return Poll::Ready(Err(Error::new(ErrorKind::InvalidData, "invalid data"))),
             }
         }
     }
 }
 
-impl<S> AsyncWrite for HandshakeStream<S>
+impl<S> AsyncWrite for TlsConnStream<S>
 where
     S: AsyncWrite + Unpin + Send + 'static,
 {
@@ -78,15 +74,12 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_write(cx, buf),
-                State::Error => return Poll::Ready(Err(invalid_data_error())),
+                State::Error => return Poll::Ready(Err(Error::new(ErrorKind::InvalidData, "invalid data"))),
             }
         }
     }
 
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::result::Result<(), Error>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::result::Result<(), Error>> {
         let this = &mut *self;
 
         loop {
@@ -100,15 +93,12 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_flush(cx),
-                State::Error => return Poll::Ready(Err(invalid_data_error())),
+                State::Error => return Poll::Ready(Err(Error::new(ErrorKind::InvalidData, "invalid data"))),
             }
         }
     }
 
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::result::Result<(), Error>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::result::Result<(), Error>> {
         let this = &mut *self;
 
         loop {
@@ -122,12 +112,8 @@ where
                     Poll::Pending => return Poll::Pending,
                 },
                 State::Ready(stream) => return Pin::new(stream).poll_shutdown(cx),
-                State::Error => return Poll::Ready(Err(invalid_data_error())),
+                State::Error => return Poll::Ready(Err(Error::new(ErrorKind::InvalidData, "invalid data"))),
             }
         }
     }
-}
-
-fn invalid_data_error() -> Error {
-    Error::new(ErrorKind::InvalidData, "invalid data")
 }
