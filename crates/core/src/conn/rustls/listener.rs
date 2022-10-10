@@ -23,10 +23,12 @@ where
     C::Item: Into<ServerConfig>,
     T: Acceptor,
 {
+    /// Create a new `RustlsListener`.
     #[inline]
     pub fn new(config: C, inner: T) -> RustlsListener<C, T> {
         Self::try_new(config, inner).unwrap()
     }
+    /// Try to create a new `RustlsListener`.
     #[inline]
     pub fn try_new(config: C, inner: T) -> IoResult<RustlsListener<C, T>> {
         Ok(RustlsListener {

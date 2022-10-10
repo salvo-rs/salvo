@@ -21,8 +21,9 @@ async fn hello_world3(_req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+        .serve(route())
+        .await;
 }
 
 fn route() -> Router {

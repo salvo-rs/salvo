@@ -7,7 +7,6 @@ use std::task::{self, Context, Poll};
 
 use futures_util::Stream;
 use http::header::HeaderMap;
-pub use http::response::Parts;
 pub use hyper::body::{Body, Recv, SizeHint};
 
 use bytes::Bytes;

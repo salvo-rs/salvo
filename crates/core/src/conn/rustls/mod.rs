@@ -1,11 +1,10 @@
 //! rustls module
 use std::io::{self, Error as IoError, ErrorKind};
 
-pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::{Certificate, RootCertStore};
 
 pub(crate) mod config;
-pub use config::{Keycert, RustlsConfig};
+pub use config::{Keycert, RustlsConfig, ServerConfig};
 
 pub mod listener;
 pub use listener::RustlsListener;

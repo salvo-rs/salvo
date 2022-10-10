@@ -98,7 +98,7 @@ where
                     }
                 }
                 accepted = self.inner.accept() => {
-                    let Accepted{mut stream, local_addr, remote_addr} = accepted.map_err(|e|IoError::new(ErrorKind::Other, format!("accept error: {}", e)))?;
+                    let Accepted{stream, local_addr, remote_addr} = accepted.map_err(|e|IoError::new(ErrorKind::Other, format!("accept error: {}", e)))?;
                     let tls_acceptor = match &self.tls_acceptor {
                         Some(tls_acceptor) => tls_acceptor.clone(),
                         None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),

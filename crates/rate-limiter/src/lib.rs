@@ -78,10 +78,9 @@ impl RateIssuer for RemoteIpIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         match req.remote_addr() {
-            Some(SocketAddr::IPv4(addr)) => Some(addr.ip().to_string()),
-            Some(SocketAddr::IPv6(addr)) => Some(addr.ip().to_string()),
-            Some(_) => None,
-            None => None,
+            SocketAddr::IPv4(addr) => Some(addr.ip().to_string()),
+            SocketAddr::IPv6(addr) => Some(addr.ip().to_string()),
+            _ => None,
         }
     }
 }

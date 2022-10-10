@@ -118,7 +118,7 @@ impl OpensslConfig {
     }
 
     /// Create [`SslAcceptorBuilder`]
-    pub fn create_acceptor_builder(&self) -> Result<SslAcceptorBuilder, IoError> {
+    pub fn create_acceptor_builder(&mut self) -> Result<SslAcceptorBuilder, IoError> {
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
 
         let mut certs = X509::stack_from_pem(self.keycert.cert()?)?;

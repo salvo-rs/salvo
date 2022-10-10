@@ -1,4 +1,4 @@
-use salvo::listeners::rustls::{Keycert, RustlsConfig};
+use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 use tokio::time::Duration;
 
@@ -12,13 +12,12 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    let listener = RustlsListener::with_config_stream(async_stream::stream! {
+    let listener = RustlsListener::bind(async_stream::stream! {
         loop {
             yield load_config();
             tokio::time::sleep(Duration::from_secs(60)).await;
         }
-    })
-    .bind("127.0.0.1:7878");
+    }, "127.0.0.1:7878");
     tracing::info!("Listening on https://127.0.0.1:7878");
     Server::new(listener).serve(router).await;
 }

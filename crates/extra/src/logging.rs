@@ -16,7 +16,7 @@ impl Handler for Logger {
         let span = tracing::span!(
             Level::INFO,
             "Request",
-            remote_addr = %req.remote_addr().map(|addr|addr.to_string()).unwrap_or_else(|| "[Unknown]".into()),
+            remote_addr = %req.remote_addr().to_string(),
             version = ?req.version(),
             method = %req.method(),
             path = %req.uri(),

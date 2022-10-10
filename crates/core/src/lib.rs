@@ -54,10 +54,10 @@ pub mod prelude {
 
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
-    cfg_feature! {
-        #![feature ="acme"]
-        pub use crate::conn::AcmeListener;
-    }
+    // cfg_feature! {
+    //     #![feature ="acme"]
+    //     pub use crate::conn::AcmeListener;
+    // }
     cfg_feature! {
         #![feature ="rustls"]
         pub use crate::conn::RustlsListener;
@@ -118,7 +118,7 @@ fn new_runtime(threads: usize) -> Runtime {
 /// #[tokio::main]
 /// async fn main() {
 ///    let router = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
+///    let server = Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router);
 ///    salvo_core::run(server);
 /// }
 /// ```
@@ -142,7 +142,7 @@ pub fn run<F: Future>(future: F) {
 ///
 /// fn main() {
 ///    let router = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
+///    let server = Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router);
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```

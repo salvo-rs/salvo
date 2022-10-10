@@ -10,7 +10,7 @@ async fn hello_world() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
+    
     let router = Router::new().get(hello_world);
 
     let mut listenfd = ListenFd::from_env();

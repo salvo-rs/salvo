@@ -10,8 +10,9 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello_world);
-    let listener = TcpListener::bind("127.0.0.1:7878").join(TcpListener::bind("127.0.0.1:7979"));
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    tracing::info!("Listening on http://127.0.0.1:7979");
+    let listener = TcpListener::bind("127.0.0.1:7878")
+        .await
+        .join(TcpListener::bind("127.0.0.1:7979").await);
+
     Server::new(listener).serve(router).await;
 }

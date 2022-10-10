@@ -1,4 +1,4 @@
-use salvo::listeners::rustls::{Keycert, RustlsConfig};
+use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 
 #[handler]
@@ -17,6 +17,6 @@ async fn main() {
             .with_key(include_bytes!("../certs/key.pem").as_ref()),
     );
     tracing::info!("Listening on https://127.0.0.1:7878");
-    let listener = RustlsListener::with_config(config).bind("127.0.0.1:7878");
+    let listener = RustlsListener::bind(config, "127.0.0.1:7878").await;
     Server::new(listener).serve(router).await;
 }

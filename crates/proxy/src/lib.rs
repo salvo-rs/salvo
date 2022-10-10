@@ -4,17 +4,17 @@ use std::convert::{Infallible, TryFrom};
 
 use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
-use hyper::{Body as HyperBody, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use once_cell::sync::OnceCell;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
-use salvo_core::http::uri::Scheme;
+use salvo_core::http::uri::{Uri, Scheme};
 use salvo_core::http::StatusCode;
+use salvo_core::http::{ReqBody, ResBody, Body};
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
 
-type HyperRequest = hyper::Request<HyperBody>;
-type HyperResponse = hyper::Response<HyperBody>;
+type HyperRequest = hyper::Request<ReqBody>;
+type HyperResponse = hyper::Response<ResBody>;
 
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
@@ -149,7 +149,7 @@ where
         //     // shouldn't happen...
         //     Err(_) => panic!("Invalid header name: {}", x_forwarded_for_header_name),
         // }
-        build.body(req.take_body().unwrap_or_default()).map_err(Error::other)
+        build.body(req.take_body()).map_err(Error::other)
     }
 
     #[inline]

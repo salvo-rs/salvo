@@ -123,7 +123,7 @@ impl Service {
 
     /// async fn main() {
     ///     let service: Service = Router::new().get(hello_world).into();
-    ///     let mut res = TestClient::get("http://127.0.0.1:7878").send(&service).await;
+    ///     let mut res = TestClient::get("http://127.0.0.1:7878").await.send(&service).await;
     ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
     /// }
     /// ```

@@ -1,4 +1,4 @@
-use salvo::listeners::native_tls::NativeTlsConfig;
+use salvo::conn::native_tls::NativeTlsConfig;
 use salvo::prelude::*;
 
 #[handler]
@@ -14,7 +14,7 @@ async fn main() {
     let config = NativeTlsConfig::new()
         .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
         .with_password("mypass");
-    let listener = NativeTlsListener::with_config(config).bind("127.0.0.1:7878");
+    let listener = NativeTlsListener::bind(config, "127.0.0.1:7878");
     tracing::info!("Listening on https://127.0.0.1:7878");
     Server::new(listener).serve(router).await;
 }

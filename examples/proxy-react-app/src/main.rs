@@ -7,6 +7,6 @@ async fn main() {
 
     let router = Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:3000"]));
     println!("{:?}", router);
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    
+    Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router).await;
 }

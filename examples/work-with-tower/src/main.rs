@@ -13,7 +13,7 @@ async fn main() {
     let router = Router::new().get(hello_world);
     let server = ConcurrencyLimit::new(Service::new(router), 20);
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
+    
     let _ = hyper::server::Server::bind(&std::net::SocketAddr::from(([127, 0, 0, 1], 7878)))
         .serve(server)
         .await;

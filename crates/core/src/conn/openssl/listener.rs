@@ -5,14 +5,14 @@ use std::sync::Arc;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use pin_project::pin_project;
-use tokio::io::{ ErrorKind};
+use tokio::io::ErrorKind;
 use tokio::net::ToSocketAddrs;
 use tokio_openssl::SslStream;
 
-pub use super::{Keycert, OpensslConfig};
+use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, SocketAddr, TcpListener, TlsConnStream};
 
 /// OpensslListener
 #[pin_project]
@@ -50,8 +50,9 @@ where
     C: Stream + Send + 'static,
     C::Item: Into<OpensslConfig>,
 {
+    /// Create new OpensslListener with config stream.
     #[inline]
-    pub fn new(inner: T, config_stream: C) -> Self {
+    pub fn new(config_stream: C, inner: T) -> Self {
         Self {
             inner,
             config_stream,
