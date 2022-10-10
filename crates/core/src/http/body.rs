@@ -12,7 +12,6 @@ pub use hyper::body::{Body, Recv, SizeHint};
 
 use bytes::Bytes;
 
-
 /// Body for request.
 #[derive(Debug)]
 pub enum ReqBody {

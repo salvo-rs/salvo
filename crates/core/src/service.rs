@@ -238,7 +238,10 @@ impl HyperHandler {
     }
 }
 
-impl<B> HyperService<HyperRequest<B>> for HyperHandler where B: Into<ReqBody> {
+impl<B> HyperService<HyperRequest<B>> for HyperHandler
+where
+    B: Into<ReqBody>,
+{
     type Response = HyperResponse<ResBody>;
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;

@@ -77,7 +77,10 @@ impl Default for Request {
     }
 }
 
-impl<B> From<hyper::Request<B>> for Request where B: Into<ReqBody> {
+impl<B> From<hyper::Request<B>> for Request
+where
+    B: Into<ReqBody>,
+{
     fn from(req: hyper::Request<B>) -> Self {
         let (
             http::request::Parts {

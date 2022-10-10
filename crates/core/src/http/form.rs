@@ -9,7 +9,7 @@ use textnonce::TextNonce;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-use crate::http::body::{ReqBody};
+use crate::http::body::ReqBody;
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
 use crate::http::ParseError;
 
