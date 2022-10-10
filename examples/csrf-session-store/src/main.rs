@@ -44,7 +44,6 @@ pub async fn post_page(req: &mut Request, depot: &mut Depot, res: &mut Response)
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    
     let form_finder = FormFinder::new("csrf_token");
 
     let bcrypt_csrf = bcrypt_session_csrf(form_finder.clone());
@@ -80,7 +79,9 @@ async fn main() {
                 .get(get_page)
                 .post(post_page),
         );
-    Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+        .serve(router)
+        .await;
 }
 
 fn get_page_html(csrf_token: &str, msg: &str) -> String {

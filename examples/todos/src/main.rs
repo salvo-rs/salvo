@@ -19,8 +19,10 @@ pub(crate) async fn start_server() {
         .get(list_todos)
         .post(create_todo)
         .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-    
-    Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router).await;
+
+    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+        .serve(router)
+        .await;
 }
 
 #[handler]

@@ -167,7 +167,8 @@ mod test {
         let router = Router::new().hoop(set_user).handle(hello_world);
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:7878").await
+        let content = TestClient::get("http://127.0.0.1:7878")
+            .await
             .send(&service)
             .await
             .take_string()

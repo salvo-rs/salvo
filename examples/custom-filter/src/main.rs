@@ -16,6 +16,8 @@ async fn main() {
             host == "localhost:7878"
         })
         .get(hello_world);
-    
-    Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router).await;
+
+    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+        .serve(router)
+        .await;
 }

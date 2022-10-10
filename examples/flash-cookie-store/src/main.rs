@@ -25,10 +25,11 @@ pub async fn get_flash(depot: &mut Depot, _res: &mut Response) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    
     let router = Router::new()
         .hoop(CookieStore::new().into_handler())
         .push(Router::with_path("get").get(get_flash))
         .push(Router::with_path("set").get(set_flash));
-    Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+        .serve(router)
+        .await;
 }

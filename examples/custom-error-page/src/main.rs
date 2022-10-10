@@ -9,7 +9,7 @@ async fn hello_world() -> &'static str {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    
+
     Server::new(TcpListener::bind("127.0.0.1:7878").await)
         .serve(create_service())
         .await;
