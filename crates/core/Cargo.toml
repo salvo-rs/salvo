@@ -42,6 +42,7 @@ futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
+hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"] }
 hyper-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true

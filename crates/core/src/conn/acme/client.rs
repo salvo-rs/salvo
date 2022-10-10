@@ -6,8 +6,9 @@ use std::{
 use base64::URL_SAFE_NO_PAD;
 use bytes::Bytes;
 use http::header;
-use hyper::{client::HttpConnector, Client};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use hyper_util::client::connect::HttpConnector;
+use hyper_util::Client;
 use serde::{Deserialize, Serialize};
 
 use super::{Challenge, Problem};

@@ -2,7 +2,8 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
 use base64::URL_SAFE_NO_PAD;
 use http::{Method, Uri};
-use hyper::{client::HttpConnector, Client};
+use hyper_util::client::connect::HttpConnector;
+use hyper_util::Client;
 use hyper_rustls::HttpsConnector;
 use ring::digest::{digest, Digest, SHA256};
 use serde::{de::DeserializeOwned, Serialize};

@@ -48,7 +48,7 @@ impl Acceptor for UnixListener {
     type Error = IoError;
 
     #[inline]
-    async fn accept(&self) -> Result<Accepted<Self::Conn>, Self::Error> {
+    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
         match self.incoming.poll_accept(cx) {
             Poll::Ready(Ok((stream, remote_addr))) => {
                 Poll::Ready(Some(Ok(UnixStream::new(stream, remote_addr.into()))))

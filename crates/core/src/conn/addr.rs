@@ -102,6 +102,7 @@ impl Display for SocketAddr {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            SocketAddr::Unknown => write!(f, "unknown"),
             SocketAddr::IPv4(addr) => write!(f, "socket://{}", addr),
             SocketAddr::IPv6(addr) => write!(f, "socket://{}", addr),
             #[cfg(unix)]

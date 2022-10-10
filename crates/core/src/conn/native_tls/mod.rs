@@ -1,20 +1,4 @@
 //! native_tls module
-use std::fmt::{self, Formatter};
-use std::fs::File;
-use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind, Read};
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::task::{Context, Poll};
-
-use futures_util::future::Ready;
-use futures_util::{ready, stream, Stream};
-use pin_project::pin_project;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::net::TcpListener as TokioTcpListener;
-use tokio_native_tls::native_tls::{Identity, TlsAcceptor};
-use tokio_native_tls::{TlsAcceptor as AsyncTlsAcceptor, TlsStream};
-
 use super::{Acceptor, Listener, Accepted};
 
 pub mod listener;

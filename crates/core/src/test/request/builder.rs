@@ -39,7 +39,7 @@ impl RequestBuilder {
             method,
             headers: HeaderMap::new(),
             // params: HeaderMap::new(),
-            body: ReqBody::empty(),
+            body: ReqBody::None,
         }
     }
 }

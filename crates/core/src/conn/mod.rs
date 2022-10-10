@@ -24,7 +24,7 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "openssl"]
     pub mod openssl;
-    pub use openssl::OpensslListener;
+    pub use self::openssl::OpensslListener;
 }
 cfg_feature! {
     #![unix]
@@ -50,36 +50,45 @@ cfg_feature! {
     pub use handshake_stream::HandshakeStream;
 }
 
+/// Acceptor's return type.
 pub struct Accepted<S> {
+    /// Incoming stream.
     pub stream: S,
+    /// Local addr.
     pub local_addr: SocketAddr,
+    /// Remote addr.
     pub remote_addr: SocketAddr,
 }
 
+/// Acceptor trait.
 #[async_trait]
 pub trait Acceptor: Send {
+    /// Conn type
     type Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static;
+    /// Error type
     type Error: std::error::Error + Send + Sync + 'static;
 
     /// Returns the local address that this listener is bound to.
     fn local_addrs(&self) -> Vec<&SocketAddr>;
 
-    async fn accept(&self) -> Result<Accepted<Self::Conn>, Self::Error>;
+    /// Accepts a new incoming connection from this listener.
+    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error>;
 }
 
 /// Listener trait
 #[async_trait]
 pub trait Listener: Acceptor {
-    // Join current Listener with the other.
-    // #[inline]
-    // fn join<T>(self, other: T) -> JoinedListener<Self, T>
-    // where
-    //     Self: Sized,
-    // {
-    //     JoinedListener::new(self, other)
-    // }
+    /// Join current Listener with the other.
+    #[inline]
+    fn join<T>(self, other: T) -> JoinedListener<Self, T>
+    where
+        Self: Sized,
+    {
+        JoinedListener::new(self, other)
+    }
 }
 
+#[doc(hidden)]
 pub trait IntoConfigStream<C>: Send + 'static {
     /// Represents a tls config stream.
     type Stream: Stream<Item = C> + Send + 'static;

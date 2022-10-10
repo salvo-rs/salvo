@@ -66,32 +66,19 @@ mod config;
 mod issuer;
 mod jose;
 mod key_pair;
-mod resolver;
 mod listener;
+mod resolver;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::io::{self, Error as IoError, Result as IoResult};
-use std::path::PathBuf;
-use std::pin::Pin;
-use std::sync::{Arc, Weak};
-use std::task::{Context, Poll};
-use std::time::Duration;
+use std::sync::Arc;
 
 use client::AcmeClient;
-use futures_util::{ready, Future};
 use parking_lot::RwLock;
-use resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::net::TcpListener as TokioTcpListener;
-use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
-use tokio_rustls::rustls::PrivateKey;
 
 use crate::http::StatusError;
-use crate::conn::{Acceptor, SocketAddr, Listener, Accepted};
-use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
+use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 pub use listener::AcmeListener;

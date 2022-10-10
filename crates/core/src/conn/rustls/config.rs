@@ -2,28 +2,20 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::future::Future;
-use std::io::{self, Error as IoError, Read};
+use std::io::{self, Error as IoError, Result as IoResult, ErrorKind, Read};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use futures_util::future::Ready;
-use futures_util::{ready, stream, Stream};
-use pin_project::pin_project;
-use tokio::net::TcpListener as TokioTcpListener;
-use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
 };
 use tokio_rustls::rustls::sign::{self, CertifiedKey};
-use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
-
-use crate::conn::{Accepted, SocketAddr, Acceptor, Listener};
+use tokio_rustls::rustls::{Certificate, PrivateKey};
+use futures_util::Stream;
 
 use super::read_trust_anchor;
+use crate::conn::IntoConfigStream;
 
 /// Private key and certificate
 #[derive(Debug)]
@@ -267,7 +259,10 @@ impl RustlsConfig {
         let mut config = ServerConfig::builder()
             .with_safe_defaults()
             .with_client_cert_verifier(client_auth)
-            .with_cert_resolver(Arc::new(CertResolver { certified_keys, fallback }));
+            .with_cert_resolver(Arc::new(CertResolver {
+                certified_keys,
+                fallback,
+            }));
         config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
         Ok(config)
     }
@@ -291,5 +286,27 @@ impl From<RustlsConfig> for Arc<ServerConfig> {
     #[inline]
     fn from(rustls_config: RustlsConfig) -> Self {
         rustls_config.build_server_config().unwrap().into()
+    }
+}
+
+impl<T> IntoConfigStream<RustlsConfig> for T
+where
+    T: Stream<Item = RustlsConfig> + Send + 'static,
+{
+    type Stream = Self;
+
+    fn into_stream(self) -> IoResult<Self::Stream> {
+        Ok(self)
+    }
+}
+
+impl IntoConfigStream<RustlsConfig> for RustlsConfig {
+    type Stream = futures_util::stream::Once<futures_util::future::Ready<RustlsConfig>>;
+
+    fn into_stream(self) -> IoResult<Self::Stream> {
+        let _ = self.build_server_config()?;
+        Ok(futures_util::stream::once(futures_util::future::ready(
+            self,
+        )))
     }
 }

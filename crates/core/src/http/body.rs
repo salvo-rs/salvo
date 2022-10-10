@@ -5,12 +5,121 @@ use std::error::Error as StdError;
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
-use futures_util::stream::Stream;
+use futures_util::Stream;
 use http::header::HeaderMap;
 pub use http::response::Parts;
-pub use hyper::body::{Body, Recv as ReqBody, SizeHint};
+pub use hyper::body::{Body, Recv, SizeHint};
 
 use bytes::Bytes;
+
+
+/// Body for request.
+#[derive(Debug)]
+pub enum ReqBody {
+    /// None body.
+    None,
+    /// Once bytes body.
+    Once(Bytes),
+    /// Hyper default body.
+    Recv(Recv),
+}
+
+impl Default for ReqBody {
+    fn default() -> Self {
+        ReqBody::None
+    }
+}
+
+impl Body for ReqBody {
+    type Data = Bytes;
+    type Error = hyper::Error;
+
+    fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+        match &mut *self {
+            ReqBody::None => Poll::Ready(None),
+            ReqBody::Once(bytes) => {
+                if bytes.is_empty() {
+                    Poll::Ready(None)
+                } else {
+                    let bytes = std::mem::replace(bytes, Bytes::new());
+                    Poll::Ready(Some(Ok(bytes)))
+                }
+            }
+            ReqBody::Recv(recv) => Pin::new(recv).poll_data(cx),
+        }
+    }
+    fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
+        match &mut *self {
+            ReqBody::None => Poll::Ready(Ok(None)),
+            ReqBody::Once(_) => Poll::Ready(Ok(None)),
+            ReqBody::Recv(recv) => Pin::new(recv).poll_trailers(cx),
+        }
+    }
+
+    fn is_end_stream(&self) -> bool {
+        match self {
+            ReqBody::None => true,
+            ReqBody::Once(bytes) => bytes.is_empty(),
+            ReqBody::Recv(recv) => recv.is_end_stream(),
+        }
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        match self {
+            ReqBody::None => SizeHint::with_exact(0),
+            ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
+            ReqBody::Recv(recv) => recv.size_hint(),
+        }
+    }
+}
+impl Stream for ReqBody {
+    type Item = Result<Bytes, hyper::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Body::poll_data(self, cx)
+    }
+}
+
+impl From<Bytes> for ReqBody {
+    fn from(value: Bytes) -> ReqBody {
+        ReqBody::Once(value)
+    }
+}
+impl From<Recv> for ReqBody {
+    fn from(value: Recv) -> ReqBody {
+        ReqBody::Recv(value)
+    }
+}
+impl From<String> for ReqBody {
+    #[inline]
+    fn from(value: String) -> ReqBody {
+        ReqBody::Once(value.into())
+    }
+}
+
+impl From<&'static [u8]> for ReqBody {
+    fn from(value: &'static [u8]) -> ReqBody {
+        ReqBody::Once(value.into())
+    }
+}
+
+impl From<&'static str> for ReqBody {
+    fn from(value: &'static str) -> ReqBody {
+        ReqBody::Once(value.into())
+    }
+}
+
+impl From<Vec<u8>> for ReqBody {
+    fn from(value: Vec<u8>) -> ReqBody {
+        ReqBody::Once(value.into())
+    }
+}
+
+impl From<Box<[u8]>> for ReqBody {
+    fn from(value: Box<[u8]>) -> ReqBody {
+        ReqBody::Once(value.into())
+    }
+}
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
@@ -83,7 +192,7 @@ impl Body for ResBody {
     type Data = Bytes;
     type Error = Box<dyn StdError + Send + Sync>;
 
-    fn poll_data(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    fn poll_data(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         self.poll_next(_cx)
     }
 

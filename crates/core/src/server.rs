@@ -113,7 +113,7 @@ where
     /// Serve with graceful shutdown signal.
     #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(
-        self,
+        mut self,
         service: S,
         signal: G,
         timeout: Option<Duration>,
@@ -126,11 +126,9 @@ where
         let notify = Arc::new(Notify::new());
         let timeout_notify = Arc::new(Notify::new());
 
-        let acceptor = self.acceptor;
-
         tokio::pin!(signal);
 
-        for addr in acceptor.local_addrs() {
+        for addr in self.acceptor.local_addrs() {
             tracing::info!( addr = %addr, "listening");
         }
 
@@ -154,8 +152,8 @@ where
                     }
                     break;
                 },
-                 trans = acceptor.accept() => {
-                    if let Ok(trans) = trans {
+                 accepted = self.acceptor.accept() => {
+                    if let Ok(accepted) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
@@ -167,11 +165,11 @@ where
 
                             if timeout.is_some() {
                                 tokio::select! {
-                                    _ = serve_connection(protocol.clone(), trans, service) => {}
+                                    _ = serve_connection(protocol.clone(), accepted, service) => {}
                                     _ = timeout_notify.notified() => {}
                                 }
                             } else {
-                                serve_connection(protocol.clone(), trans, service).await;
+                                serve_connection(protocol.clone(), accepted, service).await;
                             }
 
                             if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
@@ -183,7 +181,6 @@ where
             }
         }
 
-        drop(acceptor);
         if alive_connections.load(Ordering::SeqCst) > 0 {
             tracing::info!("wait for all connections to close.");
             notify.notified().await;
@@ -194,7 +191,7 @@ where
     }
 }
 
-async fn serve_connection<S>(protocol: Http, trans: Accepted<S>, service: Arc<Service>)
+async fn serve_connection<S>(protocol: Http, accepted: Accepted<S>, service: Arc<Service>)
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
@@ -202,7 +199,7 @@ where
         stream,
         local_addr,
         remote_addr,
-    } = trans;
+    } = accepted;
     let conn = protocol
         .clone()
         .serve_connection(stream, service.hyper_handler(local_addr, remote_addr))

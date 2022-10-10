@@ -1,10 +1,10 @@
 use std::future::Future;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, Result, ErrorKind};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_util::{future::BoxFuture, FutureExt};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 enum State<S> {
     Handshaking(BoxFuture<'static, Result<S>>),

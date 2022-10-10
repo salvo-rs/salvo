@@ -161,6 +161,7 @@ impl HyperHandler {
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
+        req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
         let mut res = Response::new();
         let mut depot = Depot::new();
@@ -237,14 +238,15 @@ impl HyperHandler {
     }
 }
 
-impl HyperService<HyperRequest<ReqBody>> for HyperHandler {
+impl<B> HyperService<HyperRequest<B>> for HyperHandler where B: Into<ReqBody> {
     type Response = HyperResponse<ResBody>;
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
-    fn call(&mut self, req: HyperRequest<ReqBody>) -> Self::Future {
-        let response = self.handle(req.into());
+    fn call(&mut self, req: HyperRequest<B>) -> Self::Future {
+        let req: Request = req.into();
+        let response = self.handle(req);
         let fut = async move {
             let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;

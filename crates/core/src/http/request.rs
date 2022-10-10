@@ -33,7 +33,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: Option<ReqBody>,
+    body: ReqBody,
     extensions: Extensions,
 
     // The request method.
@@ -77,8 +77,8 @@ impl Default for Request {
     }
 }
 
-impl From<hyper::Request<ReqBody>> for Request {
-    fn from(req: hyper::Request<ReqBody>) -> Self {
+impl<B> From<hyper::Request<B>> for Request where B: Into<ReqBody> {
+    fn from(req: hyper::Request<B>) -> Self {
         let (
             http::request::Parts {
                 method,
@@ -111,7 +111,7 @@ impl From<hyper::Request<ReqBody>> for Request {
             queries: OnceCell::new(),
             uri,
             headers,
-            body: Some(body),
+            body: body.into(),
             extensions,
             method,
             #[cfg(feature = "cookie")]
@@ -135,7 +135,7 @@ impl Request {
         Request {
             uri: Uri::default(),
             headers: HeaderMap::default(),
-            body: Some(ReqBody::empty()),
+            body: ReqBody::default(),
             extensions: Extensions::default(),
             method: Method::default(),
             #[cfg(feature = "cookie")]
@@ -317,19 +317,25 @@ impl Request {
     /// assert!(req.body().is_some());
     /// ```
     #[inline]
-    pub fn body(&self) -> Option<&ReqBody> {
-        self.body.as_ref()
+    pub fn body(&self) -> &ReqBody {
+        &self.body
     }
     /// Returns a mutable reference to the associated HTTP body.
     #[inline]
-    pub fn body_mut(&mut self) -> Option<&mut ReqBody> {
-        self.body.as_mut()
+    pub fn body_mut(&mut self) -> &mut ReqBody {
+        &mut self.body
+    }
+
+    /// Sets body to a new value and returns old value.
+    #[inline]
+    pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
+        std::mem::replace(&mut self.body, body)
     }
 
     /// Take body form the request, and set the body to None in the request.
     #[inline]
-    pub fn take_body(&mut self) -> Option<ReqBody> {
-        self.body.take()
+    pub fn take_body(&mut self) -> ReqBody {
+        self.replace_body(ReqBody::None)
     }
 
     /// Returns a reference to the associated extensions.
@@ -531,16 +537,13 @@ impl Request {
     ///
     /// *Notice: This method takes body.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
-        let body = self.body.take();
+        let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                match body {
-                    Some(body) => hyper::body::to_bytes(body)
-                        .await
-                        .map(|d| d.to_vec())
-                        .map_err(ParseError::Hyper),
-                    None => Err(ParseError::EmptyBody),
-                }
+                hyper::body::to_bytes(body)
+                    .await
+                    .map(|d| d.to_vec())
+                    .map_err(ParseError::Hyper)
             })
             .await
     }
@@ -556,15 +559,10 @@ impl Request {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
         if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            let body = self.body.take();
+            let body = self.take_body();
             let headers = self.headers();
             self.form_data
-                .get_or_try_init(|| async {
-                    match body {
-                        Some(body) => FormData::read(headers, body).await,
-                        None => Err(ParseError::EmptyBody),
-                    }
-                })
+                .get_or_try_init(|| async { FormData::read(headers, body).await })
                 .await
         } else {
             Err(ParseError::NotFormData)

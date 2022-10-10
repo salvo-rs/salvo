@@ -43,7 +43,7 @@ impl Acceptor for TcpListener {
     }
 
     #[inline]
-    async fn accept(&self) -> Result<Accepted<Self::Conn>, Self::Error> {
+    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
         let local_addr = self.local_addr.clone();
         self.inner.accept().await.map(move |(stream, remote_addr)| Accepted {
             stream,

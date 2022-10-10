@@ -69,8 +69,9 @@ pub struct JoinedListener<A, B> {
 }
 
 impl<A, B> JoinedListener<A, B> {
+    /// Create a new `JoinedListener`.
     #[inline]
-    pub(crate) fn new(a: A, b: B) -> Self {
+    pub fn new(a: A, b: B) -> Self {
         JoinedListener { a, b }
     }
 }
@@ -103,22 +104,22 @@ where
     }
 
     #[inline]
-    async fn accept(&self) -> Result<Accepted<Self::Conn>, Self::Error> {
+    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
         tokio::select! {
-            trans = self.a.accept() => {
+            accepted = self.a.accept() => {
                 let Accepted {
                     stream, local_addr, remote_addr
-                 } = trans.map_err(|_|IoError::new(ErrorKind::Other, "a accept error"))?;
+                 } = accepted.map_err(|_|IoError::new(ErrorKind::Other, "a accept error"))?;
                 Ok(Accepted {
                     stream: JoinedStream::A(stream),
                     local_addr,
                     remote_addr
                 })
             }
-            trans = self.b.accept() => {
+            accepted = self.b.accept() => {
                 let Accepted {
                     stream, local_addr, remote_addr
-                 } = trans.map_err(|_|IoError::new(ErrorKind::Other, "b accept error"))?;
+                 } = accepted.map_err(|_|IoError::new(ErrorKind::Other, "b accept error"))?;
                 Ok(Accepted {
                     stream: JoinedStream::B(stream),
                     local_addr,

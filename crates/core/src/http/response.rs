@@ -186,7 +186,7 @@ impl Response {
     /// Take body from response.
     #[inline]
     pub fn take_body(&mut self) -> ResBody {
-        std::mem::replace(&mut self.body, ResBody::None)
+        self.replace_body(ResBody::None)
     }
 
     // If return `true`, it means this response is ready for write back and the reset handlers should be skipped.
