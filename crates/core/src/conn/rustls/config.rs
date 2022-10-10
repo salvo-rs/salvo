@@ -2,20 +2,20 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{self, Error as IoError, Result as IoResult, ErrorKind, Read};
+use std::io::{self, Error as IoError, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use futures_util::future::Ready;
+use futures_util::stream::Once;
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
 };
 use tokio_rustls::rustls::sign::{self, CertifiedKey};
 use tokio_rustls::rustls::{Certificate, PrivateKey};
-use futures_util::Stream;
 
 use super::read_trust_anchor;
-use crate::conn::IntoConfigStream;
 
 /// Private key and certificate
 #[derive(Debug)]
@@ -289,24 +289,8 @@ impl From<RustlsConfig> for Arc<ServerConfig> {
     }
 }
 
-impl<T> IntoConfigStream<RustlsConfig> for T
-where
-    T: Stream<Item = RustlsConfig> + Send + 'static,
-{
-    type Stream = Self;
-
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        Ok(self)
-    }
-}
-
-impl IntoConfigStream<RustlsConfig> for RustlsConfig {
-    type Stream = futures_util::stream::Once<futures_util::future::Ready<RustlsConfig>>;
-
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        let _ = self.build_server_config()?;
-        Ok(futures_util::stream::once(futures_util::future::ready(
-            self,
-        )))
+impl Into<Once<Ready<RustlsConfig>>> for RustlsConfig {
+    fn into(self) -> Once<Ready<RustlsConfig>> {
+        futures_util::stream::once(futures_util::future::ready(self))
     }
 }

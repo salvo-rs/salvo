@@ -1,7 +1,6 @@
 //! native_tls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use futures_util::TryFutureExt;
 use futures_util::{Stream, StreamExt};
 use pin_project::pin_project;
 use tokio::net::ToSocketAddrs;
@@ -9,7 +8,7 @@ use tokio_native_tls::native_tls::Identity;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, IntoConfigStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, HandshakeStream, SocketAddr, TcpListener};
 
 /// NativeTlsListener
 #[pin_project]
@@ -23,7 +22,8 @@ pub struct NativeTlsListener<C, T> {
 
 impl<C> NativeTlsListener<C, TcpListener>
 where
-    C: IntoConfigStream<Identity>,
+    C: Stream + Send + 'static,
+    C::Item: Into<Identity>,
 {
     /// Bind to socket address.
     #[inline]
@@ -45,7 +45,8 @@ where
 
 impl<C, T> NativeTlsListener<C, T>
 where
-    C: IntoConfigStream<Identity>,
+    C: Stream + Send + 'static,
+    C::Item: Into<Identity>,
 {
     /// Create new NativeTlsListener with config stream.
     #[inline]
@@ -77,16 +78,18 @@ where
     async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
         loop {
             tokio::select! {
-                tls_config = self.config_stream.next() => {
-                    if let Some(tls_config) = tls_config {
-                        match tls_config.create_acceptor() {
-                            Ok(acceptor) => {
+                identity = self.config_stream.next() => {
+                    if let Some(identity) = identity {
+                        let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity)
+                            .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()));
+                        match tls_acceptor {
+                            Ok(tls_acceptor) => {
                                 if self.tls_acceptor.is_some() {
                                     tracing::info!("tls config changed.");
                                 } else {
                                     tracing::info!("tls config loaded.");
                                 }
-                                self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(acceptor));
+                                self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(tls_acceptor));
                             },
                             Err(err) => tracing::error!(error = %err, "invalid tls config."),
                         }
@@ -117,17 +120,7 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    impl<C> Stream for NativeTlsListener<C>
-    where
-        C: Stream + Send + Unpin + 'static,
-        C::Item: Into<Identity>,
-    {
-        type Item = Result<NativeTlsStream, IoError>;
 
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.poll_accept(cx)
-        }
-    }
     #[tokio::test]
     async fn test_native_tls_listener() {
         let mut listener = NativeTlsListener::with_config(

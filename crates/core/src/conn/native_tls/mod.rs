@@ -1,6 +1,4 @@
 //! native_tls module
-use super::{Acceptor, Listener, Accepted};
-
 pub mod listener;
 pub use listener::NativeTlsListener;
 
@@ -14,17 +12,7 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    impl<C> Stream for NativeTlsListener<C>
-    where
-        C: Stream + Send + Unpin + 'static,
-        C::Item: Into<Identity>,
-    {
-        type Item = Result<NativeTlsStream, IoError>;
 
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.poll_accept(cx)
-        }
-    }
     #[tokio::test]
     async fn test_native_tls_listener() {
         let mut listener = NativeTlsListener::with_config(

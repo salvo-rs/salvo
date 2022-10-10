@@ -1,7 +1,4 @@
 //! Listener trait and it's implements.
-use std::io::Result as IoResult;
-
-use futures_util::Stream;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::async_trait;
@@ -86,15 +83,6 @@ pub trait Listener: Acceptor {
     {
         JoinedListener::new(self, other)
     }
-}
-
-#[doc(hidden)]
-pub trait IntoConfigStream<C>: Send + 'static {
-    /// Represents a tls config stream.
-    type Stream: Stream<Item = C> + Send + 'static;
-
-    /// Consume itself and return tls config stream.
-    fn into_stream(self) -> IoResult<Self::Stream>;
 }
 
 #[cfg(test)]

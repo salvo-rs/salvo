@@ -2,23 +2,14 @@
 use std::fmt::{self, Formatter};
 use std::fs::File;
 use std::io::{self, Error as IoError, Read};
-use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use futures_util::future::Ready;
-use futures_util::{ready, stream, Stream};
+use futures_util::stream::Once;
 use openssl::pkey::PKey;
-use openssl::ssl::{Ssl, SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
+use openssl::ssl::{ SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
 use openssl::x509::X509;
-use pin_project::pin_project;
-use tokio::net::{ToSocketAddrs, TcpListener as TokioTcpListener};
-use tokio::io::{AsyncRead, AsyncWrite, ErrorKind, ReadBuf};
-use tokio_openssl::SslStream;
-
-use super::{Acceptor, Listener, Accepted};
+use tokio::io::ErrorKind;
 
 /// Private key and certificate
 #[derive(Debug)]
@@ -152,25 +143,8 @@ impl OpensslConfig {
     }
 }
 
-
-impl<T> IntoConfigStream<OpensslConfig> for T
-where
-    T: Stream<Item = OpensslConfig> + Send + 'static,
-{
-    type Stream = Self;
-
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        Ok(self)
-    }
-}
-
-impl IntoConfigStream<OpensslConfig> for OpensslConfig {
-    type Stream = futures_util::stream::Once<futures_util::future::Ready<RustlsConfig>>;
-
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        let _ = self.create_acceptor_builder()?;
-        Ok(futures_util::stream::once(futures_util::future::ready(
-            self,
-        )))
+impl Into<Once<Ready<OpensslConfig>>> for OpensslConfig {
+    fn into(self) -> Once<Ready<OpensslConfig>> {
+        futures_util::stream::once(futures_util::future::ready(self))
     }
 }

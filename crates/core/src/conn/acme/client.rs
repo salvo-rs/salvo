@@ -8,7 +8,7 @@ use bytes::Bytes;
 use http::header;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::connect::HttpConnector;
-use hyper_util::Client;
+use hyper_util::client::Client;
 use serde::{Deserialize, Serialize};
 
 use super::{Challenge, Problem};

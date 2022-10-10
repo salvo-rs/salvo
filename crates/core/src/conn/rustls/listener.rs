@@ -8,34 +8,30 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, HandshakeStream, IntoConfigStream, SocketAddr, TcpListener};
-
-use super::RustlsConfig;
+use crate::conn::{Accepted, Acceptor, HandshakeStream, SocketAddr, TcpListener};
 
 /// RustlsListener
 pub struct RustlsListener<C, T> {
     config_stream: C,
     inner: T,
-    server_config: Option<ServerConfig>,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
 }
 
 impl<C, T> RustlsListener<C, T>
 where
-    C: Stream<Item = RustlsConfig> + Send + Unpin + 'static,
+    C: Stream + Send + 'static,
+    C::Item: Into<ServerConfig>,
     T: Acceptor,
 {
     #[inline]
-    pub fn new(config: impl IntoConfigStream<RustlsConfig>, inner: T) -> RustlsListener<C, T> {
+    pub fn new(config: C, inner: T) -> RustlsListener<C, T> {
         Self::try_new(config, inner).unwrap()
     }
     #[inline]
-    pub fn try_new(config: impl IntoConfigStream<RustlsConfig>, inner: T) -> IoResult<RustlsListener<C, T>> {
-        let config_stream = config.into_stream()?;
+    pub fn try_new(config: C, inner: T) -> IoResult<RustlsListener<C, T>> {
         Ok(RustlsListener {
-            config_stream,
+            config_stream: config.into(),
             inner,
-            server_config: None,
             tls_acceptor: None,
         })
     }
@@ -43,7 +39,8 @@ where
 
 impl<C> RustlsListener<C, TcpListener>
 where
-    C: Stream<Item = RustlsConfig> + Send + Unpin + 'static,
+    C: Stream + Send + 'static,
+    C::Item: Into<ServerConfig>,
 {
     /// Bind to socket address.
     #[inline]
@@ -56,7 +53,6 @@ where
         let inner = TcpListener::try_bind(addr).await?;
         Ok(RustlsListener {
             config_stream,
-            server_config: None,
             inner,
             tls_acceptor: None,
         })
@@ -66,7 +62,8 @@ where
 #[async_trait]
 impl<C, T> Acceptor for RustlsListener<C, T>
 where
-    C: IntoConfigStream<ServerConfig>,
+    C: Stream + Send  + Unpin + 'static,
+    C::Item: Into<ServerConfig>,
     T: Acceptor,
 {
     type Conn = HandshakeStream<TlsStream<T::Conn>>;
@@ -80,26 +77,20 @@ where
     async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
         loop {
             tokio::select! {
-                tls_config = self.config_stream.next() => {
-                    if let Some(tls_config) = tls_config {
-                        match tls_config.create_server_config() {
-                            Ok(server_config) => {
-                                if self.tls_acceptor.is_some() {
-                                    tracing::info!("tls config changed.");
-                                } else {
-                                    tracing::info!("tls config loaded.");
-                                }
-                                self.tls_acceptor = Some(tokio_rustls::TlsAcceptor::from(Arc::new(server_config)));
-
-                            },
-                            Err(err) => tracing::error!(error = %err, "invalid tls config."),
+                server_config = self.config_stream.next() => {
+                    if let Some(server_config) = server_config {
+                        if self.tls_acceptor.is_some() {
+                            tracing::info!("tls config changed.");
+                        } else {
+                            tracing::info!("tls config loaded.");
                         }
+                        self.tls_acceptor = Some(tokio_rustls::TlsAcceptor::from(Arc::new(server_config.into())));
                     } else {
                         unreachable!()
                     }
                 }
                 accepted = self.inner.accept() => {
-                    let (stream, local_addr, remote_addr, _) = accepted?;
+                    let Accepted{stream, local_addr, remote_addr} = accepted.map_err(|e|IoError::new(ErrorKind::Other, format!("accept error: {}", e)))?;
                     let tls_acceptor = match &self.tls_acceptor {
                         Some(tls_acceptor) => tls_acceptor,
                         None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use futures_util::TryFutureExt;
 use tokio::net::ToSocketAddrs;
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
@@ -13,7 +12,7 @@ use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
 use crate::conn::{Accepted, Acceptor, HandshakeStream, Listener, SocketAddr, TcpListener};
-use crate::{async_trait, Handler, Router};
+use crate::{async_trait, Router};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
 use super::resolver::{ResolveServerCert, ACME_TLS_ALPN_NAME};
