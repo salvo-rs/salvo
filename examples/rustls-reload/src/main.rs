@@ -20,7 +20,7 @@ async fn main() {
             }
         },
         "127.0.0.1:7878",
-    ).await;
+    );
     Server::new(listener).serve(router).await;
 }
 

@@ -1,9 +1,9 @@
 //! native_tls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::task::{Context, Poll};
-use std::pin::Pin;
 
 use futures_util::task::noop_waker_ref;
+use futures_util::stream::BoxStream;
 use futures_util::{Stream, StreamExt};
 use tokio::net::ToSocketAddrs;
 use tokio_native_tls::TlsStream;
@@ -38,10 +38,10 @@ where
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-    type Acceptor = NativeTlsAcceptor<C::Stream, T::Acceptor>;
+    type Acceptor = NativeTlsAcceptor<BoxStream<'static, NativeTlsConfig>, T::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         Ok(NativeTlsAcceptor::new(
-            self.config_stream.into_stream(),
+            self.config_stream.into_stream().boxed(),
             self.inner.into_acceptor().await?,
         ))
     }
@@ -62,17 +62,28 @@ where
     }
 }
 
+/// NativeTlsAcceptor
 pub struct NativeTlsAcceptor<C, T> {
     config_stream: C,
     inner: T,
     tls_acceptor: Option<tokio_native_tls::TlsAcceptor>,
 }
+impl<C, T> NativeTlsAcceptor<C, T> {
+    /// Create a new `NativeTlsAcceptor`.
+    pub fn new(config_stream: C, inner: T) -> NativeTlsAcceptor<C, T> {
+        NativeTlsAcceptor {
+            config_stream,
+            inner,
+            tls_acceptor: None,
+        }
+    }
+}
 
 #[async_trait]
-impl<C, T> Acceptor for NativeTlsListener<C, T>
+impl<C, T> Acceptor for NativeTlsAcceptor<C, T>
 where
     C: Stream<Item = NativeTlsConfig> + Send + Unpin + 'static,
-    T: Acceptor,
+    T: Acceptor+ Send + 'static,
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 

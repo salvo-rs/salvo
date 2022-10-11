@@ -85,6 +85,7 @@ pub trait Acceptor {
 /// Listener trait
 #[async_trait]
 pub trait Listener {
+    /// Acceptor type.
     type Acceptor: Acceptor;
     /// Join current Listener with the other.
     #[inline]
@@ -94,6 +95,7 @@ pub trait Listener {
     {
         JoinedListener::new(self, other)
     }
+    /// Convert into acceptor.
     async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
 }
 

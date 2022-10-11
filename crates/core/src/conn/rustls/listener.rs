@@ -7,7 +7,6 @@ use std::task::{Context, Poll};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
-use pin_project::pin_project;
 use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
@@ -39,14 +38,13 @@ where
 impl<C, T> Listener for RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
-    C::Stream: Send + Unpin + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-    type Acceptor = RustlsAcceptor<C::Stream, T::Acceptor>;
+    type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         Ok(RustlsAcceptor::new(
-            self.config_stream.into_stream(),
+            self.config_stream.into_stream().boxed(),
             self.inner.into_acceptor().await?,
         ))
     }
@@ -66,12 +64,15 @@ where
         }
     }
 }
+
+/// RustlsAcceptor
 pub struct RustlsAcceptor<C, T> {
     config_stream: C,
     inner: T,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
 }
 impl<C, T> RustlsAcceptor<C, T> {
+    /// Create a new `RustlsAcceptor`.
     pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> {
         RustlsAcceptor {
             config_stream,

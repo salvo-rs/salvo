@@ -1,7 +1,5 @@
 //! Listener trait and it's implements.
 use std::io::Result as IoResult;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};

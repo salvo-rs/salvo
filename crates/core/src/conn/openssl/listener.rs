@@ -1,10 +1,10 @@
 //! openssl module
 use std::io::{Error as IoError, Result as IoResult};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::task::noop_waker_ref;
+use futures_util::stream::BoxStream;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
@@ -42,10 +42,10 @@ where
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-    type Acceptor = OpensslAcceptor<C::Stream, T::Acceptor>;
+    type Acceptor = OpensslAcceptor<BoxStream<'static, OpensslConfig>, T::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         Ok(OpensslAcceptor::new(
-            self.config_stream.into_stream(),
+            self.config_stream.into_stream().boxed(),
             self.inner.into_acceptor().await?,
         ))
     }
@@ -59,10 +59,10 @@ where
     /// Bind to socket address.
     #[inline]
     pub fn bind(config: C, addr: T) -> OpensslListener<C::Stream, TcpListener<T>> {
-        Ok(OpensslListener {
+        OpensslListener {
             config_stream: config.into_stream(),
             inner: TcpListener::bind(addr),
-        })
+        }
     }
 }
 
@@ -85,7 +85,7 @@ impl<C, T> OpensslAcceptor<C, T> {
 impl<C, T> Acceptor for OpensslAcceptor<C, T>
 where
     C: Stream<Item = OpensslConfig> + Send + Unpin + 'static,
-    T: Acceptor,
+    T: Acceptor + Send + 'static
 {
     type Conn = TlsConnStream<SslStream<T::Conn>>;
 
