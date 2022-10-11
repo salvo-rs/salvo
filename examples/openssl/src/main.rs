@@ -1,4 +1,4 @@
-use salvo::listeners::openssl::{Keycert, OpensslConfig};
+use salvo::conn::openssl::{Keycert, OpensslConfig};
 use salvo::prelude::*;
 
 #[handler]
@@ -16,6 +16,6 @@ async fn main() {
             .with_cert(include_bytes!("../certs/cert.pem").as_ref())
             .with_key(include_bytes!("../certs/key.pem").as_ref()),
     );
-    let listener = OpensslListener::with_config(config).bind("127.0.0.1:7878");
+    let listener = OpensslListener::bind(config, "127.0.0.1:7878");
     Server::new(listener).serve(router).await;
 }

@@ -118,7 +118,7 @@ fn new_runtime(threads: usize) -> Runtime {
 /// #[tokio::main]
 /// async fn main() {
 ///    let router = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router);
+///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
 ///    salvo_core::run(server);
 /// }
 /// ```
@@ -142,7 +142,7 @@ pub fn run<F: Future>(future: F) {
 ///
 /// fn main() {
 ///    let router = Router::new().get(hello_world);
-///    let server = Server::new(TcpListener::bind("127.0.0.1:7878").await).serve(router);
+///    let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router);
 ///    salvo_core::run_with_threads(server, 8);
 /// }
 /// ```

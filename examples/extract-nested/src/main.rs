@@ -88,7 +88,7 @@ async fn main() {
     let router = Router::with_path("<id>").get(show).post(edit);
 
     println!("Example url: http://127.0.0.1:7878/95");
-    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
         .serve(router)
         .await;
 }

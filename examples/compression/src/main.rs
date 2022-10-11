@@ -35,7 +35,7 @@ async fn main() {
                 .get(StaticDir::new(base_dir)),
         );
 
-    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
         .serve(router)
         .await;
 }

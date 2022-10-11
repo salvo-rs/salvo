@@ -34,7 +34,7 @@ async fn main() {
         .get(home)
         .push(Router::with_path("short").hoop(short_cache).get(short))
         .push(Router::with_path("long").hoop(long_cache).get(long));
-    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
         .serve(router)
         .await;
 }

@@ -72,7 +72,7 @@ async fn main() {
                 .get(get_page)
                 .post(post_page),
         );
-    Server::new(TcpListener::bind("127.0.0.1:7878").await)
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
         .serve(router)
         .await;
 }
