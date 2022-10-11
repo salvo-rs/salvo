@@ -21,7 +21,6 @@ async fn main() {
         },
         "127.0.0.1:7878",
     );
-    tracing::info!("Listening on https://127.0.0.1:7878");
     Server::new(listener).serve(router).await;
 }
 

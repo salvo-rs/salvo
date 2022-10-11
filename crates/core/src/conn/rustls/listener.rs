@@ -8,7 +8,7 @@ pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener, IntoConfigStream};
 
 /// RustlsListener
 pub struct RustlsListener<C, T> {
@@ -41,20 +41,19 @@ where
 
 impl<C> RustlsListener<C, TcpListener>
 where
-    C: Stream + Send + 'static,
-    C::Item: Into<ServerConfig>,
+    C: IntoConfigStream<ServerConfig> + Send + 'static,
 {
     /// Bind to socket address.
     #[inline]
-    pub async fn bind(config_stream: C, addr: impl ToSocketAddrs) -> RustlsListener<C, TcpListener> {
-        Self::try_bind(config_stream, addr).await.unwrap()
+    pub async fn bind(config: C, addr: impl ToSocketAddrs) -> RustlsListener<C::Stream, TcpListener> {
+        Self::try_bind(config, addr).await.unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
-    pub async fn try_bind(config_stream: C, addr: impl ToSocketAddrs) -> IoResult<RustlsListener<C, TcpListener>> {
+    pub async fn try_bind(config: C, addr: impl ToSocketAddrs) -> IoResult<RustlsListener<C::Stream, TcpListener>> {
         let inner = TcpListener::try_bind(addr).await?;
         Ok(RustlsListener {
-            config_stream,
+            config_stream: config.into_stream()?,
             inner,
             tls_acceptor: None,
         })
@@ -64,7 +63,7 @@ where
 #[async_trait]
 impl<C, T> Acceptor for RustlsListener<C, T>
 where
-    C: Stream + Send  + Unpin + 'static,
+    C: Stream + Send + Unpin + 'static,
     C::Item: Into<ServerConfig>,
     T: Acceptor,
 {

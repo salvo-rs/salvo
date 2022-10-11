@@ -2,12 +2,12 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{self, Error as IoError, ErrorKind, Read};
-use std::path::{Path, PathBuf};
+use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult};
+use std::path::Path;
 use std::sync::Arc;
 
-use futures_util::future::Ready;
-use futures_util::stream::Once;
+use futures_util::future::{ready, Ready};
+use futures_util::stream::{once, Once};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
@@ -15,14 +15,14 @@ use tokio_rustls::rustls::server::{
 use tokio_rustls::rustls::sign::{self, CertifiedKey};
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 
+use crate::conn::IntoConfigStream;
+
 use super::read_trust_anchor;
 
 /// Private key and certificate
 #[derive(Debug)]
 pub struct Keycert {
-    key_path: Option<PathBuf>,
     key: Vec<u8>,
-    cert_path: Option<PathBuf>,
     cert: Vec<u8>,
     ocsp_resp: Vec<u8>,
 }
@@ -38,18 +38,17 @@ impl Keycert {
     #[inline]
     pub fn new() -> Self {
         Self {
-            key_path: None,
             key: vec![],
-            cert_path: None,
             cert: vec![],
             ocsp_resp: vec![],
         }
     }
-    /// Sets the Tls private key via File Path, returns `IoError` if the file cannot be open.
+    /// Sets the Tls private key via File Path, returns [`IoError`] if the file cannot be open.
     #[inline]
-    pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.key_path = Some(path.as_ref().into());
-        self
+    pub fn key_from_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
+        let mut file = File::open(path.as_ref())?;
+        file.read_to_end(&mut self.key)?;
+        Ok(self)
     }
 
     /// Sets the Tls private key via bytes slice.
@@ -61,9 +60,10 @@ impl Keycert {
 
     /// Specify the file path for the TLS certificate to use.
     #[inline]
-    pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.cert_path = Some(path.as_ref().into());
-        self
+    pub fn cert_from_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
+        let mut file = File::open(path)?;
+        file.read_to_end(&mut self.cert)?;
+        Ok(self)
     }
 
     /// Sets the Tls certificate via bytes slice
@@ -77,12 +77,6 @@ impl Keycert {
     #[inline]
     pub fn key(&mut self) -> io::Result<&[u8]> {
         if self.key.is_empty() {
-            if let Some(path) = &self.key_path {
-                let mut file = File::open(path)?;
-                file.read_to_end(&mut self.key)?;
-            }
-        }
-        if self.key.is_empty() {
             Err(IoError::new(ErrorKind::Other, "empty key"))
         } else {
             Ok(&self.key)
@@ -92,12 +86,6 @@ impl Keycert {
     /// Get the cert.
     #[inline]
     pub fn cert(&mut self) -> io::Result<&[u8]> {
-        if self.cert.is_empty() {
-            if let Some(path) = &self.cert_path {
-                let mut file = File::open(path)?;
-                file.read_to_end(&mut self.cert)?;
-            }
-        }
         if self.cert.is_empty() {
             Err(IoError::new(ErrorKind::Other, "empty cert"))
         } else {
@@ -282,6 +270,13 @@ impl ResolvesServerCert for CertResolver {
     }
 }
 
+impl From<RustlsConfig> for ServerConfig {
+    #[inline]
+    fn from(rustls_config: RustlsConfig) -> Self {
+        rustls_config.build_server_config().unwrap()
+    }
+}
+
 impl From<RustlsConfig> for Arc<ServerConfig> {
     #[inline]
     fn from(rustls_config: RustlsConfig) -> Self {
@@ -289,8 +284,10 @@ impl From<RustlsConfig> for Arc<ServerConfig> {
     }
 }
 
-impl Into<Once<Ready<RustlsConfig>>> for RustlsConfig {
-    fn into(self) -> Once<Ready<RustlsConfig>> {
-        futures_util::stream::once(futures_util::future::ready(self))
+impl IntoConfigStream<ServerConfig> for RustlsConfig {
+    type Stream = Once<Ready<ServerConfig>>;
+
+    fn into_stream(self) -> IoResult<Self::Stream> {
+        Ok(once(ready(self.build_server_config()?)))
     }
 }

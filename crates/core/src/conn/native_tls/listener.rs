@@ -8,7 +8,7 @@ use tokio_native_tls::native_tls::Identity;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, TlsConnStream, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, IntoConfigStream, SocketAddr, TcpListener, TlsConnStream};
 
 /// NativeTlsListener
 #[pin_project]
@@ -22,20 +22,22 @@ pub struct NativeTlsListener<C, T> {
 
 impl<C> NativeTlsListener<C, TcpListener>
 where
-    C: Stream + Send + 'static,
-    C::Item: Into<Identity>,
+    C: IntoConfigStream<Identity> + Send + 'static,
 {
     /// Bind to socket address.
     #[inline]
-    pub async fn bind(config_stream: C, addr: impl ToSocketAddrs) -> NativeTlsListener<C, TcpListener> {
-        Self::try_bind(config_stream, addr).await.unwrap()
+    pub async fn bind(config: C, addr: impl ToSocketAddrs) -> NativeTlsListener<C::Stream, TcpListener> {
+        Self::try_bind(config, addr).await.unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
-    pub async fn try_bind(config_stream: C, addr: impl ToSocketAddrs) -> IoResult<NativeTlsListener<C, TcpListener>> {
+    pub async fn try_bind(
+        config: C,
+        addr: impl ToSocketAddrs,
+    ) -> IoResult<NativeTlsListener<C::Stream, TcpListener>> {
         let inner = TcpListener::try_bind(addr).await?;
         Ok(NativeTlsListener {
-            config_stream,
+            config_stream: config.into_stream()?,
             identity: None,
             inner,
             tls_acceptor: None,

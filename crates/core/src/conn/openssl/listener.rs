@@ -12,7 +12,7 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, SocketAddr, TcpListener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, SocketAddr, TcpListener, IntoConfigStream, TlsConnStream};
 
 /// OpensslListener
 #[pin_project]
@@ -25,20 +25,22 @@ pub struct OpensslListener<C, T> {
 
 impl<C> OpensslListener<C, TcpListener>
 where
-    C: Stream + Send + 'static,
-    C::Item: Into<OpensslConfig>,
+    C: IntoConfigStream<OpensslConfig> + Send + 'static,
 {
     /// Bind to socket address.
     #[inline]
-    pub async fn bind(config_stream: C, addr: impl ToSocketAddrs) -> OpensslListener<C, TcpListener> {
-        Self::try_bind(config_stream, addr).await.unwrap()
+    pub async fn bind(config: C, addr: impl ToSocketAddrs) -> OpensslListener<C::Stream, TcpListener> {
+        Self::try_bind(config, addr).await.unwrap()
     }
     /// Try to bind to socket address.
     #[inline]
-    pub async fn try_bind(config_stream: C, addr: impl ToSocketAddrs) -> IoResult<OpensslListener<C, TcpListener>> {
+    pub async fn try_bind(
+        config: C,
+        addr: impl ToSocketAddrs,
+    ) -> IoResult<OpensslListener<C::Stream, TcpListener>> {
         let inner = TcpListener::try_bind(addr).await?;
         Ok(OpensslListener {
-            config_stream,
+            config_stream: config.into_stream()?,
             inner,
             tls_acceptor: None,
         })

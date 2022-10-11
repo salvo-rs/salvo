@@ -17,6 +17,5 @@ async fn main() {
         .add_domain("acme-tls-alpn01.salvo.rs")
         .bind("0.0.0.0:443")
         .await;
-    tracing::info!("Listening on https://0.0.0.0:443");
     Server::new(listener).serve(router).await;
 }

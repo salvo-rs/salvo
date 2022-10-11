@@ -1,22 +1,22 @@
 //! openssl module
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{self, Error as IoError, Read};
-use std::path::{Path, PathBuf};
+use std::io::{Error as IoError, Read, Result as IoResult};
+use std::path::Path;
 
-use futures_util::future::Ready;
-use futures_util::stream::Once;
+use futures_util::future::{ready, Ready};
+use futures_util::stream::{once, Once};
 use openssl::pkey::PKey;
-use openssl::ssl::{ SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
+use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
 use openssl::x509::X509;
 use tokio::io::ErrorKind;
+
+use crate::conn::IntoConfigStream;
 
 /// Private key and certificate
 #[derive(Debug)]
 pub struct Keycert {
-    key_path: Option<PathBuf>,
     key: Vec<u8>,
-    cert_path: Option<PathBuf>,
     cert: Vec<u8>,
 }
 
@@ -31,17 +31,16 @@ impl Keycert {
     #[inline]
     pub fn new() -> Self {
         Self {
-            key_path: None,
             key: vec![],
-            cert_path: None,
             cert: vec![],
         }
     }
-    /// Sets the Tls private key via File Path, returns `Error::IoError` if the file cannot be open.
+    /// Sets the Tls private key via File Path, returns [`IoError`] if the file cannot be open.
     #[inline]
-    pub fn with_key_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.key_path = Some(path.as_ref().into());
-        self
+    pub fn key_from_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
+        let mut file = File::open(path.as_ref())?;
+        file.read_to_end(&mut self.key)?;
+        Ok(self)
     }
 
     /// Sets the Tls private key via bytes slice.
@@ -53,9 +52,10 @@ impl Keycert {
 
     /// Specify the file path for the TLS certificate to use.
     #[inline]
-    pub fn with_cert_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.cert_path = Some(path.as_ref().into());
-        self
+    pub fn cert_from_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
+        let mut file = File::open(path.as_ref())?;
+        file.read_to_end(&mut self.cert)?;
+        Ok(self)
     }
 
     /// Sets the Tls certificate via bytes slice
@@ -67,13 +67,7 @@ impl Keycert {
 
     /// Get the private key.
     #[inline]
-    pub fn key(&mut self) -> io::Result<&[u8]> {
-        if self.key.is_empty() {
-            if let Some(path) = &self.key_path {
-                let mut file = File::open(path)?;
-                file.read_to_end(&mut self.key)?;
-            }
-        }
+    pub fn key(&mut self) -> IoResult<&[u8]> {
         if self.key.is_empty() {
             Err(IoError::new(ErrorKind::Other, "empty key"))
         } else {
@@ -83,13 +77,7 @@ impl Keycert {
 
     /// Get the cert.
     #[inline]
-    pub fn cert(&mut self) -> io::Result<&[u8]> {
-        if self.cert.is_empty() {
-            if let Some(path) = &self.cert_path {
-                let mut file = File::open(path)?;
-                file.read_to_end(&mut self.cert)?;
-            }
-        }
+    pub fn cert(&mut self) -> IoResult<&[u8]> {
         if self.cert.is_empty() {
             Err(IoError::new(ErrorKind::Other, "empty cert"))
         } else {
@@ -143,8 +131,15 @@ impl OpensslConfig {
     }
 }
 
-impl Into<Once<Ready<OpensslConfig>>> for OpensslConfig {
-    fn into(self) -> Once<Ready<OpensslConfig>> {
-        futures_util::stream::once(futures_util::future::ready(self))
+impl From<OpensslConfig> for Once<Ready<OpensslConfig>> {
+    fn from(config: OpensslConfig) -> Self {
+        futures_util::stream::once(futures_util::future::ready(config))
+    }
+}
+impl IntoConfigStream<OpensslConfig> for OpensslConfig {
+    type Stream = Once<Ready<OpensslConfig>>;
+
+    fn into_stream(self) -> IoResult<Self::Stream> {
+        Ok(once(ready(self)))
     }
 }

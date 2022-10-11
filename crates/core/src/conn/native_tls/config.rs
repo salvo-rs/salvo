@@ -1,12 +1,14 @@
 //! native_tls module
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{Error as IoError, ErrorKind, Read};
+use std::io::{Error as IoError, Result as IoResult, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
-use futures_util::future::Ready;
-use futures_util::stream::Once;
+use futures_util::future::{ready, Ready};
+use futures_util::stream::{once, Once};
 use tokio_native_tls::native_tls::Identity;
+
+use crate::conn::IntoConfigStream;
 
 /// Builder to set the configuration for the TLS server.
 pub struct NativeTlsConfig {
@@ -77,8 +79,10 @@ impl From<NativeTlsConfig> for Identity {
     }
 }
 
-impl Into<Once<Ready<NativeTlsConfig>>> for NativeTlsConfig {
-    fn into(self) -> Once<Ready<NativeTlsConfig>> {
-        futures_util::stream::once(futures_util::future::ready(self))
+impl IntoConfigStream<Identity> for NativeTlsConfig {
+    type Stream = Once<Ready<Identity>>;
+
+    fn into_stream(self) -> IoResult<Self::Stream> {
+        Ok(once(ready(self.identity()?)))
     }
 }

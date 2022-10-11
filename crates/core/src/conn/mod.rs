@@ -47,6 +47,16 @@ cfg_feature! {
     pub use tls_conn_stream::TlsConnStream;
 }
 
+#[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+/// A type that can convert into tls config stream.
+pub trait IntoConfigStream<C>: Send + 'static {
+    /// TLS config stream.
+    type Stream: futures_util::Stream<Item = C> + Send + 'static;
+
+    /// Consume itself and return tls config stream.
+    fn into_stream(self) -> std::io::Result<Self::Stream>;
+}
+
 /// Acceptor's return type.
 pub struct Accepted<S> {
     /// Incoming stream.

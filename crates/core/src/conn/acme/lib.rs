@@ -26,7 +26,6 @@
 //!         .http01_challege(&mut router)
 //!         .bind("0.0.0.0:443")
 //!         .await;
-//!     tracing::info!("Listening on https://0.0.0.0:443");
 //!     Server::new(listener.join(TcpListener::bind("0.0.0.0:80")))
 //!         .serve(router)
 //!         .await;
@@ -55,7 +54,6 @@
 //!         .add_domain("acme-tls-alpn01.salvo.rs")
 //!         .bind("0.0.0.0:443")
 //!         .await;
-//!     tracing::info!("Listening on https://0.0.0.0:443");
 //!     Server::new(listener).serve(router).await;
 //! }
 //! ```

@@ -35,8 +35,8 @@ mod tests {
     async fn test_rustls_listener() {
         let mut listener = RustlsListener::with_config(RustlsConfig::new(
             Keycert::new()
-                .with_key_path("certs/key.pem")
-                .with_cert_path("certs/cert.pem"),
+                .key_from_path("certs/key.pem")
+                .cert_from_path("certs/cert.pem"),
         ))
         .bind("127.0.0.1:0");
         let addr = listener.local_addr();
