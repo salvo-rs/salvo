@@ -34,7 +34,6 @@ where
 impl<C, T> Listener for NativeTlsListener<C, T>
 where
     C: IntoConfigStream<NativeTlsConfig>,
-    C::Stream: Send + Unpin + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {

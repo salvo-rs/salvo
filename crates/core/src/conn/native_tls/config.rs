@@ -5,7 +5,7 @@ use std::io::{Error as IoError, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 use futures_util::future::{ready, Ready};
-use futures_util::stream::{once, Once};
+use futures_util::stream::{once, Once, Stream};
 use tokio_native_tls::native_tls::Identity;
 
 use crate::conn::IntoConfigStream;
@@ -79,5 +79,16 @@ impl IntoConfigStream<NativeTlsConfig> for NativeTlsConfig {
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))
+    }
+}
+
+impl<T> IntoConfigStream<NativeTlsConfig> for T
+where
+    T: Stream<Item = NativeTlsConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
     }
 }

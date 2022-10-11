@@ -38,7 +38,6 @@ where
 impl<C, T> Listener for OpensslListener<C, T>
 where
     C: IntoConfigStream<OpensslConfig>,
-    C::Stream: Send + Unpin + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {

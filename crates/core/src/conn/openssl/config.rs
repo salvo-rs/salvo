@@ -5,7 +5,7 @@ use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
 
 use futures_util::future::{ready, Ready};
-use futures_util::stream::{once, Once};
+use futures_util::stream::{once, Once, Stream};
 use openssl::pkey::PKey;
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslRef};
 use openssl::x509::X509;
@@ -136,5 +136,16 @@ impl IntoConfigStream<OpensslConfig> for OpensslConfig {
 
     fn into_stream(self) -> Self::Stream {
         once(ready(self))
+    }
+}
+
+impl<T> IntoConfigStream<OpensslConfig> for T
+where
+    T: Stream<Item = OpensslConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
     }
 }

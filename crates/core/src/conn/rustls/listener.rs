@@ -10,8 +10,8 @@ use futures_util::{Stream, StreamExt};
 use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, SocketAddr, TcpListener, TlsConnStream};
-use crate::{async_trait, Listener};
+use crate::async_trait;
+use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
 
 use super::RustlsConfig;
 
