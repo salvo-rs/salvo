@@ -85,7 +85,7 @@ where
     A: Listener + Send + Unpin + 'static,
     B: Listener + Send + Unpin + 'static,
     A::Acceptor: Acceptor + Send + Unpin + 'static,
-    B::Acceptor: Acceptor + Send+ Unpin + 'static
+    B::Acceptor: Acceptor + Send + Unpin + 'static,
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {

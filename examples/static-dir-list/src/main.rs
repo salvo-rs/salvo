@@ -14,7 +14,5 @@ async fn main() {
         .with_listing(true),
     );
 
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
-        .serve(router)
-        .await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

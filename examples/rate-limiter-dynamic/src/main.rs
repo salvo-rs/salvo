@@ -59,9 +59,7 @@ async fn main() {
     let router = Router::new()
         .get(home)
         .push(Router::with_path("limited").hoop(limiter).get(limited));
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
-        .serve(router)
-        .await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 static HOME_HTML: &str = r#"
