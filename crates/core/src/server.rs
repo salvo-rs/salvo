@@ -168,7 +168,9 @@ where
                                     _ = timeout_notify.notified() => {}
                                 }
                             } else {
-                                serve_connection(protocol, accepted, service).await;
+                                if let Err(e) = serve_connection(protocol, accepted, service).await {
+                                    tracing::error!(error = %e, "serve connection failed");
+                                }
                             }
 
                             if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
@@ -190,7 +192,7 @@ where
     }
 }
 
-async fn serve_connection<S>(protocol: Http, accepted: Accepted<S>, service: Arc<Service>)
+async fn serve_connection<S>(protocol: Http, accepted: Accepted<S>, service: Arc<Service>) -> Result<(), hyper::Error>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
@@ -203,7 +205,7 @@ where
         .clone()
         .serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
         .with_upgrades();
-    let _ = conn.await;
+    conn.await
 }
 
 #[cfg(test)]

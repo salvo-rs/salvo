@@ -1,5 +1,5 @@
 [package]
-name = "example-rustls"
+name = "example-tls-rustls"
 version = "0.1.0"
 edition = "2021"
 publish = false

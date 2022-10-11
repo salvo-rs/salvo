@@ -1,12 +1,11 @@
 [package]
-name = "example-native-tls-reload"
+name = "example-tls-native-tls"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 
 [dependencies]
-async-stream = "0.3"
 salvo = { path = "../../crates/salvo", features = ["native-tls"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"

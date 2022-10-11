@@ -1,5 +1,5 @@
 [package]
-name = "example-rustls-reload"
+name = "example-tls-openssl-reload"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 async-stream = "0.3"
-salvo = { path = "../../crates/salvo", features = ["rustls"] }
+salvo = { path = "../../crates/salvo", features = ["openssl"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
