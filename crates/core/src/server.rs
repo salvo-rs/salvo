@@ -164,12 +164,16 @@ where
 
                             if timeout.is_some() {
                                 tokio::select! {
-                                    _ = serve_connection(protocol, accepted, service) => {}
+                                    result = serve_connection(protocol, accepted, service) => {
+                                        if let Err(e) = result {
+                                            tracing::error!(error = ?e, "serve connection failed");
+                                        }
+                                    },
                                     _ = timeout_notify.notified() => {}
                                 }
                             } else {
                                 if let Err(e) = serve_connection(protocol, accepted, service).await {
-                                    tracing::error!(error = %e, "serve connection failed");
+                                    tracing::error!(error = ?e, "serve connection failed");
                                 }
                             }
 
