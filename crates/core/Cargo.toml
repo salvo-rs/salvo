@@ -19,9 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["cookie", "test"]
 full = ["rustls", "anyhow"]
 cookie = ["dep:cookie"]
-rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project"]
-native-tls = ["dep:tokio-native-tls", "dep:pin-project"]
-openssl = ["dep:openssl", "dep:pin-project", "dep:tokio-openssl"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
+native-tls = ["dep:tokio-native-tls"]
+openssl = ["dep:openssl",  "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 # acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
@@ -51,7 +51,7 @@ multimap = { workspace = true, features = ["serde"] }
 once_cell.workspace = true
 parking_lot.workspace = true
 percent-encoding.workspace = true
-pin-project = { workspace = true, optional = true }
+pin-project = { workspace = true }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }

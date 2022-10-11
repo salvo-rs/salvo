@@ -53,7 +53,7 @@ impl Acceptor for UnixListener {
             Poll::Ready(Ok((stream, remote_addr))) => {
                 Poll::Ready(Some(Ok(UnixStream::new(stream, remote_addr.into()))))
             }
-            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
+            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
             Poll::Pending => Poll::Pending,
         }
     }

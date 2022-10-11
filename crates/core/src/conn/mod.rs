@@ -1,4 +1,6 @@
 //! Listener trait and it's implements.
+use std::io::Result as IoResult;
+
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::async_trait;
@@ -54,7 +56,7 @@ pub trait IntoConfigStream<C>: Send + 'static {
     type Stream: futures_util::Stream<Item = C> + Send + 'static;
 
     /// Consume itself and return tls config stream.
-    fn into_stream(self) -> std::io::Result<Self::Stream>;
+    fn into_stream(self) -> Self::Stream;
 }
 
 /// Acceptor's return type.
@@ -69,22 +71,21 @@ pub struct Accepted<S> {
 
 /// Acceptor trait.
 #[async_trait]
-pub trait Acceptor: Send {
+pub trait Acceptor {
     /// Conn type
     type Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static;
-    /// Error type
-    type Error: std::error::Error + Send + Sync + 'static;
 
     /// Returns the local address that this listener is bound to.
     fn local_addrs(&self) -> Vec<&SocketAddr>;
 
     /// Accepts a new incoming connection from this listener.
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error>;
+    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
 }
 
 /// Listener trait
 #[async_trait]
-pub trait Listener: Acceptor {
+pub trait Listener {
+    type Acceptor: Acceptor;
     /// Join current Listener with the other.
     #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
@@ -93,6 +94,7 @@ pub trait Listener: Acceptor {
     {
         JoinedListener::new(self, other)
     }
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
 }
 
 #[cfg(test)]

@@ -1,8 +1,9 @@
 //! Listener trait and it's implements.
-use std::io::{self, Error as IoError, ErrorKind};
+use std::io::{self, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
@@ -63,8 +64,11 @@ where
 }
 
 /// JoinedListener
+#[pin_project]
 pub struct JoinedListener<A, B> {
+    #[pin]
     a: A,
+    #[pin]
     b: B,
 }
 
@@ -75,26 +79,39 @@ impl<A, B> JoinedListener<A, B> {
         JoinedListener { a, b }
     }
 }
+#[async_trait]
 impl<A, B> Listener for JoinedListener<A, B>
 where
     A: Listener + Send + Unpin + 'static,
     B: Listener + Send + Unpin + 'static,
-    A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    B::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Acceptor: Acceptor + Send + Unpin + 'static,
+    B::Acceptor: Acceptor + Send+ Unpin + 'static
 {
+    type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+        Ok(JoinedAcceptor {
+            a: self.a.into_acceptor().await?,
+            b: self.b.into_acceptor().await?,
+        })
+    }
+}
+
+pub struct JoinedAcceptor<A, B> {
+    a: A,
+    b: B,
 }
 
 #[async_trait]
-impl<A, B> Acceptor for JoinedListener<A, B>
+impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
-    A: Listener + Send + Unpin + 'static,
-    B: Listener + Send + Unpin + 'static,
+    A: Acceptor + Send + Unpin + 'static,
+    B: Acceptor + Send + Unpin + 'static,
     A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     B::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
-    type Error = IoError;
 
+    #[inline]
     fn local_addrs(&self) -> Vec<&SocketAddr> {
         self.a
             .local_addrs()
@@ -104,12 +121,12 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
+    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept() => {
                 let Accepted {
                     stream, local_addr, remote_addr
-                 } = accepted.map_err(|_|IoError::new(ErrorKind::Other, "a accept error"))?;
+                 } = accepted?;
                 Ok(Accepted {
                     stream: JoinedStream::A(stream),
                     local_addr,
@@ -119,7 +136,7 @@ where
             accepted = self.b.accept() => {
                 let Accepted {
                     stream, local_addr, remote_addr
-                 } = accepted.map_err(|_|IoError::new(ErrorKind::Other, "b accept error"))?;
+                 } = accepted?;
                 Ok(Accepted {
                     stream: JoinedStream::B(stream),
                     local_addr,

@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use futures_util::future::{ready, Ready};
-use futures_util::stream::{once, Once};
+use futures_util::stream::{once, Once, Stream};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{
     AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
@@ -223,7 +223,7 @@ impl RustlsConfig {
         self
     }
     /// ServerConfig
-    fn build_server_config(mut self) -> io::Result<ServerConfig> {
+    pub(crate) fn build_server_config(mut self) -> io::Result<ServerConfig> {
         let fallback = self
             .fallback
             .as_mut()
@@ -270,24 +270,21 @@ impl ResolvesServerCert for CertResolver {
     }
 }
 
-impl From<RustlsConfig> for ServerConfig {
-    #[inline]
-    fn from(rustls_config: RustlsConfig) -> Self {
-        rustls_config.build_server_config().unwrap()
+impl IntoConfigStream<RustlsConfig> for RustlsConfig {
+    type Stream = Once<Ready<RustlsConfig>>;
+
+    fn into_stream(self) -> Self::Stream {
+        once(ready(self))
     }
 }
 
-impl From<RustlsConfig> for Arc<ServerConfig> {
-    #[inline]
-    fn from(rustls_config: RustlsConfig) -> Self {
-        rustls_config.build_server_config().unwrap().into()
-    }
-}
+impl<T> IntoConfigStream<RustlsConfig> for T
+where
+    T: Stream<Item = RustlsConfig> + Send + 'static,
+{
+    type Stream = T;
 
-impl IntoConfigStream<ServerConfig> for RustlsConfig {
-    type Stream = Once<Ready<ServerConfig>>;
-
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        Ok(once(ready(self.build_server_config()?)))
+    fn into_stream(self) -> Self {
+        self
     }
 }

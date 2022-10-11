@@ -1,6 +1,6 @@
 //! Server module
-use std::error::Error as StdError;
 use std::future::Future;
+use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -9,22 +9,20 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Accepted, Acceptor};
+use crate::conn::{Accepted, Acceptor, Listener};
 use crate::Service;
 
 /// HTTP Server
 ///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
-pub struct Server<A> {
-    acceptor: A,
+pub struct Server<L> {
+    listener: L,
     protocol: Http,
 }
 
-impl<A> Server<A>
+impl<L> Server<L>
 where
-    A: Acceptor,
-    A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    A::Error: Into<Box<(dyn StdError + Send + Sync + 'static)>>,
+    L: Listener,
 {
     /// Create new `Server` with [`Listener`].
     ///
@@ -39,9 +37,9 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn new(acceptor: A) -> Self {
+    pub fn new(listener: L) -> Self {
         Server {
-            acceptor,
+            listener,
             protocol: Http::new(),
         }
     }
@@ -62,7 +60,7 @@ where
 
     /// Try to serve a [`Service`]
     #[inline]
-    pub async fn try_serve<S>(self, service: S) -> Result<(), hyper::Error>
+    pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
         S: Into<Service>,
     {
@@ -113,11 +111,11 @@ where
     /// Serve with graceful shutdown signal.
     #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(
-        mut self,
+        self,
         service: S,
         signal: G,
         timeout: Option<Duration>,
-    ) -> Result<(), hyper::Error>
+    ) -> IoResult<()>
     where
         S: Into<Service>,
         G: Future<Output = ()> + Send + 'static,
@@ -128,7 +126,8 @@ where
 
         tokio::pin!(signal);
 
-        for addr in self.acceptor.local_addrs() {
+        let mut acceptor = self.listener.into_acceptor().await?;
+        for addr in acceptor.local_addrs() {
             tracing::info!( addr = %addr, "listening");
         }
 
@@ -152,7 +151,7 @@ where
                     }
                     break;
                 },
-                 accepted = self.acceptor.accept() => {
+                 accepted = acceptor.accept() => {
                     if let Ok(accepted) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
@@ -165,11 +164,11 @@ where
 
                             if timeout.is_some() {
                                 tokio::select! {
-                                    _ = serve_connection(protocol.clone(), accepted, service) => {}
+                                    _ = serve_connection(protocol, accepted, service) => {}
                                     _ = timeout_notify.notified() => {}
                                 }
                             } else {
-                                serve_connection(protocol.clone(), accepted, service).await;
+                                serve_connection(protocol, accepted, service).await;
                             }
 
                             if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {

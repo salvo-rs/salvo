@@ -39,9 +39,9 @@ where
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
                     Poll::Ready(Ok(s)) => this.state = State::Ready(s),
-                    Poll::Ready(Err(err)) => {
+                    Poll::Ready(Err(e)) => {
                         this.state = State::Error;
-                        return Poll::Ready(Err(err));
+                        return Poll::Ready(Err(e));
                     }
                     Poll::Pending => return Poll::Pending,
                 },
@@ -62,14 +62,13 @@ where
         buf: &[u8],
     ) -> Poll<std::result::Result<usize, Error>> {
         let this = &mut *self;
-
         loop {
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
                     Poll::Ready(Ok(s)) => this.state = State::Ready(s),
-                    Poll::Ready(Err(err)) => {
+                    Poll::Ready(Err(e)) => {
                         this.state = State::Error;
-                        return Poll::Ready(Err(err));
+                        return Poll::Ready(Err(e));
                     }
                     Poll::Pending => return Poll::Pending,
                 },
@@ -86,9 +85,9 @@ where
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
                     Poll::Ready(Ok(s)) => this.state = State::Ready(s),
-                    Poll::Ready(Err(err)) => {
+                    Poll::Ready(Err(e)) => {
                         this.state = State::Error;
-                        return Poll::Ready(Err(err));
+                        return Poll::Ready(Err(e));
                     }
                     Poll::Pending => return Poll::Pending,
                 },
@@ -105,9 +104,9 @@ where
             match &mut this.state {
                 State::Handshaking(fut) => match fut.poll_unpin(cx) {
                     Poll::Ready(Ok(s)) => this.state = State::Ready(s),
-                    Poll::Ready(Err(err)) => {
+                    Poll::Ready(Err(e)) => {
                         this.state = State::Error;
-                        return Poll::Ready(Err(err));
+                        return Poll::Ready(Err(e));
                     }
                     Poll::Pending => return Poll::Pending,
                 },

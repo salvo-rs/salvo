@@ -131,15 +131,10 @@ impl OpensslConfig {
     }
 }
 
-impl From<OpensslConfig> for Once<Ready<OpensslConfig>> {
-    fn from(config: OpensslConfig) -> Self {
-        futures_util::stream::once(futures_util::future::ready(config))
-    }
-}
 impl IntoConfigStream<OpensslConfig> for OpensslConfig {
     type Stream = Once<Ready<OpensslConfig>>;
 
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        Ok(once(ready(self)))
+    fn into_stream(self) -> Self::Stream {
+        once(ready(self))
     }
 }

@@ -457,8 +457,8 @@ impl Handler for Cors {
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
                 ctrl.call_next(req, depot, res).await;
             }
-            Err(err) => {
-                tracing::error!(error = %err, "Cors validate error");
+            Err(e) => {
+                tracing::error!(error = ?e, "cors validate failed");
                 res.set_status_code(StatusCode::FORBIDDEN);
                 ctrl.skip_rest();
             }

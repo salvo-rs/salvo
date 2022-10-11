@@ -153,8 +153,8 @@ impl Builder {
                 tracing::debug!("load private key from cache");
                 match rustls_pemfile::pkcs8_private_keys(&mut key_data.as_slice()) {
                     Ok(key) => cached_key = key.into_iter().next(),
-                    Err(err) => {
-                        tracing::warn!("failed to parse cached private key: {}", err)
+                    Err(e) => {
+                        tracing::warn!(error = ?e, "parse cached private key failed")
                     }
                 };
             }
@@ -165,8 +165,8 @@ impl Builder {
                 tracing::debug!("load certificate from cache");
                 match rustls_pemfile::certs(&mut cert_data.as_slice()) {
                     Ok(cert) => cached_cert = Some(cert),
-                    Err(err) => {
-                        tracing::warn!("failed to parse cached tls certificates: {}", err)
+                    Err(e) => {
+                        tracing::warn!(error = ?e, "parse cached tls certificates failed", err)
                     }
                 };
             }
@@ -203,8 +203,8 @@ impl Builder {
         tokio::spawn(async move {
             while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
                 if cert_resolver.will_expired(acme_config.before_expired) {
-                    if let Err(err) = super::issuer::issue_cert(&mut client, &acme_config, &cert_resolver).await {
-                        tracing::error!(error = %err, "failed to issue certificate");
+                    if let Err(e) = super::issuer::issue_cert(&mut client, &acme_config, &cert_resolver).await {
+                        tracing::error!(error = ?e, "issue certificate failed");
                     }
                 }
                 tokio::time::sleep(check_duration).await;

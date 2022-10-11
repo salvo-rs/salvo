@@ -1,7 +1,7 @@
 //! native_tls module
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{Error as IoError, Result as IoResult, ErrorKind, Read};
+use std::io::{Error as IoError, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 use futures_util::future::{ready, Ready};
@@ -73,16 +73,11 @@ impl NativeTlsConfig {
         Identity::from_pkcs12(&self.pkcs12, &self.password).map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
-impl From<NativeTlsConfig> for Identity {
-    fn from(config: NativeTlsConfig) -> Self {
-        config.identity().unwrap()
-    }
-}
 
-impl IntoConfigStream<Identity> for NativeTlsConfig {
-    type Stream = Once<Ready<Identity>>;
+impl IntoConfigStream<NativeTlsConfig> for NativeTlsConfig {
+    type Stream = Once<Ready<NativeTlsConfig>>;
 
-    fn into_stream(self) -> IoResult<Self::Stream> {
-        Ok(once(ready(self.identity()?)))
+    fn into_stream(self) -> Self::Stream {
+        once(ready(self))
     }
 }

@@ -1,8 +1,9 @@
 //! Listener trait and it's implements.
-use std::io::Error as IoError;
+use std::io::Result as IoResult;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::vec;
 
-use tokio::io::Result as IoResult;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
@@ -11,31 +12,37 @@ use crate::conn::SocketAddr;
 use super::{Accepted, Acceptor, Listener};
 
 /// TcpListener
-pub struct TcpListener {
+pub struct TcpListener<T> {
+    addr: T,
+}
+impl<T: ToSocketAddrs> TcpListener<T> {
+    /// Bind to socket address.
+    #[inline]
+    pub fn bind(addr: T) -> Self {
+        TcpListener { addr }
+    }
+}
+#[async_trait]
+impl<T> Listener for TcpListener<T>
+where
+    T: ToSocketAddrs + Send,
+{
+    type Acceptor = TcpAcceptor;
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+        let inner = TokioTcpListener::bind(self.addr).await?;
+        let local_addr: SocketAddr = inner.local_addr()?.into();
+        Ok(TcpAcceptor { inner, local_addr })
+    }
+}
+
+pub struct TcpAcceptor {
     inner: TokioTcpListener,
     local_addr: SocketAddr,
 }
-impl TcpListener {
-    /// Bind to socket address.
-    #[inline]
-    pub async fn bind(addr: impl ToSocketAddrs) -> Self {
-        Self::try_bind(addr).await.unwrap()
-    }
-
-    /// Try to bind to socket address.
-    #[inline]
-    pub async fn try_bind(addr: impl ToSocketAddrs) -> IoResult<Self> {
-        let inner = TokioTcpListener::bind(addr).await?;
-        let local_addr: SocketAddr = inner.local_addr()?.into();
-        Ok(TcpListener { inner, local_addr })
-    }
-}
-impl Listener for TcpListener {}
 
 #[async_trait]
-impl Acceptor for TcpListener {
+impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
-    type Error = IoError;
 
     #[inline]
     fn local_addrs(&self) -> Vec<&SocketAddr> {
@@ -43,11 +50,10 @@ impl Acceptor for TcpListener {
     }
 
     #[inline]
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
-        let local_addr = self.local_addr.clone();
+    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(stream, remote_addr)| Accepted {
             stream,
-            local_addr,
+            local_addr: self.local_addr.clone(),
             remote_addr: remote_addr.into(),
         })
     }

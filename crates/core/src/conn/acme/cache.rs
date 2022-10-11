@@ -98,9 +98,9 @@ where
         ));
         match read(path).await {
             Ok(data) => Ok(Some(data)),
-            Err(err) => match err.kind() {
+            Err(e) => match e.kind() {
                 ErrorKind::NotFound => Ok(None),
-                _ => Err(err),
+                _ => Err(e),
             },
         }
     }
@@ -128,9 +128,9 @@ where
         ));
         match read(path).await {
             Ok(data) => Ok(Some(data)),
-            Err(err) => match err.kind() {
+            Err(e) => match e.kind() {
                 ErrorKind::NotFound => Ok(None),
-                _ => Err(err),
+                _ => Err(e),
             },
         }
     }

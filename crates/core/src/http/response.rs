@@ -316,14 +316,14 @@ impl Response {
     }
     /// Sets http error.
     #[inline]
-    pub fn set_status_error(&mut self, err: StatusError) {
-        self.status_code = Some(err.code);
-        self.status_error = Some(err);
+    pub fn set_status_error(&mut self, e: StatusError) {
+        self.status_code = Some(e.code);
+        self.status_error = Some(e);
     }
     /// Sets http error.
     #[inline]
-    pub fn with_status_error(&mut self, err: StatusError) -> &mut Self {
-        self.set_status_error(err);
+    pub fn with_status_error(&mut self, e: StatusError) -> &mut Self {
+        self.set_status_error(e);
         self
     }
 
