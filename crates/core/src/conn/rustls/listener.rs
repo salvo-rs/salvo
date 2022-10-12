@@ -114,21 +114,16 @@ where
             }
             self.tls_acceptor = Some(tls_acceptor);
         }
-        let Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        } = self.inner.accept().await?;
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor,
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
 
-        let stream = TlsConnStream::new(tls_acceptor.accept(stream));
-        Ok(Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        })
+        let accepted = self
+            .inner
+            .accept()
+            .await?
+            .wrap_stream(|s| TlsConnStream::new(tls_acceptor.accept(s)));
+        Ok(accepted)
     }
 }

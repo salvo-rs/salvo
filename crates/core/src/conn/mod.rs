@@ -69,6 +69,23 @@ pub struct Accepted<S> {
     pub remote_addr: SocketAddr,
 }
 
+impl<S> Accepted<S> {
+    /// Wrap stream can returns a new `Accepted`.
+    #[inline]
+    pub fn wrap_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<T> {
+        let Accepted {
+            stream,
+            local_addr,
+            remote_addr,
+        } = self;
+        Accepted {
+            stream: wrap_fn(stream),
+            local_addr,
+            remote_addr,
+        }
+    }
+}
+
 /// Acceptor trait.
 #[async_trait]
 pub trait Acceptor {
