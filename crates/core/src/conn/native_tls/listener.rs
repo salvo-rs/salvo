@@ -2,14 +2,14 @@
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::task::{Context, Poll};
 
-use futures_util::task::noop_waker_ref;
 use futures_util::stream::BoxStream;
+use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use tokio::net::ToSocketAddrs;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, SocketAddr, Listener, TcpListener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
 
 use super::NativeTlsConfig;
 
@@ -82,7 +82,7 @@ impl<C, T> NativeTlsAcceptor<C, T> {
 impl<C, T> Acceptor for NativeTlsAcceptor<C, T>
 where
     C: Stream<Item = NativeTlsConfig> + Send + Unpin + 'static,
-    T: Acceptor+ Send + 'static,
+    T: Acceptor + Send + 'static,
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
@@ -119,27 +119,20 @@ where
             }
         }
 
-        let Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        } = self.inner.accept().await?;
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
-        let fut = async move {
-            tls_acceptor
-                .accept(stream)
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-        };
-        let stream = TlsConnStream::new(fut);
-        Ok(Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        })
+        let accepted = self.inner.accept().await?.map_stream(|stream| {
+            let fut = async move {
+                tls_acceptor
+                    .accept(stream)
+                    .await
+                    .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+            };
+            TlsConnStream::new(fut)
+        });
+        Ok(accepted)
     }
 }
 

@@ -171,10 +171,8 @@ where
                                     },
                                     _ = timeout_notify.notified() => {}
                                 }
-                            } else {
-                                if let Err(e) = serve_connection(protocol, accepted, service).await {
-                                    tracing::error!(error = ?e, "serve connection failed");
-                                }
+                            } else if let Err(e) = serve_connection(protocol, accepted, service).await {
+                                tracing::error!(error = ?e, "serve connection failed");
                             }
 
                             if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {

@@ -70,9 +70,9 @@ pub struct Accepted<S> {
 }
 
 impl<S> Accepted<S> {
-    /// Wrap stream can returns a new `Accepted`.
+    /// Map stream and returns a new `Accepted`.
     #[inline]
-    pub fn wrap_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<T> {
+    pub fn map_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<T> {
         let Accepted {
             stream,
             local_addr,

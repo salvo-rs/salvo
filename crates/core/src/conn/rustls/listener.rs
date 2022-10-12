@@ -123,7 +123,7 @@ where
             .inner
             .accept()
             .await?
-            .wrap_stream(|s| TlsConnStream::new(tls_acceptor.accept(s)));
+            .map_stream(|s| TlsConnStream::new(tls_acceptor.accept(s)));
         Ok(accepted)
     }
 }

@@ -3,8 +3,8 @@ use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::task::noop_waker_ref;
 use futures_util::stream::BoxStream;
+use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
@@ -14,7 +14,7 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, SocketAddr, Listener, TcpListener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -84,7 +84,7 @@ impl<C, T> OpensslAcceptor<C, T> {
 impl<C, T> Acceptor for OpensslAcceptor<C, T>
 where
     C: Stream<Item = OpensslConfig> + Send + Unpin + 'static,
-    T: Acceptor + Send + 'static
+    T: Acceptor + Send + 'static,
 {
     type Conn = TlsConnStream<SslStream<T::Conn>>;
 
@@ -118,32 +118,25 @@ where
                 Err(e) => tracing::error!(error = ?e, "invalid tls config."),
             }
         }
-        let Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        } = self.inner.accept().await?;
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
-        let fut = async move {
-            let ssl =
-                Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-            let mut tls_stream =
-                SslStream::new(ssl, stream).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-            use std::pin::Pin;
-            Pin::new(&mut tls_stream)
-                .accept()
-                .await
-                .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-            Ok(tls_stream)
-        };
-        let stream = TlsConnStream::new(fut);
-        Ok(Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        })
+        let accepted = self.inner.accept().await?.map_stream(|stream|{
+            let fut = async move {
+                let ssl =
+                    Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                let mut tls_stream =
+                    SslStream::new(ssl, stream).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                use std::pin::Pin;
+                Pin::new(&mut tls_stream)
+                    .accept()
+                    .await
+                    .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+                Ok(tls_stream)
+            };
+            TlsConnStream::new(fut)
+        });
+        Ok(accepted)
     }
 }
