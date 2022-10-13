@@ -2,7 +2,7 @@
 <p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
 <p>
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
-    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">簡體中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
     <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
 </p>
 <p>
@@ -276,6 +276,10 @@ Benchmark 測試結果可以從這裏查看:
 
 [https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
 ![techempower](assets/tp.jpg)
+
+## 🎇 部署
+
+你可以通過 (shuttle.rs)[https://www.shuttle.rs/] 部署你的 Salvo 項目, 這非常簡單, 具體參見 shuttle's [官方文檔)(https://docs.shuttle.rs/guide/salvo-examples.html).
 
 ## 🩸 貢獻
 
