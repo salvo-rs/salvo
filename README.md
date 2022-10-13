@@ -285,7 +285,7 @@ Benchmark testing result can be found from here:
 
 ## 🎇 Deployment
 
-You can deploy your salvo projects through (shuttle.rs)[https://www.shuttle.rs/], it is very easy, you can read shuttle's offical document [here](https://docs.shuttle.rs/guide/salvo-examples.html).
+You can deploy your salvo projects through [shuttle.rs](https://www.shuttle.rs/), it is very easy, you can read shuttle's offical document [here](https://docs.shuttle.rs/guide/salvo-examples.html).
 
 ## 🩸 Contributing
 

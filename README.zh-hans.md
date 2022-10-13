@@ -279,7 +279,7 @@ Benchmark 测试结果可以从这里查看:
 
 ## 🎇 部署
 
-你可以通过 (shuttle.rs)[https://www.shuttle.rs/] 部署你的 Salvo 项目, 这非常简单, 具体参见 shuttle's [官方文档)(https://docs.shuttle.rs/guide/salvo-examples.html).
+你可以通过 [shuttle.rs](https://www.shuttle.rs/) 部署你的 Salvo 项目, 这非常简单, 具体参见 shuttle's [官方文档)(https://docs.shuttle.rs/guide/salvo-examples.html).
 
 ## 🩸 贡献
 
