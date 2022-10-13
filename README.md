@@ -283,6 +283,10 @@ Benchmark testing result can be found from here:
 ![techempower](assets/tp.jpg)
 
 
+## 🎇 Deployment
+
+You can deploy your salvo projects through [shuttle.rs](https://www.shuttle.rs/), it is very easy, you can read shuttle's offical document [here](https://docs.shuttle.rs/guide/salvo-examples.html).
+
 ## 🩸 Contributing
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
