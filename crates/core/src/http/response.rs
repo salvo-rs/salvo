@@ -88,8 +88,21 @@ impl Response {
             body: ResBody::None,
             version: Version::default(),
             headers: HeaderMap::new(),
-            #[cfg(feature = "cookie")]
-            cookies: CookieJar::new(),
+            cookies: CookieJar::default(),
+        }
+    }
+
+    /// Creates a new blank `Response`.
+    #[cfg(feature = "cookie")]
+    #[inline]
+    pub fn with_cookies(cookies: CookieJar) -> Response {
+        Response {
+            status_code: None,
+            status_error: None,
+            body: ResBody::None,
+            version: Version::default(),
+            headers: HeaderMap::new(),
+            cookies,
         }
     }
 
