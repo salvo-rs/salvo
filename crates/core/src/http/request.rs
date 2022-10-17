@@ -40,7 +40,7 @@ pub struct Request {
     method: Method,
 
     #[cfg(feature = "cookie")]
-    cookies: CookieJar,
+    pub(crate) cookies: CookieJar,
 
     pub(crate) params: HashMap<String, String>,
 

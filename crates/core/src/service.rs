@@ -192,7 +192,10 @@ impl HyperHandler {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
         req.remote_addr = self.remote_addr.clone();
+        #[cfg(not(feature = "cookie"))]
         let mut res = Response::new();
+        #[cfg(feature = "cookie")]
+        let mut res = Response::with_cookies(req.cookies.clone());
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
         let router = self.router.clone();

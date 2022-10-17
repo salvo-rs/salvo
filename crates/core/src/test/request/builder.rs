@@ -274,7 +274,10 @@ where
     async fn call(self, req: Request) -> Response {
         let mut req = req;
         let mut depot = Depot::new();
-        let mut res = Response::default();
+        #[cfg(not(feature = "cookie"))]
+        let mut res = Response::new();
+        #[cfg(feature = "cookie")]
+        let mut res = Response::with_cookies(req.cookies.clone());
         let mut ctrl = FlowCtrl::new(vec![self.clone()]);
         self.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
         res
