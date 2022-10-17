@@ -163,7 +163,7 @@ impl Response {
             cookies: CookieJar::default(),
         }
     }
-    
+
     /// Creates a new blank `Response`.
     #[cfg(feature = "cookie")]
     #[inline]
