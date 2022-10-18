@@ -2,7 +2,7 @@
 members = ["crates/*", "examples/*"]
 
 [workspace.package]
-version = "0.37.0"
+version = "0.37.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 description = """
@@ -60,16 +60,16 @@ ring = "0.16"
 reqwest = "0.11"
 rustls-pemfile = "1.0"
 rust-embed = "6"
-salvo_macros = { version = "0.37.0", path = "./crates/macros" }
-salvo_core = { version = "0.37.0", path = "./crates/core" }
-salvo_extra = { version = "0.37.0", path = "./crates/extra" }
-salvo-cache = { version = "0.37.0", path = "./crates/cache" }
-salvo-cors = { version = "0.37.0", path = "./crates/cors" }
-salvo-csrf = { version = "0.37.0", path = "./crates/csrf" }
-salvo-flash = { version = "0.37.0", path = "./crates/flash" }
-salvo-rate-limiter = { version = "0.37.0", path = "./crates/rate-limiter" }
-salvo-session = { version = "0.37.0", path = "./crates/session" }
-salvo-static = { version = "0.37.0", path = "./crates/static" }
+salvo_macros = { version = "0.37.1", path = "./crates/macros" }
+salvo_core = { version = "0.37.1", path = "./crates/core" }
+salvo_extra = { version = "0.37.1", path = "./crates/extra" }
+salvo-cache = { version = "0.37.1", path = "./crates/cache" }
+salvo-cors = { version = "0.37.1", path = "./crates/cors" }
+salvo-csrf = { version = "0.37.1", path = "./crates/csrf" }
+salvo-flash = { version = "0.37.1", path = "./crates/flash" }
+salvo-rate-limiter = { version = "0.37.1", path = "./crates/rate-limiter" }
+salvo-session = { version = "0.37.1", path = "./crates/session" }
+salvo-static = { version = "0.37.1", path = "./crates/static" }
 serde = "1"
 serde_json = "1"
 serde_urlencoded = "0.7"
