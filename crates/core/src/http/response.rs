@@ -126,7 +126,7 @@ impl Response {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<()>
+    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
     where
         N: IntoHeaderName,
         V: TryInto<HeaderValue>,
@@ -139,20 +139,6 @@ impl Response {
         } else {
             self.headers.append(name, value);
         }
-        Ok(())
-    }
-
-    /// Modify a header for this response.
-    ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
-    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    #[inline]
-    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
-    where
-        N: IntoHeaderName,
-        V: TryInto<HeaderValue>,
-    {
-        self.add_header(name, value, overwrite)?;
         Ok(self)
     }
 
@@ -270,20 +256,14 @@ impl Response {
         }
         /// Helper function for add cookie.
         #[inline]
-        pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
+        pub fn add_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
             self.cookies.add(cookie);
-        }
-
-        /// Helper function for add cookie.
-        #[inline]
-        pub fn with_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
-            self.add_cookie(cookie);
             self
         }
 
         /// Helper function for remove cookie.
         #[inline]
-        pub fn remove_cookie<T>(&mut self, name: T)
+        pub fn remove_cookie<T>(&mut self, name: T) -> &mut Self
         where
             T: Into<Cow<'static, str>>,
         {
@@ -342,44 +322,28 @@ impl Response {
 
     /// Render content.
     #[inline]
-    pub fn render<P>(&mut self, piece: P)
+    pub fn render<P>(&mut self, piece: P) -> &mut Self
     where
         P: Piece,
     {
-        piece.render(self)
-    }
-    /// Render content.
-    #[inline]
-    pub fn with_render<P>(&mut self, piece: P) -> &mut Self
-    where
-        P: Piece,
-    {
-        self.render(piece);
+        piece.render(self);
         self
     }
 
     /// Render content with status code.
     #[inline]
-    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
+    pub fn stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
     where
         P: Piece,
     {
         self.status_code = Some(code);
-        piece.render(self)
-    }
-    /// Render content with status code.
-    #[inline]
-    pub fn with_stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
-    where
-        P: Piece,
-    {
-        self.stuff(code, piece);
+        piece.render(self);
         self
     }
 
     /// Write bytes data to body. If body is none, a new `ResBody` will created.
     #[inline]
-    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
+    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<&mut self> {
         match self.body_mut() {
             ResBody::None => {
                 self.body = ResBody::Once(data.into());
@@ -400,11 +364,11 @@ impl Response {
                 ));
             }
         }
-        Ok(())
+        Ok(self)
     }
     /// Write streaming data.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
+    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<&mut self>
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
@@ -424,7 +388,7 @@ impl Response {
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
         self.body = ResBody::Stream(Box::pin(mapped));
-        Ok(())
+        Ok(self)
     }
 }
 
