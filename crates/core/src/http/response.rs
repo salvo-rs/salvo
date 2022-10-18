@@ -166,6 +166,12 @@ impl Response {
     pub fn set_body(&mut self, body: ResBody) {
         self.body = body;
     }
+    /// Sets body.
+    #[inline]
+    pub fn with_body(&mut self, body: ResBody) -> &mut Self {
+        self.set_body(body);
+        self
+    }
 
     /// Sets body to a new value and returns old value.
     #[inline]
@@ -194,7 +200,7 @@ impl Response {
     #[cfg(feature = "cookie")]
     #[doc(hidden)]
     #[inline]
-    pub fn write_cookies_to_headers(&mut self) {
+    pub(crate) fn write_cookies_to_headers(&mut self) {
         for cookie in self.cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
                 self.headers.append(SET_COOKIE, hv);
@@ -249,13 +255,6 @@ impl Response {
         #[inline]
         pub fn add_cookie(&mut self, cookie: Cookie<'static>)-> &mut Self {
             self.cookies.add(cookie);
-            self
-        }
-
-        /// Helper function for add cookie.
-        #[inline]
-        pub fn with_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
-            self.add_cookie(cookie);
             self
         }
 
