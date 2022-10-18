@@ -387,16 +387,6 @@ impl Request {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get content type.
-    #[inline]
-    pub fn has_mime(&self, mime: mime::Name) -> bool {
-        if let Some(ctype) = self.content_type() {
-            ctype.subtype() == mime
-        } else {
-            false
-        }
-    }
-
     cfg_feature! {
         #![feature = "cookie"]
         /// Get `CookieJar` reference.
@@ -785,14 +775,5 @@ file content\r\n\
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
-    }
-
-    #[tokio::test]
-    async fn test_mime() {
-        let req = TestClient::get("http://127.0.0.1:7979/hello.json")
-            .add_header("content-type", "application/json", true)
-            .build();
-
-        assert_eq!(req.has_mime(mime::JSON), true);
     }
 }

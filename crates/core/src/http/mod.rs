@@ -13,7 +13,7 @@ pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
 pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
-pub use mime::Mime;
+pub use mime::{self, Mime};
 pub use range::HttpRange;
 pub use request::{ReqBody, Request};
 pub use response::{ResBody, Response};
