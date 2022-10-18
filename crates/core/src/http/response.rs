@@ -249,9 +249,8 @@ impl Response {
     }
     /// Sets body.
     #[inline]
-    pub fn set_body(&mut self, body: ResBody) -> &mut Self {
+    pub fn set_body(&mut self, body: ResBody) {
         self.body = body;
-        self
     }
 
     /// Sets body to a new value and returns old value.
@@ -350,8 +349,9 @@ impl Response {
         }
         /// Helper function for add cookie.
         #[inline]
-        pub fn add_cookie(&mut self, cookie: Cookie<'static>) {
+        pub fn add_cookie(&mut self, cookie: Cookie<'static>)-> &mut Self {
             self.cookies.add(cookie);
+            self
         }
 
         /// Helper function for add cookie.
@@ -371,11 +371,12 @@ impl Response {
         /// cookie but has an empty value, a max-age of 0, and an expiration date
         /// far in the past. Read more about [removal cookies](https://docs.rs/cookie/0.16.1/cookie/struct.CookieJar.html#method.remove).
         #[inline]
-        pub fn remove_cookie<T>(&mut self, name: &str)
+        pub fn remove_cookie(&mut self, name: &str) -> &mut Self
         {
             if let Some(cookie) = self.cookies.get(name).cloned() {
                 self.cookies.remove(cookie);
             }
+            self
         }
     }
 
