@@ -1,7 +1,4 @@
 //! Http response.
-
-#[cfg(feature = "cookie")]
-use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
@@ -88,6 +85,7 @@ impl Response {
             body: ResBody::None,
             version: Version::default(),
             headers: HeaderMap::new(),
+            #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
         }
     }
@@ -166,14 +164,7 @@ impl Response {
     /// Sets body.
     #[inline]
     pub fn set_body(&mut self, body: ResBody) {
-        self.body = body
-    }
-
-    /// Sets body.
-    #[inline]
-    pub fn with_body(&mut self, body: ResBody) -> &mut Self {
         self.body = body;
-        self
     }
 
     /// Sets body to a new value and returns old value.
@@ -256,18 +247,34 @@ impl Response {
         }
         /// Helper function for add cookie.
         #[inline]
-        pub fn add_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
+        pub fn add_cookie(&mut self, cookie: Cookie<'static>)-> &mut Self {
             self.cookies.add(cookie);
             self
         }
 
-        /// Helper function for remove cookie.
+        /// Helper function for add cookie.
         #[inline]
-        pub fn remove_cookie<T>(&mut self, name: T) -> &mut Self
-        where
-            T: Into<Cow<'static, str>>,
+        pub fn with_cookie(&mut self, cookie: Cookie<'static>) -> &mut Self {
+            self.add_cookie(cookie);
+            self
+        }
+
+        /// Helper function for remove cookie.
+        ///
+        /// Removes `cookie` from this CookieJar. If an _original_ cookie with the same
+        /// name as `cookie` is present in the jar, a _removal_ cookie will be
+        /// present in the `delta` computation.
+        ///
+        /// A "removal" cookie is a cookie that has the same name as the original
+        /// cookie but has an empty value, a max-age of 0, and an expiration date
+        /// far in the past. Read more about [removal cookies](https://docs.rs/cookie/0.16.1/cookie/struct.CookieJar.html#method.remove).
+        #[inline]
+        pub fn remove_cookie(&mut self, name: &str) -> &mut Self
         {
-            self.cookies.remove(Cookie::named(name));
+            if let Some(cookie) = self.cookies.get(name).cloned() {
+                self.cookies.remove(cookie);
+            }
+            self
         }
     }
 

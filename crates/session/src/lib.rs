@@ -332,7 +332,7 @@ where
             if let Err(e) = self.store.destroy_session(session).await {
                 tracing::error!(error = ?e, "unable to destroy session");
             }
-            res.remove_cookie(self.cookie_name.clone());
+            res.remove_cookie(&self.cookie_name);
         } else if self.save_unchanged || session.data_changed() {
             match self.store.store_session(session).await {
                 Ok(cookie_value) => {
