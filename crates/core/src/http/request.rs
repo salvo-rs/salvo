@@ -11,6 +11,7 @@ pub use http::request::Parts;
 use http::version::Version;
 use http::{self, Extensions, Uri};
 pub use hyper::Body as ReqBody;
+use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
@@ -384,6 +385,16 @@ impl Request {
             .get("content-type")
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok())
+    }
+
+    /// Get content type.
+    #[inline]
+    pub fn has_mime(&self, mime: mime::Name) -> bool {
+        if let Some(ctype) = self.content_type() {
+            ctype.subtype() == mime
+        } else {
+            false
+        }
     }
 
     cfg_feature! {
@@ -774,5 +785,14 @@ file content\r\n\
         assert_eq!(file.headers().get("content-type").unwrap(), "text/plain");
         let files = req.files("file1").await.unwrap();
         assert_eq!(files[0].name().unwrap(), "err.txt");
+    }
+
+    #[tokio::test]
+    async fn test_mime() {
+        let req = TestClient::get("http://127.0.0.1:7979/hello.json")
+            .add_header("content-type", "application/json", true)
+            .build();
+
+        assert_eq!(req.has_mime(mime::JSON), true);
     }
 }
