@@ -124,24 +124,10 @@ where
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept() => {
-                let Accepted {
-                    stream, local_addr, remote_addr
-                 } = accepted?;
-                Ok(Accepted {
-                    stream: JoinedStream::A(stream),
-                    local_addr,
-                    remote_addr
-                })
+                Ok(accepted?.map_stream(JoinedStream::A))
             }
             accepted = self.b.accept() => {
-                let Accepted {
-                    stream, local_addr, remote_addr
-                 } = accepted?;
-                Ok(Accepted {
-                    stream: JoinedStream::B(stream),
-                    local_addr,
-                    remote_addr
-                })
+                Ok(accepted?.map_stream(JoinedStream::B))
             }
         }
     }
