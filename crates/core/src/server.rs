@@ -4,7 +4,7 @@ use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use hyper::server::conn::Http;
+use hyper::server::conn::{http1, http2};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
@@ -17,7 +17,8 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
-    protocol: Http,
+    http1: Arc<http1::Builder>,
+    // http2: http2::Builder,
 }
 
 impl<L> Server<L>
@@ -40,14 +41,20 @@ where
     pub fn new(listener: L) -> Self {
         Server {
             listener,
-            protocol: Http::new(),
+            http1: Arc::new(http1::Builder::new()),
+            // http2: http2::Builder::new(),
         }
     }
 
-    /// Use this function to set http protocol.
-    pub fn protocol_mut(&mut self) -> &mut Http {
-        &mut self.protocol
-    }
+    // Use this function to set http protocol.
+    // pub fn http1_mut(&mut self) -> &mut http1::Builder {
+    //     &mut self.http1
+    // }
+
+    // /// Use this function to set http protocol.
+    // pub fn http2_mut(&mut self) -> &mut http2::Builder {
+    //     &mut self.http2
+    // }
 
     /// Serve a [`Service`]
     #[inline]
@@ -152,26 +159,30 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
-                    if let Ok(accepted) = accepted {
+                    if let Ok(Accepted {
+                        stream,
+                        local_addr,
+                        remote_addr,
+                    }) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
-                        let protocol = self.protocol.clone();
-
+                        let http1 = self.http1.clone();
+                        let conn = http1.serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
+                        .with_upgrades();
                         tokio::spawn(async move {
                             alive_connections.fetch_add(1, Ordering::SeqCst);
-
                             if timeout.is_some() {
                                 tokio::select! {
-                                    result = serve_connection(protocol, accepted, service) => {
+                                    result = conn => {
                                         if let Err(e) = result {
                                             tracing::error!(error = ?e, "serve connection failed");
                                         }
                                     },
                                     _ = timeout_notify.notified() => {}
                                 }
-                            } else if let Err(e) = serve_connection(protocol, accepted, service).await {
+                            } else if let Err(e) = conn.await {
                                 tracing::error!(error = ?e, "serve connection failed");
                             }
 
@@ -192,22 +203,6 @@ where
         tracing::info!("server stopped");
         Ok(())
     }
-}
-
-async fn serve_connection<S>(protocol: Http, accepted: Accepted<S>, service: Arc<Service>) -> Result<(), hyper::Error>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    let Accepted {
-        stream,
-        local_addr,
-        remote_addr,
-    } = accepted;
-    let conn = protocol
-        .clone()
-        .serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
-        .with_upgrades();
-    conn.await
 }
 
 #[cfg(test)]

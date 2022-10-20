@@ -16,9 +16,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["cookie", "test"]
+default = ["cookie", "http3", "test"]
 full = ["rustls", "anyhow"]
 cookie = ["dep:cookie"]
+http3 = ["dep:h3"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["dep:tokio-native-tls"]
 openssl = ["dep:openssl",  "dep:tokio-openssl"]
@@ -40,6 +41,7 @@ fastrand.workspace = true
 form_urlencoded.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
+h3 = {workspace = true, optional = true }
 http.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
 hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"] }

@@ -299,7 +299,7 @@ impl Handler for StaticDir {
                 "json" => res.render(Text::Json(list_json(&root))),
                 "xml" => res.render(Text::Xml(list_xml(&root))),
                 _ => res.render(Text::Html(list_html(&root))),
-            }
+            };
         }
     }
 }

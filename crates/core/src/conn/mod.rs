@@ -116,6 +116,13 @@ pub trait Listener {
     async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
 }
 
+#[derive(Debug)]
+pub enum CommProtocol {
+    Tcp,
+    Udp,
+    Unix,
+}
+
 #[cfg(test)]
 mod tests {
     use futures_util::{Stream, StreamExt};

@@ -349,7 +349,7 @@ impl Response {
 
     /// Write bytes data to body. If body is none, a new `ResBody` will created.
     #[inline]
-    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<&mut self> {
+    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
             ResBody::None => {
                 self.body = ResBody::Once(data.into());
@@ -370,11 +370,11 @@ impl Response {
                 ));
             }
         }
-        Ok(self)
+        Ok(())
     }
     /// Write streaming data.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<&mut self>
+    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
@@ -394,7 +394,7 @@ impl Response {
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
         self.body = ResBody::Stream(Box::pin(mapped));
-        Ok(self)
+        Ok(())
     }
 }
 

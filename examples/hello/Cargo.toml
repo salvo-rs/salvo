@@ -1,5 +1,5 @@
 [package]
-name = "example-hello-world"
+name = "example-hello"
 version = "0.1.0"
 edition = "2021"
 publish = false

@@ -2,46 +2,49 @@
 use std::io::Result as IoResult;
 use std::vec;
 
-use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
+use tokio::net::{UdpListener as TokioUdpListener, UdpStream, ToSocketAddrs};
 
 use crate::async_trait;
 use crate::conn::SocketAddr;
 
-use super::{Accepted, Acceptor, Listener};
+use super::{Accepted, Acceptor, Listener, CommProtocol};
 
-/// TcpListener
-pub struct TcpListener<T> {
+/// UdpListener
+pub struct UdpListener<T> {
     addr: T,
 }
-impl<T: ToSocketAddrs> TcpListener<T> {
+impl<T: ToSocketAddrs> UdpListener<T> {
     /// Bind to socket address.
     #[inline]
     pub fn bind(addr: T) -> Self {
-        TcpListener { addr }
+        UdpListener { addr }
     }
 }
 #[async_trait]
-impl<T> Listener for TcpListener<T>
+impl<T> Listener for UdpListener<T>
 where
     T: ToSocketAddrs + Send,
 {
-    type Acceptor = TcpAcceptor;
+    type Acceptor = UdpAcceptor;
+    fn proto() -> CommProtocol {
+        CommProtocol::Udp
+    }
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        let inner = TokioTcpListener::bind(self.addr).await?;
+        let inner = TokioUdpListener::bind(self.addr).await?;
         let local_addr: SocketAddr = inner.local_addr()?.into();
-        Ok(TcpAcceptor { inner, local_addr })
+        Ok(UdpAcceptor { inner, local_addr })
     }
 }
 
-pub struct TcpAcceptor {
-    inner: TokioTcpListener,
+pub struct UdpAcceptor {
+    inner: TokioUdpListener,
     local_addr: SocketAddr,
 }
 
 #[async_trait]
-impl Acceptor for TcpAcceptor {
-    type Conn = TcpStream;
-    
+impl Acceptor for UdpAcceptor {
+    type Conn = UdpStream;
+
     #[inline]
     fn local_addrs(&self) -> Vec<&SocketAddr> {
         vec![&self.local_addr]
@@ -61,17 +64,17 @@ impl Acceptor for TcpAcceptor {
 mod tests {
     use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpStream;
+    use tokio::net::UdpStream;
 
     use super::*;
 
     #[tokio::test]
-    async fn test_tcp_listener() {
+    async fn test_Udp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let mut listener = TcpListener::bind(addr);
+        let mut listener = UdpListener::bind(addr);
         tokio::spawn(async move {
-            let mut stream = TcpStream::connect(addr).await.unwrap();
+            let mut stream = UdpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();
         });
 

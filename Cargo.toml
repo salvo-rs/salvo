@@ -37,11 +37,12 @@ fastrand = "1"
 form_urlencoded = "1"
 futures-util = "0.3"
 headers = "0.3"
+h3 = { version = "0.0", git = "https://github.com/hyperium/h3.git", branch = "master" }
 http = "0.2"
 hmac = "0.12"
 hex = "0.4"
-hyper = { git = "https://github.com/hyperium/hyper.git" }
-hyper-util = { git = "https://github.com/hyperium/hyper-util.git" }
+hyper = { git = "https://github.com/hyperium/hyper.git", rev="0766d3f" }
+hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev="0e0591e" }
 hyper-rustls = "0.23"
 jsonwebtoken = "8"
 mime = "0.3"
@@ -49,7 +50,7 @@ mime_guess = "2"
 moka = "0.9"
 multer = "2"
 multimap = "0.8"
-once_cell = "1"
+once_cell = "=1.14"
 openssl = "0.10"
 path-slash = "0.2"
 parking_lot = "0.12"
