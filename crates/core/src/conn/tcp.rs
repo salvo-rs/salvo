@@ -41,7 +41,7 @@ pub struct TcpAcceptor {
 #[async_trait]
 impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
-    
+
     #[inline]
     fn local_addrs(&self) -> Vec<&SocketAddr> {
         vec![&self.local_addr]
