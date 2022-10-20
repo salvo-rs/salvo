@@ -15,6 +15,7 @@ use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::http::version::{VersionDetector, Version};
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -122,7 +123,7 @@ where
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
-        let accepted = self.inner.accept().await?.map_stream(|stream|{
+        let accepted = self.inner.accept().await?.map_stream(|stream| {
             let fut = async move {
                 let ssl =
                     Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;

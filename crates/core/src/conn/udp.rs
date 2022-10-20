@@ -7,7 +7,7 @@ use tokio::net::{UdpListener as TokioUdpListener, UdpStream, ToSocketAddrs};
 use crate::async_trait;
 use crate::conn::SocketAddr;
 
-use super::{Accepted, Acceptor, Listener, CommProtocol};
+use super::{Accepted, Acceptor, Listener};
 
 /// UdpListener
 pub struct UdpListener<T> {
@@ -26,9 +26,6 @@ where
     T: ToSocketAddrs + Send,
 {
     type Acceptor = UdpAcceptor;
-    fn proto() -> CommProtocol {
-        CommProtocol::Udp
-    }
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let inner = TokioUdpListener::bind(self.addr).await?;
         let local_addr: SocketAddr = inner.local_addr()?.into();

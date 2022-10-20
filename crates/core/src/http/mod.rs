@@ -12,13 +12,16 @@ cfg_feature! {
 pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
-pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
+pub use http::{header, method, uri, HeaderMap, HeaderValue, StatusCode};
 pub use mime::{self, Mime};
 pub use range::HttpRange;
 pub use request::Request;
 pub mod body;
 pub use body::{Body, ReqBody, ResBody};
 pub use response::Response;
+
+pub mod version;
+pub use version::Version;
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

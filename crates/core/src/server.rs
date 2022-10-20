@@ -18,7 +18,7 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
-    http1: Arc<http1::Builder>,
+    http1: http1::Builder,
     http2: http2::Builder<TokioExecutor>,
 }
 
@@ -42,7 +42,7 @@ where
     pub fn new(listener: L) -> Self {
         Server {
             listener,
-            http1: Arc::new(http1::Builder::new()),
+            http1: http1::Builder::new(),
             http2: http2::Builder::new(TokioExecutor),
         }
     }

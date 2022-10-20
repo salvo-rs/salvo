@@ -10,6 +10,7 @@ use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::http::version::{VersionDetector, Version};
 
 use super::NativeTlsConfig;
 
@@ -130,7 +131,7 @@ where
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             };
-            TlsConnStream::new(fut)
+            TlsConnStream::new(fut, )
         });
         Ok(accepted)
     }

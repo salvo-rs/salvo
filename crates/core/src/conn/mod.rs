@@ -4,6 +4,7 @@ use std::io::Result as IoResult;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::async_trait;
+use crate::http::version::VersionDetector;
 
 // cfg_feature! {
 //     #![feature = "acme"]
@@ -114,13 +115,6 @@ pub trait Listener {
     }
     /// Convert into acceptor.
     async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
-}
-
-#[derive(Debug)]
-pub enum CommProtocol {
-    Tcp,
-    Udp,
-    Unix,
 }
 
 #[cfg(test)]

@@ -3,8 +3,12 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::future::{poll_fn, BoxFuture, FutureExt};
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+use crate::async_trait;
+use crate::http::version::{self, Version, VersionDetector};
 
 enum State<S> {
     Handshaking(BoxFuture<'static, IoResult<S>>),
@@ -25,6 +29,33 @@ impl<S> TlsConnStream<S> {
         Self {
             state: State::Handshaking(handshake.boxed()),
         }
+    }
+}
+
+#[async_trait]
+impl<S> VersionDetector for TlsConnStream<S>
+where
+    S: VersionDetector + Unpin + Send + 'static,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        let mut fut = None;
+        match &mut self.state {
+            State::Handshaking(fut) => match fut.await {
+                Ok(s) => self.state = State::Ready(s),
+                Err(e) => {
+                    self.state = State::Error(e);
+                    return None;
+                }
+            },
+            State::Ready(s) => {}
+            State::Error(ref e) => {
+                return None;
+            }
+        }
+        if let State::Ready(s) = &mut self.state {
+            fut = Some(s.http_version());
+        }
+        poll_fn(move |cx| fut.as_mut().map(|f| f.as_mut().poll(cx)).unwrap_or(Poll::Pending)).await
     }
 }
 

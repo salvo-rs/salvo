@@ -3,9 +3,11 @@ use std::io::Result as IoResult;
 use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
+use futures_util::future::{Ready, ready};
 
 use crate::async_trait;
 use crate::conn::SocketAddr;
+use crate::http::version::{Version, VersionDetector};
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -36,6 +38,13 @@ where
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     local_addr: SocketAddr,
+}
+
+#[async_trait]
+impl VersionDetector for TcpStream {
+    async fn http_version(&mut self) ->Option<Version> {
+        Some(Version::HTTP_11)
+    }
 }
 
 #[async_trait]

@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::SocketAddr;
+use crate::http::version::{Version, VersionDetector};
 
 use super::{Accepted, Acceptor, Listener};
 
