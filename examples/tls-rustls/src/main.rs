@@ -2,7 +2,7 @@ use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world(res: &mut Response) {
+async fn hello(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 
@@ -10,7 +10,7 @@ async fn hello_world(res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().get(hello_world);
+    let router = Router::new().get(hello);
     let config = RustlsConfig::new(
         Keycert::new()
             .with_cert(include_bytes!("../certs/cert.pem").as_ref())

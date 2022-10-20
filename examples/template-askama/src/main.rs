@@ -8,7 +8,7 @@ struct HelloTemplate<'a> {
 }
 
 #[handler]
-async fn hello_world(req: &mut Request, res: &mut Response) {
+async fn hello(req: &mut Request, res: &mut Response) {
     let hello = HelloTemplate {
         name: req.param::<&str>("name").unwrap_or("World"),
     };
@@ -19,6 +19,6 @@ async fn hello_world(req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<name>").get(hello_world);
+    let router = Router::with_path("<name>").get(hello);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

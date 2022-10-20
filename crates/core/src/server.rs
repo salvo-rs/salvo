@@ -10,6 +10,7 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 
 use crate::conn::{Accepted, Acceptor, Listener};
+use crate::runtimes::{TokioExecutor, TokioTimer};
 use crate::Service;
 
 /// HTTP Server
@@ -18,7 +19,7 @@ use crate::Service;
 pub struct Server<L> {
     listener: L,
     http1: Arc<http1::Builder>,
-    // http2: http2::Builder,
+    http2: http2::Builder<TokioExecutor>,
 }
 
 impl<L> Server<L>
@@ -42,7 +43,7 @@ where
         Server {
             listener,
             http1: Arc::new(http1::Builder::new()),
-            // http2: http2::Builder::new(),
+            http2: http2::Builder::new(TokioExecutor),
         }
     }
 
@@ -85,14 +86,14 @@ where
     /// use salvo_core::prelude::*;
     ///
     /// #[handler]
-    /// async fn hello_world(res: &mut Response) {
+    /// async fn hello(res: &mut Response) {
     ///     res.render("Hello World!");
     /// }
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
-    ///     let router = Router::new().get(hello_world);
+    ///     let router = Router::new().get(hello);
     ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     });
@@ -168,9 +169,7 @@ where
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
-                        let http1 = self.http1.clone();
-                        let conn = http1.serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
-                        .with_upgrades();
+                        let conn = self.http1.serve_connection(stream, service.hyper_handler(local_addr, remote_addr)).with_upgrades();
                         tokio::spawn(async move {
                             alive_connections.fetch_add(1, Ordering::SeqCst);
                             if timeout.is_some() {
@@ -214,7 +213,7 @@ mod tests {
     #[tokio::test]
     async fn test_server() {
         #[handler(internal)]
-        async fn hello_world() -> Result<&'static str, ()> {
+        async fn hello() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
         #[handler(internal)]
@@ -225,7 +224,7 @@ mod tests {
             }
             res.render(Json(User { name: "jobs".into() }));
         }
-        let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
+        let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let listener = TcpListener::bind("127.0.0.1:0");
         let addr = listener.local_addr();
         let server = tokio::task::spawn(async {

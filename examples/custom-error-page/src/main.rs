@@ -2,7 +2,7 @@ use salvo::prelude::*;
 use salvo::Catcher;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -16,7 +16,7 @@ async fn main() {
 }
 
 fn create_service() -> Service {
-    let router = Router::new().get(hello_world);
+    let router = Router::new().get(hello);
     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
     Service::new(router).with_catchers(catchers)
 }

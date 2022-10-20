@@ -1,19 +1,19 @@
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 #[handler]
-async fn hello_world1() -> Result<&'static str, ()> {
+async fn hello1() -> Result<&'static str, ()> {
     Ok("Hello World1")
 }
 #[handler]
-async fn hello_world2(res: &mut Response) {
+async fn hello2(res: &mut Response) {
     res.render("Hello World2");
 }
 #[handler]
-async fn hello_world3(_req: &mut Request, res: &mut Response) {
+async fn hello3(_req: &mut Request, res: &mut Response) {
     res.render(Text::Plain("Hello World3"));
 }
 
@@ -26,10 +26,10 @@ async fn main() {
 
 fn route() -> Router {
     Router::new()
-        .get(hello_world)
-        .push(Router::with_path("hello1").get(hello_world1))
-        .push(Router::with_path("hello2").get(hello_world2))
-        .push(Router::with_path("hello3").get(hello_world3))
+        .get(hello)
+        .push(Router::with_path("hello1").get(hello1))
+        .push(Router::with_path("hello2").get(hello2))
+        .push(Router::with_path("hello3").get(hello3))
 }
 
 #[cfg(test)]
@@ -38,7 +38,7 @@ mod tests {
     use salvo::test::{ResponseExt, TestClient};
 
     #[tokio::test]
-    async fn test_hello_world() {
+    async fn test_hello() {
         let service = Service::new(super::route());
 
         async fn access(service: &Service, name: &str) -> String {

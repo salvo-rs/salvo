@@ -148,14 +148,14 @@ mod tests {
     use super::*;
 
     #[handler]
-    async fn hello_world() -> &'static str {
+    async fn hello() -> &'static str {
         "Hello World"
     }
     #[tokio::test]
     async fn test_add_slash() {
         let router = Router::with_hoop(add_slash())
-            .push(Router::with_path("hello").get(hello_world))
-            .push(Router::with_path("hello.world").get(hello_world));
+            .push(Router::with_path("hello").get(hello))
+            .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:7878/hello").send(&service).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::MOVED_PERMANENTLY);
@@ -171,8 +171,8 @@ mod tests {
     #[tokio::test]
     async fn test_remove_slash() {
         let router = Router::with_hoop(remove_slash().with_redirect_code(StatusCode::TEMPORARY_REDIRECT))
-            .push(Router::with_path("hello").get(hello_world))
-            .push(Router::with_path("hello.world").get(hello_world));
+            .push(Router::with_path("hello").get(hello))
+            .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:7878/hello/").send(&service).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);

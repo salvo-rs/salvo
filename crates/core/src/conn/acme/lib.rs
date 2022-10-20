@@ -12,13 +12,13 @@
 //! use salvo_core::prelude::*;
 //!
 //! #[handler]
-//! async fn hello_world() -> &'static str {
+//! async fn hello() -> &'static str {
 //!     "Hello World"
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mut router = Router::new().get(hello_world);
+//!     let mut router = Router::new().get(hello);
 //!     let listener = AcmeListener::builder()
 //!         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
 //!         .cache_path("acme/letsencrypt")
@@ -41,13 +41,13 @@
 //! use salvo_core::prelude::*;
 //!
 //! #[handler]
-//! async fn hello_world() -> &'static str {
+//! async fn hello() -> &'static str {
 //!     "Hello World"
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let router = Router::new().get(hello_world);
+//!     let router = Router::new().get(hello);
 //!     let listener = AcmeListener::builder()
 //!         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
 //!         .cache_path("acme/letsencrypt")

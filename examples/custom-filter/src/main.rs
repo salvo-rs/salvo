@@ -1,7 +1,7 @@
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -15,7 +15,7 @@ async fn main() {
             let host = req.header::<String>("HOST").unwrap_or_default();
             host == "localhost:7878"
         })
-        .get(hello_world);
+        .get(hello);
 
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

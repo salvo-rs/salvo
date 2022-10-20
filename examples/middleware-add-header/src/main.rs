@@ -2,7 +2,7 @@ use salvo::http::header::{self, HeaderValue};
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -16,6 +16,6 @@ async fn add_header(res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().hoop(add_header).get(hello_world);
+    let router = Router::new().hoop(add_header).get(hello);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

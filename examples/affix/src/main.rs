@@ -2,7 +2,7 @@ use salvo::affix;
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world(depot: &mut Depot) -> String {
+async fn hello(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
     let custom_data = depot.get::<&str>("custom_data").unwrap();
     format!("Hello World\nConfig: {:#?}\nCustom Data: {}", config, custom_data)
@@ -29,6 +29,6 @@ fn route() -> Router {
     };
     Router::new()
         .hoop(affix::inject(config).insert("custom_data", "I love this world!"))
-        .get(hello_world)
-        .push(Router::with_path("hello").get(hello_world))
+        .get(hello)
+        .push(Router::with_path("hello").get(hello))
 }
