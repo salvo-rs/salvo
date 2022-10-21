@@ -282,14 +282,12 @@ async fn serve_h3_connection(
                 tokio::spawn(async {
                     let response = hyper::service::Service::call(&mut hyper_handler, request).await;
                     match response {
-                        Ok(response) => {
-                            match stream.send_response(response).await {
-                                Ok(_) => {
-                                    tracing::debug!("response to connection successful");
-                                }
-                                Err(e) => {
-                                    tracing::error!("unable to send response to connection peer: {:?}", e);
-                                }
+                        Ok(response) => match stream.send_response(response).await {
+                            Ok(_) => {
+                                tracing::debug!("response to connection successful");
+                            }
+                            Err(e) => {
+                                tracing::error!("unable to send response to connection peer: {:?}", e);
                             }
                         },
                         Err(e) => {

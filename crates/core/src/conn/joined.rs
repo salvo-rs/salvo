@@ -103,7 +103,11 @@ pub struct JoinedAcceptor<A, B> {
 }
 
 #[async_trait]
-impl<A, B> VersionDetector for JoinedStream<A, B> where A: VersionDetector + Send, B: VersionDetector + Send {
+impl<A, B> VersionDetector for JoinedStream<A, B>
+where
+    A: VersionDetector + Send,
+    B: VersionDetector + Send,
+{
     async fn http_version(&mut self) -> Option<Version> {
         match self {
             JoinedStream::A(a) => a.http_version().await,
@@ -111,7 +115,6 @@ impl<A, B> VersionDetector for JoinedStream<A, B> where A: VersionDetector + Sen
         }
     }
 }
-
 
 #[async_trait]
 impl<A, B> Acceptor for JoinedAcceptor<A, B>

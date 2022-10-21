@@ -2,11 +2,11 @@
 use std::io::Result as IoResult;
 use std::vec;
 
+use futures_util::future::{ready, Ready};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
-use futures_util::future::{Ready, ready};
 
 use crate::async_trait;
-use crate::conn::{SocketAddr};
+use crate::conn::SocketAddr;
 use crate::http::version::{Version, VersionDetector};
 
 use super::{Accepted, Acceptor, Listener};
@@ -42,7 +42,7 @@ pub struct TcpAcceptor {
 
 #[async_trait]
 impl VersionDetector for TcpStream {
-    async fn http_version(&mut self) ->Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
 }

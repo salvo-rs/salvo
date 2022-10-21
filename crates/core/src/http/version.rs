@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use futures_util::stream::{Peekable, StreamExt, Stream};
+use futures_util::stream::{Peekable, Stream, StreamExt};
 
 pub use http::version::Version;
 
