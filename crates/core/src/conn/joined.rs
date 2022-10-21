@@ -1,4 +1,4 @@
-//! Listener trait and it's implements.
+//! JoinListener and it's implements.
 use std::io::{self, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -103,12 +103,23 @@ pub struct JoinedAcceptor<A, B> {
 }
 
 #[async_trait]
+impl<A, B> VersionDetector for JoinedStream<A, B> where A: VersionDetector + Send, B: VersionDetector + Send {
+    async fn http_version(&mut self) -> Option<Version> {
+        match self {
+            JoinedStream::A(a) => a.http_version().await,
+            JoinedStream::B(b) => b.http_version().await,
+        }
+    }
+}
+
+
+#[async_trait]
 impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    B::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Conn: VersionDetector + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    B::Conn: VersionDetector + AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
@@ -125,10 +136,10 @@ where
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept() => {
-                Ok(accepted?.map_stream(JoinedStream::A))
+                Ok(accepted?.map_conn(JoinedStream::A))
             }
             accepted = self.b.accept() => {
-                Ok(accepted?.map_stream(JoinedStream::B))
+                Ok(accepted?.map_conn(JoinedStream::B))
             }
         }
     }

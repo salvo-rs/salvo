@@ -1,16 +1,17 @@
 //! native_tls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::task::{Context, Poll};
+use std::net::ToSocketAddrs;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
-use tokio::net::ToSocketAddrs;
+use tokio::io::{AsyncWrite,  AsyncRead};
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
-use crate::http::version::{VersionDetector, Version};
+use crate::http::version::{self, Version, VersionDetector};
 
 use super::NativeTlsConfig;
 
@@ -59,6 +60,16 @@ where
             config_stream: config.into_stream(),
             inner: TcpListener::bind(addr),
         }
+    }
+}
+
+#[async_trait]
+impl<S> VersionDetector for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        self.get_ref().negotiated_alpn().ok().flatten().map(version::from_alpn)
     }
 }
 
@@ -131,7 +142,7 @@ where
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             };
-            TlsConnStream::new(fut, )
+            TlsConnStream::new(fut)
         });
         Ok(accepted)
     }

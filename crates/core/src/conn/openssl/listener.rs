@@ -2,20 +2,20 @@
 use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::net::ToSocketAddrs;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
-use tokio::net::ToSocketAddrs;
 use tokio_openssl::SslStream;
 
 use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
-use crate::http::version::{VersionDetector, Version};
+use crate::http::version::{self, VersionDetector, Version};
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -78,6 +78,13 @@ impl<C, T> OpensslAcceptor<C, T> {
             inner,
             tls_acceptor: None,
         }
+    }
+}
+
+#[async_trait]
+impl<S> VersionDetector for SslStream<S> where S: Send {
+    async fn http_version(&mut self) -> Option<Version> {
+        self.ssl().selected_alpn_protocol().map(version::from_alpn)
     }
 }
 

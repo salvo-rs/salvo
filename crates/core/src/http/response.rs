@@ -328,22 +328,39 @@ impl Response {
 
     /// Render content.
     #[inline]
-    pub fn render<P>(&mut self, piece: P) -> &mut Self
+    pub fn render<P>(&mut self, piece: P)
     where
         P: Piece,
     {
         piece.render(self);
+    }
+
+    /// Render content.
+    #[inline]
+    pub fn with_render<P>(&mut self, piece: P) -> &mut Self
+    where
+        P: Piece,
+    {
+        self.render(piece);
         self
     }
 
     /// Render content with status code.
     #[inline]
-    pub fn stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
+    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
     where
         P: Piece,
     {
         self.status_code = Some(code);
         piece.render(self);
+    }
+    /// Render content with status code.
+    #[inline]
+    pub fn with_stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
+    where
+        P: Piece,
+    {
+        self.stuff(code, piece);
         self
     }
 

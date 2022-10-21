@@ -14,7 +14,7 @@ use crate::http::version::VersionDetector;
 cfg_feature! {
     #![feature = "native-tls"]
     pub mod native_tls;
-    pub use native_tls::NativeTlsListener;
+    pub use self::native_tls::NativeTlsListener;
 }
 cfg_feature! {
     #![feature = "rustls"]
@@ -25,6 +25,11 @@ cfg_feature! {
     #![feature = "openssl"]
     pub mod openssl;
     pub use self::openssl::OpensslListener;
+}
+cfg_feature! {
+    #![feature = "http3"]
+    pub mod quic;
+    pub use self::quic::QuicListener;
 }
 cfg_feature! {
     #![unix]
@@ -61,26 +66,26 @@ pub trait IntoConfigStream<C>: Send + 'static {
 }
 
 /// Acceptor's return type.
-pub struct Accepted<S> {
+pub struct Accepted<C> {
     /// Incoming stream.
-    pub stream: S,
+    pub conn: C,
     /// Local addr.
     pub local_addr: SocketAddr,
     /// Remote addr.
     pub remote_addr: SocketAddr,
 }
 
-impl<S> Accepted<S> {
-    /// Map stream and returns a new `Accepted`.
+impl<C> Accepted<C> {
+    /// Map connection and returns a new `Accepted`.
     #[inline]
-    pub fn map_stream<T>(self, wrap_fn: impl FnOnce(S) -> T) -> Accepted<T> {
+    pub fn map_conn<T>(self, wrap_fn: impl FnOnce(C) -> T) -> Accepted<T> {
         let Accepted {
-            stream,
+            conn,
             local_addr,
             remote_addr,
         } = self;
         Accepted {
-            stream: wrap_fn(stream),
+            conn: wrap_fn(conn),
             local_addr,
             remote_addr,
         }
@@ -91,7 +96,7 @@ impl<S> Accepted<S> {
 #[async_trait]
 pub trait Acceptor {
     /// Conn type
-    type Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static;
+    type Conn: VersionDetector + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
     /// Returns the local address that this listener is bound to.
     fn local_addrs(&self) -> Vec<&SocketAddr>;

@@ -16,12 +16,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["cookie", "http3", "test"]
+default = ["cookie", "http1", "http2", "http3", "test"]
 full = ["rustls", "anyhow"]
 cookie = ["dep:cookie"]
-http3 = ["dep:h3"]
+http1 = []
+http2 = []
+http3 = ["dep:h3", "dep:h3-quinn", "dep:quinn"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
-native-tls = ["dep:tokio-native-tls"]
+native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl",  "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
@@ -42,6 +44,7 @@ form_urlencoded.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
 h3 = {workspace = true, optional = true }
+h3-quinn = {workspace = true, optional = true }
 http.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
 hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"] }
@@ -54,6 +57,7 @@ once_cell.workspace = true
 parking_lot.workspace = true
 percent-encoding.workspace = true
 pin-project = { workspace = true }
+quinn = {workspace = true, optional = true, features=["ring"] }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }
@@ -68,6 +72,7 @@ thiserror.workspace = true
 openssl = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
+native-tls = { workspace = true, optional = true, features = ["alpn"] }
 tokio-rustls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-stream = { workspace = true, default-features = false }

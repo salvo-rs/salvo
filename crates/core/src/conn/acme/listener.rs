@@ -3,8 +3,8 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::net::ToSocketAddrs;
 
-use tokio::net::ToSocketAddrs;
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;

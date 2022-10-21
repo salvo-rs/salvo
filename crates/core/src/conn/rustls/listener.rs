@@ -3,12 +3,12 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::net::ToSocketAddrs;
 
 use futures_util::future::{Ready, ready};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
-use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;

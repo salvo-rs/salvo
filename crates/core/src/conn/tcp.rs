@@ -1,4 +1,4 @@
-//! Listener trait and it's implements.
+//! TcpListener and it's implements.
 use std::io::Result as IoResult;
 use std::vec;
 
@@ -6,7 +6,7 @@ use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use futures_util::future::{Ready, ready};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
+use crate::conn::{SocketAddr};
 use crate::http::version::{Version, VersionDetector};
 
 use super::{Accepted, Acceptor, Listener};
@@ -58,8 +58,8 @@ impl Acceptor for TcpAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(stream, remote_addr)| Accepted {
-            stream,
+        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
+            conn,
             local_addr: self.local_addr.clone(),
             remote_addr: remote_addr.into(),
         })
