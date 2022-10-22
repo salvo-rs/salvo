@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Accepted, Acceptor, Listener};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
 use crate::http::version::{Version, VersionDetector};
 use crate::runtimes::{TokioExecutor, TokioTimer};
 use crate::Service;
@@ -24,10 +24,7 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
-    #[cfg(feature = "http1")]
-    http1: Arc<http1::Builder>,
-    #[cfg(feature = "http2")]
-    http2: Arc<http2::Builder<TokioExecutor>>,
+    builders: Arc<HttpBuilders>,
 }
 
 impl<L> Server<L>
@@ -51,10 +48,15 @@ where
     pub fn new(listener: L) -> Self {
         Server {
             listener,
-            #[cfg(feature = "http1")]
-            http1: http1::Builder::new().into(),
-            #[cfg(feature = "http2")]
-            http2: http2::Builder::new(TokioExecutor).into(),
+            builders: HttpBuilders {
+                #[cfg(feature = "http1")]
+                http1: http1::Builder::new(),
+                #[cfg(feature = "http2")]
+                http2: http2::Builder::new(TokioExecutor),
+                #[cfg(feature = "http3")]
+                http3: crate::conn::http3::Http3Builder,
+            }
+            .into(),
         }
     }
 
@@ -152,6 +154,7 @@ where
 
         let service = Arc::new(service.into());
         loop {
+            let builders = self.builders.clone();
             tokio::select! {
                 _ = &mut signal => {
                     if let Some(timeout) = timeout {
@@ -171,88 +174,29 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
-                    if let Ok(Accepted {
-                        mut conn,
-                        local_addr,
-                        remote_addr,
-                    }) = accepted {
+                    if let Ok(accepted) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
-                        let http1 = self.http1.clone();
-                        let http2 = self.http2.clone();
                         tokio::spawn(async move {
-                            let version = conn.http_version().await;
-                            if let Some(version) = version {
-                                match version {
-                                    #[cfg(feature = "http1")]
-                                    Version::HTTP_10 | Version::HTTP_11 => {
-                                        alive_connections.fetch_add(1, Ordering::SeqCst);
-                                        let conn = http1.serve_connection(conn, service.hyper_handler(local_addr, remote_addr)).with_upgrades();
-                                        if timeout.is_some() {
-                                            tokio::select! {
-                                                result = conn => {
-                                                    if let Err(e) = result {
-                                                        tracing::error!(error = ?e, "http1 serve connection failed");
-                                                    }
-                                                },
-                                                _ = timeout_notify.notified() => {}
-                                            }
-                                        } else if let Err(e) = conn.await {
+                            alive_connections.fetch_add(1, Ordering::SeqCst);
+                            let conn = accepted.serve_connection(service, builders);
+                            if timeout.is_some() {
+                                tokio::select! {
+                                    result = conn => {
+                                        if let Err(e) = result {
                                             tracing::error!(error = ?e, "http1 serve connection failed");
                                         }
-
-                                        if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
-                                            notify.notify_one();
-                                        }
-                                    }
-                                    #[cfg(feature = "http2")]
-                                    Version::HTTP_2 => {
-                                        alive_connections.fetch_add(1, Ordering::SeqCst);
-                                        let conn = http2.serve_connection(conn, service.hyper_handler(local_addr, remote_addr));
-                                        if timeout.is_some() {
-                                            tokio::select! {
-                                                result = conn => {
-                                                    if let Err(e) = result {
-                                                        tracing::error!(error = ?e, "http2 serve connection failed");
-                                                    }
-                                                },
-                                                _ = timeout_notify.notified() => {}
-                                            }
-                                        } else if let Err(e) = conn.await {
-                                            tracing::error!(error = ?e, "http2 serve connection failed");
-                                        }
-
-                                        if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
-                                            notify.notify_one();
-                                        }
-                                    }
-                                    #[cfg(feature = "http3")]
-                                    Version::HTTP_3 => {
-                                        alive_connections.fetch_add(1, Ordering::SeqCst);
-                                        let conn = serve_h3_connection(conn, service.hyper_handler(local_addr, remote_addr));
-                                        if timeout.is_some() {
-                                            tokio::select! {
-                                                result = conn => {
-                                                    if let Err(e) = result {
-                                                        tracing::error!(error = ?e, "serve connection failed");
-                                                    }
-                                                },
-                                                _ = timeout_notify.notified() => {}
-                                            }
-                                        } else if let Err(e) = conn.await {
-                                            tracing::error!(error = ?e, "serve connection failed");
-                                        }
-
-                                        if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
-                                            notify.notify_one();
-                                        }
-                                    }
-                                    _ => {
-                                        tracing::warn!("unsupported http version");
-                                    }
+                                    },
+                                    _ = timeout_notify.notified() => {}
                                 }
+                            } else if let Err(e) = conn.await {
+                                tracing::error!(error = ?e, "http1 serve connection failed");
+                            }
+
+                            if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
+                                notify.notify_one();
                             }
                         });
                     }
@@ -268,48 +212,6 @@ where
         tracing::info!("server stopped");
         Ok(())
     }
-}
-
-#[cfg(feature = "http3")]
-async fn serve_h3_connection(
-    conn: crate::conn::quic::H3Connection,
-    hyper_handler: crate::service::HyperHandler,
-) -> Result<(), std::io::Error> {
-    loop {
-        match conn.accept().await {
-            Ok(Some((request, stream))) => {
-                tracing::debug!("new request: {:#?}", request);
-                tokio::spawn(async {
-                    let response = hyper::service::Service::call(&mut hyper_handler, request).await;
-                    match response {
-                        Ok(response) => match stream.send_response(response).await {
-                            Ok(_) => {
-                                tracing::debug!("response to connection successful");
-                            }
-                            Err(e) => {
-                                tracing::error!("unable to send response to connection peer: {:?}", e);
-                            }
-                        },
-                        Err(e) => {
-                            tracing::error!(error = ?e, "response failed");
-                        }
-                    }
-                    Ok(stream.finish().await?)
-                });
-            }
-            Ok(None) => {
-                break;
-            }
-            Err(err) => {
-                tracing::warn!("error on accept {}", err);
-                match err.get_error_level() {
-                    ErrorLevel::ConnectionError => break,
-                    ErrorLevel::StreamError => continue,
-                }
-            }
-        }
-    }
-    Err(std::io::Error::new(std::io::ErrorKind::Other, "connection closed"))
 }
 
 #[cfg(test)]

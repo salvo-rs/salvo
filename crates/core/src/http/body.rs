@@ -2,17 +2,18 @@
 
 use std::collections::VecDeque;
 use std::error::Error as StdError;
+use std::fmt::{self, Formatter};
+use std::io::Error as IoError;
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
-use futures_util::Stream;
+use futures_util::stream::{BoxStream, Stream};
 use http::header::HeaderMap;
 pub use hyper::body::{Body, Recv, SizeHint};
 
 use bytes::Bytes;
 
 /// Body for request.
-#[derive(Debug)]
 pub enum ReqBody {
     /// None body.
     None,
@@ -20,6 +21,18 @@ pub enum ReqBody {
     Once(Bytes),
     /// Hyper default body.
     Recv(Recv),
+    /// Steam.
+    Stream(BoxStream<'static, Result<Bytes, IoError>>),
+}
+impl fmt::Debug for ReqBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
+            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
+            ReqBody::Recv(_) => f.debug_tuple("ReqBody::Recv").finish(),
+            ReqBody::Stream(_) => f.debug_tuple("ReqBody::Stream").finish(),
+        }
+    }
 }
 
 impl Default for ReqBody {
@@ -44,6 +57,8 @@ impl Body for ReqBody {
                 }
             }
             ReqBody::Recv(recv) => Pin::new(recv).poll_data(cx),
+            #[cfg(feature = "http3")]
+            ReqBody::Stream(stream) => stream.poll_data(cx),
         }
     }
     fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
@@ -51,6 +66,8 @@ impl Body for ReqBody {
             ReqBody::None => Poll::Ready(Ok(None)),
             ReqBody::Once(_) => Poll::Ready(Ok(None)),
             ReqBody::Recv(recv) => Pin::new(recv).poll_trailers(cx),
+            #[cfg(feature = "http3")]
+            ReqBody::Stream(stream) => stream.poll_trailers(cx),
         }
     }
 
@@ -59,6 +76,7 @@ impl Body for ReqBody {
             ReqBody::None => true,
             ReqBody::Once(bytes) => bytes.is_empty(),
             ReqBody::Recv(recv) => recv.is_end_stream(),
+            ReqBody::Stream(stream) => stream.is_end_stream(),
         }
     }
 
@@ -67,6 +85,14 @@ impl Body for ReqBody {
             ReqBody::None => SizeHint::with_exact(0),
             ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
             ReqBody::Recv(recv) => recv.size_hint(),
+            #[cfg(feature = "http3")]
+            ReqBody::Stream(stream) => {
+                let (lower, upper) = stream.size_hint();
+                let mut size_hint = SizeHint::new();
+                size_hint.set_lower(lower as u64);
+                size_hint.set_upper(upper as u64);
+                size_hint
+            }
         }
     }
 }
@@ -86,6 +112,11 @@ impl From<Bytes> for ReqBody {
 impl From<Recv> for ReqBody {
     fn from(value: Recv) -> ReqBody {
         ReqBody::Recv(value)
+    }
+}
+impl<S, B> From<h3::server::RequestStream<S, B>> for ReqBody {
+    fn from(value: h3::server::RequestStream<S, B>) -> ReqBody {
+        ReqBody::Stream(Box::pin(value))
     }
 }
 impl From<String> for ReqBody {

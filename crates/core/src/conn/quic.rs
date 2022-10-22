@@ -1,7 +1,7 @@
 //! QuicListener and it's implements.
 use std::io::{Result as IoResult, Error as IoError, ErrorKind};
 use std::net::ToSocketAddrs;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::vec;
@@ -61,6 +61,11 @@ impl Deref for H3Connection {
         &self.0
     }
 }
+impl DerefMut for H3Connection {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 impl AsyncRead for H3Connection {
     fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         unimplemented!()
@@ -118,6 +123,7 @@ impl Acceptor for QuicAcceptor {
         Err(IoError::new(ErrorKind::Other, "http3 accept error"))
     }
 }
+
 
 #[cfg(test)]
 mod tests {

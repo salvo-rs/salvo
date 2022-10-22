@@ -1,10 +1,11 @@
 //! Listener trait and it's implements.
-use std::io::Result as IoResult;
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::async_trait;
-use crate::http::version::VersionDetector;
+use crate::http::version::{Version, VersionDetector};
+use crate::{async_trait, handler};
 
 // cfg_feature! {
 //     #![feature = "acme"]
@@ -28,6 +29,7 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature = "http3"]
+    pub(crate) mod http3;
     pub mod quic;
     pub use self::quic::QuicListener;
 }
@@ -43,6 +45,11 @@ pub use tcp::TcpListener;
 
 mod joined;
 pub use joined::JoinedListener;
+
+mod proto;
+pub(crate) use proto::HttpBuilders;
+
+use self::quic::H3Connection;
 
 cfg_feature! {
     #![unix]
@@ -75,7 +82,10 @@ pub struct Accepted<C> {
     pub remote_addr: SocketAddr,
 }
 
-impl<C> Accepted<C> {
+impl<C> Accepted<C>
+where
+    C: VersionDetector + AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     /// Map connection and returns a new `Accepted`.
     #[inline]
     pub fn map_conn<T>(self, wrap_fn: impl FnOnce(C) -> T) -> Accepted<T> {
@@ -88,6 +98,42 @@ impl<C> Accepted<C> {
             conn: wrap_fn(conn),
             local_addr,
             remote_addr,
+        }
+    }
+}
+
+impl<C> Accepted<C>
+where
+    C: VersionDetector + AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    #[inline]
+    pub(crate) async fn serve_connection(self, service: Arc<crate::Service>, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        let Self {
+            mut conn,
+            local_addr,
+            remote_addr,
+        } = self;
+        let handler = service.hyper_handler(local_addr, remote_addr);
+        let version = match conn.http_version().await {
+            Some(version) => version,
+            None => return Err(IoError::new(ErrorKind::Other, "http version not detected")),
+        };
+        match version {
+            #[cfg(feature = "http1")]
+            Version::HTTP_10 | Version::HTTP_11 => builders
+                .http1
+                .serve_connection(conn, handler)
+                .with_upgrades()
+                .await
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string())),
+            #[cfg(feature = "http2")]
+            Version::HTTP_2 => builders
+                .http2
+                .serve_connection(conn, handler)
+                .await
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string())),
+            #[cfg(feature = "http3")]
+            Version::HTTP_3 => builders.http3.serve_connection(conn, handler).await,
         }
     }
 }

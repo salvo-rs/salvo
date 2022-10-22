@@ -251,8 +251,7 @@ where
 
     #[inline]
     fn call(&mut self, req: HyperRequest<B>) -> Self::Future {
-        let req: Request = req.into();
-        let response = self.handle(req);
+        let response = self.handle(req.into());
         let fut = async move {
             let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;
