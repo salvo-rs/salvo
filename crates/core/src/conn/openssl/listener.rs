@@ -14,8 +14,8 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
-use crate::http::version::{self, VersionDetector, Version};
+use crate::conn::{HttpBuilders, Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::http::version::{self, HttpConnection, Version};
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -82,9 +82,16 @@ impl<C, T> OpensslAcceptor<C, T> {
 }
 
 #[async_trait]
-impl<S> VersionDetector for SslStream<S> where S: Send {
+impl<S> HttpConnection for SslStream<S> where S: Send {
     async fn http_version(&mut self) -> Option<Version> {
         self.ssl().selected_alpn_protocol().map(version::from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

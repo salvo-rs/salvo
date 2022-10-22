@@ -1,13 +1,15 @@
 //! TcpListener and it's implements.
-use std::io::Result as IoResult;
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::sync::Arc;
 use std::vec;
 
 use futures_util::future::{ready, Ready};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
-use crate::http::version::{Version, VersionDetector};
+use crate::conn::{HttpBuilders, SocketAddr};
+use crate::http::version::{HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -41,9 +43,17 @@ pub struct TcpAcceptor {
 }
 
 #[async_trait]
-impl VersionDetector for TcpStream {
+impl HttpConnection for TcpStream {
     async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http1
+            .serve_connection(self, handler)
+            .with_upgrades()
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

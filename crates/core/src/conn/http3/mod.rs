@@ -75,6 +75,6 @@ impl Http3Builder {
                 }
             }
         }
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "connection closed"))
+        Ok(())
     }
 }

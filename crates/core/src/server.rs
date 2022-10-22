@@ -15,7 +15,7 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 
 use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
-use crate::http::version::{Version, VersionDetector};
+use crate::http::version::{Version, HttpConnection};
 use crate::runtimes::{TokioExecutor, TokioTimer};
 use crate::Service;
 
@@ -30,7 +30,7 @@ pub struct Server<L> {
 impl<L> Server<L>
 where
     L: Listener,
-    <L::Acceptor as Acceptor>::Conn: VersionDetector,
+    <L::Acceptor as Acceptor>::Conn: HttpConnection,
 {
     /// Create new `Server` with [`Listener`].
     ///
@@ -174,14 +174,15 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
-                    if let Ok(accepted) = accepted {
+                    if let Ok(Accepted { conn, local_addr, remote_addr }) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
+                        let handler = service.hyper_handler(local_addr, remote_addr);
                         tokio::spawn(async move {
                             alive_connections.fetch_add(1, Ordering::SeqCst);
-                            let conn = accepted.serve_connection(service, builders);
+                            let conn = conn.serve(handler, builders);
                             if timeout.is_some() {
                                 tokio::select! {
                                     result = conn => {

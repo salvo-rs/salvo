@@ -1,19 +1,19 @@
 //! rustls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::net::ToSocketAddrs;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::net::ToSocketAddrs;
 
-use futures_util::future::{Ready, ready};
+use futures_util::future::{ready, Ready};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
-use crate::http::version::{self, VersionDetector, Version};
+use crate::conn::{HttpBuilders, Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::http::version::{self, HttpConnection, Version};
 
 use super::RustlsConfig;
 
@@ -85,9 +85,19 @@ impl<C, T> RustlsAcceptor<C, T> {
 }
 
 #[async_trait]
-impl<S> VersionDetector for TlsStream<S> where S: Send {
+impl<S> HttpConnection for TlsStream<S>
+where
+    S: Send,
+{
     async fn http_version(&mut self) -> Option<Version> {
         self.get_ref().1.alpn_protocol().map(version::from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

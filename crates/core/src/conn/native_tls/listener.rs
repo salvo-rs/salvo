@@ -10,8 +10,8 @@ use tokio::io::{AsyncWrite,  AsyncRead};
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
-use crate::http::version::{self, Version, VersionDetector};
+use crate::conn::{HttpBuilders, Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::http::version::{self, Version, HttpConnection};
 
 use super::NativeTlsConfig;
 
@@ -64,12 +64,19 @@ where
 }
 
 #[async_trait]
-impl<S> VersionDetector for TlsStream<S>
+impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     async fn http_version(&mut self) -> Option<Version> {
         self.get_ref().negotiated_alpn().ok().flatten().map(version::from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

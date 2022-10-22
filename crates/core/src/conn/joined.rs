@@ -2,13 +2,15 @@
 use std::io::{self, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::sync::Arc;
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
-use crate::http::version::{Version, VersionDetector};
+use crate::conn::{HttpBuilders, SocketAddr};
+use crate::http::version::{Version, HttpConnection};
+use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -103,15 +105,21 @@ pub struct JoinedAcceptor<A, B> {
 }
 
 #[async_trait]
-impl<A, B> VersionDetector for JoinedStream<A, B>
+impl<A, B> HttpConnection for JoinedStream<A, B>
 where
-    A: VersionDetector + Send,
-    B: VersionDetector + Send,
+    A: HttpConnection + Send,
+    B: HttpConnection + Send,
 {
     async fn http_version(&mut self) -> Option<Version> {
         match self {
             JoinedStream::A(a) => a.http_version().await,
             JoinedStream::B(b) => b.http_version().await,
+        }
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        match self {
+            JoinedStream::A(a) => a.serve(handler, builders).await,
+            JoinedStream::B(b) => b.serve(handler, builders).await,
         }
     }
 }
@@ -121,8 +129,8 @@ impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: VersionDetector + AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    B::Conn: VersionDetector + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    B::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
 

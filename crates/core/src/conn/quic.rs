@@ -1,10 +1,11 @@
 //! QuicListener and it's implements.
-use std::io::{Result as IoResult, Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::net::ToSocketAddrs;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::vec;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
@@ -13,8 +14,9 @@ use h3_quinn::NewConnection;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
-use crate::http::version::{self, Version, VersionDetector};
+use crate::conn::{HttpBuilders, SocketAddr};
+use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -87,9 +89,12 @@ impl AsyncWrite for H3Connection {
 }
 
 #[async_trait]
-impl VersionDetector for H3Connection {
+impl HttpConnection for H3Connection {
     async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_3)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders.http3.serve_connection(self, handler).await
     }
 }
 
@@ -123,7 +128,6 @@ impl Acceptor for QuicAcceptor {
         Err(IoError::new(ErrorKind::Other, "http3 accept error"))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

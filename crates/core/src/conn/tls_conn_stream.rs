@@ -8,7 +8,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::http::version::{self, Version, VersionDetector};
+use crate::http::version::{self, Version, HttpConnection};
 
 enum State<S> {
     Handshaking(BoxFuture<'static, IoResult<S>>),
@@ -33,9 +33,9 @@ impl<S> TlsConnStream<S> {
 }
 
 #[async_trait]
-impl<S> VersionDetector for TlsConnStream<S>
+impl<S> HttpConnection for TlsConnStream<S>
 where
-    S: VersionDetector + Unpin + Send + 'static,
+    S: HttpConnection + Unpin + Send + 'static,
 {
     async fn http_version(&mut self) -> Option<Version> {
         let mut fut = None;
