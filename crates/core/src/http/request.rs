@@ -533,7 +533,7 @@ impl Request {
                 hyper::body::to_bytes(body)
                     .await
                     .map(|d| d.to_vec())
-                    .map_err(|e|ParseError::Other(e))
+                    .map_err(|e| ParseError::Other(e))
             })
             .await
     }

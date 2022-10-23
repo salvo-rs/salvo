@@ -15,7 +15,7 @@ use tokio::sync::Notify;
 use tokio::time::Duration;
 
 use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
-use crate::http::version::{Version, HttpConnection};
+use crate::http::version::{HttpConnection, Version};
 use crate::runtimes::{TokioExecutor, TokioTimer};
 use crate::Service;
 

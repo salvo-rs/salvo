@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::http::version::{Version, HttpConnection};
+use crate::http::version::{HttpConnection, Version};
 use crate::{async_trait, handler};
 
 // cfg_feature! {

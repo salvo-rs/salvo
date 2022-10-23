@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+#[cfg(feature = "http2")]
+use crate::runtimes::TokioExecutor;
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
-#[cfg(feature = "http2")]
-use crate::runtimes::TokioExecutor;
 
 #[cfg(feature = "http3")]
 use crate::conn::http3::Http3Builder;

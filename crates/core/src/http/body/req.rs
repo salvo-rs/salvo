@@ -163,9 +163,7 @@ where
     B: Buf + Send + Unpin + 'static,
 {
     pub fn new(mut inner: h3::server::RequestStream<S, B>) -> Self {
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 }
 
@@ -179,7 +177,7 @@ where
 
     fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let this = &mut *self;
-        let rt  = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         Poll::Ready(Some(rt.block_on(async move {
             let buf = this.inner.recv_data().await.unwrap();
             let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));

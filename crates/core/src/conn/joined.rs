@@ -1,15 +1,15 @@
 //! JoinListener and it's implements.
 use std::io::{self, Result as IoResult};
 use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::{HttpBuilders, SocketAddr};
-use crate::http::version::{Version, HttpConnection};
+use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};

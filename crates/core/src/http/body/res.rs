@@ -1,12 +1,12 @@
 //! Http body.
 
+use std::boxed::Box;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 use std::io::Error as IoError;
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
-use std::boxed::Box;
 
 use futures_util::stream::{BoxStream, Stream};
 use http::header::HeaderMap;
