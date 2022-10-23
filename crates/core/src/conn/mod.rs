@@ -102,42 +102,6 @@ where
     }
 }
 
-// impl<C> Accepted<C>
-// where
-//     C: HttpConnection + AsyncRead + AsyncWrite + Unpin + Send + 'static,
-// {
-//     #[inline]
-//     pub(crate) async fn serve_connection(self, service: Arc<crate::Service>, builders: Arc<HttpBuilders>) -> IoResult<()> {
-//         let Self {
-//             mut conn,
-//             local_addr,
-//             remote_addr,
-//         } = self;
-//         let handler = service.hyper_handler(local_addr, remote_addr);
-//         let version = match conn.http_version().await {
-//             Some(version) => version,
-//             None => return Err(IoError::new(ErrorKind::Other, "http version not detected")),
-//         };
-//         match version {
-//             #[cfg(feature = "http1")]
-//             Version::HTTP_10 | Version::HTTP_11 => builders
-//                 .http1
-//                 .serve_connection(conn, handler)
-//                 .with_upgrades()
-//                 .await
-//                 .map_err(|e| IoError::new(ErrorKind::Other, e.to_string())),
-//             #[cfg(feature = "http2")]
-//             Version::HTTP_2 => builders
-//                 .http2
-//                 .serve_connection(conn, handler)
-//                 .await
-//                 .map_err(|e| IoError::new(ErrorKind::Other, e.to_string())),
-//             #[cfg(feature = "http3")]
-//             Version::HTTP_3 => builders.http3.serve_connection(conn, handler).await,
-//         }
-//     }
-// }
-
 /// Acceptor trait.
 #[async_trait]
 pub trait Acceptor {

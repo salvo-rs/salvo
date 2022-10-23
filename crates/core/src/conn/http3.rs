@@ -10,6 +10,8 @@ use h3::error::ErrorLevel;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::Duration;
 
+use crate::http::body::{H3ReqBody, ReqBody};
+
 pub(crate) struct Http3Builder;
 impl Http3Builder {
     pub async fn serve_connection(
@@ -19,14 +21,14 @@ impl Http3Builder {
     ) -> Result<(), std::io::Error> {
         loop {
             match conn.accept().await {
-                Ok(Some((request, stream))) => {
+                Ok(Some((request, mut stream))) => {
                     tracing::debug!("new request: {:#?}", request);
-                    let (mut tx, rx) = stream.split();
                     let mut hyper_handler = hyper_handler.clone();
                     tokio::spawn(async move {
                         let (parts, body) = request.into_parts();
-                        let request = hyper::Request::from_parts(parts, crate::http::ReqBody::from(rx));
-                        let mut response = match hyper::service::Service::call(&mut hyper_handler, request).await {
+                        let (mut tx, rx) = stream.split();
+                        let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
+                        let response = match hyper::service::Service::call(&mut hyper_handler, request).await {
                             Ok(response) => response,
                             Err(e) => {
                                 tracing::debug!(error = ?e, "service call failed");
