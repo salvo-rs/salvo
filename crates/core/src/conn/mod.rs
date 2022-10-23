@@ -29,9 +29,9 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature = "http3"]
-    pub(crate) mod http3;
+    pub mod http3;
     pub mod quic;
-    pub use self::quic::QuicListener;
+    pub use self::quic::{QuicListener, H3Connection};
 }
 cfg_feature! {
     #![unix]
@@ -48,8 +48,6 @@ pub use joined::JoinedListener;
 
 mod proto;
 pub(crate) use proto::HttpBuilders;
-
-use self::quic::H3Connection;
 
 cfg_feature! {
     #![unix]

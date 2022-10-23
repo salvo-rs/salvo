@@ -12,7 +12,7 @@ use tokio::time::Duration;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 
-pub(crate) struct Http3Builder;
+pub struct Http3Builder;
 impl Http3Builder {
     pub async fn serve_connection(
         &self,

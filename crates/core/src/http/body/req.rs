@@ -154,10 +154,7 @@ where
     }
 }
 
-#[pin_project]
 pub struct H3ReqBody<S, B> {
-    #[pin]
-    data_future: Option<Pin<Box<dyn Future<Output = Result<Option<Bytes>, h3::Error>> + Send>>>,
     inner: h3::server::RequestStream<S, B>,
 }
 impl<S, B> H3ReqBody<S, B>
@@ -167,7 +164,6 @@ where
 {
     pub fn new(mut inner: h3::server::RequestStream<S, B>) -> Self {
         Self {
-            data_future: None,
             inner,
         }
     }
@@ -183,23 +179,12 @@ where
 
     fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let this = &mut *self;
-        if this.data_future.is_none() {
-            this.data_future = Some(Box::pin(async move {
-                let buf = this.inner.recv_data().await?;
-                let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
-                Ok(buf)
-            }));
-        }
-        match this.data_future.take() {
-            Some(mut fut) => match fut.poll_unpin(cx).map_err(|e| e.into()) {
-                Poll::Ready(result) => Poll::Ready(result.transpose()),
-                Poll::Pending => {
-                    this.data_future = Some(fut);
-                    Poll::Pending
-                }
-            },
-            None => Poll::Ready(None),
-        }
+        let rt  = tokio::runtime::Runtime::new().unwrap();
+        Poll::Ready(Some(rt.block_on(async move {
+            let buf = this.inner.recv_data().await.unwrap();
+            let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
+            Ok(buf.unwrap())
+        })))
     }
     fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
         Poll::Ready(Ok(None)) // TODO: how to get trailers? recv_trailers needs SendStream.

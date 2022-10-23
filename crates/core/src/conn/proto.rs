@@ -10,7 +10,7 @@ use crate::runtimes::TokioExecutor;
 #[cfg(feature = "http3")]
 use crate::conn::http3::Http3Builder;
 
-pub(crate) struct HttpBuilders {
+pub struct HttpBuilders {
     #[cfg(feature = "http1")]
     pub(crate) http1: http1::Builder,
     #[cfg(feature = "http2")]
