@@ -2,13 +2,11 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use http::{Request, StatusCode};
 use rustls::{Certificate, PrivateKey};
 use structopt::StructOpt;
 use tokio::{fs::File, io::AsyncReadExt};
 
 use salvo::prelude::*;
-
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "server")]
@@ -57,10 +55,12 @@ async fn hello() -> &'static str {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
+    let opt = Opt::from_args();
+    let crypto = load_crypto(opt.certs).await.unwrap();
+    let server_config = salvo::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));
 
-    let router =  Router::new()
-    .get(hello);
-    Server::new(QuicListener::bind("127.0.0.1:7878", )).serve(route()).await;
+    let router = Router::new().get(hello);
+    Server::new(QuicListener::bind(("127.0.0.1", 7878), server_config)).serve(router).await;
 }
 
 static ALPN: &[u8] = b"h3";
@@ -96,8 +96,9 @@ async fn load_crypto(opt: Certs) -> Result<rustls::ServerConfig, Box<dyn std::er
 }
 
 pub fn build_certs() -> (Certificate, PrivateKey) {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
     let key = PrivateKey(cert.serialize_private_key_der());
     let cert = Certificate(cert.serialize_der().unwrap());
+    println!("============================3");
     (cert, key)
 }

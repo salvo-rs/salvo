@@ -258,7 +258,8 @@ impl Handler for StaticDir {
                 builder
             };
             if let Ok(named_file) = builder.build().await {
-                named_file.send(req.headers(), res).await;
+                let headers = req.headers();
+                named_file.send(headers, res).await;
             } else {
                 res.set_status_error(StatusError::internal_server_error().with_summary("read file failed"));
             }

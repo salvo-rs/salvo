@@ -154,6 +154,7 @@ where
 
         let service = Arc::new(service.into());
         loop {
+            println!("99988==0");
             let builders = self.builders.clone();
             tokio::select! {
                 _ = &mut signal => {
@@ -174,14 +175,17 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
+                    println!("99999==0");
                     if let Ok(Accepted { conn, local_addr, remote_addr }) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
                         let handler = service.hyper_handler(local_addr, remote_addr);
+                        println!("99999==1");
                         tokio::spawn(async move {
                             alive_connections.fetch_add(1, Ordering::SeqCst);
+                            println!("99999==2");
                             let conn = conn.serve(handler, builders);
                             if timeout.is_some() {
                                 tokio::select! {

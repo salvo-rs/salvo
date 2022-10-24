@@ -3,13 +3,14 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::net::ToSocketAddrs;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::vec;
-use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming, ServerConfig};
+pub use h3_quinn::quinn::ServerConfig;
+use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
 use h3_quinn::NewConnection;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -28,7 +29,7 @@ pub struct QuicListener<T> {
 impl<T: ToSocketAddrs> QuicListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(mut self, addr: T, config: ServerConfig) -> Self {
+    pub fn bind(addr: T, config: ServerConfig) -> Self {
         QuicListener { addr, config }
     }
 }
@@ -109,13 +110,17 @@ impl Acceptor for QuicAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+        println!("accept......0");
         while let Some(new_conn) = self.incoming.next().await {
+            println!("accept.....1");
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
+                    println!("=========================4");
                     let conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
                         .await
                         .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+                        println!("=========================5");
                     return Ok(Accepted {
                         conn: H3Connection(conn),
                         local_addr: self.local_addr.clone(),
