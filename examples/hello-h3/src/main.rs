@@ -60,7 +60,9 @@ async fn main() {
     let server_config = salvo::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));
 
     let router = Router::new().get(hello);
-    Server::new(QuicListener::bind(("127.0.0.1", 7878), server_config)).serve(router).await;
+    Server::new(QuicListener::bind(("127.0.0.1", 7878), server_config))
+        .serve(router)
+        .await;
 }
 
 static ALPN: &[u8] = b"h3";
