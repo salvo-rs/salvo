@@ -4,13 +4,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{poll_fn, BoxFuture, FutureExt};
-use pin_project::pin_project;
+use futures_util::future::{BoxFuture, FutureExt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::HttpBuilders;
-use crate::http::version::{self, HttpConnection, Version};
+use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 enum State<S> {
@@ -49,8 +48,8 @@ where
                     return None;
                 }
             },
-            State::Ready(s) => {}
-            State::Error(ref e) => {
+            State::Ready(_) => {}
+            State::Error(_) => {
                 return None;
             }
         }
@@ -66,16 +65,17 @@ where
                 Ok(s) => self.state = State::Ready(s),
                 Err(e) => {
                     self.state = State::Error(e);
-                    return Err(IoError::new(ErrorKind::Other, "handshake failed"));
                 }
             },
-            State::Ready(s) => {}
-            State::Error(ref e) => {
-                return Err(IoError::new(ErrorKind::Other, "handshake failed"));
+            State::Ready(_) => {}
+            State::Error(e) => {
+                return Err(IoError::new(ErrorKind::Other, e.to_string()));
             }
         }
         if let State::Ready(s) = self.state {
             s.serve(handler, builders).await
+        } else if let State::Error(e) = self.state {
+            return Err(IoError::new(ErrorKind::Other, e.to_string()));
         } else {
             unreachable!()
         }

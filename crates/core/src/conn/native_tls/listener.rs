@@ -139,13 +139,13 @@ where
                     }
                     self.tls_acceptor = Some(tokio_native_tls::TlsAcceptor::from(tls_acceptor));
                 }
-                Err(e) => tracing::error!(error = ?e, "invalid tls config."),
+                Err(e) => tracing::error!(error = ?e, "native_tls: invalid tls config."),
             }
         }
 
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
+            None => return Err(IoError::new(ErrorKind::Other, "native_tls: invalid tls config.")),
         };
         let accepted = self.inner.accept().await?.map_conn(|conn| {
             let fut = async move {

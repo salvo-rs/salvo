@@ -1,14 +1,8 @@
-use std::future::Future;
-use std::io::Result as IoResult;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 use futures_util::future::poll_fn;
 use futures_util::Stream;
 use h3::error::ErrorLevel;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::time::Duration;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 
@@ -20,14 +14,12 @@ impl Http3Builder {
         hyper_handler: crate::service::HyperHandler,
     ) -> Result<(), std::io::Error> {
         loop {
-            println!("=========================6");
             match conn.accept().await {
-                Ok(Some((request, mut stream))) => {
-                    println!("=========================7");
+                Ok(Some((request, stream))) => {
                     tracing::debug!("new request: {:#?}", request);
                     let mut hyper_handler = hyper_handler.clone();
                     tokio::spawn(async move {
-                        let (parts, body) = request.into_parts();
+                        let (parts, _body) = request.into_parts();
                         let (mut tx, rx) = stream.split();
                         let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
                         let response = match hyper::service::Service::call(&mut hyper_handler, request).await {

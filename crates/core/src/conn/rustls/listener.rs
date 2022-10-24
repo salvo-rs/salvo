@@ -4,11 +4,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::future::{ready, Ready};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
@@ -141,7 +140,7 @@ where
         }
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor,
-            None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
+            None => return Err(IoError::new(ErrorKind::Other, "rustls: invalid tls config.")),
         };
 
         let accepted = self
@@ -149,6 +148,7 @@ where
             .accept()
             .await?
             .map_conn(|s| TlsConnStream::new(tls_acceptor.accept(s)));
+
         Ok(accepted)
     }
 }

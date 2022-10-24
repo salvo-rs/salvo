@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 #[cfg(feature = "http2")]
 use crate::runtimes::TokioExecutor;
 #[cfg(feature = "http1")]

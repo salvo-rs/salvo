@@ -1,11 +1,10 @@
 //! Listener trait and it's implements.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
-use std::sync::Arc;
+use std::io::Result as IoResult;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::http::version::{HttpConnection, Version};
-use crate::{async_trait, handler};
+use crate::async_trait;
+use crate::http::version::HttpConnection;
 
 // cfg_feature! {
 //     #![feature = "acme"]

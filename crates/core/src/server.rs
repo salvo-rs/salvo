@@ -4,19 +4,16 @@ use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-#[cfg(feature = "http3")]
-use h3::error::ErrorLevel;
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
 use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
-use crate::http::version::{HttpConnection, Version};
-use crate::runtimes::{TokioExecutor, TokioTimer};
+use crate::http::version::HttpConnection;
+use crate::runtimes::TokioExecutor;
 use crate::Service;
 
 /// HTTP Server
@@ -154,7 +151,6 @@ where
 
         let service = Arc::new(service.into());
         loop {
-            println!("99988==0");
             let builders = self.builders.clone();
             tokio::select! {
                 _ = &mut signal => {
@@ -175,35 +171,37 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
-                    println!("99999==0");
-                    if let Ok(Accepted { conn, local_addr, remote_addr }) = accepted {
-                        let service = service.clone();
-                        let alive_connections = alive_connections.clone();
-                        let notify = notify.clone();
-                        let timeout_notify = timeout_notify.clone();
-                        let handler = service.hyper_handler(local_addr, remote_addr);
-                        println!("99999==1");
-                        tokio::spawn(async move {
-                            alive_connections.fetch_add(1, Ordering::SeqCst);
-                            println!("99999==2");
-                            let conn = conn.serve(handler, builders);
-                            if timeout.is_some() {
-                                tokio::select! {
-                                    result = conn => {
-                                        if let Err(e) = result {
-                                            tracing::error!(error = ?e, "http1 serve connection failed");
-                                        }
-                                    },
-                                    _ = timeout_notify.notified() => {}
+                    match accepted {
+                        Ok(Accepted { conn, local_addr, remote_addr }) => {
+                            let service = service.clone();
+                            let alive_connections = alive_connections.clone();
+                            let notify = notify.clone();
+                            let timeout_notify = timeout_notify.clone();
+                            let handler = service.hyper_handler(local_addr, remote_addr);
+                            tokio::spawn(async move {
+                                alive_connections.fetch_add(1, Ordering::SeqCst);
+                                let conn = conn.serve(handler, builders);
+                                if timeout.is_some() {
+                                    tokio::select! {
+                                        result = conn => {
+                                            if let Err(e) = result {
+                                                tracing::error!(error = ?e, "http1 serve connection failed");
+                                            }
+                                        },
+                                        _ = timeout_notify.notified() => {}
+                                    }
+                                } else if let Err(e) = conn.await {
+                                    tracing::error!(error = ?e, "http1 serve connection failed");
                                 }
-                            } else if let Err(e) = conn.await {
-                                tracing::error!(error = ?e, "http1 serve connection failed");
-                            }
 
-                            if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
-                                notify.notify_one();
-                            }
-                        });
+                                if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
+                                    notify.notify_one();
+                                }
+                            });
+                        },
+                        Err(e) => {
+                            tracing::error!(error = ?e, "accept connection failed");
+                        }
                     }
                 }
             }

@@ -101,7 +101,7 @@ impl Keycert {
 
     fn build_certified_key(&mut self) -> io::Result<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert()?)
-            .map(|mut certs| certs.drain(..).map(Certificate).collect())
+            .map(|certs| certs.into_iter().map(Certificate).collect())
             .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
 
         let key = {

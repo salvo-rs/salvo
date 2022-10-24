@@ -8,15 +8,16 @@ use std::task::{Context, Poll};
 use std::vec;
 
 use bytes::Bytes;
+use futures_util::stream::{Chain, Pending};
 use futures_util::StreamExt;
 pub use h3_quinn::quinn::ServerConfig;
 use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
-use h3_quinn::NewConnection;
+use quinn::Connecting;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::{HttpBuilders, SocketAddr};
-use crate::http::version::{self, HttpConnection, Version};
+use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
@@ -42,18 +43,18 @@ where
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let socket = std::net::UdpSocket::bind(self.addr)?;
         let local_addr: SocketAddr = socket.local_addr()?.into();
-        let (endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(self.config), socket)?;
+        let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(self.config), socket)?;
         Ok(QuicAcceptor {
-            endpoint,
-            incoming,
+            // endpoint,
+            incoming: incoming.chain(futures_util::stream::pending::<Connecting>()),
             local_addr,
         })
     }
 }
 
 pub struct QuicAcceptor {
-    endpoint: Endpoint,
-    incoming: Incoming,
+    // endpoint: Endpoint,
+    incoming: Chain<Incoming, Pending<Connecting>>,
     local_addr: SocketAddr,
 }
 
@@ -70,21 +71,21 @@ impl DerefMut for H3Connection {
     }
 }
 impl AsyncRead for H3Connection {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+    fn poll_read(self: Pin<&mut Self>, _cx: &mut Context<'_>, _buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         unimplemented!()
     }
 }
 
 impl AsyncWrite for H3Connection {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+    fn poll_write(self: Pin<&mut Self>, _cx: &mut Context<'_>, _buf: &[u8]) -> Poll<IoResult<usize>> {
         unimplemented!()
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         unimplemented!()
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         unimplemented!()
     }
 }
@@ -110,17 +111,13 @@ impl Acceptor for QuicAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
-        println!("accept......0");
         while let Some(new_conn) = self.incoming.next().await {
-            println!("accept.....1");
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    println!("=========================4");
                     let conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
                         .await
                         .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
-                        println!("=========================5");
                     return Ok(Accepted {
                         conn: H3Connection(conn),
                         local_addr: self.local_addr.clone(),

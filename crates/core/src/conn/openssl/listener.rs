@@ -8,7 +8,7 @@ use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::ToSocketAddrs;
 use tokio_openssl::SslStream;
 
@@ -137,12 +137,12 @@ where
                     }
                     self.tls_acceptor = Some(Arc::new(builder.build()));
                 }
-                Err(e) => tracing::error!(error = ?e, "invalid tls config."),
+                Err(e) => tracing::error!(error = ?e, "openssl: invalid tls config."),
             }
         }
         let tls_acceptor = match &self.tls_acceptor {
             Some(tls_acceptor) => tls_acceptor.clone(),
-            None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
+            None => return Err(IoError::new(ErrorKind::Other, "openssl: invalid tls config.")),
         };
         let accepted = self.inner.accept().await?.map_conn(|stream| {
             let fut = async move {

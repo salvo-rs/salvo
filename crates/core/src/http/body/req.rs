@@ -1,21 +1,13 @@
 //! Http body.
-
 use std::boxed::Box;
-use std::collections::VecDeque;
-use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
-use std::future::Future;
-use std::io::Error as IoError;
 use std::pin::Pin;
-use std::task::{self, Context, Poll};
+use std::task::{Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream};
-use futures_util::FutureExt;
+use futures_util::stream::Stream;
 use h3::quic::RecvStream;
-use headers::Header;
 use http::header::HeaderMap;
 use hyper::body::{Body, Recv, SizeHint};
-use pin_project::pin_project;
 
 use bytes::{Buf, Bytes};
 
@@ -162,7 +154,7 @@ where
     S: RecvStream + Send + Unpin + 'static,
     B: Buf + Send + Unpin + 'static,
 {
-    pub fn new(mut inner: h3::server::RequestStream<S, B>) -> Self {
+    pub fn new(inner: h3::server::RequestStream<S, B>) -> Self {
         Self { inner }
     }
 }
@@ -175,7 +167,7 @@ where
     type Data = Bytes;
     type Error = BoxedError;
 
-    fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    fn poll_data(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let this = &mut *self;
         let rt = tokio::runtime::Runtime::new().unwrap();
         Poll::Ready(Some(rt.block_on(async move {
@@ -184,7 +176,7 @@ where
             Ok(buf.unwrap())
         })))
     }
-    fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
+    fn poll_trailers(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
         Poll::Ready(Ok(None)) // TODO: how to get trailers? recv_trailers needs SendStream.
     }
 
