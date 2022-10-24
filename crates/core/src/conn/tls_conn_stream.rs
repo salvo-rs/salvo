@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{poll_fn, BoxFuture, FutureExt};
@@ -8,7 +9,9 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::http::version::{self, Version, HttpConnection};
+use crate::conn::HttpBuilders;
+use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 enum State<S> {
     Handshaking(BoxFuture<'static, IoResult<S>>),
@@ -38,7 +41,6 @@ where
     S: HttpConnection + Unpin + Send + 'static,
 {
     async fn http_version(&mut self) -> Option<Version> {
-        let mut fut = None;
         match &mut self.state {
             State::Handshaking(fut) => match fut.await {
                 Ok(s) => self.state = State::Ready(s),
@@ -53,9 +55,30 @@ where
             }
         }
         if let State::Ready(s) = &mut self.state {
-            fut = Some(s.http_version());
+            s.http_version().await
+        } else {
+            unreachable!()
         }
-        poll_fn(move |cx| fut.as_mut().map(|f| f.as_mut().poll(cx)).unwrap_or(Poll::Pending)).await
+    }
+    async fn serve(mut self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        match &mut self.state {
+            State::Handshaking(fut) => match fut.await {
+                Ok(s) => self.state = State::Ready(s),
+                Err(e) => {
+                    self.state = State::Error(e);
+                    return Err(IoError::new(ErrorKind::Other, "handshake failed"));
+                }
+            },
+            State::Ready(s) => {}
+            State::Error(ref e) => {
+                return Err(IoError::new(ErrorKind::Other, "handshake failed"));
+            }
+        }
+        if let State::Ready(s) = self.state {
+            s.serve(handler, builders).await
+        } else {
+            unreachable!()
+        }
     }
 }
 

@@ -2,20 +2,24 @@
 use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::net::ToSocketAddrs;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::net::ToSocketAddrs;
 use tokio_openssl::SslStream;
 
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{HttpBuilders, Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream,
+};
 use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -82,7 +86,10 @@ impl<C, T> OpensslAcceptor<C, T> {
 }
 
 #[async_trait]
-impl<S> HttpConnection for SslStream<S> where S: Send {
+impl<S> HttpConnection for SslStream<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
     async fn http_version(&mut self) -> Option<Version> {
         self.ssl().selected_alpn_protocol().map(version::from_alpn)
     }
@@ -137,7 +144,7 @@ where
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
-        let accepted = self.inner.accept().await?.map_stream(|stream| {
+        let accepted = self.inner.accept().await?.map_conn(|stream| {
             let fut = async move {
                 let ssl =
                     Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
