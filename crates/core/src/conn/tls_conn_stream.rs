@@ -1,10 +1,17 @@
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::future::{poll_fn, BoxFuture, FutureExt};
+use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+use crate::async_trait;
+use crate::conn::HttpBuilders;
+use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 enum State<S> {
     Handshaking(BoxFuture<'static, IoResult<S>>),
@@ -24,6 +31,53 @@ impl<S> TlsConnStream<S> {
     {
         Self {
             state: State::Handshaking(handshake.boxed()),
+        }
+    }
+}
+
+#[async_trait]
+impl<S> HttpConnection for TlsConnStream<S>
+where
+    S: HttpConnection + Unpin + Send + 'static,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        match &mut self.state {
+            State::Handshaking(fut) => match fut.await {
+                Ok(s) => self.state = State::Ready(s),
+                Err(e) => {
+                    self.state = State::Error(e);
+                    return None;
+                }
+            },
+            State::Ready(s) => {}
+            State::Error(ref e) => {
+                return None;
+            }
+        }
+        if let State::Ready(s) = &mut self.state {
+            s.http_version().await
+        } else {
+            unreachable!()
+        }
+    }
+    async fn serve(mut self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        match &mut self.state {
+            State::Handshaking(fut) => match fut.await {
+                Ok(s) => self.state = State::Ready(s),
+                Err(e) => {
+                    self.state = State::Error(e);
+                    return Err(IoError::new(ErrorKind::Other, "handshake failed"));
+                }
+            },
+            State::Ready(s) => {}
+            State::Error(ref e) => {
+                return Err(IoError::new(ErrorKind::Other, "handshake failed"));
+            }
+        }
+        if let State::Ready(s) = self.state {
+            s.serve(handler, builders).await
+        } else {
+            unreachable!()
         }
     }
 }

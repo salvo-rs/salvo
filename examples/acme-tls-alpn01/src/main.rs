@@ -2,7 +2,7 @@ use salvo::listeners::AcmeListener;
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -10,7 +10,7 @@ async fn hello_world() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().get(hello_world);
+    let router = Router::new().get(hello);
     let listener = AcmeListener::builder()
         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
         .cache_path("acme/letsencrypt")

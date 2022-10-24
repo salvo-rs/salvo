@@ -8,17 +8,17 @@ struct HelloTemplate<'a> {
 }
 
 #[handler]
-async fn hello_world(req: &mut Request, res: &mut Response) {
-    let hello = HelloTemplate {
+async fn hello(req: &mut Request, res: &mut Response) {
+    let hello_tmpl = HelloTemplate {
         name: req.param::<&str>("name").unwrap_or("World"),
     };
-    res.render(Text::Html(hello.render().unwrap()));
+    res.render(Text::Html(hello_tmpl.render().unwrap()));
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<name>").get(hello_world);
+    let router = Router::with_path("<name>").get(hello);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

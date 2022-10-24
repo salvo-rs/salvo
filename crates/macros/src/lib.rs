@@ -28,7 +28,7 @@ mod shared;
 ///
 /// ```ignore
 /// #[handler]
-/// async fn hello_world() -> &'static str {
+/// async fn hello() -> &'static str {
 ///     "Hello World"
 /// }
 /// ```

@@ -5,7 +5,7 @@ use serde::de::value::Error as DeError;
 use thiserror::Error;
 
 use crate::http::StatusError;
-use crate::{async_trait, Depot, Request, Response, Writer};
+use crate::{async_trait, BoxedError, Depot, Request, Response, Writer};
 
 /// Resut type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -69,6 +69,17 @@ pub enum ParseError {
     /// Serde json error.
     #[error("Serde json error: {0}")]
     SerdeJson(#[from] serde_json::error::Error),
+
+    /// Custom error that does not fall under any other error kind.
+    #[error("Other error: {0}")]
+    Other(BoxedError),
+}
+impl ParseError {
+    /// Create a custom error.
+    #[inline]
+    pub fn other(error: impl Into<BoxedError>) -> Self {
+        Self::Other(error.into())
+    }
 }
 
 #[async_trait]

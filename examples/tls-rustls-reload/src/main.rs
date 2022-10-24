@@ -3,7 +3,7 @@ use salvo::prelude::*;
 use tokio::time::Duration;
 
 #[handler]
-async fn hello_world(res: &mut Response) {
+async fn hello(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 
@@ -11,7 +11,7 @@ async fn hello_world(res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().get(hello_world);
+    let router = Router::new().get(hello);
     let listener = RustlsListener::bind(
         async_stream::stream! {
             loop {

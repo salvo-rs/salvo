@@ -1,13 +1,16 @@
-//! Listener trait and it's implements.
+//! JoinListener and it's implements.
 use std::io::{self, Result as IoResult};
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
+use crate::conn::{HttpBuilders, SocketAddr};
+use crate::http::version::{HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -102,12 +105,32 @@ pub struct JoinedAcceptor<A, B> {
 }
 
 #[async_trait]
+impl<A, B> HttpConnection for JoinedStream<A, B>
+where
+    A: HttpConnection + Send,
+    B: HttpConnection + Send,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        match self {
+            JoinedStream::A(a) => a.http_version().await,
+            JoinedStream::B(b) => b.http_version().await,
+        }
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        match self {
+            JoinedStream::A(a) => a.serve(handler, builders).await,
+            JoinedStream::B(b) => b.serve(handler, builders).await,
+        }
+    }
+}
+
+#[async_trait]
 impl<A, B> Acceptor for JoinedAcceptor<A, B>
 where
     A: Acceptor + Send + Unpin + 'static,
     B: Acceptor + Send + Unpin + 'static,
-    A::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-    B::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    A::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    B::Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
@@ -124,10 +147,10 @@ where
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         tokio::select! {
             accepted = self.a.accept() => {
-                Ok(accepted?.map_stream(JoinedStream::A))
+                Ok(accepted?.map_conn(JoinedStream::A))
             }
             accepted = self.b.accept() => {
-                Ok(accepted?.map_stream(JoinedStream::B))
+                Ok(accepted?.map_conn(JoinedStream::B))
             }
         }
     }

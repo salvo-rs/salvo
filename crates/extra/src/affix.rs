@@ -84,7 +84,7 @@ mod tests {
         name: String,
     }
     #[handler]
-    async fn hello_world(depot: &mut Depot) -> String {
+    async fn hello(depot: &mut Depot) -> String {
         format!(
             "{}:{}",
             depot.obtain::<Arc<User>>().map(|u| u.name.clone()).unwrap_or_default(),
@@ -96,7 +96,7 @@ mod tests {
         let user = User {
             name: "salvo".to_string(),
         };
-        let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).handle(hello_world);
+        let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).handle(hello);
         let content = TestClient::get("http://127.0.0.1:7878/")
             .send(router)
             .await

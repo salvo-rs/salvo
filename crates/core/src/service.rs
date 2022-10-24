@@ -122,7 +122,7 @@ impl Service {
     }
 
     /// async fn main() {
-    ///     let service: Service = Router::new().get(hello_world).into();
+    ///     let service: Service = Router::new().get(hello).into();
     ///     let mut res = TestClient::get("http://127.0.0.1:7878");.send(&service).await;
     ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
     /// }
@@ -251,8 +251,7 @@ where
 
     #[inline]
     fn call(&mut self, req: HyperRequest<B>) -> Self::Future {
-        let req: Request = req.into();
-        let response = self.handle(req);
+        let response = self.handle(req.into());
         let fut = async move {
             let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;

@@ -4,14 +4,20 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use futures_util::future::{ready, Ready};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream,
+};
+use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::RustlsConfig;
 
@@ -40,6 +46,7 @@ where
     C: IntoConfigStream<RustlsConfig>,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
+    <<T as Listener>::Acceptor as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
@@ -83,10 +90,28 @@ impl<C, T> RustlsAcceptor<C, T> {
 }
 
 #[async_trait]
+impl<S> HttpConnection for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        self.get_ref().1.alpn_protocol().map(version::from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+}
+
+#[async_trait]
 impl<C, T> Acceptor for RustlsAcceptor<C, T>
 where
     C: Stream<Item = RustlsConfig> + Send + Unpin + 'static,
     T: Acceptor + Send + 'static,
+    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
@@ -123,7 +148,7 @@ where
             .inner
             .accept()
             .await?
-            .map_stream(|s| TlsConnStream::new(tls_acceptor.accept(s)));
+            .map_conn(|s| TlsConnStream::new(tls_acceptor.accept(s)));
         Ok(accepted)
     }
 }

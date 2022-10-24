@@ -151,6 +151,7 @@ pub struct RustlsConfig {
     fallback: Option<Keycert>,
     keycerts: HashMap<String, Keycert>,
     client_auth: TlsClientAuth,
+    alpn_protocols: Vec<Vec<u8>>,
 }
 
 impl fmt::Debug for RustlsConfig {
@@ -168,6 +169,7 @@ impl RustlsConfig {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
+            alpn_protocols: vec!["h2".into(), "http/1.1".into()],
         }
     }
 
@@ -222,6 +224,14 @@ impl RustlsConfig {
         self.keycerts.insert(name.into(), keycert);
         self
     }
+
+    /// Add a new keycert to be used for the given SNI `name`.
+    #[inline]
+    pub fn alpn_protocols(mut self, alpn_protocols: impl Into<Vec<Vec<u8>>>) -> Self {
+        self.alpn_protocols = alpn_protocols.into();
+        self
+    }
+
     /// ServerConfig
     pub(crate) fn build_server_config(mut self) -> io::Result<ServerConfig> {
         let fallback = self
@@ -251,7 +261,7 @@ impl RustlsConfig {
                 certified_keys,
                 fallback,
             }));
-        config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
+        config.alpn_protocols = self.alpn_protocols;
         Ok(config)
     }
 }

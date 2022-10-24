@@ -1,15 +1,21 @@
 //! native_tls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::ToSocketAddrs;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream};
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream,
+};
+use crate::http::version::{self, HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;
 
@@ -61,6 +67,23 @@ where
     }
 }
 
+#[async_trait]
+impl<S> HttpConnection for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    async fn http_version(&mut self) -> Option<Version> {
+        self.get_ref().negotiated_alpn().ok().flatten().map(version::from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+}
+
 /// NativeTlsAcceptor
 pub struct NativeTlsAcceptor<C, T> {
     config_stream: C,
@@ -83,6 +106,7 @@ impl<C, T> Acceptor for NativeTlsAcceptor<C, T>
 where
     C: Stream<Item = NativeTlsConfig> + Send + Unpin + 'static,
     T: Acceptor + Send + 'static,
+    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
@@ -123,10 +147,10 @@ where
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "no valid tls config.")),
         };
-        let accepted = self.inner.accept().await?.map_stream(|stream| {
+        let accepted = self.inner.accept().await?.map_conn(|conn| {
             let fut = async move {
                 tls_acceptor
-                    .accept(stream)
+                    .accept(conn)
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             };

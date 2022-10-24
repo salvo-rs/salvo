@@ -41,7 +41,7 @@ impl FormData {
                 let data = hyper::body::to_bytes(body)
                     .await
                     .map(|d| d.to_vec())
-                    .map_err(ParseError::Hyper)?;
+                    .map_err(|e| ParseError::Other(e))?;
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)

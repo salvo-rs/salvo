@@ -2,7 +2,7 @@ use salvo::prelude::*;
 use salvo_rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RemoteIpIssuer};
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -16,6 +16,6 @@ async fn main() {
         RemoteIpIssuer,
         BasicQuota::per_second(1),
     );
-    let router = Router::with_hoop(limiter).get(hello_world);
+    let router = Router::with_hoop(limiter).get(hello);
     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }

@@ -528,7 +528,8 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.send(req.headers(), res).await;
+        let headers = req.headers();
+        self.send(headers, res).await;
     }
 }
 

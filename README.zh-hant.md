@@ -44,7 +44,7 @@ Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需�
 
 ## ⚡️ 快速開始
 
-你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs/book/guid/hello_world/).
+你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs/book/guid/hello/).
 
 
 創建一個全新的項目:
@@ -60,13 +60,13 @@ cargo new hello_salvo --bin
 salvo = "*"
 tokio = { version = "1", features = ["macros"] }
 ```
-在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello_world`, 這個函數隻是簡單地打印文本 ```"Hello World"```.
+在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello`, 這個函數隻是簡單地打印文本 ```"Hello World"```.
 
 ```rust
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+async fn hello(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 ```
@@ -89,7 +89,7 @@ async fn add_header(res: &mut Response) {
 然後將它添加到路由中:
 
 ```rust
-Router::new().hoop(add_header).get(hello_world)
+Router::new().hoop(add_header).get(hello)
 ```
 
 這就是一個簡單的中間件, 它嚮 ```Response``` 的頭部添加了 ```Header```, 查看[完整源碼](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).

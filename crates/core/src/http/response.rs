@@ -328,28 +328,45 @@ impl Response {
 
     /// Render content.
     #[inline]
-    pub fn render<P>(&mut self, piece: P) -> &mut Self
+    pub fn render<P>(&mut self, piece: P)
     where
         P: Piece,
     {
         piece.render(self);
+    }
+
+    /// Render content.
+    #[inline]
+    pub fn with_render<P>(&mut self, piece: P) -> &mut Self
+    where
+        P: Piece,
+    {
+        self.render(piece);
         self
     }
 
     /// Render content with status code.
     #[inline]
-    pub fn stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
+    pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
     where
         P: Piece,
     {
         self.status_code = Some(code);
         piece.render(self);
+    }
+    /// Render content with status code.
+    #[inline]
+    pub fn with_stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
+    where
+        P: Piece,
+    {
+        self.stuff(code, piece);
         self
     }
 
     /// Write bytes data to body. If body is none, a new `ResBody` will created.
     #[inline]
-    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<&mut self> {
+    pub fn write_body(&mut self, data: impl Into<Bytes>) -> crate::Result<()> {
         match self.body_mut() {
             ResBody::None => {
                 self.body = ResBody::Once(data.into());
@@ -370,11 +387,11 @@ impl Response {
                 ));
             }
         }
-        Ok(self)
+        Ok(())
     }
     /// Write streaming data.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<&mut self>
+    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
@@ -394,7 +411,7 @@ impl Response {
         }
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
         self.body = ResBody::Stream(Box::pin(mapped));
-        Ok(self)
+        Ok(())
     }
 }
 

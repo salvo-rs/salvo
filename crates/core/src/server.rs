@@ -4,12 +4,19 @@ use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use hyper::server::conn::Http;
+#[cfg(feature = "http3")]
+use h3::error::ErrorLevel;
+#[cfg(feature = "http1")]
+use hyper::server::conn::http1;
+#[cfg(feature = "http2")]
+use hyper::server::conn::http2;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Accepted, Acceptor, Listener};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
+use crate::http::version::{HttpConnection, Version};
+use crate::runtimes::{TokioExecutor, TokioTimer};
 use crate::Service;
 
 /// HTTP Server
@@ -17,12 +24,13 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<L> {
     listener: L,
-    protocol: Http,
+    builders: Arc<HttpBuilders>,
 }
 
 impl<L> Server<L>
 where
     L: Listener,
+    <L::Acceptor as Acceptor>::Conn: HttpConnection,
 {
     /// Create new `Server` with [`Listener`].
     ///
@@ -40,14 +48,27 @@ where
     pub fn new(listener: L) -> Self {
         Server {
             listener,
-            protocol: Http::new(),
+            builders: HttpBuilders {
+                #[cfg(feature = "http1")]
+                http1: http1::Builder::new(),
+                #[cfg(feature = "http2")]
+                http2: http2::Builder::new(TokioExecutor),
+                #[cfg(feature = "http3")]
+                http3: crate::conn::http3::Http3Builder,
+            }
+            .into(),
         }
     }
 
-    /// Use this function to set http protocol.
-    pub fn protocol_mut(&mut self) -> &mut Http {
-        &mut self.protocol
-    }
+    // Use this function to set http protocol.
+    // pub fn http1_mut(&mut self) -> &mut http1::Builder {
+    //     &mut self.http1
+    // }
+
+    // /// Use this function to set http protocol.
+    // pub fn http2_mut(&mut self) -> &mut http2::Builder {
+    //     &mut self.http2
+    // }
 
     /// Serve a [`Service`]
     #[inline]
@@ -78,14 +99,14 @@ where
     /// use salvo_core::prelude::*;
     ///
     /// #[handler]
-    /// async fn hello_world(res: &mut Response) {
+    /// async fn hello(res: &mut Response) {
     ///     res.render("Hello World!");
     /// }
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
-    ///     let router = Router::new().get(hello_world);
+    ///     let router = Router::new().get(hello);
     ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     });
@@ -133,6 +154,8 @@ where
 
         let service = Arc::new(service.into());
         loop {
+            println!("99988==0");
+            let builders = self.builders.clone();
             tokio::select! {
                 _ = &mut signal => {
                     if let Some(timeout) = timeout {
@@ -152,27 +175,29 @@ where
                     break;
                 },
                  accepted = acceptor.accept() => {
-                    if let Ok(accepted) = accepted {
+                    println!("99999==0");
+                    if let Ok(Accepted { conn, local_addr, remote_addr }) = accepted {
                         let service = service.clone();
                         let alive_connections = alive_connections.clone();
                         let notify = notify.clone();
                         let timeout_notify = timeout_notify.clone();
-                        let protocol = self.protocol.clone();
-
+                        let handler = service.hyper_handler(local_addr, remote_addr);
+                        println!("99999==1");
                         tokio::spawn(async move {
                             alive_connections.fetch_add(1, Ordering::SeqCst);
-
+                            println!("99999==2");
+                            let conn = conn.serve(handler, builders);
                             if timeout.is_some() {
                                 tokio::select! {
-                                    result = serve_connection(protocol, accepted, service) => {
+                                    result = conn => {
                                         if let Err(e) = result {
-                                            tracing::error!(error = ?e, "serve connection failed");
+                                            tracing::error!(error = ?e, "http1 serve connection failed");
                                         }
                                     },
                                     _ = timeout_notify.notified() => {}
                                 }
-                            } else if let Err(e) = serve_connection(protocol, accepted, service).await {
-                                tracing::error!(error = ?e, "serve connection failed");
+                            } else if let Err(e) = conn.await {
+                                tracing::error!(error = ?e, "http1 serve connection failed");
                             }
 
                             if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
@@ -194,22 +219,6 @@ where
     }
 }
 
-async fn serve_connection<S>(protocol: Http, accepted: Accepted<S>, service: Arc<Service>) -> Result<(), hyper::Error>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    let Accepted {
-        stream,
-        local_addr,
-        remote_addr,
-    } = accepted;
-    let conn = protocol
-        .clone()
-        .serve_connection(stream, service.hyper_handler(local_addr, remote_addr))
-        .with_upgrades();
-    conn.await
-}
-
 #[cfg(test)]
 mod tests {
     use serde::Serialize;
@@ -219,7 +228,7 @@ mod tests {
     #[tokio::test]
     async fn test_server() {
         #[handler(internal)]
-        async fn hello_world() -> Result<&'static str, ()> {
+        async fn hello() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
         #[handler(internal)]
@@ -230,7 +239,7 @@ mod tests {
             }
             res.render(Json(User { name: "jobs".into() }));
         }
-        let router = Router::new().get(hello_world).push(Router::with_path("json").get(json));
+        let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let listener = TcpListener::bind("127.0.0.1:0");
         let addr = listener.local_addr();
         let server = tokio::task::spawn(async {

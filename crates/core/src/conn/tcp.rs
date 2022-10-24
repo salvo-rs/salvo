@@ -1,11 +1,15 @@
-//! Listener trait and it's implements.
-use std::io::Result as IoResult;
+//! TcpListener and it's implements.
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::sync::Arc;
 use std::vec;
 
+use futures_util::future::{ready, Ready};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::SocketAddr;
+use crate::conn::{HttpBuilders, SocketAddr};
+use crate::http::version::{HttpConnection, Version};
+use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
@@ -39,6 +43,21 @@ pub struct TcpAcceptor {
 }
 
 #[async_trait]
+impl HttpConnection for TcpStream {
+    async fn http_version(&mut self) -> Option<Version> {
+        Some(Version::HTTP_11)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http1
+            .serve_connection(self, handler)
+            .with_upgrades()
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+}
+
+#[async_trait]
 impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
 
@@ -49,8 +68,8 @@ impl Acceptor for TcpAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
-        self.inner.accept().await.map(move |(stream, remote_addr)| Accepted {
-            stream,
+        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
+            conn,
             local_addr: self.local_addr.clone(),
             remote_addr: remote_addr.into(),
         })

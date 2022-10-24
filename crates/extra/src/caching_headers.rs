@@ -194,13 +194,13 @@ mod tests {
     use super::*;
 
     #[handler]
-    async fn hello_world() -> &'static str {
+    async fn hello() -> &'static str {
         "Hello World"
     }
 
     #[tokio::test]
     async fn test_affix() {
-        let router = Router::with_hoop(CachingHeaders::new()).get(hello_world);
+        let router = Router::with_hoop(CachingHeaders::new()).get(hello);
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:7878/").send(&service).await;
