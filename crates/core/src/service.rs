@@ -6,7 +6,7 @@ use hyper::service::Service as HyperService;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
-use crate::conn::SocketAddr;
+use crate::conn::{LocalAddr, SocketAddr};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};
@@ -111,7 +111,7 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn hyper_handler(&self, local_addr: SocketAddr, remote_addr: SocketAddr) -> HyperHandler {
+    pub fn hyper_handler(&self, local_addr: LocalAddr, remote_addr: SocketAddr) -> HyperHandler {
         HyperHandler {
             local_addr,
             remote_addr,
@@ -130,7 +130,7 @@ impl Service {
     #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown)
+        self.hyper_handler(LocalAddr::default(), SocketAddr::Unknown)
             .handle(request.into())
             .await
     }
@@ -149,7 +149,7 @@ where
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
-    pub(crate) local_addr: SocketAddr,
+    pub(crate) local_addr: LocalAddr,
     pub(crate) remote_addr: SocketAddr,
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,

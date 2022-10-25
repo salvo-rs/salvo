@@ -1,11 +1,10 @@
 //! Listener trait and it's implements.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
-use std::sync::Arc;
+use std::io::Result as IoResult;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::http::version::{HttpConnection, Version};
-use crate::{async_trait, handler};
+use crate::async_trait;
+use crate::http::version::HttpConnection;
 
 // cfg_feature! {
 //     #![feature = "acme"]
@@ -37,8 +36,8 @@ cfg_feature! {
     #![unix]
     pub mod unix;
 }
-mod addr;
-pub use addr::SocketAddr;
+pub mod addr;
+pub use addr::{LocalAddr, SocketAddr};
 
 mod tcp;
 pub use tcp::TcpListener;
@@ -75,7 +74,7 @@ pub struct Accepted<C> {
     /// Incoming stream.
     pub conn: C,
     /// Local addr.
-    pub local_addr: SocketAddr,
+    pub local_addr: LocalAddr,
     /// Remote addr.
     pub remote_addr: SocketAddr,
 }
@@ -107,7 +106,7 @@ pub trait Acceptor {
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
     /// Returns the local address that this listener is bound to.
-    fn local_addrs(&self) -> Vec<&SocketAddr>;
+    fn local_addrs(&self) -> Vec<&LocalAddr>;
 
     /// Accepts a new incoming connection from this listener.
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;

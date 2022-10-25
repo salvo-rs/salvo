@@ -1,21 +1,13 @@
 //! Http body.
-
 use std::boxed::Box;
-use std::collections::VecDeque;
-use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
-use std::future::Future;
-use std::io::Error as IoError;
 use std::pin::Pin;
-use std::task::{self, Context, Poll};
+use std::task::{Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream};
-use futures_util::FutureExt;
+use futures_util::stream::Stream;
 use h3::quic::RecvStream;
-use headers::Header;
 use http::header::HeaderMap;
-use hyper::body::{Body, Recv, SizeHint};
-use pin_project::pin_project;
+use hyper::body::{Body, Frame, Recv, SizeHint};
 
 use bytes::{Buf, Bytes};
 
@@ -53,7 +45,10 @@ impl Body for ReqBody {
     type Data = Bytes;
     type Error = BoxedError;
 
-    fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         match &mut *self {
             ReqBody::None => Poll::Ready(None),
             ReqBody::Once(bytes) => {
@@ -61,19 +56,11 @@ impl Body for ReqBody {
                     Poll::Ready(None)
                 } else {
                     let bytes = std::mem::replace(bytes, Bytes::new());
-                    Poll::Ready(Some(Ok(bytes)))
+                    Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            ReqBody::Recv(recv) => Pin::new(recv).poll_data(cx).map_err(|e| e.into()),
-            ReqBody::Inner(inner) => Pin::new(inner).poll_data(cx),
-        }
-    }
-    fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        match &mut *self {
-            ReqBody::None => Poll::Ready(Ok(None)),
-            ReqBody::Once(_) => Poll::Ready(Ok(None)),
-            ReqBody::Recv(recv) => Pin::new(recv).poll_trailers(cx).map_err(|e| e.into()),
-            ReqBody::Inner(inner) => inner.as_mut().poll_trailers(cx),
+            ReqBody::Recv(recv) => Pin::new(recv).poll_frame(cx).map_err(|e| e.into()),
+            ReqBody::Inner(inner) => Pin::new(inner).poll_frame(cx),
         }
     }
 
@@ -99,7 +86,12 @@ impl Stream for ReqBody {
     type Item = Result<Bytes, BoxedError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Body::poll_data(self, cx)
+        match Body::poll_frame(self, cx) {
+            Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok)),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -162,7 +154,7 @@ where
     S: RecvStream + Send + Unpin + 'static,
     B: Buf + Send + Unpin + 'static,
 {
-    pub fn new(mut inner: h3::server::RequestStream<S, B>) -> Self {
+    pub fn new(inner: h3::server::RequestStream<S, B>) -> Self {
         Self { inner }
     }
 }
@@ -175,17 +167,17 @@ where
     type Data = Bytes;
     type Error = BoxedError;
 
-    fn poll_data(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = &mut *self;
         let rt = tokio::runtime::Runtime::new().unwrap();
         Poll::Ready(Some(rt.block_on(async move {
             let buf = this.inner.recv_data().await.unwrap();
             let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
-            Ok(buf.unwrap())
+            Ok(Frame::data(buf.unwrap()))
         })))
-    }
-    fn poll_trailers(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        Poll::Ready(Ok(None)) // TODO: how to get trailers? recv_trailers needs SendStream.
     }
 
     fn is_end_stream(&self) -> bool {

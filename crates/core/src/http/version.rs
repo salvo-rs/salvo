@@ -1,8 +1,5 @@
-use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::Arc;
-
-use futures_util::stream::{Peekable, Stream, StreamExt};
 
 pub use http::version::Version;
 

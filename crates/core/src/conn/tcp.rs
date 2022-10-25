@@ -3,11 +3,11 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
 use std::vec;
 
-use futures_util::future::{ready, Ready};
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::{HttpBuilders, SocketAddr};
+use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::HttpBuilders;
 use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -32,14 +32,14 @@ where
     type Acceptor = TcpAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let inner = TokioTcpListener::bind(self.addr).await?;
-        let local_addr: SocketAddr = inner.local_addr()?.into();
+        let local_addr = LocalAddr::new(inner.local_addr()?.into(), TransProto::Tcp, AppProto::Http);
         Ok(TcpAcceptor { inner, local_addr })
     }
 }
 
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
-    local_addr: SocketAddr,
+    local_addr: LocalAddr,
 }
 
 #[async_trait]
@@ -62,7 +62,7 @@ impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&SocketAddr> {
+    fn local_addrs(&self) -> Vec<&LocalAddr> {
         vec![&self.local_addr]
     }
 

@@ -94,8 +94,6 @@ pub mod __private {
     pub use tracing;
 }
 
-use std::{future::Future, thread::available_parallelism};
-
 #[doc(hidden)]
 pub trait IntoVecString {
     fn into_vec_string(self) -> Vec<String>;

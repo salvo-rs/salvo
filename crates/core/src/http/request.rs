@@ -10,12 +10,13 @@ use http::method::Method;
 pub use http::request::Parts;
 use http::version::Version;
 use http::{self, Extensions, Uri};
+use http_body_util::BodyExt;
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
 
-use crate::conn::SocketAddr;
+use crate::conn::{LocalAddr, SocketAddr};
 use crate::extract::{Extractible, Metadata};
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
@@ -52,7 +53,7 @@ pub struct Request {
 
     /// The version of the HTTP protocol used.
     version: Version,
-    pub(crate) local_addr: SocketAddr,
+    pub(crate) local_addr: LocalAddr,
     pub(crate) remote_addr: SocketAddr,
 }
 
@@ -126,8 +127,8 @@ where
             payload: tokio::sync::OnceCell::new(),
             // multipart: OnceCell::new(),
             version,
+            local_addr: LocalAddr::default(),
             remote_addr: SocketAddr::Unknown,
-            local_addr: SocketAddr::Unknown,
         }
     }
 }
@@ -149,7 +150,7 @@ impl Request {
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             version: Version::default(),
-            local_addr: SocketAddr::Unknown,
+            local_addr: LocalAddr::default(),
             remote_addr: SocketAddr::Unknown,
         }
     }
@@ -228,7 +229,7 @@ impl Request {
     }
     /// Get request remote address.
     #[inline]
-    pub fn local_addr(&self) -> &SocketAddr {
+    pub fn local_addr(&self) -> &LocalAddr {
         &self.local_addr
     }
 
@@ -530,10 +531,11 @@ impl Request {
         let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                hyper::body::to_bytes(body)
+                Ok(BodyExt::collect(body)
                     .await
-                    .map(|d| d.to_vec())
-                    .map_err(|e| ParseError::Other(e))
+                    .map_err(ParseError::other)?
+                    .to_bytes()
+                    .to_vec())
             })
             .await
     }

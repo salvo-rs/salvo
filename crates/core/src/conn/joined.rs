@@ -8,7 +8,8 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::{HttpBuilders, SocketAddr};
+use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::HttpBuilders;
 use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -135,7 +136,7 @@ where
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&SocketAddr> {
+    fn local_addrs(&self) -> Vec<&LocalAddr> {
         self.a
             .local_addrs()
             .into_iter()
