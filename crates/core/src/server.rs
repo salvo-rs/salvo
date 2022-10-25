@@ -129,7 +129,7 @@ impl<A: Acceptor> Server<A> {
     ///     let router = Router::new().get(hello);
     ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
-    ///     });
+    ///     }, None);
     ///
     ///     // Spawn the server into a runtime
     ///     tokio::task::spawn(server);
