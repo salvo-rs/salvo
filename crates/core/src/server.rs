@@ -146,7 +146,7 @@ where
 
         let mut acceptor = self.listener.into_acceptor().await?;
         for addr in acceptor.local_addrs() {
-            tracing::info!( addr = %addr, "listening");
+            tracing::info!("listening on {}", addr);
         }
 
         let service = Arc::new(service.into());

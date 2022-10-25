@@ -8,7 +8,8 @@ use std::task::{self, Context, Poll};
 
 use futures_util::stream::{BoxStream, Stream};
 use http::header::HeaderMap;
-use hyper::body::{Body, SizeHint};
+use http_body_util::BodyExt;
+use hyper::body::{Body, Frame, SizeHint};
 
 use bytes::Bytes;
 
@@ -83,12 +84,13 @@ impl Body for ResBody {
     type Data = Bytes;
     type Error = Box<dyn StdError + Send + Sync>;
 
-    fn poll_data(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Self::Data, Self::Error>>> {
-        self.poll_next(_cx)
-    }
-
-    fn poll_trailers(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        Poll::Ready(Ok(None))
+    fn poll_frame(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        match self.poll_next(_cx) {
+            Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Some(Ok(Frame::data(bytes)))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     fn is_end_stream(&self) -> bool {

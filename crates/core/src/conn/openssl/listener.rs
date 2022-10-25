@@ -15,9 +15,8 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{
-    Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream,
-};
+use crate::conn::addr::{AppProto, LocalAddr};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream};
 use crate::http::version::{self, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -73,13 +72,23 @@ where
 pub struct OpensslAcceptor<C, T> {
     config_stream: C,
     inner: T,
+    local_addrs: Vec<LocalAddr>,
     tls_acceptor: Option<Arc<SslAcceptor>>,
 }
-impl<C, T> OpensslAcceptor<C, T> {
+impl<C, T> OpensslAcceptor<C, T>
+where
+    T: Acceptor,
+{
     pub fn new(config_stream: C, inner: T) -> OpensslAcceptor<C, T> {
+        let local_addrs = inner
+            .local_addrs()
+            .iter()
+            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto.clone(), AppProto::Https))
+            .collect();
         OpensslAcceptor {
             config_stream,
             inner,
+            local_addrs,
             tls_acceptor: None,
         }
     }
@@ -111,8 +120,8 @@ where
     type Conn = TlsConnStream<SslStream<T::Conn>>;
 
     /// Get the local address bound to this listener.
-    fn local_addrs(&self) -> Vec<&SocketAddr> {
-        self.inner.local_addrs()
+    fn local_addrs(&self) -> Vec<&LocalAddr> {
+        self.local_addrs.iter().collect()
     }
 
     #[inline]

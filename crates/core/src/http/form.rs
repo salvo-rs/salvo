@@ -2,6 +2,8 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use futures_util::StreamExt;
+use http_body_util::BodyExt;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use tempfile::Builder;
@@ -38,10 +40,11 @@ impl FormData {
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
         match headers.get(CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-                let data = hyper::body::to_bytes(body)
+                let data = BodyExt::collect(body)
                     .await
-                    .map(|d| d.to_vec())
-                    .map_err(|e| ParseError::Other(e))?;
+                    .map_err(ParseError::other)?
+                    .to_bytes()
+                    .to_vec();
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)

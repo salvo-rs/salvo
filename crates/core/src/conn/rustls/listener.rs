@@ -12,9 +12,8 @@ use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{
-    Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, SocketAddr, TcpListener, TlsConnStream,
-};
+use crate::conn::addr::{AppProto, LocalAddr};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream};
 use crate::http::version::{self, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -75,14 +74,24 @@ where
 pub struct RustlsAcceptor<C, T> {
     config_stream: C,
     inner: T,
+    local_addrs: Vec<LocalAddr>,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
 }
-impl<C, T> RustlsAcceptor<C, T> {
+impl<C, T> RustlsAcceptor<C, T>
+where
+    T: Acceptor,
+{
     /// Create a new `RustlsAcceptor`.
     pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> {
+        let local_addrs = inner
+            .local_addrs()
+            .iter()
+            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto.clone(), AppProto::Https))
+            .collect();
         RustlsAcceptor {
             config_stream,
             inner,
+            local_addrs,
             tls_acceptor: None,
         }
     }
@@ -114,8 +123,8 @@ where
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
-    fn local_addrs(&self) -> Vec<&SocketAddr> {
-        self.inner.local_addrs()
+    fn local_addrs(&self) -> Vec<&LocalAddr> {
+        self.local_addrs.iter().collect()
     }
 
     #[inline]

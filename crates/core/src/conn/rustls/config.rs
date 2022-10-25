@@ -20,7 +20,7 @@ use crate::conn::IntoConfigStream;
 use super::read_trust_anchor;
 
 /// Private key and certificate
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Keycert {
     key: Vec<u8>,
     cert: Vec<u8>,
@@ -137,6 +137,7 @@ impl Keycert {
 }
 
 /// Tls client authentication configuration.
+#[derive(Clone, Debug)]
 pub(crate) enum TlsClientAuth {
     /// No client auth.
     Off,
@@ -147,18 +148,12 @@ pub(crate) enum TlsClientAuth {
 }
 
 /// Builder to set the configuration for the Tls server.
+#[derive(Clone, Debug)]
 pub struct RustlsConfig {
     fallback: Option<Keycert>,
     keycerts: HashMap<String, Keycert>,
     client_auth: TlsClientAuth,
     alpn_protocols: Vec<Vec<u8>>,
-}
-
-impl fmt::Debug for RustlsConfig {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.debug_struct("RustlsConfig").finish()
-    }
 }
 
 impl RustlsConfig {

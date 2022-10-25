@@ -8,7 +8,6 @@ use std::task::{Context, Poll};
 use std::vec;
 
 use bytes::Bytes;
-use futures_util::stream::{Chain, Pending};
 use futures_util::StreamExt;
 pub use h3_quinn::quinn::ServerConfig;
 use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
@@ -16,7 +15,9 @@ use quinn::Connecting;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::{HttpBuilders, SocketAddr};
+use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::rustls::RustlsConfig;
+use crate::conn::HttpBuilders;
 use crate::http::version::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -24,14 +25,15 @@ use super::{Accepted, Acceptor, Listener};
 
 /// QuicListener
 pub struct QuicListener<T> {
+    config: RustlsConfig,
     addr: T,
-    config: ServerConfig,
 }
 impl<T: ToSocketAddrs> QuicListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(addr: T, config: ServerConfig) -> Self {
-        QuicListener { addr, config }
+    pub fn bind(mut config: RustlsConfig, addr: T) -> Self {
+        let config = config.alpn_protocols([b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()]);
+        QuicListener { config, addr }
     }
 }
 #[async_trait]
@@ -41,12 +43,15 @@ where
 {
     type Acceptor = QuicAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        let socket = std::net::UdpSocket::bind(self.addr)?;
-        let local_addr: SocketAddr = socket.local_addr()?.into();
-        let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(self.config), socket)?;
+        let Self { addr, config } = self;
+        let socket = std::net::UdpSocket::bind(addr)?;
+        let local_addr = LocalAddr::new(socket.local_addr()?.into(), TransProto::Udp, AppProto::Https);
+        let crypto = config.build_server_config()?;
+        let server_config = crate::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));
+        let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(server_config), socket)?;
         Ok(QuicAcceptor {
             // endpoint,
-            incoming: incoming.chain(futures_util::stream::pending::<Connecting>()),
+            incoming,
             local_addr,
         })
     }
@@ -54,8 +59,8 @@ where
 
 pub struct QuicAcceptor {
     // endpoint: Endpoint,
-    incoming: Chain<Incoming, Pending<Connecting>>,
-    local_addr: SocketAddr,
+    incoming: Incoming,
+    local_addr: LocalAddr,
 }
 
 pub struct H3Connection(pub h3::server::Connection<h3_quinn::Connection, Bytes>);
@@ -105,7 +110,7 @@ impl Acceptor for QuicAcceptor {
     type Conn = H3Connection;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&SocketAddr> {
+    fn local_addrs(&self) -> Vec<&LocalAddr> {
         vec![&self.local_addr]
     }
 
@@ -128,28 +133,5 @@ impl Acceptor for QuicAcceptor {
             }
         }
         Err(IoError::new(ErrorKind::Other, "http3 accept error"))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use futures_util::{Stream, StreamExt};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::QuicStream;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn test_Quic_listener() {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
-
-        let mut listener = QuicListener::bind(addr);
-        tokio::spawn(async move {
-            let mut stream = QuicStream::connect(addr).await.unwrap();
-            stream.write_i32(150).await.unwrap();
-        });
-
-        let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 150);
     }
 }
