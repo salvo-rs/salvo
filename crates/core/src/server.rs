@@ -221,8 +221,8 @@ where
 mod tests {
     use serde::Serialize;
 
-    use crate::prelude::*;
     use crate::conn::Acceptor;
+    use crate::prelude::*;
 
     #[tokio::test]
     async fn test_server() {
@@ -242,7 +242,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0");
         let mut acceptor = listener.into_acceptor().await.unwrap();
         let addr = acceptor.local_addrs().remove(0);
-        let addr  = addr.into_std().unwrap();
+        let addr = addr.into_std().unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
