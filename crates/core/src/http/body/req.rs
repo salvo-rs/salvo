@@ -20,16 +20,16 @@ pub enum ReqBody {
     /// Once bytes body.
     Once(Bytes),
     /// Hyper default body.
-    Recv(Recv),
+    Hyper(Recv),
     /// Inner body.
-    Inner(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Unpin + 'static>>),
+    Inner(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + Unpin + 'static>>),
 }
 impl fmt::Debug for ReqBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
             ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
-            ReqBody::Recv(_) => f.debug_tuple("ReqBody::Recv").finish(),
+            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
             ReqBody::Inner(_) => f.debug_tuple("ReqBody::Inner").finish(),
         }
     }
@@ -59,7 +59,7 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            ReqBody::Recv(recv) => Pin::new(recv).poll_frame(cx).map_err(|e| e.into()),
+            ReqBody::Hyper(recv) => Pin::new(recv).poll_frame(cx).map_err(|e| e.into()),
             ReqBody::Inner(inner) => Pin::new(inner).poll_frame(cx),
         }
     }
@@ -68,7 +68,7 @@ impl Body for ReqBody {
         match self {
             ReqBody::None => true,
             ReqBody::Once(bytes) => bytes.is_empty(),
-            ReqBody::Recv(recv) => recv.is_end_stream(),
+            ReqBody::Hyper(recv) => recv.is_end_stream(),
             ReqBody::Inner(inner) => inner.is_end_stream(),
         }
     }
@@ -77,7 +77,7 @@ impl Body for ReqBody {
         match self {
             ReqBody::None => SizeHint::with_exact(0),
             ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
-            ReqBody::Recv(recv) => recv.size_hint(),
+            ReqBody::Hyper(recv) => recv.size_hint(),
             ReqBody::Inner(inner) => inner.size_hint(),
         }
     }
@@ -102,7 +102,7 @@ impl From<Bytes> for ReqBody {
 }
 impl From<Recv> for ReqBody {
     fn from(value: Recv) -> ReqBody {
-        ReqBody::Recv(value)
+        ReqBody::Hyper(value)
     }
 }
 impl From<String> for ReqBody {
@@ -138,8 +138,8 @@ impl From<Box<[u8]>> for ReqBody {
 
 impl<S, B> From<H3ReqBody<S, B>> for ReqBody
 where
-    S: RecvStream + Send + Unpin + 'static,
-    B: Buf + Send + Unpin + 'static,
+    S: RecvStream + Send + Sync + Unpin + 'static,
+    B: Buf + Send + Sync + Unpin + 'static,
 {
     fn from(value: H3ReqBody<S, B>) -> ReqBody {
         ReqBody::Inner(Box::pin(value))
