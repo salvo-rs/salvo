@@ -6,7 +6,7 @@ use hyper::service::Service as HyperService;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
-use crate::conn::{SocketAddr, LocalAddr};
+use crate::conn::{LocalAddr, SocketAddr};
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::header::CONTENT_TYPE;
 use crate::http::{Mime, Request, Response, StatusCode};

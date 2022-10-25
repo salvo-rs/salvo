@@ -106,7 +106,7 @@ pub trait Acceptor {
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
     /// Returns the local address that this listener is bound to.
-    fn local_addrs(&self) -> Vec< &LocalAddr>;
+    fn local_addrs(&self) -> Vec<&LocalAddr>;
 
     /// Accepts a new incoming connection from this listener.
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
