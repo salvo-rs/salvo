@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use rustls::{Certificate, PrivateKey};
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 
@@ -8,7 +5,7 @@ use salvo::prelude::*;
 async fn hello(res: &mut Response) -> &'static str {
     res.add_header(
         "alt-svc",
-        r#"h3-29=":8080"; ma=2592000,quic=":8080"; ma=2592000; v="46,43""#,
+        r#"h3-29=":7878"; ma=2592000,quic=":7878"; ma=2592000; v="46,43""#,
         true,
     )
     .unwrap();

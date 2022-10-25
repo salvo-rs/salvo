@@ -164,7 +164,7 @@ impl RustlsConfig {
             fallback: fallback.into(),
             keycerts: HashMap::new(),
             client_auth: TlsClientAuth::Off,
-            alpn_protocols: vec!["h2".into(), "http/1.1".into()],
+            alpn_protocols: vec![b"h2".to_vec(), b"http/1.1".to_vec()],
         }
     }
 
