@@ -17,5 +17,5 @@ async fn main() {
             .with_key(include_bytes!("../certs/key.pem").as_ref()),
     );
     let listener = OpensslListener::bind(config, "127.0.0.1:7878");
-    Server::new(listener).serve(router).await;
+    Server::new(listener).await.serve(router).await;
 }

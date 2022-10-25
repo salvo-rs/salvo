@@ -12,8 +12,8 @@ use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::addr::{AppProto, LocalAddr};
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream};
-use crate::http::version::{self, HttpConnection, Version};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
+use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;
@@ -36,7 +36,7 @@ where
 }
 
 #[async_trait]
-impl<C, T> Listener for NativeTlsListener<C, T>
+impl<C, T> IntoAcceptor for NativeTlsListener<C, T>
 where
     C: IntoConfigStream<NativeTlsConfig>,
     T: Listener + Send,
@@ -50,6 +50,11 @@ where
         ))
     }
 }
+impl<C, T> Listener for NativeTlsListener<C, T> 
+where
+    C: IntoConfigStream<NativeTlsConfig>,
+    T: Listener + Send,
+    T::Acceptor: Send + 'static,{}
 
 impl<C, T> NativeTlsListener<C, TcpListener<T>>
 where
@@ -72,7 +77,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     async fn http_version(&mut self) -> Option<Version> {
-        self.get_ref().negotiated_alpn().ok().flatten().map(version::from_alpn)
+        self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
         builders
@@ -179,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_native_tls_listener() {
-        let mut listener = NativeTlsListener::bind(
+        let listener = NativeTlsListener::bind(
             NativeTlsConfig::new()
                 .with_pkcs12(include_bytes!("../../../certs/identity.p12").as_ref())
                 .with_password("mypass"),

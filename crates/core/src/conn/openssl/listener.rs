@@ -16,8 +16,10 @@ use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::addr::{AppProto, LocalAddr};
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream};
-use crate::http::version::{self, HttpConnection, Version};
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
+};
+use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
 /// OpensslListener
@@ -39,7 +41,7 @@ where
 }
 
 #[async_trait]
-impl<C, T> Listener for OpensslListener<C, T>
+impl<C, T> IntoAcceptor for OpensslListener<C, T>
 where
     C: IntoConfigStream<OpensslConfig>,
     T: Listener + Send,
@@ -52,6 +54,13 @@ where
             self.inner.into_acceptor().await?,
         ))
     }
+}
+impl<C, T> Listener for OpensslListener<C, T>
+where
+    C: IntoConfigStream<OpensslConfig>,
+    T: Listener + Send,
+    T::Acceptor: Send + 'static,
+{
 }
 
 impl<C, T> OpensslListener<C, T>
@@ -100,7 +109,7 @@ where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     async fn http_version(&mut self) -> Option<Version> {
-        self.ssl().selected_alpn_protocol().map(version::from_alpn)
+        self.ssl().selected_alpn_protocol().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
         builders

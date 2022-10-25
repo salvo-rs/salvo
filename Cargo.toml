@@ -25,7 +25,6 @@ async-compression = "0.3"
 async-session = "3"
 async-trait = "0.1"
 base64 = "0.13"
-http-body-util = { git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 bytes = "1"
 bcrypt = "0.13"
 cookie = "0.16"
@@ -41,9 +40,10 @@ headers = "0.3"
 h3 = { version = "0.0", git = "https://github.com/hyperium/h3.git", branch = "master" }
 h3-quinn = { version = "0.0", git = "https://github.com/hyperium/h3.git", branch = "master" }
 http = "0.2"
+http-body-util = "0.1.0-rc.1" #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 hmac = "0.12"
 hex = "0.4"
-hyper = { git = "https://github.com/hyperium/hyper.git", rev="0888623" }
+hyper = { git = "https://github.com/hyperium/hyper.git", rev="426e1e8" }
 hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev="0e0591e" }
 hyper-rustls = "0.23"
 jsonwebtoken = "8"

@@ -16,5 +16,5 @@ async fn main() {
 
     let router = Router::new().hoop(set_user).handle(hello);
 
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve(router).await;
 }

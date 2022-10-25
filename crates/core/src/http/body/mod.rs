@@ -1,6 +1,5 @@
 //! Http body.
-
-pub use hyper::body::{Body, Recv, SizeHint};
+pub use hyper::body::{Body, SizeHint};
 
 mod req;
 pub use req::{H3ReqBody, ReqBody};

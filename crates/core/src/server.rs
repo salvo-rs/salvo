@@ -11,24 +11,20 @@ use hyper::server::conn::http2;
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Accepted, Acceptor, HttpBuilders, Listener};
-use crate::http::version::HttpConnection;
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoAcceptor, LocalAddr};
+use crate::http::HttpConnection;
 use crate::runtimes::TokioExecutor;
 use crate::Service;
 
 /// HTTP Server
 ///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
-pub struct Server<L> {
-    listener: L,
+pub struct Server<A> {
+    acceptor: A,
     builders: Arc<HttpBuilders>,
 }
 
-impl<L> Server<L>
-where
-    L: Listener,
-    <L::Acceptor as Acceptor>::Conn: HttpConnection,
-{
+impl<A: Acceptor> Server<A> {
     /// Create new `Server` with [`Listener`].
     ///
     /// # Example
@@ -38,13 +34,35 @@ where
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// Server::new(TcpListener::bind("127.0.0.1:7878"));
+    /// Server::new(TcpListener::bind("127.0.0.1:7878")).await;
     /// # }
     /// ```
     #[inline]
-    pub fn new(listener: L) -> Self {
-        Server {
-            listener,
+    pub async fn new<T>(acceptor: T) -> Self
+    where
+        T: IntoAcceptor<Acceptor = A>,
+    {
+        Self::try_new(acceptor).await.unwrap()
+    }
+    /// Create new `Server` with [`Listener`].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use salvo_core::prelude::*;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// Server::try_new(TcpListener::bind("127.0.0.1:7878")).await.unwrap();
+    /// # }
+    /// ```
+    #[inline]
+    pub async fn try_new<T>(acceptor: T) -> IoResult<Self>
+    where
+        T: IntoAcceptor<Acceptor = A>,
+    {
+        Ok(Server {
+            acceptor: acceptor.into_acceptor().await?,
             builders: HttpBuilders {
                 #[cfg(feature = "http1")]
                 http1: http1::Builder::new(),
@@ -54,7 +72,12 @@ where
                 http3: crate::conn::http3::Http3Builder,
             }
             .into(),
-        }
+        })
+    }
+
+    #[inline]
+    pub fn local_addrs(&self) -> Vec<LocalAddr> {
+        self.acceptor.local_addrs()
     }
 
     // Use this function to set http protocol.
@@ -104,7 +127,7 @@ where
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
     ///     let router = Router::new().get(hello);
-    ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).serve_with_graceful_shutdown(router, async {
+    ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     });
     ///
@@ -129,7 +152,7 @@ where
     /// Serve with graceful shutdown signal.
     #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(
-        self,
+        mut self,
         service: S,
         signal: G,
         timeout: Option<Duration>,
@@ -144,8 +167,7 @@ where
 
         tokio::pin!(signal);
 
-        let mut acceptor = self.listener.into_acceptor().await?;
-        for addr in acceptor.local_addrs() {
+        for addr in self.acceptor.local_addrs() {
             tracing::info!("listening on {}", addr);
         }
 
@@ -170,7 +192,7 @@ where
                     }
                     break;
                 },
-                 accepted = acceptor.accept() => {
+                 accepted = self.acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr }) => {
                             let service = service.clone();
@@ -221,7 +243,7 @@ where
 mod tests {
     use serde::Serialize;
 
-    use crate::conn::Acceptor;
+    use crate::conn::{Acceptor, IntoAcceptor};
     use crate::prelude::*;
 
     #[tokio::test]
@@ -240,11 +262,12 @@ mod tests {
         }
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let listener = TcpListener::bind("127.0.0.1:0");
-        let mut acceptor = listener.into_acceptor().await.unwrap();
-        let addr = acceptor.local_addrs().remove(0);
+        let server = Server::new(listener).await;
+        let addr = server.local_addrs().remove(0);
         let addr = addr.into_std().unwrap();
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        tokio::spawn(async move {
+            server.serve(router).await;
+        });
 
         let base_url = format!("http://{}", addr);
         let client = reqwest::Client::new();

@@ -25,7 +25,7 @@ async fn main() {
         ])
         .with_response_error(false);
 
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
+    Server::new(TcpListener::bind("127.0.0.1:7878")).await
         .serve(Router::with_hoop(auth_handler).handle(index))
         .await;
 }

@@ -6,8 +6,7 @@ use std::task::{Context, Poll};
 
 use futures_util::stream::Stream;
 use h3::quic::RecvStream;
-use http::header::HeaderMap;
-use hyper::body::{Body, Frame, Recv, SizeHint};
+use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::{Buf, Bytes};
 
@@ -20,7 +19,7 @@ pub enum ReqBody {
     /// Once bytes body.
     Once(Bytes),
     /// Hyper default body.
-    Hyper(Recv),
+    Hyper(Incoming),
     /// Inner body.
     Inner(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + Unpin + 'static>>),
 }
@@ -59,7 +58,7 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            ReqBody::Hyper(recv) => Pin::new(recv).poll_frame(cx).map_err(|e| e.into()),
+            ReqBody::Hyper(body) => Pin::new(body).poll_frame(cx).map_err(|e| e.into()),
             ReqBody::Inner(inner) => Pin::new(inner).poll_frame(cx),
         }
     }
@@ -100,8 +99,8 @@ impl From<Bytes> for ReqBody {
         ReqBody::Once(value)
     }
 }
-impl From<Recv> for ReqBody {
-    fn from(value: Recv) -> ReqBody {
+impl From<Incoming> for ReqBody {
+    fn from(value: Incoming) -> ReqBody {
         ReqBody::Hyper(value)
     }
 }

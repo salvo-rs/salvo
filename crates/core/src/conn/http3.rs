@@ -1,4 +1,6 @@
+//! HTTP3 suppports.
 use std::pin::Pin;
+use std::io::Result as IoResult;
 
 use futures_util::future::poll_fn;
 use futures_util::Stream;
@@ -6,13 +8,14 @@ use h3::error::ErrorLevel;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 
+/// Http3Builder is used to serve HTTP3 connection.
 pub struct Http3Builder;
 impl Http3Builder {
     pub async fn serve_connection(
         &self,
         mut conn: crate::conn::quic::H3Connection,
         hyper_handler: crate::service::HyperHandler,
-    ) -> Result<(), std::io::Error> {
+    ) -> IoResult<()> {
         loop {
             match conn.accept().await {
                 Ok(Some((request, stream))) => {

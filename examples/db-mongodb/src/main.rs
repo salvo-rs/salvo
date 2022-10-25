@@ -114,5 +114,5 @@ async fn main() {
         .post(add_user)
         .push(Router::with_path("<username>").get(get_user));
 
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve(router).await;
 }

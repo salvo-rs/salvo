@@ -15,5 +15,5 @@ async fn main() {
         .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
         .with_password("mypass");
     let listener = NativeTlsListener::bind(config, "127.0.0.1:7878");
-    Server::new(listener).serve(router).await;
+    Server::new(listener).await.serve(router).await;
 }

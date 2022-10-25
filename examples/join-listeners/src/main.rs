@@ -12,5 +12,5 @@ async fn main() {
     let router = Router::new().get(hello);
     let listener = TcpListener::bind("127.0.0.1:7878").join(TcpListener::bind("127.0.0.1:7979"));
 
-    Server::new(listener).serve(router).await;
+    Server::new(listener).await.serve(router).await;
 }

@@ -13,8 +13,8 @@ use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
 use crate::conn::addr::{AppProto, LocalAddr};
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream};
-use crate::http::version::{self, HttpConnection, Version};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
+use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
 use super::RustlsConfig;
@@ -39,12 +39,11 @@ where
 }
 
 #[async_trait]
-impl<C, T> Listener for RustlsListener<C, T>
+impl<C, T> IntoAcceptor for RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
-    T: Listener + Send,
+    T: IntoAcceptor + Send,
     T::Acceptor: Send + 'static,
-    <<T as Listener>::Acceptor as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
@@ -54,6 +53,11 @@ where
         ))
     }
 }
+impl<C, T> Listener for RustlsListener<C, T>
+where
+    C: IntoConfigStream<RustlsConfig>,
+    T: IntoAcceptor + Send,
+    T::Acceptor: Send + 'static, {}
 
 impl<C, T> RustlsListener<C, TcpListener<T>>
 where
@@ -62,9 +66,9 @@ where
 {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config: C, addr: T) -> RustlsListener<C::Stream, TcpListener<T>> {
+    pub fn bind(config_stream: C, addr: T) -> RustlsListener<C, TcpListener<T>> {
         RustlsListener {
-            config_stream: config.into_stream(),
+            config_stream,
             inner: TcpListener::bind(addr),
         }
     }
@@ -103,7 +107,7 @@ where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     async fn http_version(&mut self) -> Option<Version> {
-        self.get_ref().1.alpn_protocol().map(version::from_alpn)
+        self.get_ref().1.alpn_protocol().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
         builders

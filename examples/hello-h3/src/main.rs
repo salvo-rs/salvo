@@ -24,5 +24,5 @@ async fn main() {
 
     let listener = QuicListener::bind(config, ("127.0.0.1", 7878)).join(listener);
 
-    Server::new(listener).serve(router).await;
+    Server::new(listener).await.serve(router).await;
 }

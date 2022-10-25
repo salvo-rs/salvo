@@ -4,7 +4,7 @@ use std::io::Result as IoResult;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::async_trait;
-use crate::http::version::HttpConnection;
+use crate::http::HttpConnection;
 
 // cfg_feature! {
 //     #![feature = "acme"]
@@ -112,11 +112,25 @@ pub trait Acceptor {
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
 }
 
-/// Listener trait
 #[async_trait]
-pub trait Listener {
+pub trait IntoAcceptor {
     /// Acceptor type.
     type Acceptor: Acceptor;
+    /// Convert into acceptor.
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
+}
+
+#[async_trait]
+impl<T> IntoAcceptor for T where T: Acceptor + Send + 'static{
+    type Acceptor = T;
+    #[inline]
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+        Ok(self)
+    }
+}
+/// Listener trait
+#[async_trait]
+pub trait Listener: IntoAcceptor {
     /// Join current Listener with the other.
     #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
@@ -125,8 +139,6 @@ pub trait Listener {
     {
         JoinedListener::new(self, other)
     }
-    /// Convert into acceptor.
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
 }
 
 #[cfg(test)]
@@ -157,7 +169,7 @@ mod tests {
         let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
         let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
 
-        let mut listener = TcpListener::bind(addr1).join(TcpListener::bind(addr2));
+        let listener = TcpListener::bind(addr1).join(TcpListener::bind(addr2));
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr1).await.unwrap();
             stream.write_i32(50).await.unwrap();

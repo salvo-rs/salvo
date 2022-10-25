@@ -20,8 +20,30 @@ pub mod body;
 pub use body::{Body, ReqBody, ResBody};
 pub use response::Response;
 
-pub mod version;
-pub use version::Version;
+pub use http::version::Version;
+
+use std::sync::Arc;
+use std::io::Result as IoResult;
+
+use crate::async_trait;
+use crate::conn::HttpBuilders;
+use crate::service::HyperHandler;
+
+/// A helper trait for get a protocol from certain types.
+#[async_trait]
+pub trait HttpConnection {
+    async fn http_version(&mut self) -> Option<Version>;
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
+}
+
+pub(crate) fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
+    if proto.as_ref().windows(2).any(|window| window == b"h2") {
+        Version::HTTP_2
+    } else {
+        Version::HTTP_11
+    }
+}
+
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

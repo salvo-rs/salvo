@@ -2,7 +2,6 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use futures_util::StreamExt;
 use http_body_util::BodyExt;
 use multer::{Field, Multipart};
 use multimap::MultiMap;

@@ -1,6 +1,5 @@
 //! rustls module
 use std::collections::HashMap;
-use std::fmt::{self, Formatter};
 use std::fs::File;
 use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult};
 use std::path::Path;

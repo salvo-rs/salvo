@@ -8,10 +8,10 @@ use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use crate::async_trait;
 use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
 use crate::conn::HttpBuilders;
-use crate::http::version::{HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, Listener};
+use super::{Accepted, Acceptor, IntoAcceptor, Listener};
 
 /// TcpListener
 pub struct TcpListener<T> {
@@ -25,7 +25,7 @@ impl<T: ToSocketAddrs> TcpListener<T> {
     }
 }
 #[async_trait]
-impl<T> Listener for TcpListener<T>
+impl<T> IntoAcceptor for TcpListener<T>
 where
     T: ToSocketAddrs + Send,
 {
@@ -36,6 +36,7 @@ where
         Ok(TcpAcceptor { inner, local_addr })
     }
 }
+impl<T> Listener for TcpListener<T> where T: ToSocketAddrs + Send {}
 
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
@@ -88,7 +89,7 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let mut listener = TcpListener::bind(addr);
+        let listener = TcpListener::bind(addr);
         let mut acceptor = listener.into_acceptor().await.unwrap();
         let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
         tokio::spawn(async move {

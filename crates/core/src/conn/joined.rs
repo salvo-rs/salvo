@@ -8,12 +8,12 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::addr::LocalAddr;
 use crate::conn::HttpBuilders;
-use crate::http::version::{HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, Listener};
+use super::{Accepted, Acceptor, IntoAcceptor, Listener};
 
 /// A I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
@@ -84,7 +84,7 @@ impl<A, B> JoinedListener<A, B> {
     }
 }
 #[async_trait]
-impl<A, B> Listener for JoinedListener<A, B>
+impl<A, B> IntoAcceptor for JoinedListener<A, B>
 where
     A: Listener + Send + Unpin + 'static,
     B: Listener + Send + Unpin + 'static,

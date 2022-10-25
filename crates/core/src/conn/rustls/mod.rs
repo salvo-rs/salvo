@@ -32,11 +32,11 @@ mod tests {
     use tokio_rustls::TlsConnector;
 
     use super::*;
-    use crate::conn::{Accepted, Acceptor, Listener};
+    use crate::conn::{Accepted, Acceptor, IntoAcceptor, Listener};
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let mut listener = RustlsListener::bind(
+        let listener = RustlsListener::bind(
             RustlsConfig::new(
                 Keycert::new()
                     .key_from_path("certs/key.pem")

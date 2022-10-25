@@ -7,8 +7,6 @@ use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
 use futures_util::stream::{BoxStream, Stream};
-use http::header::HeaderMap;
-use http_body_util::BodyExt;
 use hyper::body::{Body, Frame, SizeHint};
 
 use bytes::Bytes;

@@ -12,7 +12,7 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    use crate::conn::{Acceptor, Accepted, Listener};
+    use crate::conn::{Acceptor,IntoAcceptor, Accepted, Listener};
 
     #[tokio::test]
     async fn test_native_tls_listener() {

@@ -9,7 +9,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::HttpBuilders;
-use crate::http::version::{HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 enum State<S> {

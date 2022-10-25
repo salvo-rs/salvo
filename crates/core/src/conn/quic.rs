@@ -11,17 +11,16 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 pub use h3_quinn::quinn::ServerConfig;
 use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
-use quinn::Connecting;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::addr::{AppProto, LocalAddr, TransProto};
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::HttpBuilders;
-use crate::http::version::{HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, Listener};
+use super::{Accepted, Acceptor, Listener, IntoAcceptor};
 
 /// QuicListener
 pub struct QuicListener<T> {
@@ -31,13 +30,13 @@ pub struct QuicListener<T> {
 impl<T: ToSocketAddrs> QuicListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(mut config: RustlsConfig, addr: T) -> Self {
+    pub fn bind(config: RustlsConfig, addr: T) -> Self {
         let config = config.alpn_protocols([b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()]);
         QuicListener { config, addr }
     }
 }
 #[async_trait]
-impl<T> Listener for QuicListener<T>
+impl<T> IntoAcceptor for QuicListener<T>
 where
     T: ToSocketAddrs + Send,
 {
@@ -56,6 +55,9 @@ where
         })
     }
 }
+impl<T> Listener for QuicListener<T>
+where
+    T: ToSocketAddrs + Send, {}
 
 pub struct QuicAcceptor {
     // endpoint: Endpoint,
