@@ -136,7 +136,7 @@ where
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
+    fn local_addrs(&self) -> Vec<LocalAddr> {
         self.a
             .local_addrs()
             .into_iter()

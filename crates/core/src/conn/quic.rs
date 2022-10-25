@@ -110,8 +110,8 @@ impl Acceptor for QuicAcceptor {
     type Conn = H3Connection;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
-        vec![&self.local_addr]
+    fn local_addrs(&self) -> Vec<LocalAddr> {
+        vec![self.local_addr.clone()]
     }
 
     #[inline]

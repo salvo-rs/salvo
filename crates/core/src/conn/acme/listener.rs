@@ -233,7 +233,7 @@ impl<T: Acceptor> Acceptor for AcmeListener<T> {
     type Error = IoError;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
+    fn local_addrs(&self) -> Vec<LocalAddr> {
         self.local_addrs.iter().collect()
     }
 

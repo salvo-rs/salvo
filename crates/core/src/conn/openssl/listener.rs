@@ -120,8 +120,8 @@ where
     type Conn = TlsConnStream<SslStream<T::Conn>>;
 
     /// Get the local address bound to this listener.
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
-        self.local_addrs.iter().collect()
+    fn local_addrs(&self) -> Vec<LocalAddr> {
+        self.local_addrs.clone()
     }
 
     #[inline]

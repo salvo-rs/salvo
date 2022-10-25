@@ -106,7 +106,8 @@ impl JsonFinder {
 impl CsrfTokenFinder for JsonFinder {
     #[inline]
     async fn find_token(&self, req: &mut Request) -> Option<String> {
-        if let Ok(data) = req.parse_json::<HashMap<String, Value>>().await {
+        let data = req.parse_json::<HashMap<String, Value>>().await;
+        if let Ok(data) = data {
             if let Some(value) = data.get(&self.field_name) {
                 if let Some(token) = value.as_str() {
                     return Some(token.to_owned());

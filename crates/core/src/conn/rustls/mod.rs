@@ -23,6 +23,8 @@ pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertS
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
@@ -30,20 +32,26 @@ mod tests {
     use tokio_rustls::TlsConnector;
 
     use super::*;
+    use crate::conn::{Accepted, Acceptor, Listener};
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let mut listener = RustlsListener::with_config(RustlsConfig::new(
-            Keycert::new()
-                .key_from_path("certs/key.pem")
-                .cert_from_path("certs/cert.pem"),
-        ))
-        .bind("127.0.0.1:0");
-        let addr = listener.local_addr();
+        let mut listener = RustlsListener::bind(
+            RustlsConfig::new(
+                Keycert::new()
+                    .key_from_path("certs/key.pem")
+                    .unwrap()
+                    .cert_from_path("certs/cert.pem")
+                    .unwrap(),
+            ),
+            "127.0.0.1:0",
+        );
+        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();
-            let trust_anchor = include_bytes!("../../certs/chain.pem");
+            let trust_anchor = include_bytes!("../../../certs/chain.pem");
             let client_config = ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(trust_anchor.as_slice()).unwrap())
@@ -56,7 +64,7 @@ mod tests {
             tls_stream.write_i32(518).await.unwrap();
         });
 
-        let ransport { mut stream, .. } = listener.accept().await.unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 518);
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        assert_eq!(conn.read_i32().await.unwrap(), 518);
     }
 }

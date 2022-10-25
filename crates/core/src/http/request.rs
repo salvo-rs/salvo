@@ -634,7 +634,8 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        if let Some(ctype) = self.content_type() {
+        let ctype =  self.content_type();
+        if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
                 return self
                     .payload()

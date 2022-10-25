@@ -106,7 +106,7 @@ pub trait Acceptor {
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
     /// Returns the local address that this listener is bound to.
-    fn local_addrs(&self) -> Vec<&LocalAddr>;
+    fn local_addrs(&self) -> Vec<LocalAddr>;
 
     /// Accepts a new incoming connection from this listener.
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
@@ -141,14 +141,15 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let mut listener = TcpListener::bind(addr);
+        let listener = TcpListener::bind(addr);
+        let mut acceptor = listener.into_acceptor().await.unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();
         });
 
-        let Accepted { stream, .. } = listener.accept().await.unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 150);
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        assert_eq!(conn.read_i32().await.unwrap(), 150);
     }
 
     #[tokio::test]
@@ -164,10 +165,11 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let Accepted { mut stream, .. } = listener.accept().await.unwrap();
-        let first = stream.read_i32().await.unwrap();
-        let Accepted { mut stream, .. } = listener.next().await.unwrap();
-        let second = stream.read_i32().await.unwrap();
+        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let first = conn.read_i32().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let second = conn.read_i32().await.unwrap();
         assert_eq!(first + second, 150);
     }
 }

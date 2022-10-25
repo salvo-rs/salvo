@@ -123,8 +123,8 @@ where
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
-        self.local_addrs.iter().collect()
+    fn local_addrs(&self) -> Vec<LocalAddr> {
+        self.local_addrs.clone()
     }
 
     #[inline]

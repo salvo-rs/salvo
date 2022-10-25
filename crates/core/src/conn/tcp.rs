@@ -62,8 +62,8 @@ impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<&LocalAddr> {
-        vec![&self.local_addr]
+    fn local_addrs(&self) -> Vec<LocalAddr> {
+        vec![self.local_addr.clone()]
     }
 
     #[inline]
@@ -89,12 +89,14 @@ mod tests {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
         let mut listener = TcpListener::bind(addr);
+        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();
         });
 
-        let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 150);
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        assert_eq!(conn.read_i32().await.unwrap(), 150);
     }
 }

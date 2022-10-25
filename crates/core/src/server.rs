@@ -222,6 +222,7 @@ mod tests {
     use serde::Serialize;
 
     use crate::prelude::*;
+    use crate::conn::Acceptor;
 
     #[tokio::test]
     async fn test_server() {
@@ -239,10 +240,9 @@ mod tests {
         }
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let listener = TcpListener::bind("127.0.0.1:0");
-        let addr = listener.local_addr();
-        let server = tokio::task::spawn(async {
-            Server::new(listener).serve(router).await;
-        });
+        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let addr = acceptor.local_addrs().remove(0);
+        let addr  = addr.into_std().unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
@@ -301,6 +301,5 @@ mod tests {
             .await
             .unwrap();
         assert!(result.contains("<code>404</code>"));
-        server.abort();
     }
 }

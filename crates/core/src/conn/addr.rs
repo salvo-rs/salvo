@@ -60,6 +60,15 @@ impl SocketAddr {
         matches!(*self, SocketAddr::IPv6(_))
     }
 
+    #[inline]
+    pub fn into_std(self) -> Option<std::net::SocketAddr> {
+        match self {
+            SocketAddr::IPv4(addr) => Some(addr.into()),
+            SocketAddr::IPv6(addr) => Some(addr.into()),
+            _ => None,
+        }
+    }
+
     cfg_feature! {
         #![unix]
         /// Returns is a unix socket address.
@@ -161,6 +170,10 @@ impl LocalAddr {
             trans_proto,
             app_proto,
         }
+    }
+    #[inline]
+    pub fn into_std(self) -> Option<std::net::SocketAddr> {
+        self.addr.into_std()
     }
 }
 impl Default for LocalAddr {
