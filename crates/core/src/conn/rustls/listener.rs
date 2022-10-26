@@ -66,10 +66,10 @@ where
 {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config_stream: C, addr: T) -> RustlsListener<C, TcpListener<T>> {
+    pub fn bind(config_stream: C, local_addr: T) -> RustlsListener<C, TcpListener<T>> {
         RustlsListener {
             config_stream,
-            inner: TcpListener::bind(addr),
+            inner: TcpListener::bind(local_addr),
         }
     }
 }

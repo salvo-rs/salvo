@@ -63,10 +63,10 @@ where
 {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config: C, addr: T) -> NativeTlsListener<C::Stream, TcpListener<T>> {
+    pub fn bind(config: C, local_addr: T) -> NativeTlsListener<C::Stream, TcpListener<T>> {
         NativeTlsListener {
             config_stream: config.into_stream(),
-            inner: TcpListener::bind(addr),
+            inner: TcpListener::bind(local_addr),
         }
     }
 }

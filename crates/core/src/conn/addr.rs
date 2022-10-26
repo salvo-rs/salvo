@@ -171,14 +171,14 @@ impl DerefMut for LocalAddr {
 
 impl Display for LocalAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.addr {
+        match &self.addr {
             SocketAddr::Unknown => write!(f, "unknown"),
             SocketAddr::IPv4(addr) => write!(f, "({}) {}://{}", self.trans_proto, self.app_proto, addr),
             SocketAddr::IPv6(addr) => write!(f, "({}) {}://{}", self.trans_proto, self.app_proto, addr),
             #[cfg(unix)]
             SocketAddr::Unix(addr) => match addr.as_pathname() {
                 Some(path) => write!(f, "({}) unix://{}", self.trans_proto, path.display()),
-                None => f.write_str("({}) unix://unknown", self.trans_proto),
+                None => write!(f, "({}) unix://unknown", self.trans_proto),
             },
         }
     }

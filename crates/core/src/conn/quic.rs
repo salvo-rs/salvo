@@ -25,14 +25,14 @@ use super::{Accepted, Acceptor, Listener, IntoAcceptor};
 /// QuicListener
 pub struct QuicListener<T> {
     config: RustlsConfig,
-    addr: T,
+    local_addr: T,
 }
 impl<T: ToSocketAddrs> QuicListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config: RustlsConfig, addr: T) -> Self {
+    pub fn bind(config: RustlsConfig, local_addr: T) -> Self {
         let config = config.alpn_protocols([b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()]);
-        QuicListener { config, addr }
+        QuicListener { config, local_addr }
     }
 }
 #[async_trait]
@@ -42,8 +42,8 @@ where
 {
     type Acceptor = QuicAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        let Self { addr, config } = self;
-        let socket = std::net::UdpSocket::bind(addr)?;
+        let Self { local_addr, config } = self;
+        let socket = std::net::UdpSocket::bind(local_addr)?;
         let local_addr = LocalAddr::new(socket.local_addr()?.into(), TransProto::Udp, AppProto::Https);
         let crypto = config.build_server_config()?;
         let server_config = crate::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));

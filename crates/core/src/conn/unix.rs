@@ -1,101 +1,86 @@
 //! UnixListener module
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::sync::Arc;
 
-pub use hyper::Server;
-use tokio::net::UnixListener as TokioUnixListener;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
-use super::{Acceptor, Listener, Accepted};
+use crate::async_trait;
+use crate::conn::HttpBuilders;
+use crate::conn::{AppProto, LocalAddr, TransProto};
+use crate::http::{HttpConnection, Version};
+use crate::service::HyperHandler;
+
+use super::{Accepted, Acceptor, IntoAcceptor, Listener};
 
 /// Unix domain socket listener.
 #[cfg(unix)]
-pub struct UnixListener {
-    inner: TokioUnixListener,
-    local_addr: SocketAddr,
+pub struct UnixListener<T> {
+    path: T,
 }
 #[cfg(unix)]
-impl UnixListener {
+impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[inline]
-    pub fn bind(path: impl AsRef<Path>) -> UnixListener {
-        Self::try_bind(path).unwrap()
+    pub fn bind(path: T) -> UnixListener<T> {
+        UnixListener { path }
     }
-    /// Creates a new `UnixListener` bind to the specified path.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if thread-local runtime is not set.
-    ///
-    /// The runtime is usually set implicitly when this function is called
-    /// from a future driven by a tokio runtime.
+}
+
+#[async_trait]
+impl<T> IntoAcceptor for UnixListener<T>
+where
+    T: AsRef<Path> + Send,
+{
+    type Acceptor = UnixAcceptor;
+    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+        let inner = TokioUnixListener::bind(self.path)?;
+        let local_addr = LocalAddr::new(inner.local_addr()?.into(), TransProto::Tcp, AppProto::Http);
+        Ok(UnixAcceptor { inner, local_addr })
+    }
+}
+
+#[cfg(unix)]
+impl<T> Listener for UnixListener<T> where T: AsRef<Path> + Send {}
+
+/// UnixAcceptor
+pub struct UnixAcceptor {
+    inner: TokioUnixListener,
+    local_addr: LocalAddr,
+}
+
+#[cfg(unix)]
+#[async_trait]
+impl Acceptor for UnixAcceptor {
+    type Conn = UnixStream;
+
     #[inline]
-    pub fn try_bind(path: impl AsRef<Path>) -> IoResult<UnixListener> {
-        Ok(UnixListener {
-            incoming: tokio::net::UnixListener::bind(path)?,
+    fn local_addrs(&self) -> Vec<LocalAddr> {
+        vec![self.local_addr.clone()]
+    }
+
+    #[inline]
+    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
+        self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
+            conn,
+            local_addr: self.local_addr.clone(),
+            remote_addr: remote_addr.into(),
         })
     }
 }
 
-#[cfg(unix)]
-impl Listener for UnixListener {}
-#[cfg(unix)]
 #[async_trait]
-impl Acceptor for UnixListener {
-    type Conn = UnixStream;
-    type Error = IoError;
-
-    #[inline]
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
-        match self.incoming.poll_accept(cx) {
-            Poll::Ready(Ok((stream, remote_addr))) => {
-                Poll::Ready(Some(Ok(UnixStream::new(stream, remote_addr.into()))))
-            }
-            Poll::Ready(Err(e)) => Poll::Ready(Some(Err(e))),
-            Poll::Pending => Poll::Pending,
-        }
+impl HttpConnection for UnixStream {
+    async fn version(&mut self) -> Option<Version> {
+        Some(Version::HTTP_11)
     }
-}
-
-/// UnixStream
-pub struct UnixStream {
-    inner_stream: tokio::net::UnixStream,
-    remote_addr: SocketAddr,
-}
-
-impl UnixStream {
-    #[inline]
-    fn new(inner_stream: tokio::net::UnixStream, remote_addr: SocketAddr) -> Self {
-        UnixStream {
-            inner_stream,
-            remote_addr,
-        }
-    }
-}
-
-impl AsyncRead for UnixStream {
-    #[inline]
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context, buf: &mut ReadBuf) -> Poll<IoResult<()>> {
-        Pin::new(&mut self.get_mut().inner_stream).poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for UnixStream {
-    #[inline]
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
-        Pin::new(&mut self.get_mut().inner_stream).poll_write(cx, buf)
-    }
-
-    #[inline]
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        Pin::new(&mut self.get_mut().inner_stream).poll_flush(cx)
-    }
-
-    #[inline]
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
-        Pin::new(&mut self.get_mut().inner_stream).poll_shutdown(cx)
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http1
+            .serve_connection(self, handler)
+            .with_upgrades()
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

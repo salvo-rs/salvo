@@ -15,13 +15,13 @@ use super::{Accepted, Acceptor, IntoAcceptor, Listener};
 
 /// TcpListener
 pub struct TcpListener<T> {
-    addr: T,
+    local_addr: T,
 }
 impl<T: ToSocketAddrs> TcpListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(addr: T) -> Self {
-        TcpListener { addr }
+    pub fn bind(local_addr: T) -> Self {
+        TcpListener { local_addr }
     }
 }
 #[async_trait]
@@ -31,7 +31,7 @@ where
 {
     type Acceptor = TcpAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        let inner = TokioTcpListener::bind(self.addr).await?;
+        let inner = TokioTcpListener::bind(self.local_addr).await?;
         let local_addr = LocalAddr::new(inner.local_addr()?.into(), TransProto::Tcp, AppProto::Http);
         Ok(TcpAcceptor { inner, local_addr })
     }

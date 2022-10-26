@@ -70,10 +70,10 @@ where
 {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config: C, addr: T) -> OpensslListener<C::Stream, TcpListener<T>> {
+    pub fn bind(config: C, local_addr: T) -> OpensslListener<C::Stream, TcpListener<T>> {
         OpensslListener {
             config_stream: config.into_stream(),
-            inner: TcpListener::bind(addr),
+            inner: TcpListener::bind(local_addr),
         }
     }
 }
