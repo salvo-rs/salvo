@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::sync::Arc;
 
-use super::{TransProto, AppProto};
+use super::{AppProto, TransProto};
 
 /// Network socket address
 #[derive(Clone, Debug)]

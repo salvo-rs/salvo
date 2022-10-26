@@ -22,8 +22,8 @@ pub use response::Response;
 
 pub use http::version::Version;
 
-use std::sync::Arc;
 use std::io::Result as IoResult;
+use std::sync::Arc;
 
 use crate::async_trait;
 use crate::conn::HttpBuilders;
@@ -45,7 +45,6 @@ pub(crate) fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
         Version::HTTP_11
     }
 }
-
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

@@ -6,8 +6,8 @@ use std::vec;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::conn::HttpBuilders;
+use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 

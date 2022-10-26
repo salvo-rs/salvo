@@ -12,7 +12,10 @@ async fn hello(depot: &mut Depot) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve(route()).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878"))
+        .await
+        .serve(route())
+        .await;
 }
 
 #[allow(dead_code)]

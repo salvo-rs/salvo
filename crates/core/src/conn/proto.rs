@@ -1,4 +1,4 @@
-use std::fmt::{self, Formatter, Display};
+use std::fmt::{self, Display, Formatter};
 
 #[cfg(feature = "http2")]
 use crate::runtimes::TokioExecutor;
