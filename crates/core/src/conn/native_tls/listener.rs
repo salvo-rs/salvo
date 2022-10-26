@@ -11,7 +11,7 @@ use tokio::net::ToSocketAddrs;
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr};
+use crate::conn::{AppProto, LocalAddr};
 use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -76,7 +76,7 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

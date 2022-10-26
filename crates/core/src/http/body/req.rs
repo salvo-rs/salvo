@@ -145,6 +145,7 @@ where
     }
 }
 
+/// Http3 request body.
 pub struct H3ReqBody<S, B> {
     inner: h3::server::RequestStream<S, B>,
 }
@@ -153,6 +154,7 @@ where
     S: RecvStream + Send + Unpin + 'static,
     B: Buf + Send + Unpin + 'static,
 {
+    /// Create new `H3ReqBody` instance.
     pub fn new(inner: h3::server::RequestStream<S, B>) -> Self {
         Self { inner }
     }

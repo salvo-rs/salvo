@@ -14,7 +14,7 @@ use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr, TransProto};
+use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
@@ -59,12 +59,14 @@ impl<T> Listener for QuicListener<T>
 where
     T: ToSocketAddrs + Send, {}
 
+/// QuicAcceptor
 pub struct QuicAcceptor {
     // endpoint: Endpoint,
     incoming: Incoming,
     local_addr: LocalAddr,
 }
 
+/// Http3 Connection.
 pub struct H3Connection(pub h3::server::Connection<h3_quinn::Connection, Bytes>);
 impl Deref for H3Connection {
     type Target = h3::server::Connection<h3_quinn::Connection, Bytes>;
@@ -99,7 +101,7 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_3)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -118,7 +120,7 @@ impl Acceptor for QuicAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
-        while let Some(new_conn) = self.incoming.next().await {
+        if let Some(new_conn) = self.incoming.next().await {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {

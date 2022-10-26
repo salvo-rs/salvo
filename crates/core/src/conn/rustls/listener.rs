@@ -12,7 +12,7 @@ use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr};
+use crate::conn::{AppProto, LocalAddr};
 use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -90,7 +90,7 @@ where
         let local_addrs = inner
             .local_addrs()
             .iter()
-            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto.clone(), AppProto::Https))
+            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto, AppProto::Https))
             .collect();
         RustlsAcceptor {
             config_stream,
@@ -106,7 +106,7 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         self.get_ref().1.alpn_protocol().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

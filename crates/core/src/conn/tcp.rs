@@ -6,7 +6,7 @@ use std::vec;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::addr::{AppProto, LocalAddr, SocketAddr, TransProto};
+use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -45,7 +45,7 @@ pub struct TcpAcceptor {
 
 #[async_trait]
 impl HttpConnection for TcpStream {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

@@ -327,8 +327,8 @@ where
                 Poll::Ready(Some(Ok(event)))
             }
             Poll::Ready(None) => Poll::Ready(None),
-            Poll::Ready(Some(Err(error))) => {
-                tracing::error!("sse::keep error: {}", error);
+            Poll::Ready(Some(Err(e))) => {
+                tracing::error!(error = ?e, "sse::keep error");
                 Poll::Ready(Some(Err(SseError)))
             }
         }

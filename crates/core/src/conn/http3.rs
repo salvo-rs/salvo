@@ -8,9 +8,10 @@ use h3::error::ErrorLevel;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 
-/// Http3Builder is used to serve HTTP3 connection.
-pub struct Http3Builder;
-impl Http3Builder {
+/// Builder is used to serve HTTP3 connection.
+pub struct Builder;
+impl Builder {
+    /// Serve HTTP3 connection.
     pub async fn serve_connection(
         &self,
         mut conn: crate::conn::quic::H3Connection,
@@ -40,7 +41,7 @@ impl Http3Builder {
                                 tracing::debug!("response to connection successful");
                             }
                             Err(e) => {
-                                tracing::error!("unable to send response to connection peer: {:?}", e);
+                                tracing::error!(error = ?e, "unable to send response to connection peer");
                             }
                         }
 
@@ -49,11 +50,11 @@ impl Http3Builder {
                             match result {
                                 Ok(bytes) => {
                                     if let Err(e) = tx.send_data(bytes).await {
-                                        tracing::error!(error = ?e, "unable to send data to connection peer.");
+                                        tracing::error!(error = ?e, "unable to send data to connection peer");
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::error!(error = ?e, "unable to send data to connection peer");
+                                    tracing::error!(error = ?e, "unable to poll data from connection");
                                 }
                             }
                         }
@@ -65,9 +66,9 @@ impl Http3Builder {
                 Ok(None) => {
                     break;
                 }
-                Err(err) => {
-                    tracing::warn!("error on accept {}", err);
-                    match err.get_error_level() {
+                Err(e) => {
+                    tracing::warn!(error = ?e, "accept failed");
+                    match e.get_error_level() {
                         ErrorLevel::ConnectionError => break,
                         ErrorLevel::StreamError => continue,
                     }

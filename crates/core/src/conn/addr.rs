@@ -4,6 +4,8 @@ use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::sync::Arc;
 
+use super::{TransProto, AppProto};
+
 /// Network socket address
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -60,6 +62,7 @@ impl SocketAddr {
         matches!(*self, SocketAddr::IPv6(_))
     }
 
+    /// Convert to [`std::net::SocketAddr`].
     #[inline]
     pub fn into_std(self) -> Option<std::net::SocketAddr> {
         match self {
@@ -123,47 +126,17 @@ impl Display for SocketAddr {
     }
 }
 
-#[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
-pub enum AppProto {
-    Http,
-    Https,
-    Unknown,
-}
-impl Display for AppProto {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            AppProto::Http => write!(f, "http"),
-            AppProto::Https => write!(f, "https"),
-            AppProto::Unknown => write!(f, "[unknown]"),
-        }
-    }
-}
-
-#[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
-pub enum TransProto {
-    Udp,
-    Tcp,
-    Unknown,
-}
-impl Display for TransProto {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            TransProto::Udp => write!(f, "udp"),
-            TransProto::Tcp => write!(f, "tcp"),
-            TransProto::Unknown => write!(f, "unknown"),
-        }
-    }
-}
-
+/// `LocalAddr` is a wrapper around [`SocketAddr`].
+/// `LocalAddr`also contains information about
+/// transport protocol and application protocol.
 #[derive(Clone, Debug)]
 pub struct LocalAddr {
-    pub addr: SocketAddr,
-    pub trans_proto: TransProto,
-    pub app_proto: AppProto,
+    pub(crate) addr: SocketAddr,
+    pub(crate) trans_proto: TransProto,
+    pub(crate) app_proto: AppProto,
 }
 impl LocalAddr {
+    /// Create new `LocalAddr`.
     pub fn new(addr: SocketAddr, trans_proto: TransProto, app_proto: AppProto) -> Self {
         LocalAddr {
             addr,
@@ -171,6 +144,8 @@ impl LocalAddr {
             app_proto,
         }
     }
+
+    /// Convert `LocalAddr` to [`std::net::SocketAddr`].
     #[inline]
     pub fn into_std(self) -> Option<std::net::SocketAddr> {
         self.addr.into_std()

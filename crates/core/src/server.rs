@@ -11,7 +11,10 @@ use hyper::server::conn::http2;
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoAcceptor, LocalAddr};
+#[cfg(feature = "http3")]
+use crate::conn::http3;
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoAcceptor, LocalAddr, TransProto};
+use crate::http::HeaderValue;
 use crate::http::HttpConnection;
 use crate::runtimes::TokioExecutor;
 use crate::Service;
@@ -21,7 +24,7 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<A> {
     acceptor: A,
-    builders: Arc<HttpBuilders>,
+    builders: HttpBuilders,
 }
 
 impl<A: Acceptor> Server<A> {
@@ -69,26 +72,31 @@ impl<A: Acceptor> Server<A> {
                 #[cfg(feature = "http2")]
                 http2: http2::Builder::new(TokioExecutor),
                 #[cfg(feature = "http3")]
-                http3: crate::conn::http3::Http3Builder,
-            }
-            .into(),
+                http3: crate::conn::http3::Builder,
+            },
         })
     }
 
+    /// Get local addresses of this server.
     #[inline]
     pub fn local_addrs(&self) -> Vec<LocalAddr> {
         self.acceptor.local_addrs()
     }
 
-    // Use this function to set http protocol.
-    // pub fn http1_mut(&mut self) -> &mut http1::Builder {
-    //     &mut self.http1
-    // }
+    /// Use this function to set http1 protocol.
+    pub fn http1_mut(&mut self) -> &mut http1::Builder {
+        &mut self.builders.http1
+    }
 
-    // /// Use this function to set http protocol.
-    // pub fn http2_mut(&mut self) -> &mut http2::Builder {
-    //     &mut self.http2
-    // }
+    /// Use this function to set http2 protocol.
+    pub fn http2_mut(&mut self) -> &mut http2::Builder<TokioExecutor> {
+        &mut self.builders.http2
+    }
+
+    /// Use this function to set http3 protocol.
+    pub fn http3_mut(&mut self) -> &mut http3::Builder {
+        &mut self.builders.http3
+    }
 
     /// Serve a [`Service`]
     #[inline]
@@ -152,7 +160,7 @@ impl<A: Acceptor> Server<A> {
     /// Serve with graceful shutdown signal.
     #[inline]
     pub async fn try_serve_with_graceful_shutdown<S, G>(
-        mut self,
+        self,
         service: S,
         signal: G,
         timeout: Option<Duration>,
@@ -161,19 +169,34 @@ impl<A: Acceptor> Server<A> {
         S: Into<Service>,
         G: Future<Output = ()> + Send + 'static,
     {
+        let Self { mut acceptor, builders } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
         let timeout_notify = Arc::new(Notify::new());
 
         tokio::pin!(signal);
 
-        for addr in self.acceptor.local_addrs() {
+        let mut alt_svc_h3 = None;
+        for addr in acceptor.local_addrs() {
             tracing::info!("listening on {}", addr);
+            if addr.trans_proto == TransProto::Udp {
+                if let Some(addr) = addr.into_std() {
+                    let port = addr.port();
+                    alt_svc_h3 = Some(
+                        format!(
+                            r#"h3-29=":{}"; ma=2592000,quic=":{}"; ma=2592000; v="46,43""#,
+                            port, port
+                        )
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                    );
+                }
+            }
         }
 
         let service = Arc::new(service.into());
+        let builders = Arc::new(builders);
         loop {
-            let builders = self.builders.clone();
             tokio::select! {
                 _ = &mut signal => {
                     if let Some(timeout) = timeout {
@@ -192,14 +215,15 @@ impl<A: Acceptor> Server<A> {
                     }
                     break;
                 },
-                 accepted = self.acceptor.accept() => {
+                 accepted = acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr }) => {
                             let service = service.clone();
                             let alive_connections = alive_connections.clone();
                             let notify = notify.clone();
                             let timeout_notify = timeout_notify.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr);
+                            let handler = service.hyper_handler(local_addr, remote_addr, alt_svc_h3.clone());
+                            let builders = builders.clone();
                             tokio::spawn(async move {
                                 alive_connections.fetch_add(1, Ordering::SeqCst);
                                 let conn = conn.serve(handler, builders);
@@ -207,13 +231,13 @@ impl<A: Acceptor> Server<A> {
                                     tokio::select! {
                                         result = conn => {
                                             if let Err(e) = result {
-                                                tracing::error!(error = ?e, "http1 serve connection failed");
+                                                tracing::error!(error = ?e, "http serve connection failed");
                                             }
                                         },
                                         _ = timeout_notify.notified() => {}
                                     }
                                 } else if let Err(e) = conn.await {
-                                    tracing::error!(error = ?e, "http1 serve connection failed");
+                                    tracing::error!(error = ?e, "http serve connection failed");
                                 }
 
                                 if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {

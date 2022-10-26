@@ -32,7 +32,9 @@ use crate::service::HyperHandler;
 /// A helper trait for get a protocol from certain types.
 #[async_trait]
 pub trait HttpConnection {
-    async fn http_version(&mut self) -> Option<Version>;
+    /// The http protocol version.
+    async fn version(&mut self) -> Option<Version>;
+    /// Serve this http connection.
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
 }
 

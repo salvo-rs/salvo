@@ -2,13 +2,14 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use headers::HeaderValue;
 use hyper::service::Service as HyperService;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
 use crate::conn::{LocalAddr, SocketAddr};
 use crate::http::body::{ReqBody, ResBody};
-use crate::http::header::CONTENT_TYPE;
+use crate::http::header::{ALT_SVC, CONTENT_TYPE};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{Catcher, Depot};
@@ -111,13 +112,19 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn hyper_handler(&self, local_addr: LocalAddr, remote_addr: SocketAddr) -> HyperHandler {
+    pub fn hyper_handler(
+        &self,
+        local_addr: LocalAddr,
+        remote_addr: SocketAddr,
+        alt_svc_h3: Option<HeaderValue>,
+    ) -> HyperHandler {
         HyperHandler {
             local_addr,
             remote_addr,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
+            alt_svc_h3,
         }
     }
 
@@ -130,7 +137,7 @@ impl Service {
     #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler(LocalAddr::default(), SocketAddr::Unknown)
+        self.hyper_handler(LocalAddr::default(), SocketAddr::Unknown, None)
             .handle(request.into())
             .await
     }
@@ -154,6 +161,7 @@ pub struct HyperHandler {
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
@@ -167,6 +175,11 @@ impl HyperHandler {
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
         let mut res = Response::with_cookies(req.cookies.clone());
+        if let Some(alt_svc_h3) = &self.alt_svc_h3 {
+            if !res.headers().contains_key(ALT_SVC) {
+                res.headers_mut().insert(ALT_SVC, alt_svc_h3.clone());
+            }
+        }
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
         let router = self.router.clone();

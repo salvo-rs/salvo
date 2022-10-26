@@ -27,6 +27,14 @@ cfg_feature! {
     pub use self::openssl::OpensslListener;
 }
 cfg_feature! {
+    #![feature = "http1"]
+    pub use hyper::server::conn::http1;
+}
+cfg_feature! {
+    #![feature = "http2"]
+    pub use hyper::server::conn::http2;
+}
+cfg_feature! {
     #![feature = "http3"]
     pub mod http3;
     pub mod quic;
@@ -46,7 +54,7 @@ mod joined;
 pub use joined::JoinedListener;
 
 mod proto;
-pub(crate) use proto::HttpBuilders;
+pub use proto::{AppProto, HttpBuilders, TransProto};
 
 cfg_feature! {
     #![unix]
@@ -112,6 +120,7 @@ pub trait Acceptor {
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
 }
 
+/// `IntoAcceptor` trait.
 #[async_trait]
 pub trait IntoAcceptor {
     /// Acceptor type.
@@ -121,7 +130,10 @@ pub trait IntoAcceptor {
 }
 
 #[async_trait]
-impl<T> IntoAcceptor for T where T: Acceptor + Send + 'static{
+impl<T> IntoAcceptor for T
+where
+    T: Acceptor + Send + 'static,
+{
     type Acceptor = T;
     #[inline]
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
