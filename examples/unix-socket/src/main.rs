@@ -5,7 +5,10 @@ async fn main() {
     use salvo_static::StaticDir;
 
     let router = Router::with_path("files/<*path>").get(StaticDir::new("./static"));
-    Server::new(UnixListener::bind("/tmp/salvo.sock")).await.serve(router).await;
+    Server::new(UnixListener::bind("/tmp/salvo.sock"))
+        .await
+        .serve(router)
+        .await;
 }
 
 #[cfg(not(target_os = "linux"))]
