@@ -27,7 +27,7 @@ pub struct Server<A> {
 }
 
 impl<A: Acceptor> Server<A> {
-    /// Create new `Server` with [`Listener`].
+    /// Create new `Server` with [`Acceptor`].
     ///
     /// # Example
     ///
@@ -46,7 +46,7 @@ impl<A: Acceptor> Server<A> {
     {
         Self::try_new(acceptor).await.unwrap()
     }
-    /// Create new `Server` with [`Listener`].
+    /// Create new `Server` with [`Acceptor`].
     ///
     /// # Example
     ///
