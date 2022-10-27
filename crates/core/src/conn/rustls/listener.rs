@@ -12,8 +12,11 @@ use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{AppProto, LocalAddr};
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
+};
+use crate::conn::{Holding};
+use crate::http::uri::Scheme;
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -29,12 +32,15 @@ pub struct RustlsListener<C, T> {
 impl<C, T> RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
-    T: Listener + Send,
+    T: IntoAcceptor + Send,
 {
     /// Create a new `RustlsListener`.
     #[inline]
     pub fn new(config_stream: C, inner: T) -> Self {
-        RustlsListener { config_stream, inner }
+        RustlsListener {
+            config_stream,
+            inner,
+        }
     }
 }
 
@@ -57,7 +63,9 @@ impl<C, T> Listener for RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
     T: IntoAcceptor + Send,
-    T::Acceptor: Send + 'static, {}
+    T::Acceptor: Send + 'static,
+{
+}
 
 impl<C, T> RustlsListener<C, TcpListener<T>>
 where
@@ -78,7 +86,7 @@ where
 pub struct RustlsAcceptor<C, T> {
     config_stream: C,
     inner: T,
-    local_addrs: Vec<LocalAddr>,
+    holdings: Vec<Holding>,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
 }
 impl<C, T> RustlsAcceptor<C, T>
@@ -87,15 +95,19 @@ where
 {
     /// Create a new `RustlsAcceptor`.
     pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> {
-        let local_addrs = inner
-            .local_addrs()
+        let holdings = inner
+            .holdings()
             .iter()
-            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto, AppProto::Https))
+            .map(|h| Holding {
+                local_addr: h.local_addr.clone(),
+                http_version: Version::HTTP_2,
+                http_scheme: Scheme::HTTPS,
+            })
             .collect();
         RustlsAcceptor {
             config_stream,
             inner,
-            local_addrs,
+            holdings,
             tls_acceptor: None,
         }
     }
@@ -106,7 +118,7 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         self.get_ref().1.alpn_protocol().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -127,8 +139,8 @@ where
 {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        self.local_addrs.clone()
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]

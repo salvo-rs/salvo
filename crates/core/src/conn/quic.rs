@@ -12,15 +12,16 @@ use futures_util::StreamExt;
 pub use h3_quinn::quinn::ServerConfig;
 use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use http::uri::Scheme;
 
 use crate::async_trait;
-use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::conn::rustls::RustlsConfig;
+use crate::conn::Holding;
 use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, Listener, IntoAcceptor};
+use super::{Accepted, Acceptor, IntoAcceptor, Listener};
 
 /// QuicListener
 pub struct QuicListener<T> {
@@ -44,26 +45,28 @@ where
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let Self { local_addr, config } = self;
         let socket = std::net::UdpSocket::bind(local_addr)?;
-        let local_addr = LocalAddr::new(socket.local_addr()?.into(), TransProto::Udp, AppProto::Https);
+        let holding = Holding {
+            local_addr: socket.local_addr()?.into(),
+            http_version: Version::HTTP_3,
+            http_scheme: Scheme::HTTPS,
+        };
         let crypto = config.build_server_config()?;
         let server_config = crate::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));
         let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(server_config), socket)?;
         Ok(QuicAcceptor {
             // endpoint,
             incoming,
-            local_addr,
+            holdings: vec![holding],
         })
     }
 }
-impl<T> Listener for QuicListener<T>
-where
-    T: ToSocketAddrs + Send, {}
+impl<T> Listener for QuicListener<T> where T: ToSocketAddrs + Send {}
 
 /// QuicAcceptor
 pub struct QuicAcceptor {
     // endpoint: Endpoint,
     incoming: Incoming,
-    local_addr: LocalAddr,
+    holdings: Vec<Holding>,
 }
 
 /// Http3 Connection.
@@ -101,7 +104,7 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_3)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -113,9 +116,8 @@ impl HttpConnection for H3Connection {
 impl Acceptor for QuicAcceptor {
     type Conn = H3Connection;
 
-    #[inline]
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        vec![self.local_addr.clone()]
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]
@@ -129,8 +131,10 @@ impl Acceptor for QuicAcceptor {
                         .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
                     return Ok(Accepted {
                         conn: H3Connection(conn),
-                        local_addr: self.local_addr.clone(),
+                        local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
+                        http_scheme: self.holdings[0].http_scheme.clone(),
+                        http_version: self.holdings[0].http_version,
                     });
                 }
                 Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),

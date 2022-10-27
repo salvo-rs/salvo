@@ -1,10 +1,7 @@
 //! addr module
 use std::fmt::{self, Display, Formatter};
-use std::ops::{Deref, DerefMut};
 #[cfg(unix)]
 use std::sync::Arc;
-
-use super::{AppProto, TransProto};
 
 /// Network socket address
 #[derive(Clone, Debug)]
@@ -121,64 +118,6 @@ impl Display for SocketAddr {
             SocketAddr::Unix(addr) => match addr.as_pathname() {
                 Some(path) => write!(f, "unix://{}", path.display()),
                 None => f.write_str("unix://unknown"),
-            },
-        }
-    }
-}
-
-/// `LocalAddr` is a wrapper around [`SocketAddr`].
-/// `LocalAddr`also contains information about
-/// transport protocol and application protocol.
-#[derive(Clone, Debug)]
-pub struct LocalAddr {
-    pub(crate) addr: SocketAddr,
-    pub(crate) trans_proto: TransProto,
-    pub(crate) app_proto: AppProto,
-}
-impl LocalAddr {
-    /// Create new `LocalAddr`.
-    pub fn new(addr: SocketAddr, trans_proto: TransProto, app_proto: AppProto) -> Self {
-        LocalAddr {
-            addr,
-            trans_proto,
-            app_proto,
-        }
-    }
-
-    /// Convert `LocalAddr` to [`std::net::SocketAddr`].
-    #[inline]
-    pub fn into_std(self) -> Option<std::net::SocketAddr> {
-        self.addr.into_std()
-    }
-}
-impl Default for LocalAddr {
-    fn default() -> Self {
-        LocalAddr::new(SocketAddr::Unknown, TransProto::Unknown, AppProto::Unknown)
-    }
-}
-impl Deref for LocalAddr {
-    type Target = SocketAddr;
-
-    fn deref(&self) -> &Self::Target {
-        &self.addr
-    }
-}
-impl DerefMut for LocalAddr {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.addr
-    }
-}
-
-impl Display for LocalAddr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match &self.addr {
-            SocketAddr::Unknown => write!(f, "unknown"),
-            SocketAddr::IPv4(addr) => write!(f, "({}) {}://{}", self.trans_proto, self.app_proto, addr),
-            SocketAddr::IPv6(addr) => write!(f, "({}) {}://{}", self.trans_proto, self.app_proto, addr),
-            #[cfg(unix)]
-            SocketAddr::Unix(addr) => match addr.as_pathname() {
-                Some(path) => write!(f, "({}) unix://{}", self.trans_proto, path.display()),
-                None => write!(f, "({}) unix://unknown", self.trans_proto),
             },
         }
     }

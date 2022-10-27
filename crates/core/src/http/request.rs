@@ -8,19 +8,19 @@ use cookie::{Cookie, CookieJar};
 use http::header::{self, AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
-use http::version::Version;
-use http::{self, Extensions, Uri};
+use http::uri::{Scheme, Uri};
+use http::{self, Extensions};
 use http_body_util::BodyExt;
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
 
-use crate::conn::{LocalAddr, SocketAddr};
+use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
 use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError};
+use crate::http::{Mime, ParseError, Version};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 
@@ -52,8 +52,9 @@ pub struct Request {
     pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
-    version: Version,
-    pub(crate) local_addr: LocalAddr,
+    pub(crate) version: Version,
+    pub(crate) scheme: Scheme,
+    pub(crate) local_addr: SocketAddr,
     pub(crate) remote_addr: SocketAddr,
 }
 
@@ -63,6 +64,7 @@ impl fmt::Debug for Request {
             .field("method", self.method())
             .field("uri", self.uri())
             .field("version", &self.version())
+            .field("scheme", &self.scheme())
             .field("headers", self.headers())
             // omits Extensions because not useful
             .field("body", &self.body())
@@ -79,11 +81,33 @@ impl Default for Request {
     }
 }
 
-impl<B> From<hyper::Request<B>> for Request
-where
-    B: Into<ReqBody>,
-{
-    fn from(req: hyper::Request<B>) -> Self {
+impl Request {
+    /// Creates a new blank `Request`
+    #[inline]
+    pub fn new() -> Request {
+        Request {
+            uri: Uri::default(),
+            headers: HeaderMap::default(),
+            body: ReqBody::default(),
+            extensions: Extensions::default(),
+            method: Method::default(),
+            #[cfg(feature = "cookie")]
+            cookies: CookieJar::default(),
+            params: HashMap::new(),
+            queries: OnceCell::new(),
+            form_data: tokio::sync::OnceCell::new(),
+            payload: tokio::sync::OnceCell::new(),
+            version: Version::default(),
+            scheme: Scheme::HTTP,
+            local_addr: SocketAddr::Unknown,
+            remote_addr: SocketAddr::Unknown,
+        }
+    }
+    /// Creates a new `Request` from [`hyper::Request`].
+    pub fn from_hyper<B>(req: hyper::Request<B>, scheme: Scheme) -> Self
+    where
+        B: Into<ReqBody>,
+    {
         let (
             http::request::Parts {
                 method,
@@ -126,32 +150,10 @@ where
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             // multipart: OnceCell::new(),
+            local_addr: SocketAddr::Unknown,
+            remote_addr: SocketAddr::Unknown,
             version,
-            local_addr: LocalAddr::default(),
-            remote_addr: SocketAddr::Unknown,
-        }
-    }
-}
-
-impl Request {
-    /// Creates a new blank `Request`
-    #[inline]
-    pub fn new() -> Request {
-        Request {
-            uri: Uri::default(),
-            headers: HeaderMap::default(),
-            body: ReqBody::default(),
-            extensions: Extensions::default(),
-            method: Method::default(),
-            #[cfg(feature = "cookie")]
-            cookies: CookieJar::default(),
-            params: HashMap::new(),
-            queries: OnceCell::new(),
-            form_data: tokio::sync::OnceCell::new(),
-            payload: tokio::sync::OnceCell::new(),
-            version: Version::default(),
-            local_addr: LocalAddr::default(),
-            remote_addr: SocketAddr::Unknown,
+            scheme,
         }
     }
     /// Returns a reference to the associated URI.
@@ -222,6 +224,18 @@ impl Request {
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
+
+    /// Returns the associated scheme.
+    #[inline]
+    pub fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
+    /// Returns a mutable reference to the associated scheme.
+    #[inline]
+    pub fn scheme_mut(&mut self) -> &mut Scheme {
+        &mut self.scheme
+    }
+
     /// Get request remote address.
     #[inline]
     pub fn remote_addr(&self) -> &SocketAddr {
@@ -229,7 +243,7 @@ impl Request {
     }
     /// Get request remote address.
     #[inline]
-    pub fn local_addr(&self) -> &LocalAddr {
+    pub fn local_addr(&self) -> &SocketAddr {
         &self.local_addr
     }
 

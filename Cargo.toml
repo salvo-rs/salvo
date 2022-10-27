@@ -43,7 +43,7 @@ http = "0.2"
 http-body-util = "0.1.0-rc.1" #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 hmac = "0.12"
 hex = "0.4"
-hyper = { git = "https://github.com/hyperium/hyper.git", rev="426e1e8" }
+hyper = "1.0.0-rc.1" #{ git = "https://github.com/hyperium/hyper.git", rev="426e1e8" }
 hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev="0e0591e" }
 hyper-rustls = "0.23"
 jsonwebtoken = "8"

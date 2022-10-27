@@ -1,10 +1,12 @@
 //! Listener trait and it's implements.
+use std::fmt::{self, Display, Formatter};
 use std::io::Result as IoResult;
 
+use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::async_trait;
-use crate::http::HttpConnection;
+use crate::http::{HttpConnection, Version};
 
 // cfg_feature! {
 //     #![feature = "acme"]
@@ -45,7 +47,7 @@ cfg_feature! {
     pub mod unix;
 }
 pub mod addr;
-pub use addr::{LocalAddr, SocketAddr};
+pub use addr::SocketAddr;
 
 mod tcp;
 pub use tcp::TcpListener;
@@ -54,7 +56,7 @@ mod joined;
 pub use joined::JoinedListener;
 
 mod proto;
-pub use proto::{AppProto, HttpBuilders, TransProto};
+pub use proto::HttpBuilders;
 
 cfg_feature! {
     #![unix]
@@ -82,9 +84,13 @@ pub struct Accepted<C> {
     /// Incoming stream.
     pub conn: C,
     /// Local addr.
-    pub local_addr: LocalAddr,
+    pub local_addr: SocketAddr,
     /// Remote addr.
     pub remote_addr: SocketAddr,
+    /// Http scheme.
+    pub http_scheme: Scheme,
+    /// Http version.
+    pub http_version: Version,
 }
 
 impl<C> Accepted<C>
@@ -98,11 +104,15 @@ where
             conn,
             local_addr,
             remote_addr,
+            http_version,
+            http_scheme,
         } = self;
         Accepted {
             conn: wrap_fn(conn),
             local_addr,
             remote_addr,
+            http_version,
+            http_scheme,
         }
     }
 }
@@ -113,8 +123,8 @@ pub trait Acceptor {
     /// Conn type
     type Conn: HttpConnection + AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
-    /// Returns the local address that this listener is bound to.
-    fn local_addrs(&self) -> Vec<LocalAddr>;
+    /// Returns the holding information that this listener is bound to.
+    fn holdings(&self) -> &[Holding];
 
     /// Accepts a new incoming connection from this listener.
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
@@ -140,6 +150,29 @@ where
         Ok(self)
     }
 }
+
+/// Holding information.
+#[derive(Clone, Debug)]
+pub struct Holding {
+    /// Local addr.
+    pub local_addr: SocketAddr,
+    /// Http version.
+    pub http_version: Version,
+    /// Http scheme.
+    pub http_scheme: Scheme,
+}
+impl Display for Holding {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{:?} on {}://{}",
+            self.http_version,
+            self.http_scheme,
+            self.local_addr.to_string().trim_start_matches("socket://")
+        )
+    }
+}
+
 /// Listener trait
 #[async_trait]
 pub trait Listener: IntoAcceptor {

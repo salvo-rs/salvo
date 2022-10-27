@@ -10,12 +10,13 @@ use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::ToSocketAddrs;
+use http::uri::Scheme;
 use tokio_openssl::SslStream;
 
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{AppProto, LocalAddr};
+use crate::conn::Holding;
 use crate::conn::{
     Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
 };
@@ -36,7 +37,7 @@ where
     /// Create new OpensslListener with config stream.
     #[inline]
     pub fn new(config_stream: C, inner: T) -> Self {
-        OpensslListener { inner, config_stream }
+        OpensslListener { config_stream, inner }
     }
 }
 
@@ -81,7 +82,7 @@ where
 pub struct OpensslAcceptor<C, T> {
     config_stream: C,
     inner: T,
-    local_addrs: Vec<LocalAddr>,
+    holdings: Vec<Holding>,
     tls_acceptor: Option<Arc<SslAcceptor>>,
 }
 impl<C, T> OpensslAcceptor<C, T>
@@ -89,15 +90,19 @@ where
     T: Acceptor,
 {
     pub fn new(config_stream: C, inner: T) -> OpensslAcceptor<C, T> {
-        let local_addrs = inner
-            .local_addrs()
+        let holdings = inner
+            .holdings()
             .iter()
-            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto.clone(), AppProto::Https))
+            .map(|h| Holding {
+                local_addr: h.local_addr.clone(),
+                http_version: Version::HTTP_2,
+                http_scheme: Scheme::HTTPS,
+            })
             .collect();
         OpensslAcceptor {
             config_stream,
             inner,
-            local_addrs,
+            holdings,
             tls_acceptor: None,
         }
     }
@@ -108,7 +113,7 @@ impl<S> HttpConnection for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         self.ssl().selected_alpn_protocol().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -129,8 +134,8 @@ where
     type Conn = TlsConnStream<SslStream<T::Conn>>;
 
     /// Get the local address bound to this listener.
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        self.local_addrs.clone()
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]

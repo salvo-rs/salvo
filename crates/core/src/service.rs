@@ -3,13 +3,14 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use headers::HeaderValue;
+use http::header::{ALT_SVC, CONTENT_TYPE, HOST};
+use http::uri::{Authority, Scheme, Uri};
 use hyper::service::Service as HyperService;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
-use crate::conn::{LocalAddr, SocketAddr};
+use crate::conn::SocketAddr;
 use crate::http::body::{ReqBody, ResBody};
-use crate::http::header::{ALT_SVC, CONTENT_TYPE};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{Catcher, Depot};
@@ -114,13 +115,15 @@ impl Service {
     #[inline]
     pub fn hyper_handler(
         &self,
-        local_addr: LocalAddr,
+        local_addr: SocketAddr,
         remote_addr: SocketAddr,
+        http_scheme: Scheme,
         alt_svc_h3: Option<HeaderValue>,
     ) -> HyperHandler {
         HyperHandler {
             local_addr,
             remote_addr,
+            http_scheme,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
@@ -137,8 +140,9 @@ impl Service {
     #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler(LocalAddr::default(), SocketAddr::Unknown, None)
-            .handle(request.into())
+        let request = request.into();
+        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown, request.scheme.clone(), None)
+            .handle(request)
             .await
     }
 }
@@ -156,8 +160,9 @@ where
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
-    pub(crate) local_addr: LocalAddr,
+    pub(crate) local_addr: SocketAddr,
     pub(crate) remote_addr: SocketAddr,
+    pub(crate) http_scheme: Scheme,
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
@@ -263,8 +268,31 @@ where
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
-    fn call(&mut self, req: HyperRequest<B>) -> Self::Future {
-        let response = self.handle(req.into());
+    fn call(
+        &mut self,
+        #[cfg(not(feature = "fix-http1-request-uri"))] req: HyperRequest<B>,
+        #[cfg(feature = "fix-http1-request-uri")] mut req: HyperRequest<B>,
+    ) -> Self::Future {
+        let scheme = req.uri().scheme().cloned().unwrap_or_else(|| self.http_scheme.clone());
+        // https://github.com/hyperium/hyper/issues/1310
+        #[cfg(feature = "fix-http1-request-uri")]
+        if req.uri().scheme().is_none() {
+            if let Some(host) = req
+                .headers()
+                .get(HOST)
+                .and_then(|host| host.to_str().ok())
+                .and_then(|host| host.parse::<Authority>().ok())
+            {
+                let mut uri_parts = std::mem::take(req.uri_mut()).into_parts();
+                uri_parts.scheme = Some(scheme.clone());
+                uri_parts.authority = Some(host);
+                if let Ok(uri) = Uri::from_parts(uri_parts) {
+                    *req.uri_mut() = uri;
+                }
+            }
+        }
+        let request = Request::from_hyper(req, scheme);
+        let response = self.handle(request);
         let fut = async move {
             let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;

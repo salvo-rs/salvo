@@ -39,7 +39,7 @@ impl<S> HttpConnection for TlsConnStream<S>
 where
     S: HttpConnection + Unpin + Send + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         match &mut self.state {
             State::Handshaking(fut) => match fut.await {
                 Ok(s) => self.state = State::Ready(s),
@@ -54,7 +54,7 @@ where
             }
         }
         if let State::Ready(s) = &mut self.state {
-            s.version().await
+            s.http_version().await
         } else {
             unreachable!()
         }

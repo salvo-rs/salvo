@@ -7,8 +7,9 @@ use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
 use crate::conn::HttpBuilders;
-use crate::conn::{AppProto, LocalAddr, TransProto};
+use crate::conn::{Holding};
 use crate::http::{HttpConnection, Version};
+use crate::http::uri::Scheme;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, IntoAcceptor, Listener};
@@ -32,20 +33,28 @@ where
     type Acceptor = TcpAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let inner = TokioTcpListener::bind(self.local_addr).await?;
-        let local_addr = LocalAddr::new(inner.local_addr()?.into(), TransProto::Tcp, AppProto::Http);
-        Ok(TcpAcceptor { inner, local_addr })
+        let holding = Holding {
+            local_addr: inner.local_addr()?.into(),
+            http_version: Version::HTTP_11,
+            http_scheme: Scheme::HTTP,
+        };
+
+        Ok(TcpAcceptor {
+            inner,
+            holdings: vec![holding],
+        })
     }
 }
 impl<T> Listener for TcpListener<T> where T: ToSocketAddrs + Send {}
 
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
-    local_addr: LocalAddr,
+    holdings: Vec<Holding>,
 }
 
 #[async_trait]
 impl HttpConnection for TcpStream {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -63,16 +72,18 @@ impl Acceptor for TcpAcceptor {
     type Conn = TcpStream;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        vec![self.local_addr.clone()]
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
             conn,
-            local_addr: self.local_addr.clone(),
+            local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
+            http_version: self.holdings[0].http_version.clone(),
+            http_scheme: self.holdings[0].http_scheme.clone(),
         })
     }
 }

@@ -8,7 +8,7 @@ use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::addr::LocalAddr;
+use crate::conn::Holding;
 use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -93,16 +93,17 @@ where
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        Ok(JoinedAcceptor {
-            a: self.a.into_acceptor().await?,
-            b: self.b.into_acceptor().await?,
-        })
+        let a = self.a.into_acceptor().await?;
+        let b = self.b.into_acceptor().await?;
+        let holdings = a.holdings().iter().chain(b.holdings().into_iter()).cloned().collect();
+        Ok(JoinedAcceptor { a, b, holdings })
     }
 }
 
 pub struct JoinedAcceptor<A, B> {
     a: A,
     b: B,
+    holdings: Vec<Holding>,
 }
 
 #[async_trait]
@@ -111,10 +112,10 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         match self {
-            JoinedStream::A(a) => a.version().await,
-            JoinedStream::B(b) => b.version().await,
+            JoinedStream::A(a) => a.http_version().await,
+            JoinedStream::B(b) => b.http_version().await,
         }
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -136,12 +137,8 @@ where
     type Conn = JoinedStream<A::Conn, B::Conn>;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        self.a
-            .local_addrs()
-            .into_iter()
-            .chain(self.b.local_addrs().into_iter())
-            .collect()
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]

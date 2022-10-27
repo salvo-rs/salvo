@@ -13,9 +13,8 @@ use tokio::time::Duration;
 
 #[cfg(feature = "http3")]
 use crate::conn::http3;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoAcceptor, LocalAddr, TransProto};
-use crate::http::HeaderValue;
-use crate::http::HttpConnection;
+use crate::conn::{Accepted, Holding, Acceptor, HttpBuilders, IntoAcceptor};
+use crate::http::{Version, HeaderValue, HttpConnection};
 use crate::runtimes::TokioExecutor;
 use crate::Service;
 
@@ -77,10 +76,10 @@ impl<A: Acceptor> Server<A> {
         })
     }
 
-    /// Get local addresses of this server.
+    /// Get holding information of this server.
     #[inline]
-    pub fn local_addrs(&self) -> Vec<LocalAddr> {
-        self.acceptor.local_addrs()
+    pub fn holdings(&self) -> &[Holding] {
+        self.acceptor.holdings()
     }
 
     /// Use this function to set http1 protocol.
@@ -177,10 +176,10 @@ impl<A: Acceptor> Server<A> {
         tokio::pin!(signal);
 
         let mut alt_svc_h3 = None;
-        for addr in acceptor.local_addrs() {
-            tracing::info!("listening on {}", addr);
-            if addr.trans_proto == TransProto::Udp {
-                if let Some(addr) = addr.into_std() {
+        for holding in acceptor.holdings() {
+            tracing::info!("listening {}", holding);
+            if holding.http_version == Version::HTTP_3 {
+                if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
                     alt_svc_h3 = Some(
                         format!(
@@ -217,12 +216,12 @@ impl<A: Acceptor> Server<A> {
                 },
                  accepted = acceptor.accept() => {
                     match accepted {
-                        Ok(Accepted { conn, local_addr, remote_addr }) => {
+                        Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
                             let service = service.clone();
                             let alive_connections = alive_connections.clone();
                             let notify = notify.clone();
                             let timeout_notify = timeout_notify.clone();
-                            let handler = service.hyper_handler(local_addr, remote_addr, alt_svc_h3.clone());
+                            let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, alt_svc_h3.clone());
                             let builders = builders.clone();
                             tokio::spawn(async move {
                                 alive_connections.fetch_add(1, Ordering::SeqCst);

@@ -9,10 +9,13 @@ use futures_util::{Stream, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::ToSocketAddrs;
 use tokio_native_tls::TlsStream;
+use http::uri::Scheme;
 
 use crate::async_trait;
-use crate::conn::{AppProto, LocalAddr};
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TcpListener, TlsConnStream, IntoAcceptor};
+use crate::conn::Holding;
+use crate::conn::{
+    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
+};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -50,11 +53,13 @@ where
         ))
     }
 }
-impl<C, T> Listener for NativeTlsListener<C, T> 
+impl<C, T> Listener for NativeTlsListener<C, T>
 where
     C: IntoConfigStream<NativeTlsConfig>,
     T: Listener + Send,
-    T::Acceptor: Send + 'static,{}
+    T::Acceptor: Send + 'static,
+{
+}
 
 impl<C, T> NativeTlsListener<C, TcpListener<T>>
 where
@@ -76,7 +81,7 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -92,7 +97,7 @@ where
 pub struct NativeTlsAcceptor<C, T> {
     config_stream: C,
     inner: T,
-    local_addrs: Vec<LocalAddr>,
+    holdings: Vec<Holding>,
     tls_acceptor: Option<tokio_native_tls::TlsAcceptor>,
 }
 impl<C, T> NativeTlsAcceptor<C, T>
@@ -101,15 +106,19 @@ where
 {
     /// Create a new `NativeTlsAcceptor`.
     pub fn new(config_stream: C, inner: T) -> NativeTlsAcceptor<C, T> {
-        let local_addrs = inner
-            .local_addrs()
+        let holdings = inner
+            .holdings()
             .iter()
-            .map(|l| LocalAddr::new(l.addr.clone(), l.trans_proto.clone(), AppProto::Https))
+            .map(|h| Holding {
+                local_addr: h.local_addr.clone(),
+                http_version: Version::HTTP_2,
+                http_scheme: Scheme::HTTPS,
+            })
             .collect();
         NativeTlsAcceptor {
             config_stream,
             inner,
-            local_addrs,
+            holdings,
             tls_acceptor: None,
         }
     }
@@ -125,8 +134,8 @@ where
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        self.local_addrs.clone()
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
     }
 
     #[inline]
@@ -191,9 +200,7 @@ mod tests {
             "127.0.0.1:0",
         );
         let mut acceptor = listener.into_acceptor().await.unwrap();
-        let addr = acceptor
-            .local_addrs().remove(0).into_std()
-            .unwrap();
+        let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
 
         tokio::spawn(async move {
             let connector = tokio_native_tls::TlsConnector::from(

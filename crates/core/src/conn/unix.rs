@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::async_trait;
+use crate::conn::Holding;
 use crate::conn::HttpBuilders;
-use crate::conn::{AppProto, LocalAddr, TransProto};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -35,8 +35,14 @@ where
     type Acceptor = UnixAcceptor;
     async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
         let inner = TokioUnixListener::bind(self.path)?;
-        let local_addr = LocalAddr::new(inner.local_addr()?.into(), TransProto::Tcp, AppProto::Http);
-        Ok(UnixAcceptor { inner, local_addr })
+        let holding = Holding {
+            local_addr: inner.local_addr()?.into(),
+            http_version: Version::HTTP_11,
+        };
+        Ok(UnixAcceptor {
+            inner,
+            holdings: vec![holding],
+        })
     }
 }
 
@@ -46,7 +52,7 @@ impl<T> Listener for UnixListener<T> where T: AsRef<Path> + Send {}
 /// UnixAcceptor
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
-    local_addr: LocalAddr,
+    local_addr: Holding,
 }
 
 #[cfg(unix)]
@@ -55,8 +61,12 @@ impl Acceptor for UnixAcceptor {
     type Conn = UnixStream;
 
     #[inline]
-    fn local_addrs(&self) -> Vec<LocalAddr> {
-        vec![self.local_addr.clone()]
+    fn holdings(&self) -> &[Holding] {
+        &self.holdings
+    }
+    #[inline]
+    fn http_versions(&self) -> Vec<Version> {
+        vec![self.http_version.clone()]
     }
 
     #[inline]
@@ -71,7 +81,7 @@ impl Acceptor for UnixAcceptor {
 
 #[async_trait]
 impl HttpConnection for UnixStream {
-    async fn version(&mut self) -> Option<Version> {
+    async fn http_version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

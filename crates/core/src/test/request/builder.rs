@@ -4,6 +4,7 @@ use std::str;
 use std::sync::Arc;
 
 use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
+use http::uri::Scheme;
 use url::Url;
 
 use crate::http::body::ReqBody;
@@ -208,7 +209,9 @@ impl RequestBuilder {
 
     /// Build final request.
     pub fn build(self) -> Request {
-        self.build_hyper().into()
+        let req = self.build_hyper();
+        let scheme =  req.uri().scheme().cloned().unwrap_or(Scheme::HTTP);
+        Request::from_hyper(req, scheme)
     }
 
     /// Build hyper request.
