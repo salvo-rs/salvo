@@ -15,3 +15,10 @@ temp
 tarpaulin-report.*
 
 .DS_Store
+
+
+**/node_modules/
+# VuePress files
+website/.vuepress/.temp/
+website/.vuepress/.cache/
+website/.vuepress/dist/
