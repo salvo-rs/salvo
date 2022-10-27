@@ -112,10 +112,10 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         match self {
-            JoinedStream::A(a) => a.http_version().await,
-            JoinedStream::B(b) => b.http_version().await,
+            JoinedStream::A(a) => a.version().await,
+            JoinedStream::B(b) => b.version().await,
         }
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

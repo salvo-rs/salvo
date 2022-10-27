@@ -54,7 +54,7 @@ pub struct TcpAcceptor {
 
 #[async_trait]
 impl HttpConnection for TcpStream {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

@@ -33,7 +33,7 @@ use crate::service::HyperHandler;
 #[async_trait]
 pub trait HttpConnection {
     /// The http protocol version.
-    async fn http_version(&mut self) -> Option<Version>;
+    async fn version(&mut self) -> Option<Version>;
     /// Serve this http connection.
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
 }

@@ -81,7 +81,7 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {

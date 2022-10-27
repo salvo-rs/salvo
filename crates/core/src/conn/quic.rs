@@ -104,7 +104,7 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_3)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
