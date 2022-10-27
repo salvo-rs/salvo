@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
+use http::uri::Scheme;
 
 use crate::async_trait;
 use crate::conn::Holding;
@@ -38,6 +39,7 @@ where
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
             http_version: Version::HTTP_11,
+            http_scheme: Scheme::HTTP,
         };
         Ok(UnixAcceptor {
             inner,
@@ -52,7 +54,7 @@ impl<T> Listener for UnixListener<T> where T: AsRef<Path> + Send {}
 /// UnixAcceptor
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
-    local_addr: Holding,
+    holdings: Vec<Holding>,
 }
 
 #[cfg(unix)]
@@ -64,17 +66,15 @@ impl Acceptor for UnixAcceptor {
     fn holdings(&self) -> &[Holding] {
         &self.holdings
     }
-    #[inline]
-    fn http_versions(&self) -> Vec<Version> {
-        vec![self.http_version.clone()]
-    }
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         self.inner.accept().await.map(move |(conn, remote_addr)| Accepted {
             conn,
-            local_addr: self.local_addr.clone(),
+            local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
+            http_version: self.holdings[0].http_version,
+            http_scheme: self.holdings[0].http_scheme.clone(),
         })
     }
 }
