@@ -13,8 +13,8 @@ use tokio::time::Duration;
 
 #[cfg(feature = "http3")]
 use crate::conn::http3;
-use crate::conn::{Accepted, Holding, Acceptor, HttpBuilders, IntoAcceptor};
-use crate::http::{Version, HeaderValue, HttpConnection};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, IntoAcceptor};
+use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::runtimes::TokioExecutor;
 use crate::Service;
 
