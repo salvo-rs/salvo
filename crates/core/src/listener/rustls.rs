@@ -328,7 +328,7 @@ where
     pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<RustlsListener<C>, hyper::Error> {
         Ok(RustlsListener {
             config_stream: self.config_stream,
-            incoming: incoming.into_incoming(),
+            incoming: incoming.into_incoming()?,
             server_config: None,
         })
     }

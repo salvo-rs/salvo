@@ -183,7 +183,7 @@ where
     pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<OpensslListener<C>, hyper::Error> {
         Ok(OpensslListener {
             config_stream: self.config_stream,
-            incoming: incoming.into_incoming(),
+            incoming: incoming.into_incoming()?,
             openssl_config: None,
             acceptor: None,
         })
