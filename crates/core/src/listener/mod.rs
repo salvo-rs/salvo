@@ -221,7 +221,7 @@ impl TcpListener {
 
     /// Try to bind to socket address.
     #[inline]
-    pub fn try_bind(incoming: impl IntoAddrIncoming) -> Result<Self, hyper::Error> {
+    pub fn try_bind(incoming: impl IntoAddrIncoming) -> Result<Self, crate::Error> {
         Ok(TcpListener {
             incoming: incoming.into_incoming()?,
         })
@@ -241,12 +241,12 @@ impl Accept for TcpListener {
 /// IntoAddrIncoming
 pub trait IntoAddrIncoming {
     /// Convert into AddrIncoming
-    fn into_incoming(self) -> Result<AddrIncoming, hyper::Error>;
+    fn into_incoming(self) -> Result<AddrIncoming, crate::Error>;
 }
 
 impl IntoAddrIncoming for StdSocketAddr {
     #[inline]
-    fn into_incoming(self) -> Result<AddrIncoming, hyper::Error> {
+    fn into_incoming(self) -> Result<AddrIncoming, crate::Error> {
         let mut incoming = AddrIncoming::bind(&self)?;
         incoming.set_nodelay(true);
         Ok(incoming)
@@ -255,27 +255,27 @@ impl IntoAddrIncoming for StdSocketAddr {
 
 impl IntoAddrIncoming for AddrIncoming {
     #[inline]
-    fn into_incoming(self) -> Result<AddrIncoming, hyper::Error> {
+    fn into_incoming(self) -> Result<AddrIncoming, crate::Error> {
         Ok(self)
     }
 }
 
 impl<T: ToSocketAddrs + ?Sized> IntoAddrIncoming for &T {
     #[inline]
-    fn into_incoming(self) -> Result<AddrIncoming, hyper::Error> {
-        for addr in self.to_socket_addrs().expect("failed to create AddrIncoming") {
+    fn into_incoming(self) -> Result<AddrIncoming, crate::Error> {
+        for addr in self.to_socket_addrs()? {
             if let Ok(mut incoming) = AddrIncoming::bind(&addr) {
                 incoming.set_nodelay(true);
                 return Ok(incoming);
             }
         }
-        panic!("failed to create AddrIncoming");
+        Err(crate::Error::other("failed to create AddrIncoming"))
     }
 }
 
 impl<I: Into<IpAddr>> IntoAddrIncoming for (I, u16) {
     #[inline]
-    fn into_incoming(self) -> Result<AddrIncoming, hyper::Error> {
+    fn into_incoming(self) -> Result<AddrIncoming, crate::Error> {
         let mut incoming = AddrIncoming::bind(&self.into())?;
         incoming.set_nodelay(true);
         Ok(incoming)

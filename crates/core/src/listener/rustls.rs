@@ -325,7 +325,7 @@ where
     }
     /// Try to bind to socket address.
     #[inline]
-    pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<RustlsListener<C>, hyper::Error> {
+    pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<RustlsListener<C>, crate::Error> {
         Ok(RustlsListener {
             config_stream: self.config_stream,
             incoming: incoming.into_incoming()?,

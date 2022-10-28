@@ -109,7 +109,7 @@ where
     }
     /// Try to bind to socket address.
     #[inline]
-    pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<NativeTlsListener<C>, hyper::Error> {
+    pub fn try_bind(self, incoming: impl IntoAddrIncoming) -> Result<NativeTlsListener<C>, crate::Error> {
         Ok(NativeTlsListener {
             config_stream: self.config_stream,
             incoming: incoming.into_incoming()?,
