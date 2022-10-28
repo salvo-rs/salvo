@@ -25,29 +25,27 @@ pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertS
 mod tests {
     use std::sync::Arc;
 
-    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
     use tokio_rustls::rustls::{ClientConfig, ServerName};
     use tokio_rustls::TlsConnector;
 
     use super::*;
-    use crate::conn::{Accepted, Acceptor, Listener};
+    use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let listener = RustlsListener::new(
-            RustlsConfig::new(
+        let mut acceptor = TcpListener::new("127.0.0.1:0")
+            .rustls(RustlsConfig::new(
                 Keycert::new()
                     .key_from_path("certs/key.pem")
                     .unwrap()
                     .cert_from_path("certs/cert.pem")
                     .unwrap(),
-            ),
-            "127.0.0.1:0",
-        );
-        let mut acceptor = listener.bind().await.unwrap();
-        let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
+            ))
+            .bind()
+            .await;
+        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
 
         tokio::spawn(async move {
             let stream = TcpStream::connect(addr).await.unwrap();

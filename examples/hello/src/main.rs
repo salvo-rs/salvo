@@ -5,8 +5,8 @@ async fn hello() -> &'static str {
     "Hello World"
 }
 #[handler]
-async fn hello1(req: &mut Request) -> Result<String, ()> {
-    Ok(format!("Hello World1, url: {:?}", req.uri()))
+async fn hello1() -> Result<&'static str, ()> {
+    Ok("Hello World1")
 }
 #[handler]
 async fn hello2(res: &mut Response) {

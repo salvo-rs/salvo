@@ -145,7 +145,6 @@ impl Acceptor for TcpAcceptor {
 
 #[cfg(test)]
 mod tests {
-    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
@@ -154,10 +153,8 @@ mod tests {
     #[tokio::test]
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
-
-        let listener = TcpListener::new(addr);
-        let mut acceptor = listener.bind().await.unwrap();
-        let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
+        let mut acceptor = TcpListener::new(addr).bind().await;
+        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();

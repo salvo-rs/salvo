@@ -290,40 +290,6 @@ mod tests {
 
     use super::*;
 
-    impl Stream for TcpListener {
-        type Item = Result<AddrStream, IoError>;
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.poll_accept(cx)
-        }
-    }
-
-    impl<A, B> Stream for JoinedListener<A, B>
-    where
-        A: Accept + Send + Unpin + 'static,
-        B: Accept + Send + Unpin + 'static,
-        A::Conn: Transport,
-        B::Conn: Transport,
-    {
-        type Item = Result<JoinedStream<A::Conn, B::Conn>, IoError>;
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.poll_accept(cx)
-        }
-    }
-
-    #[tokio::test]
-    async fn test_tcp_listener() {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
-
-        let mut listener = TcpListener::new(addr);
-        tokio::spawn(async move {
-            let mut stream = TcpStream::connect(addr).await.unwrap();
-            stream.write_i32(150).await.unwrap();
-        });
-
-        let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 150);
-    }
-
     #[tokio::test]
     async fn test_joined_listener() {
         let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));

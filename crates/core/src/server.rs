@@ -246,7 +246,6 @@ impl<A: Acceptor> Server<A> {
 mod tests {
     use serde::Serialize;
 
-    use crate::conn::Acceptor;
     use crate::prelude::*;
 
     #[tokio::test]
@@ -266,8 +265,7 @@ mod tests {
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
         let server = Server::new(acceptor);
-        let addr = server.local_addrs().remove(0);
-        let addr = addr.into_std().unwrap();
+        let addr = server.holdings()[0].local_addr.clone().into_std().unwrap();
         tokio::spawn(async move {
             server.serve(router).await;
         });

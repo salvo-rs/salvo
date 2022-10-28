@@ -130,17 +130,7 @@ impl Service {
             alt_svc_h3,
         }
     }
-    /// Handle new request.
-    ///
-    /// # Example
-    /// ```
-    /// # use salvo_core::prelude::*;
-    /// async fn main() {
-    ///     let service: Service = Router::new().get(hello).into();
-    ///     let mut res = TestClient::get("http://127.0.0.1:7878");.send(&service).await;
-    ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
-    /// }
-    /// ```
+    /// Handle new request, this function only used for test.
     #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {

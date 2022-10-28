@@ -313,14 +313,6 @@ impl Request {
     }
 
     /// Returns a reference to the associated HTTP body.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use salvo_core::http::*;
-    /// let req = Request::default();
-    /// assert!(req.body().is_some());
-    /// ```
     #[inline]
     pub fn body(&self) -> &ReqBody {
         &self.body

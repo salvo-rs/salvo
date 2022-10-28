@@ -158,3 +158,32 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::io::{ AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpStream;
+
+    use super::*;
+    use crate::conn::TcpListener;
+
+    #[tokio::test]
+    async fn test_joined_listener() {
+        let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
+        let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
+
+        let mut acceptor = TcpListener::new(addr1).join(TcpListener::new(addr2)).bind().await;
+        tokio::spawn(async move {
+            let mut stream = TcpStream::connect(addr1).await.unwrap();
+            stream.write_i32(50).await.unwrap();
+
+            let mut stream = TcpStream::connect(addr2).await.unwrap();
+            stream.write_i32(100).await.unwrap();
+        });
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let first = conn.read_i32().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
+        let second = conn.read_i32().await.unwrap();
+        assert_eq!(first + second, 150);
+    }
+}

@@ -7,24 +7,23 @@ pub use config::NativeTlsConfig;
 
 #[cfg(test)]
 mod tests {
-    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
-    use crate::conn::{Acceptor,Accepted, Listener};
+    use crate::conn::{TcpListener, Accepted,Acceptor, Listener};
 
     #[tokio::test]
     async fn test_native_tls_listener() {
-        let mut listener = NativeTlsListener::new(
-            NativeTlsConfig::new()
-                .with_pkcs12(include_bytes!("../../../certs/identity.p12").as_ref())
-                .with_password("mypass"),
-            "127.0.0.1:0",
-        );
-        let mut acceptor = listener.bind().await.unwrap();
-        let addr = acceptor.local_addrs().remove(0);
-        let addr = addr.into_std().unwrap();
+        let mut acceptor = TcpListener::new("127.0.0.1:0")
+            .native_tls(
+                NativeTlsConfig::new()
+                    .with_pkcs12(include_bytes!("../../../certs/identity.p12").as_ref())
+                    .with_password("mypass"),
+            )
+            .bind()
+            .await;
+        let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
 
         tokio::spawn(async move {
             let connector = tokio_native_tls::TlsConnector::from(
