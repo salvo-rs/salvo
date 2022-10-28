@@ -14,33 +14,24 @@ jobs:
 
     env:
       DOCS_GA_ID: G-X828N63WC8
-      NODE_VERSION: '16'
+      NODE_VERSION: '18'
 
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      # - name: Install pnpm
-      #   uses: pnpm/action-setup@v2.2.4
-
-      # - name: Install pnpm
-      #   uses: pnpm/action-setup@v2.2.4
-      #   with:
-      #     dest: ./website
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # cache: pnpm
+          # cache: 'yarn'
+          cache: yarn
 
       - name: Install dependencies
-        working-directory: ./website
-        run: npm install --frozen-lockfile
-
-      - name: Build website
-        run: npm docs:release
+        run: |
+          cd website
+          npm install -g yarn
+          yarn install
+          yarn run build
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v2.2.0

@@ -1,12 +1,12 @@
 {
-  "name": "docs",
+  "name": "website",
   "private": true,
   "type": "module",
   "scripts": {
-    "docs:build": "vuepress-cli build --clean-cache",
-    "docs:clean": "rimraf .vuepress/.temp .vuepress/.cache .vuepress/dist",
-    "docs:dev": "vuepress-cli dev --clean-cache",
-    "docs:serve": "anywhere -s -h localhost -d .vuepress/dist"
+    "build": "vuepress-cli build --clean-cache",
+    "clean": "rimraf .vuepress/.temp .vuepress/.cache .vuepress/dist",
+    "dev": "vuepress-cli dev --clean-cache",
+    "serve": "anywhere -s -h localhost -d .vuepress/dist"
   },
   "dependencies": {
     "@vuepress/bundler-vite": "workspace:*",
