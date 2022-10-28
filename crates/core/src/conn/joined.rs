@@ -100,7 +100,7 @@ where
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let a = self.a.try_bind().await?;
         let b = self.b.try_bind().await?;
-        let holdings = a.holdings().iter().chain(b.holdings().into_iter()).cloned().collect();
+        let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
         Ok(JoinedAcceptor { a, b, holdings })
     }
 }

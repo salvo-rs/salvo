@@ -137,7 +137,7 @@ impl Acceptor for TcpAcceptor {
             conn,
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
-            http_version: self.holdings[0].http_version.clone(),
+            http_version: self.holdings[0].http_version,
             http_scheme: self.holdings[0].http_scheme.clone(),
         })
     }
