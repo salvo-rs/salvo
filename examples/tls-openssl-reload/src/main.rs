@@ -12,12 +12,15 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("127.0.0.1:7878").openssl(async_stream::stream! {
-        loop {
-            yield load_config();
-            tokio::time::sleep(Duration::from_secs(60)).await;
-        }
-    }).bind().await;
+    let acceptor = TcpListener::new("127.0.0.1:7878")
+        .openssl(async_stream::stream! {
+            loop {
+                yield load_config();
+                tokio::time::sleep(Duration::from_secs(60)).await;
+            }
+        })
+        .bind()
+        .await;
     Server::new(acceptor).serve(router).await;
 }
 

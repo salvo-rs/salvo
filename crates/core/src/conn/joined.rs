@@ -92,7 +92,7 @@ where
     B::Acceptor: Acceptor + Send + Unpin + 'static,
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
-    
+
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
     }
