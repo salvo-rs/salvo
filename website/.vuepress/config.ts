@@ -12,8 +12,10 @@ import {
   head,
   navbarEn,
   navbarZhHans,
+  navbarZhHant,
   sidebarEn,
   sidebarZhHans,
+  sidebarZhHant,
 } from './configs/index.js'
 
 const __dirname = getDirname(import.meta.url)
@@ -29,14 +31,19 @@ export default defineUserConfig({
   // site-level locales config
   locales: {
     '/': {
-      lang: 'en-US',
+      lang: 'en',
       title: 'Salvo',
       description: 'Salvo is a powerful and simplest web server framework in Rust world',
     },
     '/zh-hans/': {
-      lang: 'zh-CN',
+      lang: 'zh-hans',
       title: 'Salvo',
       description: '一个功能强大且简单的 Rust Web 服务端框架',
+    },
+    '/zh-hant/': {
+      lang: 'zh-hant',
+      title: 'Salvo',
+      description: '一個功能強大且簡單的 Rust Web 服務端框架',
     },
   },
 
@@ -98,6 +105,35 @@ export default defineUserConfig({
         openInNewWindow: '在新窗口打开',
         toggleColorMode: '切换颜色模式',
         toggleSidebar: '切换侧边栏',
+      },
+      '/zh-hant/': {
+        // navbar
+        navbar: navbarZhHant,
+        selectLanguageName: '簡體中文',
+        selectLanguageText: '選擇語言',
+        selectLanguageAriaLabel: '選擇語言',
+        // sidebar
+        sidebar: sidebarZhHant,
+        // page meta
+        editLinkText: '在 GitHub 上編輯此頁',
+        lastUpdatedText: '上次更新',
+        contributorsText: '貢獻者',
+        // custom containers
+        tip: '提示',
+        warning: '註意',
+        danger: '警告',
+        // 404 page
+        notFound: [
+          '這裏什麼都冇有',
+          '我們怎麼到這來了？',
+          '這是一個 404 頁麵',
+          '看起來我們進入了錯誤的鏈接',
+        ],
+        backToHome: '返回首頁',
+        // a11y
+        openInNewWindow: '在新窗口打開',
+        toggleColorMode: '切換顔色模式',
+        toggleSidebar: '切換側邊欄',
       },
     },
 
@@ -164,6 +200,47 @@ export default defineUserConfig({
                 suggestedQueryText: '你可以尝试查询',
                 reportMissingResultsText: '你认为该查询应该有结果？',
                 reportMissingResultsLinkText: '点击反馈',
+              },
+            },
+          },
+        },
+        '/zh-hant/': {
+          placeholder: '搜索文檔',
+          translations: {
+            button: {
+              buttonText: '搜索文檔',
+              buttonAriaLabel: '搜索文檔',
+            },
+            modal: {
+              searchBox: {
+                resetButtonTitle: '清除查詢條件',
+                resetButtonAriaLabel: '清除查詢條件',
+                cancelButtonText: '取消',
+                cancelButtonAriaLabel: '取消',
+              },
+              startScreen: {
+                recentSearchesTitle: '搜索曆史',
+                noRecentSearchesText: '冇有搜索曆史',
+                saveRecentSearchButtonTitle: '保存至搜索曆史',
+                removeRecentSearchButtonTitle: '從搜索曆史中移除',
+                favoriteSearchesTitle: '收藏',
+                removeFavoriteSearchButtonTitle: '從收藏中移除',
+              },
+              errorScreen: {
+                titleText: '無法獲取結果',
+                helpText: '你可能需要檢查你的網絡連接',
+              },
+              footer: {
+                selectText: '選擇',
+                navigateText: '切換',
+                closeText: '關閉',
+                searchByText: '搜索提供者',
+              },
+              noResultsScreen: {
+                noResultsText: '無法找到相關結果',
+                suggestedQueryText: '你可以嘗試查詢',
+                reportMissingResultsText: '你認為該查詢應該有結果？',
+                reportMissingResultsLinkText: '點擊反饋',
               },
             },
           },

@@ -44,7 +44,7 @@ async fn main() {
         BasicQuota::per_second(1),
     );
     let router = Router::with_hoop(limiter).get(hello_world);
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
 }
 ```
 
@@ -114,7 +114,7 @@ async fn main() {
     let router = Router::new()
         .get(home)
         .push(Router::with_path("limited").hoop(limiter).get(limited));
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
 }
 
 static HOME_HTML: &str = r#"

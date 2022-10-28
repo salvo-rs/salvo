@@ -29,7 +29,7 @@ salvo = { version = "*", features = ["serve-static"] }
             .with_listing(true),
         );
         tracing::info!("Listening on http://127.0.0.1:7878");
-        Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+        let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
     }
     ```
     如果在第一個文件夾中找不到對應的文件, 則會到第二個文件夾中找.
@@ -50,7 +50,7 @@ salvo = { version = "*", features = ["serve-static"] }
 
         let router = Router::with_path("<**path>").get(static_embed::<Assets>().with_fallback("index.html"));
         tracing::info!("Listening on http://127.0.0.1:7878");
-        Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+        let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
     }
     ```
 
