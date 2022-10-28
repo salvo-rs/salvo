@@ -8,10 +8,6 @@ on:
       - '**/__tests__/**'
   workflow_dispatch:
 
-defaults:
- run:
-  working-directory: ./website
-
 jobs:
   website:
     runs-on: ubuntu-latest
@@ -30,6 +26,8 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2.2.4
+        with:
+          dest: ./website
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
