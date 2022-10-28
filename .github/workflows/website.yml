@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           # cache: 'yarn'
-          cache: yarn
+          # cache: yarn
 
       - name: Install dependencies
         run: |
