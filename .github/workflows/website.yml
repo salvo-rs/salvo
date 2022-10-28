@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCS_GA_ID: G-CTB8FQ7VMW
+      DOCS_GA_ID: G-X828N63WC8
       NODE_VERSION: '16'
 
     steps:
@@ -22,7 +22,8 @@ jobs:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v2.2
+        working-directory: ./website
 
       - name: Setup Node.js
         uses: actions/setup-node@v3

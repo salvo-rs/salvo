@@ -142,7 +142,7 @@ impl FlowCtrl {
     /// Has next handler.
     #[inline]
     pub fn has_next(&self) -> bool {
-        self.cursor < self.handlers.len() && !self.handlers.is_empty()
+        self.cursor < self.handlers.len()// && !self.handlers.is_empty()
     }
 
     /// Call next handler. If get next handler and executed, returns true, otherwise returns false.
