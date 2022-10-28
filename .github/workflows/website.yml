@@ -11,7 +11,7 @@ on:
 jobs:
   website:
     runs-on: ubuntu-latest
-
+    environment: website
     env:
       DOCS_GA_ID: G-X828N63WC8
       NODE_VERSION: '18'
@@ -27,14 +27,11 @@ jobs:
           # cache: yarn
 
       - name: Install dependencies
-        env:
-          GH_PAT: ${{ secrets.GH_PAGES_TOKEN }}
         run: |
           cd website
           npm install -g yarn
           yarn install
           yarn run build
-          echo $GH_PAT
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v2.2.0
