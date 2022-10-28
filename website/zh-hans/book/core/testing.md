@@ -1,16 +1,10 @@
----
-title: "Test"
-weight: 2090
-menu:
-  book:
-    parent: "core"
----
+# Testing
 
 Salvo 提供的 test 模块, 可以帮助测试 Salvo 的项目.
 
 [最新文档](https://docs.rs/salvo_core/latest/salvo_core/test/index.html)
 
-## 简单示例:
+**简单示例:**
 
 ```rust
 use salvo::prelude::*;

@@ -29,25 +29,24 @@ footer: MIT Licensed | Copyright © 2019-present Salvo Team
 ### As Easy as 1, 2, 3
 
 <CodeGroup>
-  <CodeGroupItem title="YARN" active>
-
-```bash
-# install in your project
-yarn add -D vuepress@next
-
-# create a markdown file
-echo '# Hello VuePress' > README.md
-
-# start writing
-yarn vuepress dev
-
-# build to static files
-yarn vuepress build
+  <CodeGroupItem title="main.rs" active>
+  
+```rust
+use salvo::prelude::*;
+#[handler]
+async fn hello_world(res: &mut Response) {
+    res.render("Hello world!");
+}
+#[tokio::main]
+async fn main() {
+    let router = Router::new().get(hello_world);
+    let listener = TcpListener::bind("127.0.0.1:7878");
+    Server::new(listener).serve(router).await;
+}
 ```
 
   </CodeGroupItem>
-
-  <CodeGroupItem title="NPM">
+  <CodeGroupItem title="Cargo.toml">
   
 ```bash
 # install in your project

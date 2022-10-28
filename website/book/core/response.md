@@ -1,10 +1,4 @@
----
-title: "Response"
-weight: 1040
-menu:
-  book:
-    parent: "core"
----
+# Response
 
 We can get response reference as function handler paramer:
 

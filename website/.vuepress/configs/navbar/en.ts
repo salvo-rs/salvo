@@ -12,63 +12,63 @@ export const navbarEn: NavbarConfig = [
       {
         text: 'Common Features',
         children: [
-          '/reference/plugin/back-to-top.md',
-          '/reference/plugin/container.md',
-          '/reference/plugin/external-link-icon.md',
-          '/reference/plugin/google-analytics.md',
-          '/reference/plugin/medium-zoom.md',
-          '/reference/plugin/nprogress.md',
-          '/reference/plugin/register-components.md',
+          '/zh-hans/book/middlewares/affix.md',
+          '/zh-hans/book/middlewares/compression.md',
+          '/zh-hans/book/middlewares/flash.md',
+          '/zh-hans/book/middlewares/force-https.md',
+          '/zh-hans/book/middlewares/logging.md',
+          '/zh-hans/book/middlewares/proxy.md',
+          '/zh-hans/book/middlewares/serve-static.md',
+          '/zh-hans/book/middlewares/session.md',
+          '/zh-hans/book/middlewares/sse.md',
+          '/zh-hans/book/middlewares/timeout.md',
+          '/zh-hans/book/middlewares/trailing-slash.md',
+          '/zh-hans/book/middlewares/ws.md',
         ],
       },
       {
-        text: 'Content Search',
+        text: 'Authentication',
         children: [
-          '/reference/plugin/docsearch.md',
-          '/reference/plugin/search.md',
+          '/zh-hans/book/middlewares/basic-auth.md',
+          '/zh-hans/book/middlewares/jwt-auth.md',
         ],
       },
       {
-        text: 'PWA',
+        text: 'Security',
         children: [
-          '/reference/plugin/pwa.md',
-          '/reference/plugin/pwa-popup.md',
+          '/zh-hans/book/middlewares/cors.md',
+          '/zh-hans/book/middlewares/csrf.md',
+          '/zh-hans/book/middlewares/rate-limiter.md',
         ],
       },
       {
-        text: 'Syntax Highlighting',
+        text: 'Caching',
         children: [
-          '/reference/plugin/prismjs.md',
-          '/reference/plugin/shiki.md',
+          '/zh-hans/book/middlewares/cache.md',
+          '/zh-hans/book/middlewares/caching-headers.md',
         ],
       },
       {
-        text: 'Theme Development',
-        children: [
-          '/reference/plugin/active-header-links.md',
-          '/reference/plugin/git.md',
-          '/reference/plugin/palette.md',
-          '/reference/plugin/theme-data.md',
-          '/reference/plugin/toc.md',
-        ],
+        text: 'Donate',
+        link: '/zh-hans/donate.md',
       },
     ],
   },
-  {
-    text: `v${version}`,
-    children: [
-      {
-        text: 'Changelog',
-        link: 'https://github.com/vuepress/vuepress-next/blob/main/CHANGELOG.md',
-      },
-      {
-        text: 'v1.x',
-        link: 'https://v1.vuepress.vuejs.org',
-      },
-      {
-        text: 'v0.x',
-        link: 'https://v0.vuepress.vuejs.org',
-      },
-    ],
-  },
+  // {
+  //   text: `v${version}`,
+  //   children: [
+  //     {
+  //       text: 'Changelog',
+  //       link: 'https://github.com/vuepress/vuepress-next/blob/main/CHANGELOG.md',
+  //     },
+  //     {
+  //       text: 'v1.x',
+  //       link: 'https://v1.vuepress.vuejs.org',
+  //     },
+  //     {
+  //       text: 'v0.x',
+  //       link: 'https://v0.vuepress.vuejs.org',
+  //     },
+  //   ],
+  // },
 ]

@@ -1,11 +1,4 @@
----
-title: "Hello world"
-linkTitle: "Hello world"
-weight: 1010
-menu:
-  book:
-    parent: "guid"
----
+# Quick Start
 
 ## Installing Rust
 

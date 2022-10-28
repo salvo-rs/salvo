@@ -1,10 +1,4 @@
----
-title: "世界, 你好!"
-weight: 110
-menu:
-  book:
-    parent: "guid"
----
+# 快速开始
 
 ## 安装 Rust
 
