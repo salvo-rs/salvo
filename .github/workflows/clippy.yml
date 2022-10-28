@@ -3,7 +3,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - main
+      - next
 
 name: clippy-check
 jobs:

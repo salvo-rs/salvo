@@ -21,8 +21,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2.2.4
+      # - name: Install pnpm
+      #   uses: pnpm/action-setup@v2.2.4
 
       # - name: Install pnpm
       #   uses: pnpm/action-setup@v2.2.4
