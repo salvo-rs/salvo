@@ -8,6 +8,10 @@ on:
       - '**/__tests__/**'
   workflow_dispatch:
 
+defaults:
+ run:
+  working-directory: ./website
+
 jobs:
   website:
     runs-on: ubuntu-latest
@@ -20,6 +24,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2.2.4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2.2.4
