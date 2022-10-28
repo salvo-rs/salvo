@@ -1,3 +1,0 @@
-# Graceful shutdown
-
-TODO
