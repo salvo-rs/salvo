@@ -161,7 +161,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use tokio::io::{ AsyncReadExt, AsyncWriteExt};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
 
     use super::*;
