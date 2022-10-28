@@ -1,5 +1,5 @@
-const glob = require('glob');
-const fs = require("fs-extra");
+import glob from 'glob';
+import fs from  "fs-extra";
 
 function traditionalized(cc) {
     let str = '';
