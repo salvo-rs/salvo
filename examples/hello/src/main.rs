@@ -24,8 +24,8 @@ async fn main() {
     tracing::info!("Listening on http://127.0.0.1:7878");
     match TcpListener::try_bind("127.0.0.1:7878") {
         Ok(listener) => Server::new(listener).serve(route()).await,
-        Err(e) => tracing::error!(error = ?e, "ddd")
-    } 
+        Err(e) => tracing::error!(error = ?e, "ddd"),
+    }
 }
 
 fn route() -> Router {
