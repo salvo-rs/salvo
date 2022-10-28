@@ -36,7 +36,7 @@ export default defineUserConfig({
     '/zh-hans/': {
       lang: 'zh-CN',
       title: 'Salvo',
-      description: 'Salvo 是一个功能强大且最简单的 Rust Web 服务器框架',
+      description: '一个功能强大且简单的 Rust Web 服务端框架',
     },
   },
 
@@ -122,7 +122,7 @@ export default defineUserConfig({
     docsearchPlugin({
       appId: '34YFD9IUQ2',
       apiKey: '9a9058b8655746634e01071411c366b8',
-      indexName: 'vuepress',
+      indexName: 'salvo.rs',
       searchParameters: {
         facetFilters: ['tags:v2'],
       },

@@ -4,12 +4,10 @@
 
 因为我笨，无法学会使用 actix-web 等现存的框架。当我想把以前的 go 的 web 服务使用 rust 实现时，一眼看去，似乎每个框架都比 go 里存在框架复杂, 本来 Rust 的学习曲线就够陡峭的了, 又何苦把 Web 框架整得那么复杂?
 
-
-
 ## 如何做到足够简单
 很多底层的实现 Hyper 都已经实现，所以，一般需求，基于 Hyper 实现应该没有错。Salvo 也是一样。 核心功能是提供还用简单的API，以及一个功能强大并且灵活的路由系统。
 
-Salvo 里统一了 Handler 和 Middleware. Middleware 就是 Handler. 通过路由的 before 或者 after 添加到 Router 上。本质上, Middleware 和 Handler 都是处理 Request 请求，并且可能向 Response 写入数据。而 Handler 接收的参数是 Request, Depot, Response 三个, 其中 Depot 用于存储请求处理过程中的临时数据. 为方便书写, 在用不着的情况下可以省略掉某些参数.
+Salvo 里统一了 Handler 和 Middleware. Middleware 就是 Handler. 通过路由的 hoop 添加到 Router 上。本质上, Middleware 和 Handler 都是处理 Request 请求，并且可能向 Response 写入数据。而 Handler 接收的参数是 Request, Depot, Response 三个, 其中 Depot 用于存储请求处理过程中的临时数据. 为方便书写, 在用不着的情况下可以省略掉某些参数.
 
 ```rust
 use Salvo::prelude::*;
@@ -19,7 +17,7 @@ async fn hello_world(_req: &mut Request, _depot: &mut Depot, res: &mut Response)
     res.render("Hello world");
 }
 #[handler]
-async fn hello_world2(res: &mut Response) {
+async fn hello_world(res: &mut Response) {
     res.render("Hello world");
 }
 ```
@@ -78,17 +76,4 @@ Router::new()
     );
 ```
 
-```<id>```匹配了路径中的一个片段, 正常情况下文章的 ```id``` 只是一个数字, 这是我们可以使用正则表达式限制 ```id``` 的匹配规则, ```r"<id:/\d+/>"```. 
-
-
-更多信息可以查看网站 https://salvo.rs
-
-源码地址: https://github.com/salvo-rs/salvo
-
-
-非常欢迎大家为项目贡献力量，可以通过以下方法为项目作出贡献:
-
-  - 在 issue 中提交功能需求和 bug report;
-  - 在 issues 或者 require feedback 下留下自己的意见;
-  - 通过 pull requests 提交代码;
-  - 在博客或者技术平台发表 Salvo 相关的技术文章。
+```<id>```匹配了路径中的一个片段, 正常情况下文章的 ```id``` 只是一个数字, 这是我们可以使用正则表达式限制 ```id``` 的匹配规则, ```r"<id:/\d+/>"```.

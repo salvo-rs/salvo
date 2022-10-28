@@ -48,11 +48,11 @@ export const navbarEn: NavbarConfig = [
           '/zh-hans/book/middlewares/caching-headers.md',
         ],
       },
-      {
-        text: 'Donate',
-        link: '/zh-hans/donate.md',
-      },
     ],
+  },
+  {
+    text: 'Donate',
+    link: '/donate.md',
   },
   // {
   //   text: `v${version}`,
