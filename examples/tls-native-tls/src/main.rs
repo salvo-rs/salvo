@@ -14,6 +14,6 @@ async fn main() {
     let config = NativeTlsConfig::new()
         .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
         .with_password("mypass");
-    let listener = NativeTlsListener::bind(config, "127.0.0.1:7878");
-    Server::new(listener).await.serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").native_tls(config).bind().await;
+    Server::new(acceptor).serve(router).await;
 }

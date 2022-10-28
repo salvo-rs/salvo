@@ -26,8 +26,6 @@ async fn main() {
         .push(Router::with_path("anyhow").get(handle_anyhow))
         .push(Router::with_path("custom").get(handle_custom));
 
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
-        .await
-        .serve(router)
-        .await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

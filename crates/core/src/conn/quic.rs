@@ -21,7 +21,7 @@ use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, IntoAcceptor, Listener};
+use super::{Accepted, Acceptor, Listener};
 
 /// QuicListener
 pub struct QuicListener<T> {
@@ -31,18 +31,23 @@ pub struct QuicListener<T> {
 impl<T: ToSocketAddrs> QuicListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(config: RustlsConfig, local_addr: T) -> Self {
+    pub fn new(config: RustlsConfig, local_addr: T) -> Self {
         let config = config.alpn_protocols([b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()]);
         QuicListener { config, local_addr }
     }
 }
 #[async_trait]
-impl<T> IntoAcceptor for QuicListener<T>
+impl<T> Listener for QuicListener<T>
 where
     T: ToSocketAddrs + Send,
 {
     type Acceptor = QuicAcceptor;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+    
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self { local_addr, config } = self;
         let socket = std::net::UdpSocket::bind(local_addr)?;
         let holding = Holding {
@@ -60,7 +65,6 @@ where
         })
     }
 }
-impl<T> Listener for QuicListener<T> where T: ToSocketAddrs + Send {}
 
 /// QuicAcceptor
 pub struct QuicAcceptor {

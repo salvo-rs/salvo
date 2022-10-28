@@ -40,8 +40,8 @@ async fn hello_world(res: &mut Response) {
 #[tokio::main]
 async fn main() {
     let router = Router::new().get(hello_world);
-    let listener = TcpListener::bind("127.0.0.1:7878");
-    Server::new(listener).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 ```
 

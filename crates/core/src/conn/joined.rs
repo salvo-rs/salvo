@@ -13,7 +13,7 @@ use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, IntoAcceptor, Listener};
+use super::{Accepted, Acceptor, Listener};
 
 /// A I/O stream for JoinedListener.
 pub enum JoinedStream<A, B> {
@@ -84,7 +84,7 @@ impl<A, B> JoinedListener<A, B> {
     }
 }
 #[async_trait]
-impl<A, B> IntoAcceptor for JoinedListener<A, B>
+impl<A, B> Listener for JoinedListener<A, B>
 where
     A: Listener + Send + Unpin + 'static,
     B: Listener + Send + Unpin + 'static,
@@ -92,9 +92,14 @@ where
     B::Acceptor: Acceptor + Send + Unpin + 'static,
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        let a = self.a.into_acceptor().await?;
-        let b = self.b.into_acceptor().await?;
+    
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+        let a = self.a.try_bind().await?;
+        let b = self.b.try_bind().await?;
         let holdings = a.holdings().iter().chain(b.holdings().into_iter()).cloned().collect();
         Ok(JoinedAcceptor { a, b, holdings })
     }

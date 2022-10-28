@@ -385,7 +385,7 @@ mod tests {
     use salvo_core::prelude::*;
 
     use super::*;
-    use salvo_core::conn::{Accepted, IntoAcceptor, Acceptor, Listener};
+    use salvo_core::conn::{Accepted, Acceptor, Listener};
 
     #[handler]
     async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
@@ -409,8 +409,8 @@ mod tests {
     #[tokio::test]
     async fn test_websocket() {
         let router = Router::new().handle(connect);
-        let listener = TcpListener::bind("127.0.0.1:0");
-        let server = Server::new(listener).await;
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let server = Server::new(acceptor).await;
         let addr = server.local_addrs().remove(0).into_std().unwrap();
 
         tokio::spawn(async move {

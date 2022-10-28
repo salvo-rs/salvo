@@ -32,11 +32,11 @@ mod tests {
     use tokio_rustls::TlsConnector;
 
     use super::*;
-    use crate::conn::{Accepted, Acceptor, IntoAcceptor, Listener};
+    use crate::conn::{Accepted, Acceptor, Listener};
 
     #[tokio::test]
     async fn test_rustls_listener() {
-        let listener = RustlsListener::bind(
+        let listener = RustlsListener::new(
             RustlsConfig::new(
                 Keycert::new()
                     .key_from_path("certs/key.pem")
@@ -46,7 +46,7 @@ mod tests {
             ),
             "127.0.0.1:0",
         );
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let mut acceptor = listener.bind().await.unwrap();
         let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
 
         tokio::spawn(async move {

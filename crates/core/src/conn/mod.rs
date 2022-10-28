@@ -130,27 +130,6 @@ pub trait Acceptor {
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>>;
 }
 
-/// `IntoAcceptor` trait.
-#[async_trait]
-pub trait IntoAcceptor {
-    /// Acceptor type.
-    type Acceptor: Acceptor;
-    /// Convert into acceptor.
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor>;
-}
-
-#[async_trait]
-impl<T> IntoAcceptor for T
-where
-    T: Acceptor + Send + 'static,
-{
-    type Acceptor = T;
-    #[inline]
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        Ok(self)
-    }
-}
-
 /// Holding information.
 #[derive(Clone, Debug)]
 pub struct Holding {
@@ -175,7 +154,16 @@ impl Display for Holding {
 
 /// Listener trait
 #[async_trait]
-pub trait Listener: IntoAcceptor {
+pub trait Listener {
+    /// Acceptor type.
+    type Acceptor: Acceptor;
+
+    /// Bind and returns acceptor.
+    async fn bind(self) -> Self::Acceptor;
+
+    /// Bind and returns acceptor.
+    async fn try_bind(self) -> IoResult<Self::Acceptor>;
+
     /// Join current Listener with the other.
     #[inline]
     fn join<T>(self, other: T) -> JoinedListener<Self, T>
@@ -198,8 +186,8 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let listener = TcpListener::bind(addr);
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let listener = TcpListener::new(addr);
+        let mut acceptor = listener.bind().await.unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();
@@ -214,7 +202,7 @@ mod tests {
         let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
         let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
 
-        let listener = TcpListener::bind(addr1).join(TcpListener::bind(addr2));
+        let listener = TcpListener::new(addr1).join(TcpListener::new(addr2));
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr1).await.unwrap();
             stream.write_i32(50).await.unwrap();
@@ -222,7 +210,7 @@ mod tests {
             let mut stream = TcpStream::connect(addr2).await.unwrap();
             stream.write_i32(100).await.unwrap();
         });
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let mut acceptor = listener.bind().await.unwrap();
         let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
         let first = conn.read_i32().await.unwrap();
         let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();

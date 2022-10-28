@@ -13,7 +13,7 @@ use tokio::time::Duration;
 
 #[cfg(feature = "http3")]
 use crate::conn::http3;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, IntoAcceptor};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::runtimes::TokioExecutor;
 use crate::Service;
@@ -36,35 +36,14 @@ impl<A: Acceptor> Server<A> {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// Server::new(TcpListener::bind("127.0.0.1:7878")).await;
+    /// let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    /// Server::new(acceptor);
     /// # }
     /// ```
     #[inline]
-    pub async fn new<T>(acceptor: T) -> Self
-    where
-        T: IntoAcceptor<Acceptor = A>,
-    {
-        Self::try_new(acceptor).await.unwrap()
-    }
-    /// Create new `Server` with [`Acceptor`].
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use salvo_core::prelude::*;
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// Server::try_new(TcpListener::bind("127.0.0.1:7878")).await.unwrap();
-    /// # }
-    /// ```
-    #[inline]
-    pub async fn try_new<T>(acceptor: T) -> IoResult<Self>
-    where
-        T: IntoAcceptor<Acceptor = A>,
-    {
-        Ok(Server {
-            acceptor: acceptor.into_acceptor().await?,
+    pub fn new(acceptor: A) -> Self {
+        Server {
+            acceptor,
             builders: HttpBuilders {
                 #[cfg(feature = "http1")]
                 http1: http1::Builder::new(),
@@ -73,7 +52,7 @@ impl<A: Acceptor> Server<A> {
                 #[cfg(feature = "http3")]
                 http3: crate::conn::http3::Builder,
             },
-        })
+        }
     }
 
     /// Get holding information of this server.
@@ -134,7 +113,8 @@ impl<A: Acceptor> Server<A> {
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
     ///     let router = Router::new().get(hello);
-    ///     let server = Server::new(TcpListener::bind("127.0.0.1:7878")).await.serve_with_graceful_shutdown(router, async {
+    ///     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    ///     let server = Server::new(acceptor).serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     }, None);
     ///
@@ -266,7 +246,7 @@ impl<A: Acceptor> Server<A> {
 mod tests {
     use serde::Serialize;
 
-    use crate::conn::{Acceptor, IntoAcceptor};
+    use crate::conn::Acceptor;
     use crate::prelude::*;
 
     #[tokio::test]
@@ -284,8 +264,8 @@ mod tests {
             res.render(Json(User { name: "jobs".into() }));
         }
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
-        let listener = TcpListener::bind("127.0.0.1:0");
-        let server = Server::new(listener).await;
+        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
+        let server = Server::new(acceptor);
         let addr = server.local_addrs().remove(0);
         let addr = addr.into_std().unwrap();
         tokio::spawn(async move {

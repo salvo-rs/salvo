@@ -8,14 +8,11 @@ use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::ToSocketAddrs;
 use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{
-    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
-};
-use crate::conn::{Holding};
+use crate::conn::Holding;
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
 use crate::http::uri::Scheme;
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -32,53 +29,33 @@ pub struct RustlsListener<C, T> {
 impl<C, T> RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
-    T: IntoAcceptor + Send,
+    T: Listener + Send,
 {
     /// Create a new `RustlsListener`.
     #[inline]
     pub fn new(config_stream: C, inner: T) -> Self {
-        RustlsListener {
-            config_stream,
-            inner,
-        }
+        RustlsListener { config_stream, inner }
     }
 }
 
 #[async_trait]
-impl<C, T> IntoAcceptor for RustlsListener<C, T>
-where
-    C: IntoConfigStream<RustlsConfig>,
-    T: IntoAcceptor + Send,
-    T::Acceptor: Send + 'static,
-{
-    type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        Ok(RustlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.into_acceptor().await?,
-        ))
-    }
-}
 impl<C, T> Listener for RustlsListener<C, T>
 where
     C: IntoConfigStream<RustlsConfig>,
-    T: IntoAcceptor + Send,
+    T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-}
+    type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
+    
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
 
-impl<C, T> RustlsListener<C, TcpListener<T>>
-where
-    C: IntoConfigStream<RustlsConfig>,
-    T: ToSocketAddrs + Send + 'static,
-{
-    /// Bind to socket address.
-    #[inline]
-    pub fn bind(config_stream: C, local_addr: T) -> RustlsListener<C, TcpListener<T>> {
-        RustlsListener {
-            config_stream,
-            inner: TcpListener::bind(local_addr),
-        }
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+        Ok(RustlsAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 

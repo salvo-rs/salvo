@@ -12,7 +12,7 @@ use crate::conn::HttpBuilders;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, IntoAcceptor, Listener};
+use super::{Accepted, Acceptor, Listener};
 
 /// Unix domain socket listener.
 #[cfg(unix)]
@@ -23,18 +23,18 @@ pub struct UnixListener<T> {
 impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[inline]
-    pub fn bind(path: T) -> UnixListener<T> {
+    pub fn new(path: T) -> UnixListener<T> {
         UnixListener { path }
     }
 }
 
 #[async_trait]
-impl<T> IntoAcceptor for UnixListener<T>
+impl<T> Listener for UnixListener<T>
 where
     T: AsRef<Path> + Send,
 {
     type Acceptor = UnixAcceptor;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let inner = TokioUnixListener::bind(self.path)?;
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
@@ -47,9 +47,6 @@ where
         })
     }
 }
-
-#[cfg(unix)]
-impl<T> Listener for UnixListener<T> where T: AsRef<Path> + Send {}
 
 /// UnixAcceptor
 pub struct UnixAcceptor {

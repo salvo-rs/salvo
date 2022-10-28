@@ -29,7 +29,7 @@ async fn main() {
         .push(Router::with_path("login").get(login).post(login))
         .push(Router::with_path("logout").get(logout));
     tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
 }
 
 #[handler]

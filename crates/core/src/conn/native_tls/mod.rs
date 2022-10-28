@@ -12,17 +12,17 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    use crate::conn::{Acceptor,IntoAcceptor, Accepted, Listener};
+    use crate::conn::{Acceptor,Accepted, Listener};
 
     #[tokio::test]
     async fn test_native_tls_listener() {
-        let mut listener = NativeTlsListener::bind(
+        let mut listener = NativeTlsListener::new(
             NativeTlsConfig::new()
                 .with_pkcs12(include_bytes!("../../../certs/identity.p12").as_ref())
                 .with_password("mypass"),
             "127.0.0.1:0",
         );
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let mut acceptor = listener.bind().await.unwrap();
         let addr = acceptor.local_addrs().remove(0);
         let addr = addr.into_std().unwrap();
 

@@ -6,16 +6,13 @@ use std::task::{Context, Poll};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::ToSocketAddrs;
-use tokio_native_tls::TlsStream;
 use http::uri::Scheme;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::{
-    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
-};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -39,40 +36,23 @@ where
 }
 
 #[async_trait]
-impl<C, T> IntoAcceptor for NativeTlsListener<C, T>
-where
-    C: IntoConfigStream<NativeTlsConfig>,
-    T: Listener + Send,
-    T::Acceptor: Send + 'static,
-{
-    type Acceptor = NativeTlsAcceptor<BoxStream<'static, NativeTlsConfig>, T::Acceptor>;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        Ok(NativeTlsAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.into_acceptor().await?,
-        ))
-    }
-}
 impl<C, T> Listener for NativeTlsListener<C, T>
 where
     C: IntoConfigStream<NativeTlsConfig>,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-}
+    type Acceptor = NativeTlsAcceptor<BoxStream<'static, NativeTlsConfig>, T::Acceptor>;
 
-impl<C, T> NativeTlsListener<C, TcpListener<T>>
-where
-    C: IntoConfigStream<NativeTlsConfig>,
-    T: ToSocketAddrs + Send + 'static,
-{
-    /// Bind to socket address.
-    #[inline]
-    pub fn bind(config: C, local_addr: T) -> NativeTlsListener<C::Stream, TcpListener<T>> {
-        NativeTlsListener {
-            config_stream: config.into_stream(),
-            inner: TcpListener::bind(local_addr),
-        }
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+        Ok(NativeTlsAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 
@@ -193,13 +173,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_native_tls_listener() {
-        let listener = NativeTlsListener::bind(
+        let listener = NativeTlsListener::new(
             NativeTlsConfig::new()
                 .with_pkcs12(include_bytes!("../../../certs/identity.p12").as_ref())
                 .with_password("mypass"),
             "127.0.0.1:0",
         );
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let mut acceptor = listener.bind().await.unwrap();
         let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
 
         tokio::spawn(async move {

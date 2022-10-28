@@ -6,20 +6,17 @@ use std::task::{Context, Poll};
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
 use futures_util::{Stream, StreamExt};
+use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::ToSocketAddrs;
-use http::uri::Scheme;
 use tokio_openssl::SslStream;
 
 use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::{
-    Accepted, Acceptor, HttpBuilders, IntoAcceptor, IntoConfigStream, Listener, TcpListener, TlsConnStream,
-};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -42,40 +39,23 @@ where
 }
 
 #[async_trait]
-impl<C, T> IntoAcceptor for OpensslListener<C, T>
-where
-    C: IntoConfigStream<OpensslConfig>,
-    T: Listener + Send,
-    T::Acceptor: Send + 'static,
-{
-    type Acceptor = OpensslAcceptor<BoxStream<'static, OpensslConfig>, T::Acceptor>;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
-        Ok(OpensslAcceptor::new(
-            self.config_stream.into_stream().boxed(),
-            self.inner.into_acceptor().await?,
-        ))
-    }
-}
 impl<C, T> Listener for OpensslListener<C, T>
 where
     C: IntoConfigStream<OpensslConfig>,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-}
+    type Acceptor = OpensslAcceptor<BoxStream<'static, OpensslConfig>, T::Acceptor>;
 
-impl<C, T> OpensslListener<C, T>
-where
-    C: IntoConfigStream<OpensslConfig>,
-    T: ToSocketAddrs + Send + 'static,
-{
-    /// Bind to socket address.
-    #[inline]
-    pub fn bind(config: C, local_addr: T) -> OpensslListener<C::Stream, TcpListener<T>> {
-        OpensslListener {
-            config_stream: config.into_stream(),
-            inner: TcpListener::bind(local_addr),
-        }
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+        Ok(OpensslAcceptor::new(
+            self.config_stream.into_stream().boxed(),
+            self.inner.try_bind().await?,
+        ))
     }
 }
 

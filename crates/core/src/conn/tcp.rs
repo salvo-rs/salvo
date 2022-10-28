@@ -12,26 +12,82 @@ use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
-use super::{Accepted, Acceptor, IntoAcceptor, Listener};
+use super::{Accepted, Acceptor, Listener};
+
+#[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
+use crate::conn::IntoConfigStream;
+
+#[cfg(feature = "rustls")]
+use crate::conn::rustls::{RustlsConfig, RustlsListener};
+
+#[cfg(feature = "native-tls")]
+use crate::conn::native_tls::{NativeTlsConfig, NativeTlsListener};
+
+#[cfg(feature = "openssl")]
+use crate::conn::openssl::{OpensslConfig, OpensslListener};
 
 /// TcpListener
 pub struct TcpListener<T> {
     local_addr: T,
 }
-impl<T: ToSocketAddrs> TcpListener<T> {
+impl<T: ToSocketAddrs + Send> TcpListener<T> {
     /// Bind to socket address.
     #[inline]
-    pub fn bind(local_addr: T) -> Self {
+    pub fn new(local_addr: T) -> Self {
         TcpListener { local_addr }
+    }
+
+    cfg_feature! {
+        #![feature = "rustls"]
+
+        /// Creates a new `RustlsListener` from current `TcpListener`.
+        #[inline]
+        pub fn rustls<C>(self, config_stream: C) -> RustlsListener<C, Self>
+        where
+            C: IntoConfigStream<RustlsConfig>,
+        {
+            RustlsListener::new(config_stream, self)
+        }
+    }
+
+    cfg_feature! {
+        #![feature = "native-tls"]
+
+        /// Creates a new `NativeTlsListener` from current `TcpListener`.
+        #[inline]
+        pub fn native_tls<C>(self, config_stream: C) -> NativeTlsListener<C, Self>
+        where
+            C: IntoConfigStream<NativeTlsConfig>,
+        {
+            NativeTlsListener::new(config_stream, self)
+        }
+    }
+
+    cfg_feature! {
+        #![feature = "openssl"]
+
+        /// Creates a new `OpensslListener` from current `TcpListener`.
+        #[inline]
+        pub fn openssl<C>(self, config_stream: C) -> OpensslListener<C, Self>
+        where
+            C: IntoConfigStream<OpensslConfig>,
+        {
+            OpensslListener::new(config_stream, self)
+        }
     }
 }
 #[async_trait]
-impl<T> IntoAcceptor for TcpListener<T>
+impl<T> Listener for TcpListener<T>
 where
     T: ToSocketAddrs + Send,
 {
     type Acceptor = TcpAcceptor;
-    async fn into_acceptor(self) -> IoResult<Self::Acceptor> {
+
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let inner = TokioTcpListener::bind(self.local_addr).await?;
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
@@ -45,7 +101,6 @@ where
         })
     }
 }
-impl<T> Listener for TcpListener<T> where T: ToSocketAddrs + Send {}
 
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
@@ -100,8 +155,8 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let listener = TcpListener::bind(addr);
-        let mut acceptor = listener.into_acceptor().await.unwrap();
+        let listener = TcpListener::new(addr);
+        let mut acceptor = listener.bind().await.unwrap();
         let addr = acceptor.local_addrs().remove(0).into_std().unwrap();
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();

@@ -32,6 +32,10 @@
 
 Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需要基础 Rust 知识即可开发后端服务.
 
+> **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
+> currently preparing breaking changes. For the most recently *released* code,
+> look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
+
 ## 🎯 功能特色
 
   - 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;

@@ -14,9 +14,9 @@ async fn main() {
 
     let router = Router::new().get(hello);
     let config = RustlsConfig::new(Keycert::new().with_cert(cert.as_slice()).with_key(key.as_slice()));
-    let listener = RustlsListener::bind(config.clone(), ("127.0.0.1", 7878));
+    let listener = TcpListener::new(("127.0.0.1", 7878)).rustls(config.clone());
 
-    let listener = QuicListener::bind(config, ("127.0.0.1", 7878)).join(listener);
+    let acceptor = QuicListener::new(config, ("127.0.0.1", 7878)).join(listener).bind().await;
 
-    Server::new(listener).await.serve(router).await;
+    Server::new(acceptor).serve(router).await;
 }
