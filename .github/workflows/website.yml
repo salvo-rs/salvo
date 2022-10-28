@@ -27,11 +27,14 @@ jobs:
           # cache: yarn
 
       - name: Install dependencies
+        env:
+          GH_PAT: ${{ secrets.GH_PAGES_TOKEN }}
         run: |
           cd website
           npm install -g yarn
           yarn install
           yarn run build
+          echo $GH_PAT
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v2.2.0
