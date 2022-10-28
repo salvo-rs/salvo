@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  docs:
+  website:
     runs-on: ubuntu-latest
 
     env:
@@ -23,7 +23,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2.2
-        working-directory: ./website
 
       - name: Setup Node.js
         uses: actions/setup-node@v3

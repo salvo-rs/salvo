@@ -3,8 +3,8 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
 
-use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use http::uri::Scheme;
+use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::async_trait;
 use crate::conn::Holding;
@@ -34,6 +34,11 @@ where
     T: AsRef<Path> + Send,
 {
     type Acceptor = UnixAcceptor;
+
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let inner = TokioUnixListener::bind(self.path)?;
         let holding = Holding {
@@ -78,7 +83,7 @@ impl Acceptor for UnixAcceptor {
 
 #[async_trait]
 impl HttpConnection for UnixStream {
-    async fn http_version(&mut self) -> Option<Version> {
+    async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
@@ -93,30 +98,23 @@ impl HttpConnection for UnixStream {
 
 #[cfg(test)]
 mod tests {
-    use futures_util::{Stream, StreamExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
+    use crate::conn::{Accepted, Acceptor, Listener};
 
-    impl Stream for UnixListener {
-        type Item = Result<UnixStream, IoError>;
-
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-            self.poll_accept(cx)
-        }
-    }
     #[tokio::test]
     async fn test_unix_listener() {
         let sock_file = "/tmp/test-salvo.sock";
-        let mut listener = UnixListener::bind(sock_file);
+        let mut acceptor = UnixListener::new(sock_file).bind().await;
 
         tokio::spawn(async move {
             let mut stream = tokio::net::UnixStream::connect(sock_file).await.unwrap();
             stream.write_i32(518).await.unwrap();
         });
 
-        let mut stream = listener.next().await.unwrap().unwrap();
-        assert_eq!(stream.read_i32().await.unwrap(), 518);
+        let Accepted {mut conn, ..} = acceptor.accept().await.unwrap();
+        assert_eq!(conn.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }
 }
