@@ -24,22 +24,23 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2.2.4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2.2.4
-        with:
-          dest: ./website
+      # - name: Install pnpm
+      #   uses: pnpm/action-setup@v2.2.4
+      #   with:
+      #     dest: ./website
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+          # cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        working-directory: ./website
+        run: npm install --frozen-lockfile
 
       - name: Build website
-        run: pnpm docs:release
+        run: npm docs:release
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v2.2.0
