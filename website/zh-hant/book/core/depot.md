@@ -1,10 +1,4 @@
----
-title: "Depot"
-weight: 2020
-menu:
-  book:
-    parent: "core"
----
+# Depot
 
 Depot 是用於保存一次請求中涉及到的臨時數據. 中間件可以將自己處理的臨時數據放入 Depot, 供後續程序使用.
 

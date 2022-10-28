@@ -1,10 +1,4 @@
----
-title: "Rate Limiter"
-weight: 8031
-menu:
-  book:
-    parent: "middlewares"
----
+# Rate Limiter
 
 Middleware that provides flow control functionality.
 

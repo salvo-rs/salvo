@@ -1,10 +1,4 @@
----
-title: "Router"
-weight: 1005
-menu:
-  book:
-    parent: "core"
----
+# Router
 
 ## 什么是路由
 

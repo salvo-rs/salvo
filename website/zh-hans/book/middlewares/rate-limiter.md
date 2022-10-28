@@ -1,10 +1,4 @@
----
-title: "Rate Limiter"
-weight: 8031
-menu:
-  book:
-    parent: "middlewares"
----
+# Rate Limiter
 
 提供流量控制功能的中间件.
 

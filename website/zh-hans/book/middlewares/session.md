@@ -1,10 +1,4 @@
----
-title: "Session"
-weight: 8061
-menu:
-  book:
-    parent: "middlewares"
----
+# Session
 
 提供对 `Session` 支持的中间件.
 

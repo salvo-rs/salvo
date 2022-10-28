@@ -1,10 +1,4 @@
----
-title: "Serve Static"
-weight: 8060
-menu:
-  book:
-    parent: "middlewares"
----
+# Serve Static
 
 Middleware that provides static files or embedded files as services.
 

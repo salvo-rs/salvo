@@ -1,10 +1,4 @@
----
-title: "Static File"
-weight: 2060
-menu:
-  book:
-    parent: "core"
----
+# Static File
 
 Salvo provides ```salvo::fs::NamedFile```, which can be used to send files to clients efficiently:
 

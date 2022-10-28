@@ -1,10 +1,4 @@
----
-title: "Writer"
-weight: 2050
-menu:
-  book:
-    parent: "core"
----
+# Writer
 
 ```Writer``` is used to write content to ```Response```:
 

@@ -1,10 +1,4 @@
----
-title: "Logging"
-weight: 8041
-menu:
-  book:
-    parent: "middlewares"
----
+# Logging
 
 提供基本的 Log 功能的中間件.
 

@@ -1,10 +1,4 @@
----
-title: "File Upload"
-weight: 7060
-menu:
-  book:
-    parent: "topics"
----
+# File Upload
 
 Salvo Handle file uploads is also fairly straightforward, such as handling single file uploads::
 

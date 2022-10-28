@@ -1,10 +1,4 @@
----
-title: "Proxy"
-weight: 8050
-menu:
-  book:
-    parent: "middlewares"
----
+# Proxy
 
 提供反向代理功能的中間件.
 

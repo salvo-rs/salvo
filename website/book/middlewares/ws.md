@@ -1,10 +1,4 @@
----
-title: "WebSocket"
-weight: 8090
-menu:
-  book:
-    parent: "middlewares"
----
+# WebSocket
 
 Middleware that provides support for `WebSocket`.
 

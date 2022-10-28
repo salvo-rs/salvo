@@ -1,5 +1,5 @@
 import glob from 'glob';
-import fs from  "fs-extra";
+import fs from "fs-extra";
 
 function traditionalized(cc) {
     let str = '';
@@ -23,7 +23,7 @@ glob('zh-hans/**/*.*', {}, (er, files) => {
         let file = files[i];
         let hans = fs.readFileSync(file, 'utf-8');
         let hant = traditionalized(hans);
-        let target_path = file.replace('/zh-hans/', '/zh-hant/');
+        let target_path = file.replace('zh-hans/', 'zh-hant/');
         fs.outputFileSync(target_path, hant);
     }
 });

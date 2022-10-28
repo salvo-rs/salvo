@@ -1,11 +1,4 @@
----
-title: "Use Template Engine"
-weight: 7150
-menu:
-  book:
-    parent: "topics"
----
-
+# Use Template Engine
 
 Salvo doesn't have any templating engine built in, after all, the style of templating you like to use varies from person to person.
 

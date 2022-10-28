@@ -1,10 +1,4 @@
----
-title: "Trailing Slash"
-weight: 8082
-menu:
-  book:
-    parent: "middlewares"
----
+# Trailing Slash
 
 Middleware support for automatically add or remove the end of `/`.
 

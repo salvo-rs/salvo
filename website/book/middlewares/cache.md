@@ -1,10 +1,4 @@
----
-title: "Cache"
-weight: 8011
-menu:
-  book:
-    parent: "middlewares"
----
+# Cache
 
 Middleware that provides caching functionality.
 

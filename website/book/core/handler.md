@@ -1,10 +1,4 @@
----
-title: "Handler"
-weight: 2010
-menu:
-  book:
-    parent: "core"
----
+# Handler
 
 ## What is handler
 

@@ -1,10 +1,4 @@
----
-title: "SSE"
-weight: 8080
-menu:
-  book:
-    parent: "middlewares"
----
+# SSE
 
 提供對 `SSE` 支持的中間件.
 

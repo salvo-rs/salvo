@@ -1,10 +1,4 @@
----
-title: "Proxy"
-weight: 8050
-menu:
-  book:
-    parent: "middlewares"
----
+# Proxy
 
 Middleware that provides reverse proxy functionality.
 

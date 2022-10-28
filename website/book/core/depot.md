@@ -1,11 +1,4 @@
----
-title: "Depot"
-weight: 1050
-menu:
-  book:
-    parent: "core"
----
-
+# Depot
 
 Depot is used to save data when process current request. It is useful for middlewares to share data.
 

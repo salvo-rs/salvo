@@ -1,10 +1,4 @@
----
-title: "错误处理"
-weight: 7032
-menu:
-  book:
-    parent: "topics"
----
+# 错误处理
 
 ## Rust 应用中的常规错误处理方式
 

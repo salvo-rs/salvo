@@ -1,10 +1,4 @@
----
-title: "使用数据库"
-weight: 7010
-menu:
-  book:
-    parent: "topics"
----
+# 使用数据库
 
 ### Diesel
 

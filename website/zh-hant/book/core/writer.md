@@ -1,10 +1,4 @@
----
-title: "Writer"
-weight: 2022
-menu:
-  book:
-    parent: "core"
----
+# Writer
 
 ```Writer``` 用於寫入內容到 ```Response```:
 

@@ -1,10 +1,4 @@
----
-title: "Size Limiter"
-weight: 8070
-menu:
-  book:
-    parent: "middlewares"
----
+# Size Limiter
 
 Provides middleware for requesting upload file size limits.
 

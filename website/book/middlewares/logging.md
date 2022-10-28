@@ -1,10 +1,4 @@
----
-title: "Logging"
-weight: 8041
-menu:
-  book:
-    parent: "middlewares"
----
+# Logging
 
 Middleware that provides basic Log functionality.
 

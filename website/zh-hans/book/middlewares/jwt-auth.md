@@ -1,10 +1,4 @@
----
-title: "JWT Auth"
-weight: 8040
-menu:
-  book:
-    parent: "middlewares"
----
+# JWT Auth
 
 提供对 JWT Auth 验证的中间件.
 

@@ -1,10 +1,4 @@
----
-title: "Catcher"
-weight: 2030
-menu:
-  book:
-    parent: "core"
----
+# Catcher
 
 ```Catcher``` 是用于处理页面返回 HTTP 状态码为错误的情况下, 如何显示页面的抽象.
 

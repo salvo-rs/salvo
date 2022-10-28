@@ -1,10 +1,4 @@
----
-title: "CORS"
-weight: 8030
-menu:
-  book:
-    parent: "middlewares"
----
+# CORS
 
 CORS middleware can be used for [Cross-Origin Resource Sharing](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS).
 

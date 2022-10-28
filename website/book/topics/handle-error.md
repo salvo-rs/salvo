@@ -1,10 +1,4 @@
----
-title: "Handle Error"
-weight: 7032
-menu:
-  book:
-    parent: "topics"
----
+# Handle Error
 
 ## General error handling in Rust applications
 

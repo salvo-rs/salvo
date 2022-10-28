@@ -1,10 +1,4 @@
----
-title: "使用數據庫"
-weight: 7010
-menu:
-  book:
-    parent: "topics"
----
+# 使用數據庫
 
 ### Diesel
 

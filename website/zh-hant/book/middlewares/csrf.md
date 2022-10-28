@@ -1,10 +1,4 @@
----
-title: "CSRF"
-weight: 8031
-menu:
-  book:
-    parent: "middlewares"
----
+# CSRF
 
 提供 CSRF (Cross-Site Request Forgery) 保護的中間件. 
 

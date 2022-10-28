@@ -1,10 +1,4 @@
----
-title: "CORS"
-weight: 8030
-menu:
-  book:
-    parent: "middlewares"
----
+# CORS
 
 CORS 中間件可以用於 [跨域資源共享](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS).
 

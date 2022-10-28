@@ -1,10 +1,4 @@
----
-title: "Timeout"
-weight: 8081
-menu:
-  book:
-    parent: "middlewares"
----
+# Timeout
 
 Middleware that provides support for timeout.
 

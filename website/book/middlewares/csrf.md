@@ -1,10 +1,4 @@
----
-title: "CSRF"
-weight: 8031
-menu:
-  book:
-    parent: "middlewares"
----
+# CSRF
 
 Middleware that provides CSRF (Cross-Site Request Forgery) protection.
 

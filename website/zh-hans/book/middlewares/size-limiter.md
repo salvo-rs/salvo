@@ -1,10 +1,4 @@
----
-title: "Size Limiter"
-weight: 8070
-menu:
-  book:
-    parent: "middlewares"
----
+# Size Limiter
 
 提供对请求上传文件大小限制的中间件.
 

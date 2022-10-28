@@ -1,10 +1,4 @@
----
-title: "Handler"
-weight: 2010
-menu:
-  book:
-    parent: "core"
----
+# Handler
 
 ## 什麽是 Handler
 

@@ -1,10 +1,4 @@
----
-title: "Compression"
-weight: 8020
-menu:
-  book:
-    parent: "middlewares"
----
+# Compression
 
 對 `Response` 內容壓縮處理的中間件.
 

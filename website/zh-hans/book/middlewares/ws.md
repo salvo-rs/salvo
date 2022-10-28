@@ -1,10 +1,4 @@
----
-title: "WebSocket"
-weight: 8090
-menu:
-  book:
-    parent: "middlewares"
----
+# WebSocket
 
 提供对 `WebSocket` 支持的中间件.
 

@@ -1,10 +1,4 @@
----
-title: "Depot"
-weight: 2020
-menu:
-  book:
-    parent: "core"
----
+# Depot
 
 Depot 是用于保存一次请求中涉及到的临时数据. 中间件可以将自己处理的临时数据放入 Depot, 供后续程序使用.
 

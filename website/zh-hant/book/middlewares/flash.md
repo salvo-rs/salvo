@@ -1,10 +1,4 @@
----
-title: "Flash"
-weight: 8031
-menu:
-  book:
-    parent: "middlewares"
----
+# Flash
 
 提供 Flash Message 的功能的中間件.
 

@@ -1,10 +1,4 @@
----
-title: "SSE"
-weight: 8080
-menu:
-  book:
-    parent: "middlewares"
----
+# SSE
 
 Middleware that provides support for `SSE`.
 

@@ -1,10 +1,4 @@
----
-title: "Session"
-weight: 8061
-menu:
-  book:
-    parent: "middlewares"
----
+# Session
 
 Middleware that provides support for `Session`.
 

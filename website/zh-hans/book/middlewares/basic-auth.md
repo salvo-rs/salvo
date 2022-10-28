@@ -1,10 +1,4 @@
----
-title: "Basic Auth"
-weight: 8010
-menu:
-  book:
-    parent: "middlewares"
----
+# Basic Auth
 
 提供对 Basic Auth 的支持的中间件.
 

@@ -1,10 +1,4 @@
----
-title: "Serve Static"
-weight: 8060
-menu:
-  book:
-    parent: "middlewares"
----
+# Serve Static
 
 將靜態文件或者內嵌的文件作為服務提供的中間件.
 

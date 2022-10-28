@@ -1,10 +1,4 @@
----
-title: "Timeout"
-weight: 8081
-menu:
-  book:
-    parent: "middlewares"
----
+# Timeout
 
 提供對超時支持的中間件.
 

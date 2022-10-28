@@ -1,11 +1,4 @@
----
-title: "Request"
-linkTitle: "Request"
-weight: 1030
-menu:
-  book:
-    parent: "core"
----
+# Request
 
 在 Salvo 中可以通過 ```Request``` 獲取用戶請求的數據:
 

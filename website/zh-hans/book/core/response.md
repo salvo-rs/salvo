@@ -1,10 +1,4 @@
----
-title: "Response"
-weight: 1040
-menu:
-  book:
-    parent: "core"
----
+# Response
 
 在 ```Handler``` 中, ```Response``` 会被作为参数传入:
 

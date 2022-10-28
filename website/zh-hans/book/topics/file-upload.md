@@ -1,10 +1,4 @@
----
-title: "文件上传"
-weight: 7060
-menu:
-  book:
-    parent: "topics"
----
+# 文件上传
 
 Salvo 处理文件上传也是相当简单的, 比如处理单个文件的上传:
 

@@ -1,10 +1,4 @@
----
-title: "Caching Headers"
-weight: 8012
-menu:
-  book:
-    parent: "middlewares"
----
+# Caching Headers
 
 提供對緩存頭配置支持的中間件.
 

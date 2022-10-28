@@ -1,10 +1,4 @@
----
-title: "Caching Headers"
-weight: 8012
-menu:
-  book:
-    parent: "middlewares"
----
+# Caching Headers
 
 Middleware that provides support for cache header configuration.
 

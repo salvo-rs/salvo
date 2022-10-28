@@ -1,10 +1,4 @@
----
-title: "Compression"
-weight: 8020
-menu:
-  book:
-    parent: "middlewares"
----
+# Compression
 
 Middleware for `Response` content compression processing.
 

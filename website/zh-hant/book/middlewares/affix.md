@@ -1,10 +1,4 @@
----
-title: "Affix"
-weight: 8009
-menu:
-  book:
-    parent: "middlewares"
----
+# Affix
 
 Affix 中間件用於往 Depot 中添加共享數據.
 

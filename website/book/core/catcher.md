@@ -1,10 +1,4 @@
----
-title: "Catcher"
-weight: 2030
-menu:
-  book:
-    parent: "core"
----
+# Catcher
 
 ```Catcher``` is used to handle how to display page when response's code is error.
 

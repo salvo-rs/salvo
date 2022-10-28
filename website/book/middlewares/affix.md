@@ -1,10 +1,4 @@
----
-title: "Affix"
-weight: 8009
-menu:
-  book:
-    parent: "middlewares"
----
+# Affix
 
 Affix middleware for adding shared data to Depot.
 

@@ -1,10 +1,4 @@
----
-title: "第三方插件"
-weight: 8199
-menu:
-  book:
-    parent: "middlewares"
----
+# 第三方插件
 
 ## salvo-websocket
 

@@ -1,10 +1,4 @@
----
-title: "JWT Auth"
-weight: 8040
-menu:
-  book:
-    parent: "middlewares"
----
+# JWT Auth
 
 Provides middleware for JWT Auth authentication.
 

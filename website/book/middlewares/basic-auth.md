@@ -1,10 +1,4 @@
----
-title: "Basic Auth"
-weight: 8010
-menu:
-  book:
-    parent: "middlewares"
----
+# Basic Auth
 
 Middleware that provides support for Basic Auth.
 

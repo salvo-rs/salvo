@@ -1,10 +1,4 @@
----
-title: "Trailing Slash"
-weight: 8082
-menu:
-  book:
-    parent: "middlewares"
----
+# Trailing Slash
 
 自动添加或者移除末尾 `/` 的中间件.
 

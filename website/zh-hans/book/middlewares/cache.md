@@ -1,10 +1,4 @@
----
-title: "Cache"
-weight: 8011
-menu:
-  book:
-    parent: "middlewares"
----
+# Cache
 
 提供缓存功能的中间件. 
 
