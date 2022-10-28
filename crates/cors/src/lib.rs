@@ -246,7 +246,7 @@ impl CorsBuilder {
     ///
     /// ```
     /// use std::time::Duration;
-    /// use salvo_core::prelude::*;;
+    /// use salvo_core::prelude::*;
     ///
     /// let cors = salvo_cors::Cors::builder()
     ///     .max_age(30) // 30u32 seconds
@@ -457,8 +457,8 @@ impl Handler for Cors {
                 res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
                 ctrl.call_next(req, depot, res).await;
             }
-            Err(err) => {
-                tracing::error!(error = %err, "Cors validate error");
+            Err(e) => {
+                tracing::error!(error = ?e, "cors validate failed");
                 res.set_status_code(StatusCode::FORBIDDEN);
                 ctrl.skip_rest();
             }

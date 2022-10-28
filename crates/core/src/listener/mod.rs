@@ -314,7 +314,7 @@ mod tests {
     async fn test_tcp_listener() {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 6878));
 
-        let mut listener = TcpListener::bind(addr);
+        let mut listener = TcpListener::new(addr);
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr).await.unwrap();
             stream.write_i32(150).await.unwrap();
@@ -329,7 +329,7 @@ mod tests {
         let addr1 = std::net::SocketAddr::from(([127, 0, 0, 1], 6978));
         let addr2 = std::net::SocketAddr::from(([127, 0, 0, 1], 6979));
 
-        let mut listener = TcpListener::bind(addr1).join(TcpListener::bind(addr2));
+        let mut listener = TcpListener::new(addr1).join(TcpListener::new(addr2));
         tokio::spawn(async move {
             let mut stream = TcpStream::connect(addr1).await.unwrap();
             stream.write_i32(50).await.unwrap();

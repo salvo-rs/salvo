@@ -2,21 +2,20 @@ use salvo::prelude::*;
 use salvo::Catcher;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
-        .serve(create_service())
-        .await;
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(create_service()).await;
 }
 
 fn create_service() -> Service {
-    let router = Router::new().get(hello_world);
+    let router = Router::new().get(hello);
     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
     Service::new(router).with_catchers(catchers)
 }

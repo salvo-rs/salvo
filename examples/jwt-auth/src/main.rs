@@ -24,8 +24,9 @@ async fn main() {
             // Box::new(CookieFinder::new("jwt_token")),
         ])
         .with_response_error(false);
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor)
         .serve(Router::with_hoop(auth_handler).handle(index))
         .await;
 }

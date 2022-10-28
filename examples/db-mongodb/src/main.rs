@@ -54,7 +54,7 @@ async fn add_user(req: &mut Request, res: &mut Response) {
     let result = coll_users.insert_one(user, None).await;
     match result {
         Ok(id) => res.render(format!("user added with ID {:?}", id.inserted_id)),
-        Err(err) => res.render(format!("error {:?}", err)),
+        Err(e) => res.render(format!("error {:?}", e)),
     }
 }
 
@@ -80,7 +80,7 @@ async fn get_user(req: &mut Request, res: &mut Response) {
     match coll_users.find_one(doc! { "username": &username }, None).await {
         Ok(Some(user)) => res.render(Json(user)),
         Ok(None) => res.render(format!("No user found with username {username}")),
-        Err(err) => res.render(format!("Error {:?}", err)),
+        Err(e) => res.render(format!("Error {:?}", e)),
     }
 }
 
@@ -114,6 +114,6 @@ async fn main() {
         .post(add_user)
         .push(Router::with_path("<username>").get(get_user));
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

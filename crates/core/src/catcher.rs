@@ -229,10 +229,10 @@ mod tests {
     #[tokio::test]
     async fn test_custom_catcher() {
         #[handler(internal)]
-        async fn hello_world() -> &'static str {
+        async fn hello() -> &'static str {
             "Hello World"
         }
-        let router = Router::new().get(hello_world);
+        let router = Router::new().get(hello);
         let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
         let service = Service::new(router).with_catchers(catchers);
 

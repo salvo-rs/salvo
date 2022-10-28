@@ -22,7 +22,6 @@ async fn long() -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
     let short_cache = Cache::new(
         MemoryStore::builder().time_to_live(Duration::from_secs(5)).build(),
         RequestIssuer::default(),
@@ -35,7 +34,8 @@ async fn main() {
         .get(home)
         .push(Router::with_path("short").hoop(short_cache).get(short))
         .push(Router::with_path("long").hoop(long_cache).get(long));
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 
 static HOME_HTML: &str = r#"

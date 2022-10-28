@@ -8,18 +8,19 @@ use cookie::{Cookie, CookieJar};
 use http::header::{self, AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
-use http::version::Version;
-use http::{self, Extensions, Uri};
-pub use hyper::Body as ReqBody;
+use http::uri::{Scheme, Uri};
+use http::{self, Extensions};
+use http_body_util::BodyExt;
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
 
-use crate::addr::SocketAddr;
+use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
+use crate::http::body::ReqBody;
 use crate::http::form::{FilePart, FormData};
-use crate::http::{Mime, ParseError};
+use crate::http::{Mime, ParseError, Version};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
 
@@ -34,7 +35,7 @@ pub struct Request {
     headers: HeaderMap,
 
     // The request body as a reader.
-    body: Option<ReqBody>,
+    body: ReqBody,
     extensions: Extensions,
 
     // The request method.
@@ -51,8 +52,10 @@ pub struct Request {
     pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
 
     /// The version of the HTTP protocol used.
-    version: Version,
-    pub(crate) remote_addr: Option<SocketAddr>,
+    pub(crate) version: Version,
+    pub(crate) scheme: Scheme,
+    pub(crate) local_addr: SocketAddr,
+    pub(crate) remote_addr: SocketAddr,
 }
 
 impl fmt::Debug for Request {
@@ -61,9 +64,12 @@ impl fmt::Debug for Request {
             .field("method", self.method())
             .field("uri", self.uri())
             .field("version", &self.version())
+            .field("scheme", &self.scheme())
             .field("headers", self.headers())
             // omits Extensions because not useful
             .field("body", &self.body())
+            .field("local_addr", &self.local_addr)
+            .field("remote_addr", &self.remote_addr)
             .finish()
     }
 }
@@ -75,8 +81,33 @@ impl Default for Request {
     }
 }
 
-impl From<hyper::Request<ReqBody>> for Request {
-    fn from(req: hyper::Request<ReqBody>) -> Self {
+impl Request {
+    /// Creates a new blank `Request`
+    #[inline]
+    pub fn new() -> Request {
+        Request {
+            uri: Uri::default(),
+            headers: HeaderMap::default(),
+            body: ReqBody::default(),
+            extensions: Extensions::default(),
+            method: Method::default(),
+            #[cfg(feature = "cookie")]
+            cookies: CookieJar::default(),
+            params: HashMap::new(),
+            queries: OnceCell::new(),
+            form_data: tokio::sync::OnceCell::new(),
+            payload: tokio::sync::OnceCell::new(),
+            version: Version::default(),
+            scheme: Scheme::HTTP,
+            local_addr: SocketAddr::Unknown,
+            remote_addr: SocketAddr::Unknown,
+        }
+    }
+    /// Creates a new `Request` from [`hyper::Request`].
+    pub fn from_hyper<B>(req: hyper::Request<B>, scheme: Scheme) -> Self
+    where
+        B: Into<ReqBody>,
+    {
         let (
             http::request::Parts {
                 method,
@@ -109,7 +140,7 @@ impl From<hyper::Request<ReqBody>> for Request {
             queries: OnceCell::new(),
             uri,
             headers,
-            body: Some(body),
+            body: body.into(),
             extensions,
             method,
             #[cfg(feature = "cookie")]
@@ -119,30 +150,10 @@ impl From<hyper::Request<ReqBody>> for Request {
             form_data: tokio::sync::OnceCell::new(),
             payload: tokio::sync::OnceCell::new(),
             // multipart: OnceCell::new(),
+            local_addr: SocketAddr::Unknown,
+            remote_addr: SocketAddr::Unknown,
             version,
-            remote_addr: None,
-        }
-    }
-}
-
-impl Request {
-    /// Creates a new blank `Request`
-    #[inline]
-    pub fn new() -> Request {
-        Request {
-            uri: Uri::default(),
-            headers: HeaderMap::default(),
-            body: Some(ReqBody::default()),
-            extensions: Extensions::default(),
-            method: Method::default(),
-            #[cfg(feature = "cookie")]
-            cookies: CookieJar::default(),
-            params: HashMap::new(),
-            queries: OnceCell::new(),
-            form_data: tokio::sync::OnceCell::new(),
-            payload: tokio::sync::OnceCell::new(),
-            version: Version::default(),
-            remote_addr: None,
+            scheme,
         }
     }
     /// Returns a reference to the associated URI.
@@ -213,10 +224,27 @@ impl Request {
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.version
     }
+
+    /// Returns the associated scheme.
+    #[inline]
+    pub fn scheme(&self) -> &Scheme {
+        &self.scheme
+    }
+    /// Returns a mutable reference to the associated scheme.
+    #[inline]
+    pub fn scheme_mut(&mut self) -> &mut Scheme {
+        &mut self.scheme
+    }
+
     /// Get request remote address.
     #[inline]
-    pub fn remote_addr(&self) -> Option<&SocketAddr> {
-        self.remote_addr.as_ref()
+    pub fn remote_addr(&self) -> &SocketAddr {
+        &self.remote_addr
+    }
+    /// Get request remote address.
+    #[inline]
+    pub fn local_addr(&self) -> &SocketAddr {
+        &self.local_addr
     }
 
     /// Returns a reference to the associated header field map.
@@ -268,7 +296,7 @@ impl Request {
     ///
     /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
     /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<()>
+    pub fn add_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
     where
         N: IntoHeaderName,
         V: TryInto<HeaderValue>,
@@ -281,20 +309,6 @@ impl Request {
         } else {
             self.headers.append(name, value);
         }
-        Ok(())
-    }
-
-    /// Modify a header for this request.
-    ///
-    /// When `overwrite` is set to `true`, If the header is already present, the value will be replaced.
-    /// When `overwrite` is set to `false`, The new header is always appended to the request, even if the header already exists.
-    #[inline]
-    pub fn with_header<N, V>(&mut self, name: N, value: V, overwrite: bool) -> crate::Result<&mut Self>
-    where
-        N: IntoHeaderName,
-        V: TryInto<HeaderValue>,
-    {
-        self.add_header(name, value, overwrite)?;
         Ok(self)
     }
 
@@ -308,19 +322,25 @@ impl Request {
     /// assert!(req.body().is_some());
     /// ```
     #[inline]
-    pub fn body(&self) -> Option<&ReqBody> {
-        self.body.as_ref()
+    pub fn body(&self) -> &ReqBody {
+        &self.body
     }
     /// Returns a mutable reference to the associated HTTP body.
     #[inline]
-    pub fn body_mut(&mut self) -> Option<&mut ReqBody> {
-        self.body.as_mut()
+    pub fn body_mut(&mut self) -> &mut ReqBody {
+        &mut self.body
+    }
+
+    /// Sets body to a new value and returns old value.
+    #[inline]
+    pub fn replace_body(&mut self, body: ReqBody) -> ReqBody {
+        std::mem::replace(&mut self.body, body)
     }
 
     /// Take body form the request, and set the body to None in the request.
     #[inline]
-    pub fn take_body(&mut self) -> Option<ReqBody> {
-        self.body.take()
+    pub fn take_body(&mut self) -> ReqBody {
+        self.replace_body(ReqBody::None)
     }
 
     /// Returns a reference to the associated extensions.
@@ -522,16 +542,14 @@ impl Request {
     ///
     /// *Notice: This method takes body.
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
-        let body = self.body.take();
+        let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                match body {
-                    Some(body) => hyper::body::to_bytes(body)
-                        .await
-                        .map(|d| d.to_vec())
-                        .map_err(ParseError::Hyper),
-                    None => Err(ParseError::EmptyBody),
-                }
+                Ok(BodyExt::collect(body)
+                    .await
+                    .map_err(ParseError::other)?
+                    .to_bytes()
+                    .to_vec())
             })
             .await
     }
@@ -547,15 +565,10 @@ impl Request {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
         if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            let body = self.body.take();
+            let body = self.take_body();
             let headers = self.headers();
             self.form_data
-                .get_or_try_init(|| async {
-                    match body {
-                        Some(body) => FormData::read(headers, body).await,
-                        None => Err(ParseError::EmptyBody),
-                    }
-                })
+                .get_or_try_init(|| async { FormData::read(headers, body).await })
                 .await
         } else {
             Err(ParseError::NotFormData)
@@ -635,7 +648,8 @@ impl Request {
     where
         T: Deserialize<'de>,
     {
-        if let Some(ctype) = self.content_type() {
+        let ctype = self.content_type();
+        if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
                 return self
                     .payload()

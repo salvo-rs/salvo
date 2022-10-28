@@ -25,6 +25,7 @@ async fn main() {
     let router = Router::new()
         .push(Router::with_path("anyhow").get(handle_anyhow))
         .push(Router::with_path("custom").get(handle_custom));
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

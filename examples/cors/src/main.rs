@@ -16,6 +16,7 @@ async fn main() {
         .build();
 
     let router = Router::with_hoop(cors_handler).get(hello).options(empty_handler);
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

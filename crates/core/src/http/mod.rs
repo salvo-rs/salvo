@@ -12,11 +12,39 @@ cfg_feature! {
 pub use errors::{ParseError, StatusError};
 pub use headers;
 pub use http::method::Method;
-pub use http::{header, method, uri, version, HeaderMap, HeaderValue, StatusCode};
+pub use http::{header, method, uri, HeaderMap, HeaderValue, StatusCode};
 pub use mime::{self, Mime};
 pub use range::HttpRange;
-pub use request::{ReqBody, Request};
-pub use response::{ResBody, Response};
+pub use request::Request;
+pub mod body;
+pub use body::{Body, ReqBody, ResBody};
+pub use response::Response;
+
+pub use http::version::Version;
+
+use std::io::Result as IoResult;
+use std::sync::Arc;
+
+use crate::async_trait;
+use crate::conn::HttpBuilders;
+use crate::service::HyperHandler;
+
+/// A helper trait for get a protocol from certain types.
+#[async_trait]
+pub trait HttpConnection {
+    /// The http protocol version.
+    async fn version(&mut self) -> Option<Version>;
+    /// Serve this http connection.
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
+}
+
+pub(crate) fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
+    if proto.as_ref().windows(2).any(|window| window == b"h2") {
+        Version::HTTP_2
+    } else {
+        Version::HTTP_11
+    }
+}
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

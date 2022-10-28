@@ -32,8 +32,13 @@
 
 Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
 
+> **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
+> currently preparing breaking changes. For the most recently *released* code,
+> look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
+
 ## 🎯 Features
    - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+   - Http1, Http2 and **Http3**;
    - Unified middleware and handle interface;
    - Limitless routers nesting;
    - Every router can have one or many middlewares;
@@ -42,7 +47,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
    - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
-You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/guid/hello_world/).
+You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs/book/guid/hello/).
 
 Create a new rust project:
 
@@ -58,13 +63,13 @@ salvo = "*"
 tokio = { version = "1", features = ["macros"] }
 ```
 
-Create a simple function handler in the main.rs file, we call it `hello_world`, this function just render plain text `"Hello World"`.
+Create a simple function handler in the main.rs file, we call it `hello`, this function just render plain text `"Hello World"`.
 
 ```rust
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world(res: &mut Response) {
+async fn hello(res: &mut Response) {
     res.render(Text::Plain("Hello World"));
 }
 ```
@@ -75,13 +80,14 @@ In the `main` function, we need to create a root Router first, and then create a
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 #[tokio::main]
 async fn main() {
-    let router = Router::new().get(hello_world);
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let router = Router::new().get(hello);
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 ```
 
@@ -102,7 +108,7 @@ async fn add_header(res: &mut Response) {
 Then add it to router:
 
 ```rust
-Router::new().hoop(add_header).get(hello_world)
+Router::new().hoop(add_header).get(hello)
 ```
 
 This is a very simple middleware, it add `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).

@@ -20,7 +20,7 @@ use std::borrow::Borrow;
 use std::error::Error as StdError;
 use std::hash::Hash;
 
-use salvo_core::addr::SocketAddr;
+use salvo_core::conn::SocketAddr;
 use salvo_core::handler::{none_skipper, Skipper};
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
@@ -78,10 +78,9 @@ impl RateIssuer for RemoteIpIssuer {
     type Key = String;
     async fn issue(&self, req: &mut Request, _depot: &Depot) -> Option<Self::Key> {
         match req.remote_addr() {
-            Some(SocketAddr::IPv4(addr)) => Some(addr.ip().to_string()),
-            Some(SocketAddr::IPv6(addr)) => Some(addr.ip().to_string()),
-            Some(_) => None,
-            None => None,
+            SocketAddr::IPv4(addr) => Some(addr.ip().to_string()),
+            SocketAddr::IPv6(addr) => Some(addr.ip().to_string()),
+            _ => None,
         }
     }
 }

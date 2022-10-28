@@ -2,7 +2,7 @@ use listenfd::ListenFd;
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world() -> &'static str {
+async fn hello() -> &'static str {
     "Hello World"
 }
 
@@ -10,8 +10,8 @@ async fn hello_world() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    let router = Router::new().get(hello_world);
+    
+    let router = Router::new().get(hello);
 
     let mut listenfd = ListenFd::from_env();
     // if listenfd doesn't take a TcpListener (i.e. we're not running via

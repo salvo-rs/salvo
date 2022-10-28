@@ -55,12 +55,12 @@ async fn home() -> Text<&'static str> {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
     let limiter = RateLimiter::new(SlidingGuard::new(), MemoryStore::new(), UserIssuer, CustomQuotaGetter);
     let router = Router::new()
         .get(home)
         .push(Router::with_path("limited").hoop(limiter).get(limited));
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 
 static HOME_HTML: &str = r#"

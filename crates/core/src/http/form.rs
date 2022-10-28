@@ -1,15 +1,17 @@
-//! form
+//! form parse module
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use http_body_util::BodyExt;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use tempfile::Builder;
 use textnonce::TextNonce;
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 
+use crate::http::body::ReqBody;
 use crate::http::header::{HeaderMap, CONTENT_TYPE};
-use crate::http::request::ReqBody;
 use crate::http::ParseError;
 
 /// The extracted text fields and uploaded files from a `multipart/form-data` request.
@@ -37,10 +39,11 @@ impl FormData {
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
         match headers.get(CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-                let data = hyper::body::to_bytes(body)
+                let data = BodyExt::collect(body)
                     .await
-                    .map(|d| d.to_vec())
-                    .map_err(ParseError::Hyper)?;
+                    .map_err(ParseError::other)?
+                    .to_bytes()
+                    .to_vec();
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)

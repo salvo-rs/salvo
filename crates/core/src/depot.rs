@@ -15,13 +15,14 @@ use std::fmt::{self, Formatter};
 ///     ctrl.call_next(req, depot, res).await;
 /// }
 /// #[handler]
-/// async fn hello_world(depot: &mut Depot) -> String {
+/// async fn hello(depot: &mut Depot) -> String {
 ///     format!("Hello {}", depot.get::<&str>("user").map(|s|*s).unwrap_or_default())
 /// }
 /// #[tokio::main]
 /// async fn main() {
-///     let router = Router::new().hoop(set_user).handle(hello_world);
-///     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+///     let router = Router::new().hoop(set_user).handle(hello);
+///     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+///     Server::new(acceptor).serve(router).await;
 /// }
 /// ```
 
@@ -161,10 +162,10 @@ mod test {
             ctrl.call_next(req, depot, res).await;
         }
         #[handler(internal)]
-        async fn hello_world(depot: &mut Depot) -> String {
+        async fn hello(depot: &mut Depot) -> String {
             format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
         }
-        let router = Router::new().hoop(set_user).handle(hello_world);
+        let router = Router::new().hoop(set_user).handle(hello);
         let service = Service::new(router);
 
         let content = TestClient::get("http://127.0.0.1:7878")

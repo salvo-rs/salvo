@@ -1,16 +1,18 @@
 use std::future::Future;
-use std::io::Error as IoError;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::future;
+use headers::HeaderValue;
+use http::header::{ALT_SVC, CONTENT_TYPE, HOST};
+use http::uri::{Authority, Scheme, Uri};
+use hyper::service::Service as HyperService;
+use hyper::{Request as HyperRequest, Response as HyperResponse};
 
-use crate::addr::SocketAddr;
 use crate::catcher::CatcherImpl;
-use crate::http::header::CONTENT_TYPE;
+use crate::conn::SocketAddr;
+use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::transport::Transport;
 use crate::{Catcher, Depot};
 
 /// Service http request.
@@ -111,59 +113,41 @@ impl Service {
 
     #[doc(hidden)]
     #[inline]
-    pub fn hyper_handler(&self, remote_addr: Option<SocketAddr>) -> HyperHandler {
+    pub fn hyper_handler(
+        &self,
+        local_addr: SocketAddr,
+        remote_addr: SocketAddr,
+        http_scheme: Scheme,
+        alt_svc_h3: Option<HeaderValue>,
+    ) -> HyperHandler {
         HyperHandler {
+            local_addr,
             remote_addr,
+            http_scheme,
             router: self.router.clone(),
             catchers: self.catchers.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
+            alt_svc_h3,
         }
     }
-
-    /// Handle [`Request`] and returns [`Response`].
-    ///
-    /// This function is useful for testing application.
+    /// Handle new request.
     ///
     /// # Example
-    ///
     /// ```
-    /// use salvo_core::prelude::*;
-    /// use salvo_core::test::{ResponseExt, TestClient};
-    ///
-    /// #[handler]
-    /// async fn hello_world() -> &'static str {
-    ///     "Hello World"
-    /// }
-    /// #[tokio::main]
+    /// # use salvo_core::prelude::*;
     /// async fn main() {
-    ///     let service: Service = Router::new().get(hello_world).into();
-    ///     let mut res = TestClient::get("http://127.0.0.1:7878").send(&service).await;
+    ///     let service: Service = Router::new().get(hello).into();
+    ///     let mut res = TestClient::get("http://127.0.0.1:7878");.send(&service).await;
     ///     assert_eq!(res.take_string().await.unwrap(), "Hello World");
     /// }
     /// ```
+    #[cfg(feature = "test")]
     #[inline]
     pub async fn handle(&self, request: impl Into<Request>) -> Response {
-        self.hyper_handler(None).handle(request.into()).await
-    }
-}
-impl<'t, T> hyper::service::Service<&'t T> for Service
-where
-    T: Transport,
-{
-    type Response = HyperHandler;
-    type Error = IoError;
-
-    // type Future = Pin<Box<(dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static)>>;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
-
-    #[inline]
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        Ok(()).into()
-    }
-
-    #[inline]
-    fn call(&mut self, target: &T) -> Self::Future {
-        future::ok(self.hyper_handler(target.remote_addr()))
+        let request = request.into();
+        self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown, request.scheme.clone(), None)
+            .handle(request)
+            .await
     }
 }
 
@@ -180,10 +164,13 @@ where
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct HyperHandler {
-    pub(crate) remote_addr: Option<SocketAddr>,
+    pub(crate) local_addr: SocketAddr,
+    pub(crate) remote_addr: SocketAddr,
+    pub(crate) http_scheme: Scheme,
     pub(crate) router: Arc<Router>,
     pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+    pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
 impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
@@ -191,11 +178,17 @@ impl HyperHandler {
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
         let catchers = self.catchers.clone();
         let allowed_media_types = self.allowed_media_types.clone();
+        req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
         #[cfg(not(feature = "cookie"))]
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
         let mut res = Response::with_cookies(req.cookies.clone());
+        if let Some(alt_svc_h3) = &self.alt_svc_h3 {
+            if !res.headers().contains_key(ALT_SVC) {
+                res.headers_mut().insert(ALT_SVC, alt_svc_h3.clone());
+            }
+        }
         let mut depot = Depot::new();
         let mut path_state = PathState::new(req.uri().path());
         let router = self.router.clone();
@@ -269,21 +262,43 @@ impl HyperHandler {
         }
     }
 }
-#[allow(clippy::type_complexity)]
-impl hyper::service::Service<hyper::Request<hyper::body::Body>> for HyperHandler {
-    type Response = hyper::Response<hyper::body::Body>;
+
+impl<B> HyperService<HyperRequest<B>> for HyperHandler
+where
+    B: Into<ReqBody>,
+{
+    type Response = HyperResponse<ResBody>;
     type Error = hyper::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     #[inline]
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-    #[inline]
-    fn call(&mut self, req: hyper::Request<hyper::body::Body>) -> Self::Future {
-        let response = self.handle(req.into());
+    fn call(
+        &mut self,
+        #[cfg(not(feature = "fix-http1-request-uri"))] req: HyperRequest<B>,
+        #[cfg(feature = "fix-http1-request-uri")] mut req: HyperRequest<B>,
+    ) -> Self::Future {
+        let scheme = req.uri().scheme().cloned().unwrap_or_else(|| self.http_scheme.clone());
+        // https://github.com/hyperium/hyper/issues/1310
+        #[cfg(feature = "fix-http1-request-uri")]
+        if req.uri().scheme().is_none() {
+            if let Some(host) = req
+                .headers()
+                .get(HOST)
+                .and_then(|host| host.to_str().ok())
+                .and_then(|host| host.parse::<Authority>().ok())
+            {
+                let mut uri_parts = std::mem::take(req.uri_mut()).into_parts();
+                uri_parts.scheme = Some(scheme.clone());
+                uri_parts.authority = Some(host);
+                if let Ok(uri) = Uri::from_parts(uri_parts) {
+                    *req.uri_mut() = uri;
+                }
+            }
+        }
+        let request = Request::from_hyper(req, scheme);
+        let response = self.handle(request);
         let fut = async move {
-            let mut hyper_response = hyper::Response::<hyper::Body>::new(hyper::Body::empty());
+            let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;
             Ok(hyper_response)
         };

@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "logging", "proxy", "sse", "size-limiter", "trailing-slash", "timeout", "ws"]
+full = ["affix", "basic-auth", "caching-headers", "force-https", "jwt-auth", "compression", "logging", "sse", "size-limiter", "trailing-slash", "timeout", "ws"]
 affix = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
@@ -25,7 +25,6 @@ compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream"
 force-https = ["dep:tracing"]
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
-proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
 size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 trailing-slash = ["dep:tracing"]
@@ -38,10 +37,8 @@ async-session = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 etag = { workspace = true, features = ["std"], optional = true }
-fastrand = { workspace = true, optional = true }
 futures-util = { workspace = true, default-features = false, optional = true }
-hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"], optional = true }
-hyper-rustls = { workspace = true, features = ["http1", "http2"], optional = true }
+hyper = { workspace = true, features = ["server", "http1", "http2", "client"], optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }

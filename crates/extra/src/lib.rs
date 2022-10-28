@@ -38,10 +38,6 @@ cfg_feature! {
     pub mod logging;
 }
 cfg_feature! {
-    #![feature = "proxy"]
-    pub mod proxy;
-}
-cfg_feature! {
     #![feature = "sse"]
     pub mod sse;
 }

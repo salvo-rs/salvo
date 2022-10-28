@@ -16,15 +16,19 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["cookie", "test"]
-full = ["rustls", "anyhow"]
+default = ["cookie", "http1", "fix-http1-request-uri", "http2", "http3", "test"]
+full = ["cookie", "http1", "fix-http1-request-uri", "http2", "http3", "rustls", "native-tls", "openssl", "unix", "test", "anyhow"]
 cookie = ["dep:cookie"]
-rustls = ["dep:tokio-rustls", "dep:rustls-pemfile", "dep:pin-project"]
-native-tls = ["dep:tokio-native-tls", "dep:pin-project"]
-openssl = ["dep:openssl", "dep:pin-project", "dep:tokio-openssl"]
+http1 = []
+fix-http1-request-uri = ["http1"]
+http2 = []
+http3 = ["dep:h3", "dep:h3-quinn", "dep:quinn", "rustls"]
+rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
+native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
+openssl = ["dep:openssl",  "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+# acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 cruet.workspace = true
@@ -32,6 +36,7 @@ anyhow = { workspace = true, optional = true }
 async-compression = { workspace = true, features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-trait.workspace = true
 base64 = { workspace = true, optional = true }
+http-body-util.workspace = true
 bytes.workspace = true
 cookie = { workspace = true, features = ["percent-encode"], optional = true }
 encoding_rs = { workspace = true, optional = true }
@@ -40,8 +45,11 @@ fastrand.workspace = true
 form_urlencoded.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
+h3 = {workspace = true, optional = true }
+h3-quinn = {workspace = true, optional = true }
 http.workspace = true
-hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "tcp", "client"] }
+hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
+hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"] }
 hyper-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true
@@ -50,7 +58,8 @@ multimap = { workspace = true, features = ["serde"] }
 once_cell.workspace = true
 parking_lot.workspace = true
 percent-encoding.workspace = true
-pin-project = { workspace = true, optional = true }
+pin-project = { workspace = true }
+quinn = {workspace = true, optional = true, features=["ring"] }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }
@@ -65,6 +74,7 @@ thiserror.workspace = true
 openssl = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
+native-tls = { workspace = true, optional = true, features = ["alpn"] }
 tokio-rustls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-stream = { workspace = true, default-features = false }

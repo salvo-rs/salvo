@@ -1,8 +1,7 @@
 //! size limiter middleware
 
 use salvo_core::http::StatusError;
-use salvo_core::http::{Request, Response};
-use salvo_core::hyper::body::HttpBody;
+use salvo_core::http::{Body, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// MaxSize
@@ -11,7 +10,8 @@ pub struct MaxSize(pub u64);
 impl Handler for MaxSize {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
+        let size_hint = req.body().size_hint().upper();
+        if let Some(upper) = size_hint {
             if upper > self.0 {
                 res.set_status_error(StatusError::payload_too_large());
                 ctrl.skip_rest();

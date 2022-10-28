@@ -1,11 +1,11 @@
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world1() -> &'static str {
+async fn hello1() -> &'static str {
     "Server1: Hello World"
 }
 #[handler]
-async fn hello_world2() -> &'static str {
+async fn hello2() -> &'static str {
     "Server2: Hello World"
 }
 
@@ -13,14 +13,12 @@ async fn hello_world2() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router1 = Router::new().get(hello_world1);
-    let router2 = Router::new().get(hello_world2);
+    let router1 = Router::new().get(hello1);
+    let router2 = Router::new().get(hello2);
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    tracing::info!("Listening on http://127.0.0.1:7979");
     tokio::try_join!(
-        Server::new(TcpListener::bind("127.0.0.1:7878")).try_serve(router1),
-        Server::new(TcpListener::bind("127.0.0.1:7979")).try_serve(router2),
+        Server::new(TcpListener::new("127.0.0.1:7878").bind().await).try_serve(router1),
+        Server::new(TcpListener::new("127.0.0.1:7979").bind().await).try_serve(router2),
     )
     .unwrap();
 }

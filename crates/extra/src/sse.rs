@@ -35,7 +35,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let router = Router::with_path("push-notifications").get(handle);
-//!     Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+//!     let accepor = TcpListener::new("127.0.0.1:7878").bind().await;
+//!     Server::new(accepor).serve(router).await;
 //! }
 //! ```
 //!
@@ -327,8 +328,8 @@ where
                 Poll::Ready(Some(Ok(event)))
             }
             Poll::Ready(None) => Poll::Ready(None),
-            Poll::Ready(Some(Err(error))) => {
-                tracing::error!("sse::keep error: {}", error);
+            Poll::Ready(Some(Err(e))) => {
+                tracing::error!(error = ?e, "sse::keep error");
                 Poll::Ready(Some(Err(SseError)))
             }
         }

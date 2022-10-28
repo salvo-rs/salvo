@@ -2,7 +2,7 @@ use salvo::affix;
 use salvo::prelude::*;
 
 #[handler]
-async fn hello_world(depot: &mut Depot) -> String {
+async fn hello(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
     let custom_data = depot.get::<&str>("custom_data").unwrap();
     format!("Hello World\nConfig: {:#?}\nCustom Data: {}", config, custom_data)
@@ -12,8 +12,8 @@ async fn hello_world(depot: &mut Depot) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(route()).await;
 }
 
 #[allow(dead_code)]
@@ -30,6 +30,6 @@ fn route() -> Router {
     };
     Router::new()
         .hoop(affix::inject(config).insert("custom_data", "I love this world!"))
-        .get(hello_world)
-        .push(Router::with_path("hello").get(hello_world))
+        .get(hello)
+        .push(Router::with_path("hello").get(hello))
 }

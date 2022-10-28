@@ -202,7 +202,7 @@ mod tests {
     #[tokio::test]
     async fn test_custom_filter() {
         #[handler(internal)]
-        async fn hello_world() -> &'static str {
+        async fn hello() -> &'static str {
             "Hello World"
         }
 
@@ -211,7 +211,7 @@ mod tests {
                 let host = req.uri().host().unwrap_or_default();
                 host == "localhost"
             })
-            .get(hello_world);
+            .get(hello);
         let service = Service::new(router);
 
         async fn access(service: &Service, host: &str) -> String {

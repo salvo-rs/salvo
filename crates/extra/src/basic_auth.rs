@@ -71,7 +71,8 @@ where
     V: BasicAuthValidator + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(auth) = req.headers().get(AUTHORIZATION).and_then(|auth| auth.to_str().ok()) {
+        let auth = req.headers().get(AUTHORIZATION).and_then(|auth| auth.to_str().ok());
+        if let Some(auth) = auth {
             if auth.starts_with("Basic") {
                 if let Some((_, auth)) = auth.split_once(' ') {
                     if let Ok((username, password)) = self.parse_authorization(auth) {

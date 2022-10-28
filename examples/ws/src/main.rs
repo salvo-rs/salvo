@@ -39,8 +39,9 @@ async fn index(res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
     let router = Router::new().get(index).push(Router::with_path("ws").handle(connect));
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 
 static INDEX_HTML: &str = r#"<!DOCTYPE html>

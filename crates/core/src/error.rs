@@ -64,48 +64,48 @@ impl From<Infallible> for Error {
 }
 impl From<hyper::Error> for Error {
     #[inline]
-    fn from(err: hyper::Error) -> Error {
-        Error::Hyper(err)
+    fn from(e: hyper::Error) -> Error {
+        Error::Hyper(e)
     }
 }
 impl From<ParseError> for Error {
     #[inline]
-    fn from(err: ParseError) -> Error {
-        Error::HttpParse(err)
+    fn from(d: ParseError) -> Error {
+        Error::HttpParse(d)
     }
 }
 impl From<StatusError> for Error {
     #[inline]
-    fn from(err: StatusError) -> Error {
-        Error::HttpStatus(err)
+    fn from(e: StatusError) -> Error {
+        Error::HttpStatus(e)
     }
 }
 impl From<IoError> for Error {
     #[inline]
-    fn from(err: IoError) -> Error {
-        Error::Io(err)
+    fn from(e: IoError) -> Error {
+        Error::Io(e)
     }
 }
 impl From<serde_json::Error> for Error {
     #[inline]
-    fn from(err: serde_json::Error) -> Error {
-        Error::SerdeJson(err)
+    fn from(e: serde_json::Error) -> Error {
+        Error::SerdeJson(e)
     }
 }
 cfg_feature! {
     #![feature = "anyhow"]
     impl From<anyhow::Error> for Error {
         #[inline]
-        fn from(err: anyhow::Error) -> Error {
-            Error::Anyhow(err)
+        fn from(e: anyhow::Error) -> Error {
+            Error::Anyhow(e)
         }
     }
 }
 
 impl From<BoxedError> for Error {
     #[inline]
-    fn from(err: BoxedError) -> Error {
-        Error::Other(err)
+    fn from(e: BoxedError) -> Error {
+        Error::Other(e)
     }
 }
 

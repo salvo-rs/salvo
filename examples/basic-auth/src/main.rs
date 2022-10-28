@@ -5,8 +5,8 @@ use salvo::prelude::*;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    tracing::info!("Listening on http://127.0.0.1:7878");
-    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(route()).await;
 }
 fn route() -> Router {
     let auth_handler = BasicAuth::new(Validator);

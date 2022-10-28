@@ -174,5 +174,6 @@ async fn main() {
         .push(Router::with_path("delete/<id>").post(delete))
         .push(Router::with_path("static/<**>").get(StaticDir::new(concat!(env!("CARGO_MANIFEST_DIR"), "/static"))));
 
-    Server::new(TcpListener::bind(&server_url)).serve(router).await;
+    let acceptor = TcpListener::new(&server_url).bind().await;
+    Server::new(acceptor).serve(router).await;
 }
