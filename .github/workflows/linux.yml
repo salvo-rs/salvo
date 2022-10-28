@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - next
+      - main
 
 jobs:
   build_and_test:
