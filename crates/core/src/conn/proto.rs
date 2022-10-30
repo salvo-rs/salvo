@@ -5,8 +5,8 @@ use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
 
-#[cfg(feature = "http3")]
-use crate::conn::http3;
+#[cfg(feature = "quinn")]
+use crate::conn::quinn;
 
 #[doc(hidden)]
 pub struct HttpBuilders {
@@ -14,6 +14,6 @@ pub struct HttpBuilders {
     pub(crate) http1: http1::Builder,
     #[cfg(feature = "http2")]
     pub(crate) http2: http2::Builder<TokioExecutor>,
-    #[cfg(feature = "http3")]
-    pub(crate) http3: http3::Builder,
+    #[cfg(feature = "quinn")]
+    pub(crate) quinn: quinn::Builder,
 }

@@ -72,8 +72,8 @@ pub mod prelude {
         pub use crate::conn::OpensslListener;
     }
     cfg_feature! {
-        #![feature ="http3"]
-        pub use crate::conn::QuicListener;
+        #![feature ="quinn"]
+        pub use crate::conn::QuinnListener;
     }
     cfg_feature! {
         #![unix]

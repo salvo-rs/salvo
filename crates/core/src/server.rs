@@ -11,8 +11,8 @@ use hyper::server::conn::http2;
 use tokio::sync::Notify;
 use tokio::time::Duration;
 
-#[cfg(feature = "http3")]
-use crate::conn::http3;
+#[cfg(feature = "quinn")]
+use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::runtimes::TokioExecutor;
@@ -49,8 +49,8 @@ impl<A: Acceptor> Server<A> {
                 http1: http1::Builder::new(),
                 #[cfg(feature = "http2")]
                 http2: http2::Builder::new(TokioExecutor),
-                #[cfg(feature = "http3")]
-                http3: crate::conn::http3::Builder,
+                #[cfg(feature = "quinn")]
+                quinn: crate::conn::quinn::Builder,
             },
         }
     }
@@ -61,19 +61,28 @@ impl<A: Acceptor> Server<A> {
         self.acceptor.holdings()
     }
 
-    /// Use this function to set http1 protocol.
-    pub fn http1_mut(&mut self) -> &mut http1::Builder {
-        &mut self.builders.http1
+    cfg_feature! {
+        #![feature = "http1"]
+        /// Use this function to set http1 protocol.
+        pub fn http1_mut(&mut self) -> &mut http1::Builder {
+            &mut self.builders.http1
+        }
     }
 
-    /// Use this function to set http2 protocol.
-    pub fn http2_mut(&mut self) -> &mut http2::Builder<TokioExecutor> {
-        &mut self.builders.http2
+    cfg_feature! {
+        #![feature = "http2"]
+        /// Use this function to set http2 protocol.
+        pub fn http2_mut(&mut self) -> &mut http2::Builder<TokioExecutor> {
+            &mut self.builders.http2
+        }
     }
 
-    /// Use this function to set http3 protocol.
-    pub fn http3_mut(&mut self) -> &mut http3::Builder {
-        &mut self.builders.http3
+    cfg_feature! {
+        #![feature = "quinn"]
+        /// Use this function to set http3 protocol.
+        pub fn quinn_mut(&mut self) -> &mut quinn::Builder {
+            &mut self.builders.quinn
+        }
     }
 
     /// Serve a [`Service`]

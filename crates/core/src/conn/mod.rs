@@ -37,10 +37,9 @@ cfg_feature! {
     pub use hyper::server::conn::http2;
 }
 cfg_feature! {
-    #![feature = "http3"]
-    pub mod http3;
-    pub mod quic;
-    pub use self::quic::{QuicListener, H3Connection};
+    #![feature = "quinn"]
+    pub mod quinn;
+    pub use self::quinn::{QuinnListener, H3Connection};
 }
 cfg_feature! {
     #![unix]

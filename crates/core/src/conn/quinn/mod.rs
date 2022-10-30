@@ -1,4 +1,4 @@
-//! QuicListener and it's implements.
+//! QuinnListener and it's implements.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::net::ToSocketAddrs;
 use std::ops::{Deref, DerefMut};
@@ -23,25 +23,28 @@ use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
-/// QuicListener
-pub struct QuicListener<T> {
+mod builder;
+pub use builder::Builder;
+
+/// QuinnListener
+pub struct QuinnListener<T> {
     config: RustlsConfig,
     local_addr: T,
 }
-impl<T: ToSocketAddrs> QuicListener<T> {
+impl<T: ToSocketAddrs> QuinnListener<T> {
     /// Bind to socket address.
     #[inline]
     pub fn new(config: RustlsConfig, local_addr: T) -> Self {
         let config = config.alpn_protocols([b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()]);
-        QuicListener { config, local_addr }
+        QuinnListener { config, local_addr }
     }
 }
 #[async_trait]
-impl<T> Listener for QuicListener<T>
+impl<T> Listener for QuinnListener<T>
 where
     T: ToSocketAddrs + Send,
 {
-    type Acceptor = QuicAcceptor;
+    type Acceptor = QuinnAcceptor;
     
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
@@ -56,9 +59,9 @@ where
             http_scheme: Scheme::HTTPS,
         };
         let crypto = config.build_server_config()?;
-        let server_config = crate::conn::quic::ServerConfig::with_crypto(Arc::new(crypto));
+        let server_config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
         let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(server_config), socket)?;
-        Ok(QuicAcceptor {
+        Ok(QuinnAcceptor {
             // endpoint,
             incoming,
             holdings: vec![holding],
@@ -66,8 +69,8 @@ where
     }
 }
 
-/// QuicAcceptor
-pub struct QuicAcceptor {
+/// QuinnAcceptor
+pub struct QuinnAcceptor {
     // endpoint: Endpoint,
     incoming: Incoming,
     holdings: Vec<Holding>,
@@ -112,12 +115,12 @@ impl HttpConnection for H3Connection {
         Some(Version::HTTP_3)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        builders.http3.serve_connection(self, handler).await
+        builders.quinn.serve_connection(self, handler).await
     }
 }
 
 #[async_trait]
-impl Acceptor for QuicAcceptor {
+impl Acceptor for QuinnAcceptor {
     type Conn = H3Connection;
 
     fn holdings(&self) -> &[Holding] {
@@ -144,6 +147,6 @@ impl Acceptor for QuicAcceptor {
                 Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),
             }
         }
-        Err(IoError::new(ErrorKind::Other, "http3 accept error"))
+        Err(IoError::new(ErrorKind::Other, "quinn accept error"))
     }
 }
