@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_util::stream::Stream;
-use h3::quic::RecvStream;
+use salvo_quinn::quic::RecvStream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::{Buf, Bytes};
@@ -147,7 +147,7 @@ where
 
 /// Http3 request body.
 pub struct H3ReqBody<S, B> {
-    inner: h3::server::RequestStream<S, B>,
+    inner: salvo_quinn::server::RequestStream<S, B>,
 }
 impl<S, B> H3ReqBody<S, B>
 where
@@ -155,7 +155,7 @@ where
     B: Buf + Send + Unpin + 'static,
 {
     /// Create new `H3ReqBody` instance.
-    pub fn new(inner: h3::server::RequestStream<S, B>) -> Self {
+    pub fn new(inner: salvo_quinn::server::RequestStream<S, B>) -> Self {
         Self { inner }
     }
 }

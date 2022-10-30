@@ -253,13 +253,13 @@ impl Error {
         self
     }
 
-    pub(crate) fn closing() -> Self {
-        Self::new(Kind::Closing)
-    }
+    // pub(crate) fn closing() -> Self {
+    //     Self::new(Kind::Closing)
+    // }
 
-    pub(crate) fn closed() -> Self {
-        Self::new(Kind::Closed)
-    }
+    // pub(crate) fn closed() -> Self {
+    //     Self::new(Kind::Closed)
+    // }
 
     pub(crate) fn is_closed(&self) -> bool {
         if let Kind::Closed = self.inner.kind {

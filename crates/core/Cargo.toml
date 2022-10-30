@@ -22,7 +22,7 @@ cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = []
-http3 = ["dep:h3", "dep:h3-quinn", "dep:quinn", "rustls"]
+http3 = ["dep:salvo-quinn", "dep:quinn", "rustls"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl",  "dep:tokio-openssl"]
@@ -45,8 +45,7 @@ fastrand.workspace = true
 form_urlencoded.workspace = true
 futures-util = { workspace = true, default-features = false, features = ["io"] }
 headers.workspace = true
-h3 = {workspace = true, optional = true }
-h3-quinn = {workspace = true, optional = true }
+salvo-quinn = {workspace = true, optional = true }
 http.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"] }
 hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"] }

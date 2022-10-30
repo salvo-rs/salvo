@@ -37,8 +37,6 @@ fastrand = "1"
 form_urlencoded = "1"
 futures-util = "0.3"
 headers = "0.3"
-h3 = { version = "0.0", git = "https://github.com/hyperium/h3.git", branch = "master" }
-h3-quinn = { version = "0.0", git = "https://github.com/hyperium/h3.git", branch = "master" }
 http = "0.2"
 http-body-util = "0.1.0-rc.1" #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 hmac = "0.12"
@@ -70,6 +68,7 @@ rust-embed = "6"
 salvo_macros = { version = "0.37.2", path = "./crates/macros" }
 salvo_core = { version = "0.37.2", path = "./crates/core" }
 salvo_extra = { version = "0.37.2", path = "./crates/extra" }
+salvo-quinn = { version = "0.37.2", path = "./crates/quinn" }
 salvo-cache = { version = "0.37.2", path = "./crates/cache" }
 salvo-cors = { version = "0.37.2", path = "./crates/cors" }
 salvo-csrf = { version = "0.37.2", path = "./crates/csrf" }

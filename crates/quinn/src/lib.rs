@@ -1,7 +1,6 @@
 //! HTTP/3 client and server
 #![deny(missing_docs)]
 
-pub mod client;
 pub mod error;
 pub mod quic;
 pub mod server;
@@ -16,8 +15,12 @@ mod proto;
 mod qpack;
 mod stream;
 
+pub mod quinn_impl;
+
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-extern crate self as h3;
+pub use quinn::{
+    self, crypto::Session, Endpoint, IncomingBiStreams, IncomingUniStreams, NewConnection, OpenBi, OpenUni, VarInt,
+    WriteError,
+};
