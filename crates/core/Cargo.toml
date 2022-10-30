@@ -22,7 +22,6 @@ cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = []
-quiche = ["dep:quiche", "dep:mio"]
 quinn = ["dep:salvo-quinn", "dep:quinn", "rustls"]
 rustls = ["dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
@@ -53,14 +52,12 @@ hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp"]
 hyper-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true
-mio = {workspace = true, optional = true }
 multer.workspace = true
 multimap = { workspace = true, features = ["serde"] }
 once_cell.workspace = true
 parking_lot.workspace = true
 percent-encoding.workspace = true
 pin-project = { workspace = true }
-quiche = {workspace = true, optional = true }
 quinn = {workspace = true, optional = true, features=["ring"] }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
