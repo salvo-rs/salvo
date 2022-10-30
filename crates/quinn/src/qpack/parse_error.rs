@@ -1,6 +1,6 @@
 use super::{prefix_int, prefix_string};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ParseError {
     Integer(prefix_int::Error),
     String(prefix_string::Error),

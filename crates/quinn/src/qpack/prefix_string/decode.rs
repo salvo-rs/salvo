@@ -1,6 +1,6 @@
 use super::BitWindow;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     MissingBits(BitWindow),
     Unhandled(BitWindow, usize),

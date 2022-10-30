@@ -1,12 +1,12 @@
 // This is to avoid an import loop:
 // h3 tests depend on having private access to the crate.
 // They must be part of the crate so as not to break privacy.
-// They also depend on h3_quinn which depends on the crate.
-// Having a dev-dependency on h3_quinn would work as far as cargo is
+// They also depend on quinn_impl which depends on the crate.
+// Having a dev-dependency on quinn_impl would work as far as cargo is
 // concerned, but quic traits wouldn't match between the "h3" crate that
-// comes before h3_quinn and the one that comes after and runs the tests
-#[path = "../../../h3-quinn/src/lib.rs"]
-mod h3_quinn;
+// comes before quinn_impl and the one that comes after and runs the tests
+#[path = "../quinn_impl.rs"]
+mod quinn_impl;
 
 mod connection;
 mod request;
@@ -23,10 +23,8 @@ use futures_util::StreamExt;
 use rustls::{Certificate, PrivateKey};
 
 use crate::quic;
-use h3_quinn::{
-    quinn::{Incoming, NewConnection, TransportConfig},
-    Connection,
-};
+use super::quinn::{Incoming, NewConnection, TransportConfig};
+use quinn_impl::Connection;
 
 pub fn init_tracing() {
     let _ = tracing_subscriber::fmt()
@@ -60,13 +58,11 @@ impl Pair {
     pub fn with_timeout(&mut self, duration: Duration) {
         Arc::get_mut(&mut self.config)
             .unwrap()
-            .max_idle_timeout(Some(
-                duration.try_into().expect("idle timeout duration invalid"),
-            ))
+            .max_idle_timeout(Some(duration.try_into().expect("idle timeout duration invalid")))
             .initial_rtt(Duration::from_millis(10));
     }
 
-    pub fn server_inner(&mut self) -> (h3_quinn::Endpoint, Incoming) {
+    pub fn server_inner(&mut self) -> (super::Endpoint, Incoming) {
         let mut crypto = rustls::ServerConfig::builder()
             .with_safe_default_cipher_suites()
             .with_safe_default_kx_groups()
@@ -78,10 +74,10 @@ impl Pair {
         crypto.max_early_data_size = u32::MAX;
         crypto.alpn_protocols = vec![b"h3".to_vec()];
 
-        let mut server_config = h3_quinn::quinn::ServerConfig::with_crypto(crypto.into());
+        let mut server_config = crate::quinn::ServerConfig::with_crypto(crypto.into());
         server_config.transport = self.config.clone();
         let (endpoint, incoming) =
-            h3_quinn::quinn::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
+        crate::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
 
         self.port = endpoint.local_addr().unwrap().port();
 
@@ -112,25 +108,20 @@ impl Pair {
         crypto.enable_early_data = true;
         crypto.alpn_protocols = vec![b"h3".to_vec()];
 
-        let client_config = h3_quinn::quinn::ClientConfig::new(Arc::new(crypto));
+        let client_config = crate::quinn::ClientConfig::new(Arc::new(crypto));
 
-        let mut client_endpoint =
-            h3_quinn::quinn::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
+        let mut client_endpoint = crate::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
         client_endpoint.set_default_client_config(client_config);
-        client_endpoint
-            .connect(addr, "localhost")
-            .unwrap()
-            .await
-            .unwrap()
+        client_endpoint.connect(addr, "localhost").unwrap().await.unwrap()
     }
 
-    pub async fn client(&self) -> h3_quinn::Connection {
+    pub async fn client(&self) -> quinn_impl::Connection {
         Connection::new(self.client_inner().await)
     }
 }
 
 pub struct Server {
-    pub endpoint: h3_quinn::Endpoint,
+    pub endpoint: super::Endpoint,
     pub incoming: Incoming,
 }
 

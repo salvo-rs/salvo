@@ -161,11 +161,7 @@ where
         //# Endpoints MUST NOT require any data to be received from
         //# the peer prior to sending the SETTINGS frame; settings MUST be sent
         //# as soon as the transport is ready to send data.
-        stream::write(
-            &mut control_send,
-            (StreamType::CONTROL, Frame::Settings(settings)),
-        )
-        .await?;
+        stream::write(&mut control_send, (StreamType::CONTROL, Frame::Settings(settings))).await?;
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
         //= type=implication
@@ -216,10 +212,7 @@ where
         stream::write(&mut self.control_send, Frame::Goaway(max_id)).await
     }
 
-    pub fn poll_accept_request(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<C::BidiStream>, Error>> {
+    pub fn poll_accept_request(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<C::BidiStream>, Error>> {
         {
             let state = self.shared.read("poll_accept_request");
             if let Some(ref e) = state.error {
@@ -239,9 +232,7 @@ where
 
         loop {
             match self.conn.poll_accept_recv(cx)? {
-                Poll::Ready(Some(stream)) => self
-                    .pending_recv_streams
-                    .push(AcceptRecvStream::new(stream)),
+                Poll::Ready(Some(stream)) => self.pending_recv_streams.push(AcceptRecvStream::new(stream)),
                 Poll::Ready(None) => {
                     return Poll::Ready(Err(Code::H3_GENERAL_PROTOCOL_ERROR.with_reason(
                         "Connection closed unexpected",
@@ -267,10 +258,7 @@ where
             //# As certain stream types can affect connection state, a recipient
             //# SHOULD NOT discard data from incoming unidirectional streams prior to
             //# reading the stream type.
-            let stream = self
-                .pending_recv_streams
-                .remove(index - removed)
-                .into_stream()?;
+            let stream = self.pending_recv_streams.remove(index - removed).into_stream()?;
             match stream {
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
                 //# Only one control stream per peer is permitted;
@@ -324,11 +312,7 @@ where
             }
         }
 
-        let recvd = ready!(self
-            .control_recv
-            .as_mut()
-            .expect("control_recv")
-            .poll_next(cx))?;
+        let recvd = ready!(self.control_recv.as_mut().expect("control_recv").poll_next(cx))?;
 
         let res = match recvd {
             //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.1
@@ -365,9 +349,8 @@ where
                         //# any meaning upon receipt.
                         self.shared
                             .write("connection settings write")
-                            .peer_max_field_section_size = settings
-                            .get(SettingId::MAX_HEADER_LIST_SIZE)
-                            .unwrap_or(VarInt::MAX.0);
+                            .peer_max_field_section_size =
+                            settings.get(SettingId::MAX_HEADER_LIST_SIZE).unwrap_or(VarInt::MAX.0);
                         Ok(Frame::Settings(settings))
                     }
                     Frame::Goaway(id) => {
@@ -385,8 +368,7 @@ where
                                 //# the client MAY send subsequent GOAWAY frames so long as the specified
                                 //# push ID is no greater than any previously sent value.
                                 if id <= closing_id {
-                                    self.shared.write("connection goaway overwrite").closing =
-                                        Some(id);
+                                    self.shared.write("connection goaway overwrite").closing = Some(id);
                                     Ok(Frame::Goaway(id))
                                 } else {
                                     //= https://www.rfc-editor.org/rfc/rfc9114#section-5.2
@@ -394,7 +376,10 @@ where
                                     //# received MUST be treated as a connection error of type H3_ID_ERROR.
                                     Err(self.close(
                                         Code::H3_ID_ERROR,
-                                        format!("received a GoAway({}) greater than the former one ({})", id, closing_id)
+                                        format!(
+                                            "received a GoAway({}) greater than the former one ({})",
+                                            id, closing_id
+                                        ),
                                     ))
                                 }
                             }
@@ -450,10 +435,7 @@ where
                     //# If an endpoint receives a second SETTINGS
                     //# frame on the control stream, the endpoint MUST respond with a
                     //# connection error of type H3_FRAME_UNEXPECTED.
-                    frame => Err(self.close(
-                        Code::H3_FRAME_UNEXPECTED,
-                        format!("on control stream: {:?}", frame),
-                    )),
+                    frame => Err(self.close(Code::H3_FRAME_UNEXPECTED, format!("on control stream: {:?}", frame))),
                 }
             }
         };
@@ -483,7 +465,7 @@ where
         {
             Err(err) => {
                 warn!("grease stream creation failed with {}", err);
-                return ();
+                return;
             }
             Ok(grease) => grease,
         };
@@ -498,7 +480,7 @@ where
             Ok(_) => (),
             Err(err) => {
                 warn!("write data on grease stream failed with {}", err);
-                return ();
+                return;
             }
         }
 
@@ -510,17 +492,12 @@ where
         //= https://www.rfc-editor.org/rfc/rfc9114#section-6.2.3
         //# When resetting the stream, either the H3_NO_ERROR error code or
         //# a reserved error code (Section 8.1) SHOULD be used.
-        match future::poll_fn(|cx| grease_stream.poll_finish(cx))
+        if let Err(e) = future::poll_fn(|cx| grease_stream.poll_finish(cx))
             .await
             .map_err(|e| Code::H3_NO_ERROR.with_transport(e))
         {
-            Err(err) => {
-                warn!("grease stream error on close {}", err);
-                return ();
-            }
-            Ok(_) => (),
+            warn!("grease stream error on close {}", e);
         }
-        ()
     }
 }
 
@@ -655,20 +632,16 @@ where
             }
         }
 
-        let qpack::Decoded { fields, .. } =
-            match qpack::decode_stateless(&mut trailers, self.max_field_section_size) {
-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
-                //# An HTTP/3 implementation MAY impose a limit on the maximum size of
-                //# the message header it will accept on an individual HTTP message.
-                Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
-                    return Err(Error::header_too_big(
-                        cancel_size,
-                        self.max_field_section_size,
-                    ))
-                }
-                Ok(decoded) => decoded,
-                Err(e) => return Err(e.into()),
-            };
+        let qpack::Decoded { fields, .. } = match qpack::decode_stateless(&mut trailers, self.max_field_section_size) {
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+            //# An HTTP/3 implementation MAY impose a limit on the maximum size of
+            //# the message header it will accept on an individual HTTP message.
+            Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
+                return Err(Error::header_too_big(cancel_size, self.max_field_section_size))
+            }
+            Ok(decoded) => decoded,
+            Err(e) => return Err(e.into()),
+        };
 
         Ok(Some(Header::try_from(fields)?.into_fields()))
     }
@@ -749,12 +722,7 @@ where
     S: quic::BidiStream<B>,
     B: Buf,
 {
-    pub(crate) fn split(
-        self,
-    ) -> (
-        RequestStream<S::SendStream, B>,
-        RequestStream<S::RecvStream, B>,
-    ) {
+    pub(crate) fn split(self) -> (RequestStream<S::SendStream, B>, RequestStream<S::RecvStream, B>) {
         let (send, recv) = self.stream.split();
 
         (

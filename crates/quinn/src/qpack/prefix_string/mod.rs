@@ -16,7 +16,7 @@ pub use self::{
 use crate::proto::coding::BufMutExt;
 use crate::qpack::prefix_int::{self, Error as IntegerError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     UnexpectedEnd,
     Integer(IntegerError),

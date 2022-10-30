@@ -22,7 +22,7 @@ pub use quinn::{
     OpenUni, VarInt, WriteError,
 };
 
-use h3::quic::{self, Error, StreamId, WriteBuf};
+use salvo_quinn::quic::{self, Error, StreamId, WriteBuf};
 
 /// A QUIC connection backed by Quinn
 ///
@@ -161,7 +161,7 @@ where
         }
     }
 
-    fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+    fn close(&mut self, code: salvo_quinn::error::Code, reason: &[u8]) {
         self.conn.close(
             VarInt::from_u64(code.value()).expect("error code VarInt"),
             reason,
@@ -215,7 +215,7 @@ where
         Poll::Ready(Ok(Self::SendStream::new(send)))
     }
 
-    fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+    fn close(&mut self, code: salvo_quinn::error::Code, reason: &[u8]) {
         self.conn.close(
             VarInt::from_u64(code.value()).expect("error code VarInt"),
             reason,

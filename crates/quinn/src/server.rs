@@ -8,10 +8,10 @@
 //! ```rust
 //! async fn doc<C>(conn: C)
 //! where
-//! C: h3::quic::Connection<bytes::Bytes>,
-//! <C as h3::quic::Connection<bytes::Bytes>>::BidiStream: Send + 'static
+//! C: salvo_quinn::quic::Connection<bytes::Bytes>,
+//! <C as salvo_quinn::quic::Connection<bytes::Bytes>>::BidiStream: Send + 'static
 //! {
-//!     let mut server_builder = h3::server::builder();
+//!     let mut server_builder = salvo_quinn::server::builder();
 //!     // Build the Connection
 //!     let mut h3_conn = server_builder.build(conn).await.unwrap();
 //!     loop {
@@ -37,9 +37,9 @@
 //!             Err(err) => {
 //!                 match err.get_error_level() {
 //!                     // break on connection errors
-//!                     h3::error::ErrorLevel::ConnectionError => break,
+//!                     salvo_quinn::error::ErrorLevel::ConnectionError => break,
 //!                     // continue on stream errors
-//!                     h3::error::ErrorLevel::StreamError => continue,
+//!                     salvo_quinn::error::ErrorLevel::StreamError => continue,
 //!                 }
 //!             }
 //!         }
@@ -124,7 +124,7 @@ where
     /// with different settings.
     /// Provide a Connection which implements [`quic::Connection`].
     pub async fn new(conn: C) -> Result<Self, Error> {
-        Ok(builder().build(conn).await?)
+        builder().build(conn).await
     }
 }
 
@@ -138,9 +138,7 @@ where
     /// It returns a tuple with a [`http::Request`] and an [`RequestStream`].
     /// The [`http::Request`] is the received request from the client.
     /// The [`RequestStream`] can be used to send the response.
-    pub async fn accept(
-        &mut self,
-    ) -> Result<Option<(Request<()>, RequestStream<C::BidiStream, B>)>, Error> {
+    pub async fn accept(&mut self) -> Result<Option<(Request<()>, RequestStream<C::BidiStream, B>)>, Error> {
         // Accept the incoming stream
         let mut stream = match future::poll_fn(|cx| self.poll_accept_request(cx)).await {
             Ok(Some(s)) => FrameStream::new(s),
@@ -158,10 +156,9 @@ where
                         reason,
                         level: ErrorLevel::ConnectionError,
                     } => {
-                        return Err(self.inner.close(
-                            code,
-                            reason.unwrap_or(String::into_boxed_str(String::from(""))),
-                        ))
+                        return Err(self
+                            .inner
+                            .close(code, reason.unwrap_or_else(|| String::into_boxed_str(String::from("")))))
                     }
                     _ => return Err(err),
                 };
@@ -179,10 +176,9 @@ where
             //# complete response, the server SHOULD abort its response stream with
             //# the error code H3_REQUEST_INCOMPLETE.
             Ok(None) => {
-                return Err(self.inner.close(
-                    Code::H3_REQUEST_INCOMPLETE,
-                    "request stream closed before headers",
-                ))
+                return Err(self
+                    .inner
+                    .close(Code::H3_REQUEST_INCOMPLETE, "request stream closed before headers"))
             }
 
             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
@@ -198,10 +194,9 @@ where
                 //# Receipt of an invalid sequence of frames MUST be treated as a
                 //# connection error of type H3_FRAME_UNEXPECTED.
                 // Close if the first frame is not a header frame
-                return Err(self.inner.close(
-                    Code::H3_FRAME_UNEXPECTED,
-                    "first request frame is not headers",
-                ));
+                return Err(self
+                    .inner
+                    .close(Code::H3_FRAME_UNEXPECTED, "first request frame is not headers"));
             }
             Err(e) => {
                 let err: Error = e.into();
@@ -215,10 +210,9 @@ where
                         reason,
                         level: ErrorLevel::ConnectionError,
                     } => {
-                        return Err(self.inner.close(
-                            code,
-                            reason.unwrap_or(String::into_boxed_str(String::from(""))),
-                        ))
+                        return Err(self
+                            .inner
+                            .close(code, reason.unwrap_or_else(||String::into_boxed_str(String::from("")))))
                     }
                     crate::error::Kind::Application {
                         code,
@@ -246,55 +240,50 @@ where
             ),
         };
 
-        let qpack::Decoded { fields, .. } =
-            match qpack::decode_stateless(&mut encoded, self.max_field_section_size) {
-                //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
-                //# An HTTP/3 implementation MAY impose a limit on the maximum size of
-                //# the message header it will accept on an individual HTTP message.
-                Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
-                    request_stream
-                        .send_response(
-                            http::Response::builder()
-                                .status(StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE)
-                                .body(())
-                                .expect("header too big response"),
-                        )
-                        .await?;
-                    return Err(Error::header_too_big(
-                        cancel_size,
-                        self.max_field_section_size,
-                    ));
+        let qpack::Decoded { fields, .. } = match qpack::decode_stateless(&mut encoded, self.max_field_section_size) {
+            //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
+            //# An HTTP/3 implementation MAY impose a limit on the maximum size of
+            //# the message header it will accept on an individual HTTP message.
+            Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
+                request_stream
+                    .send_response(
+                        http::Response::builder()
+                            .status(StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE)
+                            .body(())
+                            .expect("header too big response"),
+                    )
+                    .await?;
+                return Err(Error::header_too_big(cancel_size, self.max_field_section_size));
+            }
+            Ok(decoded) => decoded,
+            Err(e) => {
+                let err: Error = e.into();
+                if err.is_closed() {
+                    return Ok(None);
                 }
-                Ok(decoded) => decoded,
-                Err(e) => {
-                    let err: Error = e.into();
-                    if err.is_closed() {
-                        return Ok(None);
+                match err.inner.kind {
+                    crate::error::Kind::Closed => return Ok(None),
+                    crate::error::Kind::Application {
+                        code,
+                        reason,
+                        level: ErrorLevel::ConnectionError,
+                    } => {
+                        return Err(self
+                            .inner
+                            .close(code, reason.unwrap_or_else(||String::into_boxed_str(String::from("")))))
                     }
-                    match err.inner.kind {
-                        crate::error::Kind::Closed => return Ok(None),
-                        crate::error::Kind::Application {
-                            code,
-                            reason,
-                            level: ErrorLevel::ConnectionError,
-                        } => {
-                            return Err(self.inner.close(
-                                code,
-                                reason.unwrap_or(String::into_boxed_str(String::from(""))),
-                            ))
-                        }
-                        crate::error::Kind::Application {
-                            code,
-                            reason: _,
-                            level: ErrorLevel::StreamError,
-                        } => {
-                            request_stream.stop_stream(code);
-                            return Err(err);
-                        }
-                        _ => return Err(err),
-                    };
-                }
-            };
+                    crate::error::Kind::Application {
+                        code,
+                        reason: _,
+                        level: ErrorLevel::StreamError,
+                    } => {
+                        request_stream.stop_stream(code);
+                        return Err(err);
+                    }
+                    _ => return Err(err),
+                };
+            }
+        };
 
         // Parse the request headers
         let (method, uri, headers) = match Header::try_from(fields) {
@@ -305,8 +294,7 @@ where
                     //# Malformed requests or responses that are
                     //# detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
                     let error: Error = err.into();
-                    request_stream
-                        .stop_stream(error.try_get_code().unwrap_or(Code::H3_MESSAGE_ERROR));
+                    request_stream.stop_stream(error.try_get_code().unwrap_or(Code::H3_MESSAGE_ERROR));
                     return Err(error);
                 }
             },
@@ -338,10 +326,7 @@ where
         self.inner.shutdown(max_requests).await
     }
 
-    fn poll_accept_request(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<C::BidiStream>, Error>> {
+    fn poll_accept_request(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<C::BidiStream>, Error>> {
         let _ = self.poll_control(cx)?;
         let _ = self.poll_requests_completion(cx);
 
@@ -489,10 +474,10 @@ where
 /// ```rust
 /// fn doc<C,B>(conn: C)
 /// where
-/// C: h3::quic::Connection<B>,
+/// C: salvo_quinn::quic::Connection<B>,
 /// B: bytes::Buf,
 /// {
-///     let mut server_builder = h3::server::builder();
+///     let mut server_builder = salvo_quinn::server::builder();
 ///     // Set the maximum header size
 ///     server_builder.max_field_section_size(1000);
 ///     // do not send grease types
@@ -610,19 +595,13 @@ where
     /// [`RequestStream::send_data`].
     pub async fn send_response(&mut self, resp: Response<()>) -> Result<(), Error> {
         let (parts, _) = resp.into_parts();
-        let response::Parts {
-            status, headers, ..
-        } = parts;
+        let response::Parts { status, headers, .. } = parts;
         let headers = Header::response(status, headers);
 
         let mut block = BytesMut::new();
         let mem_size = qpack::encode_stateless(&mut block, headers)?;
 
-        let max_mem_size = self
-            .inner
-            .conn_state
-            .read("send_response")
-            .peer_max_field_section_size;
+        let max_mem_size = self.inner.conn_state.read("send_response").peer_max_field_section_size;
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.2.2
         //# An implementation that
@@ -709,12 +688,7 @@ where
 {
     /// Splits the Request-Stream into send and receive.
     /// This can be used the send and receive data on different tasks.
-    pub fn split(
-        self,
-    ) -> (
-        RequestStream<S::SendStream, B>,
-        RequestStream<S::RecvStream, B>,
-    ) {
+    pub fn split(self) -> (RequestStream<S::SendStream, B>, RequestStream<S::RecvStream, B>) {
         let (send, recv) = self.inner.split();
         (
             RequestStream {
@@ -732,10 +706,7 @@ where
 impl Drop for RequestEnd {
     fn drop(&mut self) {
         if let Err(e) = self.request_end.send(self.stream_id) {
-            error!(
-                "failed to notify connection of request end: {} {}",
-                self.stream_id, e
-            );
+            error!("failed to notify connection of request end: {} {}", self.stream_id, e);
         }
     }
 }

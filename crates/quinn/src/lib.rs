@@ -14,6 +14,7 @@ mod proto;
 #[allow(dead_code)]
 mod qpack;
 mod stream;
+pub mod client;
 
 pub mod quinn_impl;
 

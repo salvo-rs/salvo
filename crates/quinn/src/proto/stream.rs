@@ -143,7 +143,7 @@ impl TryFrom<u64> for StreamId {
 }
 
 /// Invalid StreamId, for example because it's too large
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvalidStreamId(u64);
 
 impl Display for InvalidStreamId {

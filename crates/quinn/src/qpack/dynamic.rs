@@ -12,7 +12,7 @@ use crate::qpack::vas::{self, VirtualAddressSpace};
 const SETTINGS_MAX_TABLE_CAPACITY_MAX: usize = 1_073_741_823; // 2^30 -1
 const SETTINGS_MAX_BLOCKED_STREAMS_MAX: usize = 65_535; // 2^16 - 1
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     BadRelativeIndex(usize),
     BadPostbaseIndex(usize),
@@ -205,7 +205,7 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DynamicLookupResult {
     Static(usize),
     Relative { index: usize, absolute: usize },
@@ -213,7 +213,7 @@ pub enum DynamicLookupResult {
     NotFound,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DynamicInsertionResult {
     Inserted {
         postbase: usize,

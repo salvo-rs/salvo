@@ -71,7 +71,7 @@
 pub type RelativeIndex = usize;
 pub type AbsoluteIndex = usize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     RelativeIndex(usize),
     PostbaseIndex(usize),

@@ -1,4 +1,4 @@
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct BitWindow {
     pub byte: u32,
     pub bit: u32,

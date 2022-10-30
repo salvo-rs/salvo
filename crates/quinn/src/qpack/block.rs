@@ -82,7 +82,7 @@ impl HeaderBlockField {
 }
 
 // 4.5.1. Encoded Field Section Prefix
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct HeaderPrefix {
     encoded_insert_count: usize,
     sign_negative: bool,
@@ -191,7 +191,7 @@ impl HeaderPrefix {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Indexed {
     Static(usize),
     Dynamic(usize),
@@ -214,7 +214,7 @@ impl Indexed {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct IndexedWithPostBase(pub usize);
 
 impl IndexedWithPostBase {
@@ -230,7 +230,7 @@ impl IndexedWithPostBase {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum LiteralWithNameRef {
     Static { index: usize, value: Vec<u8> },
     Dynamic { index: usize, value: Vec<u8> },
@@ -280,7 +280,7 @@ impl LiteralWithNameRef {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct LiteralWithPostBaseNameRef {
     pub index: usize,
     pub value: Vec<u8>,
@@ -311,7 +311,7 @@ impl LiteralWithPostBaseNameRef {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Literal {
     pub name: Vec<u8>,
     pub value: Vec<u8>,

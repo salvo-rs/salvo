@@ -24,7 +24,7 @@ use super::{
 
 use super::{prefix_int, prefix_string};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     InvalidInteger(prefix_int::Error),
     InvalidString(prefix_string::Error),
@@ -65,7 +65,7 @@ pub fn stream_canceled<W: BufMut>(stream_id: u64, decoder: &mut W) {
     StreamCancel(stream_id).encode(decoder);
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Decoded {
     /// The decoded fields
     pub fields: Vec<HeaderField>,

@@ -253,13 +253,13 @@ impl Error {
         self
     }
 
-    // pub(crate) fn closing() -> Self {
-    //     Self::new(Kind::Closing)
-    // }
+    pub(crate) fn closing() -> Self {
+        Self::new(Kind::Closing)
+    }
 
-    // pub(crate) fn closed() -> Self {
-    //     Self::new(Kind::Closed)
-    // }
+    pub(crate) fn closed() -> Self {
+        Self::new(Kind::Closed)
+    }
 
     pub(crate) fn is_closed(&self) -> bool {
         if let Kind::Closed = self.inner.kind {
@@ -281,7 +281,7 @@ impl Error {
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut builder = f.debug_struct("h3::Error");
+        let mut builder = f.debug_struct("salvo_quinn::Error");
 
         match self.inner.kind {
             Kind::Closed => {

@@ -111,7 +111,7 @@ where
     }
 
     pub(crate) fn stop_sending(&mut self, error_code: crate::error::Code) {
-        let _ = self.stream.stop_sending(error_code.into());
+        self.stream.stop_sending(error_code.into());
     }
 
     pub(crate) fn has_data(&self) -> bool {

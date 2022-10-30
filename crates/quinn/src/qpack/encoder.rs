@@ -22,7 +22,7 @@ use super::{
     HeaderField,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     Insertion(DynamicTableError),
     InvalidString(StringError),

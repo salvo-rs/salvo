@@ -68,7 +68,7 @@ impl EncoderInstruction {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum InsertWithNameRef {
     Static { index: usize, value: Vec<u8> },
     Dynamic { index: usize, value: Vec<u8> },
@@ -125,7 +125,7 @@ impl InsertWithNameRef {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InsertWithoutNameRef {
     pub name: Vec<u8>,
     pub value: Vec<u8>,
@@ -160,7 +160,7 @@ impl InsertWithoutNameRef {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Duplicate(pub usize);
 
 impl Duplicate {
@@ -179,7 +179,7 @@ impl Duplicate {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct DynamicTableSizeUpdate(pub usize);
 
 impl DynamicTableSizeUpdate {
@@ -202,7 +202,7 @@ impl DynamicTableSizeUpdate {
 // A decoder sends decoder instructions on the decoder stream to inform the encoder
 // about the processing of field sections and table updates to ensure consistency
 // of the dynamic table.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DecoderInstruction {
     // 4.4.1. Section Acknowledgement
     // Acknowledge processing of an encoded field section whose declared Required
@@ -244,7 +244,7 @@ impl DecoderInstruction {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InsertCountIncrement(pub usize);
 
 impl InsertCountIncrement {
@@ -263,7 +263,7 @@ impl InsertCountIncrement {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct HeaderAck(pub u64);
 
 impl HeaderAck {
@@ -282,7 +282,7 @@ impl HeaderAck {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct StreamCancel(pub u64);
 
 impl StreamCancel {

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use super::field::HeaderField;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     Unknown(usize),
 }

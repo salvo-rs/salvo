@@ -1,6 +1,6 @@
 use super::BitWindow;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Error {
     buffer_pos: BitWindow,
     len: usize,

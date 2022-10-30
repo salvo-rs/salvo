@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut};
 
 use crate::proto::coding::{self, BufExt, BufMutExt};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
     Overflow,
     UnexpectedEnd,

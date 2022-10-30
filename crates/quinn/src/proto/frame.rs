@@ -8,7 +8,7 @@ use super::{
     varint::{BufExt, BufMutExt, UnexpectedEnd, VarInt},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum FrameError {
     Malformed,
     UnsupportedFrame(u64), // Known frames that should generate an error
@@ -288,7 +288,7 @@ pub(crate) trait FrameHeader {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct PushPromise {
     id: u64,
     encoded: Bytes,
@@ -390,7 +390,7 @@ setting_identifiers! {
 
 const SETTINGS_LEN: usize = 4;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Settings {
     entries: [(SettingId, u64); SETTINGS_LEN],
     len: usize,
@@ -486,7 +486,7 @@ impl Settings {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum SettingsError {
     Exceeded,
     Malformed,
