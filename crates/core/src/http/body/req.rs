@@ -5,8 +5,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_util::stream::Stream;
-use salvo_quinn::quic::RecvStream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
+use salvo_quinn::quic::RecvStream;
 
 use bytes::{Buf, Bytes};
 

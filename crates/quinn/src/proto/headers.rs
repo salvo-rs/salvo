@@ -83,9 +83,7 @@ impl Header {
             (None, Some(h)) => uri = uri.authority(h.as_bytes()),
             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3.1
             //# If both fields are present, they MUST contain the same value.
-            (Some(a), Some(h)) if a.as_str() != h => {
-                return Err(HeaderError::ContradictedAuthority)
-            }
+            (Some(a), Some(h)) if a.as_str() != h => return Err(HeaderError::ContradictedAuthority),
             (Some(_), Some(h)) => uri = uri.authority(h.as_bytes()),
         }
 
@@ -103,10 +101,7 @@ impl Header {
         //# carries the HTTP status code; see Section 15 of [HTTP].  This pseudo-
         //# header field MUST be included in all responses; otherwise, the
         //# response is malformed (see Section 4.1.2).
-        Ok((
-            self.pseudo.status.ok_or(HeaderError::MissingStatus)?,
-            self.fields,
-        ))
+        Ok((self.pseudo.status.ok_or(HeaderError::MissingStatus)?, self.fields))
     }
 
     pub fn into_fields(self) -> HeaderMap {
@@ -260,8 +255,7 @@ impl Field {
         if name[0] != b':' {
             return Ok(Field::Header((
                 HeaderName::from_bytes(name).map_err(|_| HeaderError::invalid_name(name))?,
-                HeaderValue::from_bytes(value.as_ref())
-                    .map_err(|_| HeaderError::invalid_value(name, value))?,
+                HeaderValue::from_bytes(value.as_ref()).map_err(|_| HeaderError::invalid_value(name, value))?,
             )));
         }
 
@@ -269,13 +263,11 @@ impl Field {
             b":scheme" => Field::Scheme(try_value(name, value)?),
             b":authority" => Field::Authority(try_value(name, value)?),
             b":path" => Field::Path(try_value(name, value)?),
-            b":method" => Field::Method(
-                Method::from_bytes(value.as_ref())
-                    .map_err(|_| HeaderError::invalid_value(name, value))?,
-            ),
+            b":method" => {
+                Field::Method(Method::from_bytes(value.as_ref()).map_err(|_| HeaderError::invalid_value(name, value))?)
+            }
             b":status" => Field::Status(
-                StatusCode::from_bytes(value.as_ref())
-                    .map_err(|_| HeaderError::invalid_value(name, value))?,
+                StatusCode::from_bytes(value.as_ref()).map_err(|_| HeaderError::invalid_value(name, value))?,
             ),
             _ => return Err(HeaderError::invalid_name(name)),
         })
@@ -454,10 +446,7 @@ mod tests {
         //# Host header field.
         let headers = Header::try_from(vec![(b":method", Method::GET.as_str()).into()]).unwrap();
         assert!(headers.pseudo.authority.is_none());
-        assert_matches!(
-            headers.into_request_parts(),
-            Err(HeaderError::MissingAuthority)
-        );
+        assert_matches!(headers.into_request_parts(), Err(HeaderError::MissingAuthority));
     }
 
     #[test]
@@ -517,10 +506,7 @@ mod tests {
             (b"host", b"host.com").into(),
         ])
         .unwrap();
-        assert_matches!(
-            headers.into_request_parts(),
-            Err(HeaderError::ContradictedAuthority)
-        );
+        assert_matches!(headers.into_request_parts(), Err(HeaderError::ContradictedAuthority));
     }
 
     #[test]

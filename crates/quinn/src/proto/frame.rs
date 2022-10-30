@@ -64,9 +64,7 @@ impl Frame<PayloadLen> {
     pub fn decode<T: Buf>(buf: &mut T) -> Result<Self, FrameError> {
         let remaining = buf.remaining();
         let ty = FrameType::decode(buf).map_err(|_| FrameError::Incomplete(remaining + 1))?;
-        let len = buf
-            .get_var()
-            .map_err(|_| FrameError::Incomplete(remaining + 1))?;
+        let len = buf.get_var().map_err(|_| FrameError::Incomplete(remaining + 1))?;
 
         if ty == FrameType::DATA {
             return Ok(Frame::Data((len as usize).into()));
@@ -84,22 +82,16 @@ impl Frame<PayloadLen> {
             FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(PushPromise::decode(&mut payload)?)),
             FrameType::GOAWAY => Ok(Frame::Goaway(payload.get_var()?.try_into()?)),
             FrameType::MAX_PUSH_ID => Ok(Frame::MaxPushId(payload.get_var()?.try_into()?)),
-            FrameType::H2_PRIORITY
-            | FrameType::H2_PING
-            | FrameType::H2_WINDOW_UPDATE
-            | FrameType::H2_CONTINUATION => Err(FrameError::UnsupportedFrame(ty.0)),
+            FrameType::H2_PRIORITY | FrameType::H2_PING | FrameType::H2_WINDOW_UPDATE | FrameType::H2_CONTINUATION => {
+                Err(FrameError::UnsupportedFrame(ty.0))
+            }
             _ => {
                 buf.advance(len as usize);
                 Err(FrameError::UnknownFrame(ty.0))
             }
         };
         if let Ok(frame) = &frame {
-            trace!(
-                "got frame {:?}, len: {}, remaining: {}",
-                frame,
-                len,
-                buf.remaining()
-            );
+            trace!("got frame {:?}, len: {}, remaining: {}", frame, len, buf.remaining());
         }
         frame
     }
@@ -500,10 +492,7 @@ impl std::error::Error for SettingsError {}
 impl fmt::Display for SettingsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SettingsError::Exceeded => write!(
-                f,
-                "max settings number exeeded, check for duplicate entries"
-            ),
+            SettingsError::Exceeded => write!(f, "max settings number exeeded, check for duplicate entries"),
             SettingsError::Malformed => write!(f, "malformed settings frame"),
             SettingsError::Repeated(id) => write!(f, "got setting 0x{:x} twice", id.0),
             SettingsError::InvalidSettingId(id) => write!(f, "setting id 0x{:x} is invalid", id),
@@ -629,11 +618,7 @@ mod tests {
             &[3, 1, 2],
             Frame::CancelPush(StreamId(2)),
         );
-        codec_frame_check(
-            Frame::Goaway(StreamId(2)),
-            &[7, 1, 2],
-            Frame::Goaway(StreamId(2)),
-        );
+        codec_frame_check(Frame::Goaway(StreamId(2)), &[7, 1, 2], Frame::Goaway(StreamId(2)));
         codec_frame_check(
             Frame::MaxPushId(StreamId(2)),
             &[13, 1, 2],

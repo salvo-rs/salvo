@@ -138,10 +138,7 @@ where
     B: Buf,
 {
     /// Send a HTTP/3 request to the server
-    pub async fn send_request(
-        &mut self,
-        req: http::Request<()>,
-    ) -> Result<RequestStream<T::BidiStream, B>, Error> {
+    pub async fn send_request(&mut self, req: http::Request<()>) -> Result<RequestStream<T::BidiStream, B>, Error> {
         let (peer_max_field_section_size, closing) = {
             let state = self.conn_state.read("send request lock state");
             (state.peer_max_field_section_size, state.closing)
@@ -153,10 +150,7 @@ where
 
         let (parts, _) = req.into_parts();
         let request::Parts {
-            method,
-            uri,
-            headers,
-            ..
+            method, uri, headers, ..
         } = parts;
         let headers = Header::request(method, uri, headers)?;
 
@@ -225,8 +219,7 @@ where
     B: Buf,
 {
     fn clone(&self) -> Self {
-        self.sender_count
-            .fetch_add(1, std::sync::atomic::Ordering::Release);
+        self.sender_count.fetch_add(1, std::sync::atomic::Ordering::Release);
 
         Self {
             open: self.open.clone(),
@@ -246,11 +239,7 @@ where
     B: Buf,
 {
     fn drop(&mut self) {
-        if self
-            .sender_count
-            .fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
-            == 1
-        {
+        if self.sender_count.fetch_sub(1, std::sync::atomic::Ordering::AcqRel) == 1 {
             if let Some(w) = self.conn_waker.take() {
                 w.wake()
             }
@@ -420,13 +409,7 @@ where
                     )))
                 }
                 Err(e) => {
-                    let connection_error = self
-                        .inner
-                        .shared
-                        .read("poll_close error read")
-                        .error
-                        .as_ref()
-                        .cloned();
+                    let connection_error = self.inner.shared.read("poll_close error read").error.as_ref().cloned();
 
                     match connection_error {
                         Some(e) if e.is_closed() => return Poll::Ready(Ok(())),
@@ -446,10 +429,9 @@ where
         //# error of type H3_STREAM_CREATION_ERROR unless such an extension has
         //# been negotiated.
         if self.inner.poll_accept_request(cx).is_ready() {
-            return Poll::Ready(Err(self.inner.close(
-                Code::H3_STREAM_CREATION_ERROR,
-                "client received a bidirectional stream",
-            )));
+            return Poll::Ready(Err(self
+                .inner
+                .close(Code::H3_STREAM_CREATION_ERROR, "client received a bidirectional stream")));
         }
 
         Poll::Pending
@@ -500,10 +482,7 @@ impl Builder {
     }
 
     /// Create a new HTTP/3 client from a `quic` connection
-    pub async fn build<C, O, B>(
-        &mut self,
-        quic: C,
-    ) -> Result<(Connection<C, B>, SendRequest<O, B>), Error>
+    pub async fn build<C, O, B>(&mut self, quic: C) -> Result<(Connection<C, B>, SendRequest<O, B>), Error>
     where
         C: quic::Connection<B, OpenStreams = O>,
         O: quic::OpenStreams<B>,
@@ -516,13 +495,8 @@ impl Builder {
 
         Ok((
             Connection {
-                inner: ConnectionInner::new(
-                    quic,
-                    self.max_field_section_size,
-                    conn_state.clone(),
-                    self.send_grease,
-                )
-                .await?,
+                inner: ConnectionInner::new(quic, self.max_field_section_size, conn_state.clone(), self.send_grease)
+                    .await?,
             },
             SendRequest {
                 open,
@@ -614,10 +588,8 @@ where
             .await
             .map_err(|e| self.maybe_conn_err(e))?
             .ok_or_else(|| {
-                Code::H3_GENERAL_PROTOCOL_ERROR.with_reason(
-                    "Did not receive response headers",
-                    ErrorLevel::ConnectionError,
-                )
+                Code::H3_GENERAL_PROTOCOL_ERROR
+                    .with_reason("Did not receive response headers", ErrorLevel::ConnectionError)
             })?;
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.5
@@ -640,19 +612,14 @@ where
                 //# the message header it will accept on an individual HTTP message.
                 Err(qpack::DecoderError::HeaderTooLong(cancel_size)) => {
                     self.inner.stop_sending(Code::H3_REQUEST_CANCELLED);
-                    return Err(Error::header_too_big(
-                        cancel_size,
-                        self.inner.max_field_section_size,
-                    ));
+                    return Err(Error::header_too_big(cancel_size, self.inner.max_field_section_size));
                 }
                 Ok(decoded) => decoded,
                 Err(e) => return Err(e.into()),
             }
         } else {
-            return Err(Code::H3_FRAME_UNEXPECTED.with_reason(
-                "First response frame is not headers",
-                ErrorLevel::ConnectionError,
-            ));
+            return Err(Code::H3_FRAME_UNEXPECTED
+                .with_reason("First response frame is not headers", ErrorLevel::ConnectionError));
         };
 
         let qpack::Decoded { fields, .. } = decoded;
@@ -734,12 +701,7 @@ where
     B: Buf,
 {
     /// Split this stream into two halves that can be driven independently.
-    pub fn split(
-        self,
-    ) -> (
-        RequestStream<S::SendStream, B>,
-        RequestStream<S::RecvStream, B>,
-    ) {
+    pub fn split(self) -> (RequestStream<S::SendStream, B>, RequestStream<S::RecvStream, B>) {
         let (send, recv) = self.inner.split();
         (RequestStream { inner: send }, RequestStream { inner: recv })
     }

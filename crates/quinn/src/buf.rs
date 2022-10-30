@@ -9,9 +9,7 @@ pub(crate) struct BufList<T> {
 
 impl<T: Buf> BufList<T> {
     pub(crate) fn new() -> BufList<T> {
-        BufList {
-            bufs: VecDeque::new(),
-        }
+        BufList { bufs: VecDeque::new() }
     }
 
     #[inline]

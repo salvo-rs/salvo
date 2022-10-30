@@ -123,11 +123,7 @@ impl HeaderPrefix {
         }
     }
 
-    pub fn get(
-        self,
-        total_inserted: usize,
-        max_table_size: usize,
-    ) -> Result<(usize, usize), ParseError> {
+    pub fn get(self, total_inserted: usize, max_table_size: usize) -> Result<(usize, usize), ParseError> {
         if max_table_size == 0 {
             return Ok((0, 0));
         }
@@ -253,14 +249,8 @@ impl LiteralWithNameRef {
 
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
         match prefix_int::decode(4, buf)? {
-            (f, i) if f & 0b0101 == 0b0101 => Ok(LiteralWithNameRef::new_static(
-                i,
-                prefix_string::decode(8, buf)?,
-            )),
-            (f, i) if f & 0b0101 == 0b0100 => Ok(LiteralWithNameRef::new_dynamic(
-                i,
-                prefix_string::decode(8, buf)?,
-            )),
+            (f, i) if f & 0b0101 == 0b0101 => Ok(LiteralWithNameRef::new_static(i, prefix_string::decode(8, buf)?)),
+            (f, i) if f & 0b0101 == 0b0100 => Ok(LiteralWithNameRef::new_dynamic(i, prefix_string::decode(8, buf)?)),
             (f, _) => Err(ParseError::InvalidPrefix(f)),
         }
     }
@@ -296,10 +286,7 @@ impl LiteralWithPostBaseNameRef {
 
     pub fn decode<R: Buf>(buf: &mut R) -> Result<Self, ParseError> {
         match prefix_int::decode(3, buf)? {
-            (f, i) if f & 0b1111_0000 == 0 => Ok(LiteralWithPostBaseNameRef::new(
-                i,
-                prefix_string::decode(8, buf)?,
-            )),
+            (f, i) if f & 0b1111_0000 == 0 => Ok(LiteralWithPostBaseNameRef::new(i, prefix_string::decode(8, buf)?)),
             (f, _) => Err(ParseError::InvalidPrefix(f)),
         }
     }

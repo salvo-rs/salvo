@@ -3,21 +3,17 @@ use std::{cmp, io::Cursor};
 use bytes::{Buf, BufMut};
 
 use super::{
-    block::{
-        HeaderPrefix, Indexed, IndexedWithPostBase, Literal, LiteralWithNameRef,
-        LiteralWithPostBaseNameRef,
-    },
+    block::{HeaderPrefix, Indexed, IndexedWithPostBase, Literal, LiteralWithNameRef, LiteralWithPostBaseNameRef},
     dynamic::{
-        DynamicInsertionResult, DynamicLookupResult, DynamicTable, DynamicTableEncoder,
-        Error as DynamicTableError,
+        DynamicInsertionResult, DynamicLookupResult, DynamicTable, DynamicTableEncoder, Error as DynamicTableError,
     },
     parse_error::ParseError,
     prefix_int::Error as IntError,
     prefix_string::Error as StringError,
     static_::StaticTable,
     stream::{
-        DecoderInstruction, Duplicate, DynamicTableSizeUpdate, HeaderAck, InsertCountIncrement,
-        InsertWithNameRef, InsertWithoutNameRef, StreamCancel,
+        DecoderInstruction, Duplicate, DynamicTableSizeUpdate, HeaderAck, InsertCountIncrement, InsertWithNameRef,
+        InsertWithoutNameRef, StreamCancel,
     },
     HeaderField,
 };
@@ -67,9 +63,7 @@ impl Encoder {
         let mut encoder = self.table.encoder(stream_id);
 
         for field in fields {
-            if let Some(reference) =
-                Self::encode_field(&mut encoder, &mut block_buf, encoder_buf, field.as_ref())?
-            {
+            if let Some(reference) = Self::encode_field(&mut encoder, &mut block_buf, encoder_buf, field.as_ref())? {
                 required_ref = cmp::max(required_ref, reference);
             }
         }
@@ -100,9 +94,7 @@ impl Encoder {
                         let _ = self.table.untrack_block(stream_id);
                     }
                 }
-                Action::ReceivedRefIncrement(increment) => {
-                    self.table.update_largest_received(increment)
-                }
+                Action::ReceivedRefIncrement(increment) => self.table.update_largest_received(increment),
             }
         }
         Ok(())
@@ -135,8 +127,7 @@ impl Encoder {
                 Some(absolute)
             }
             DynamicInsertionResult::Inserted { postbase, absolute } => {
-                InsertWithoutNameRef::new(field.name.clone(), field.value.clone())
-                    .encode(encoder)?;
+                InsertWithoutNameRef::new(field.name.clone(), field.value.clone()).encode(encoder)?;
                 IndexedWithPostBase(postbase).encode(block);
                 Some(absolute)
             }
@@ -242,12 +233,8 @@ impl Action {
             DecoderInstruction::InsertCountIncrement => {
                 InsertCountIncrement::decode(&mut buf)?.map(|x| Action::ReceivedRefIncrement(x.0))
             }
-            DecoderInstruction::HeaderAck => {
-                HeaderAck::decode(&mut buf)?.map(|x| Action::Untrack(x.0))
-            }
-            DecoderInstruction::StreamCancel => {
-                StreamCancel::decode(&mut buf)?.map(|x| Action::StreamCancel(x.0))
-            }
+            DecoderInstruction::HeaderAck => HeaderAck::decode(&mut buf)?.map(|x| Action::Untrack(x.0)),
+            DecoderInstruction::StreamCancel => StreamCancel::decode(&mut buf)?.map(|x| Action::StreamCancel(x.0)),
         };
 
         if instruction.is_some() {
@@ -259,11 +246,7 @@ impl Action {
     }
 }
 
-pub fn set_dynamic_table_size<W: BufMut>(
-    table: &mut DynamicTable,
-    encoder: &mut W,
-    size: usize,
-) -> Result<(), Error> {
+pub fn set_dynamic_table_size<W: BufMut>(table: &mut DynamicTable, encoder: &mut W, size: usize) -> Result<(), Error> {
     table.set_max_size(size)?;
     DynamicTableSizeUpdate(size).encode(encoder);
     Ok(())
@@ -347,10 +330,7 @@ mod tests {
     fn encode_static_nameref() {
         let field = HeaderField::new("location", "/bar");
         check_encode_field(&[], &[field], &|mut b, mut e| {
-            assert_eq!(
-                IndexedWithPostBase::decode(&mut b),
-                Ok(IndexedWithPostBase(0))
-            );
+            assert_eq!(IndexedWithPostBase::decode(&mut b), Ok(IndexedWithPostBase(0)));
             assert_eq!(
                 InsertWithNameRef::decode(&mut e),
                 Ok(Some(InsertWithNameRef::new_static(12, "/bar")))
@@ -371,10 +351,7 @@ mod tests {
     fn encode_dynamic_insert() {
         let field = HeaderField::new("foo", "bar");
         check_encode_field(&[], &[field], &|mut b, mut e| {
-            assert_eq!(
-                IndexedWithPostBase::decode(&mut b),
-                Ok(IndexedWithPostBase(0))
-            );
+            assert_eq!(IndexedWithPostBase::decode(&mut b), Ok(IndexedWithPostBase(0)));
             assert_eq!(
                 InsertWithoutNameRef::decode(&mut e),
                 Ok(Some(InsertWithoutNameRef::new("foo", "bar")))
@@ -389,10 +366,7 @@ mod tests {
             &[field.clone(), HeaderField::new("baz", "bar")],
             &[field.with_value("quxx")],
             &|mut b, mut e| {
-                assert_eq!(
-                    IndexedWithPostBase::decode(&mut b),
-                    Ok(IndexedWithPostBase(0))
-                );
+                assert_eq!(IndexedWithPostBase::decode(&mut b), Ok(IndexedWithPostBase(0)));
                 assert_eq!(
                     InsertWithNameRef::decode(&mut e),
                     Ok(Some(InsertWithNameRef::new_dynamic(1, "quxx")))
@@ -419,10 +393,7 @@ mod tests {
         let field = HeaderField::new("foo", "bar");
 
         check_encode_field_table(&mut table, &[], &[field.clone()], 1, &|mut b, _| {
-            assert_eq!(
-                IndexedWithPostBase::decode(&mut b),
-                Ok(IndexedWithPostBase(0))
-            );
+            assert_eq!(IndexedWithPostBase::decode(&mut b), Ok(IndexedWithPostBase(0)));
         });
         check_encode_field_table(
             &mut table,
@@ -450,10 +421,7 @@ mod tests {
             &[field.clone(), field.with_value("quxx")],
             1,
             &|mut b, mut e| {
-                assert_eq!(
-                    IndexedWithPostBase::decode(&mut b),
-                    Ok(IndexedWithPostBase(0))
-                );
+                assert_eq!(IndexedWithPostBase::decode(&mut b), Ok(IndexedWithPostBase(0)));
                 assert_eq!(
                     LiteralWithPostBaseNameRef::decode(&mut b),
                     Ok(LiteralWithPostBaseNameRef::new(0, "quxx"))
@@ -472,10 +440,7 @@ mod tests {
 
         for idx in 1..5 {
             table
-                .put(HeaderField::new(
-                    format!("foo{}", idx),
-                    format!("bar{}", idx),
-                ))
+                .put(HeaderField::new(format!("foo{}", idx), format!("bar{}", idx)))
                 .unwrap();
         }
 
@@ -492,10 +457,7 @@ mod tests {
         ]
         .into_iter();
 
-        assert_eq!(
-            encoder.encode(1, &mut block, &mut encoder_buf, fields),
-            Ok(7)
-        );
+        assert_eq!(encoder.encode(1, &mut block, &mut encoder_buf, fields), Ok(7));
 
         let mut read_block = Cursor::new(&mut block);
         let mut read_encoder = Cursor::new(&mut encoder_buf);
@@ -517,25 +479,14 @@ mod tests {
         );
 
         assert_eq!(
-            HeaderPrefix::decode(&mut read_block)
-                .unwrap()
-                .get(7, TABLE_SIZE),
+            HeaderPrefix::decode(&mut read_block).unwrap().get(7, TABLE_SIZE),
             Ok((7, 4))
         );
         assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Static(17)));
         assert_eq!(Indexed::decode(&mut read_block), Ok(Indexed::Dynamic(3)));
-        assert_eq!(
-            IndexedWithPostBase::decode(&mut read_block),
-            Ok(IndexedWithPostBase(0))
-        );
-        assert_eq!(
-            IndexedWithPostBase::decode(&mut read_block),
-            Ok(IndexedWithPostBase(1))
-        );
-        assert_eq!(
-            IndexedWithPostBase::decode(&mut read_block),
-            Ok(IndexedWithPostBase(2))
-        );
+        assert_eq!(IndexedWithPostBase::decode(&mut read_block), Ok(IndexedWithPostBase(0)));
+        assert_eq!(IndexedWithPostBase::decode(&mut read_block), Ok(IndexedWithPostBase(1)));
+        assert_eq!(IndexedWithPostBase::decode(&mut read_block), Ok(IndexedWithPostBase(2)));
         assert_eq!(read_block.get_ref().len() as u64, read_block.position());
     }
 
@@ -598,23 +549,14 @@ mod tests {
         assert_eq!(Action::parse(&mut cur), Ok(None));
 
         let mut cur = Cursor::new(&buf);
-        assert_eq!(
-            Action::parse(&mut cur),
-            Ok(Some(Action::StreamCancel(2321)))
-        );
+        assert_eq!(Action::parse(&mut cur), Ok(Some(Action::StreamCancel(2321))));
     }
 
     #[test]
     fn decoder_unknown_stream() {
         let mut table = build_table();
 
-        check_encode_field_table(
-            &mut table,
-            &[],
-            &[HeaderField::new("foo", "bar")],
-            2,
-            &|_, _| {},
-        );
+        check_encode_field_table(&mut table, &[], &[HeaderField::new("foo", "bar")], 2, &|_, _| {});
         let mut encoder = Encoder::from(table);
 
         let mut buf = vec![];
@@ -633,14 +575,9 @@ mod tests {
         InsertCountIncrement(4).encode(&mut buf);
 
         let mut cur = Cursor::new(&buf);
-        assert_eq!(
-            Action::parse(&mut cur),
-            Ok(Some(Action::ReceivedRefIncrement(4)))
-        );
+        assert_eq!(Action::parse(&mut cur), Ok(Some(Action::ReceivedRefIncrement(4))));
 
-        let mut encoder = Encoder {
-            table: build_table(),
-        };
+        let mut encoder = Encoder { table: build_table() };
 
         let mut cur = Cursor::new(&buf);
         assert_eq!(encoder.on_decoder_recv(&mut cur), Ok(()));

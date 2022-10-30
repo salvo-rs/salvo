@@ -136,12 +136,7 @@ async fn settings_exchange_client() {
         let (mut conn, client) = client::new(pair.client().await).await.expect("client init");
         let settings_change = async {
             for _ in 0..10 {
-                if client
-                    .shared_state()
-                    .read("client")
-                    .peer_max_field_section_size
-                    == 12
-                {
+                if client.shared_state().read("client").peer_max_field_section_size == 12 {
                     return;
                 }
                 tokio::time::sleep(Duration::from_millis(2)).await;
@@ -158,11 +153,7 @@ async fn settings_exchange_client() {
 
     let server_fut = async {
         let conn = server.next().await;
-        let mut incoming = server::builder()
-            .max_field_section_size(12)
-            .build(conn)
-            .await
-            .unwrap();
+        let mut incoming = server::builder().max_field_section_size(12).build(conn).await.unwrap();
         incoming.accept().await.unwrap()
     };
 
@@ -235,24 +226,17 @@ async fn client_error_on_bidi_recv() {
         //# been negotiated.
         let driver = future::poll_fn(|cx| conn.poll_close(cx));
         check_err!(driver.await);
-        check_err!(
-            send.send_request(Request::get("http://no.way").body(()).unwrap())
-                .await
-        );
+        check_err!(send.send_request(Request::get("http://no.way").body(()).unwrap()).await);
     };
 
     let server_fut = async {
-        let quinn::NewConnection { connection, .. } =
-            server.incoming.next().await.unwrap().await.unwrap();
+        let quinn::NewConnection { connection, .. } = server.incoming.next().await.unwrap().await.unwrap();
         let (mut send, _recv) = connection.open_bi().await.unwrap();
         for _ in 0..100 {
             match send.write(b"I'm not really a server").await {
-                Err(quinn::WriteError::ConnectionLost(
-                    quinn::ConnectionError::ApplicationClosed(quinn::ApplicationClose {
-                        error_code,
-                        ..
-                    }),
-                )) if Code::H3_STREAM_CREATION_ERROR == error_code.into_inner() => break,
+                Err(quinn::WriteError::ConnectionLost(quinn::ConnectionError::ApplicationClosed(
+                    quinn::ApplicationClose { error_code, .. },
+                ))) if Code::H3_STREAM_CREATION_ERROR == error_code.into_inner() => break,
                 Err(e) => panic!("got err: {}", e),
                 Ok(_) => tokio::time::sleep(Duration::from_millis(1)).await,
             }
@@ -440,10 +424,7 @@ async fn timeout_on_control_frame_read() {
     let server_fut = async {
         let conn = server.next().await;
         let mut incoming = server::Connection::new(conn).await.unwrap();
-        assert_matches!(
-            incoming.accept().await.map(|_| ()).unwrap_err().kind(),
-            Kind::Timeout
-        );
+        assert_matches!(incoming.accept().await.map(|_| ()).unwrap_err().kind(), Kind::Timeout);
     };
 
     tokio::join!(server_fut, client_fut);
@@ -506,15 +487,10 @@ async fn goaway_from_server_not_request_id() {
         control_stream.write_all(&buf[..]).await.unwrap();
         control_stream.finish().await.unwrap(); // close the client control stream immediately
 
-        let (mut driver, _send) = client::new(quinn_impl::Connection::new(new_connection))
-            .await
-            .unwrap();
+        let (mut driver, _send) = client::new(quinn_impl::Connection::new(new_connection)).await.unwrap();
 
         assert_matches!(
-            future::poll_fn(|cx| driver.poll_close(cx))
-                .await
-                .unwrap_err()
-                .kind(),
+            future::poll_fn(|cx| driver.poll_close(cx)).await.unwrap_err().kind(),
             Kind::Application {
                 // The sent in the GoAway frame from the client is not a Request:
                 code: Code::H3_ID_ERROR,
@@ -712,12 +688,7 @@ where
     B: Buf,
 {
     stream
-        .send_response(
-            Response::builder()
-                .status(StatusCode::IM_A_TEAPOT)
-                .body(())
-                .unwrap(),
-        )
+        .send_response(Response::builder().status(StatusCode::IM_A_TEAPOT).body(()).unwrap())
         .await
         .unwrap();
     stream.finish().await.unwrap();

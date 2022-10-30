@@ -8,13 +8,13 @@ pub mod server;
 pub use error::Error;
 
 mod buf;
+pub mod client;
 mod connection;
 mod frame;
 mod proto;
 #[allow(dead_code)]
 mod qpack;
 mod stream;
-pub mod client;
 
 pub mod quinn_impl;
 

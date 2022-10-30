@@ -321,10 +321,7 @@ mod test {
         let mut buf = vec![];
         instruction.encode(&mut buf).unwrap();
         let mut read = Cursor::new(&buf);
-        assert_eq!(
-            InsertWithoutNameRef::decode(&mut read),
-            Ok(Some(instruction))
-        );
+        assert_eq!(InsertWithoutNameRef::decode(&mut read), Ok(Some(instruction)));
     }
 
     #[test]
@@ -342,10 +339,7 @@ mod test {
         let mut buf = vec![];
         instruction.encode(&mut buf);
         let mut read = Cursor::new(&buf);
-        assert_eq!(
-            DynamicTableSizeUpdate::decode(&mut read),
-            Ok(Some(instruction))
-        );
+        assert_eq!(DynamicTableSizeUpdate::decode(&mut read), Ok(Some(instruction)));
     }
 
     #[test]
@@ -354,10 +348,7 @@ mod test {
         let mut buf = vec![];
         instruction.encode(&mut buf);
         let mut read = Cursor::new(&buf);
-        assert_eq!(
-            InsertCountIncrement::decode(&mut read),
-            Ok(Some(instruction))
-        );
+        assert_eq!(InsertCountIncrement::decode(&mut read), Ok(Some(instruction)));
     }
 
     #[test]

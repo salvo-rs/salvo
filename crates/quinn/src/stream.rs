@@ -197,9 +197,7 @@ where
 
     pub fn into_stream<B>(self) -> Result<AcceptedRecvStream<S, B>, Error> {
         Ok(match self.ty.expect("Stream type not resolved yet") {
-            StreamType::CONTROL => {
-                AcceptedRecvStream::Control(FrameStream::with_bufs(self.stream, self.buf))
-            }
+            StreamType::CONTROL => AcceptedRecvStream::Control(FrameStream::with_bufs(self.stream, self.buf)),
             StreamType::PUSH => AcceptedRecvStream::Push(
                 self.push_id.expect("Push ID not resolved yet"),
                 FrameStream::with_bufs(self.stream, self.buf),
@@ -242,10 +240,8 @@ where
             match ready!(self.stream.poll_data(cx))? {
                 Some(mut b) => self.buf.push_bytes(&mut b),
                 None => {
-                    return Poll::Ready(Err(Code::H3_STREAM_CREATION_ERROR.with_reason(
-                        "Stream closed before type received",
-                        ErrorLevel::ConnectionError,
-                    )));
+                    return Poll::Ready(Err(Code::H3_STREAM_CREATION_ERROR
+                        .with_reason("Stream closed before type received", ErrorLevel::ConnectionError)));
                 }
             };
 
@@ -264,20 +260,16 @@ where
             if self.ty.is_none() {
                 // Parse StreamType
                 self.ty = Some(StreamType::decode(&mut self.buf).map_err(|_| {
-                    Code::H3_INTERNAL_ERROR.with_reason(
-                        "Unexpected end parsing stream type",
-                        ErrorLevel::ConnectionError,
-                    )
+                    Code::H3_INTERNAL_ERROR
+                        .with_reason("Unexpected end parsing stream type", ErrorLevel::ConnectionError)
                 })?);
                 // Get the next VarInt for PUSH_ID on the next iteration
                 self.expected = None;
             } else {
                 // Parse PUSH_ID
                 self.push_id = Some(self.buf.get_var().map_err(|_| {
-                    Code::H3_INTERNAL_ERROR.with_reason(
-                        "Unexpected end parsing stream type",
-                        ErrorLevel::ConnectionError,
-                    )
+                    Code::H3_INTERNAL_ERROR
+                        .with_reason("Unexpected end parsing stream type", ErrorLevel::ConnectionError)
                 })?);
             }
         }
@@ -314,8 +306,7 @@ mod tests {
 
     #[test]
     fn write_buf_advances() {
-        let mut wbuf =
-            WriteBuf::<Bytes>::from((StreamType::ENCODER, Frame::Data(Bytes::from("hey"))));
+        let mut wbuf = WriteBuf::<Bytes>::from((StreamType::ENCODER, Frame::Data(Bytes::from("hey"))));
 
         assert_eq!(wbuf.chunk(), b"\x02\x00\x03");
         wbuf.advance(3);
@@ -329,8 +320,7 @@ mod tests {
 
     #[test]
     fn write_buf_advance_jumps_header_and_payload_start() {
-        let mut wbuf =
-            WriteBuf::<Bytes>::from((StreamType::ENCODER, Frame::Data(Bytes::from("hey"))));
+        let mut wbuf = WriteBuf::<Bytes>::from((StreamType::ENCODER, Frame::Data(Bytes::from("hey"))));
 
         wbuf.advance(4);
         assert_eq!(wbuf.chunk(), b"ey");

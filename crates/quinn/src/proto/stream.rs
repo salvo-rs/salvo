@@ -78,13 +78,7 @@ impl fmt::Display for StreamId {
             Dir::Uni => "uni",
             Dir::Bi => "bi",
         };
-        write!(
-            f,
-            "{} {}directional stream {}",
-            initiator,
-            dir,
-            self.index()
-        )
+        write!(f, "{} {}directional stream {}", initiator, dir, self.index())
     }
 }
 
@@ -163,10 +157,7 @@ impl Add<usize> for StreamId {
 
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn add(self, rhs: usize) -> Self::Output {
-        let index = u64::min(
-            u64::saturating_add(self.index(), rhs as u64),
-            VarInt::MAX.0 >> 2,
-        );
+        let index = u64::min(u64::saturating_add(self.index(), rhs as u64), VarInt::MAX.0 >> 2);
         Self::new(index, self.dir(), self.initiator())
     }
 }

@@ -48,10 +48,7 @@ impl<S, B> FrameStream<S, B>
 where
     S: RecvStream,
 {
-    pub fn poll_next(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<Frame<PayloadLen>>, FrameStreamError>> {
+    pub fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Frame<PayloadLen>>, FrameStreamError>> {
         assert!(
             self.remaining_data == 0,
             "There is still data to read, please call poll_data() until it returns None."
@@ -84,10 +81,7 @@ where
         }
     }
 
-    pub fn poll_data(
-        &mut self,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<impl Buf>, FrameStreamError>> {
+    pub fn poll_data(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<impl Buf>, FrameStreamError>> {
         if self.remaining_data == 0 {
             return Poll::Ready(Ok(None));
         };
@@ -98,9 +92,7 @@ where
         match (data, end) {
             (None, true) => Poll::Ready(Ok(None)),
             (None, false) => Poll::Pending,
-            (Some(d), true)
-                if d.remaining() < self.remaining_data && !self.bufs.has_remaining() =>
-            {
+            (Some(d), true) if d.remaining() < self.remaining_data && !self.bufs.has_remaining() => {
                 Poll::Ready(Err(FrameStreamError::UnexpectedEnd))
             }
             (Some(d), _) => {
@@ -203,10 +195,7 @@ pub struct FrameDecoder {
 }
 
 impl FrameDecoder {
-    fn decode<B: Buf>(
-        &mut self,
-        src: &mut BufList<B>,
-    ) -> Result<Option<Frame<PayloadLen>>, FrameStreamError> {
+    fn decode<B: Buf>(&mut self, src: &mut BufList<B>) -> Result<Option<Frame<PayloadLen>>, FrameStreamError> {
         // Decode in a loop since we ignore unknown frames, and there may be
         // other frames already in our BufList.
         loop {
@@ -340,10 +329,7 @@ mod tests {
 
         let mut decoder = FrameDecoder::default();
         assert_matches!(decoder.decode(&mut buf), Ok(Some(Frame::Headers(_))));
-        assert_matches!(
-            decoder.decode(&mut buf),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_matches!(decoder.decode(&mut buf), Ok(Some(Frame::Data(PayloadLen(4)))));
         assert_matches!(decoder.decode(&mut buf), Ok(None));
     }
 
@@ -376,22 +362,13 @@ mod tests {
 
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Headers(_)))
-        );
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Headers(_))));
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
         assert_poll_matches!(
             |mut cx| to_bytes(stream.poll_data(&mut cx)),
             Ok(Some(b)) if b.remaining() == 4
         );
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Headers(_)))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Headers(_))));
     }
 
     #[tokio::test]
@@ -404,16 +381,11 @@ mod tests {
         recv.chunk(buf.split_to(buf.len() - 1));
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Err(FrameStreamError::UnexpectedEnd)
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Err(FrameStreamError::UnexpectedEnd));
     }
 
     #[tokio::test]
-    #[should_panic(
-        expected = "There is still data to read, please call poll_data() until it returns None"
-    )]
+    #[should_panic(expected = "There is still data to read, please call poll_data() until it returns None")]
     async fn poll_next_reamining_data() {
         let mut recv = FakeRecv::default();
         let mut buf = BytesMut::with_capacity(64);
@@ -423,10 +395,7 @@ mod tests {
         recv.chunk(buf.freeze());
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
 
         // There is still data to consume, poll_next should panic
         let _ = poll_fn(|mut cx| stream.poll_next(&mut cx)).await;
@@ -446,10 +415,7 @@ mod tests {
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
         // We get the total size of data about to be received
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
 
         // Then we get parts of body, chunked as they arrived
         assert_poll_matches!(
@@ -474,10 +440,7 @@ mod tests {
         recv.chunk(buf.freeze());
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
         assert_poll_matches!(
             |mut cx| to_bytes(stream.poll_data(&mut cx)),
             Err(FrameStreamError::UnexpectedEnd)
@@ -506,10 +469,7 @@ mod tests {
         recv.chunk(buf.freeze());
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
         assert_poll_matches!(
             |mut cx| to_bytes(stream.poll_data(&mut cx)),
             Ok(Some(b)) if &*b == b"body"
@@ -528,10 +488,7 @@ mod tests {
 
         let mut stream: FrameStream<_, ()> = FrameStream::new(recv);
 
-        assert_poll_matches!(
-            |mut cx| stream.poll_next(&mut cx),
-            Ok(Some(Frame::Data(PayloadLen(4))))
-        );
+        assert_poll_matches!(|mut cx| stream.poll_next(&mut cx), Ok(Some(Frame::Data(PayloadLen(4)))));
 
         buf.truncate(0);
         buf.put_slice(&b"dy"[..]);
@@ -566,10 +523,7 @@ mod tests {
         type Buf = Bytes;
         type Error = FakeError;
 
-        fn poll_data(
-            &mut self,
-            _: &mut Context<'_>,
-        ) -> Poll<Result<Option<Self::Buf>, Self::Error>> {
+        fn poll_data(&mut self, _: &mut Context<'_>) -> Poll<Result<Option<Self::Buf>, Self::Error>> {
             Poll::Ready(Ok(self.chunks.pop_front()))
         }
 
@@ -604,9 +558,7 @@ mod tests {
         }
     }
 
-    fn to_bytes(
-        x: Poll<Result<Option<impl Buf>, FrameStreamError>>,
-    ) -> Poll<Result<Option<Bytes>, FrameStreamError>> {
+    fn to_bytes(x: Poll<Result<Option<impl Buf>, FrameStreamError>>) -> Poll<Result<Option<Bytes>, FrameStreamError>> {
         x.map(|b| b.map(|b| b.map(|mut b| b.copy_to_bytes(b.remaining()))))
     }
 }

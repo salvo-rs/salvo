@@ -22,8 +22,8 @@ use bytes::Bytes;
 use futures_util::StreamExt;
 use rustls::{Certificate, PrivateKey};
 
-use crate::quic;
 use super::quinn::{Incoming, NewConnection, TransportConfig};
+use crate::quic;
 use quinn_impl::Connection;
 
 pub fn init_tracing() {
@@ -76,8 +76,7 @@ impl Pair {
 
         let mut server_config = crate::quinn::ServerConfig::with_crypto(crypto.into());
         server_config.transport = self.config.clone();
-        let (endpoint, incoming) =
-        crate::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
+        let (endpoint, incoming) = crate::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
 
         self.port = endpoint.local_addr().unwrap().port();
 

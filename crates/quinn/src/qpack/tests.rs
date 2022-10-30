@@ -19,9 +19,7 @@ pub mod helpers {
         table.set_max_blocked(100).unwrap();
 
         for i in 0..n_field {
-            table
-                .put(HeaderField::new(format!("foo{}", i + 1), "bar"))
-                .unwrap();
+            table.put(HeaderField::new(format!("foo{}", i + 1), "bar")).unwrap();
         }
 
         table
@@ -74,19 +72,11 @@ fn blocked_header() {
     let mut enc_buf = vec![];
 
     encoder
-        .encode(
-            42,
-            &mut block_buf,
-            &mut enc_buf,
-            &[HeaderField::new("foo", "bar")],
-        )
+        .encode(42, &mut block_buf, &mut enc_buf, &[HeaderField::new("foo", "bar")])
         .unwrap();
 
     let mut block_cur = Cursor::new(&mut block_buf);
-    assert_eq!(
-        decoder.decode_header(&mut block_cur),
-        Err(DecoderError::MissingRefs(1))
-    );
+    assert_eq!(decoder.decode_header(&mut block_cur), Err(DecoderError::MissingRefs(1)));
 }
 
 #[test]
@@ -134,10 +124,7 @@ fn codec_table_full() {
     let mut enc_buf = vec![];
     let mut dec_buf = vec![];
 
-    let header = vec![
-        HeaderField::new("foo", "bar"),
-        HeaderField::new("foo1", "bar1"),
-    ];
+    let header = vec![HeaderField::new("foo", "bar"), HeaderField::new("foo1", "bar1")];
 
     dec_table.set_max_size(42).unwrap();
     enc_table.set_max_size(42).unwrap();

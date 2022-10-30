@@ -40,11 +40,7 @@ async fn get() {
             let response = request_stream.recv_response().await.expect("recv response");
             assert_eq!(response.status(), StatusCode::OK);
 
-            let body = request_stream
-                .recv_data()
-                .await
-                .expect("recv data")
-                .expect("body");
+            let body = request_stream.recv_data().await.expect("recv data").expect("body");
             assert_eq!(body.chunk(), b"wonderful hypertext");
         };
         tokio::select! { _ = req_fut => (), _ = drive_fut => () }
@@ -56,12 +52,7 @@ async fn get() {
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
         request_stream
@@ -89,11 +80,7 @@ async fn get_with_trailers_unknown_content_type() {
                 .await
                 .expect("request");
             request_stream.recv_response().await.expect("recv response");
-            request_stream
-                .recv_data()
-                .await
-                .expect("recv data")
-                .expect("body");
+            request_stream.recv_data().await.expect("recv data").expect("body");
 
             assert!(request_stream.recv_data().await.unwrap().is_none());
             let trailers = request_stream
@@ -112,12 +99,7 @@ async fn get_with_trailers_unknown_content_type() {
 
         let (_, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
         request_stream
@@ -126,10 +108,7 @@ async fn get_with_trailers_unknown_content_type() {
             .expect("send_data");
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
-        request_stream
-            .send_trailers(trailers)
-            .await
-            .expect("send_trailers");
+        request_stream.send_trailers(trailers).await.expect("send_trailers");
         request_stream.finish().await.expect("finish");
     };
 
@@ -151,11 +130,7 @@ async fn get_with_trailers_known_content_type() {
                 .await
                 .expect("request");
             request_stream.recv_response().await.expect("recv response");
-            request_stream
-                .recv_data()
-                .await
-                .expect("recv data")
-                .expect("body");
+            request_stream.recv_data().await.expect("recv data").expect("body");
 
             let trailers = request_stream
                 .recv_trailers()
@@ -173,12 +148,7 @@ async fn get_with_trailers_known_content_type() {
 
         let (_, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
         request_stream
@@ -188,10 +158,7 @@ async fn get_with_trailers_known_content_type() {
 
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
-        request_stream
-            .send_trailers(trailers)
-            .await
-            .expect("send_trailers");
+        request_stream.send_trailers(trailers).await.expect("send_trailers");
         request_stream.finish().await.expect("finish");
     };
 
@@ -230,12 +197,7 @@ async fn post() {
 
         let (_, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
 
@@ -268,10 +230,7 @@ async fn header_too_big_response_from_server() {
                 .expect("request");
             request_stream.finish().await.expect("client finish");
             let response = request_stream.recv_response().await.unwrap();
-            assert_eq!(
-                response.status(),
-                StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE
-            );
+            assert_eq!(response.status(), StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE);
         };
         tokio::select! {biased; _ = req_fut => (), _ = drive_fut => () }
     };
@@ -282,11 +241,7 @@ async fn header_too_big_response_from_server() {
         //= type=test
         //# An HTTP/3 implementation MAY impose a limit on the maximum size of
         //# the message header it will accept on an individual HTTP message.
-        let mut incoming_req = server::builder()
-            .max_field_section_size(12)
-            .build(conn)
-            .await
-            .unwrap();
+        let mut incoming_req = server::builder().max_field_section_size(12).build(conn).await.unwrap();
 
         let err_kind = incoming_req.accept().await.map(|_| ()).unwrap_err().kind();
         assert_matches!(
@@ -325,17 +280,11 @@ async fn header_too_big_response_from_server_trailers() {
 
             let mut trailers = HeaderMap::new();
             trailers.insert("trailer", "A".repeat(200).parse().unwrap());
-            request_stream
-                .send_trailers(trailers)
-                .await
-                .expect("send trailers");
+            request_stream.send_trailers(trailers).await.expect("send trailers");
             request_stream.finish().await.expect("client finish");
 
             let response = request_stream.recv_response().await.unwrap();
-            assert_eq!(
-                response.status(),
-                StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE
-            );
+            assert_eq!(response.status(), StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE);
         };
         tokio::select! {biased; _ = req_fut => (), _ = drive_fut => () }
     };
@@ -346,18 +295,10 @@ async fn header_too_big_response_from_server_trailers() {
         //= type=test
         //# An HTTP/3 implementation MAY impose a limit on the maximum size of
         //# the message header it will accept on an individual HTTP message.
-        let mut incoming_req = server::builder()
-            .max_field_section_size(207)
-            .build(conn)
-            .await
-            .unwrap();
+        let mut incoming_req = server::builder().max_field_section_size(207).build(conn).await.unwrap();
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
-        let _ = request_stream
-            .recv_data()
-            .await
-            .expect("recv data")
-            .expect("body");
+        let _ = request_stream.recv_data().await.expect("recv data").expect("body");
         let err_kind = request_stream.recv_trailers().await.unwrap_err().kind();
         assert_matches!(
             err_kind,
@@ -384,18 +325,10 @@ async fn header_too_big_client_error() {
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
         let req_fut = async {
             // pretend client already received server's settings
-            client
-                .shared_state()
-                .write("client")
-                .peer_max_field_section_size = 12;
+            client.shared_state().write("client").peer_max_field_section_size = 12;
 
             let req = Request::get("http://localhost/salut").body(()).unwrap();
-            let err_kind = client
-                .send_request(req)
-                .await
-                .map(|_| ())
-                .unwrap_err()
-                .kind();
+            let err_kind = client.send_request(req).await.map(|_| ()).unwrap_err().kind();
             assert_matches!(
                 err_kind,
                 Kind::HeaderTooBig {
@@ -414,11 +347,7 @@ async fn header_too_big_client_error() {
         //= type=test
         //# An HTTP/3 implementation MAY impose a limit on the maximum size of
         //# the message header it will accept on an individual HTTP message.
-        server::builder()
-            .max_field_section_size(12)
-            .build(conn)
-            .await
-            .unwrap();
+        server::builder().max_field_section_size(12).build(conn).await.unwrap();
     };
 
     tokio::join!(server_fut, client_fut);
@@ -435,10 +364,7 @@ async fn header_too_big_client_error_trailer() {
         let (mut driver, mut client) = client::new(pair.client().await).await.expect("client init");
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
         let req_fut = async {
-            client
-                .shared_state()
-                .write("client")
-                .peer_max_field_section_size = 200;
+            client.shared_state().write("client").peer_max_field_section_size = 200;
 
             let mut request_stream = client
                 .send_request(Request::get("http://localhost/salut").body(()).unwrap())
@@ -452,11 +378,7 @@ async fn header_too_big_client_error_trailer() {
             let mut trailers = HeaderMap::new();
             trailers.insert("trailer", "A".repeat(200).parse().unwrap());
 
-            let err_kind = request_stream
-                .send_trailers(trailers)
-                .await
-                .unwrap_err()
-                .kind();
+            let err_kind = request_stream.send_trailers(trailers).await.unwrap_err().kind();
             assert_matches!(
                 err_kind,
                 Kind::HeaderTooBig {
@@ -477,18 +399,10 @@ async fn header_too_big_client_error_trailer() {
         //= type=test
         //# An HTTP/3 implementation MAY impose a limit on the maximum size of
         //# the message header it will accept on an individual HTTP message.
-        let mut incoming_req = server::builder()
-            .max_field_section_size(207)
-            .build(conn)
-            .await
-            .unwrap();
+        let mut incoming_req = server::builder().max_field_section_size(207).build(conn).await.unwrap();
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
-        let _ = request_stream
-            .recv_data()
-            .await
-            .expect("recv data")
-            .expect("body");
+        let _ = request_stream.recv_data().await.expect("recv data").expect("body");
         let _ = incoming_req.accept().await;
     };
 
@@ -544,17 +458,9 @@ async fn header_too_big_discard_from_client() {
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         // pretend server didn't receive settings
-        incoming_req
-            .shared_state()
-            .write("client")
-            .peer_max_field_section_size = u64::MAX;
+        incoming_req.shared_state().write("client").peer_max_field_section_size = u64::MAX;
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
 
@@ -630,18 +536,10 @@ async fn header_too_big_discard_from_client_trailers() {
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
 
         // pretend server didn't receive settings
-        incoming_req
-            .shared_state()
-            .write("server")
-            .peer_max_field_section_size = u64::MAX;
+        incoming_req.shared_state().write("server").peer_max_field_section_size = u64::MAX;
 
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
 
@@ -652,10 +550,7 @@ async fn header_too_big_discard_from_client_trailers() {
 
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".repeat(100).parse().unwrap());
-        request_stream
-            .send_trailers(trailers)
-            .await
-            .expect("send_trailers");
+        request_stream.send_trailers(trailers).await.expect("send_trailers");
         request_stream.finish().await.expect("finish");
 
         let _ = incoming_req.accept().await;
@@ -677,12 +572,7 @@ async fn header_too_big_server_error() {
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
         let req_fut = async {
             let req = Request::get("http://localhost/salut").body(()).unwrap();
-            let _ = client
-                .send_request(req)
-                .await
-                .unwrap()
-                .recv_response()
-                .await;
+            let _ = client.send_request(req).await.unwrap().recv_response().await;
         };
         tokio::select! { _ = req_fut => (), _ = drive_fut => () }
     };
@@ -701,18 +591,10 @@ async fn header_too_big_server_error() {
         //# process it.
 
         // pretend the server received a smaller max_field_section_size
-        incoming_req
-            .shared_state()
-            .write("server")
-            .peer_max_field_section_size = 12;
+        incoming_req.shared_state().write("server").peer_max_field_section_size = 12;
 
         let err_kind = request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .map(|_| ())
             .unwrap_err()
@@ -744,12 +626,7 @@ async fn header_too_big_server_error_trailers() {
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
         let req_fut = async {
             let req = Request::get("http://localhost/salut").body(()).unwrap();
-            let _ = client
-                .send_request(req)
-                .await
-                .unwrap()
-                .recv_response()
-                .await;
+            let _ = client.send_request(req).await.unwrap().recv_response().await;
         };
         tokio::select! { _ = req_fut => (), _ = drive_fut => () }
     };
@@ -760,12 +637,7 @@ async fn header_too_big_server_error_trailers() {
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .unwrap();
         request_stream
@@ -781,18 +653,11 @@ async fn header_too_big_server_error_trailers() {
         //# process it.
 
         // pretend the server already received client's settings
-        incoming_req
-            .shared_state()
-            .write("write")
-            .peer_max_field_section_size = 200;
+        incoming_req.shared_state().write("write").peer_max_field_section_size = 200;
 
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".repeat(100).parse().unwrap());
-        let err_kind = request_stream
-            .send_trailers(trailers)
-            .await
-            .unwrap_err()
-            .kind();
+        let err_kind = request_stream.send_trailers(trailers).await.unwrap_err().kind();
         assert_matches!(
             err_kind,
             Kind::HeaderTooBig {
@@ -880,12 +745,7 @@ async fn get_timeout_client_recv_data() {
 
         let (_request, mut request_stream) = incoming_req.accept().await.expect("accept").unwrap();
         request_stream
-            .send_response(
-                Response::builder()
-                    .status(200)
-                    .body(())
-                    .expect("build response"),
-            )
+            .send_response(Response::builder().status(200).body(()).expect("build response"))
             .await
             .expect("send_response");
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -968,10 +828,7 @@ async fn post_timeout_server_recv_data() {
 #[tokio::test]
 async fn request_valid_one_header() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
     })
     .await;
 }
@@ -979,10 +836,7 @@ async fn request_valid_one_header() {
 #[tokio::test]
 async fn request_valid_header_data() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
     })
     .await;
@@ -991,10 +845,7 @@ async fn request_valid_header_data() {
 #[tokio::test]
 async fn request_valid_header_data_trailer() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
@@ -1006,10 +857,7 @@ async fn request_valid_header_data_trailer() {
 #[tokio::test]
 async fn request_valid_header_multiple_data_trailer() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
@@ -1023,10 +871,7 @@ async fn request_valid_header_multiple_data_trailer() {
 #[tokio::test]
 async fn request_valid_header_trailer() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
         trailers_encode(buf, trailers);
@@ -1042,10 +887,7 @@ async fn request_valid_header_trailer() {
 async fn request_valid_unkown_frame_before() {
     request_sequence_ok(|mut buf| {
         unknown_frame_encode(buf);
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
     })
     .await;
 }
@@ -1053,10 +895,7 @@ async fn request_valid_unkown_frame_before() {
 #[tokio::test]
 async fn request_valid_unkown_frame_after_one_header() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         unknown_frame_encode(buf);
     })
     .await;
@@ -1065,10 +904,7 @@ async fn request_valid_unkown_frame_after_one_header() {
 #[tokio::test]
 async fn request_valid_unkown_frame_interleaved_after_header() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         unknown_frame_encode(buf);
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
     })
@@ -1078,10 +914,7 @@ async fn request_valid_unkown_frame_interleaved_after_header() {
 #[tokio::test]
 async fn request_valid_unkown_frame_interleaved_between_data() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         unknown_frame_encode(buf);
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
@@ -1092,10 +925,7 @@ async fn request_valid_unkown_frame_interleaved_between_data() {
 #[tokio::test]
 async fn request_valid_unkown_frame_interleaved_after_data() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         unknown_frame_encode(buf);
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
@@ -1106,10 +936,7 @@ async fn request_valid_unkown_frame_interleaved_after_data() {
 #[tokio::test]
 async fn request_valid_unkown_frame_interleaved_before_trailers() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         unknown_frame_encode(buf);
         let mut trailers = HeaderMap::new();
@@ -1122,10 +949,7 @@ async fn request_valid_unkown_frame_interleaved_before_trailers() {
 #[tokio::test]
 async fn request_valid_unkown_frame_after_trailers() {
     request_sequence_ok(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
@@ -1181,10 +1005,7 @@ async fn request_invalid_frame_first() {
 async fn request_invalid_frame_after_header() {
     for frame in invalid_request_frames() {
         request_sequence_unexpected(|mut buf| {
-            request_encode(
-                &mut buf,
-                Request::post("http://localhost/salut").body(()).unwrap(),
-            );
+            request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
             frame.encode(&mut buf);
         })
         .await;
@@ -1195,10 +1016,7 @@ async fn request_invalid_frame_after_header() {
 async fn request_invalid_frame_after_data() {
     for frame in invalid_request_frames() {
         request_sequence_unexpected(|mut buf| {
-            request_encode(
-                &mut buf,
-                Request::post("http://localhost/salut").body(()).unwrap(),
-            );
+            request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
             Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
             frame.encode(&mut buf);
         })
@@ -1210,10 +1028,7 @@ async fn request_invalid_frame_after_data() {
 async fn request_invalid_frame_after_trailers() {
     for frame in invalid_request_frames() {
         request_sequence_unexpected(|mut buf| {
-            request_encode(
-                &mut buf,
-                Request::post("http://localhost/salut").body(()).unwrap(),
-            );
+            request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
             Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
             let mut trailers = HeaderMap::new();
             trailers.insert("trailer", "value".parse().unwrap());
@@ -1227,10 +1042,7 @@ async fn request_invalid_frame_after_trailers() {
 #[tokio::test]
 async fn request_invalid_data_after_trailers() {
     request_sequence_unexpected(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
         trailers_encode(buf, trailers);
@@ -1250,10 +1062,7 @@ async fn request_invalid_data_first() {
 #[tokio::test]
 async fn request_invalid_two_trailers() {
     request_sequence_unexpected(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
@@ -1266,10 +1075,7 @@ async fn request_invalid_two_trailers() {
 #[tokio::test]
 async fn request_invalid_trailing_byte() {
     request_sequence_frame_error(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         Frame::Data(Bytes::from("fada")).encode_with_payload(&mut buf);
         let mut trailers = HeaderMap::new();
         trailers.insert("trailer", "value".parse().unwrap());
@@ -1289,10 +1095,7 @@ async fn request_invalid_trailing_byte() {
 #[tokio::test]
 async fn request_invalid_data_frame_length_too_large() {
     request_sequence_frame_error(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         FrameType::DATA.encode(&mut buf);
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.1
@@ -1312,10 +1115,7 @@ async fn request_invalid_data_frame_length_too_large() {
 #[tokio::test]
 async fn request_invalid_data_frame_length_too_short() {
     request_sequence_frame_error(|mut buf| {
-        request_encode(
-            &mut buf,
-            Request::post("http://localhost/salut").body(()).unwrap(),
-        );
+        request_encode(&mut buf, Request::post("http://localhost/salut").body(()).unwrap());
         FrameType::DATA.encode(&mut buf);
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-7.1
@@ -1333,10 +1133,7 @@ async fn request_invalid_data_frame_length_too_short() {
 fn request_encode<B: BufMut>(buf: &mut B, req: http::Request<()>) {
     let (parts, _) = req.into_parts();
     let request::Parts {
-        method,
-        uri,
-        headers,
-        ..
+        method, uri, headers, ..
     } = parts;
     let headers = Header::request(method, uri, headers).unwrap();
     let mut block = BytesMut::new();
@@ -1424,9 +1221,7 @@ where
             .map(|_| ());
         check(res);
 
-        let (mut driver, _send) = client::new(quinn_impl::Connection::new(new_connection))
-            .await
-            .unwrap();
+        let (mut driver, _send) = client::new(quinn_impl::Connection::new(new_connection)).await.unwrap();
 
         let res = future::poll_fn(|cx| driver.poll_close(cx))
             .await
@@ -1438,10 +1233,7 @@ where
     let server_fut = async {
         let conn = server.next().await;
         let mut incoming = server::Connection::new(conn).await.unwrap();
-        let (_, mut stream) = incoming
-            .accept()
-            .await?
-            .expect("request stream end unexpected");
+        let (_, mut stream) = incoming.accept().await?.expect("request stream end unexpected");
         while stream.recv_data().await?.is_some() {}
         stream.recv_trailers().await?;
         Result::<(), Error>::Ok(())

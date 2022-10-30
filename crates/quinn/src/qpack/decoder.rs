@@ -17,8 +17,8 @@ use super::{
     },
     parse_error::ParseError,
     stream::{
-        Duplicate, DynamicTableSizeUpdate, EncoderInstruction, HeaderAck, InsertCountIncrement,
-        InsertWithNameRef, InsertWithoutNameRef, StreamCancel,
+        Duplicate, DynamicTableSizeUpdate, EncoderInstruction, HeaderAck, InsertCountIncrement, InsertWithNameRef,
+        InsertWithoutNameRef, StreamCancel,
     },
 };
 
@@ -83,8 +83,8 @@ impl Decoder {
     // Decode field lines received on Request of Push stream.
     // https://www.rfc-editor.org/rfc/rfc9204.html#name-field-line-representations
     pub fn decode_header<T: Buf>(&self, buf: &mut T) -> Result<Decoded, Error> {
-        let (required_ref, base) = HeaderPrefix::decode(buf)?
-            .get(self.table.total_inserted(), self.table.max_mem_size())?;
+        let (required_ref, base) =
+            HeaderPrefix::decode(buf)?.get(self.table.total_inserted(), self.table.max_mem_size())?;
 
         if required_ref > self.table.total_inserted() {
             return Err(Error::MissingRefs(required_ref));
@@ -108,11 +108,7 @@ impl Decoder {
     }
 
     // The receiving side of encoder stream
-    pub fn on_encoder_recv<R: Buf, W: BufMut>(
-        &mut self,
-        read: &mut R,
-        write: &mut W,
-    ) -> Result<usize, Error> {
+    pub fn on_encoder_recv<R: Buf, W: BufMut>(&mut self, read: &mut R, write: &mut W) -> Result<usize, Error> {
         let inserted_on_start = self.table.total_inserted();
 
         while let Some(instruction) = self.parse_instruction(read)? {
@@ -144,21 +140,20 @@ impl Decoder {
             EncoderInstruction::DynamicTableSizeUpdate => {
                 DynamicTableSizeUpdate::decode(&mut buf)?.map(|x| Instruction::TableSizeUpdate(x.0))
             }
-            EncoderInstruction::InsertWithoutNameRef => InsertWithoutNameRef::decode(&mut buf)?
-                .map(|x| Instruction::Insert(HeaderField::new(x.name, x.value))),
+            EncoderInstruction::InsertWithoutNameRef => {
+                InsertWithoutNameRef::decode(&mut buf)?.map(|x| Instruction::Insert(HeaderField::new(x.name, x.value)))
+            }
             EncoderInstruction::Duplicate => match Duplicate::decode(&mut buf)? {
-                Some(Duplicate(index)) => {
-                    Some(Instruction::Insert(self.table.get_relative(index)?.clone()))
-                }
+                Some(Duplicate(index)) => Some(Instruction::Insert(self.table.get_relative(index)?.clone())),
                 None => None,
             },
             EncoderInstruction::InsertWithNameRef => match InsertWithNameRef::decode(&mut buf)? {
-                Some(InsertWithNameRef::Static { index, value }) => Some(Instruction::Insert(
-                    StaticTable::get(index)?.with_value(value),
-                )),
-                Some(InsertWithNameRef::Dynamic { index, value }) => Some(Instruction::Insert(
-                    self.table.get_relative(index)?.with_value(value),
-                )),
+                Some(InsertWithNameRef::Static { index, value }) => {
+                    Some(Instruction::Insert(StaticTable::get(index)?.with_value(value)))
+                }
+                Some(InsertWithNameRef::Dynamic { index, value }) => {
+                    Some(Instruction::Insert(self.table.get_relative(index)?.with_value(value)))
+                }
                 None => None,
             },
         };
@@ -171,10 +166,7 @@ impl Decoder {
         Ok(instruction)
     }
 
-    fn parse_header_field<R: Buf>(
-        table: &DynamicTableDecoder,
-        buf: &mut R,
-    ) -> Result<HeaderField, Error> {
+    fn parse_header_field<R: Buf>(table: &DynamicTableDecoder, buf: &mut R) -> Result<HeaderField, Error> {
         let first = buf.chunk()[0];
         let field = match HeaderBlockField::decode(first) {
             HeaderBlockField::Indexed => match Indexed::decode(buf)? {
@@ -186,12 +178,8 @@ impl Decoder {
                 table.get_postbase(index)?.clone()
             }
             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
-                LiteralWithNameRef::Static { index, value } => {
-                    StaticTable::get(index)?.with_value(value)
-                }
-                LiteralWithNameRef::Dynamic { index, value } => {
-                    table.get_relative(index)?.with_value(value)
-                }
+                LiteralWithNameRef::Static { index, value } => StaticTable::get(index)?.with_value(value),
+                LiteralWithNameRef::Dynamic { index, value } => table.get_relative(index)?.with_value(value),
             },
             HeaderBlockField::LiteralWithPostBaseNameRef => {
                 let literal = LiteralWithPostBaseNameRef::decode(buf)?;
@@ -228,9 +216,7 @@ pub fn decode_stateless<T: Buf>(buf: &mut T, max_size: u64) -> Result<Decoded, E
             },
             HeaderBlockField::LiteralWithNameRef => match LiteralWithNameRef::decode(buf)? {
                 LiteralWithNameRef::Dynamic { .. } => return Err(Error::MissingRefs(0)),
-                LiteralWithNameRef::Static { index, value } => {
-                    StaticTable::get(index)?.with_value(value)
-                }
+                LiteralWithNameRef::Static { index, value } => StaticTable::get(index)?.with_value(value),
             },
             HeaderBlockField::Literal => {
                 let literal = Literal::decode(buf)?;
@@ -337,10 +323,7 @@ mod tests {
         trailers.insert("trailer", "value".parse().unwrap());
         trailers.insert("trailer2", "value2".parse().unwrap());
         let mut buf = bytes::BytesMut::new();
-        let _ = crate::qpack::encode_stateless(
-            &mut buf,
-            crate::proto::headers::Header::trailer(trailers),
-        );
+        let _ = crate::qpack::encode_stateless(&mut buf, crate::proto::headers::Header::trailer(trailers));
         let result = decode_stateless(&mut buf, 2);
         assert_eq!(result, Err(Error::HeaderTooLong(44)));
     }
@@ -379,9 +362,7 @@ mod tests {
     #[test]
     fn test_insert_field_with_wrong_name_index_from_static_table() {
         let mut buf = vec![];
-        InsertWithNameRef::new_static(3000, "")
-            .encode(&mut buf)
-            .unwrap();
+        InsertWithNameRef::new_static(3000, "").encode(&mut buf).unwrap();
         let mut enc = Cursor::new(&buf);
         let mut decoder = Decoder::from(build_table_with_size(0));
         let res = decoder.on_encoder_recv(&mut enc, &mut vec![]);
@@ -395,19 +376,12 @@ mod tests {
     #[test]
     fn test_insert_field_with_wrong_name_index_from_dynamic_table() {
         let mut buf = vec![];
-        InsertWithNameRef::new_dynamic(3000, "")
-            .encode(&mut buf)
-            .unwrap();
+        InsertWithNameRef::new_dynamic(3000, "").encode(&mut buf).unwrap();
         let mut enc = Cursor::new(&buf);
         let mut dec = vec![];
         let mut decoder = Decoder::from(build_table_with_size(0));
         let res = decoder.on_encoder_recv(&mut enc, &mut dec);
-        assert_eq!(
-            res,
-            Err(Error::DynamicTable(DynamicTableError::BadRelativeIndex(
-                3000
-            )))
-        );
+        assert_eq!(res, Err(Error::DynamicTable(DynamicTableError::BadRelativeIndex(3000))));
 
         assert!(dec.is_empty());
     }
@@ -419,9 +393,7 @@ mod tests {
     #[test]
     fn test_insert_field_without_name_ref() {
         let mut buf = vec![];
-        InsertWithoutNameRef::new("key", "value")
-            .encode(&mut buf)
-            .unwrap();
+        InsertWithoutNameRef::new("key", "value").encode(&mut buf).unwrap();
 
         let mut decoder = Decoder::from(build_table_with_size(0));
         let mut enc = Cursor::new(&buf);
@@ -454,10 +426,7 @@ mod tests {
     fn test_duplicate_field() {
         // let mut table = build_table_with_size(0);
         let mut table = build_table_with_size(0);
-        insert_fields(
-            &mut table,
-            vec![HeaderField::new("", ""), HeaderField::new("", "")],
-        );
+        insert_fields(&mut table, vec![HeaderField::new("", ""), HeaderField::new("", "")]);
         let mut decoder = Decoder::from(table);
 
         let mut buf = vec![];
@@ -580,14 +549,9 @@ mod tests {
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(2));
-        let Decoded {
-            fields, dyn_ref, ..
-        } = decoder.decode_header(&mut read).unwrap();
+        let Decoded { fields, dyn_ref, .. } = decoder.decode_header(&mut read).unwrap();
         assert!(dyn_ref);
-        assert_eq!(
-            fields,
-            &[field(2), field(1), StaticTable::get(18).unwrap().clone()]
-        )
+        assert_eq!(fields, &[field(2), field(1), StaticTable::get(18).unwrap().clone()])
     }
 
     //      Largest Reference
@@ -612,9 +576,7 @@ mod tests {
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(4));
-        let Decoded {
-            fields, dyn_ref, ..
-        } = decoder.decode_header(&mut read).unwrap();
+        let Decoded { fields, dyn_ref, .. } = decoder.decode_header(&mut read).unwrap();
         assert!(dyn_ref);
         assert_eq!(fields, &[field(2), field(3), field(4)])
     }
@@ -623,18 +585,12 @@ mod tests {
     fn decode_name_ref_header_field() {
         let mut buf = vec![];
         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
-        LiteralWithNameRef::new_dynamic(1, "new bar1")
-            .encode(&mut buf)
-            .unwrap();
-        LiteralWithNameRef::new_static(18, "PUT")
-            .encode(&mut buf)
-            .unwrap();
+        LiteralWithNameRef::new_dynamic(1, "new bar1").encode(&mut buf).unwrap();
+        LiteralWithNameRef::new_static(18, "PUT").encode(&mut buf).unwrap();
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(4));
-        let Decoded {
-            fields, dyn_ref, ..
-        } = decoder.decode_header(&mut read).unwrap();
+        let Decoded { fields, dyn_ref, .. } = decoder.decode_header(&mut read).unwrap();
         assert!(dyn_ref);
         assert_eq!(
             fields,
@@ -649,9 +605,7 @@ mod tests {
     fn decode_post_base_name_ref_header_field() {
         let mut buf = vec![];
         HeaderPrefix::new(2, 2, 4, TABLE_SIZE).encode(&mut buf);
-        LiteralWithPostBaseNameRef::new(0, "new bar3")
-            .encode(&mut buf)
-            .unwrap();
+        LiteralWithPostBaseNameRef::new(0, "new bar3").encode(&mut buf).unwrap();
 
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(4));
@@ -668,10 +622,7 @@ mod tests {
         let mut read = Cursor::new(&buf);
         let decoder = Decoder::from(build_table_with_size(0));
         let Decoded { fields, .. } = decoder.decode_header(&mut read).unwrap();
-        assert_eq!(
-            fields,
-            &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec())]
-        );
+        assert_eq!(fields, &[HeaderField::new(b"foo".to_vec(), b"bar".to_vec())]);
     }
 
     // Largest Reference = 4
@@ -709,13 +660,7 @@ mod tests {
         let mut buf = vec![];
 
         // Pre-base relative reference
-        HeaderPrefix::new(
-            max_entries + 5,
-            max_entries + 5,
-            max_entries + 10,
-            TABLE_SIZE,
-        )
-        .encode(&mut buf);
+        HeaderPrefix::new(max_entries + 5, max_entries + 5, max_entries + 10, TABLE_SIZE).encode(&mut buf);
         Indexed::Dynamic(10).encode(&mut buf);
 
         let mut read = Cursor::new(&buf);
@@ -726,13 +671,7 @@ mod tests {
         let mut buf = vec![];
 
         // Post-base reference
-        HeaderPrefix::new(
-            max_entries + 10,
-            max_entries + 5,
-            max_entries + 10,
-            TABLE_SIZE,
-        )
-        .encode(&mut buf);
+        HeaderPrefix::new(max_entries + 10, max_entries + 5, max_entries + 10, TABLE_SIZE).encode(&mut buf);
         IndexedWithPostBase(0).encode(&mut buf);
         IndexedWithPostBase(4).encode(&mut buf);
 

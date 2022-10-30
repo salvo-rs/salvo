@@ -97,21 +97,7 @@ mod tests {
         let mut read = Cursor::new(&buf);
         assert_eq!(
             &buf,
-            &[
-                0b0110_1100,
-                168,
-                116,
-                149,
-                79,
-                6,
-                76,
-                231,
-                181,
-                42,
-                88,
-                89,
-                127
-            ]
+            &[0b0110_1100, 168, 116, 149, 79, 6, 76, 231, 181, 42, 88, 89, 127]
         );
         assert_eq!(decode(6, &mut read).unwrap(), b"name without ref");
     }
@@ -121,10 +107,7 @@ mod tests {
         let mut buf = Vec::new();
         encode(8, 0b01, b"name with ref", &mut buf).unwrap();
         let mut read = Cursor::new(&buf);
-        assert_eq!(
-            &buf,
-            &[0b100_01010, 168, 116, 149, 79, 6, 76, 234, 88, 89, 127]
-        );
+        assert_eq!(&buf, &[0b100_01010, 168, 116, 149, 79, 6, 76, 234, 88, 89, 127]);
         assert_eq!(decode(8, &mut read).unwrap(), b"name with ref");
     }
 

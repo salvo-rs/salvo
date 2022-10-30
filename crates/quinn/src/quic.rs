@@ -45,30 +45,18 @@ pub trait Connection<B: Buf> {
     /// Accept an incoming unidirectional stream
     ///
     /// Returning `None` implies the connection is closing or closed.
-    fn poll_accept_recv(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Option<Self::RecvStream>, Self::Error>>;
+    fn poll_accept_recv(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Option<Self::RecvStream>, Self::Error>>;
 
     /// Accept an incoming bidirectional stream
     ///
     /// Returning `None` implies the connection is closing or closed.
-    fn poll_accept_bidi(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Option<Self::BidiStream>, Self::Error>>;
+    fn poll_accept_bidi(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Option<Self::BidiStream>, Self::Error>>;
 
     /// Poll the connection to create a new bidirectional stream.
-    fn poll_open_bidi(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Self::BidiStream, Self::Error>>;
+    fn poll_open_bidi(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Self::BidiStream, Self::Error>>;
 
     /// Poll the connection to create a new unidirectional stream.
-    fn poll_open_send(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Self::SendStream, Self::Error>>;
+    fn poll_open_send(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Self::SendStream, Self::Error>>;
 
     /// Get an object to open outgoing streams.
     fn opener(&self) -> Self::OpenStreams;
@@ -89,16 +77,10 @@ pub trait OpenStreams<B: Buf> {
     type Error: Into<Box<dyn Error>>;
 
     /// Poll the connection to create a new bidirectional stream.
-    fn poll_open_bidi(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Self::BidiStream, Self::Error>>;
+    fn poll_open_bidi(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Self::BidiStream, Self::Error>>;
 
     /// Poll the connection to create a new unidirectional stream.
-    fn poll_open_send(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Self::SendStream, Self::Error>>;
+    fn poll_open_send(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Self::SendStream, Self::Error>>;
 
     /// Close the connection immediately
     fn close(&mut self, code: crate::error::Code, reason: &[u8]);
@@ -136,10 +118,7 @@ pub trait RecvStream {
     ///
     /// When the receive side will no longer receive more data (such as because
     /// the peer closed their sending side), this should return `None`.
-    fn poll_data(
-        &mut self,
-        cx: &mut task::Context<'_>,
-    ) -> Poll<Result<Option<Self::Buf>, Self::Error>>;
+    fn poll_data(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<Option<Self::Buf>, Self::Error>>;
 
     /// Send a `STOP_SENDING` QUIC code.
     fn stop_sending(&mut self, error_code: u64);

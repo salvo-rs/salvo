@@ -242,10 +242,7 @@ impl Error {
     }
 
     pub(crate) fn header_too_big(actual_size: u64, max_size: u64) -> Self {
-        Error::new(Kind::HeaderTooBig {
-            actual_size,
-            max_size,
-        })
+        Error::new(Kind::HeaderTooBig { actual_size, max_size })
     }
 
     pub(crate) fn with_cause<E: Into<Cause>>(mut self, cause: E) -> Self {
@@ -293,9 +290,7 @@ impl fmt::Debug for Error {
             Kind::Timeout => {
                 builder.field("timeout", &true);
             }
-            Kind::Application {
-                code, ref reason, ..
-            } => {
+            Kind::Application { code, ref reason, .. } => {
                 builder.field("code", &code);
                 if let Some(reason) = reason {
                     builder.field("reason", reason);
@@ -305,10 +300,7 @@ impl fmt::Debug for Error {
                 builder.field("kind", &e);
                 builder.field("code: ", &e.err_code());
             }
-            Kind::HeaderTooBig {
-                actual_size,
-                max_size,
-            } => {
+            Kind::HeaderTooBig { actual_size, max_size } => {
                 builder.field("header_size", &actual_size);
                 builder.field("max_size", &max_size);
             }
@@ -329,19 +321,14 @@ impl fmt::Display for Error {
             Kind::Closing => write!(f, "connection is gracefully closing")?,
             Kind::Transport(ref e) => write!(f, "quic transport error: {}", e)?,
             Kind::Timeout => write!(f, "timeout",)?,
-            Kind::Application {
-                code, ref reason, ..
-            } => {
+            Kind::Application { code, ref reason, .. } => {
                 if let Some(reason) = reason {
                     write!(f, "application error: {}", reason)?
                 } else {
                     write!(f, "application error {:?}", code)?
                 }
             }
-            Kind::HeaderTooBig {
-                actual_size,
-                max_size,
-            } => write!(
+            Kind::HeaderTooBig { actual_size, max_size } => write!(
                 f,
                 "issued header size {} o is beyond peer's limit {} o",
                 actual_size, max_size
@@ -379,9 +366,7 @@ impl From<qpack::EncoderError> for Error {
 impl From<qpack::DecoderError> for Error {
     fn from(e: qpack::DecoderError) -> Self {
         match e {
-            qpack::DecoderError::InvalidStaticIndex(_) => {
-                Self::from(Code::QPACK_DECOMPRESSION_FAILED).with_cause(e)
-            }
+            qpack::DecoderError::InvalidStaticIndex(_) => Self::from(Code::QPACK_DECOMPRESSION_FAILED).with_cause(e),
             _ => Self::from(Code::QPACK_DECODER_STREAM_ERROR).with_cause(e),
         }
     }
@@ -407,14 +392,16 @@ impl From<frame::FrameStreamError> for Error {
             //# When a stream terminates cleanly, if the last frame on the stream was
             //# truncated, this MUST be treated as a connection error of type
             //# H3_FRAME_ERROR.
-            frame::FrameStreamError::UnexpectedEnd => Code::H3_FRAME_ERROR
-                .with_reason("received incomplete frame", ErrorLevel::ConnectionError),
+            frame::FrameStreamError::UnexpectedEnd => {
+                Code::H3_FRAME_ERROR.with_reason("received incomplete frame", ErrorLevel::ConnectionError)
+            }
 
             frame::FrameStreamError::Proto(e) => match e {
                 proto::frame::FrameError::InvalidStreamId(_) => Code::H3_ID_ERROR,
                 proto::frame::FrameError::Settings(_) => Code::H3_SETTINGS_ERROR,
-                proto::frame::FrameError::UnsupportedFrame(_)
-                | proto::frame::FrameError::UnknownFrame(_) => Code::H3_FRAME_UNEXPECTED,
+                proto::frame::FrameError::UnsupportedFrame(_) | proto::frame::FrameError::UnknownFrame(_) => {
+                    Code::H3_FRAME_UNEXPECTED
+                }
 
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.1
                 //# A frame payload that contains additional bytes

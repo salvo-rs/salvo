@@ -342,25 +342,13 @@ mod tests {
         assert_eq!(read_bits(&[0b1010_1010], 0, 0, 9), Err(()));
 
         // `bit_offset` > 7
-        assert_eq!(
-            read_bits(&[0b1010_1010, 0b1010_1010], 0, 8, 8),
-            Ok(0b1010_1010)
-        );
+        assert_eq!(read_bits(&[0b1010_1010, 0b1010_1010], 0, 8, 8), Ok(0b1010_1010));
         // Read spanning two bytes
-        assert_eq!(
-            read_bits(&[0b1010_1010, 0b1010_1010], 0, 4, 8),
-            Ok(0b1010_1010)
-        );
+        assert_eq!(read_bits(&[0b1010_1010, 0b1010_1010], 0, 4, 8), Ok(0b1010_1010));
         // Read with non-zero `byte_offset`
-        assert_eq!(
-            read_bits(&[0b1010_1010, 0b1010_1010], 1, 0, 5),
-            Ok(0b1_0101)
-        );
+        assert_eq!(read_bits(&[0b1010_1010, 0b1010_1010], 1, 0, 5), Ok(0b1_0101));
         // Read with `bit_offset` > 7, unaligned with either side
-        assert_eq!(
-            read_bits(&[0b1010_1010, 0b1010_1010], 0, 10, 5),
-            Ok(0b1_0101)
-        );
+        assert_eq!(read_bits(&[0b1010_1010, 0b1010_1010], 0, 10, 5), Ok(0b1_0101));
         // Read with `bit_offset` > 7 past end of input slice
         assert_eq!(read_bits(&[0b1010_1010, 0b1010_1010], 0, 16, 5), Err(()));
     }

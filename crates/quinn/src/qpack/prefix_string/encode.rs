@@ -43,8 +43,7 @@ impl HuffmanEncoder {
             self.buffer.reserve(((7 * end_range.byte) / 4) as usize);
         }
 
-        let forward =
-            end_range.byte as usize - self.buffer.len() + if end_range.bit > 0 { 1 } else { 0 };
+        let forward = end_range.byte as usize - self.buffer.len() + if end_range.bit > 0 { 1 } else { 0 };
         for _ in 0..forward {
             // push filler value that will ends huffman decoding if not
             // modified
@@ -1792,9 +1791,7 @@ mod tests {
 
     #[test]
     fn byte_count_exact_when_bit_count_multiple_of_8() {
-        let encoded = vec![
-            0x8c, 0x2d, 0x4b, 0x70, 0xdd, 0xf4, 0x5a, 0xbe, 0xfb, 0x40, 0x05, 0xdb,
-        ];
+        let encoded = vec![0x8c, 0x2d, 0x4b, 0x70, 0xdd, 0xf4, 0x5a, 0xbe, 0xfb, 0x40, 0x05, 0xdb];
 
         let mut res = Vec::new();
         for byte in encoded.hpack_decode() {
@@ -1809,8 +1806,8 @@ mod tests {
     #[test]
     fn byte_() {
         let encoded = vec![
-            0x55, 0x92, 0xbe, 0xff, 0x48, 0x36, 0xcb, 0x86, 0x37, 0x3d, 0x68, 0xca, 0xc9, 0x61,
-            0xce, 0xde, 0xdc, 0xe5, 0xfc,
+            0x55, 0x92, 0xbe, 0xff, 0x48, 0x36, 0xcb, 0x86, 0x37, 0x3d, 0x68, 0xca, 0xc9, 0x61, 0xce, 0xde, 0xdc, 0xe5,
+            0xfc,
         ];
 
         let mut res = Vec::new();

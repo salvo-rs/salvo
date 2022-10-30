@@ -33,18 +33,12 @@ pub struct DynamicTableDecoder<'a> {
 impl<'a> DynamicTableDecoder<'a> {
     pub(super) fn get_relative(&self, index: usize) -> Result<&HeaderField, Error> {
         let real_index = self.table.vas.relative_base(self.base, index)?;
-        self.table
-            .fields
-            .get(real_index)
-            .ok_or(Error::BadIndex(real_index))
+        self.table.fields.get(real_index).ok_or(Error::BadIndex(real_index))
     }
 
     pub(super) fn get_postbase(&self, index: usize) -> Result<&HeaderField, Error> {
         let real_index = self.table.vas.post_base(self.base, index)?;
-        self.table
-            .fields
-            .get(real_index)
-            .ok_or(Error::BadIndex(real_index))
+        self.table.fields.get(real_index).ok_or(Error::BadIndex(real_index))
     }
 }
 
@@ -82,8 +76,7 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 
     pub(super) fn commit(&mut self, largest_ref: usize) {
-        self.table
-            .track_block(self.stream_id, self.block_refs.clone());
+        self.table.track_block(self.stream_id, self.block_refs.clone());
         self.table.register_blocked(largest_ref);
         self.commited = true;
     }
@@ -114,17 +107,13 @@ impl<'a> DynamicTableEncoder<'a> {
 
     pub(super) fn insert(&mut self, field: &HeaderField) -> Result<DynamicInsertionResult, Error> {
         if self.table.blocked_count >= self.table.blocked_max {
-            return Ok(DynamicInsertionResult::NotInserted(
-                self.find_name(&field.name),
-            ));
+            return Ok(DynamicInsertionResult::NotInserted(self.find_name(&field.name)));
         }
 
         let index = match self.table.insert(field.clone()) {
             Ok(Some(index)) => index,
             Err(Error::MaxTableSizeReached) | Ok(None) => {
-                return Ok(DynamicInsertionResult::NotInserted(
-                    self.find_name(&field.name),
-                ));
+                return Ok(DynamicInsertionResult::NotInserted(self.find_name(&field.name)));
             }
             Err(e) => return Err(e),
         };
@@ -133,10 +122,7 @@ impl<'a> DynamicTableEncoder<'a> {
         let field_index = match self.table.field_map.entry(field.clone()) {
             Entry::Occupied(mut e) => {
                 let ref_index = e.insert(index);
-                self.table
-                    .name_map
-                    .entry(field.name.clone())
-                    .and_modify(|i| *i = index);
+                self.table.name_map.entry(field.name.clone()).and_modify(|i| *i = index);
 
                 Some((
                     ref_index,
@@ -197,10 +183,7 @@ impl<'a> DynamicTableEncoder<'a> {
     }
 
     fn track_ref(&mut self, reference: usize) {
-        self.block_refs
-            .entry(reference)
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
+        self.block_refs.entry(reference).and_modify(|c| *c += 1).or_insert(1);
         self.table.track_ref(reference);
     }
 }
@@ -264,10 +247,8 @@ impl DynamicTable {
 
     pub fn encoder(&mut self, stream_id: u64) -> DynamicTableEncoder {
         for (idx, field) in self.fields.iter().enumerate() {
-            self.name_map
-                .insert(field.name.clone(), self.vas.index(idx).unwrap());
-            self.field_map
-                .insert(field.clone(), self.vas.index(idx).unwrap());
+            self.name_map.insert(field.name.clone(), self.vas.index(idx).unwrap());
+            self.field_map.insert(field.clone(), self.vas.index(idx).unwrap());
         }
 
         DynamicTableEncoder {
@@ -332,9 +313,7 @@ impl DynamicTable {
 
     pub(super) fn get_relative(&self, index: usize) -> Result<&HeaderField, Error> {
         let real_index = self.vas.relative(index)?;
-        self.fields
-            .get(real_index)
-            .ok_or(Error::BadIndex(real_index))
+        self.fields.get(real_index).ok_or(Error::BadIndex(real_index))
     }
 
     pub(super) fn total_inserted(&self) -> usize {
@@ -344,9 +323,7 @@ impl DynamicTable {
     pub(super) fn untrack_block(&mut self, stream_id: u64) -> Result<(), Error> {
         let mut entry = self.track_blocks.entry(stream_id);
         let block = match entry {
-            Entry::Occupied(ref mut blocks) if blocks.get().len() > 1 => {
-                blocks.get_mut().pop_front()
-            }
+            Entry::Occupied(ref mut blocks) if blocks.get().len() > 1 => blocks.get_mut().pop_front(),
             Entry::Occupied(blocks) => blocks.remove().pop_front(),
             Entry::Vacant { .. } => return Err(Error::UnknownStreamId(stream_id)),
         };
@@ -433,10 +410,7 @@ impl DynamicTable {
     }
 
     fn track_ref(&mut self, reference: usize) {
-        self.track_map
-            .entry(reference)
-            .and_modify(|c| *c += 1)
-            .or_insert(1);
+        self.track_map.entry(reference).and_modify(|c| *c += 1).or_insert(1);
     }
 
     fn is_tracked(&self, reference: usize) -> bool {
@@ -505,9 +479,7 @@ impl DynamicTable {
             return;
         }
 
-        let blocked = self
-            .blocked_streams
-            .split_off(&(self.largest_known_received + 1));
+        let blocked = self.blocked_streams.split_off(&(self.largest_known_received + 1));
         let acked = std::mem::replace(&mut self.blocked_streams, blocked);
 
         if !acked.is_empty() {
@@ -705,10 +677,7 @@ mod tests {
         let mut table = build_table();
         insert_fields(
             &mut table,
-            vec![
-                HeaderField::new("Name", "Value"),
-                HeaderField::new("Name", "Value"),
-            ],
+            vec![HeaderField::new("Name", "Value"), HeaderField::new("Name", "Value")],
         );
         assert_eq!(table.fields.len(), 2);
 
@@ -733,14 +702,8 @@ mod tests {
 
         insert_fields(&mut table, vec![HeaderField::new("Name-C", "Value-C")]);
 
-        assert_eq!(
-            table.fields.get(0),
-            Some(&HeaderField::new("Name-B", "Value-B"))
-        );
-        assert_eq!(
-            table.fields.get(1),
-            Some(&HeaderField::new("Name-C", "Value-C"))
-        );
+        assert_eq!(table.fields.get(0), Some(&HeaderField::new("Name-B", "Value-B")));
+        assert_eq!(table.fields.get(1), Some(&HeaderField::new("Name-C", "Value-C")));
         assert_eq!(table.fields.get(2), None);
     }
 
@@ -771,17 +734,11 @@ mod tests {
         let mut encoder = table.encoder(STREAM_ID);
         assert_eq!(
             encoder.find(&field_a),
-            DynamicLookupResult::Relative {
-                index: 1,
-                absolute: 1
-            }
+            DynamicLookupResult::Relative { index: 1, absolute: 1 }
         );
         assert_eq!(
             encoder.find(&field_b),
-            DynamicLookupResult::Relative {
-                index: 0,
-                absolute: 2
-            }
+            DynamicLookupResult::Relative { index: 0, absolute: 2 }
         );
         assert_eq!(
             encoder.find(&HeaderField::new("Name-C", "Value-C")),
@@ -789,22 +746,13 @@ mod tests {
         );
         assert_eq!(
             encoder.find_name(&field_a.name),
-            DynamicLookupResult::Relative {
-                index: 1,
-                absolute: 1
-            }
+            DynamicLookupResult::Relative { index: 1, absolute: 1 }
         );
         assert_eq!(
             encoder.find_name(&field_b.name),
-            DynamicLookupResult::Relative {
-                index: 0,
-                absolute: 2
-            }
+            DynamicLookupResult::Relative { index: 0, absolute: 2 }
         );
-        assert_eq!(
-            encoder.find_name(&b"Name-C"[..]),
-            DynamicLookupResult::NotFound
-        );
+        assert_eq!(encoder.find_name(&b"Name-C"[..]), DynamicLookupResult::NotFound);
     }
 
     #[test]
@@ -867,11 +815,7 @@ mod tests {
         assert_eq!(encoder.table.field_map.get(&field_a).copied(), Some(3));
         assert_eq!(encoder.table.field_map.get(&field_b).copied(), Some(2));
         assert_eq!(
-            encoder
-                .table
-                .field_map
-                .get(&field_b.with_value("New Value-B"))
-                .copied(),
+            encoder.table.field_map.get(&field_b.with_value("New Value-B")).copied(),
             Some(4)
         );
         assert_eq!(
@@ -946,9 +890,7 @@ mod tests {
         let mut encoder = table.encoder(4);
         assert_eq!(
             encoder.insert(&HeaderField::new("foo", "bar")),
-            Ok(DynamicInsertionResult::NotInserted(
-                DynamicLookupResult::NotFound
-            ))
+            Ok(DynamicInsertionResult::NotInserted(DynamicLookupResult::NotFound))
         );
     }
 
@@ -1132,12 +1074,10 @@ mod tests {
         assert!(encoder.table.is_tracked(1));
         assert_eq!(
             encoder.insert(&HeaderField::new("foo", "baz")),
-            Ok(DynamicInsertionResult::NotInserted(
-                DynamicLookupResult::PostBase {
-                    index: 0,
-                    absolute: 2,
-                }
-            ))
+            Ok(DynamicInsertionResult::NotInserted(DynamicLookupResult::PostBase {
+                index: 0,
+                absolute: 2,
+            }))
         );
         assert_eq!(encoder.table.fields.len(), 2);
     }
@@ -1210,10 +1150,7 @@ mod tests {
         assert!(table.is_tracked(5));
         assert_eq!(table.untrack_block(STREAM_ID), Ok(()));
         assert!(!table.is_tracked(6));
-        assert_eq!(
-            table.untrack_block(STREAM_ID),
-            Err(Error::UnknownStreamId(STREAM_ID))
-        );
+        assert_eq!(table.untrack_block(STREAM_ID), Err(Error::UnknownStreamId(STREAM_ID)));
     }
 
     #[test]
@@ -1248,10 +1185,7 @@ mod tests {
         let mut table = tracked_table(42);
         table.set_max_blocked(100).unwrap();
 
-        table
-            .encoder(44)
-            .insert(&HeaderField::new("foo", "bar"))
-            .unwrap();
+        table.encoder(44).insert(&HeaderField::new("foo", "bar")).unwrap();
         // encoder dropped without commit
 
         assert_eq!(table.blocked_count, 1);
@@ -1268,10 +1202,7 @@ mod tests {
 
             assert_eq!(
                 encoder.find(&HeaderField::new("foo3", "quxx")),
-                DynamicLookupResult::Relative {
-                    index: 0,
-                    absolute: 3,
-                }
+                DynamicLookupResult::Relative { index: 0, absolute: 3 }
             );
             // the encoder inserts a reference to foo3 in a block (absolte index = 3)
             encoder.commit(3);
@@ -1370,9 +1301,7 @@ mod tests {
 
         assert_eq!(
             table.encoder(44).insert(&HeaderField::new("foo", "bar")),
-            Ok(DynamicInsertionResult::NotInserted(
-                DynamicLookupResult::NotFound
-            ))
+            Ok(DynamicInsertionResult::NotInserted(DynamicLookupResult::NotFound))
         );
     }
 
@@ -1398,9 +1327,7 @@ mod tests {
         let mut encoder = table.encoder(46);
         assert_eq!(
             encoder.insert(&HeaderField::new("foo99", "bar")),
-            Ok(DynamicInsertionResult::NotInserted(
-                DynamicLookupResult::NotFound
-            ))
+            Ok(DynamicInsertionResult::NotInserted(DynamicLookupResult::NotFound))
         );
     }
 
@@ -1415,9 +1342,7 @@ mod tests {
             let mut encoder = table.encoder(44);
             assert_eq!(
                 encoder.insert(&HeaderField::new("foo99", "bar")),
-                Ok(DynamicInsertionResult::NotInserted(
-                    DynamicLookupResult::NotFound
-                ))
+                Ok(DynamicInsertionResult::NotInserted(DynamicLookupResult::NotFound))
             );
             encoder.commit(0);
         }
