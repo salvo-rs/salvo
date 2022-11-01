@@ -59,7 +59,7 @@ where
 /// ## Sending a request with no body
 ///
 /// ```rust
-/// # use salvo_quinn::{quic, client::*};
+/// # use salvo_http3::{quic, client::*};
 /// # use http::{Request, Response};
 /// # use bytes::Buf;
 /// # async fn doc<T,B>(mut send_request: SendRequest<T, B>) -> Result<(), Box<dyn std::error::Error>>
@@ -85,7 +85,7 @@ where
 /// ## Sending a request with a body and trailers
 ///
 /// ```rust
-/// # use salvo_quinn::{quic, client::*};
+/// # use salvo_http3::{quic, client::*};
 /// # use http::{Request, Response, HeaderMap};
 /// # use bytes::{Buf, Bytes};
 /// # async fn doc<T,B>(mut send_request: SendRequest<T, Bytes>) -> Result<(), Box<dyn std::error::Error>>
@@ -268,7 +268,7 @@ where
 /// ```rust
 /// # use bytes::Buf;
 /// # use futures_util::future;
-/// # use salvo_quinn::{client::*, quic};
+/// # use salvo_http3::{client::*, quic};
 /// # use tokio::task::JoinHandle;
 /// # async fn doc<C, B>(mut connection: Connection<C, B>)
 /// #    -> JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>
@@ -291,7 +291,7 @@ where
 /// ```rust
 /// # use bytes::Buf;
 /// # use futures_util::future;
-/// # use salvo_quinn::{client::*, quic};
+/// # use salvo_http3::{client::*, quic};
 /// # use tokio::{self, sync::oneshot, task::JoinHandle};
 /// # async fn doc<C, B>(mut connection: Connection<C, B>)
 /// #    -> Result<(), Box<dyn std::error::Error + Send + Sync>>
@@ -444,14 +444,14 @@ where
 ///
 /// # Examples
 /// ```rust
-/// # use salvo_quinn::quic;
+/// # use salvo_http3::quic;
 /// # async fn doc<C, O, B>(quic: C)
 /// # where
 /// #   C: quic::Connection<B, OpenStreams = O>,
 /// #   O: quic::OpenStreams<B>,
 /// #   B: bytes::Buf,
 /// # {
-/// let h3_conn = salvo_quinn::client::builder()
+/// let h3_conn = salvo_http3::client::builder()
 ///     .max_field_section_size(8192)
 ///     .build(quic)
 ///     .await
@@ -531,7 +531,7 @@ impl Builder {
 /// # Examples
 ///
 /// ```rust
-/// # use salvo_quinn::{quic, client::*};
+/// # use salvo_http3::{quic, client::*};
 /// # use http::{Request, Response};
 /// # use bytes::Buf;
 /// # use tokio::io::AsyncWriteExt;

@@ -77,9 +77,9 @@ pub struct QuinnAcceptor {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(pub salvo_quinn::server::Connection<salvo_quinn::quinn_impl::Connection, Bytes>);
+pub struct H3Connection(pub salvo_http3::server::Connection<salvo_quinn::Connection, Bytes>);
 impl Deref for H3Connection {
-    type Target = salvo_quinn::server::Connection<salvo_quinn::quinn_impl::Connection, Bytes>;
+    type Target = salvo_http3::server::Connection<salvo_quinn::Connection, Bytes>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -133,7 +133,7 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = salvo_quinn::server::Connection::new(salvo_quinn::quinn_impl::Connection::new(conn))
+                    let conn = salvo_http3::server::Connection::new(salvo_quinn::Connection::new(conn))
                         .await
                         .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
                     return Ok(Accepted {

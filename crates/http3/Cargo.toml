@@ -1,0 +1,23 @@
+[package]
+name = "salvo-http3"
+version.workspace = true
+edition.workspace = true
+description = "HTTP3 supports for salvo"
+authors = [
+    "Sean McArthur <sean@seanmonstar.com>",
+    "Jean-Christophe BEGUE <jc.begue@pm.me>",
+    "Chrislearn Young <chris@acroidea.com>",
+]
+license = "MIT"
+
+[dependencies]
+bytes.workspace = true
+futures-util = { workspace = true, default-features = false }
+http.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+fastrand.workspace = true
+
+[dev-dependencies]
+assert_matches = "1.3.0"
+proptest = "1"

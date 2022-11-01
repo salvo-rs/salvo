@@ -2,6 +2,8 @@
 pub use hyper::body::{Body, SizeHint};
 
 mod req;
-pub use req::{H3ReqBody, ReqBody};
+#[cfg(feature = "quinn")]
+pub use req::h3::H3ReqBody;
+pub use req::ReqBody;
 mod res;
 pub use res::ResBody;

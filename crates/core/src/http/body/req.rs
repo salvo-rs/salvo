@@ -6,9 +6,8 @@ use std::task::{Context, Poll};
 
 use futures_util::stream::Stream;
 use hyper::body::{Body, Frame, Incoming, SizeHint};
-use salvo_quinn::quic::RecvStream;
 
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 
 use crate::BoxedError;
 
@@ -135,58 +134,75 @@ impl From<Box<[u8]>> for ReqBody {
     }
 }
 
-impl<S, B> From<H3ReqBody<S, B>> for ReqBody
-where
-    S: RecvStream + Send + Sync + Unpin + 'static,
-    B: Buf + Send + Sync + Unpin + 'static,
-{
-    fn from(value: H3ReqBody<S, B>) -> ReqBody {
-        ReqBody::Inner(Box::pin(value))
-    }
-}
+cfg_feature! {
+    #![feature = "quinn"]
+    pub(crate) mod h3 {
+        use std::boxed::Box;
+        use std::pin::Pin;
+        use std::task::{Context, Poll};
 
-/// Http3 request body.
-pub struct H3ReqBody<S, B> {
-    inner: salvo_quinn::server::RequestStream<S, B>,
-}
-impl<S, B> H3ReqBody<S, B>
-where
-    S: RecvStream + Send + Unpin + 'static,
-    B: Buf + Send + Unpin + 'static,
-{
-    /// Create new `H3ReqBody` instance.
-    pub fn new(inner: salvo_quinn::server::RequestStream<S, B>) -> Self {
-        Self { inner }
-    }
-}
+        use hyper::body::{Body, Frame, SizeHint};
+        use salvo_http3::quic::RecvStream;
 
-impl<S, B> Body for H3ReqBody<S, B>
-where
-    S: RecvStream + Send + Unpin,
-    B: Buf + Send + Unpin,
-{
-    type Data = Bytes;
-    type Error = BoxedError;
+        use bytes::{Buf, Bytes};
 
-    fn poll_frame(
-        mut self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        let this = &mut *self;
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        // TODO: how to remove block?
-        Poll::Ready(Some(rt.block_on(async move {
-            let buf = this.inner.recv_data().await.unwrap();
-            let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
-            Ok(Frame::data(buf.unwrap()))
-        })))
-    }
+        use crate::BoxedError;
+        use crate::http::ReqBody;
 
-    fn is_end_stream(&self) -> bool {
-        false
-    }
+        /// Http3 request body.
+        pub struct H3ReqBody<S, B> {
+            inner: salvo_http3::server::RequestStream<S, B>,
+        }
+        impl<S, B> H3ReqBody<S, B>
+        where
+            S: RecvStream + Send + Unpin + 'static,
+            B: Buf + Send + Unpin + 'static,
+        {
+            /// Create new `H3ReqBody` instance.
+            pub fn new(inner: salvo_http3::server::RequestStream<S, B>) -> Self {
+                Self { inner }
+            }
+        }
 
-    fn size_hint(&self) -> SizeHint {
-        SizeHint::default()
+        impl<S, B> Body for H3ReqBody<S, B>
+        where
+            S: RecvStream + Send + Unpin,
+            B: Buf + Send + Unpin,
+        {
+            type Data = Bytes;
+            type Error = BoxedError;
+
+            fn poll_frame(
+                mut self: Pin<&mut Self>,
+                _cx: &mut Context<'_>,
+            ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+                let this = &mut *self;
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                // TODO: how to remove block?
+                Poll::Ready(Some(rt.block_on(async move {
+                    let buf = this.inner.recv_data().await.unwrap();
+                    let buf = buf.map(|buf| Bytes::copy_from_slice(buf.chunk()));
+                    Ok(Frame::data(buf.unwrap()))
+                })))
+            }
+
+            fn is_end_stream(&self) -> bool {
+                false
+            }
+
+            fn size_hint(&self) -> SizeHint {
+                SizeHint::default()
+            }
+        }
+
+        impl<S, B> From<H3ReqBody<S, B>> for ReqBody
+        where
+            S: RecvStream + Send + Sync + Unpin + 'static,
+            B: Buf + Send + Sync + Unpin + 'static,
+        {
+            fn from(value: H3ReqBody<S, B>) -> ReqBody {
+                ReqBody::Inner(Box::pin(value))
+            }
+        }
     }
 }

@@ -8,10 +8,10 @@
 //! ```rust
 //! async fn doc<C>(conn: C)
 //! where
-//! C: salvo_quinn::quic::Connection<bytes::Bytes>,
-//! <C as salvo_quinn::quic::Connection<bytes::Bytes>>::BidiStream: Send + 'static
+//! C: salvo_http3::quic::Connection<bytes::Bytes>,
+//! <C as salvo_http3::quic::Connection<bytes::Bytes>>::BidiStream: Send + 'static
 //! {
-//!     let mut server_builder = salvo_quinn::server::builder();
+//!     let mut server_builder = salvo_http3::server::builder();
 //!     // Build the Connection
 //!     let mut h3_conn = server_builder.build(conn).await.unwrap();
 //!     loop {
@@ -37,9 +37,9 @@
 //!             Err(err) => {
 //!                 match err.get_error_level() {
 //!                     // break on connection errors
-//!                     salvo_quinn::error::ErrorLevel::ConnectionError => break,
+//!                     salvo_http3::error::ErrorLevel::ConnectionError => break,
 //!                     // continue on stream errors
-//!                     salvo_quinn::error::ErrorLevel::StreamError => continue,
+//!                     salvo_http3::error::ErrorLevel::StreamError => continue,
 //!                 }
 //!             }
 //!         }
@@ -474,10 +474,10 @@ where
 /// ```rust
 /// fn doc<C,B>(conn: C)
 /// where
-/// C: salvo_quinn::quic::Connection<B>,
+/// C: salvo_http3::quic::Connection<B>,
 /// B: bytes::Buf,
 /// {
-///     let mut server_builder = salvo_quinn::server::builder();
+///     let mut server_builder = salvo_http3::server::builder();
 ///     // Set the maximum header size
 ///     server_builder.max_field_section_size(1000);
 ///     // do not send grease types

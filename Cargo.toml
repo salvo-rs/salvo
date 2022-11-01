@@ -58,16 +58,19 @@ parking_lot = "0.12"
 percent-encoding = "2"
 pin-project = "1"
 quinn = { version = "0.8"}
+quinn-proto = { version = "0.9"}
 rand = "0.8"
 rcgen = "0.10"
 regex = "1"
 ring = "0.16"
 reqwest = "0.11"
+rustls = "0.20"
 rustls-pemfile = "1.0"
 rust-embed = "6"
 salvo_macros = { version = "0.37.2", path = "./crates/macros" }
 salvo_core = { version = "0.37.2", path = "./crates/core" }
 salvo_extra = { version = "0.37.2", path = "./crates/extra" }
+salvo-http3 = { version = "0.37.2", path = "./crates/http3" }
 salvo-quinn = { version = "0.37.2", path = "./crates/quinn" }
 salvo-cache = { version = "0.37.2", path = "./crates/cache" }
 salvo-cors = { version = "0.37.2", path = "./crates/cors" }

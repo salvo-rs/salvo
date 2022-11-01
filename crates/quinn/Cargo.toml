@@ -2,38 +2,30 @@
 name = "salvo-quinn"
 version.workspace = true
 edition.workspace = true
-authors = [
-    "Sean McArthur <sean@seanmonstar.com>",
-    "Jean-Christophe BEGUE <jc.begue@pm.me>",
-    "Chrislearn Young <chris@acroidea.com>",
-]
+description = "quinn supports for salvo"
+authors = ["Sean McArthur <sean@seanmonstar.com>", "Jean-Christophe BEGUE <jc.begue@pm.me>", "Chrislearn Young <chris@acroidea.com>"]
 license = "MIT"
 
 [dependencies]
-bytes = "1"
-futures-util = { version = "0.3", default-features = false }
-http = "0.2.3"
-tokio = { version = "1", features = ["sync"] }
-tracing = "0.1.18"
-fastrand = "1.7.0"
-quinn = { version = "0.8.0", default-features = false, features = [
-    "tls-rustls",
-    "ring",
-] }
-quinn-proto = { version = "0.9.0", default-features = false }
+bytes.workspace = true
+futures-util = { workspace = true, default-features = false }
+http.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+fastrand.workspace = true
+quinn = { workspace = true, default-features = false, features = ["tls-rustls", "ring"] }
+quinn-proto = { workspace = true, default-features = false }
+salvo-http3.workspace = true
+
 
 [dev-dependencies]
 assert_matches = "1.3.0"
 futures-util = { version = "0.3", default-features = false, features = ["io"] }
 proptest = "1"
 rcgen = "0.10"
-rustls = "0.20"
+rustls.workspace = true
 tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std"] }
-tracing-subscriber = { version = "0.3", default-features = false, features = [
-    "fmt",
-    "ansi",
-    "env-filter",
-    "time",
-    "tracing-log",
-] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log"] }
 bytes = "1"
+quinn = { version = "0.8.0", default-features = false, features = ["tls-rustls", "ring"] }
+quinn-proto = { version = "0.9.0", default-features = false }

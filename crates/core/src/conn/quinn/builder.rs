@@ -4,7 +4,7 @@ use std::io::Result as IoResult;
 
 use futures_util::future::poll_fn;
 use futures_util::Stream;
-use salvo_quinn::error::ErrorLevel;
+use salvo_http3::error::ErrorLevel;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 

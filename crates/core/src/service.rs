@@ -288,7 +288,7 @@ where
         let request = Request::from_hyper(req, scheme);
         let response = self.handle(request);
         let fut = async move {
-            let mut hyper_response = hyper::Response::<ResBody>::new(ResBody::None);
+            let mut hyper_response = hyper::Response::new(ResBody::None);
             response.await.write_back(&mut hyper_response).await;
             Ok(hyper_response)
         };
