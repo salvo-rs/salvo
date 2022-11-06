@@ -171,13 +171,7 @@ impl CookieFinder {
     pub fn new<T: Into<String>>(cookie_name: T) -> Self {
         Self {
             cookie_name: cookie_name.into(),
-            cared_methods: vec![
-                Method::GET,
-                Method::HEAD,
-                Method::OPTIONS,
-                Method::CONNECT,
-                Method::TRACE,
-            ],
+            cared_methods: ALL_METHODS.clone(),
         }
     }
     /// Get cared methods list reference.
