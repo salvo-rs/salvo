@@ -57,7 +57,7 @@ path-slash = "0.2"
 parking_lot = "0.12"
 percent-encoding = "2"
 pin-project = "1"
-quinn = { version = "0.8"}
+quinn = { version = "0.9"}
 quinn-proto = { version = "0.9"}
 rand = "0.8"
 rcgen = "0.10"
