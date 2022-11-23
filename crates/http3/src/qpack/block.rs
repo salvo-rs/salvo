@@ -181,7 +181,7 @@ impl HeaderPrefix {
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) {
-        let sign_bit = if self.sign_negative { 1 } else { 0 };
+        let sign_bit = u8::from(self.sign_negative);
         prefix_int::encode(8, 0, self.encoded_insert_count, buf);
         prefix_int::encode(7, sign_bit, self.delta_base, buf);
     }

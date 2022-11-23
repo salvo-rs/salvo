@@ -337,7 +337,7 @@ impl Pseudo {
             },
         );
 
-        let len = 3 + if authority.is_some() { 1 } else { 0 };
+        let len = 3 + usize::from(authority.is_some());
 
         //= https://www.rfc-editor.org/rfc/rfc9114#section-4.3
         //= type=implication

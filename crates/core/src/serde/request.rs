@@ -230,7 +230,7 @@ impl<'de> RequestDeserializer<'de> {
                             value = Some(cookie.value());
                         } else {
                             for alias in &field.aliases {
-                                if let Some(cookie) = self.cookies.get(*alias) {
+                                if let Some(cookie) = self.cookies.get(alias) {
                                     value = Some(cookie.value());
                                     break;
                                 }

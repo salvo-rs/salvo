@@ -15,7 +15,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         let mut msgs = Vec::with_capacity(files.len());
         for file in files {
             let dest = format!("temp/{}", file.name().unwrap_or("file"));
-            if let Err(e) = std::fs::copy(&file.path(), Path::new(&dest)) {
+            if let Err(e) = std::fs::copy(file.path(), Path::new(&dest)) {
                 res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 res.render(Text::Plain(format!("file not found in request: {}", e)));
             } else {

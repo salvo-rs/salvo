@@ -165,7 +165,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let field_ident = field
             .ident
             .as_ref()
-            .ok_or_else(|| Error::new_spanned(&name, "All fields must be named."))?
+            .ok_or_else(|| Error::new_spanned(name, "All fields must be named."))?
             .to_string();
 
         let mut sources = Vec::with_capacity(field.sources.len());
@@ -179,7 +179,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                         field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
                     });
                 } else {
-                    return Err(Error::new_spanned(&name, "Invalid type for request source."));
+                    return Err(Error::new_spanned(name, "Invalid type for request source."));
                 }
             }
             let source = metadata_source(&salvo, source);
@@ -188,7 +188,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             });
         }
         if nested_metadata.is_some() && field.sources.len() > 1 {
-            return Err(Error::new_spanned(&name, "Only one source can be from request."));
+            return Err(Error::new_spanned(name, "Only one source can be from request."));
         }
         let aliases = field.aliases.iter().map(|alias| {
             quote! {

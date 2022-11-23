@@ -43,7 +43,7 @@ impl HuffmanEncoder {
             self.buffer.reserve(((7 * end_range.byte) / 4) as usize);
         }
 
-        let forward = end_range.byte as usize - self.buffer.len() + if end_range.bit > 0 { 1 } else { 0 };
+        let forward = end_range.byte as usize - self.buffer.len() + usize::from(end_range.bit > 0);
         for _ in 0..forward {
             // push filler value that will ends huffman decoding if not
             // modified

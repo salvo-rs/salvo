@@ -1,4 +1,6 @@
-use std::{collections::HashMap, sync::RwLock};
+use std::collections::HashMap;
+use std::default::Default;
+use std::sync::RwLock;
 
 use juniper::{EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode};
 
@@ -31,9 +33,20 @@ pub struct Database {
 
 pub struct DatabaseContext(pub RwLock<Database>);
 
+impl Default for DatabaseContext {
+    fn default() -> DatabaseContext {
+        DatabaseContext::new()
+    }
+}
 impl DatabaseContext {
     pub fn new() -> Self {
         DatabaseContext(RwLock::<Database>::new(Database::new()))
+    }
+}
+
+impl Default for Database {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

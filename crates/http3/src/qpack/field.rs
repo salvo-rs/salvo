@@ -36,7 +36,7 @@ impl HeaderField {
         T: Into<Vec<u8>>,
     {
         Self {
-            name: self.name.to_owned(),
+            name: self.name.clone(),
             value: Cow::Owned(value.into()),
         }
     }

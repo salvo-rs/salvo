@@ -1,10 +1,9 @@
-use std::{io::Result, sync::Arc};
 use salvo::prelude::*;
 
-use juniper::{http::GraphQLRequest};
+use juniper::http::GraphQLRequest;
 use schema::create_schema;
 
-use crate::schema::{DatabaseContext, Schema};
+use crate::schema::DatabaseContext;
 
 pub mod mutation;
 pub mod query;
@@ -17,9 +16,8 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 
-
 #[handler]
-async fn graphql(req: &mut Request,depot: &mut Depot,res: &mut Response) {
+async fn graphql(req: &mut Request, res: &mut Response) {
     let schema = create_schema();
     let context = DatabaseContext::new();
     let data = req.parse_json::<GraphQLRequest>().await.unwrap();

@@ -1,6 +1,6 @@
 use juniper::{graphql_object, FieldResult};
 
-use crate::schema::{Database, DatabaseContext, User, UserInput};
+use crate::schema::{DatabaseContext, User, UserInput};
 
 pub struct MutationRoot;
 
