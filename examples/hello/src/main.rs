@@ -51,7 +51,7 @@ mod tests {
                 .unwrap()
         }
 
-        assert_eq!(access(&service, "hello1").await, "Hello World1");
+        assert_eq!(access(&service, "%E4%BD%A0%E5%A5%BD").await, "你好，世界！");
         assert_eq!(access(&service, "hello2").await, "Hello World2");
         assert_eq!(access(&service, "hello3").await, "Hello World3");
     }
