@@ -1,7 +1,7 @@
 //! Proxy middleware.
-use std::borrow::Cow;
 use std::convert::{Infallible, TryFrom};
 
+use percent_encoding::{utf8_percent_encode, CONTROLS};
 use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
 use hyper::{Body as HyperBody, Uri};
@@ -15,6 +15,14 @@ use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<HyperBody>;
 type HyperResponse = hyper::Response<HyperBody>;
+
+#[inline]
+pub(crate) fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
+}
 
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
@@ -103,8 +111,8 @@ where
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let mut rest: Cow<'_, str> = if let Some((_, rest)) = param {
-            rest.into()
+        let mut rest = if let Some((_, rest)) = param {
+            encode_url_path(rest)
         } else {
             "".into()
         };

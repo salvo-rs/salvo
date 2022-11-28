@@ -25,7 +25,7 @@ compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream"
 force-https = ["dep:tracing"]
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
-proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "tokio", "dep:tracing"]
+proxy = ["dep:fastrand", "dep:hyper", "hyper-rustls/webpki-tokio", "dep:once_cell", "dep:percent-encoding", "tokio", "dep:tracing"]
 size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 trailing-slash = ["dep:tracing"]
@@ -44,6 +44,7 @@ hyper = { workspace = true, features = ["stream", "server", "http1", "http2", "t
 hyper-rustls = { workspace = true, features = ["http1", "http2"], optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }
+percent-encoding = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false, path = "../core" }
 serde = { workspace = true, features = ["derive"], optional = true }
