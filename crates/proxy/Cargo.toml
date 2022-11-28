@@ -25,6 +25,7 @@ fastrand.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
 hyper-rustls = { workspace = true, features = ["http1", "http2", "webpki-tokio"] }
 once_cell.workspace = true
+percent-encoding.workspace = true
 
 [dev-dependencies]
 salvo_core = {  workspace = true, features = ["test"] }

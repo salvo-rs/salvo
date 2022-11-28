@@ -6,15 +6,24 @@ use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use once_cell::sync::OnceCell;
-use salvo_core::http::uri::{Uri, Scheme};
+use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
+use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::StatusCode;
-use salvo_core::http::{ReqBody, ResBody, Body};
+use salvo_core::http::{Body, ReqBody, ResBody};
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
+
+#[inline]
+pub(crate) fn encode_url_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
+}
 
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
@@ -103,8 +112,8 @@ where
         }
 
         let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let mut rest: Cow<'_, str> = if let Some((_, rest)) = param {
-            rest.into()
+        let mut rest = if let Some((_, rest)) = param {
+            encode_url_path(rest)
         } else {
             "".into()
         };
@@ -285,8 +294,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy() {
-        let router =
-            Router::new().push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+        let router = Router::new()
+            .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
         let content = TestClient::get("http://127.0.0.1:7979/rust/tools/install")
             .send(router)
