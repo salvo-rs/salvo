@@ -49,7 +49,7 @@ Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需�
 
 ## ⚡️ 快速开始
 
-你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs/book/guid/hello/).
+你可以查看[实例代码](https://github.com/salvo-rs/salvo/tree/main/examples),  或者访问[官网](https://salvo.rs).
 
 
 创建一个全新的项目:
