@@ -1,12 +1,12 @@
 //! Proxy middleware.
 use std::convert::{Infallible, TryFrom};
 
-use percent_encoding::{utf8_percent_encode, CONTROLS};
 use hyper::client::{Client, HttpConnector};
 use hyper::upgrade::OnUpgrade;
 use hyper::{Body as HyperBody, Uri};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use once_cell::sync::OnceCell;
+use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Scheme;
 use salvo_core::http::StatusCode;
@@ -293,8 +293,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy() {
-        let router =
-            Router::new().push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+        let router = Router::new()
+            .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
         let content = TestClient::get("http://127.0.0.1:7979/rust/tools/install")
             .send(router)
