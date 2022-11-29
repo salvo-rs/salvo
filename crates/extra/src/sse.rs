@@ -66,7 +66,7 @@ use tokio::time::{self, Sleep};
 use salvo_core::http::Response;
 
 /// Server-sent event data type
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum DataType {
     Text(String),
     Json(String),
@@ -84,7 +84,7 @@ impl Display for SseError {
 
 impl StdError for SseError {}
 /// Server-sent event
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct SseEvent {
     name: Option<String>,
     id: Option<String>,
