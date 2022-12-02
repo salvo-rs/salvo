@@ -541,22 +541,16 @@ impl Request {
     /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
-        let ctype = self
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default();
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            let body = self.body.take();
-            let headers = self.headers();
-            self.form_data
-                .get_or_try_init(|| async {
-                    match body {
-                        Some(body) => FormData::read(headers, body).await,
-                        None => Err(ParseError::EmptyBody),
-                    }
-                })
-                .await
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
+                let body = self.take_body();
+                let headers = self.headers();
+                self.form_data
+                    .get_or_try_init(|| async { FormData::read(headers, body).await })
+                    .await
+            } else {
+                Err(ParseError::NotFormData)
+            }
         } else {
             Err(ParseError::NotFormData)
         }
