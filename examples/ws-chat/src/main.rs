@@ -26,8 +26,7 @@ async fn main() {
         .handle(index)
         .push(Router::with_path("chat").handle(user_connected));
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[handler]

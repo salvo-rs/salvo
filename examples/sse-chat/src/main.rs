@@ -30,8 +30,7 @@ async fn main() {
             .push(Router::with_path("<id>").post(chat_send)),
     );
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[derive(Debug)]

@@ -21,8 +21,7 @@ async fn hello3(_req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(route()).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(route()).await;
 }
 
 fn route() -> Router {

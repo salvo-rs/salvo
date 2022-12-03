@@ -37,16 +37,18 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 > look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
 
 ## 🎯 Features
-   - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
-   - Http1, Http2 and **Http3**;
-   - Unified middleware and handle interface;
-   - Limitless routers nesting;
-   - Every router can have one or many middlewares;
-   - Integrated Multipart form processing;
-   - Support WebSocket;
-   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+
+- Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+- Http1, Http2 and **Http3**;
+- Unified middleware and handle interface;
+- Limitless routers nesting;
+- Every router can have one or many middlewares;
+- Integrated Multipart form processing;
+- Support WebSocket;
+- Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
+
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs).
 
 Create a new rust project:
@@ -86,12 +88,12 @@ async fn hello() -> &'static str {
 #[tokio::main]
 async fn main() {
     let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 ```
 
 ### Middleware
+
 There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!**
 
 ```rust
@@ -134,6 +136,7 @@ Router::with_path("articles")
 ```
 
 Then write the routers that require the user to login together, and use the corresponding middleware to verify whether the user is logged in:
+
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
@@ -180,6 +183,7 @@ Router::with_path("<id:guid>").get(index)
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### File upload
+
 We can get file async by the function `file` in `Request`:
 
 ```rust
@@ -272,6 +276,7 @@ struct Nested<'a> {
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
 ### More Examples
+
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
@@ -281,13 +286,13 @@ cargo run --bin example-basic-auth
 You can use any example name you want to run instead of `basic-auth` here.
 
 ## 🚀 Performance
+
 Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
 [https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
 ![techempower](assets/tp.jpg)
-
 
 ## 🎇 Deployment
 
@@ -297,10 +302,10 @@ You can deploy your salvo projects through [shuttle.rs](https://www.shuttle.rs/)
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
 
-  - Submit a feature request or bug report as an issue;
-  - Comment on issues that require feedback;
-  - Contribute code via pull requests;
-  - Publish Salvo-related technical articles on blogs or technical platforms。
+- Submit a feature request or bug report as an issue;
+- Comment on issues that require feedback;
+- Contribute code via pull requests;
+- Publish Salvo-related technical articles on blogs or technical platforms。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
 
@@ -314,5 +319,5 @@ Salvo is an open source project. If you want to support Salvo, you can ☕ [**bu
 ## ⚠️ License
 
 Salvo is licensed under either of
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))

@@ -9,5 +9,5 @@ async fn main() {
         .push(Router::with_path("google/<**rest>").handle(Proxy::new(["https://www.google.com"])))
         .push(Router::with_path("rust/<**rest>").handle(Proxy::new("https://www.rust-lang.org")));
     
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await; Server::new(acceptor).serve(router).await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
