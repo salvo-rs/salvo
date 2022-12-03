@@ -5,7 +5,7 @@ use std::fmt::{self, Formatter};
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{self, AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
@@ -551,17 +551,16 @@ impl Request {
     /// *Notice: This method takes body.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
-        let ctype = self
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default();
-        if ctype == "application/x-www-form-urlencoded" || ctype.starts_with("multipart/") {
-            let body = self.take_body();
-            let headers = self.headers();
-            self.form_data
-                .get_or_try_init(|| async { FormData::read(headers, body).await })
-                .await
+        if let Some(ctype) = self.content_type() {
+            if ctype.subtype() == mime::WWW_FORM_URLENCODED || ctype.type_() == mime::MULTIPART {
+                let body = self.take_body();
+                let headers = self.headers();
+                self.form_data
+                    .get_or_try_init(|| async { FormData::read(headers, body).await })
+                    .await
+            } else {
+                Err(ParseError::NotFormData)
+            }
         } else {
             Err(ParseError::NotFormData)
         }
