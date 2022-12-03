@@ -34,8 +34,7 @@ async fn main() {
         .get(home)
         .push(Router::with_path("short").hoop(short_cache).get(short))
         .push(Router::with_path("long").hoop(long_cache).get(long));
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(TcpListener::new("127.0.0.1:7878")).serve(router).await;
 }
 
 static HOME_HTML: &str = r#"
