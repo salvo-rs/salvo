@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/*", "examples/*"]
-exclude = ["crates/proxy", "examples/acme-http01", "examples/work-with-tower", "examples/with-listenfd", "examples/acme-tls-alpn01", "examples/ws-chat-with-salvo-websocket", "examples/proxy-react-app", "examples/proxy-simple", "examples/proxy-websocket"]
+exclude = ["crates/proxy", "examples/acme-http01", "examples/work-with-tower", "examples/db-prisma-orm", "examples/with-listenfd", "examples/acme-tls-alpn01", "examples/ws-chat-with-salvo-websocket", "examples/proxy-react-app", "examples/proxy-simple", "examples/proxy-websocket"]
 
 [workspace.package]
 version = "0.37.4"

@@ -1,5 +1,5 @@
 [package]
-name = "db_prisma_orm"
+name = "example-db-prisma-orm"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,8 +10,8 @@ name = "prisma-cli"
 path = "src/bin/prisma.rs"
 
 [dependencies]
-prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust", tag = "0.6.3", default-features = false, features = ["migrations", "sqlite"]}
-prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", tag = "0.6.3", default-features = false, features = ["migrations", "sqlite"]}
+prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="e12e693", default-features = false, features = ["migrations", "sqlite"]}
+prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="e12e693", default-features = false, features = ["migrations", "sqlite"]}
 
 serde = { version = "1.0.144", features = ["derive"] }
 salvo = { path = "../../crates/salvo" }
