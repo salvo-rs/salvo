@@ -9,7 +9,7 @@ use crate::Handler;
 
 /// Router struct is used for route request to different handlers.
 ///
-/// You can wite routers in flat way, like this:
+/// You can write routers in flat way, like this:
 ///
 /// # Example
 ///
