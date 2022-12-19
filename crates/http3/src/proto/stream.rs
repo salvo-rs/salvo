@@ -108,7 +108,7 @@ impl StreamId {
 
     /// Create a new StreamId
     fn new(index: u64, dir: Dir, initiator: Side) -> Self {
-        StreamId((index as u64) << 2 | (dir as u64) << 1 | initiator as u64)
+        StreamId(index << 2 | (dir as u64) << 1 | initiator as u64)
     }
 
     /// Distinguishes streams of the same initiator and directionality
