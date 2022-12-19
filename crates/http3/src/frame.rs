@@ -258,7 +258,6 @@ mod tests {
     use bytes::{BufMut, BytesMut};
     use futures_util::future::poll_fn;
     use std::{collections::VecDeque, fmt, sync::Arc};
-    use tokio;
 
     use crate::{
         proto::{coding::Encode, frame::FrameType, varint::VarInt},

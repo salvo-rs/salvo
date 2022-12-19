@@ -88,7 +88,7 @@ mod tests {
         format!(
             "{}:{}",
             depot.obtain::<Arc<User>>().map(|u| u.name.clone()).unwrap_or_default(),
-            depot.get::<&str>("data1").map(|s|*s).unwrap_or_default()
+            depot.get::<&str>("data1").copied().unwrap_or_default()
         )
     }
     #[tokio::test]
