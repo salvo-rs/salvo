@@ -1,11 +1,11 @@
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
-use salvo::prelude::*;
-use salvo::size_limiter;
 use salvo::affix;
 use salvo::http::header::{self, HeaderValue};
 use salvo::http::response::ResBody;
+use salvo::prelude::*;
+use salvo::size_limiter;
 
 use self::models::*;
 
@@ -17,7 +17,6 @@ use utoipa::{
 use utoipa_swagger_ui::Config;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
-
 
 #[handler]
 async fn hello(res: &mut Response) {
@@ -63,21 +62,25 @@ async fn main() {
 pub(crate) async fn start_server() {
     let config = Arc::new(Config::from("/api-doc/openapi.json"));
 
-    let router = Router::new().get(hello)
-        .push(Router::with_path("api")
-            .push(Router::with_path("todos")
-                .hoop(size_limiter::max_size(1024 * 16))
-                .get(list_todos)
-                .post(create_todo)
-                .push(Router::with_path("<id>").put(update_todo).delete(delete_todo))
-            ))
+    let router = Router::new()
+        .get(hello)
+        .push(
+            Router::with_path("api").push(
+                Router::with_path("todos")
+                    .hoop(size_limiter::max_size(1024 * 16))
+                    .get(list_todos)
+                    .post(create_todo)
+                    .push(Router::with_path("<id>").put(update_todo).delete(delete_todo)),
+            ),
+        )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(Router::with_path("/swagger-ui/<**>").hoop(affix::inject(config)).get(serve_swagger))
-        ;
+        .push(
+            Router::with_path("/swagger-ui/<**>")
+                .hoop(affix::inject(config))
+                .get(serve_swagger),
+        );
 
-    Server::new(TcpListener::bind("127.0.0.1:7878"))
-        .serve(router)
-        .await;
+    Server::new(TcpListener::bind("127.0.0.1:7878")).serve(router).await;
 }
 
 #[handler]
@@ -87,7 +90,6 @@ pub async fn openapi_json(res: &mut Response) {
 
 #[handler]
 pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-
     let config = depot.obtain::<Arc<Config>>().unwrap();
     let path = req.uri().path();
     let tail = path.strip_prefix("/swagger-ui/").unwrap();
