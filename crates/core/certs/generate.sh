@@ -101,11 +101,18 @@ cp rsa/end.key key.pem
 cp rsa/end.cert cert.pem
 cp rsa/end.fullchain chain.pem
 
-openssl pkcs12 -export -legacy \
+openssl pkcs12 -export \
     -inkey rsa/inter.key \
     -in rsa/inter.cert \
     -certfile rsa/end.chain \
     -out identity.p12 \
+    -passout pass:mypass
+
+openssl pkcs12 -export -legacy \
+    -inkey rsa/inter.key \
+    -in rsa/inter.cert \
+    -certfile rsa/end.chain \
+    -out identity-legacy.p12 \
     -passout pass:mypass
 
 rm -rf rsa
