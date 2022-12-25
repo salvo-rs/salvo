@@ -8,7 +8,7 @@ use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use serde_json::value::RawValue;
 
-use crate::extract::metadata::{Source, SourceFormat, SourceFrom};
+use crate::extract::metadata::{Field, Source, SourceFormat, SourceFrom};
 use crate::extract::Metadata;
 use crate::http::form::FormData;
 use crate::http::header::HeaderMap;
@@ -133,192 +133,203 @@ impl<'de> RequestDeserializer<'de> {
             Err(ValError::custom("parse value error"))
         }
     }
+
+    #[inline]
+    fn fill_value(&mut self, field: &'de Field) -> bool {
+        let sources = if !field.sources.is_empty() {
+            &field.sources
+        } else if !self.metadata.default_sources.is_empty() {
+            &self.metadata.default_sources
+        } else {
+            tracing::error!("no sources for field {}", field.name);
+            return false;
+        };
+
+        let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
+            if let Some(rename) = field.rename {
+                Cow::from(rename)
+            } else {
+                rename_all.rename(field.name).into()
+            }
+        } else {
+            if let Some(rename) = field.rename {
+                rename
+            } else {
+                field.name
+            }
+            .into()
+        };
+
+        for source in sources {
+            match source.from {
+                SourceFrom::Request => {
+                    self.field_source = Some(source);
+                    return true;
+                }
+                SourceFrom::Param => {
+                    let mut value = self.params.get(&*field_name);
+                    if value.is_none() {
+                        for alias in &field.aliases {
+                            value = self.params.get(*alias);
+                            if value.is_some() {
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(value) = value {
+                        self.field_str_value = Some(value);
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
+                SourceFrom::Query => {
+                    let mut value = self.queries.get_vec(field_name.as_ref());
+                    if value.is_none() {
+                        for alias in &field.aliases {
+                            value = self.queries.get_vec(*alias);
+                            if value.is_some() {
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(value) = value {
+                        self.field_vec_value = Some(value.iter().map(|v| CowValue(v.into())).collect());
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
+                SourceFrom::Header => {
+                    let mut value = None;
+                    if self.headers.contains_key(field_name.as_ref()) {
+                        value = Some(self.headers.get_all(field_name.as_ref()))
+                    } else {
+                        for alias in &field.aliases {
+                            if self.headers.contains_key(*alias) {
+                                value = Some(self.headers.get_all(*alias));
+                                break;
+                            }
+                        }
+                    };
+                    if let Some(value) = value {
+                        self.field_vec_value = Some(
+                            value
+                                .iter()
+                                .map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default())))
+                                .collect(),
+                        );
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
+                #[cfg(feature = "cookie")]
+                SourceFrom::Cookie => {
+                    let mut value = None;
+                    if let Some(cookie) = self.cookies.get(field_name.as_ref()) {
+                        value = Some(cookie.value());
+                    } else {
+                        for alias in &field.aliases {
+                            if let Some(cookie) = self.cookies.get(*alias) {
+                                value = Some(cookie.value());
+                                break;
+                            }
+                        }
+                    };
+                    if let Some(value) = value {
+                        self.field_str_value = Some(value);
+                        self.field_source = Some(source);
+                        return true;
+                    }
+                }
+                SourceFrom::Body => match source.format {
+                    SourceFormat::Json => {
+                        if let Some(payload) = &self.payload {
+                            match payload {
+                                Payload::FormData(form_data) => {
+                                    let mut value = form_data.fields.get(field_name.as_ref());
+                                    if value.is_none() {
+                                        for alias in &field.aliases {
+                                            value = form_data.fields.get(*alias);
+                                            if value.is_some() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if let Some(value) = value {
+                                        self.field_str_value = Some(value);
+                                        self.field_source = Some(source);
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                }
+                                Payload::JsonMap(ref map) => {
+                                    let mut value = map.get(field_name.as_ref());
+                                    if value.is_none() {
+                                        for alias in &field.aliases {
+                                            value = map.get(alias);
+                                            if value.is_some() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if let Some(value) = value {
+                                        self.field_str_value = Some(value.get());
+                                        self.field_source = Some(source);
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                }
+                                Payload::JsonStr(value) => {
+                                    self.field_str_value = Some(*value);
+                                    self.field_source = Some(source);
+                                    return true;
+                                }
+                            }
+                        } else {
+                            return false;
+                        }
+                    }
+                    SourceFormat::MultiMap => {
+                        if let Some(Payload::FormData(form_data)) = self.payload {
+                            let mut value = form_data.fields.get_vec(field.name);
+                            if value.is_none() {
+                                for alias in &field.aliases {
+                                    value = form_data.fields.get_vec(*alias);
+                                    if value.is_some() {
+                                        break;
+                                    }
+                                }
+                            }
+                            if let Some(value) = value {
+                                self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
+                                self.field_source = Some(source);
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
+                    }
+                    _ => {
+                        panic!("Unsupported source format: {:?}", source.format);
+                    }
+                },
+            }
+        }
+        false
+    }
     #[inline]
     fn next(&mut self) -> Option<Cow<'_, str>> {
-        if self.field_index < self.metadata.fields.len() as isize - 1 {
+        while self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;
             let field = &self.metadata.fields[self.field_index as usize];
-            let sources = if !field.sources.is_empty() {
-                &field.sources
-            } else if !self.metadata.default_sources.is_empty() {
-                &self.metadata.default_sources
-            } else {
-                tracing::error!("no sources for field {}", field.name);
-                return None;
-            };
             self.field_str_value = None;
             self.field_vec_value = None;
-            let field_name: Cow<'_, str> = if let Some(rename_all) = self.metadata.rename_all {
-                if let Some(rename) = field.rename {
-                    Cow::from(rename)
-                } else {
-                    rename_all.rename(field.name).into()
-                }
-            } else {
-                if let Some(rename) = field.rename {
-                    rename
-                } else {
-                    field.name
-                }
-                .into()
-            };
-            for source in sources {
-                match source.from {
-                    SourceFrom::Request => {
-                        self.field_source = Some(source);
-                        return Some(Cow::from(field.name));
-                    }
-                    SourceFrom::Param => {
-                        let mut value = self.params.get(&*field_name);
-                        if value.is_none() {
-                            for alias in &field.aliases {
-                                value = self.params.get(*alias);
-                                if value.is_some() {
-                                    break;
-                                }
-                            }
-                        }
-                        if let Some(value) = value {
-                            self.field_str_value = Some(value);
-                            self.field_source = Some(source);
-                            return Some(Cow::from(field.name));
-                        }
-                    }
-                    SourceFrom::Query => {
-                        let mut value = self.queries.get_vec(field_name.as_ref());
-                        if value.is_none() {
-                            for alias in &field.aliases {
-                                value = self.queries.get_vec(*alias);
-                                if value.is_some() {
-                                    break;
-                                }
-                            }
-                        }
-                        if let Some(value) = value {
-                            self.field_vec_value = Some(value.iter().map(|v| CowValue(v.into())).collect());
-                            self.field_source = Some(source);
-                            return Some(Cow::from(field.name));
-                        }
-                    }
-                    SourceFrom::Header => {
-                        let mut value = None;
-                        if self.headers.contains_key(field_name.as_ref()) {
-                            value = Some(self.headers.get_all(field_name.as_ref()))
-                        } else {
-                            for alias in &field.aliases {
-                                if self.headers.contains_key(*alias) {
-                                    value = Some(self.headers.get_all(*alias));
-                                    break;
-                                }
-                            }
-                        };
-                        if let Some(value) = value {
-                            self.field_vec_value = Some(
-                                value
-                                    .iter()
-                                    .map(|v| CowValue(Cow::from(v.to_str().unwrap_or_default())))
-                                    .collect(),
-                            );
-                            self.field_source = Some(source);
-                            return Some(Cow::from(field.name));
-                        }
-                    }
-                    #[cfg(feature = "cookie")]
-                    SourceFrom::Cookie => {
-                        let mut value = None;
-                        if let Some(cookie) = self.cookies.get(field_name.as_ref()) {
-                            value = Some(cookie.value());
-                        } else {
-                            for alias in &field.aliases {
-                                if let Some(cookie) = self.cookies.get(*alias) {
-                                    value = Some(cookie.value());
-                                    break;
-                                }
-                            }
-                        };
-                        if let Some(value) = value {
-                            self.field_str_value = Some(value);
-                            self.field_source = Some(source);
-                            return Some(Cow::from(field.name));
-                        }
-                    }
-                    SourceFrom::Body => match source.format {
-                        SourceFormat::Json => {
-                            if let Some(payload) = &self.payload {
-                                match payload {
-                                    Payload::FormData(form_data) => {
-                                        let mut value = form_data.fields.get(field_name.as_ref());
-                                        if value.is_none() {
-                                            for alias in &field.aliases {
-                                                value = form_data.fields.get(*alias);
-                                                if value.is_some() {
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if let Some(value) = value {
-                                            self.field_str_value = Some(value);
-                                            self.field_source = Some(source);
-                                            return Some(Cow::from(field.name));
-                                        } else {
-                                            return None;
-                                        }
-                                    }
-                                    Payload::JsonMap(ref map) => {
-                                        let mut value = map.get(field_name.as_ref());
-                                        if value.is_none() {
-                                            for alias in &field.aliases {
-                                                value = map.get(alias);
-                                                if value.is_some() {
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if let Some(value) = value {
-                                            self.field_str_value = Some(value.get());
-                                            self.field_source = Some(source);
-                                            return Some(Cow::from(field.name));
-                                        } else {
-                                            return None;
-                                        }
-                                    }
-                                    Payload::JsonStr(value) => {
-                                        self.field_str_value = Some(*value);
-                                        self.field_source = Some(source);
-                                        return Some(Cow::from(field.name));
-                                    }
-                                }
-                            } else {
-                                return None;
-                            }
-                        }
-                        SourceFormat::MultiMap => {
-                            if let Some(Payload::FormData(form_data)) = self.payload {
-                                let mut value = form_data.fields.get_vec(field.name);
-                                if value.is_none() {
-                                    for alias in &field.aliases {
-                                        value = form_data.fields.get_vec(*alias);
-                                        if value.is_some() {
-                                            break;
-                                        }
-                                    }
-                                }
-                                if let Some(value) = value {
-                                    self.field_vec_value = Some(value.iter().map(|v| CowValue(Cow::from(v))).collect());
-                                    self.field_source = Some(source);
-                                    return Some(Cow::from(field.name));
-                                } else {
-                                    return None;
-                                }
-                            } else {
-                                return None;
-                            }
-                        }
-                        _ => {
-                            panic!("Unsupported source format: {:?}", source.format);
-                        }
-                    },
-                }
+
+            if self.fill_value(field) {
+                return Some(Cow::from(field.name));
             }
         }
         None
