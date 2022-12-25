@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::convert::{From, TryInto};
+use std::convert::TryInto;
 use std::str;
 use std::sync::Arc;
 
@@ -109,8 +109,7 @@ impl RequestBuilder {
             Some(password) => format!("{}:{}", username, password),
             None => format!("{}:", username),
         };
-        let mut encoded = String::from("Basic ");
-        base64::encode_config_buf(auth.as_bytes(), base64::STANDARD, &mut encoded);
+        let encoded = format!("Basic {}", base64::encode(auth.as_bytes()));
         self.add_header(header::AUTHORIZATION, encoded, true)
     }
 
