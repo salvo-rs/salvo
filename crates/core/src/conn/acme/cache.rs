@@ -4,9 +4,9 @@ allows the use of a local directory as cache.
 Note that the files contain private keys.
 */
 
+use std::error::Error as StdError;
 use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
-use std::error::Error as StdError;
 
 use async_trait::async_trait;
 use ring::digest::{Context, SHA256};
@@ -165,5 +165,9 @@ fn file_hash_part(data: &[String]) -> String {
         ctx.update(el.as_ref());
         ctx.update(&[0])
     }
-    base64::encode_config(ctx.finish(), base64::URL_SAFE_NO_PAD)
+    let engine = base64::engine::fast_portable::FastPortable::from(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::fast_portable::NO_PAD,
+    );
+    base64::encode_engine(ctx.finish(), &engine)
 }

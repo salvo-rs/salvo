@@ -33,7 +33,11 @@ impl<'a> Protected<'a> {
         };
         let protected = serde_json::to_vec(&protected)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
-        Ok(base64::encode_config(protected, URL_SAFE_NO_PAD))
+        let engine = base64::engine::fast_portable::FastPortable::from(
+            &base64::alphabet::URL_SAFE,
+            base64::engine::fast_portable::NO_PAD,
+        );
+        Ok(base64::encode_engine(protected, &engine))
     }
 }
 
@@ -52,13 +56,17 @@ impl Jwk {
     #[inline]
     fn new(key: &KeyPair) -> Self {
         let (x, y) = key.public_key()[1..].split_at(32);
+        let engine = base64::engine::fast_portable::FastPortable::from(
+            &base64::alphabet::URL_SAFE,
+            base64::engine::fast_portable::NO_PAD,
+        );
         Self {
             alg: "ES256",
             crv: "P-256",
             kty: "EC",
             u: "sig",
-            x: base64::encode_config(x, URL_SAFE_NO_PAD),
-            y: base64::encode_config(y, URL_SAFE_NO_PAD),
+            x: base64::encode_engine(x, &engine),
+            y: base64::encode_engine(y, &engine),
         }
     }
 
@@ -81,7 +89,11 @@ impl Jwk {
         let json = serde_json::to_vec(&jwk_thumb)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
         let hash = sha256(&json);
-        Ok(base64::encode_config(hash, URL_SAFE_NO_PAD))
+        let engine = base64::engine::fast_portable::FastPortable::from(
+            &base64::alphabet::URL_SAFE,
+            base64::engine::fast_portable::NO_PAD,
+        );
+        Ok(base64::encode_engine(hash, &engine))
     }
 }
 
@@ -115,9 +127,13 @@ pub(crate) async fn request(
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode payload: {}", e)))?,
         None => Vec::new(),
     };
-    let payload = base64::encode_config(payload, URL_SAFE_NO_PAD);
+    let engine = base64::engine::fast_portable::FastPortable::from(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::fast_portable::NO_PAD,
+    );
+    let payload = base64::encode_engine(payload, &engine);
     let combined = format!("{}.{}", &protected, &payload);
-    let signature = base64::encode_config(key_pair.sign(combined.as_bytes())?, URL_SAFE_NO_PAD);
+    let signature = base64::encode_engine(key_pair.sign(combined.as_bytes())?, &engine);
     let body = serde_json::to_vec(&Body {
         protected,
         payload,
