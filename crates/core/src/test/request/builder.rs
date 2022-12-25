@@ -111,8 +111,7 @@ impl RequestBuilder {
             Some(password) => format!("{}:{}", username, password),
             None => format!("{}:", username),
         };
-        let mut encoded = String::from("Basic ");
-        base64::encode_config_buf(auth.as_bytes(), base64::STANDARD, &mut encoded);
+        let encoded = format!("Basic {}", base64::encode(auth.as_bytes()));
         self.add_header(header::AUTHORIZATION, encoded, true)
     }
 
@@ -210,7 +209,7 @@ impl RequestBuilder {
     /// Build final request.
     pub fn build(self) -> Request {
         let req = self.build_hyper();
-        let scheme =  req.uri().scheme().cloned().unwrap_or(Scheme::HTTP);
+        let scheme = req.uri().scheme().cloned().unwrap_or(Scheme::HTTP);
         Request::from_hyper(req, scheme)
     }
 
