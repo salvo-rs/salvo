@@ -117,7 +117,7 @@ where
             "".into()
         };
         if let Some(query) = req.uri().query() {
-            rest = format!("{}?{}", rest, query).into();
+            rest = format!("{}?{}", rest, query);
         }
 
         let forward_url = if upstream.ends_with('/') && rest.starts_with('/') {
