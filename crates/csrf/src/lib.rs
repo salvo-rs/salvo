@@ -316,7 +316,8 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
         let (token, secret) = self.cipher.generate();
         if let Err(e) = self.store.save_secret(req, depot, res, &secret).await {
             tracing::error!(error = ?e, "salvo csrf token failed");
-        }        let engine = base64::engine::fast_portable::FastPortable::from(
+        }
+        let engine = base64::engine::fast_portable::FastPortable::from(
             &base64::alphabet::URL_SAFE,
             base64::engine::fast_portable::NO_PAD,
         );
