@@ -1,7 +1,7 @@
 //! basic auth middleware
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
-use salvo_core::{async_trait, Depot, Error, Handler, FlowCtrl};
+use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};
 
 /// key used when insert into depot.
 pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
@@ -43,25 +43,33 @@ where
             validator,
         }
     }
-
+    
+    #[doc(hidden)]
     #[inline]
-    fn ask_credentials(&self, res: &mut Response) {
-        res.headers_mut().insert(
-            "WWW-Authenticate",
-            format!("Basic realm={:?}", self.realm).parse().unwrap(),
-        );
-        res.set_status_code(StatusCode::UNAUTHORIZED);
+    pub fn ask_credentials(&self, res: &mut Response) {
+        ask_credentials(res, &self.realm)
     }
+}
 
-    #[inline]
-    fn parse_authorization<S: AsRef<str>>(&self, authorization: S) -> Result<(String, String), Error> {
-        let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
-        let auth = auth.iter().map(|&c| c as char).collect::<String>();
-        if let Some((username, password)) = auth.split_once(':') {
-            Ok((username.to_owned(), password.to_owned()))
-        } else {
-            Err(Error::other("parse http header failed"))
-        }
+#[doc(hidden)]
+#[inline]
+pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
+    res.headers_mut().insert(
+        "WWW-Authenticate",
+        format!("Basic realm={:?}", realm.as_ref()).parse().unwrap(),
+    );
+    res.set_status_code(StatusCode::UNAUTHORIZED);
+}
+
+#[doc(hidden)]
+#[inline]
+pub fn parse_credentials(authorization: impl AsRef<str>) -> Result<(String, String), Error> {
+    let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
+    let auth = auth.iter().map(|&c| c as char).collect::<String>();
+    if let Some((username, password)) = auth.split_once(':') {
+        Ok((username.to_owned(), password.to_owned()))
+    } else {
+        Err(Error::other("parse http header failed"))
     }
 }
 
@@ -74,7 +82,7 @@ where
         if let Some(auth) = req.headers().get(AUTHORIZATION).and_then(|auth| auth.to_str().ok()) {
             if auth.starts_with("Basic") {
                 if let Some((_, auth)) = auth.split_once(' ') {
-                    if let Ok((username, password)) = self.parse_authorization(auth) {
+                    if let Ok((username, password)) = parse_credentials(auth) {
                         if self.validator.validate(&username, &password).await {
                             depot.insert(USERNAME_KEY, username);
                             ctrl.call_next(req, depot, res).await;
