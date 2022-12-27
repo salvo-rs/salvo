@@ -1,4 +1,5 @@
 //! basic auth middleware
+use hyper::header::{HeaderName, PROXY_AUTHORIZATION};
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};
@@ -28,6 +29,7 @@ impl BasicAuthDepotExt for Depot {
 /// BasicAuth
 pub struct BasicAuth<V: BasicAuthValidator> {
     realm: String,
+    header_names: Vec<HeaderName>,
     validator: V,
 }
 
@@ -40,14 +42,28 @@ where
     pub fn new(validator: V) -> Self {
         BasicAuth {
             realm: "realm".to_owned(),
+            header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
             validator,
         }
     }
 
     #[doc(hidden)]
     #[inline]
+    pub fn set_header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
+        self.header_names = header_names.into();
+        self
+    }
+
+    #[doc(hidden)]
+    #[inline]
     pub fn ask_credentials(&self, res: &mut Response) {
         ask_credentials(res, &self.realm)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn parse_credentials(&self, req: &Request) -> Result<(String, String), Error> {
+        parse_credentials(req, &self.header_names)
     }
 }
 
@@ -63,14 +79,29 @@ pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
 
 #[doc(hidden)]
 #[inline]
-pub fn parse_credentials(authorization: impl AsRef<str>) -> Result<(String, String), Error> {
-    let auth = base64::decode(authorization.as_ref()).map_err(Error::other)?;
-    let auth = auth.iter().map(|&c| c as char).collect::<String>();
-    if let Some((username, password)) = auth.split_once(':') {
-        Ok((username.to_owned(), password.to_owned()))
-    } else {
-        Err(Error::other("parse http header failed"))
+pub fn parse_credentials(req: &Request, header_names: &[HeaderName]) -> Result<(String, String), Error> {
+    let mut authorization = "";
+    for header_name in header_names {
+        if let Some(header_value) = req.headers().get(header_name) {
+            authorization = header_value.to_str().unwrap_or_default();
+            if !authorization.is_empty() {
+                break;
+            }
+        }
     }
+
+    if authorization.starts_with("Basic") {
+        if let Some((_, auth)) = authorization.split_once(' ') {
+            let auth = base64::decode(auth).map_err(Error::other)?;
+            let auth = auth.iter().map(|&c| c as char).collect::<String>();
+            if let Some((username, password)) = auth.split_once(':') {
+                return Ok((username.to_owned(), password.to_owned()));
+            } else {
+                return Err(Error::other("`authorization` has bad format"));
+            }
+        }
+    }
+    Err(Error::other("parse http header failed"))
 }
 
 #[async_trait]
@@ -79,18 +110,11 @@ where
     V: BasicAuthValidator + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        let auth = req.headers().get(AUTHORIZATION).and_then(|auth| auth.to_str().ok());
-        if let Some(auth) = auth {
-            if auth.starts_with("Basic") {
-                if let Some((_, auth)) = auth.split_once(' ') {
-                    if let Ok((username, password)) = parse_credentials(auth) {
-                        if self.validator.validate(&username, &password).await {
-                            depot.insert(USERNAME_KEY, username);
-                            ctrl.call_next(req, depot, res).await;
-                            return;
-                        }
-                    }
-                }
+        if let Ok((username, password)) = self.parse_credentials(req) {
+            if self.validator.validate(&username, &password).await {
+                depot.insert(USERNAME_KEY, username);
+                ctrl.call_next(req, depot, res).await;
+                return;
             }
         }
         self.ask_credentials(res);
