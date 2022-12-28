@@ -192,7 +192,7 @@ async fn compress_bytes(algo: CompressionAlgo, bytes: &[u8]) -> Result<Vec<u8>, 
 impl Handler for Compression {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
-        if ctrl.is_ceased() {
+        if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
             return;
         }
         let content_type = res
