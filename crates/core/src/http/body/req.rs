@@ -85,7 +85,7 @@ impl Stream for ReqBody {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
-            Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok)),
+            Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,

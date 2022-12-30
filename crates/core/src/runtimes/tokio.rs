@@ -29,14 +29,14 @@ where
 pub struct TokioTimer;
 
 impl Timer for TokioTimer {
-    fn sleep(&self, duration: Duration) -> Box<dyn Sleep + Unpin> {
+    fn sleep(&self, duration: Duration) -> Pin<Box<dyn Sleep>> {
         let s = tokio::time::sleep(duration);
         let hs = TokioSleep { inner: Box::pin(s) };
-        Box::new(hs)
+        Box::pin(hs)
     }
 
-    fn sleep_until(&self, deadline: Instant) -> Box<dyn Sleep + Unpin> {
-        Box::new(TokioSleep {
+    fn sleep_until(&self, deadline: Instant) -> Pin<Box<dyn Sleep>> {
+        Box::pin(TokioSleep {
             inner: Box::pin(tokio::time::sleep_until(deadline.into())),
         })
     }
