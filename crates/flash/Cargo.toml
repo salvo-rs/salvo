@@ -35,5 +35,4 @@ serde_json = { workspace = true, optional = true }
 [dev-dependencies]
 salvo_core = {workspace = true, features = ["test"] }
 tracing-test.workspace = true
-reqwest.workspace = true
 tokio.workspace = true

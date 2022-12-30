@@ -381,11 +381,11 @@ impl Into<Vec<u8>> for Message {
 
 #[cfg(test)]
 mod tests {
+    use salvo_core::conn::{Acceptor, Listener};
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
 
     use super::*;
-    use salvo_core::conn::{Acceptor, Listener};
 
     #[handler]
     async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
@@ -416,17 +416,27 @@ mod tests {
             Server::new(acceptor).serve(router).await;
         });
 
-        let base_url = format!("http://{}", addr);
-        let client = reqwest::Client::new();
-        let response = client
-            .get(&base_url)
+        let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(stream).await.unwrap();
+        tokio::task::spawn(async move {
+            if let Err(err) = conn.await {
+                println!("Connection failed: {:?}", err);
+            }
+        });
+
+        // Fetch the url...
+        let req = hyper::Request::builder()
+            .uri(format!("http://{}", addr))
             .header(UPGRADE, "websocket")
             .header(CONNECTION, "Upgrade")
             .header(SEC_WEBSOCKET_KEY, "6D69KGBOr4Re+Nj6zx9aQA==")
             .header(SEC_WEBSOCKET_VERSION, "13")
-            .send()
-            .await
+            .body(http_body_util::Empty::<hyper::body::Bytes>::new())
             .unwrap();
-        assert_eq!(response.status(), StatusCode::SWITCHING_PROTOCOLS);
+
+        let res = sender.send_request(req).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::SWITCHING_PROTOCOLS);
     }
 }

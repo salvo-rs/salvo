@@ -56,13 +56,14 @@ impl Modify for SecurityAddon {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    start_server().await;
+
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(route()).await;
 }
 
-pub(crate) async fn start_server() {
+pub(crate) fn route() -> Router {
     let config = Arc::new(Config::from("/api-doc/openapi.json"));
-
-    let router = Router::new()
+    Router::new()
         .get(hello)
         .push(
             Router::with_path("api").push(
@@ -78,10 +79,7 @@ pub(crate) async fn start_server() {
             Router::with_path("/swagger-ui/<**>")
                 .hoop(affix::inject(config))
                 .get(serve_swagger),
-        );
-
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+        )
 }
 
 #[handler]
@@ -260,34 +258,26 @@ mod models {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Client;
     use salvo::http::StatusCode;
+    use salvo::test::TestClient;
 
     use super::models::Todo;
 
     #[tokio::test]
     async fn test_todo_create() {
-        tokio::task::spawn(async {
-            super::start_server().await;
-        });
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let client = Client::new();
-        let resp = client
-            .post("http://127.0.0.1:7878/api/todos")
+        let resp = TestClient::post("http://127.0.0.1:7878/api/todos")
             .json(&test_todo())
-            .send()
-            .await
-            .unwrap();
+            .send(super::route())
+            .await;
 
-        assert_eq!(resp.status(), StatusCode::CREATED);
-        let resp = client
-            .post("http://127.0.0.1:7878/api/todos")
+        assert_eq!(resp.status_code().unwrap(), StatusCode::CREATED);
+        let resp = TestClient::post("http://127.0.0.1:7878/api/todos")
             .json(&test_todo())
-            .send()
-            .await
-            .unwrap();
+            .send(super::route())
+            .await;
 
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(resp.status_code().unwrap(), StatusCode::BAD_REQUEST);
     }
 
     fn test_todo() -> Todo {

@@ -256,6 +256,7 @@ mod tests {
     use serde::Serialize;
 
     use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
 
     #[tokio::test]
     async fn test_server() {
@@ -272,65 +273,53 @@ mod tests {
             res.render(Json(User { name: "jobs".into() }));
         }
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
-        let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
-        let server = Server::new(acceptor);
-        let addr = server.holdings()[0].local_addr.clone().into_std().unwrap();
-        tokio::spawn(async move {
-            server.serve(router).await;
-        });
+        let serivce = Service::new(router);
 
-        let base_url = format!("http://{}", addr);
-        let client = reqwest::Client::new();
-        let result = client.get(&base_url).send().await.unwrap().text().await.unwrap();
+        let base_url = "http://127.0.0.1:7878";
+        let result = TestClient::get(&base_url)
+            .send(&serivce)
+            .await
+            .take_string()
+            .await
+            .unwrap();
         assert_eq!(result, "Hello World");
 
-        let client = reqwest::Client::new();
-        let result = client
-            .get(format!("{}/json", base_url))
-            .send()
+        let result = TestClient::get(format!("{}/json", base_url))
+            .send(&serivce)
             .await
-            .unwrap()
-            .text()
+            .take_string()
             .await
             .unwrap();
         assert_eq!(result, r#"{"name":"jobs"}"#);
 
-        let result = client
-            .get(format!("{}/not_exist", base_url))
-            .send()
+        let result = TestClient::get(format!("{}/not_exist", base_url))
+            .send(&serivce)
             .await
-            .unwrap()
-            .text()
+            .take_string()
             .await
             .unwrap();
         assert!(result.contains("Not Found"));
-        let result = client
-            .get(format!("{}/not_exist", base_url))
-            .header("accept", "application/json")
-            .send()
+        let result = TestClient::get(format!("{}/not_exist", base_url))
+            .add_header("accept", "application/json", true)
+            .send(&serivce)
             .await
-            .unwrap()
-            .text()
+            .take_string()
             .await
             .unwrap();
         assert!(result.contains(r#""code":404"#));
-        let result = client
-            .get(format!("{}/not_exist", base_url))
-            .header("accept", "text/plain")
-            .send()
+        let result = TestClient::get(format!("{}/not_exist", base_url))
+            .add_header("accept", "text/plain", true)
+            .send(&serivce)
             .await
-            .unwrap()
-            .text()
+            .take_string()
             .await
             .unwrap();
         assert!(result.contains("code:404"));
-        let result = client
-            .get(format!("{}/not_exist", base_url))
-            .header("accept", "application/xml")
-            .send()
+        let result = TestClient::get(format!("{}/not_exist", base_url))
+            .add_header("accept", "application/xml", true)
+            .send(&serivce)
             .await
-            .unwrap()
-            .text()
+            .take_string()
             .await
             .unwrap();
         assert!(result.contains("<code>404</code>"));

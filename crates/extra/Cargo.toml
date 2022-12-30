@@ -52,7 +52,7 @@ tokio-util = { workspace = true, features = ["io"], optional = true }
 tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
-reqwest.workspace = true
 salvo_core = { features = ["test"], path = "../core" }
 time.workspace = true
 tracing-test.workspace = true
+http-body-util.workspace = true

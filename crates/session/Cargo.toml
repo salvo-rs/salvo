@@ -26,5 +26,4 @@ tracing.workspace = true
 [dev-dependencies]
 salvo_core = { features = ["test"], path = "../core" }
 tracing-test.workspace = true
-reqwest.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

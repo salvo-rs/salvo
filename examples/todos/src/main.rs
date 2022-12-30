@@ -14,14 +14,16 @@ async fn main() {
 }
 
 pub(crate) async fn start_server() {
-    let router = Router::with_path("todos")
+    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    Server::new(acceptor).serve(route()).await;
+}
+
+fn route() -> Router {
+    Router::with_path("todos")
         .hoop(size_limiter::max_size(1024 * 16))
         .get(list_todos)
         .post(create_todo)
-        .push(Router::with_path("<id>").put(update_todo).delete(delete_todo));
-
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
-    Server::new(acceptor).serve(router).await;
+        .push(Router::with_path("<id>").put(update_todo).delete(delete_todo))
 }
 
 #[handler]
@@ -120,8 +122,8 @@ mod models {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Client;
     use salvo::http::StatusCode;
+    use salvo::test::{ResponseExt, TestClient};
 
     use super::models::Todo;
 
@@ -131,23 +133,18 @@ mod tests {
             super::start_server().await;
         });
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let client = Client::new();
-        let resp = client
-            .post("http://127.0.0.1:7878/todos")
+        let resp = TestClient::post("http://127.0.0.1:7878/todos")
             .json(&test_todo())
-            .send()
-            .await
-            .unwrap();
+            .send(super::route())
+            .await;
 
-        assert_eq!(resp.status(), StatusCode::CREATED);
-        let resp = client
-            .post("http://127.0.0.1:7878/todos")
+        assert_eq!(resp.status_code().unwrap(), StatusCode::CREATED);
+        let resp = TestClient::post("http://127.0.0.1:7878/todos")
             .json(&test_todo())
-            .send()
-            .await
-            .unwrap();
+            .send(super::route())
+            .await;
 
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(resp.status_code().unwrap(), StatusCode::BAD_REQUEST);
     }
 
     fn test_todo() -> Todo {
