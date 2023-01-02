@@ -222,7 +222,7 @@ impl HyperHandler {
                 if !is_allowed {
                     res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
-            } else if res.body.is_none() && !has_error {
+            } else if res.body.is_none() && !has_error && res.status_code() != Some(StatusCode::NO_CONTENT) {
                 // check for avoid warning when errors (404 etc.)
                 tracing::warn!(
                     uri = ?req.uri(),
