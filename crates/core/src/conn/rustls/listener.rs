@@ -20,7 +20,6 @@ use crate::service::HyperHandler;
 use super::RustlsConfig;
 
 /// RustlsListener
-
 pub struct RustlsListener<C, T> {
     config_stream: C,
     inner: T,
@@ -41,7 +40,7 @@ where
 #[async_trait]
 impl<C, T> Listener for RustlsListener<C, T>
 where
-    C: IntoConfigStream<RustlsConfig>,
+    C: IntoConfigStream<RustlsConfig> + Send,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
@@ -68,10 +67,11 @@ pub struct RustlsAcceptor<C, T> {
 }
 impl<C, T> RustlsAcceptor<C, T>
 where
-    T: Acceptor,
+    T: Acceptor + Send,
+    C: Send
 {
     /// Create a new `RustlsAcceptor`.
-    pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> {
+    pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> where C: Send, T: Send{
         let holdings = inner
             .holdings()
             .iter()

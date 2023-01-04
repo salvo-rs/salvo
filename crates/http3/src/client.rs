@@ -387,11 +387,11 @@ where
                     //# of any other type as a connection error of type H3_ID_ERROR.
                     if !id.is_request() {
                         return Poll::Ready(Err(Code::H3_ID_ERROR.with_reason(
-                            format!("non-request StreamId in a GoAway frame: {}", id),
+                            format!("non-request StreamId in a GoAway frame: {id}"),
                             ErrorLevel::ConnectionError,
                         )));
                     }
-                    info!("Server initiated graceful shutdown, last: StreamId({})", id);
+                    info!("Server initiated graceful shutdown, last: StreamId({id})");
                 }
 
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.5
@@ -404,7 +404,7 @@ where
                 //# H3_FRAME_UNEXPECTED.
                 Ok(frame) => {
                     return Poll::Ready(Err(Code::H3_FRAME_UNEXPECTED.with_reason(
-                        format!("on client control stream: {:?}", frame),
+                        format!("on client control stream: {frame:?}"),
                         ErrorLevel::ConnectionError,
                     )))
                 }

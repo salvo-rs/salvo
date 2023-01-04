@@ -69,6 +69,8 @@ store if it requires it.
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
+
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 
 use std::fmt::{self, Formatter};

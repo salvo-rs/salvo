@@ -349,8 +349,8 @@ fn list_html(current: &CurrentInfo) -> String {
             HOME_ICON,
             segments
                 .map(|seg| {
-                    link = format!("{}/{}", link, seg);
-                    format!("/<a href=\"{}\">{}</a>", link, seg)
+                    link = format!("{link}/{seg}");
+                    format!("/<a href=\"{link}\">{seg}</a>")
                 })
                 .collect::<Vec<_>>()
                 .join("")

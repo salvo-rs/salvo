@@ -6,8 +6,8 @@ use tokio_rustls::rustls::{Certificate, RootCertStore};
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
 
-pub mod listener;
-pub use listener::RustlsListener;
+mod listener;
+pub use listener::{RustlsAcceptor, RustlsListener};
 
 #[inline]
 pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertStore> {

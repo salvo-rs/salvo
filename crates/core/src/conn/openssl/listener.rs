@@ -59,6 +59,7 @@ where
     }
 }
 
+/// OpensslAcceptor
 pub struct OpensslAcceptor<C, T> {
     config_stream: C,
     inner: T,
@@ -69,6 +70,7 @@ impl<C, T> OpensslAcceptor<C, T>
 where
     T: Acceptor,
 {
+    /// Create new OpensslAcceptor.
     pub fn new(config_stream: C, inner: T) -> OpensslAcceptor<C, T> {
         let holdings = inner
             .holdings()

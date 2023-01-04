@@ -29,6 +29,7 @@
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
 
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -317,7 +318,7 @@ impl Display for Forbidden {
             Forbidden::Method => "request-method not allowed",
             Forbidden::Header => "header not allowed",
         };
-        write!(f, "CORS request forbidden: {}", detail)
+        write!(f, "CORS request forbidden: {detail}")
     }
 }
 

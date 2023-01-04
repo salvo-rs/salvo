@@ -48,7 +48,7 @@ cfg_feature! {
 pub mod addr;
 pub use addr::SocketAddr;
 
-mod tcp;
+pub mod tcp;
 pub use tcp::TcpListener;
 
 mod joined;

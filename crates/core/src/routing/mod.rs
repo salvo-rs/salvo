@@ -68,16 +68,16 @@ impl PathState {
         if let Some(picked) = self.pick() {
             if self.cursor.0 >= self.parts.len() - 1 {
                 if self.end_slash {
-                    Some(Cow::Owned(format!("{}/", picked)))
+                    Some(Cow::Owned(format!("{picked}/")))
                 } else {
                     Some(Cow::Borrowed(picked))
                 }
             } else {
                 let last = self.parts[self.cursor.0 + 1..].join("/");
                 if self.end_slash {
-                    Some(Cow::Owned(format!("{}/{}/", picked, last)))
+                    Some(Cow::Owned(format!("{picked}/{last}/")))
                 } else {
-                    Some(Cow::Owned(format!("{}/{}", picked, last)))
+                    Some(Cow::Owned(format!("{picked}/{last}")))
                 }
             }
         } else {

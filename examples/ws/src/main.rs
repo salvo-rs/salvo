@@ -12,7 +12,7 @@ async fn connect(req: &mut Request, res: &mut Response) -> Result<(), StatusErro
     let user = req.parse_queries::<User>();
     WebSocketUpgrade::new()
         .upgrade(req, res, |mut ws| async move {
-            println!("{:#?} ", user);
+            println!("{user:#?} ");
             while let Some(msg) = ws.recv().await {
                 let msg = if let Ok(msg) = msg {
                     msg

@@ -31,11 +31,11 @@ impl std::error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Insertion(e) => write!(f, "dynamic table insertion: {:?}", e),
-            Error::InvalidString(e) => write!(f, "could not parse string: {}", e),
-            Error::InvalidInteger(e) => write!(f, "could not parse integer: {}", e),
+            Error::Insertion(e) => write!(f, "dynamic table insertion: {e:?}"),
+            Error::InvalidString(e) => write!(f, "could not parse string: {e}"),
+            Error::InvalidInteger(e) => write!(f, "could not parse integer: {e}"),
             Error::UnknownDecoderInstruction(e) => {
-                write!(f, "got unkown decoder instruction: {}", e)
+                write!(f, "got unkown decoder instruction: {e}")
             }
         }
     }

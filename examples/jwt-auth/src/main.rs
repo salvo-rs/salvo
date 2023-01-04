@@ -51,7 +51,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
             &claim,
             &EncodingKey::from_secret(SECRET_KEY.as_bytes()),
         )?;
-        res.render(Redirect::other(format!("/?jwt_token={}", token)));
+        res.render(Redirect::other(format!("/?jwt_token={token}")));
     } else {
         match depot.jwt_auth_state() {
             JwtAuthState::Authorized => {

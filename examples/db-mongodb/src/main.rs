@@ -54,7 +54,7 @@ async fn add_user(req: &mut Request, res: &mut Response) {
     let result = coll_users.insert_one(user, None).await;
     match result {
         Ok(id) => res.render(format!("user added with ID {:?}", id.inserted_id)),
-        Err(e) => res.render(format!("error {:?}", e)),
+        Err(e) => res.render(format!("error {e:?}")),
     }
 }
 
@@ -80,7 +80,7 @@ async fn get_user(req: &mut Request, res: &mut Response) {
     match coll_users.find_one(doc! { "username": &username }, None).await {
         Ok(Some(user)) => res.render(Json(user)),
         Ok(None) => res.render(format!("No user found with username {username}")),
-        Err(e) => res.render(format!("Error {:?}", e)),
+        Err(e) => res.render(format!("error {e:?}")),
     }
 }
 

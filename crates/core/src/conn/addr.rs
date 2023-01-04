@@ -112,8 +112,8 @@ impl Display for SocketAddr {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SocketAddr::Unknown => write!(f, "unknown"),
-            SocketAddr::IPv4(addr) => write!(f, "socket://{}", addr),
-            SocketAddr::IPv6(addr) => write!(f, "socket://{}", addr),
+            SocketAddr::IPv4(addr) => write!(f, "socket://{addr}"),
+            SocketAddr::IPv6(addr) => write!(f, "socket://{addr}"),
             #[cfg(unix)]
             SocketAddr::Unix(addr) => match addr.as_pathname() {
                 Some(path) => write!(f, "unix://{}", path.display()),

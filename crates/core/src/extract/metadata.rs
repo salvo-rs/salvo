@@ -36,7 +36,7 @@ impl FromStr for SourceFrom {
             "cookie" => Ok(Self::Cookie),
             "body" => Ok(Self::Body),
             "request" => Ok(Self::Request),
-            _ => Err(crate::Error::Other(format!("invalid source from `{}`", input).into())),
+            _ => Err(crate::Error::Other(format!("invalid source from `{input}`").into())),
         }
     }
 }
@@ -75,7 +75,7 @@ impl FromStr for RenameRule {
                 return Ok(*rule);
             }
         }
-        Err(crate::Error::other(format!("invalid rename rule: {}", input)))
+        Err(crate::Error::other(format!("invalid rename rule: {input}")))
     }
 }
 

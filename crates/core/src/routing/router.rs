@@ -171,7 +171,7 @@ impl Router {
             if path_state.ended() {
                 return Some(DetectMatched {
                     hoops: self.hoops.clone(),
-                    handler: handler.clone(),
+                    handler,
                 });
             }
         }
@@ -367,7 +367,7 @@ impl fmt::Debug for Router {
                 path = "!NULL!".to_owned();
             } else {
                 for filter in &router.filters {
-                    let info = format!("{:?}", filter);
+                    let info = format!("{filter:?}");
                     if info.starts_with("path:") {
                         path = info.split_once(':').unwrap().1.to_owned();
                     } else {
@@ -379,9 +379,9 @@ impl fmt::Debug for Router {
                 }
             }
             let cp = if last {
-                format!("{}{}{}{}", prefix, SYMBOL_ELL, SYMBOL_RIGHT, SYMBOL_RIGHT)
+                format!("{prefix}{SYMBOL_ELL}{SYMBOL_RIGHT}{SYMBOL_RIGHT}")
             } else {
-                format!("{}{}{}{}", prefix, SYMBOL_TEE, SYMBOL_RIGHT, SYMBOL_RIGHT)
+                format!("{prefix}{SYMBOL_TEE}{SYMBOL_RIGHT}{SYMBOL_RIGHT}")
             };
             let hd = if let Some(handler) = &router.handler {
                 format!(" -> {}", handler.type_name())
@@ -389,16 +389,16 @@ impl fmt::Debug for Router {
                 "".into()
             };
             if !others.is_empty() {
-                writeln!(f, "{}{}[{}]{}", cp, path, others.join(","), hd)?;
+                writeln!(f, "{cp}{path}[{}]{hd}", others.join(","))?;
             } else {
-                writeln!(f, "{}{}{}", cp, path, hd)?;
+                writeln!(f, "{cp}{path}{hd}")?;
             }
             let routers = router.routers();
             if !routers.is_empty() {
                 let np = if last {
-                    format!("{}    ", prefix)
+                    format!("{prefix}    ")
                 } else {
-                    format!("{}{}   ", prefix, SYMBOL_DOWN)
+                    format!("{prefix}{SYMBOL_DOWN}   ")
                 };
                 for (i, router) in routers.iter().enumerate() {
                     print(f, &np, i == routers.len() - 1, router)?;

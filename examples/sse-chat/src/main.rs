@@ -76,7 +76,7 @@ async fn user_connected(res: &mut Response) {
 }
 
 fn user_message(my_id: usize, msg: &str) {
-    let new_msg = format!("<User#{}>: {}", my_id, msg);
+    let new_msg = format!("<User#{my_id}>: {msg}");
 
     // New message from this user, send it to everyone else (except same uid)...
     //

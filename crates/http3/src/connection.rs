@@ -376,10 +376,7 @@ where
                                     //# received MUST be treated as a connection error of type H3_ID_ERROR.
                                     Err(self.close(
                                         Code::H3_ID_ERROR,
-                                        format!(
-                                            "received a GoAway({}) greater than the former one ({})",
-                                            id, closing_id
-                                        ),
+                                        format!("received a GoAway({id}) greater than the former one ({closing_id})"),
                                     ))
                                 }
                             }
@@ -409,7 +406,7 @@ where
                             //# H3_MISSING_SETTINGS.
                             Err(self.close(
                                 Code::H3_MISSING_SETTINGS,
-                                format!("received {:?} before settings on control stream", f),
+                                format!("received {f:?} before settings on control stream"),
                             ))
                         }
                     }
@@ -435,7 +432,7 @@ where
                     //# If an endpoint receives a second SETTINGS
                     //# frame on the control stream, the endpoint MUST respond with a
                     //# connection error of type H3_FRAME_UNEXPECTED.
-                    frame => Err(self.close(Code::H3_FRAME_UNEXPECTED, format!("on control stream: {:?}", frame))),
+                    frame => Err(self.close(Code::H3_FRAME_UNEXPECTED, format!("on control stream: {frame:?}"))),
                 }
             }
         };

@@ -94,7 +94,7 @@ where
             } else {
                 let min = ps[0]
                     .parse::<usize>()
-                    .map_err(|_| format!("parse range for {} failed", name))?;
+                    .map_err(|_| format!("parse range for {name} failed"))?;
                 if min < 1 {
                     return Err("min_width must greater or equal to 1".to_owned());
                 }
@@ -111,7 +111,7 @@ where
                     let max = if trimed_max == max {
                         let max = trimed_max
                             .parse::<usize>()
-                            .map_err(|_| format!("parse range for {} failed", name))?;
+                            .map_err(|_| format!("parse range for {name} failed"))?;
                         if max <= 1 {
                             return Err("min_width must greater than 1".to_owned());
                         }
@@ -119,7 +119,7 @@ where
                     } else {
                         let max = trimed_max
                             .parse::<usize>()
-                            .map_err(|_| format!("parse range for {} failed", name))?;
+                            .map_err(|_| format!("parse range for {name} failed"))?;
                         if max < 1 {
                             return Err("min_width must greater or equal to 1".to_owned());
                         }
@@ -506,7 +506,7 @@ impl PathParser {
                                 }
                             }
                             if self.next(false).is_none() {
-                                return Err(format!("ended unexcept, should end with: {}", rb));
+                                return Err(format!("ended unexcept, should end with: {rb}"));
                             }
                             if args.is_empty() {
                                 vec![]
@@ -525,7 +525,7 @@ impl PathParser {
                         let builders = WISP_BUILDERS.read();
                         let builder = builders
                             .get(&sign)
-                            .ok_or_else(|| format!("WISP_BUILDERS does not contains fn part with sign {}", sign))?
+                            .ok_or_else(|| format!("WISP_BUILDERS does not contains fn part with sign {sign}"))?
                             .clone();
 
                         wisps.push(builder.build(name, sign, args)?);

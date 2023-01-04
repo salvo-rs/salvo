@@ -5,7 +5,7 @@ use salvo::prelude::*;
 async fn hello(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
     let custom_data = depot.get::<&str>("custom_data").unwrap();
-    format!("Hello World\nConfig: {:#?}\nCustom Data: {}", config, custom_data)
+    format!("Hello World\nConfig: {config:#?}\nCustom Data: {custom_data}")
 }
 
 #[tokio::main]

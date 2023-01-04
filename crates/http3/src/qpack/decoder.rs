@@ -43,14 +43,14 @@ impl std::error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::InvalidInteger(e) => write!(f, "invalid integer: {}", e),
-            Error::InvalidString(e) => write!(f, "invalid string: {:?}", e),
-            Error::InvalidIndex(e) => write!(f, "invalid dynamic index: {:?}", e),
-            Error::DynamicTable(e) => write!(f, "dynamic table error: {:?}", e),
-            Error::InvalidStaticIndex(i) => write!(f, "unknown static index: {}", i),
-            Error::UnknownPrefix(p) => write!(f, "unknown instruction code: 0x{}", p),
-            Error::MissingRefs(n) => write!(f, "missing {} refs to decode bloc", n),
-            Error::BadBaseIndex(i) => write!(f, "out of bounds base index: {}", i),
+            Error::InvalidInteger(e) => write!(f, "invalid integer: {e}"),
+            Error::InvalidString(e) => write!(f, "invalid string: {e:?}"),
+            Error::InvalidIndex(e) => write!(f, "invalid dynamic index: {e:?}"),
+            Error::DynamicTable(e) => write!(f, "dynamic table error: {e:?}"),
+            Error::InvalidStaticIndex(i) => write!(f, "unknown static index: {i}"),
+            Error::UnknownPrefix(p) => write!(f, "unknown instruction code: 0x{p}"),
+            Error::MissingRefs(n) => write!(f, "missing {n} refs to decode bloc"),
+            Error::BadBaseIndex(i) => write!(f, "out of bounds base index: {i}"),
             Error::UnexpectedEnd => write!(f, "unexpected end"),
             Error::HeaderTooLong(_) => write!(f, "header too long"),
         }
@@ -255,9 +255,9 @@ enum Instruction {
 impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Instruction::Insert(h) => write!(f, "Instruction::Insert {{ {} }}", h),
+            Instruction::Insert(h) => write!(f, "Instruction::Insert {{ {h} }}"),
             Instruction::TableSizeUpdate(n) => {
-                write!(f, "Instruction::TableSizeUpdate {{ {} }}", n)
+                write!(f, "Instruction::TableSizeUpdate {{ {n} }}")
             }
         }
     }

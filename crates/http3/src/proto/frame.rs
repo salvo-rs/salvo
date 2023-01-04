@@ -25,12 +25,12 @@ impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FrameError::Malformed => write!(f, "frame is malformed"),
-            FrameError::UnsupportedFrame(c) => write!(f, "frame 0x{:x} is not allowed h3", c),
-            FrameError::UnknownFrame(c) => write!(f, "frame 0x{:x} ignored", c),
+            FrameError::UnsupportedFrame(c) => write!(f, "frame 0x{c:x} is not allowed h3"),
+            FrameError::UnknownFrame(c) => write!(f, "frame 0x{c:x} ignored"),
             FrameError::InvalidFrameValue => write!(f, "frame value is invalid"),
-            FrameError::Incomplete(x) => write!(f, "internal error: frame incomplete {}", x),
-            FrameError::Settings(x) => write!(f, "invalid settings: {}", x),
-            FrameError::InvalidStreamId(x) => write!(f, "invalid stream id: {}", x),
+            FrameError::Incomplete(x) => write!(f, "internal error: frame incomplete {x}"),
+            FrameError::Settings(x) => write!(f, "invalid settings: {x}"),
+            FrameError::InvalidStreamId(x) => write!(f, "invalid stream id: {x}"),
         }
     }
 }
@@ -173,10 +173,10 @@ impl fmt::Debug for Frame<PayloadLen> {
             Frame::Data(len) => write!(f, "Data: {} bytes", len.0),
             Frame::Headers(frame) => write!(f, "Headers({} entries)", frame.len()),
             Frame::Settings(_) => write!(f, "Settings"),
-            Frame::CancelPush(id) => write!(f, "CancelPush({})", id),
+            Frame::CancelPush(id) => write!(f, "CancelPush({id})"),
             Frame::PushPromise(frame) => write!(f, "PushPromise({})", frame.id),
-            Frame::Goaway(id) => write!(f, "GoAway({})", id),
-            Frame::MaxPushId(id) => write!(f, "MaxPushId({})", id),
+            Frame::Goaway(id) => write!(f, "GoAway({id})"),
+            Frame::MaxPushId(id) => write!(f, "MaxPushId({id})"),
             Frame::Grease => write!(f, "Grease()"),
         }
     }
@@ -191,10 +191,10 @@ where
             Frame::Data(data) => write!(f, "Data: {} bytes", data.remaining()),
             Frame::Headers(frame) => write!(f, "Headers({} entries)", frame.len()),
             Frame::Settings(_) => write!(f, "Settings"),
-            Frame::CancelPush(id) => write!(f, "CancelPush({})", id),
+            Frame::CancelPush(id) => write!(f, "CancelPush({id})"),
             Frame::PushPromise(frame) => write!(f, "PushPromise({})", frame.id),
-            Frame::Goaway(id) => write!(f, "GoAway({})", id),
-            Frame::MaxPushId(id) => write!(f, "MaxPushId({})", id),
+            Frame::Goaway(id) => write!(f, "GoAway({id})"),
+            Frame::MaxPushId(id) => write!(f, "MaxPushId({id})"),
             Frame::Grease => write!(f, "Grease()"),
         }
     }
@@ -495,7 +495,7 @@ impl fmt::Display for SettingsError {
             SettingsError::Exceeded => write!(f, "max settings number exeeded, check for duplicate entries"),
             SettingsError::Malformed => write!(f, "malformed settings frame"),
             SettingsError::Repeated(id) => write!(f, "got setting 0x{:x} twice", id.0),
-            SettingsError::InvalidSettingId(id) => write!(f, "setting id 0x{:x} is invalid", id),
+            SettingsError::InvalidSettingId(id) => write!(f, "setting id 0x{id:x} is invalid"),
             SettingsError::InvalidSettingValue(id, val) => {
                 write!(f, "setting 0x{:x} has invalid value {}", id.0, val)
             }

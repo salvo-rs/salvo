@@ -305,7 +305,7 @@ impl DynamicTable {
         }
 
         self.name_map
-            .entry(field.name.clone())
+            .entry(field.name)
             .and_modify(|e| *e = index)
             .or_insert(index);
         Ok(())

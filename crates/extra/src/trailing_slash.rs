@@ -94,7 +94,7 @@ impl Handler for TrailingSlash {
         if !original_path.is_empty() {
             let ends_with_slash = original_path.ends_with('/');
             let new_uri = if self.action == TrailingSlashAction::Add && !ends_with_slash {
-                Some(replace_uri_path(req.uri(), &format!("{}/", original_path)))
+                Some(replace_uri_path(req.uri(), &format!("{original_path}/")))
             } else if self.action == TrailingSlashAction::Remove && ends_with_slash {
                 Some(replace_uri_path(req.uri(), original_path.trim_end_matches('/')))
             } else {
@@ -120,7 +120,7 @@ impl Handler for TrailingSlash {
 fn replace_uri_path(original_uri: &Uri, new_path: &str) -> Uri {
     let mut uri_parts = original_uri.clone().into_parts();
     let path = match original_uri.query() {
-        Some(query) => Cow::from(format!("{}?{}", new_path, query)),
+        Some(query) => Cow::from(format!("{new_path}?{query}")),
         None => Cow::from(new_path),
     };
     uri_parts.path_and_query = Some(PathAndQuery::from_str(path.as_ref()).unwrap());

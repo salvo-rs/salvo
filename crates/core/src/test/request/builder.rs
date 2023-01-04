@@ -108,8 +108,8 @@ impl RequestBuilder {
     /// Enable HTTP basic authentication.
     pub fn basic_auth(self, username: impl std::fmt::Display, password: Option<impl std::fmt::Display>) -> Self {
         let auth = match password {
-            Some(password) => format!("{}:{}", username, password),
-            None => format!("{}:", username),
+            Some(password) => format!("{username}:{password}"),
+            None => format!("{username}:"),
         };
         let encoded = format!("Basic {}", base64::encode(auth.as_bytes()));
         self.add_header(header::AUTHORIZATION, encoded, true)
@@ -227,7 +227,7 @@ impl RequestBuilder {
     }
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
-    pub async fn send(self, target: impl SendTarget) -> Response {
+    pub async fn send(self, target: impl SendTarget + Send) -> Response {
         let mut response = target.call(self.build()).await;
         #[cfg(feature = "cookie")]
         {

@@ -15,6 +15,7 @@
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
 
 use std::borrow::Borrow;
 use std::error::Error as StdError;

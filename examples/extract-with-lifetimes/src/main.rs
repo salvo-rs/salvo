@@ -32,10 +32,10 @@ async fn show(req: &mut Request, res: &mut Response) {
 #[handler]
 async fn edit<'a>(bad_man: LazyExtract<BadMan<'a>>, good_man: LazyExtract<GoodMan<'a>>, req: &mut Request) -> String {
     let bad_man = bad_man.extract(req).await.unwrap();
-    let bad_man = format!("Bad Man: {:#?}", bad_man);
+    let bad_man = format!("Bad Man: {bad_man:#?}");
     let good_man = good_man.extract(req).await.unwrap();
-    let good_man = format!("Good Man: {:#?}", good_man);
-    format!("{}\r\n\r\n\r\n{}", bad_man, good_man)
+    let good_man = format!("Good Man: {good_man:#?}");
+    format!("{bad_man}\r\n\r\n\r\n{good_man}")
 }
 
 #[derive(Serialize, Deserialize, Extractible, Debug)]

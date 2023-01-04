@@ -158,7 +158,7 @@ impl NamedFileBuilder {
                 && ct.get_param(mime::CHARSET).is_none()
             {
                 //TODO: auto detect charset
-                format!("{}; charset=utf-8", ct).parse::<mime::Mime>().unwrap_or(ct)
+                format!("{ct}; charset=utf-8").parse::<mime::Mime>().unwrap_or(ct)
             } else {
                 ct
             }
@@ -220,7 +220,7 @@ fn build_content_disposition(
                 .unwrap_or_else(|| "file".into())
                 .into(),
         };
-        format!("attachment; filename={}", attached_name)
+        format!("attachment; filename={attached_name}")
             .parse::<HeaderValue>()
             .map_err(Error::other)?
     } else {
@@ -254,12 +254,18 @@ impl NamedFile {
     /// # }
     /// ```
     #[inline]
-    pub async fn open(path: impl Into<PathBuf>) -> Result<NamedFile> {
+    pub async fn open<P>(path: P) -> Result<NamedFile>
+    where
+        P: Into<PathBuf> + Send,
+    {
         Self::builder(path).build().await
     }
 
     /// Attempts to send a file. If file not exists, not found error will occur.
-    pub async fn send_file(path: impl Into<PathBuf>, req_headers: &HeaderMap, res: &mut Response) {
+    pub async fn send_file<P>(path: P, req_headers: &HeaderMap, res: &mut Response)
+    where
+        P: Into<PathBuf> + Send,
+    {
         let path = path.into();
         if !path.exists() {
             res.set_status_error(StatusError::not_found());

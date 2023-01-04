@@ -26,7 +26,7 @@ pub struct Server<A> {
     builders: HttpBuilders,
 }
 
-impl<A: Acceptor> Server<A> {
+impl<A: Acceptor + Send> Server<A> {
     /// Create new `Server` with [`Acceptor`].
     ///
     /// # Example
@@ -89,7 +89,7 @@ impl<A: Acceptor> Server<A> {
     #[inline]
     pub async fn serve<S>(self, service: S)
     where
-        S: Into<Service>,
+        S: Into<Service> + Send,
     {
         self.try_serve(service).await.unwrap();
     }
@@ -98,7 +98,7 @@ impl<A: Acceptor> Server<A> {
     #[inline]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
-        S: Into<Service>,
+        S: Into<Service> + Send,
     {
         self.try_serve_with_graceful_shutdown(service, futures_util::future::pending(), None)
             .await
@@ -137,7 +137,7 @@ impl<A: Acceptor> Server<A> {
     #[inline]
     pub async fn serve_with_graceful_shutdown<S, G>(self, service: S, signal: G, timeout: Option<Duration>)
     where
-        S: Into<Service>,
+        S: Into<Service>+ Send,
         G: Future<Output = ()> + Send + 'static,
     {
         self.try_serve_with_graceful_shutdown(service, signal, timeout)
@@ -154,7 +154,7 @@ impl<A: Acceptor> Server<A> {
         timeout: Option<Duration>,
     ) -> IoResult<()>
     where
-        S: Into<Service>,
+        S: Into<Service> + Send,
         G: Future<Output = ()> + Send + 'static,
     {
         let Self { mut acceptor, builders } = self;
@@ -171,12 +171,9 @@ impl<A: Acceptor> Server<A> {
                 if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
                     alt_svc_h3 = Some(
-                        format!(
-                            r#"h3-29=":{}"; ma=2592000,quic=":{}"; ma=2592000; v="46,43""#,
-                            port, port
-                        )
-                        .parse::<HeaderValue>()
-                        .unwrap(),
+                        format!(r#"h3-29=":{port}"; ma=2592000,quic=":{port}"; ma=2592000; v="46,43""#)
+                            .parse::<HeaderValue>()
+                            .unwrap(),
                     );
                 }
             }

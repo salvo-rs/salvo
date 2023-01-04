@@ -381,7 +381,7 @@ where
                 Frame::Goaway(id) => {
                     if !id.is_push() {
                         return Poll::Ready(Err(Code::H3_ID_ERROR.with_reason(
-                            format!("non-push StreamId in a GoAway frame: {}", id),
+                            format!("non-push StreamId in a GoAway frame: {id}"),
                             ErrorLevel::ConnectionError,
                         )));
                     }
@@ -409,7 +409,7 @@ where
                 //# H3_FRAME_UNEXPECTED.
                 frame => {
                     return Poll::Ready(Err(Code::H3_FRAME_UNEXPECTED.with_reason(
-                        format!("on server control stream: {:?}", frame),
+                        format!("on server control stream: {frame:?}"),
                         ErrorLevel::ConnectionError,
                     )))
                 }

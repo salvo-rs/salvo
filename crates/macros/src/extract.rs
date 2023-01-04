@@ -261,7 +261,7 @@ fn parse_rename(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
                             if let Lit::Str(lit) = &item.lit {
                                 return Ok(Some(lit.value()));
                             } else {
-                                return Err(darling::Error::custom(format!("invalid rename: {:?}", item)));
+                                return Err(darling::Error::custom(format!("invalid rename: {item:?}")));
                             }
                         }
                     }
@@ -282,7 +282,7 @@ fn parse_rename_rule(attrs: &[syn::Attribute]) -> darling::Result<Option<String>
                             if let Lit::Str(lit) = &item.lit {
                                 return Ok(Some(lit.value()));
                             } else {
-                                return Err(darling::Error::custom(format!("invalid alias: {:?}", item)));
+                                return Err(darling::Error::custom(format!("invalid alias: {item:?}")));
                             }
                         }
                     }
@@ -304,7 +304,7 @@ fn parse_aliases(attrs: &[syn::Attribute]) -> darling::Result<Vec<String>> {
                             if let Lit::Str(lit) = &item.lit {
                                 aliases.push(lit.value());
                             } else {
-                                return Err(darling::Error::custom(format!("invalid alias: {:?}", item)));
+                                return Err(darling::Error::custom(format!("invalid alias: {item:?}")));
                             }
                         }
                     }

@@ -1,6 +1,6 @@
 //! openssl module
 mod config;
-pub use config::{Keycert,OpensslConfig};
+pub use config::{Keycert, OpensslConfig};
 
 mod listener;
-pub use listener::OpensslListener;
+pub use listener::{OpensslAcceptor, OpensslListener};

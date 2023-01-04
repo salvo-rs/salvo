@@ -5,6 +5,7 @@
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
 
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, AttributeArgs, DeriveInput, Item};

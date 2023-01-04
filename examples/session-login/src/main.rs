@@ -47,7 +47,7 @@ pub async fn home(depot: &mut Depot, res: &mut Response) {
     let mut content = r#"<a href="login">Login</h1>"#.into();
     if let Some(session) = depot.session_mut() {
         if let Some(username) = session.get::<String>("username") {
-            content = format!(r#"Hello, {}. <br><a href="logout">Logout</h1>"#, username);
+            content = format!(r#"Hello, {username}. <br><a href="logout">Logout</h1>"#);
         }
     }
     res.render(Text::Html(content));

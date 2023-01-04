@@ -133,7 +133,7 @@ impl Service {
     /// Handle new request, this function only used for test.
     #[cfg(feature = "test")]
     #[inline]
-    pub async fn handle(&self, request: impl Into<Request>) -> Response {
+    pub async fn handle(&self, request: impl Into<Request> + Send) -> Response {
         let request = request.into();
         self.hyper_handler(SocketAddr::Unknown, SocketAddr::Unknown, request.scheme.clone(), None)
             .handle(request)

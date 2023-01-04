@@ -60,7 +60,7 @@ async fn handle_socket(ws: WebSocket) {
             let msg = match result {
                 Ok(msg) => msg,
                 Err(e) => {
-                    eprintln!("websocket error(uid={}): {}", my_id, e);
+                    eprintln!("websocket error(uid={my_id}): {e}");
                     break;
                 }
             };
@@ -78,7 +78,7 @@ async fn user_message(my_id: usize, msg: Message) {
         return;
     };
 
-    let new_msg = format!("<User#{}>: {}", my_id, msg);
+    let new_msg = format!("<User#{my_id}>: {msg}");
 
     // New message from this user, send it to everyone else (except same uid)...
     for (&uid, tx) in ONLINE_USERS.read().await.iter() {
@@ -93,7 +93,7 @@ async fn user_message(my_id: usize, msg: Message) {
 }
 
 async fn user_disconnected(my_id: usize) {
-    eprintln!("good bye user: {}", my_id);
+    eprintln!("good bye user: {my_id}");
     // Stream closed up, so remove from the user list
     ONLINE_USERS.write().await.remove(&my_id);
 }

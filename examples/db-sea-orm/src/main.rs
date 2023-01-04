@@ -163,7 +163,7 @@ async fn main() {
     let templates = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
     let state = AppState { templates, conn };
 
-    println!("Starting server at {}", server_url);
+    println!("Starting server at {server_url}");
 
     let router = Router::new()
         .hoop(affix::inject(state))

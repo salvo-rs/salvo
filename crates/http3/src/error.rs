@@ -319,23 +319,22 @@ impl fmt::Display for Error {
         match self.inner.kind {
             Kind::Closed => write!(f, "connection is closed")?,
             Kind::Closing => write!(f, "connection is gracefully closing")?,
-            Kind::Transport(ref e) => write!(f, "quic transport error: {}", e)?,
+            Kind::Transport(ref e) => write!(f, "quic transport error: {e}")?,
             Kind::Timeout => write!(f, "timeout",)?,
             Kind::Application { code, ref reason, .. } => {
                 if let Some(reason) = reason {
-                    write!(f, "application error: {}", reason)?
+                    write!(f, "application error: {reason}")?
                 } else {
-                    write!(f, "application error {:?}", code)?
+                    write!(f, "application error {code:?}")?
                 }
             }
             Kind::HeaderTooBig { actual_size, max_size } => write!(
                 f,
-                "issued header size {} o is beyond peer's limit {} o",
-                actual_size, max_size
+                "issued header size {actual_size} o is beyond peer's limit {max_size} o"
             )?,
         };
         if let Some(ref cause) = self.inner.cause {
-            write!(f, "cause: {}", cause)?
+            write!(f, "cause: {cause}")?
         }
         Ok(())
     }
@@ -451,7 +450,7 @@ where
 
 impl From<proto::stream::InvalidStreamId> for Error {
     fn from(e: proto::stream::InvalidStreamId) -> Self {
-        Self::from(Code::H3_ID_ERROR).with_cause(format!("{}", e))
+        Self::from(Code::H3_ID_ERROR).with_cause(e.to_string())
     }
 }
 

@@ -418,9 +418,9 @@ impl std::error::Error for HeaderError {}
 impl fmt::Display for HeaderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HeaderError::InvalidHeaderName(h) => write!(f, "invalid header name: {}", h),
-            HeaderError::InvalidHeaderValue(v) => write!(f, "invalid header value: {}", v),
-            HeaderError::InvalidRequest(r) => write!(f, "invalid request: {}", r),
+            HeaderError::InvalidHeaderName(h) => write!(f, "invalid header name: {h}"),
+            HeaderError::InvalidHeaderValue(v) => write!(f, "invalid header value: {v}"),
+            HeaderError::InvalidRequest(r) => write!(f, "invalid request: {r}"),
             HeaderError::MissingMethod => write!(f, "missing method in request headers"),
             HeaderError::MissingStatus => write!(f, "missing status in response headers"),
             HeaderError::MissingAuthority => write!(f, "missing authority"),

@@ -32,7 +32,7 @@ async fn main() {
                 router
             }
         });
-    println!("{:#?}", router);
+    println!("{router:#?}");
 
     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
     Server::new(acceptor).serve(router).await;

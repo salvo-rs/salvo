@@ -36,7 +36,7 @@ pub async fn post_page(req: &mut Request, depot: &mut Depot, res: &mut Response)
     let data = req.parse_form::<Data>().await.unwrap();
     tracing::info!("posted data: {:?}", data);
     let new_token = depot.csrf_token().map(|s| &**s).unwrap_or_default();
-    let html = get_page_html(new_token, &format!("{:#?}", data));
+    let html = get_page_html(new_token, &format!("{data:#?}"));
     res.render(Text::Html(html));
 }
 
@@ -91,16 +91,15 @@ fn get_page_html(csrf_token: &str, msg: &str) -> String {
         <li><a href="../ccp/">chacha20poly1305</a></li>
     </ul>
     <form action="./" method="post">
-        <input type="hidden" name="csrf_token" value="{}" />
+        <input type="hidden" name="csrf_token" value="{csrf_token}" />
         <div>
             <label>Message:<input type="text" name="message" /></label>
         </div>
         <button type="submit">Send</button>
     </form>
-    <pre>{}</pre>
+    <pre>{msg}</pre>
     </body>
     </html>
-    "#,
-        csrf_token, msg
+    "#
     )
 }

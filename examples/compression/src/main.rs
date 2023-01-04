@@ -11,7 +11,7 @@ async fn main() {
         .join("../../../examples/compression/static")
         .canonicalize()
         .unwrap();
-    println!("Base Dir: {:?}", base_dir);
+    println!("Base Dir: {base_dir:?}");
 
     let router = Router::new()
         .push(

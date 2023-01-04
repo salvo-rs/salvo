@@ -32,7 +32,7 @@ impl FromStr for CompressionAlgo {
             "br" => Ok(CompressionAlgo::Brotli),
             "gzip" => Ok(CompressionAlgo::Gzip),
             "deflate" => Ok(CompressionAlgo::Deflate),
-            _ => Err(format!("unknown compression algorithm: {}", s)),
+            _ => Err(format!("unknown compression algorithm: {s}")),
         }
     }
 }

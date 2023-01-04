@@ -278,7 +278,7 @@ where
         V: Visitor<'de>,
     {
         if let Some(item) = self.0.into_iter().next() {
-            visitor.visit_enum(ValueEnumAccess(item.0.clone()))
+            visitor.visit_enum(ValueEnumAccess(item.0))
         } else {
             Err(DeError::custom("expected vec not empty"))
         }
