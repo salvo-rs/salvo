@@ -91,7 +91,7 @@ impl<'de, T: Extractible<'de> + Send> Default for LazyExtract<T> {
     }
 }
 
-impl<'de, T: Extractible<'de>> LazyExtract<T> {
+impl<'de, T: Extractible<'de> + Send> LazyExtract<T> {
     /// Create a new `LazyExtract` instance.
     pub fn new() -> Self {
         LazyExtract {
