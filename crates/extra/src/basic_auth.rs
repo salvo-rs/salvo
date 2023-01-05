@@ -11,7 +11,7 @@ pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
     #[must_use = "validate future must be used"]
-    async fn validate(&self, username: &str, password: &str) -> bool;
+    async fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> bool;
 }
 /// BasicAuthDepotExt
 pub trait BasicAuthDepotExt {
@@ -110,7 +110,7 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Ok((username, password)) = self.parse_credentials(req) {
-            if self.validator.validate(&username, &password).await {
+            if self.validator.validate(&username, &password, depot).await {
                 depot.insert(USERNAME_KEY, username);
                 ctrl.call_next(req, depot, res).await;
                 return;
