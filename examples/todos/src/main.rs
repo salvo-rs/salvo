@@ -123,7 +123,7 @@ mod models {
 #[cfg(test)]
 mod tests {
     use salvo::http::StatusCode;
-    use salvo::test::{ResponseExt, TestClient};
+    use salvo::test::TestClient;
 
     use super::models::Todo;
 
