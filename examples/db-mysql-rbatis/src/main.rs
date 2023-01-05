@@ -23,7 +23,7 @@ impl_select!(User{select_by_id(id:String) -> Option => "`where id = #{id} limit 
 pub async fn get_user(req: &mut Request, res: &mut Response) {
     let uid = req.query::<i64>("uid").unwrap();
     let data = User::select_by_id(&mut RB.clone(), uid.to_string()).await.unwrap();
-    println!("{data:?}" );
+    println!("{data:?}");
     res.render(serde_json::to_string(&data).unwrap());
 }
 

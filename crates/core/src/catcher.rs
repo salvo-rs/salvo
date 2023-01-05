@@ -98,9 +98,7 @@ fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail
 </html>"#,
         code.as_u16(),
         name,
-        summary
-            .map(|summary| format!("<h3>{summary}</h3>"))
-            .unwrap_or_default(),
+        summary.map(|summary| format!("<h3>{summary}</h3>")).unwrap_or_default(),
         format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
     )
 }

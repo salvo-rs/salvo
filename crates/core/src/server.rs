@@ -137,7 +137,7 @@ impl<A: Acceptor + Send> Server<A> {
     #[inline]
     pub async fn serve_with_graceful_shutdown<S, G>(self, service: S, signal: G, timeout: Option<Duration>)
     where
-        S: Into<Service>+ Send,
+        S: Into<Service> + Send,
         G: Future<Output = ()> + Send + 'static,
     {
         self.try_serve_with_graceful_shutdown(service, signal, timeout)
