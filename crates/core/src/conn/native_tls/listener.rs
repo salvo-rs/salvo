@@ -25,7 +25,7 @@ pub struct NativeTlsListener<C, T> {
 }
 impl<C, T> NativeTlsListener<C, T>
 where
-    C: IntoConfigStream<NativeTlsConfig>,
+    C: IntoConfigStream<NativeTlsConfig> + Send + 'static,
     T: Listener + Send,
 {
     /// Create a new `NativeTlsListener`.
@@ -38,7 +38,7 @@ where
 #[async_trait]
 impl<C, T> Listener for NativeTlsListener<C, T>
 where
-    C: IntoConfigStream<NativeTlsConfig>,
+    C: IntoConfigStream<NativeTlsConfig> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {

@@ -44,7 +44,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         #[inline]
         pub fn rustls<C>(self, config_stream: C) -> RustlsListener<C, Self>
         where
-            C: IntoConfigStream<RustlsConfig>,
+            C: IntoConfigStream<RustlsConfig> + Send + 'static,
         {
             RustlsListener::new(config_stream, self)
         }
@@ -57,7 +57,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         #[inline]
         pub fn native_tls<C>(self, config_stream: C) -> NativeTlsListener<C, Self>
         where
-            C: IntoConfigStream<NativeTlsConfig>,
+            C: IntoConfigStream<NativeTlsConfig> + Send + 'static,
         {
             NativeTlsListener::new(config_stream, self)
         }
@@ -70,7 +70,7 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
         #[inline]
         pub fn openssl<C>(self, config_stream: C) -> OpensslListener<C, Self>
         where
-            C: IntoConfigStream<OpensslConfig>,
+            C: IntoConfigStream<OpensslConfig> + Send + 'static,
         {
             OpensslListener::new(config_stream, self)
         }

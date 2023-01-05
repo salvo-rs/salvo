@@ -28,7 +28,7 @@ pub struct OpensslListener<C, T> {
 
 impl<C, T> OpensslListener<C, T>
 where
-    C: IntoConfigStream<OpensslConfig>,
+    C: IntoConfigStream<OpensslConfig> + Send + 'static,
     T: Listener + Send,
 {
     /// Create new OpensslListener with config stream.
@@ -41,7 +41,7 @@ where
 #[async_trait]
 impl<C, T> Listener for OpensslListener<C, T>
 where
-    C: IntoConfigStream<OpensslConfig>,
+    C: IntoConfigStream<OpensslConfig> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {

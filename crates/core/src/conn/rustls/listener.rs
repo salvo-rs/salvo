@@ -27,7 +27,7 @@ pub struct RustlsListener<C, T> {
 
 impl<C, T> RustlsListener<C, T>
 where
-    C: IntoConfigStream<RustlsConfig>,
+    C: IntoConfigStream<RustlsConfig> + Send + 'static,
     T: Listener + Send,
 {
     /// Create a new `RustlsListener`.
@@ -40,7 +40,7 @@ where
 #[async_trait]
 impl<C, T> Listener for RustlsListener<C, T>
 where
-    C: IntoConfigStream<RustlsConfig> + Send,
+    C: IntoConfigStream<RustlsConfig> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
