@@ -53,7 +53,6 @@ pub trait Handler: Send + Sync + 'static {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
 }
 
-
 #[doc(hidden)]
 pub struct EmptyHandler;
 #[async_trait]
@@ -76,7 +75,11 @@ pub struct WhenHoop<H, F> {
     pub filter: F,
 }
 #[async_trait]
-impl<H, F> Handler for WhenHoop<H, F> where H: Handler, F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static {
+impl<H, F> Handler for WhenHoop<H, F>
+where
+    H: Handler,
+    F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+{
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if (self.filter)(req, depot) {
             self.inner.handle(req, depot, res, ctrl).await;
