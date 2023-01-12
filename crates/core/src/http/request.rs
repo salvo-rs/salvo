@@ -10,7 +10,7 @@ use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http::{self, Extensions};
-use http_body_util::{Limited, BodyExt};
+use http_body_util::{BodyExt, Limited};
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
