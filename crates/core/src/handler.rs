@@ -33,6 +33,7 @@
 //!     Router::new().handle(middleware);
 //! }
 //! ```
+
 use crate::http::StatusCode;
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
@@ -52,15 +53,34 @@ pub trait Handler: Send + Sync + 'static {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
 }
 
-/// This is a empty implement for `Handler`.
-///
-/// `empty_handler` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
-#[allow(non_camel_case_types)]
-pub struct empty_handler;
+
+#[doc(hidden)]
+pub struct EmptyHandler;
 #[async_trait]
-impl Handler for empty_handler {
+impl Handler for EmptyHandler {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         res.set_status_code(StatusCode::OK);
+    }
+}
+
+/// This is a empty implement for `Handler`.
+///
+/// `EmptyHandler` does nothing except set [`Response`]'s satus as [`StatusCode::OK`], it just marker a router exits.
+pub fn empty() -> EmptyHandler {
+    EmptyHandler
+}
+
+#[doc(hidden)]
+pub struct WhenHoop<H, F> {
+    pub inner: H,
+    pub filter: F,
+}
+#[async_trait]
+impl<H, F> Handler for WhenHoop<H, F> where H: Handler, F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        if (self.filter)(req, depot) {
+            self.inner.handle(req, depot, res, ctrl).await;
+        }
     }
 }
 

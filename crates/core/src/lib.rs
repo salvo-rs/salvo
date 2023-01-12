@@ -82,7 +82,7 @@ pub mod prelude {
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::extract::LazyExtract;
-    pub use crate::handler::{empty_handler, Handler};
+    pub use crate::handler::{self, Handler};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;

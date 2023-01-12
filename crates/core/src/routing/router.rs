@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use super::filter;
 use super::{Filter, FnFilter, PathFilter, PathState};
+use crate::handler::{Handler, WhenHoop};
 use crate::http::uri::Scheme;
-use crate::http::Request;
-use crate::Handler;
+use crate::{Depot, Request};
 
 /// Router struct is used for route request to different handlers.
 ///
@@ -200,10 +200,33 @@ impl Router {
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
+    /// handle the request. This middleware only effective when the filter return true.
+    #[inline]
+    pub fn with_hoop_when<H, F>(handler: H, filter: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        Router::new().hoop_when(handler, filter)
+    }
+
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
     pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
         self.hoops.push(Arc::new(handler));
+        self
+    }
+
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
+    /// handle the request. This middleware only effective when the filter return true.
+    #[inline]
+    pub fn hoop_when<H, F>(mut self, handler: H, filter: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        self.hoops.push(Arc::new(WhenHoop { inner: handler, filter }));
         self
     }
 

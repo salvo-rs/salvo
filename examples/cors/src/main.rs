@@ -15,7 +15,7 @@ async fn main() {
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .build();
 
-    let router = Router::with_hoop(cors_handler).get(hello).options(empty_handler);
+    let router = Router::with_hoop(cors_handler).get(hello).options(handler::empty());
 
     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
     Server::new(acceptor).serve(router).await;
