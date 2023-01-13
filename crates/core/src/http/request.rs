@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
+use std::sync::RwLock;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
@@ -14,7 +15,6 @@ use http_body_util::{BodyExt, Limited};
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
-use parking_lot::RwLock;
 use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
@@ -29,12 +29,12 @@ static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
 /// Get default secure max size.
 pub fn secure_max_size() -> usize {
-    *SECURE_MAX_SIZE.read()
+    *SECURE_MAX_SIZE.read().unwrap()
 }
 
 /// Set default secure max size globally.
 pub fn set_secure_max_size(size: usize) {
-    let mut lock = SECURE_MAX_SIZE.write();
+    let mut lock = SECURE_MAX_SIZE.write().unwrap();
     *lock = size;
 }
 

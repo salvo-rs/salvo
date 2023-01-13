@@ -54,7 +54,6 @@ native-tls = "0.2"
 once_cell = "1.17"
 openssl = "0.10"
 path-slash = "0.2"
-parking_lot = "0.12"
 percent-encoding = "2"
 pin-project = "1"
 quinn = { version = "0.8"}
