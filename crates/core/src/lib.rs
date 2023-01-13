@@ -57,7 +57,7 @@ pub mod prelude {
     pub use crate::depot::Depot;
     pub use crate::http::{Request, Response, StatusCode, StatusError};
     // cfg_feature! {
-    //     #![feature ="acme"]
+    //     #![feature = "acme"]
     //     pub use crate::conn::AcmeListener;
     // }
     cfg_feature! {

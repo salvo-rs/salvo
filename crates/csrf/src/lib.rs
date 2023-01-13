@@ -20,6 +20,8 @@ mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder, QueryFinder};
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::Engine;
 use rand::distributions::Standard;
 use rand::Rng;
 use salvo_core::handler::Skipper;
@@ -270,11 +272,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
         if !self.skipper.skipped(req, depot) {
             if let Some(token) = &self.find_token(req).await {
                 tracing::debug!("csrf token: {:?}", token);
-                let engine = base64::engine::fast_portable::FastPortable::from(
-                    &base64::alphabet::URL_SAFE,
-                    base64::engine::fast_portable::NO_PAD,
-                );
-                if let Ok(token) = base64::decode_engine(token, &engine) {
+                if let Ok(token) = URL_SAFE_NO_PAD.decode(token) {
                     if let Some(secret) = self.store.load_secret(req, depot).await {
                         let mut valid = self.cipher.verify(&token, &secret);
                         if !valid && self.fallback_ciphers.is_empty() {
@@ -318,11 +316,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
         if let Err(e) = self.store.save_secret(req, depot, res, &secret).await {
             tracing::error!(error = ?e, "salvo csrf token failed");
         }
-        let engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
-        let token = base64::encode_engine(&token, &engine);
+        let token = URL_SAFE_NO_PAD.encode(&token);
         tracing::debug!("new token: {:?}", token);
         depot.insert(CSRF_TOKEN_KEY, token);
         ctrl.call_next(req, depot, res).await;

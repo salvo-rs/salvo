@@ -9,6 +9,8 @@ use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
 
 use async_trait::async_trait;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::Engine;
 use ring::digest::{Context, SHA256};
 use tokio::fs::{create_dir_all, read, OpenOptions};
 use tokio::io::AsyncWriteExt;
@@ -165,9 +167,5 @@ fn file_hash_part(data: &[String]) -> String {
         ctx.update(el.as_ref());
         ctx.update(&[0])
     }
-    let engine = base64::engine::fast_portable::FastPortable::from(
-        &base64::alphabet::URL_SAFE,
-        base64::engine::fast_portable::NO_PAD,
-    );
-    base64::encode_engine(ctx.finish(), &engine)
+    URL_SAFE_NO_PAD::encode(ctx.finish())
 }

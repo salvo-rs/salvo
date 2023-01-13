@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::str;
 use std::sync::Arc;
 
+use base64::engine::{Engine, general_purpose};
 use http::header::{self, HeaderMap, HeaderValue, IntoHeaderName};
 use http::uri::Scheme;
 use url::Url;
@@ -111,7 +112,7 @@ impl RequestBuilder {
             Some(password) => format!("{username}:{password}"),
             None => format!("{username}:"),
         };
-        let encoded = format!("Basic {}", base64::encode(auth.as_bytes()));
+        let encoded = format!("Basic {}", general_purpose::STANDARD.encode(auth.as_bytes()));
         self.add_header(header::AUTHORIZATION, encoded, true)
     }
 

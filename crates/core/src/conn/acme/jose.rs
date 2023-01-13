@@ -1,6 +1,6 @@
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use base64::URL_SAFE_NO_PAD;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use http::{Method, Uri};
 use hyper_util::client::connect::HttpConnector;
 // use hyper_util::client::Client;
@@ -33,11 +33,7 @@ impl<'a> Protected<'a> {
         };
         let protected = serde_json::to_vec(&protected)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
-        let engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
-        Ok(base64::encode_engine(protected, &engine))
+        Ok(URL_SAFE_NO_PAD.encode(protected))
     }
 }
 
@@ -56,17 +52,13 @@ impl Jwk {
     #[inline]
     fn new(key: &KeyPair) -> Self {
         let (x, y) = key.public_key()[1..].split_at(32);
-        let engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
         Self {
             alg: "ES256",
             crv: "P-256",
             kty: "EC",
             u: "sig",
-            x: base64::encode_engine(x, &engine),
-            y: base64::encode_engine(y, &engine),
+            x: URL_SAFE_NO_PAD.encode(x),
+            y: URL_SAFE_NO_PAD.encode(y),
         }
     }
 
@@ -88,12 +80,7 @@ impl Jwk {
         };
         let json = serde_json::to_vec(&jwk_thumb)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
-        let hash = sha256(&json);
-        let engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
-        Ok(base64::encode_engine(hash, &engine))
+        Ok(URL_SAFE_NO_PAD.encode(sha256(&json), &engine))
     }
 }
 
@@ -127,13 +114,9 @@ pub(crate) async fn request(
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode payload: {}", e)))?,
         None => Vec::new(),
     };
-    let engine = base64::engine::fast_portable::FastPortable::from(
-        &base64::alphabet::URL_SAFE,
-        base64::engine::fast_portable::NO_PAD,
-    );
-    let payload = base64::encode_engine(payload, &engine);
+    let payload = URL_SAFE_NO_PAD.encode(payload);
     let combined = format!("{}.{}", &protected, &payload);
-    let signature = base64::encode_engine(key_pair.sign(combined.as_bytes())?, &engine);
+    let signature = URL_SAFE_NO_PAD.encode(key_pair.sign(combined.as_bytes())?);
     let body = serde_json::to_vec(&Body {
         protected,
         payload,
