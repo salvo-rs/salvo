@@ -701,11 +701,11 @@ impl Request {
 
     /// Parse json body or form body as type `T` from request with default max size.
     #[inline]
-    pub async fn parse_body<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
+    pub async fn parse_body<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
-        self.parse_body_with_max_size(max_size).await
+        self.parse_body_with_max_size(secure_max_size()).await
     }
 
     /// Parse json body or form body as type `T` from request with max size.
