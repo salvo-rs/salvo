@@ -166,7 +166,7 @@ impl Builder {
                 match rustls_pemfile::certs(&mut cert_data.as_slice()) {
                     Ok(cert) => cached_cert = Some(cert),
                     Err(e) => {
-                        tracing::warn!(error = ?e, "parse cached tls certificates failed", err)
+                        tracing::warn!(error = ?e, "parse cached tls certificates failed")
                     }
                 };
             }
@@ -230,7 +230,6 @@ impl<T: Acceptor> Listener for AcmeListener<T> {}
 #[async_trait]
 impl<T: Acceptor> Acceptor for AcmeListener<T> {
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
-    type Error = IoError;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -238,7 +237,7 @@ impl<T: Acceptor> Acceptor for AcmeListener<T> {
     }
 
     #[inline]
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, Self::Error> {
+    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, IoError> {
         let Accepted {
             mut stream,
             local_addr,

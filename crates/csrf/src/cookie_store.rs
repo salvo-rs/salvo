@@ -2,6 +2,7 @@ use cookie::time::Duration;
 use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{async_trait, Depot, Error, Request, Response};
+use base64::engine::{general_purpose, Engine};
 
 use super::{ CsrfStore};
 
@@ -78,7 +79,7 @@ impl CookieStore {
 impl CsrfStore for CookieStore {
     type Error = Error;
     async fn load_secret(&self, req: &mut Request, _depot: &mut Depot) -> Option<Vec<u8>> {
-        req.cookie(&self.name).and_then(|c| base64::decode(c.value()).ok())
+        req.cookie(&self.name).and_then(|c| general_purpose::STANDARD.decode(c.value()).ok())
     }
     async fn save_secret(
         &self,
@@ -90,7 +91,7 @@ impl CsrfStore for CookieStore {
         let secure = req.uri().scheme() == Some(&Scheme::HTTPS);
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
         res.add_cookie(
-            Cookie::build(self.name.clone(), base64::encode(secret))
+            Cookie::build(self.name.clone(), general_purpose::STANDARD.encode(secret))
                 .http_only(true)
                 .same_site(SameSite::Strict)
                 .path(self.path.clone())
