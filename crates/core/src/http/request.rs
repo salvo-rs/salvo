@@ -10,10 +10,11 @@ use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http::{self, Extensions};
-use http_body_util::BodyExt;
+use http_body_util::{BodyExt, Limited};
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
@@ -23,6 +24,19 @@ use crate::http::form::{FilePart, FormData};
 use crate::http::{Mime, ParseError, Version};
 use crate::serde::{from_request, from_str_map, from_str_multi_map, from_str_multi_val, from_str_val};
 use crate::Error;
+
+static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
+
+/// Get default secure max size.
+pub fn secure_max_size() -> usize {
+    *SECURE_MAX_SIZE.read()
+}
+
+/// Set default secure max size globally.
+pub fn set_secure_max_size(size: usize) {
+    let mut lock = SECURE_MAX_SIZE.write();
+    *lock = size;
+}
 
 /// Represents an HTTP request.
 ///
@@ -530,14 +544,26 @@ impl Request {
             .unwrap_or_default()
     }
 
-    /// Get request payload.
+    /// Get request payload with default max size limit.
     ///
+    /// https://github.com/hyperium/hyper/issues/3111
     /// *Notice: This method takes body.
+    #[inline]
     pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
+        self.payload_with_max_size(secure_max_size()).await
+    }
+
+    /// Get request payload with max size limit.
+    ///
+    /// https://github.com/hyperium/hyper/issues/3111
+    /// *Notice: This method takes body.
+    #[inline]
+    pub async fn payload_with_max_size(&mut self, max_size: usize) -> Result<&Vec<u8>, ParseError> {
         let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
-                Ok(BodyExt::collect(body)
+                Ok(Limited::new(body, max_size)
+                    .collect()
                     .await
                     .map_err(ParseError::other)?
                     .to_bytes()
@@ -633,9 +659,17 @@ impl Request {
         }
     }
 
-    /// Parse json body as type `T` from request.
+    /// Parse json body as type `T` from request with default max size limit.
     #[inline]
     pub async fn parse_json<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Deserialize<'de>,
+    {
+        self.parse_json_with_max_size(secure_max_size()).await
+    }
+    /// Parse json body as type `T` from request with max size limit.
+    #[inline]
+    pub async fn parse_json_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -643,7 +677,7 @@ impl Request {
         if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
                 return self
-                    .payload()
+                    .payload_with_max_size(max_size)
                     .await
                     .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
             }
@@ -665,9 +699,18 @@ impl Request {
         Err(ParseError::InvalidContentType)
     }
 
-    /// Parse json body or form body as type `T` from request.
+    /// Parse json body or form body as type `T` from request with default max size.
     #[inline]
     pub async fn parse_body<'de, T>(&'de mut self) -> Result<T, ParseError>
+    where
+        T: Deserialize<'de>,
+    {
+        self.parse_body_with_max_size(secure_max_size()).await
+    }
+
+    /// Parse json body or form body as type `T` from request with max size.
+    #[inline]
+    pub async fn parse_body_with_max_size<'de, T>(&'de mut self, max_size: usize) -> Result<T, ParseError>
     where
         T: Deserialize<'de>,
     {
@@ -676,7 +719,7 @@ impl Request {
                 return from_str_multi_map(self.form_data().await?.fields.iter_all()).map_err(ParseError::Deserialize);
             } else if ctype.subtype() == mime::JSON {
                 return self
-                    .payload()
+                    .payload_with_max_size(max_size)
                     .await
                     .and_then(|body| serde_json::from_slice::<T>(body).map_err(ParseError::SerdeJson));
             }
