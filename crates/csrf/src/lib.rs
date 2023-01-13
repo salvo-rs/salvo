@@ -20,10 +20,10 @@ mod finder;
 
 pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder, QueryFinder};
 
-use rand::distributions::Standard;
-use rand::Rng;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::engine::Engine;
+use rand::distributions::Standard;
+use rand::Rng;
 use salvo_core::handler::Skipper;
 use salvo_core::http::{Method, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
