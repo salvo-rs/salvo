@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::sync::{RwLock, Arc};
+use std::sync::{Arc, RwLock};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
