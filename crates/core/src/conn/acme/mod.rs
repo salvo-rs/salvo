@@ -68,10 +68,9 @@ mod resolver;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::sync::Arc;
+use std::sync::{RwLock, Arc};
 
 use client::AcmeClient;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::http::StatusError;

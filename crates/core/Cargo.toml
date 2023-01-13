@@ -54,7 +54,6 @@ mime_guess.workspace = true
 multer.workspace = true
 multimap = { workspace = true, features = ["serde"] }
 once_cell.workspace = true
-parking_lot.workspace = true
 percent-encoding.workspace = true
 pin-project = { workspace = true }
 quinn = { workspace = true, optional = true, features = ["tls-rustls", "ring"] }
