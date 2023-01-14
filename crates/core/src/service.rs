@@ -6,7 +6,7 @@ use headers::HeaderValue;
 use http::header::{ALT_SVC, CONTENT_TYPE, HOST};
 use http::uri::{Authority, Scheme, Uri};
 use hyper::service::Service as HyperService;
-use hyper::{Request as HyperRequest, Response as HyperResponse};
+use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
 use crate::catcher::CatcherImpl;
 use crate::conn::SocketAddr;
@@ -222,12 +222,16 @@ impl HyperHandler {
                 if !is_allowed {
                     res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
-            } else if res.body.is_none() && !has_error && res.status_code() != Some(StatusCode::NO_CONTENT) {
+            } else if res.body.is_none()
+                && !has_error
+                && res.status_code() != Some(StatusCode::NO_CONTENT)
+                && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())
+            {
                 // check for avoid warning when errors (404 etc.)
                 tracing::warn!(
                     uri = ?req.uri(),
                     method = req.method().as_str(),
-                    "Http response content type header not set"
+                    "http response content type header not set"
                 );
             }
             if res.body.is_none() && has_error {
