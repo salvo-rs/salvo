@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use base64::URL_SAFE_NO_PAD;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
 use http::header;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -176,10 +176,6 @@ impl AcmeClient {
         }
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
-        let engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
         jose::request_json(
             &self.client,
             &self.key_pair,
@@ -187,7 +183,7 @@ impl AcmeClient {
             &nonce,
             url,
             Some(CsrRequest {
-                csr: base64::encode_engine(csr, &engine),
+                csr: URL_SAFE_NO_PAD.encode(csr),
             }),
         )
         .await

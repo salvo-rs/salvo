@@ -28,7 +28,7 @@ native-tls = ["dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["dep:openssl", "dep:tokio-openssl"]
 unix = []
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-# acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+acme = ["dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 cruet.workspace = true
@@ -54,7 +54,6 @@ mime_guess.workspace = true
 multer.workspace = true
 multimap = { workspace = true, features = ["serde"] }
 once_cell.workspace = true
-parking_lot.workspace = true
 percent-encoding.workspace = true
 pin-project = { workspace = true }
 quinn = { workspace = true, optional = true, features = ["tls-rustls", "ring"] }
