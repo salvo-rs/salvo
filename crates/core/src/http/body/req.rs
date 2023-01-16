@@ -1,6 +1,7 @@
 //! Http body.
 use std::boxed::Box;
 use std::fmt::{self, Formatter};
+use std::io::{Error as IoError, ErrorKind};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -81,12 +82,12 @@ impl Body for ReqBody {
     }
 }
 impl Stream for ReqBody {
-    type Item = Result<Bytes, BoxedError>;
+    type Item = Result<Bytes, IoError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
             Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
