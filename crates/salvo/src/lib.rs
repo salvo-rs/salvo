@@ -1,4 +1,4 @@
-//! Salvo is a powerful and simplest web server framework in Rust world. Read more: <https://salvo.rs>
+//! Salvo is a powerful and simple Rust web server framework. Read more: <https://salvo.rs>
 
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]

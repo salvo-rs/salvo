@@ -3,9 +3,7 @@ name = "salvo"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = """
-Salvo is a powerful and simplest web server framework in Rust world.
-"""
+description.workspace = true
 homepage.workspace = true
 repository.workspace = true
 documentation.workspace = true
