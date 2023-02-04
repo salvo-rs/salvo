@@ -38,7 +38,6 @@ pub trait HttpConnection {
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
 }
 
-#[cfg(feature = "quinn")]
 pub(crate) fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
     if proto.as_ref().windows(2).any(|window| window == b"h2") {
         Version::HTTP_2
