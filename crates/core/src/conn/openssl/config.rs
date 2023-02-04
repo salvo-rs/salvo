@@ -89,6 +89,7 @@ impl Keycert {
 /// Builder to set the configuration for the Tls server.
 pub struct OpensslConfig {
     keycert: Keycert,
+    builder_modifier: Option<Box<dyn FnMut(&mut SslAcceptorBuilder) + Send + 'static>>,
 }
 
 impl fmt::Debug for OpensslConfig {
@@ -102,7 +103,16 @@ impl OpensslConfig {
     /// Create new `OpensslConfig`
     #[inline]
     pub fn new(keycert: Keycert) -> Self {
-        OpensslConfig { keycert }
+        OpensslConfig { keycert, builder_modifier: None }
+    }
+
+    /// Set builder modifier.
+    pub fn with_builder_modifier<F>(mut self, modifier: F) -> Self
+    where
+        F: FnMut(&mut SslAcceptorBuilder) + Send + 'static,
+    {
+        self.builder_modifier = Some(Box::new(modifier));
+        self
     }
 
     /// Create [`SslAcceptorBuilder`]
@@ -127,6 +137,9 @@ impl OpensslConfig {
         builder.set_alpn_select_callback(move |_: &mut SslRef, list: &[u8]| {
             openssl::ssl::select_next_proto(PROTOS, list).ok_or(openssl::ssl::AlpnError::NOACK)
         });
+        if let Some(modifier) = &mut self.builder_modifier {
+            modifier(&mut builder);
+        }
         Ok(builder)
     }
 }
