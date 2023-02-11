@@ -59,12 +59,12 @@ session = ["dep:salvo-session"]
 serve-static = ["dep:salvo-static"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false, path = "../core" }
-salvo_extra = { workspace = true, default-features = false, optional = true, path = "../extra" }
-salvo-cache = { workspace = true, optional = true, path = "../cache" }
-salvo-cors = { workspace = true, optional = true, path = "../cors" }
-salvo-csrf = { workspace = true, features = ["all"], optional = true, path = "../csrf" }
-salvo-flash = { workspace = true, features = ["all"], optional = true, path = "../flash" }
-salvo-rate-limiter = { workspace = true, features = ["all"], optional = true, path = "../rate-limiter" }
-salvo-session = { workspace = true, optional = true, path = "../session" }
-salvo-static = { workspace = true, features = ["all"], optional = true, path = "../static" }
+salvo_core = { workspace = true, default-features = false }
+salvo_extra = { workspace = true, default-features = false, optional = true }
+salvo-cache = { workspace = true, optional = true }
+salvo-cors = { workspace = true, optional = true}
+salvo-csrf = { workspace = true, features = ["all"], optional = true }
+salvo-flash = { workspace = true, features = ["all"], optional = true }
+salvo-rate-limiter = { workspace = true, features = ["all"], optional = true }
+salvo-session = { workspace = true, optional = true }
+salvo-static = { workspace = true, features = ["all"], optional = true }
