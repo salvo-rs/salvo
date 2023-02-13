@@ -12,7 +12,7 @@ use enumflags2::{bitflags, BitFlags};
 use headers::*;
 use tokio::fs::File;
 
-use super::{ChunkedState, ChunkedFile};
+use super::{ChunkedFile, ChunkedState};
 use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH, RANGE};
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{async_trait, Depot, Error, Result, Writer};
