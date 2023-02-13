@@ -12,7 +12,7 @@ use enumflags2::{bitflags, BitFlags};
 use headers::*;
 use tokio::fs::File;
 
-use super::{ChunkedState, FileChunk};
+use super::{ChunkedState, ChunkedFile};
 use crate::http::header::{CONTENT_DISPOSITION, CONTENT_ENCODING, IF_NONE_MATCH, RANGE};
 use crate::http::{HttpRange, Mime, Request, Response, StatusCode, StatusError};
 use crate::{async_trait, Depot, Error, Result, Writer};
@@ -507,25 +507,25 @@ impl NamedFile {
                     tracing::error!(error = ?e, "set file's content ranage failed");
                 }
             }
-            let reader = FileChunk {
+            let reader = ChunkedFile {
                 offset,
-                chunk_size: cmp::min(length, self.metadata.len()),
+                total_size: cmp::min(length, self.metadata.len()),
                 read_size: 0,
                 state: ChunkedState::File(Some(self.file.into_std().await)),
                 buffer_size: self.buffer_size,
             };
-            res.headers_mut().typed_insert(ContentLength(reader.chunk_size));
+            res.headers_mut().typed_insert(ContentLength(reader.total_size));
             res.streaming(reader).ok();
         } else {
             res.set_status_code(StatusCode::OK);
-            let reader = FileChunk {
+            let reader = ChunkedFile {
                 offset,
                 state: ChunkedState::File(Some(self.file.into_std().await)),
-                chunk_size: length,
+                total_size: length,
                 read_size: 0,
                 buffer_size: self.buffer_size,
             };
-            res.headers_mut().typed_insert(ContentLength(length - offset));
+            res.headers_mut().typed_insert(ContentLength(length));
             res.streaming(reader).ok();
         }
     }

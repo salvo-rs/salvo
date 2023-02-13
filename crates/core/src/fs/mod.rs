@@ -17,30 +17,30 @@ pub(crate) enum ChunkedState<T> {
     Future(tokio::task::JoinHandle<Result<(T, Bytes), IoError>>),
 }
 
-/// FileChunk
-pub struct FileChunk<T> {
-    chunk_size: u64,
+/// ChunkedFile
+pub struct ChunkedFile<T> {
+    total_size: u64,
     read_size: u64,
     buffer_size: u64,
     offset: u64,
     state: ChunkedState<T>,
 }
 
-impl<T> Stream for FileChunk<T>
+impl<T> Stream for ChunkedFile<T>
 where
     T: Read + Seek + Unpin + Send + 'static,
 {
     type Item = Result<Bytes, IoError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        if self.chunk_size == self.read_size {
+        if self.total_size == self.read_size {
             return Poll::Ready(None);
         }
 
         match self.state {
             ChunkedState::File(ref mut file) => {
                 let mut file = file.take().expect("ChunkedReadFile polled after completion");
-                let max_bytes = cmp::min(self.chunk_size.saturating_sub(self.read_size), self.buffer_size) as usize;
+                let max_bytes = cmp::min(self.total_size.saturating_sub(self.read_size), self.buffer_size) as usize;
                 let offset = self.offset;
                 let fut = tokio::task::spawn_blocking(move || {
                     let mut buf = Vec::with_capacity(max_bytes);
@@ -87,8 +87,8 @@ mod test {
         const SIZE: u64 = 1024 * 1024 * 5;
         let mock = Cursor::new((0..SIZE).map(|_| fastrand::u8(..)).collect::<Vec<_>>());
 
-        let mut chunk = FileChunk {
-            chunk_size: SIZE,
+        let mut chunk = ChunkedFile {
+            total_size: SIZE,
             read_size: 0,
             buffer_size: 65535,
             offset: 0,
