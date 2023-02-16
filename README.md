@@ -35,6 +35,8 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 > **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
 > currently preparing breaking changes. For the most recently *released* code,
 > look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
+> 
+> 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🎯 Features
    - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);

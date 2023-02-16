@@ -35,6 +35,8 @@ Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需�
 > **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
 > currently preparing breaking changes. For the most recently *released* code,
 > look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
+> 
+> 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🎯 功能特色
 
@@ -270,8 +272,6 @@ cargo run --bin example-basic-auth
 ```
 
 您可以使用任何你想运行的示例名称替代这里的 ```basic-auth```.
-
-中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🚀 性能
 
