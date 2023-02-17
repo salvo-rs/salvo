@@ -76,12 +76,12 @@ pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 use std::fmt::{self, Formatter};
 use std::time::Duration;
 
-use async_session::base64;
-use async_session::hmac::{Hmac, Mac, NewMac};
-use async_session::sha2::Sha256;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use cookie::{Cookie, Key, SameSite};
+use hmac::{Hmac, Mac};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response};
+use sha2::{digest::generic_array::GenericArray, Sha256};
 
 /// Key for store data in depot.
 pub const SESSION_KEY: &str = "::salvo::session";
@@ -131,7 +131,7 @@ pub struct HandlerBuilder<S> {
     key: Key,
     fallback_keys: Vec<Key>,
 }
-impl<S: SessionStore> fmt::Debug for HandlerBuilder<S> {
+impl<S: SessionStore + fmt::Debug> fmt::Debug for HandlerBuilder<S> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandlerBuilder")
@@ -150,7 +150,7 @@ impl<S: SessionStore> fmt::Debug for HandlerBuilder<S> {
 
 impl<S> HandlerBuilder<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     /// Create new `HandlerBuilder`
     #[inline]
@@ -291,7 +291,7 @@ pub struct SessionHandler<S> {
     hmac: Hmac<Sha256>,
     fallback_hmacs: Vec<Hmac<Sha256>>,
 }
-impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
+impl<S: SessionStore + fmt::Debug> fmt::Debug for SessionHandler<S> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SessionHandler")
@@ -310,7 +310,7 @@ impl<S: SessionStore> fmt::Debug for SessionHandler<S> {
 #[async_trait]
 impl<S> Handler for SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let cookie = req.cookies().get(&self.cookie_name);
@@ -354,7 +354,7 @@ where
 
 impl<S> SessionHandler<S>
 where
-    S: SessionStore,
+    S: SessionStore + Send + Sync + 'static,
 {
     /// Create new `HandlerBuilder`
     pub fn builder(store: S, secret: &[u8]) -> HandlerBuilder<S> {
@@ -382,18 +382,20 @@ where
 
         // Split [MAC | original-value] into its two parts.
         let (digest_str, value) = cookie_value.split_at(BASE64_DIGEST_LEN);
-        let digest = base64::decode(digest_str).map_err(|_| Error::Other("bad base64 digest".into()))?;
+        let digest = BASE64
+            .decode(digest_str)
+            .map_err(|_| Error::Other("bad base64 digest".into()))?;
 
         // Perform the verification.
         let mut hmac = self.hmac.clone();
         hmac.update(value.as_bytes());
-        if hmac.verify(&digest).is_ok() {
+        if hmac.verify(GenericArray::from_slice(&digest)).is_ok() {
             return Ok(value.to_string());
         }
         for hmac in &self.fallback_hmacs {
             let mut hmac = hmac.clone();
             hmac.update(value.as_bytes());
-            if hmac.verify(&digest).is_ok() {
+            if hmac.verify(GenericArray::from_slice(&digest)).is_ok() {
                 return Ok(value.to_string());
             }
         }
@@ -430,7 +432,7 @@ where
         mac.update(cookie.value().as_bytes());
 
         // Cookie's new value is [MAC | original-value].
-        let mut new_value = base64::encode(mac.finalize().into_bytes());
+        let mut new_value = BASE64.encode(mac.finalize().into_bytes());
         new_value.push_str(cookie.value());
         cookie.set_value(new_value);
     }
