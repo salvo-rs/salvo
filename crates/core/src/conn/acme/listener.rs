@@ -3,15 +3,19 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use std::net::ToSocketAddrs;
 
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
 use tokio_rustls::rustls::PrivateKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, TlsConnStream, Listener, SocketAddr, TcpListener};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, Listener, TlsConnStream};
+
+use crate::http::uri::Scheme;
+use crate::http::{version_from_alpn, HttpConnection, Version};
+use crate::service::HyperHandler;
 use crate::{async_trait, Router};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
@@ -21,26 +25,17 @@ use super::{AcmeCache, AcmeClient, ChallengeType, Http01Handler, WELL_KNOWN_PATH
 /// A wrapper around an underlying listener which implements the ACME.
 pub struct AcmeListener<T> {
     inner: T,
-    tls_acceptor: TlsAcceptor,
-}
-
-impl<T> AcmeListener<T> {
-    /// Create `Builder`
-    pub fn builder() -> Builder {
-        Builder::new()
-    }
-}
-/// Builder
-pub struct Builder {
     config_builder: AcmeConfigBuilder,
     check_duration: Duration,
 }
-impl Builder {
+
+impl<T> AcmeListener<T> {
+    /// Create `AcmeListener`
     #[inline]
-    fn new() -> Self {
-        let config_builder = AcmeConfig::builder();
+    pub fn new(inner: T) -> AcmeListener<T> {
         Self {
-            config_builder,
+            inner,
+            config_builder: AcmeConfig::builder(),
             check_duration: Duration::from_secs(10 * 60),
         }
     }
@@ -127,22 +122,27 @@ impl Builder {
             ..self
         }
     }
+}
 
-    #[inline]
-    pub async fn build<T>(self, inner: T) -> IoResult<AcmeListener<T>> {
+#[async_trait]
+impl<T> Listener for AcmeListener<T>
+where
+    T: Listener + Send,
+    T::Acceptor: Send + 'static,
+{
+    type Acceptor = AcmeAcceptor<T::Acceptor>;
+
+    async fn bind(self) -> Self::Acceptor {
+        self.try_bind().await.unwrap()
+    }
+
+    async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self {
+            inner,
             config_builder,
             check_duration,
         } = self;
         let acme_config = config_builder.build()?;
-
-        let mut client = AcmeClient::try_new(
-            &acme_config.directory_url,
-            acme_config.key_pair.clone(),
-            acme_config.contacts.clone(),
-        )
-        .await?;
-
         let mut cached_key = None;
         let mut cached_cert = None;
         if let Some(cache_path) = &acme_config.cache_path {
@@ -185,11 +185,10 @@ impl Builder {
             )));
         }
 
-        let weak_cert_resolver = Arc::downgrade(&cert_resolver);
         let mut server_config = ServerConfig::builder()
             .with_safe_defaults()
             .with_no_client_auth()
-            .with_cert_resolver(cert_resolver);
+            .with_cert_resolver(cert_resolver.clone());
 
         server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
 
@@ -198,37 +197,90 @@ impl Builder {
         }
 
         let tls_acceptor = TlsAcceptor::from(Arc::new(server_config));
-        let listener = AcmeListener { inner, tls_acceptor };
+        let inner = inner.try_bind().await?;
+        let acceptor = AcmeAcceptor::new(acme_config, cert_resolver, inner, tls_acceptor, check_duration).await?;
+        Ok(acceptor)
+    }
+}
 
+#[async_trait]
+impl<S> HttpConnection for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    async fn version(&mut self) -> Option<Version> {
+        self.get_ref().1.alpn_protocol().map(version_from_alpn)
+    }
+    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        builders
+            .http2
+            .serve_connection(self, handler)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+}
+
+/// AcmeAcceptor
+pub struct AcmeAcceptor<T> {
+    config: Arc<AcmeConfig>,
+    inner: T,
+    holdings: Vec<Holding>,
+    tls_acceptor: tokio_rustls::TlsAcceptor,
+}
+
+impl<T> AcmeAcceptor<T>
+where
+    T: Acceptor + Send,
+{
+    pub(crate) async fn new(
+        config: impl Into<Arc<AcmeConfig>>,
+        cert_resolver: Arc<ResolveServerCert>,
+        inner: T,
+        tls_acceptor: TlsAcceptor,
+        check_duration: Duration,
+    ) -> IoResult<AcmeAcceptor<T>>
+    where
+        T: Send,
+    {
+        let holdings = inner
+            .holdings()
+            .iter()
+            .map(|h| Holding {
+                local_addr: h.local_addr.clone(),
+                http_version: Version::HTTP_2,
+                http_scheme: Scheme::HTTPS,
+            })
+            .collect();
+
+        let acceptor = AcmeAcceptor {
+            config: config.into(),
+            inner,
+            holdings,
+            tls_acceptor,
+        };
+        let config = acceptor.config.clone();
+        let weak_cert_resolver = Arc::downgrade(&cert_resolver);
+        let mut client =
+            AcmeClient::new(&config.directory_url, config.key_pair.clone(), config.contacts.clone()).await?;
         tokio::spawn(async move {
             while let Some(cert_resolver) = Weak::upgrade(&weak_cert_resolver) {
-                if cert_resolver.will_expired(acme_config.before_expired) {
-                    if let Err(e) = super::issuer::issue_cert(&mut client, &acme_config, &cert_resolver).await {
+                if cert_resolver.will_expired(config.before_expired) {
+                    if let Err(e) = super::issuer::issue_cert(&mut client, &config, &cert_resolver).await {
                         tracing::error!(error = ?e, "issue certificate failed");
                     }
                 }
                 tokio::time::sleep(check_duration).await;
             }
         });
-        Ok(listener)
-    }
-
-    /// Consumes this builder and returns a [`AcmeListener`] object.
-    #[inline]
-    pub async fn bind(self, addr: impl ToSocketAddrs) -> AcmeListener<TcpListener> {
-        self.try_bind(addr).await.unwrap()
-    }
-    /// Consumes this builder and returns a [`Result<AcmeListener, std::IoError>`] object.
-    pub async fn try_bind(self, addr: impl ToSocketAddrs) -> IoResult<AcmeListener<TcpListener>> {
-        let inner = TcpListener::try_bind(addr).await?;
-        self.build(inner).await
+        Ok(acceptor)
     }
 }
-
-impl<T: Acceptor> Listener for AcmeListener<T> {}
-
 #[async_trait]
-impl<T: Acceptor> Acceptor for AcmeListener<T> {
+impl<T: Acceptor> Acceptor for AcmeAcceptor<T>
+where
+    T: Acceptor + Send + 'static,
+    <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
     type Conn = TlsConnStream<TlsStream<T::Conn>>;
 
     #[inline]
@@ -238,20 +290,12 @@ impl<T: Acceptor> Acceptor for AcmeListener<T> {
 
     #[inline]
     async fn accept(&mut self) -> Result<Accepted<Self::Conn>, IoError> {
-        let Accepted {
-            mut stream,
-            local_addr,
-            remote_addr,
-        } = self
+        let accepted = self
             .inner
             .accept()
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, format!("inner accept error: {}", e)))?;
-        let stream = TlsConnStream::new(self.tls_acceptor.accept(stream));
-        return Ok(Accepted {
-            stream,
-            local_addr,
-            remote_addr,
-        });
+            .await?
+            .map_conn(|s| TlsConnStream::new(self.tls_acceptor.accept(s)));
+
+        Ok(accepted)
     }
 }

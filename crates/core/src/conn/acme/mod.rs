@@ -68,9 +68,12 @@ mod resolver;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::sync::{RwLock, Arc};
+use std::sync::Arc;
 
+use bytes::Bytes;
 use client::AcmeClient;
+use http_body_util::Full;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::http::StatusError;
@@ -114,6 +117,8 @@ impl Display for ChallengeType {
         }
     }
 }
+
+pub(crate) type FullBody = Full<Bytes>;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

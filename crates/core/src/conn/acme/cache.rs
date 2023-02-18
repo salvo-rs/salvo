@@ -167,5 +167,5 @@ fn file_hash_part(data: &[String]) -> String {
         ctx.update(el.as_ref());
         ctx.update(&[0])
     }
-    URL_SAFE_NO_PAD::encode(ctx.finish())
+    URL_SAFE_NO_PAD.encode(ctx.finish())
 }

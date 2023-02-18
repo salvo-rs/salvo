@@ -3,17 +3,19 @@ use std::{
     sync::Arc,
 };
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
 use http::header;
+use http_body_util::BodyExt;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::client::connect::HttpConnector;
-// use hyper_util::client::Client;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use serde::{Deserialize, Serialize};
 
 use super::{Challenge, Problem};
 
-use super::{jose, key_pair::KeyPair, ChallengeType};
+use super::{jose, key_pair::KeyPair, ChallengeType, FullBody};
 use super::{Directory, Identifier};
 
 #[derive(Debug, Deserialize)]
@@ -35,7 +37,7 @@ pub(crate) struct FetchAuthorizationResponse {
 }
 
 pub(crate) struct AcmeClient {
-    pub(crate) client: Client<HttpsConnector<HttpConnector>>,
+    pub(crate) client: Client<HttpsConnector<HttpConnector>, FullBody>,
     pub(crate) directory: Directory,
     pub(crate) key_pair: Arc<KeyPair>,
     pub(crate) contacts: Vec<String>,
@@ -44,8 +46,8 @@ pub(crate) struct AcmeClient {
 
 impl AcmeClient {
     #[inline]
-    pub(crate) async fn try_new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> IoResult<Self> {
-        let client = Client::builder().build(
+    pub(crate) async fn new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> IoResult<Self> {
+        let client = Client::builder(TokioExecutor::new()).build::<_, FullBody>(
             HttpsConnectorBuilder::new()
                 .with_native_roots()
                 .https_or_http()
@@ -203,13 +205,18 @@ impl AcmeClient {
             None::<()>,
         )
         .await?;
-        hyper::body::to_bytes(res)
+        res.into_body()
+            .collect()
             .await
+            .map(|b| b.to_bytes())
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to download certificate: {}", e)))
     }
 }
 
-async fn get_directory(client: &Client<HttpsConnector<HttpConnector>>, directory_url: &str) -> IoResult<Directory> {
+async fn get_directory(
+    client: &Client<HttpsConnector<HttpConnector>, FullBody>,
+    directory_url: &str,
+) -> IoResult<Directory> {
     tracing::debug!("loading directory");
 
     let directory_url = directory_url
@@ -227,13 +234,14 @@ async fn get_directory(client: &Client<HttpsConnector<HttpConnector>>, directory
         ));
     }
 
-    let directory = serde_json::from_slice::<Directory>(
-        hyper::body::to_bytes(res)
-            .await
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to read response"))?
-            .as_ref(),
-    )
-    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to load directory: {}", e)))?;
+    let data = res
+        .into_body()
+        .collect()
+        .await
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?
+        .to_bytes();
+    let directory = serde_json::from_slice::<Directory>(&*data)
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to load directory: {}", e)))?;
 
     tracing::debug!(
         new_nonce = ?directory.new_nonce,
@@ -244,7 +252,7 @@ async fn get_directory(client: &Client<HttpsConnector<HttpConnector>>, directory
     Ok(directory)
 }
 
-async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>>, nonce_url: &str) -> IoResult<String> {
+async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>, FullBody>, nonce_url: &str) -> IoResult<String> {
     tracing::debug!("creating nonce");
 
     let new_nonce = nonce_url
@@ -274,7 +282,7 @@ async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>>, nonce_url: &s
 }
 
 async fn create_acme_account(
-    client: &Client<HttpsConnector<HttpConnector>>,
+    client: &Client<HttpsConnector<HttpConnector>, FullBody>,
     directory: &Directory,
     key_pair: &KeyPair,
     contacts: Vec<String>,

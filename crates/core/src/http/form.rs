@@ -42,10 +42,9 @@ impl FormData {
                 let data = BodyExt::collect(body)
                     .await
                     .map_err(ParseError::other)?
-                    .to_bytes()
-                    .to_vec();
+                    .to_bytes();
                 let mut form_data = FormData::new();
-                form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
+                form_data.fields = form_urlencoded::parse(&*data).into_owned().collect();
                 Ok(form_data)
             }
             Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {

@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use regex::Regex;
 
 use crate::http::Request;
@@ -521,7 +522,7 @@ impl PathParser {
                                 self.offset
                             ));
                         };
-                        let builders = WISP_BUILDERS.read().unwrap();
+                        let builders = WISP_BUILDERS.read();
                         let builder = builders
                             .get(&sign)
                             .ok_or_else(|| format!("WISP_BUILDERS does not contains fn part with sign {sign}"))?
@@ -653,13 +654,13 @@ impl PathFilter {
     where
         B: WispBuilder + 'static,
     {
-        let mut builders = WISP_BUILDERS.write().unwrap();
+        let mut builders = WISP_BUILDERS.write();
         builders.insert(name.into(), Arc::new(Box::new(builder)));
     }
     /// Register new path part regex.
     #[inline]
     pub fn register_wisp_regex(name: impl Into<String>, regex: Regex) {
-        let mut builders = WISP_BUILDERS.write().unwrap();
+        let mut builders = WISP_BUILDERS.write();
         builders.insert(name.into(), Arc::new(Box::new(RegexWispBuilder::new(regex))));
     }
     /// Detect is that path is match.

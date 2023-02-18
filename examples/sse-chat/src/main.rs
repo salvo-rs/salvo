@@ -5,12 +5,12 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
 
 use futures_util::StreamExt;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use parking_lot::Mutex;
 
 use salvo::prelude::*;
 use salvo::sse::{SseEvent, SseKeepAlive};

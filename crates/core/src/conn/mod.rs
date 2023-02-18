@@ -8,11 +8,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::async_trait;
 use crate::http::{HttpConnection, Version};
 
-// cfg_feature! {
-//     #![feature = "acme"]
-//     pub mod acme;
-//     pub use acme::AcmeListener;
-// }
+cfg_feature! {
+    #![feature = "acme"]
+    pub mod acme;
+    pub use acme::AcmeListener;
+}
 cfg_feature! {
     #![feature = "native-tls"]
     pub mod native_tls;

@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
-use std::sync::RwLock;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
@@ -16,6 +15,8 @@ use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use serde::de::Deserialize;
+use bytes::Bytes;
+use parking_lot::RwLock;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
@@ -29,12 +30,12 @@ static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
 /// Get default secure max size.
 pub fn secure_max_size() -> usize {
-    *SECURE_MAX_SIZE.read().unwrap()
+    *SECURE_MAX_SIZE.read()
 }
 
 /// Set default secure max size globally.
 pub fn set_secure_max_size(size: usize) {
-    let mut lock = SECURE_MAX_SIZE.write().unwrap();
+    let mut lock = SECURE_MAX_SIZE.write();
     *lock = size;
 }
 
@@ -63,7 +64,7 @@ pub struct Request {
     // accept: Option<Vec<Mime>>,
     pub(crate) queries: OnceCell<MultiMap<String, String>>,
     pub(crate) form_data: tokio::sync::OnceCell<FormData>,
-    pub(crate) payload: tokio::sync::OnceCell<Vec<u8>>,
+    pub(crate) payload: tokio::sync::OnceCell<Bytes>,
 
     /// The version of the HTTP protocol used.
     pub(crate) version: Version,
@@ -549,7 +550,7 @@ impl Request {
     /// https://github.com/hyperium/hyper/issues/3111
     /// *Notice: This method takes body.
     #[inline]
-    pub async fn payload(&mut self) -> Result<&Vec<u8>, ParseError> {
+    pub async fn payload(&mut self) -> Result<&Bytes, ParseError> {
         self.payload_with_max_size(secure_max_size()).await
     }
 
@@ -558,7 +559,7 @@ impl Request {
     /// https://github.com/hyperium/hyper/issues/3111
     /// *Notice: This method takes body.
     #[inline]
-    pub async fn payload_with_max_size(&mut self, max_size: usize) -> Result<&Vec<u8>, ParseError> {
+    pub async fn payload_with_max_size(&mut self, max_size: usize) -> Result<&Bytes, ParseError> {
         let body = self.take_body();
         self.payload
             .get_or_try_init(|| async {
@@ -566,8 +567,7 @@ impl Request {
                     .collect()
                     .await
                     .map_err(ParseError::other)?
-                    .to_bytes()
-                    .to_vec())
+                    .to_bytes())
             })
             .await
     }

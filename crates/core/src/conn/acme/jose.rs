@@ -1,14 +1,16 @@
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use http::{Method, Uri};
-use hyper_util::client::connect::HttpConnector;
-// use hyper_util::client::Client;
+use http_body_util::BodyExt;
 use hyper_rustls::HttpsConnector;
+use hyper_util::client::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
 use ring::digest::{digest, Digest, SHA256};
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::conn::acme::key_pair::KeyPair;
+use crate::conn::acme::{FullBody, key_pair::KeyPair};
 
 #[derive(Serialize)]
 struct Protected<'a> {
@@ -80,7 +82,7 @@ impl Jwk {
         };
         let json = serde_json::to_vec(&jwk_thumb)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
-        Ok(URL_SAFE_NO_PAD.encode(sha256(&json), &engine))
+        Ok(URL_SAFE_NO_PAD.encode(sha256(&json)))
     }
 }
 
@@ -97,13 +99,13 @@ struct Body {
 }
 
 pub(crate) async fn request(
-    cli: &Client<HttpsConnector<HttpConnector>>,
+    cli: &Client<HttpsConnector<HttpConnector>, FullBody>,
     key_pair: &KeyPair,
     kid: Option<&str>,
     nonce: &str,
     uri: &str,
     payload: Option<impl Serialize>,
-) -> IoResult<hyper::Response<hyper::body::Recv>> {
+) -> IoResult<hyper::Response<hyper::body::Incoming>> {
     let jwk = match kid {
         None => Some(Jwk::new(key_pair)),
         Some(_) => None,
@@ -146,7 +148,7 @@ pub(crate) async fn request(
 }
 #[inline]
 pub(crate) async fn request_json<T, R>(
-    cli: &Client<HttpsConnector<HttpConnector>>,
+    cli: &Client<HttpsConnector<HttpConnector>, FullBody>,
     key_pair: &KeyPair,
     kid: Option<&str>,
     nonce: &str,
@@ -159,10 +161,14 @@ where
 {
     let res = request(cli, key_pair, kid, nonce, url, payload).await?;
 
-    let data = hyper::body::to_bytes(res)
+    let data = res
+        .into_body()
+        .collect()
         .await
-        .map_err(|_| IoError::new(ErrorKind::Other, "failed to read response"))?;
-    serde_json::from_slice(data.as_ref()).map_err(|e| IoError::new(ErrorKind::Other, format!("bad response: {}", e)))
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?
+        .to_bytes();
+    serde_json::from_slice(&*data)
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("response is not a valid json: {}", e)))
 }
 
 #[inline]

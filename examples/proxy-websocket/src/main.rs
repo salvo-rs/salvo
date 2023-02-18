@@ -8,5 +8,6 @@ async fn main() {
     let router = Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:7878"]));
     println!("{:?}", router);
     tracing::info!("Run `cargo run --bin example-ws-chat` to start websocket chat server");
-    Server::new(TcpListener::new("127.0.0.1:8888")).serve(router).await;
+    let acceptor = TcpListener::new("127.0.0.1:8888").bind().await;
+    Server::new(acceptor).serve(router).await;
 }

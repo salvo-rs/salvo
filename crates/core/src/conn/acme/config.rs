@@ -2,10 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
-use std::sync::{RwLock, Arc};
+use std::sync::{Arc};
 use std::time::Duration;
 
 use http::Uri;
+use parking_lot::RwLock;
 
 use super::key_pair::KeyPair;
 use super::{ChallengeType, LETS_ENCRYPT_PRODUCTION};
