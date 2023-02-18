@@ -7,23 +7,24 @@
 #![warn(missing_docs)]
 #![warn(clippy::future_not_send)]
 
-use std::borrow::Cow;
 use std::convert::{Infallible, TryFrom};
 
-use hyper::client::{Client, HttpConnector};
+use hyper::body::Incoming as HyperBody;
 use hyper::upgrade::OnUpgrade;
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use hyper_util::client::{connect::HttpConnector, legacy::Client};
+use hyper_util::rt::TokioExecutor;
 use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::{Scheme, Uri};
+use salvo_core::http::ReqBody;
 use salvo_core::http::StatusCode;
-use salvo_core::http::{Body, ReqBody, ResBody};
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<ReqBody>;
-type HyperResponse = hyper::Response<ResBody>;
+type HyperResponse = hyper::Response<HyperBody>;
 
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
@@ -82,8 +83,8 @@ where
 /// Proxy
 pub struct Proxy<U> {
     upstreams: U,
-    http_client: OnceCell<Client<HttpConnector, HyperBody>>,
-    https_client: OnceCell<Client<HttpsConnector<HttpConnector>, HyperBody>>,
+    http_client: OnceCell<Client<HttpConnector, ReqBody>>,
+    https_client: OnceCell<Client<HttpsConnector<HttpConnector>, ReqBody>>,
 }
 
 impl<U> Proxy<U>
@@ -183,19 +184,20 @@ where
             .unwrap_or(false);
         let mut response = if is_https {
             let client = self.https_client.get_or_init(|| {
-                Client::builder().build::<_, HyperBody>(
-                    HttpsConnectorBuilder::new()
-                        .with_webpki_roots()
-                        .https_or_http()
-                        .enable_http1()
-                        .enable_http2()
-                        .build(),
-                )
+                let connector = HttpsConnectorBuilder::new()
+                    .with_webpki_roots()
+                    .https_or_http()
+                    .enable_http1()
+                    .enable_http2()
+                    .build();
+                Client::builder(TokioExecutor::new()).build::<_, ReqBody>(connector)
             });
-            client.request(proxied_request).await?
+            client.request(proxied_request).await.map_err(Error::other)?
         } else {
-            let client = self.http_client.get_or_init(Client::new);
-            client.request(proxied_request).await?
+            let client = self
+                .http_client
+                .get_or_init(|| Client::builder(TokioExecutor::new()).build::<_, ReqBody>(HttpConnector::new()));
+            client.request(proxied_request).await.map_err(Error::other)?
         };
 
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {

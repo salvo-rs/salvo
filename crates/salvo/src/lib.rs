@@ -50,11 +50,6 @@ cfg_feature! {
     pub use salvo_extra::logging;
 }
 cfg_feature! {
-    #![feature ="proxy"]
-    #[doc(no_inline)]
-    pub use salvo_extra::proxy;
-}
-cfg_feature! {
     #![feature ="size-limiter"]
     #[doc(no_inline)]
     pub use salvo_extra::size_limiter;
@@ -98,6 +93,11 @@ cfg_feature! {
     #![feature ="flash"]
     #[doc(no_inline)]
     pub use salvo_flash as flash;
+}
+cfg_feature! {
+    #![feature ="proxy"]
+    #[doc(no_inline)]
+    pub use salvo_proxy as proxy;
 }
 cfg_feature! {
     #![feature ="rate-limiter"]
@@ -148,7 +148,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="proxy"]
-        pub use salvo_extra::proxy::Proxy;
+        pub use salvo_proxy::Proxy;
     }
     cfg_feature! {
         #![feature ="size-limiter"]

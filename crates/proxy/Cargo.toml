@@ -1,6 +1,6 @@
 [package]
 name = "salvo-proxy"
-version = "0.0.1"
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 description = """
@@ -23,6 +23,7 @@ tracing.workspace = true
 tokio.workspace = true
 fastrand.workspace = true
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
+hyper-util = { workspace = true, features = ["client", "http1", "http2", "runtime"] }
 hyper-rustls = { workspace = true, features = ["http1", "http2", "webpki-tokio"] }
 once_cell.workspace = true
 percent-encoding.workspace = true
