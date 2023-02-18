@@ -86,10 +86,11 @@ impl Keycert {
     }
 }
 
+type BuilderModifier = Box<dyn FnMut(&mut SslAcceptorBuilder) + Send + 'static>;
 /// Builder to set the configuration for the Tls server.
 pub struct OpensslConfig {
     keycert: Keycert,
-    builder_modifier: Option<Box<dyn FnMut(&mut SslAcceptorBuilder) + Send + 'static>>,
+    builder_modifier: Option<BuilderModifier>,
 }
 
 impl fmt::Debug for OpensslConfig {

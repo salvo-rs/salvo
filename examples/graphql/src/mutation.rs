@@ -8,7 +8,7 @@ pub struct MutationRoot;
 impl MutationRoot {
     // here database canot be mutable, we need RwLock
     fn create_user(context: &DatabaseContext, user: UserInput) -> FieldResult<User> {
-        let mut write = context.0.write().expect("could not access the database");
+        let mut write = context.0.write();
         let user = User {
             id: user.id,
             name: user.name,

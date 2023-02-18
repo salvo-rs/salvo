@@ -65,7 +65,7 @@ async fn user_connected(res: &mut Response) {
         .unwrap();
 
     // Save the sender in our list of connected users.
-    ONLINE_USERS.lock().unwrap().insert(my_id, tx);
+    ONLINE_USERS.lock().insert(my_id, tx);
 
     // Convert messages into Server-Sent Events and returns resulting stream.
     let stream = rx.map(|msg| match msg {
@@ -82,7 +82,7 @@ fn user_message(my_id: usize, msg: &str) {
     //
     // We use `retain` instead of a for loop so that we can reap any user that
     // appears to have disconnected.
-    ONLINE_USERS.lock().unwrap().retain(|uid, tx| {
+    ONLINE_USERS.lock().retain(|uid, tx| {
         if my_id == *uid {
             // don't send to same user, but do retain
             true

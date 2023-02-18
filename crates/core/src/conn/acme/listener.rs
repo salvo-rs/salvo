@@ -215,7 +215,7 @@ where
     T: Acceptor + Send,
 {
     pub(crate) async fn new(
-        config: impl Into<Arc<AcmeConfig>>,
+        config: impl Into<Arc<AcmeConfig>> + Send,
         cert_resolver: Arc<ResolveServerCert>,
         inner: T,
         tls_acceptor: TlsAcceptor,

@@ -2,7 +2,6 @@
 
 use std::boxed::Box;
 use std::collections::VecDeque;
-use std::error::Error as StdError;
 use std::io::{Error as IoError, ErrorKind};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
@@ -11,6 +10,8 @@ use futures_util::stream::{BoxStream, Stream};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::Bytes;
+
+use crate::error::BoxedError;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
@@ -25,7 +26,7 @@ pub enum ResBody {
     /// Hyper default body.
     Hyper(Incoming),
     /// Stream body.
-    Stream(BoxStream<'static, Result<Bytes, Box<dyn StdError + Send + Sync>>>),
+    Stream(BoxStream<'static, Result<Bytes, BoxedError>>),
 }
 impl ResBody {
     /// Check is that body is not set.

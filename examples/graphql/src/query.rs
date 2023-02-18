@@ -7,7 +7,7 @@ pub struct QueryRoot;
 #[graphql_object(context = DatabaseContext)]
 impl QueryRoot {
     fn get_all_users(context: &DatabaseContext) -> FieldResult<Vec<User>> {
-        let read = context.0.read().expect("could not access the database");
+        let read = context.0.read();
         let users = read.get_all_users();
         let mut result = Vec::<User>::new();
         result.reserve(users.len());
@@ -20,7 +20,7 @@ impl QueryRoot {
         Ok(result)
     }
     fn get_user_by_id(context: &DatabaseContext, id: i32) -> FieldResult<User> {
-        let read = context.0.read().expect("could not access the database");
+        let read = context.0.read();
         let user = read.get_user_by_id(&id);
         match user {
             Some(user) => Ok(User {

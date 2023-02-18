@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+parking_lot = "0.12"
 salvo = { path = "../../crates/salvo" }
 tokio = { version = "^1.22", features = ["macros"] }
 tracing = "^0.1"

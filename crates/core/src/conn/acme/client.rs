@@ -240,7 +240,7 @@ async fn get_directory(
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?
         .to_bytes();
-    let directory = serde_json::from_slice::<Directory>(&*data)
+    let directory = serde_json::from_slice::<Directory>(&data)
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to load directory: {}", e)))?;
 
     tracing::debug!(

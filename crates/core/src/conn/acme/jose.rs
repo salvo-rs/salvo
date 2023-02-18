@@ -82,7 +82,7 @@ impl Jwk {
         };
         let json = serde_json::to_vec(&jwk_thumb)
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to encode jwt: {}", e)))?;
-        Ok(URL_SAFE_NO_PAD.encode(sha256(&json)))
+        Ok(URL_SAFE_NO_PAD.encode(sha256(json)))
     }
 }
 
@@ -104,7 +104,7 @@ pub(crate) async fn request(
     kid: Option<&str>,
     nonce: &str,
     uri: &str,
-    payload: Option<impl Serialize>,
+    payload: Option<impl Serialize + Send>,
 ) -> IoResult<hyper::Response<hyper::body::Incoming>> {
     let jwk = match kid {
         None => Some(Jwk::new(key_pair)),
@@ -156,7 +156,7 @@ pub(crate) async fn request_json<T, R>(
     payload: Option<T>,
 ) -> IoResult<R>
 where
-    T: Serialize,
+    T: Serialize + Send,
     R: DeserializeOwned,
 {
     let res = request(cli, key_pair, kid, nonce, url, payload).await?;
@@ -167,7 +167,7 @@ where
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?
         .to_bytes();
-    serde_json::from_slice(&*data)
+    serde_json::from_slice(&data)
         .map_err(|e| IoError::new(ErrorKind::Other, format!("response is not a valid json: {}", e)))
 }
 

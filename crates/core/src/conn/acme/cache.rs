@@ -150,13 +150,15 @@ where
     }
 }
 #[inline]
-async fn write_data(file_path: impl AsRef<Path>, data: impl AsRef<[u8]>) -> Result<(), IoError> {
+async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> Result<(), IoError> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
     #[cfg(unix)]
     file.mode(0o600); //user: R+W
-    let mut buffer = file.open(file_path.as_ref()).await?;
-    buffer.write_all(data.as_ref()).await?;
+    let file_path = file_path.as_ref();
+    let data = data.as_ref();
+    let mut buffer = file.open(file_path).await?;
+    buffer.write_all(data).await?;
     Ok(())
 }
 

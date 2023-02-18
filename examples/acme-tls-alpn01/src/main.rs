@@ -11,10 +11,11 @@ async fn main() {
 
     let router = Router::new().get(hello);
     let acceptor = TcpListener::new("0.0.0.0:443")
-    .acme()
-        // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
+        .acme()
+        // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
         .cache_path("acme/letsencrypt")
-        .add_domain("acme-tls-alpn01.salvo.rs").bind()
+        .add_domain("acme-tls-alpn01.salvo.rs")
+        .bind()
         .await;
     Server::new(acceptor).serve(router).await;
 }
