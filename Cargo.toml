@@ -43,8 +43,7 @@ hmac = "0.12"
 hex = "0.4"
 hyper = { git = "https://github.com/hyperium/hyper.git" }
 hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev="91d8b0a" }
-# hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", rev="1073183" }
-hyper-rustls = { path = "D:/Soncai/hyper-rustls" }
+hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", rev="1073183" }
 jsonwebtoken = "8"
 mime = "0.3"
 mime_guess = "2"
