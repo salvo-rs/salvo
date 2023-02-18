@@ -6,7 +6,7 @@ publish = false
 
 
 [dependencies]
-hyper = { version = "0.14", features = ["server"] }
+hyper = { workspace = true, features = ["server"] }
 salvo = { path = "../../crates/salvo" }
 tokio = { version = "1", features = ["macros"] }
 tower = { version = "0.4", features = ["limit"] }
