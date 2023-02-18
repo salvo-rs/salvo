@@ -39,10 +39,7 @@ impl FormData {
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
         match headers.get(CONTENT_TYPE) {
             Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
-                let data = BodyExt::collect(body)
-                    .await
-                    .map_err(ParseError::other)?
-                    .to_bytes();
+                let data = BodyExt::collect(body).await.map_err(ParseError::other)?.to_bytes();
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)

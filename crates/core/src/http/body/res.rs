@@ -84,7 +84,10 @@ impl Stream for ResBody {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
             },
-            ResBody::Stream(stream) => stream.as_mut().poll_next(cx).map_err(|e|IoError::new(ErrorKind::Other, e)),
+            ResBody::Stream(stream) => stream
+                .as_mut()
+                .poll_next(cx)
+                .map_err(|e| IoError::new(ErrorKind::Other, e)),
         }
     }
 }

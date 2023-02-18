@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
+use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
@@ -14,9 +15,8 @@ use http_body_util::{BodyExt, Limited};
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
-use serde::de::Deserialize;
-use bytes::Bytes;
 use parking_lot::RwLock;
+use serde::de::Deserialize;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};

@@ -1,6 +1,6 @@
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::default::Default;
-use parking_lot::RwLock;
 
 use juniper::{EmptySubscription, GraphQLInputObject, GraphQLObject, RootNode};
 
