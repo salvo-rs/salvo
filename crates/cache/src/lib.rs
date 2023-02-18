@@ -321,19 +321,19 @@ mod tests {
         let router = Router::new().hoop(cache).handle(cached);
         let service = Service::new(router);
 
-        let mut res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let content0 = res.take_string().await.unwrap();
 
-        let mut res = TestClient::get("http://127.0.0.1:7979").send(&service).await;
+        let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
         assert_eq!(res.status_code().unwrap(), StatusCode::OK);
 
         let content1 = res.take_string().await.unwrap();
         assert_eq!(content0, content1);
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
-        let mut res = TestClient::post("http://127.0.0.1:7979").send(&service).await;
+        let mut res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
         let content2 = res.take_string().await.unwrap();
 
         assert_ne!(content0, content2);

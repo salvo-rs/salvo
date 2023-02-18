@@ -16,6 +16,6 @@ async fn main() {
             .with_cert(include_bytes!("../certs/cert.pem").as_ref())
             .with_key(include_bytes!("../certs/key.pem").as_ref()),
     );
-    let acceptor = TcpListener::new("127.0.0.1:7878").rustls(config).bind().await;
+    let acceptor = TcpListener::new("127.0.0.1:5800").rustls(config).bind().await;
     Server::new(acceptor).serve(router).await;
 }

@@ -68,7 +68,7 @@ mod tests {
             .hoop(Logger)
             .push(Router::with_path("hello").get(hello));
 
-        TestClient::get("http://127.0.0.1:7979/hello")
+        TestClient::get("http://127.0.0.1:5801/hello")
             .send(router)
             .await
             .take_string()

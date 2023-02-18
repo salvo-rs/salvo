@@ -86,7 +86,7 @@ mod tests {
 
         let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
@@ -99,7 +99,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
@@ -113,7 +113,7 @@ mod tests {
 
         let router = Router::new().push(Router::with_path("test").get(test));
 
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
         assert_eq!(res.take_string().await.unwrap(), "hello");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/plain; charset=utf-8");
     }
@@ -126,7 +126,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
         assert_eq!(res.take_string().await.unwrap(), r#"{"hello": "world"}"#);
         assert_eq!(
             res.headers().get("content-type").unwrap(),
@@ -142,7 +142,7 @@ mod tests {
         }
 
         let router = Router::new().push(Router::with_path("test").get(test));
-        let mut res = TestClient::get("http://127.0.0.1:7878/test").send(router).await;
+        let mut res = TestClient::get("http://127.0.0.1:5800/test").send(router).await;
         assert_eq!(res.take_string().await.unwrap(), "<html><body>hello</body></html>");
         assert_eq!(res.headers().get("content-type").unwrap(), "text/html; charset=utf-8");
     }

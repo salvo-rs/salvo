@@ -21,7 +21,7 @@ async fn hello3(_req: &mut Request, res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(route()).await;
 }
 
@@ -43,7 +43,7 @@ mod tests {
         let service = Service::new(super::route());
 
         async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+            TestClient::get(format!("http://127.0.0.1:5800/{}", name))
                 .send(service)
                 .await
                 .take_string()

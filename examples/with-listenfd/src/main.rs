@@ -20,7 +20,7 @@ async fn main() {
     let server = if let Some(l) = listenfd.take_tcp_listener(0).unwrap() {
         hyper::server::Server::from_tcp(l).unwrap()
     } else {
-        hyper::server::Server::bind(&([127, 0, 0, 1], 7878).into())
+        hyper::server::Server::bind(&([127, 0, 0, 1], 5800).into())
     };
 
     server.serve(Service::new(router)).await.unwrap();

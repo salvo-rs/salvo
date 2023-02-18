@@ -12,7 +12,7 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("127.0.0.1:7878")
+    let acceptor = TcpListener::new("127.0.0.1:5800")
         .native_tls(async_stream::stream! {
             loop {
                 yield load_config();

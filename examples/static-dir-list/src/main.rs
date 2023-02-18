@@ -14,6 +14,6 @@ async fn main() {
         .with_listing(true),
     );
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }

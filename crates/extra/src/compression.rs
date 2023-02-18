@@ -308,7 +308,7 @@ mod tests {
         let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header(ACCEPT_ENCODING, "gzip", true)
             .send(router)
             .await;
@@ -322,7 +322,7 @@ mod tests {
         let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header(ACCEPT_ENCODING, "br", true)
             .send(router)
             .await;
@@ -336,7 +336,7 @@ mod tests {
         let comp_handler = Compression::new().with_min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
-        let mut res = TestClient::get("http://127.0.0.1:7979/hello")
+        let mut res = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header(ACCEPT_ENCODING, "deflate", true)
             .send(router)
             .await;

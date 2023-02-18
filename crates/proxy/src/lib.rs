@@ -307,12 +307,15 @@ mod tests {
         let router = Router::new()
             .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
-        let content = TestClient::get("http://127.0.0.1:7979/rust/tools/install")
+        println!("(((((((((((((((((((((9999999");
+        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
             .send(router)
             .await
             .take_string()
             .await
             .unwrap();
+        println!("(((((((((((((((((((((999ccccccvv");
+        println!("======================cccc {content}");
         assert!(content.contains("Install Rust"));
     }
     #[test]

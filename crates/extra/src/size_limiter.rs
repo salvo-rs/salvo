@@ -50,7 +50,7 @@ mod tests {
             .push(Router::with_path("hello").post(hello));
         let service = Service::new(router);
 
-        let content = TestClient::post("http://127.0.0.1:7979/hello")
+        let content = TestClient::post("http://127.0.0.1:5801/hello")
             .text("abc")
             .send(&service)
             .await
@@ -59,7 +59,7 @@ mod tests {
             .unwrap();
         assert_eq!(content, "hello");
 
-        let res = TestClient::post("http://127.0.0.1:7979/hello")
+        let res = TestClient::post("http://127.0.0.1:5801/hello")
             .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
             .send(&service)
             .await;

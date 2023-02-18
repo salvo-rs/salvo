@@ -148,7 +148,7 @@ mod tests {
         let router = Router::with_hoop(auth_handler).handle(hello);
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:7878/")
+        let content = TestClient::get("http://127.0.0.1:5800/")
             .basic_auth("root", Some("pwd"))
             .send(&service)
             .await
@@ -157,7 +157,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("Hello"));
 
-        let content = TestClient::get("http://127.0.0.1:7878/")
+        let content = TestClient::get("http://127.0.0.1:5800/")
             .basic_auth("root", Some("pwd2"))
             .send(&service)
             .await

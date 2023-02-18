@@ -53,7 +53,7 @@ mod tests {
             .push(Router::with_path("fast").get(fast));
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:7979/slow")
+        let content = TestClient::get("http://127.0.0.1:5801/slow")
             .send(&service)
             .await
             .take_string()
@@ -61,7 +61,7 @@ mod tests {
             .unwrap();
         assert!(content.contains("timeout"));
 
-        let content = TestClient::get("http://127.0.0.1:7979/fast")
+        let content = TestClient::get("http://127.0.0.1:5801/fast")
             .send(&service)
             .await
             .take_string()

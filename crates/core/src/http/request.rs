@@ -752,7 +752,7 @@ mod tests {
             weapons: u64,
         }
         let mut req = TestClient::get(
-            "http://127.0.0.1:7979/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
+            "http://127.0.0.1:5801/hello?name=rust&age=25&wives=a&wives=2&weapons=69&weapons=stick&weapons=gun",
         )
         .build();
         let man = req.parse_queries::<BadMan>().unwrap();
@@ -773,14 +773,14 @@ mod tests {
         struct User {
             name: String,
         }
-        let mut req = TestClient::get("http://127.0.0.1:7878/hello")
+        let mut req = TestClient::get("http://127.0.0.1:5800/hello")
             .json(&User { name: "jobs".into() })
             .build();
         assert_eq!(req.parse_json::<User>().await.unwrap(), User { name: "jobs".into() });
     }
     #[tokio::test]
     async fn test_query() {
-        let req = TestClient::get("http://127.0.0.1:7979/hello?name=rust&name=25&name=a&name=2&weapons=98&weapons=gun")
+        let req = TestClient::get("http://127.0.0.1:5801/hello?name=rust&name=25&name=a&name=2&weapons=98&weapons=gun")
             .build();
         assert_eq!(req.queries().len(), 2);
         assert_eq!(req.query::<String>("name").unwrap(), "rust");
@@ -793,7 +793,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_form() {
-        let mut req = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
+        let mut req = TestClient::post("http://127.0.0.1:5800/hello?q=rust")
             .add_header("content-type", "application/x-www-form-urlencoded", true)
             .raw_form("lover=dog&money=sh*t&q=firefox")
             .build();
@@ -801,7 +801,7 @@ mod tests {
         assert_eq!(req.query_or_form::<String>("q").await.unwrap(), "rust");
         assert_eq!(req.form_or_query::<String>("q").await.unwrap(), "firefox");
 
-        let mut req: Request = TestClient::post("http://127.0.0.1:7878/hello?q=rust")
+        let mut req: Request = TestClient::post("http://127.0.0.1:5800/hello?q=rust")
             .add_header(
                 "content-type",
                 "multipart/form-data; boundary=----WebKitFormBoundary0mkL0yrNNupCojyz",

@@ -36,7 +36,7 @@ impl<A: Acceptor + Send> Server<A> {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     /// Server::new(acceptor);
     /// # }
     /// ```
@@ -122,7 +122,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// async fn main() {
     ///     let (tx, rx) = oneshot::channel();
     ///     let router = Router::new().get(hello);
-    ///     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     ///     let server = Server::new(acceptor).serve_with_graceful_shutdown(router, async {
     ///         rx.await.ok();
     ///     }, None);
@@ -272,7 +272,7 @@ mod tests {
         let router = Router::new().get(hello).push(Router::with_path("json").get(json));
         let serivce = Service::new(router);
 
-        let base_url = "http://127.0.0.1:7878";
+        let base_url = "http://127.0.0.1:5800";
         let result = TestClient::get(&base_url)
             .send(&serivce)
             .await

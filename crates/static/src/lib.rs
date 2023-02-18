@@ -110,44 +110,44 @@ mod tests {
                 .await
                 .unwrap()
         }
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801").await;
         assert!(content.contains("Index page"));
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/").await;
         assert!(content.contains("Index page"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/").await;
         assert!(content.contains("test3.txt") && content.contains("dir2"));
 
-        let content = access(&service, "text/xml", "http://127.0.0.1:7979/dir1/").await;
+        let content = access(&service, "text/xml", "http://127.0.0.1:5801/dir1/").await;
         assert!(content.starts_with("<list>") && content.contains("test3.txt") && content.contains("dir2"));
 
-        let content = access(&service, "text/html", "http://127.0.0.1:7979/dir1/").await;
+        let content = access(&service, "text/html", "http://127.0.0.1:5801/dir1/").await;
         assert!(content.contains("<html>") && content.contains("test3.txt") && content.contains("dir2"));
 
-        let content = access(&service, "application/json", "http://127.0.0.1:7979/dir1/").await;
+        let content = access(&service, "application/json", "http://127.0.0.1:5801/dir1/").await;
         assert!(content.starts_with('{') && content.contains("test3.txt") && content.contains("dir2"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/test1.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/test1.txt").await;
         assert!(content.contains("copy1"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/test3.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/test3.txt").await;
         assert!(content.contains("Not Found"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/../girl/love/eat.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/../girl/love/eat.txt").await;
         assert!(content.contains("Not Found"));
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/..\\girl\\love\\eat.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/..\\girl\\love\\eat.txt").await;
         assert!(content.contains("Not Found"));
 
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/test3.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/test3.txt").await;
         assert!(content.contains("copy3"));
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/dir2/test3.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/dir2/test3.txt").await;
         assert!(content == "dir2 test3");
-        let content = access(&service, "text/plain", "http://127.0.0.1:7979/dir1/../dir1/test3.txt").await;
+        let content = access(&service, "text/plain", "http://127.0.0.1:5801/dir1/../dir1/test3.txt").await;
         assert!(content == "copy3");
         let content = access(
             &service,
             "text/plain",
-            "http://127.0.0.1:7979/dir1\\..\\dir1\\test3.txt",
+            "http://127.0.0.1:5801/dir1\\..\\dir1\\test3.txt",
         )
         .await;
         assert!(content == "copy3");
@@ -160,11 +160,11 @@ mod tests {
             .push(Router::with_path("notexist.txt").get(StaticFile::new("test/static/notexist.txt")));
         let service = Service::new(router);
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/test1.txt").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
-        let response = TestClient::get("http://127.0.0.1:7979/notexist.txt")
+        let response = TestClient::get("http://127.0.0.1:5801/notexist.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
@@ -199,35 +199,35 @@ mod tests {
             }
         }
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/files/test1.txt")
+        let mut response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/dir/test1.txt")
+        let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/dir/test1111.txt")
+        let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1111.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Fallback page"));
 
-        let response = TestClient::get("http://127.0.0.1:7979/dir").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:5801/dir").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
 
-        let mut response = TestClient::get("http://127.0.0.1:7979/dir/").send(&service).await;
+        let mut response = TestClient::get("http://127.0.0.1:5801/dir/").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Index page"));
 
-        let response = TestClient::get("http://127.0.0.1:7979/dir2/").send(&service).await;
+        let response = TestClient::get("http://127.0.0.1:5801/dir2/").send(&service).await;
         assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
 
-        let response = TestClient::get("http://127.0.0.1:7979/dir3/abc.txt")
+        let response = TestClient::get("http://127.0.0.1:5801/dir3/abc.txt")
             .send(&service)
             .await;
         assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);

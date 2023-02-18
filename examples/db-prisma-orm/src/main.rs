@@ -17,7 +17,7 @@ async fn main() {
     prisma_client._db_push(false).await.unwrap();
 
     let router = Router::with_hoop(SetDB(prisma_client)).get(get).post(post);
-    let addr = "127.0.0.1:7878";
+    let addr = "127.0.0.1:5800";
 
     // Server::new(TcpListener::bind(addr)).serve(router).await;
     let acceptor = TcpListener::new(addr).bind().await;

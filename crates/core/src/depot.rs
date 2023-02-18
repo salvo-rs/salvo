@@ -21,7 +21,7 @@ use std::fmt::{self, Formatter};
 /// #[tokio::main]
 /// async fn main() {
 ///     let router = Router::new().hoop(set_user).handle(hello);
-///     let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
 ///     Server::new(acceptor).serve(router).await;
 /// }
 /// ```
@@ -168,7 +168,7 @@ mod test {
         let router = Router::new().hoop(set_user).handle(hello);
         let service = Service::new(router);
 
-        let content = TestClient::get("http://127.0.0.1:7878")
+        let content = TestClient::get("http://127.0.0.1:5800")
             .send(&service)
             .await
             .take_string()

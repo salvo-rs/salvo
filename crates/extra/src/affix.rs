@@ -97,7 +97,7 @@ mod tests {
             name: "salvo".to_string(),
         };
         let router = Router::with_hoop(inject(Arc::new(user)).insert("data1", "powerful")).handle(hello);
-        let content = TestClient::get("http://127.0.0.1:7878/")
+        let content = TestClient::get("http://127.0.0.1:5800/")
             .send(router)
             .await
             .take_string()

@@ -213,7 +213,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+            TestClient::get(format!("http://127.0.0.1:5800/{}", name))
                 .send(service)
                 .await
                 .take_string()
@@ -235,7 +235,7 @@ mod tests {
         let service = Service::new(router).with_catchers(catchers);
 
         async fn access(service: &Service, name: &str) -> String {
-            TestClient::get(format!("http://127.0.0.1:7878/{}", name))
+            TestClient::get(format!("http://127.0.0.1:5800/{}", name))
                 .send(service)
                 .await
                 .take_string()

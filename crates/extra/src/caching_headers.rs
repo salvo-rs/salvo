@@ -203,11 +203,11 @@ mod tests {
         let router = Router::with_hoop(CachingHeaders::new()).get(hello);
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:7878/").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
 
         let etag = respone.headers().get(ETAG).unwrap();
-        let respone = TestClient::get("http://127.0.0.1:7878/")
+        let respone = TestClient::get("http://127.0.0.1:5800/")
             .add_header(IF_NONE_MATCH, etag, true)
             .send(&service)
             .await;

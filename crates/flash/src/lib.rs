@@ -318,13 +318,13 @@ mod tests {
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:7878/set").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/get")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;
@@ -333,7 +333,7 @@ mod tests {
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/get")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;
@@ -358,18 +358,18 @@ mod tests {
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
-        let respone = TestClient::get("http://127.0.0.1:7878/set").send(&service).await;
+        let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
         assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/get")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;
         assert!(respone.take_string().await.unwrap().contains("Hey there!"));
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/get")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/get")
             .add_header(COOKIE, cookie, true)
             .send(&service)
             .await;

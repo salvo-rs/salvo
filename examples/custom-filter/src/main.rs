@@ -9,14 +9,14 @@ async fn hello() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    // only allow access from http://localhost:7878/, http://127.0.0.1:7878/ will get not found page.
+    // only allow access from http://localhost:5800/, http://127.0.0.1:5800/ will get not found page.
     let router = Router::new()
         .filter_fn(|req, _| {
             let host = req.header::<String>("HOST").unwrap_or_default();
-            host == "localhost:7878"
+            host == "localhost:5800"
         })
         .get(hello);
 
-    let acceptor = TcpListener::new("127.0.0.1:7878").bind().await;
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }

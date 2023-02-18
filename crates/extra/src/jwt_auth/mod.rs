@@ -231,7 +231,7 @@ mod tests {
         let service = Service::new(router);
 
         async fn access(service: &Service, token: &str) -> String {
-            TestClient::get("http://127.0.0.1:7979/hello")
+            TestClient::get("http://127.0.0.1:5801/hello")
                 .add_header("Authorization", format!("Bearer {}", token), true)
                 .send(service)
                 .await
@@ -254,14 +254,14 @@ mod tests {
         let content = access(&service, &token).await;
         assert!(content.contains("hello"));
 
-        let content = TestClient::get(format!("http://127.0.0.1:7979/hello?jwt_token={}", token))
+        let content = TestClient::get(format!("http://127.0.0.1:5801/hello?jwt_token={}", token))
             .send(&service)
             .await
             .take_string()
             .await
             .unwrap();
         assert!(content.contains("hello"));
-        let content = TestClient::get("http://127.0.0.1:7979/hello")
+        let content = TestClient::get("http://127.0.0.1:5801/hello")
             .add_header("Cookie", format!("jwt_token={}", token), true)
             .send(&service)
             .await

@@ -252,46 +252,46 @@ mod tests {
         let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
         let service = Service::new(router);
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
@@ -333,46 +333,46 @@ mod tests {
         let router = Router::new().push(Router::with_path("limited").hoop(limiter).get(limited));
         let service = Service::new(router);
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user1")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-        let respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
 
-        let mut respone = TestClient::get("http://127.0.0.1:7878/limited?user=user2")
+        let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
         assert_eq!(respone.status_code(), Some(StatusCode::OK));
