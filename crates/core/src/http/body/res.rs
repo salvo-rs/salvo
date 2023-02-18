@@ -3,11 +3,12 @@
 use std::boxed::Box;
 use std::collections::VecDeque;
 use std::error::Error as StdError;
+use std::io::{Error as IoError, ErrorKind};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
 use futures_util::stream::{BoxStream, Stream};
-use hyper::body::{Body, Frame, SizeHint};
+use hyper::body::{Body, Frame, Incoming, SizeHint};
 
 use bytes::Bytes;
 
@@ -21,6 +22,8 @@ pub enum ResBody {
     Once(Bytes),
     /// Chunks body.
     Chunks(VecDeque<Bytes>),
+    /// Hyper default body.
+    Hyper(Incoming),
     /// Stream body.
     Stream(BoxStream<'static, Result<Bytes, Box<dyn StdError + Send + Sync>>>),
 }
@@ -52,13 +55,14 @@ impl ResBody {
             ResBody::None => Some(0),
             ResBody::Once(bytes) => Some(bytes.len() as u64),
             ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
+            ResBody::Hyper(_) => None,
             ResBody::Stream(_) => None,
         }
     }
 }
 
 impl Stream for ResBody {
-    type Item = Result<Bytes, Box<dyn StdError + Send + Sync>>;
+    type Item = Result<Bytes, IoError>;
 
     #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
@@ -73,14 +77,20 @@ impl Stream for ResBody {
                 }
             }
             ResBody::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
-            ResBody::Stream(stream) => stream.as_mut().poll_next(cx),
+            ResBody::Hyper(body) => match Body::poll_frame(Pin::new(body), cx) {
+                Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            },
+            ResBody::Stream(stream) => stream.as_mut().poll_next(cx).map_err(|e|IoError::new(ErrorKind::Other, e)),
         }
     }
 }
 
 impl Body for ResBody {
     type Data = Bytes;
-    type Error = Box<dyn StdError + Send + Sync>;
+    type Error = IoError;
 
     fn poll_frame(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         match self.poll_next(_cx) {
@@ -96,6 +106,7 @@ impl Body for ResBody {
             ResBody::None => true,
             ResBody::Once(bytes) => bytes.is_empty(),
             ResBody::Chunks(chunks) => chunks.is_empty(),
+            ResBody::Hyper(body) => body.is_end_stream(),
             ResBody::Stream(_) => false,
         }
     }
@@ -108,7 +119,49 @@ impl Body for ResBody {
                 let size = chunks.iter().map(|bytes| bytes.len() as u64).sum();
                 SizeHint::with_exact(size)
             }
+            ResBody::Hyper(recv) => recv.size_hint(),
             ResBody::Stream(_) => SizeHint::default(),
         }
+    }
+}
+
+impl From<Bytes> for ResBody {
+    fn from(value: Bytes) -> ResBody {
+        ResBody::Once(value)
+    }
+}
+impl From<Incoming> for ResBody {
+    fn from(value: Incoming) -> ResBody {
+        ResBody::Hyper(value)
+    }
+}
+impl From<String> for ResBody {
+    #[inline]
+    fn from(value: String) -> ResBody {
+        ResBody::Once(value.into())
+    }
+}
+
+impl From<&'static [u8]> for ResBody {
+    fn from(value: &'static [u8]) -> ResBody {
+        ResBody::Once(value.into())
+    }
+}
+
+impl From<&'static str> for ResBody {
+    fn from(value: &'static str) -> ResBody {
+        ResBody::Once(value.into())
+    }
+}
+
+impl From<Vec<u8>> for ResBody {
+    fn from(value: Vec<u8>) -> ResBody {
+        ResBody::Once(value.into())
+    }
+}
+
+impl From<Box<[u8]>> for ResBody {
+    fn from(value: Box<[u8]>) -> ResBody {
+        ResBody::Once(value.into())
     }
 }

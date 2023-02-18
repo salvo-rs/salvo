@@ -4,6 +4,7 @@ use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecod
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
 use futures_util::stream::StreamExt;
+use http_body_util::BodyExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
 use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
@@ -93,7 +94,8 @@ impl ResponseExt for Response {
                     bytes.extend(chunk);
                 }
                 bytes.freeze()
-            },
+            }
+            ResBody::Hyper(body) => body.collect().await?.to_bytes(),
             ResBody::Stream(mut stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {

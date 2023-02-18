@@ -380,10 +380,16 @@ impl Response {
             ResBody::Chunks(chunks) => {
                 chunks.push_back(data.into());
             }
-            ResBody::Stream(_) => {
-                tracing::error!("current body kind is `ResBody::Stream`, try to write bytes to it");
+            ResBody::Hyper(_) => {
+                tracing::error!("current body's kind is `ResBody::Hyper`, it is not allowed to write bytes");
                 return Err(Error::other(
-                    "current body kind is `ResBody::Stream`, try to write bytes to it",
+                    "current body's kind is `ResBody::Hyper`, it is not allowed to write bytes",
+                ));
+            }
+            ResBody::Stream(_) => {
+                tracing::error!("current body's kind is `ResBody::Stream`, it is not allowed to write bytes");
+                return Err(Error::other(
+                    "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
                 ));
             }
         }

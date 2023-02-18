@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use hyper::rt::{Sleep, Timer};
 use tokio::runtime::{self, Runtime};
 
-#[derive(Clone)]
+#[derive(Default, Debug, Clone)]
 /// An Executor that uses the tokio runtime.
 pub struct TokioExecutor;
 
