@@ -1,4 +1,3 @@
-use salvo::listeners::AcmeListener;
 use salvo::prelude::*;
 
 #[handler]
@@ -11,11 +10,11 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello);
-    let listener = AcmeListener::builder()
+    let acceptor = TcpListener::new("0.0.0.0:443")
+    .acme()
         // .directory("letsencrypt", salvo::listener::acme::LETS_ENCRYPT_STAGING)
         .cache_path("acme/letsencrypt")
-        .add_domain("acme-tls-alpn01.salvo.rs")
-        .bind("0.0.0.0:443")
+        .add_domain("acme-tls-alpn01.salvo.rs").bind()
         .await;
-    Server::new(listener).serve(router).await;
+    Server::new(acceptor).serve(router).await;
 }

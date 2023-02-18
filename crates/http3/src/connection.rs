@@ -1,11 +1,10 @@
 use std::convert::TryFrom;
-use std::sync::{Arc, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::task::{Context, Poll};
 
 use bytes::{Buf, Bytes, BytesMut};
 use futures_util::{future, ready};
 use http::HeaderMap;
-use parking_lot::RwLock;
 use tracing::warn;
 
 use crate::{

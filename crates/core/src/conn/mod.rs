@@ -68,6 +68,37 @@ cfg_feature! {
     pub use tls_conn_stream::TlsConnStream;
 }
 
+mod sealed {
+    use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+    use std::sync::Arc;
+    
+    use tokio_rustls::server::TlsStream;
+    use tokio::io::{AsyncRead, AsyncWrite};
+
+    use crate::async_trait;
+    use crate::service::HyperHandler;
+    use crate::http::{version_from_alpn, HttpConnection, Version};
+    use crate::conn::HttpBuilders;
+
+    #[cfg(any(feature = "native-tls", feature = "rustls", feature = "acme"))]
+    #[async_trait]
+    impl<S> HttpConnection for TlsStream<S>
+    where
+        S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    {
+        async fn version(&mut self) -> Option<Version> {
+            self.get_ref().1.alpn_protocol().map(version_from_alpn)
+        }
+        async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+            builders
+                .http2
+                .serve_connection(self, handler)
+                .await
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+        }
+    }
+}
+
 #[cfg(any(feature = "rustls", feature = "native-tls", feature = "openssl"))]
 /// A type that can convert into tls config stream.
 pub trait IntoConfigStream<C> {

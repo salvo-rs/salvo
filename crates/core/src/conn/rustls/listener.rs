@@ -12,10 +12,9 @@ use tokio_rustls::server::TlsStream;
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener, TlsConnStream};
 use crate::http::uri::Scheme;
-use crate::http::{version_from_alpn, HttpConnection, Version};
-use crate::service::HyperHandler;
+use crate::http::Version;
 
 use super::RustlsConfig;
 
@@ -45,7 +44,7 @@ where
     T::Acceptor: Send + 'static,
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
-    
+
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
     }
@@ -68,10 +67,14 @@ pub struct RustlsAcceptor<C, T> {
 impl<C, T> RustlsAcceptor<C, T>
 where
     T: Acceptor + Send,
-    C: Send
+    C: Send,
 {
     /// Create a new `RustlsAcceptor`.
-    pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T> where C: Send, T: Send{
+    pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T>
+    where
+        C: Send,
+        T: Send,
+    {
         let holdings = inner
             .holdings()
             .iter()
@@ -87,23 +90,6 @@ where
             holdings,
             tls_acceptor: None,
         }
-    }
-}
-
-#[async_trait]
-impl<S> HttpConnection for TlsStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    async fn version(&mut self) -> Option<Version> {
-        self.get_ref().1.alpn_protocol().map(version_from_alpn)
-    }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        builders
-            .http2
-            .serve_connection(self, handler)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

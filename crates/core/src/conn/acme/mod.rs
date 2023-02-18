@@ -68,13 +68,13 @@ mod resolver;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::sync::Arc;
+use std::sync::{ Arc};
 
-use bytes::Bytes;
 use client::AcmeClient;
-use http_body_util::Full;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use http_body_util::Full;
+use bytes::Bytes;
+use parking_lot::RwLock;
 
 use crate::http::StatusError;
 use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};

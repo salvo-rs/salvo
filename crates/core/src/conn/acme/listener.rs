@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -11,11 +11,10 @@ use tokio_rustls::rustls::PrivateKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, Listener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, Holding, Listener, TlsConnStream};
 
 use crate::http::uri::Scheme;
-use crate::http::{version_from_alpn, HttpConnection, Version};
-use crate::service::HyperHandler;
+use crate::http::Version;
 use crate::{async_trait, Router};
 
 use super::config::{AcmeConfig, AcmeConfigBuilder};
@@ -200,23 +199,6 @@ where
         let inner = inner.try_bind().await?;
         let acceptor = AcmeAcceptor::new(acme_config, cert_resolver, inner, tls_acceptor, check_duration).await?;
         Ok(acceptor)
-    }
-}
-
-#[async_trait]
-impl<S> HttpConnection for TlsStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
-{
-    async fn version(&mut self) -> Option<Version> {
-        self.get_ref().1.alpn_protocol().map(version_from_alpn)
-    }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        builders
-            .http2
-            .serve_connection(self, handler)
-            .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 
