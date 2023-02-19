@@ -2,7 +2,6 @@
 #[tokio::main]
 async fn main() {
     use salvo::prelude::*;
-    use salvo_static::StaticDir;
 
     let router = Router::with_path("files/<*path>").get(StaticDir::new("./static"));
     let acceptor = UnixListener::new("/tmp/salvo.sock").bind().await;
