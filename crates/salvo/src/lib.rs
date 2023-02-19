@@ -112,7 +112,7 @@ cfg_feature! {
 cfg_feature! {
     #![feature ="serve-static"]
     #[doc(no_inline)]
-    pub use salvo_static as serve_static;
+    pub use salvo_serve_static as serve_static;
 }
 
 /// A list of things that automatically imports into application use salvo.
@@ -169,5 +169,9 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="ws"]
         pub use salvo_extra::ws::WebSocketUpgrade;
+    }
+    cfg_feature! {
+        #![feature ="serve-static"]
+        pub use salvo_serve_static::{StaticFile, StaticDir};
     }
 }

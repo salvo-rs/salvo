@@ -1,6 +1,5 @@
 use salvo::compression::{Compression, CompressionAlgo};
 use salvo::prelude::*;
-use salvo_static::*;
 
 #[tokio::main]
 async fn main() {
