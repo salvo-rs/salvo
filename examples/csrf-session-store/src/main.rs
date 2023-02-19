@@ -1,5 +1,5 @@
-use salvo::prelude::*;
 use salvo::csrf::*;
+use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[handler]
