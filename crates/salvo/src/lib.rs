@@ -135,6 +135,10 @@ pub mod prelude {
         pub use salvo_extra::compression::{Compression, CompressionAlgo};
     }
     cfg_feature! {
+        #![feature ="csrf"]
+        pub use salvo_csrf::CsrfDepotExt;
+    }
+    cfg_feature! {
         #![feature ="force-https"]
         pub use salvo_extra::force_https::ForceHttps;
     }
