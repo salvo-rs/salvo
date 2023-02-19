@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use salvo_core::async_trait;
 use salvo_core::http::header::AUTHORIZATION;
 use salvo_core::http::{Method, Request};
@@ -12,7 +14,7 @@ pub trait JwtTokenFinder: Send + Sync {
 }
 
 /// HeaderFinder
-#[derive(Default)]
+#[derive(Eq, PartialEq, Clone, Default)]
 pub struct HeaderFinder {
     cared_methods: Vec<Method>,
 }
@@ -64,14 +66,15 @@ impl JwtTokenFinder for HeaderFinder {
 }
 
 /// FormFinder
+#[derive(Eq, PartialEq, Clone, Default)]
 pub struct FormFinder {
     cared_methods: Vec<Method>,
-    field_name: String,
+    field_name: Cow<'static, str>,
 }
 impl FormFinder {
     /// Create new `FormFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(field_name: T) -> Self {
+    pub fn new<T: Into<Cow<'static, str>>>(field_name: T) -> Self {
         Self {
             field_name: field_name.into(),
             cared_methods: ALL_METHODS.clone(),
@@ -112,14 +115,15 @@ impl JwtTokenFinder for FormFinder {
 }
 
 /// QueryFinder
+#[derive(Eq, PartialEq, Clone, Default)]
 pub struct QueryFinder {
     cared_methods: Vec<Method>,
-    query_name: String,
+    query_name: Cow<'static, str>,
 }
 impl QueryFinder {
     /// Create new `QueryFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(query_name: T) -> Self {
+    pub fn new<T: Into<Cow<'static, str>>>(query_name: T) -> Self {
         Self {
             query_name: query_name.into(),
             cared_methods: ALL_METHODS.clone(),
@@ -161,14 +165,15 @@ impl JwtTokenFinder for QueryFinder {
 }
 
 /// CookieFinder
+#[derive(Eq, PartialEq, Clone, Default)]
 pub struct CookieFinder {
     cared_methods: Vec<Method>,
-    cookie_name: String,
+    cookie_name: Cow<'static, str>,
 }
 impl CookieFinder {
     /// Create new `CookieFinder`.
     #[inline]
-    pub fn new<T: Into<String>>(cookie_name: T) -> Self {
+    pub fn new<T: Into<Cow<'static, str>>>(cookie_name: T) -> Self {
         Self {
             cookie_name: cookie_name.into(),
             cared_methods: ALL_METHODS.clone(),

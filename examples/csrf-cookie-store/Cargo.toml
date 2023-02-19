@@ -5,8 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-salvo = { path = "../../crates/salvo" }
-salvo-csrf = { features = ["all"], path = "../../crates/csrf" }
+salvo = { path = "../../crates/salvo", features = ["csrf"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

@@ -5,8 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-salvo = { path = "../../crates/salvo" }
-salvo-csrf = { default-features = false, features = ["session-store", "bcrypt-cipher"], path = "../../crates/csrf" }
+salvo = { path = "../../crates/salvo", features = ["csrf"] }
 salvo-session = { path = "../../crates/session" }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
