@@ -1,6 +1,6 @@
 [package]
-name = "salvo-static"
-version.workspace = true
+name = "salvo-serve-static"
+version = "0.0.1"
 authors.workspace = true
 edition.workspace = true
 description = """

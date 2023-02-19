@@ -67,8 +67,8 @@ jobs:
             path: crates/cache
           - crate: salvo-rate-limiter
             path: crates/rate-limiter
-          - crate: salvo-static
-            path: crates/static
+          - crate: salvo-serve-static
+            path: crates/serve-static
           - crate: salvo
             path: crates/salvo
     steps:

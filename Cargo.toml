@@ -77,8 +77,8 @@ salvo-csrf = { path = "./crates/csrf" }
 salvo-flash = { path = "./crates/flash" }
 salvo-proxy = { path = "./crates/proxy" }
 salvo-rate-limiter = { path = "./crates/rate-limiter" }
+salvo-serve-static = { path = "./crates/serve-static" }
 salvo-session = { path = "./crates/session" }
-salvo-static = { path = "./crates/static" }
 serde = "1"
 serde_json = "1"
 serde_urlencoded = "0.7"
