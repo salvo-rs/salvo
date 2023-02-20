@@ -4,11 +4,18 @@ use std::time::Instant;
 use tracing::{Instrument, Level};
 
 use salvo_core::http::{Request, Response, StatusCode};
-use salvo_core::{Depot, async_trait, Handler, FlowCtrl};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
-/// Logger
+/// A simple logger middleware.
 #[derive(Default, Debug)]
-pub struct Logger;
+pub struct Logger {}
+impl Logger {
+    /// Create new `Logger` middleware.
+    #[inline]
+    pub fn new() -> Self {
+        Logger {}
+    }
+}
 
 #[async_trait]
 impl Handler for Logger {
@@ -65,7 +72,7 @@ mod tests {
         }
 
         let router = Router::new()
-            .hoop(Logger)
+            .hoop(Logger::new())
             .push(Router::with_path("hello").get(hello));
 
         TestClient::get("http://127.0.0.1:5801/hello")
