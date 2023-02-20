@@ -11,7 +11,7 @@ impl Writer for CustomError {
 
 #[handler]
 async fn handle_anyhow() -> Result<(), anyhow::Error> {
-    Err(anyhow::anyhow!("anyhow error"))
+    Err(anyhow::anyhow!("handled anyhow error"))
 }
 #[handler]
 async fn handle_custom() -> Result<(), CustomError> {
