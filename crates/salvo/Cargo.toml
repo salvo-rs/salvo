@@ -41,6 +41,7 @@ affix = ["salvo_extra/affix"]
 basic-auth = ["salvo_extra/basic-auth"]
 force-https = ["salvo_extra/force-https"]
 jwt-auth = ["salvo_extra/jwt-auth"]
+catch-panic = ["salvo_extra/catch-panic"]
 compression = ["salvo_extra/compression"]
 logging = ["salvo_extra/logging"]
 proxy = ["salvo-proxy"]
@@ -62,7 +63,7 @@ serve-static = ["dep:salvo-serve-static"]
 salvo_core = { workspace = true, default-features = false }
 salvo_extra = { workspace = true, default-features = false, optional = true }
 salvo-cache = { workspace = true, optional = true }
-salvo-cors = { workspace = true, optional = true}
+salvo-cors = { workspace = true, optional = true }
 salvo-csrf = { workspace = true, features = ["all"], optional = true }
 salvo-flash = { workspace = true, features = ["all"], optional = true }
 salvo-rate-limiter = { workspace = true, features = ["all"], optional = true }

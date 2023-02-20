@@ -31,6 +31,11 @@ cfg_feature! {
 }
 
 cfg_feature! {
+    #![feature = "catch-panic"]
+    pub mod catch_panic;
+}
+
+cfg_feature! {
     #![feature = "compression"]
     pub mod compression;
 }

@@ -115,6 +115,9 @@ impl Writer for Error {
     async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
         let status_error = match self {
             Error::HttpStatus(e) => e,
+            #[cfg(debug_assertions)]
+            _ => StatusError::internal_server_error().with_detail(self.to_string()),
+            #[cfg(not(debug_assertions))]
             _ => StatusError::internal_server_error(),
         };
         res.set_status_error(status_error);
@@ -127,6 +130,9 @@ cfg_feature! {
         #[inline]
         async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
             tracing::error!(error = ?self, "anyhow error occurred");
+            #[cfg(debug_assertions)]
+            res.set_status_error(StatusError::internal_server_error().with_detail(self.to_string()));
+            #[cfg(not(debug_assertions))]
             res.set_status_error(StatusError::internal_server_error());
         }
     }
