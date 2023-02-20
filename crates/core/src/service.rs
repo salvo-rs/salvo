@@ -188,16 +188,11 @@ impl HyperHandler {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
-            } else {
-                res.set_status_code(StatusCode::NOT_FOUND);
-            }
-
-            if res.status_code().is_none() {
-                if res.body.is_none() {
-                    res.set_status_code(StatusCode::NOT_FOUND);
-                } else {
+                if res.status_code().is_none() {
                     res.set_status_code(StatusCode::OK);
                 }
+            } else {
+                res.set_status_code(StatusCode::NOT_FOUND);
             }
 
             let status = res.status_code().unwrap();
