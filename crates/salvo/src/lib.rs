@@ -30,6 +30,11 @@ cfg_feature! {
     pub use salvo_extra::caching_headers;
 }
 cfg_feature! {
+    #![feature ="catch-panic"]
+    #[doc(no_inline)]
+    pub use salvo_extra::catch_panic;
+}
+cfg_feature! {
     #![feature ="compression"]
     #[doc(no_inline)]
     pub use salvo_extra::compression;
@@ -129,6 +134,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="caching-headers"]
         pub use salvo_extra::caching_headers::CachingHeaders;
+    }
+    cfg_feature! {
+        #![feature ="catch-panic"]
+        pub use salvo_extra::catch_panic::CatchPanic;
     }
     cfg_feature! {
         #![feature ="compression"]
