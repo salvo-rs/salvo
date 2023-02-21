@@ -215,7 +215,7 @@ impl Response {
             body,
             ..
         } = self;
-        
+
         #[cfg(feature = "cookie")]
         for cookie in cookies.delta() {
             if let Ok(hv) = cookie.encoded().to_string().parse() {
