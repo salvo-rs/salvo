@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  build_and_test:
+  check:
     strategy:
       fail-fast: false
       matrix:
@@ -20,7 +20,7 @@ jobs:
           # - x86_64-pc-windows-gnu
           # - i686-pc-windows-msvc
 
-    name: ${{ matrix.version }} - ${{ matrix.target }}
+    name: Check ${{ matrix.version }} - ${{ matrix.target }}
     runs-on: windows-latest
 
     steps:
@@ -57,14 +57,46 @@ jobs:
           command: check
           args: --all --bins --examples --tests --release
 
-      - name: tests
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - stable
+          # - nightly
+        target:
+          - x86_64-pc-windows-msvc
+          # - x86_64-pc-windows-gnu
+          # - i686-pc-windows-msvc
+
+    name: Test ${{ matrix.version }} - ${{ matrix.target }}
+    runs-on: windows-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install ${{ matrix.version }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.version }}-${{ matrix.target }}
+          profile: minimal
+          override: true
+      
+      - name: Install openssl
+        run: |
+            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+            vcpkg install openssl:x64-windows-static-md
+
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cargo test
         uses: actions-rs/cargo@v1
         timeout-minutes: 40
         with:
           command: test
           args: --all --all-features --no-fail-fast -- --nocapture
-
-      - name: Clear the cargo caches
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache

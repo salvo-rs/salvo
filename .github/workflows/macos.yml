@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  build_and_test:
+  check:
     strategy:
       fail-fast: false
       matrix:
@@ -16,7 +16,7 @@ jobs:
           - stable
           # - nightly
 
-    name: ${{ matrix.version }} - x86_64-apple-darwin
+    name: Check ${{ matrix.version }} - x86_64-apple-darwin
     runs-on: macOS-12
 
     steps:
@@ -48,14 +48,37 @@ jobs:
           command: check
           args: --all --bins --examples --tests --release
 
-      - name: tests
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - stable
+          # - nightly
+
+    name: Test ${{ matrix.version }} - x86_64-apple-darwin
+    runs-on: macOS-12
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install ${{ matrix.version }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.version }}-x86_64-apple-darwin
+          profile: minimal
+          override: true
+
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cargo test
         uses: actions-rs/cargo@v1
         timeout-minutes: 40
         with:
           command: test
           args: --all --all-features --no-fail-fast -- --nocapture
-
-      - name: Clear the cargo caches
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache
