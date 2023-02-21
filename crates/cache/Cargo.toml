@@ -24,7 +24,7 @@ memory-store = ["dep:moka"]
 [dependencies]
 bytes.workspace = true
 moka = { workspace = true, optional = true }
-salvo_core = { workspace = true, default-features = false }
+salvo_core = { workspace = true, features = ["http1"]}
 tracing.workspace = true
 
 [dev-dependencies]
