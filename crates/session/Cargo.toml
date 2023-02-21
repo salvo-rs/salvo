@@ -20,10 +20,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 async-session.workspace = true
 cookie = { workspace = true, features = ["percent-encode", "signed"] }
-salvo_core = { workspace = true, default-features = false }
+salvo_core = { workspace = true, features = ["cookie"] }
 tracing.workspace = true
 
 [dev-dependencies]
-salvo_core = { features = ["test"], path = "../core" }
+salvo_core = { workspace = true, features = ["test"]}
 tracing-test.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

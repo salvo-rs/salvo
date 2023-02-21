@@ -71,3 +71,24 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
+      
+  features:
+    name: features
+    needs: [style]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+
+      - name: check --feature-powerset
+        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps

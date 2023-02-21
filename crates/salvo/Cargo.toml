@@ -60,8 +60,8 @@ session = ["dep:salvo-session"]
 serve-static = ["dep:salvo-serve-static"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false }
-salvo_extra = { workspace = true, default-features = false, optional = true }
+salvo_core = { workspace = true }
+salvo_extra = { workspace = true, optional = true }
 salvo-cache = { workspace = true, optional = true }
 salvo-cors = { workspace = true, optional = true }
 salvo-csrf = { workspace = true, features = ["all"], optional = true }

@@ -15,7 +15,6 @@ use tokio::time::Duration;
 use crate::conn::quinn;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders};
 use crate::http::{HeaderValue, HttpConnection, Version};
-use crate::runtimes::TokioExecutor;
 use crate::Service;
 
 /// HTTP Server
@@ -48,7 +47,7 @@ impl<A: Acceptor + Send> Server<A> {
                 #[cfg(feature = "http1")]
                 http1: http1::Builder::new(),
                 #[cfg(feature = "http2")]
-                http2: http2::Builder::new(TokioExecutor),
+                http2: http2::Builder::new(crate::runtimes::TokioExecutor),
                 #[cfg(feature = "quinn")]
                 quinn: crate::conn::quinn::Builder,
             },
@@ -72,7 +71,7 @@ impl<A: Acceptor + Send> Server<A> {
     cfg_feature! {
         #![feature = "http2"]
         /// Use this function to set http2 protocol.
-        pub fn http2_mut(&mut self) -> &mut http2::Builder<TokioExecutor> {
+        pub fn http2_mut(&mut self) -> &mut http2::Builder<crate::runtimes::TokioExecutor> {
             &mut self.builders.http2
         }
     }

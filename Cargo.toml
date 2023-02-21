@@ -57,8 +57,8 @@ parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
 pin-project = "1"
-quinn = { version = "0.8" }
-quinn-proto = { version = "0.9" }
+quinn = { version = "0.8", default-features = false }
+quinn-proto = { version = "0.9", default-features = false }
 rand = "0.8"
 rcgen = "0.10"
 regex = "1"
@@ -66,19 +66,19 @@ ring = "0.16"
 rustls = "0.20"
 rustls-pemfile = "1.0"
 rust-embed = "6"
-salvo_macros = { path = "./crates/macros" }
-salvo_core = { path = "./crates/core" }
-salvo_extra = { path = "./crates/extra" }
-salvo-http3 = { path = "./crates/http3" }
-salvo-quinn = { path = "./crates/quinn" }
-salvo-cache = { path = "./crates/cache" }
-salvo-cors = { path = "./crates/cors" }
-salvo-csrf = { path = "./crates/csrf" }
-salvo-flash = { path = "./crates/flash" }
-salvo-proxy = { path = "./crates/proxy" }
-salvo-rate-limiter = { path = "./crates/rate-limiter" }
-salvo-serve-static = { path = "./crates/serve-static" }
-salvo-session = { path = "./crates/session" }
+salvo_macros = { path = "./crates/macros", default-features = false }
+salvo_core = { path = "./crates/core", default-features = false }
+salvo_extra = { path = "./crates/extra", default-features = false }
+salvo-http3 = { path = "./crates/http3", default-features = false }
+salvo-quinn = { path = "./crates/quinn", default-features = false }
+salvo-cache = { path = "./crates/cache", default-features = false }
+salvo-cors = { path = "./crates/cors", default-features = false }
+salvo-csrf = { path = "./crates/csrf", default-features = false }
+salvo-flash = { path = "./crates/flash", default-features = false }
+salvo-proxy = { path = "./crates/proxy", default-features = false }
+salvo-rate-limiter = { path = "./crates/rate-limiter", default-features = false }
+salvo-serve-static = { path = "./crates/serve-static", default-features = false }
+salvo-session = { path = "./crates/session", default-features = false }
 serde = "1"
 serde_json = "1"
 serde_urlencoded = "0.7"
@@ -92,9 +92,9 @@ tokio = "1"
 tokio-native-tls = "0.3"
 tokio-rustls = "0.23"
 tokio-openssl = "0.6"
-tokio-stream = "0.1"
+tokio-stream = { version = "0.1", default-features = false }
 tokio-util = "0.7"
-tokio-tungstenite = "0.18"
+tokio-tungstenite = {version  = "0.18", default-features = false }
 tracing = "0.1"
 tracing-test = "0.2.1"
 url = "2"

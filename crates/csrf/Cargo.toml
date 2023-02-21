@@ -38,7 +38,7 @@ hmac = { workspace = true, optional = true }
 rand.workspace = true
 tracing.workspace = true
 salvo_core = { workspace = true, default-features = false }
-salvo-session = { workspace = true, default-features = false, optional = true }
+salvo-session = { workspace = true, optional = true }
 serde_json.workspace = true
 sha2 = { workspace = true, optional = true }
 

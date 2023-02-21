@@ -3,8 +3,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use headers::HeaderValue;
-use http::header::{ALT_SVC, CONTENT_TYPE, HOST};
-use http::uri::{Authority, Scheme, Uri};
+use http::header::{ALT_SVC, CONTENT_TYPE};
+use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
@@ -272,14 +272,14 @@ where
         if req.uri().scheme().is_none() {
             if let Some(host) = req
                 .headers()
-                .get(HOST)
+                .get(http::header::HOST)
                 .and_then(|host| host.to_str().ok())
-                .and_then(|host| host.parse::<Authority>().ok())
+                .and_then(|host| host.parse::<http::uri::Authority>().ok())
             {
                 let mut uri_parts = std::mem::take(req.uri_mut()).into_parts();
                 uri_parts.scheme = Some(scheme.clone());
                 uri_parts.authority = Some(host);
-                if let Ok(uri) = Uri::from_parts(uri_parts) {
+                if let Ok(uri) = http::uri::Uri::from_parts(uri_parts) {
                     *req.uri_mut() = uri;
                 }
             }

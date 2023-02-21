@@ -27,7 +27,7 @@ session-store = ["dep:salvo-session"]
 async-session = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 salvo_extra = { workspace = true, default-features = false }
-salvo-session = { workspace = true, default-features = false, optional = true }
+salvo-session = { workspace = true, optional = true }
 tracing.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }

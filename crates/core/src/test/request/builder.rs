@@ -229,9 +229,9 @@ impl RequestBuilder {
 
     /// Send request to target, such as [`Router`], [`Service`], [`Handler`].
     pub async fn send(self, target: impl SendTarget + Send) -> Response {
-        let mut response = target.call(self.build()).await;
         #[cfg(feature = "cookie")]
         {
+            let mut response = target.call(self.build()).await;
             let values = response
                 .cookies
                 .delta()
@@ -240,8 +240,10 @@ impl RequestBuilder {
             for hv in values {
                 response.headers_mut().insert(header::SET_COOKIE, hv);
             }
+            response
         }
-        response
+        #[cfg(not(feature = "cookie"))]
+        target.call(self.build()).await
     }
 }
 #[async_trait]

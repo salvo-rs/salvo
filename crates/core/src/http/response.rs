@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
 use futures_util::stream::{Stream, TryStreamExt};
-use http::header::{HeaderMap, HeaderValue, IntoHeaderName, SET_COOKIE};
+use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
@@ -49,7 +49,7 @@ impl From<hyper::Response<ResBody>> for Response {
         ) = res.into_parts();
         #[cfg(feature = "cookie")]
         // Set the request cookies, if they exist.
-        let cookies = if let Some(header) = headers.get(SET_COOKIE) {
+        let cookies = if let Some(header) = headers.get(http::header::SET_COOKIE) {
             let mut cookie_jar = CookieJar::new();
             if let Ok(header) = header.to_str() {
                 for cookie_str in header.split(';').map(|s| s.trim()) {
@@ -197,33 +197,32 @@ impl Response {
         false
     }
 
-    #[cfg(feature = "cookie")]
-    #[doc(hidden)]
-    #[inline]
-    pub(crate) fn write_cookies_to_headers(&mut self) {
-        for cookie in self.cookies.delta() {
-            if let Ok(hv) = cookie.encoded().to_string().parse() {
-                self.headers.append(SET_COOKIE, hv);
-            }
-        }
-        self.cookies = CookieJar::new();
-    }
-
     /// `write_back` is used to put all the data added to `self`
     /// back onto an `hyper::Response` so that it is sent back to the
     /// client.
     ///
     /// `write_back` consumes the `Response`.
     #[inline]
-    pub(crate) async fn write_back(mut self, res: &mut hyper::Response<ResBody>) {
-        #[cfg(feature = "cookie")]
-        self.write_cookies_to_headers();
+    pub(crate) async fn write_back(self, res: &mut hyper::Response<ResBody>) {
         let Self {
             status_code,
+            #[cfg(feature = "cookie")]
+            mut headers,
+            #[cfg(feature = "cookie")]
+            cookies,
+            #[cfg(not(feature = "cookie"))]
             headers,
             body,
             ..
         } = self;
+        
+        #[cfg(feature = "cookie")]
+        for cookie in cookies.delta() {
+            if let Ok(hv) = cookie.encoded().to_string().parse() {
+                headers.append(http::header::SET_COOKIE, hv);
+            }
+        }
+
         *res.headers_mut() = headers;
 
         // Default to a 404 if no response code was set

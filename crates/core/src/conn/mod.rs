@@ -69,7 +69,7 @@ cfg_feature! {
 }
 
 cfg_feature! {
-    #![any(feature = "native-tls", feature = "rustls", feature = "acme")]
+    #![any(feature = "rustls", feature = "acme")]
     mod sealed {
         use std::io::{Error as IoError, ErrorKind, Result as IoResult};
         use std::sync::Arc;
@@ -82,7 +82,7 @@ cfg_feature! {
         use crate::http::{version_from_alpn, HttpConnection, Version};
         use crate::conn::HttpBuilders;
 
-        #[cfg(any(feature = "native-tls", feature = "rustls", feature = "acme"))]
+        #[cfg(any(feature = "rustls", feature = "acme"))]
         #[async_trait]
         impl<S> HttpConnection for TlsStream<S>
         where
@@ -92,6 +92,13 @@ cfg_feature! {
                 self.get_ref().1.alpn_protocol().map(version_from_alpn)
             }
             async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+                #[cfg(not(feature = "http2"))]
+                {
+                    let _ = handler;
+                    let _ = builders;
+                    panic!("http2 feature is required");
+                }
+                #[cfg(feature = "http2")]
                 builders
                     .http2
                     .serve_connection(self, handler)

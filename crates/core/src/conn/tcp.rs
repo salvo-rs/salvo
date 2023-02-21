@@ -1,5 +1,5 @@
 //! TcpListener and it's implements.
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::vec;
 
@@ -127,12 +127,19 @@ impl HttpConnection for TcpStream {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        #[cfg(not(feature = "http1"))]
+        {
+            let _ = handler;
+            let _ = builders;
+            panic!("http1 feature is required");
+        }
+        #[cfg(feature = "http1")]
         builders
             .http1
             .serve_connection(self, handler)
             .with_upgrades()
             .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }
 }
 

@@ -13,8 +13,10 @@ use bytes::Bytes;
 use crate::BoxedError;
 
 /// Body for request.
+#[derive(Default)]
 pub enum ReqBody {
     /// None body.
+    #[default]
     None,
     /// Once bytes body.
     Once(Bytes),
@@ -31,12 +33,6 @@ impl fmt::Debug for ReqBody {
             ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
             ReqBody::Inner(_) => f.debug_tuple("ReqBody::Inner").finish(),
         }
-    }
-}
-
-impl Default for ReqBody {
-    fn default() -> Self {
-        ReqBody::None
     }
 }
 
