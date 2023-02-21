@@ -65,6 +65,13 @@ where
         self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        #[cfg(not(feature = "http2"))]
+        {
+            let _ = handler;
+            let _ = builders;
+            panic!("http2 feature is required");
+        }
+        #[cfg(feature = "http2")]
         builders
             .http2
             .serve_connection(self, handler)

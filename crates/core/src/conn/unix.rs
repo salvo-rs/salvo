@@ -1,5 +1,5 @@
 //! UnixListener module
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -87,12 +87,19 @@ impl HttpConnection for UnixStream {
         Some(Version::HTTP_11)
     }
     async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
+        #[cfg(not(feature = "http1"))]
+        {
+            let _ = handler;
+            let _ = builders;
+            panic!("http1 feature is required");
+        }
+        #[cfg(feature = "http1")]
         builders
             .http1
             .serve_connection(self, handler)
             .with_upgrades()
             .await
-            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }
 }
 
@@ -113,7 +120,7 @@ mod tests {
             stream.write_i32(518).await.unwrap();
         });
 
-        let Accepted {mut conn, ..} = acceptor.accept().await.unwrap();
+        let Accepted { mut conn, .. } = acceptor.accept().await.unwrap();
         assert_eq!(conn.read_i32().await.unwrap(), 518);
         std::fs::remove_file(sock_file).unwrap();
     }
