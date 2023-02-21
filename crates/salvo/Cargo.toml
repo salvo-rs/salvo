@@ -61,12 +61,12 @@ serve-static = ["dep:salvo-serve-static"]
 
 [dependencies]
 salvo_core = { workspace = true }
-salvo_extra = { workspace = true, optional = true }
-salvo-cache = { workspace = true, optional = true }
+salvo_extra = { workspace = true, features = ["default"], optional = true }
+salvo-cache = { workspace = true, features = ["default"], optional = true }
 salvo-cors = { workspace = true, optional = true }
 salvo-csrf = { workspace = true, features = ["all"], optional = true }
 salvo-flash = { workspace = true, features = ["all"], optional = true }
-salvo-rate-limiter = { workspace = true, features = ["all"], optional = true }
+salvo-rate-limiter = { workspace = true, optional = true }
 salvo-session = { workspace = true, optional = true }
 salvo-serve-static = { workspace = true, features = ["all"], optional = true }
 salvo-proxy = { workspace = true, optional = true }
