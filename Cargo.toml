@@ -42,8 +42,8 @@ http-body-util = "0.1.0-rc.2"                                                   
 hmac = "0.12"
 hex = "0.4"
 hyper = { git = "https://github.com/hyperium/hyper.git" }
-hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", rev = "709a1a6" }
-hyper-util = { git = "https://github.com/chrislearn/hyper-util.git", rev = "8756d6a" }
+hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", branch = "salvo" }
+hyper-util = { git = "https://github.com/chrislearn/hyper-util.git", branch = "salvo" }
 jsonwebtoken = "8"
 mime = "0.3"
 mime_guess = "2"
