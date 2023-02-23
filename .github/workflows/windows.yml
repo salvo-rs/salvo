@@ -29,6 +29,10 @@ jobs:
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
+      - name: Install openssl
+        run: |
+            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+            vcpkg install openssl:x64-windows-static-md
 
       - name: check build
         run: cargo check --all --bins --examples --tests
@@ -58,6 +62,10 @@ jobs:
         with:
           toolchain: ${{ matrix.version }}
           components: rustfmt, clippy
+      - name: Install openssl
+        run: |
+            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+            vcpkg install openssl:x64-windows-static-md
           
       - name: Cargo test
         timeout-minutes: 40
