@@ -25,37 +25,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.version }}-${{ matrix.target }}
-          profile: minimal
-          override: true
-      
-      - name: Install openssl
-        run: |
-            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-            vcpkg install openssl:x64-windows-static-md
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
 
       - name: check build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests
+        run: cargo check --all --bins --examples --tests
 
       - name: check release build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests --release
+        run: cargo check --all --bins --examples --tests --release
+
 
   test:
     strategy:
@@ -74,29 +54,11 @@ jobs:
     needs: [check]
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.version }}-${{ matrix.target }}
-          profile: minimal
-          override: true
-      
-      - name: Install openssl
-        run: |
-            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-            vcpkg install openssl:x64-windows-static-md
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
-
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
+          
       - name: Cargo test
-        uses: actions-rs/cargo@v1
         timeout-minutes: 40
-        with:
-          command: test
-          args: --all --all-features --no-fail-fast -- --nocapture
+        run: cargo test --all --all-features --no-fail-fast -- --nocapture
