@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  check:
+  test:
     strategy:
       fail-fast: false
       matrix:
@@ -21,64 +21,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.version }}-x86_64-apple-darwin
-          profile: minimal
-          override: true
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
 
       - name: check build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests
+        run: cargo check --all --bins --examples --tests
 
       - name: check release build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests --release
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - stable
-          # - nightly
-
-    name: Test ${{ matrix.version }} - x86_64-apple-darwin
-    runs-on: macOS-12
-    needs: [check]
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.version }}-x86_64-apple-darwin
-          profile: minimal
-          override: true
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
+        run: cargo check --all --bins --examples --tests --release
 
       - name: Cargo test
-        uses: actions-rs/cargo@v1
         timeout-minutes: 40
-        with:
-          command: test
-          args: --all --all-features --no-fail-fast -- --nocapture
+        run: cargo test --all --all-features --no-fail-fast -- --nocapture

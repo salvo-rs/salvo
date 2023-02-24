@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  check:
+  test:
     strategy:
       fail-fast: false
       matrix:
@@ -25,78 +25,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.version }}-${{ matrix.target }}
-          profile: minimal
-          override: true
-      
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
       - name: Install openssl
         run: |
             echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
             vcpkg install openssl:x64-windows-static-md
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
 
       - name: check build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests
+        run: cargo check --all --bins --examples --tests
 
       - name: check release build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all --bins --examples --tests --release
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - stable
-          # - nightly
-        target:
-          - x86_64-pc-windows-msvc
-          # - x86_64-pc-windows-gnu
-          # - i686-pc-windows-msvc
-
-    name: Test ${{ matrix.version }} - ${{ matrix.target }}
-    runs-on: windows-latest
-    needs: [check]
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install ${{ matrix.version }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.version }}-${{ matrix.target }}
-          profile: minimal
-          override: true
-      
-      - name: Install openssl
-        run: |
-            echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-            vcpkg install openssl:x64-windows-static-md
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v2
-
+        run: cargo check --all --bins --examples --tests --release
+          
       - name: Cargo test
-        uses: actions-rs/cargo@v1
         timeout-minutes: 40
-        with:
-          command: test
-          args: --all --all-features --no-fail-fast -- --nocapture
+        run: cargo test --all --all-features --no-fail-fast -- --nocapture
