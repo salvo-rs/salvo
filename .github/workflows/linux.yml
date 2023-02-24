@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  check:
+  check_test:
     strategy:
         fail-fast: false
         matrix:
@@ -29,25 +29,7 @@ jobs:
 
       - name: check release build
         run: cargo check --all --bins --examples --tests --release
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - stable
-          # - nightly
-
-    name: Test ${{ matrix.version }} - x86_64-unknown-linux-gnu
-    runs-on: ubuntu-latest
-    needs: [check]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.version }}
-          components: rustfmt, clippy
-
+        
       - name: Cargo test
         timeout-minutes: 40
         run: cargo test --all --all-features --no-fail-fast -- --nocapture
