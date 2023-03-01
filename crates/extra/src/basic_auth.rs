@@ -53,6 +53,17 @@ where
         self.header_names = header_names.into();
         self
     }
+    #[doc(hidden)]
+    #[inline]
+    pub fn header_names(&self) -> &Vec<HeaderName> {
+       & self.header_names
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
+       &mut self.header_names
+    }
 
     #[doc(hidden)]
     #[inline]

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use salvo_core::async_trait;
-use salvo_core::http::header::AUTHORIZATION;
+use salvo_core::http::header::{HeaderName, AUTHORIZATION};
 use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
@@ -17,6 +17,7 @@ pub trait JwtTokenFinder: Send + Sync {
 #[derive(Eq, PartialEq, Clone, Default)]
 pub struct HeaderFinder {
     cared_methods: Vec<Method>,
+    header_names: Vec<HeaderName>,
 }
 impl HeaderFinder {
     /// Create new `HeaderFinder`.
@@ -24,8 +25,27 @@ impl HeaderFinder {
     pub fn new() -> Self {
         Self {
             cared_methods: ALL_METHODS.clone(),
+            header_names: vec![AUTHORIZATION],
         }
     }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn set_header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
+        self.header_names = header_names.into();
+        self
+    }
+    #[doc(hidden)]
+    #[inline]
+    pub fn header_names(&self) -> &Vec<HeaderName> {
+        &self.header_names
+    }
+    #[doc(hidden)]
+    #[inline]
+    pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
+        &mut self.header_names
+    }
+
     /// Get cared methods list reference.
     #[inline]
     pub fn cared_methods(&self) -> &Vec<Method> {
@@ -53,8 +73,8 @@ impl JwtTokenFinder for HeaderFinder {
     #[inline]
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         if self.cared_methods.contains(req.method()) {
-            if let Some(auth) = req.headers().get(AUTHORIZATION) {
-                if let Ok(auth) = auth.to_str() {
+            for header_name in &self.header_names {
+                if let Some(Ok(auth)) = req.headers().get(header_name).map(|auth| auth.to_str()) {
                     if auth.starts_with("Bearer") {
                         return auth.split_once(' ').map(|(_, token)| token.to_owned());
                     }
