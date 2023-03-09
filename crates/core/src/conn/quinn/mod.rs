@@ -9,8 +9,8 @@ use std::vec;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
-pub use salvo_quinn::quinn::ServerConfig;
-use salvo_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
+pub use h3_quinn::quinn::ServerConfig;
+use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use http::uri::Scheme;
 
@@ -77,9 +77,9 @@ pub struct QuinnAcceptor {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(pub salvo_http3::server::Connection<salvo_quinn::Connection, Bytes>);
+pub struct H3Connection(pub h3::server::Connection<h3_quinn::Connection, Bytes>);
 impl Deref for H3Connection {
-    type Target = salvo_http3::server::Connection<salvo_quinn::Connection, Bytes>;
+    type Target = h3::server::Connection<h3_quinn::Connection, Bytes>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -133,7 +133,7 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = salvo_http3::server::Connection::new(salvo_quinn::Connection::new(conn))
+                    let conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
                         .await
                         .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
                     return Ok(Accepted {
