@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use salvo::affix;
 use salvo::prelude::*;
