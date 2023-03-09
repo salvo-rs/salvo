@@ -1,3 +1,6 @@
+use std::sync::Mutex;
+use std::sync::Arc;
+
 use salvo::affix;
 use salvo::prelude::*;
 
@@ -5,7 +8,10 @@ use salvo::prelude::*;
 async fn hello(depot: &mut Depot) -> String {
     let config = depot.obtain::<Config>().unwrap();
     let custom_data = depot.get::<&str>("custom_data").unwrap();
-    format!("Hello World\nConfig: {config:#?}\nCustom Data: {custom_data}")
+    let state = depot.obtain::<Arc<State>>().unwrap();
+    let mut fails_ref = state.fails.lock().unwrap();
+    fails_ref.push("fail message".into());
+    format!("Hello World\nConfig: {config:#?}\nFails: {fails_ref:#?}\nCustom Data: {custom_data}")
 }
 
 #[tokio::main]
@@ -23,13 +29,24 @@ struct Config {
     password: String,
 }
 
+#[derive(Default, Debug)]
+struct State {
+    fails: Mutex<Vec<String>>,
+}
+
 fn route() -> Router {
     let config = Config {
         username: "root".to_string(),
         password: "pwd".to_string(),
     };
     Router::new()
-        .hoop(affix::inject(config).insert("custom_data", "I love this world!"))
+        .hoop(
+            affix::inject(config)
+                .inject(Arc::new(State {
+                    fails: Mutex::new(Vec::new()),
+                }))
+                .insert("custom_data", "I love this world!"),
+        )
         .get(hello)
         .push(Router::with_path("hello").get(hello))
 }
