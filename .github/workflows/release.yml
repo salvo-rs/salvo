@@ -44,10 +44,6 @@ jobs:
       max-parallel: 1
       matrix:
         package:
-          - crate: salvo-http3
-            path: crates/http3
-          - crate: salvo-quinn
-            path: crates/quinn
           - crate: salvo_macros
             path: crates/macros
           - crate: salvo_core
