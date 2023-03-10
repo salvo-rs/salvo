@@ -22,7 +22,7 @@ cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = []
-quinn = ["dep:salvo-http3", "dep:salvo-quinn", "dep:quinn", "rustls"]
+quinn = ["dep:h3", "dep:h3-quinn", "dep:quinn", "rustls"]
 rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
@@ -58,14 +58,13 @@ percent-encoding.workspace = true
 pin-project = { workspace = true }
 parking_lot.workspace = true
 quinn = { workspace = true, optional = true, features = ["tls-rustls", "ring"] }
-quinn-proto = { workspace = true, optional = true }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
-salvo-http3 = { workspace = true, optional = true }
+h3 = { workspace = true, optional = true }
 salvo_macros.workspace = true
-salvo-quinn = { workspace = true, optional = true }
+h3-quinn = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde_urlencoded = { workspace = true, optional = true }

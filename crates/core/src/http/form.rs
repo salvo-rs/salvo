@@ -85,7 +85,7 @@ pub struct FilePart {
     path: PathBuf,
     /// Optionally, the size of the file.  This is filled when multiparts are parsed, but is
     /// not necessary when they are generated.
-    size: Option<usize>,
+    size: usize,
     // The temporary directory the upload was put into, saved for the Drop trait
     temp_dir: Option<PathBuf>,
 }
@@ -116,7 +116,7 @@ impl FilePart {
     }
     /// Get file size.
     #[inline]
-    pub fn size(&self) -> Option<usize> {
+    pub fn size(&self) -> usize {
         self.size
     }
     /// If you do not want the file on disk to be deleted when Self drops, call this
@@ -145,14 +145,16 @@ impl FilePart {
                 .unwrap_or("unknown")
         ));
         let mut file = File::create(&path).await?;
+        let mut size = 0;
         while let Some(chunk) = field.chunk().await? {
+            size += chunk.len();
             file.write_all(&chunk).await?;
         }
         Ok(FilePart {
             name,
             headers: field.headers().to_owned(),
             path,
-            size: None,
+            size,
             temp_dir,
         })
     }
