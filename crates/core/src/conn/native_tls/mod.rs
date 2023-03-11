@@ -11,7 +11,7 @@ mod tests {
     use tokio::net::TcpStream;
 
     use super::*;
-    use crate::conn::{TcpListener, Accepted,Acceptor, Listener};
+    use crate::conn::{Accepted, Acceptor, Listener, TcpListener};
 
     #[tokio::test]
     async fn test_native_tls_listener() {
@@ -22,11 +22,7 @@ mod tests {
         };
 
         let mut acceptor = TcpListener::new("127.0.0.1:0")
-            .native_tls(
-                NativeTlsConfig::new()
-                    .with_pkcs12(identity)
-                    .with_password("mypass"),
-            )
+            .native_tls(NativeTlsConfig::new().with_pkcs12(identity).with_password("mypass"))
             .bind()
             .await;
         let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
