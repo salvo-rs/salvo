@@ -194,9 +194,8 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
 pub trait FlashDepotExt {
     /// Get incoming flash.
     fn incoming_flash(&mut self) -> Option<&Flash>;
-
     /// Get outgoing flash.
-    fn outgoing_flash(&mut self) -> &Flash;
+    fn outgoing_flash(&self) -> &Flash;
     /// Get mutable outgoing flash.
     fn outgoing_flash_mut(&mut self) -> &mut Flash;
 }
@@ -208,7 +207,7 @@ impl FlashDepotExt for Depot {
     }
 
     #[inline]
-    fn outgoing_flash(&mut self) -> &Flash {
+    fn outgoing_flash(&self) -> &Flash {
         self.get::<Flash>(OUTGOING_FLASH_KEY)
             .expect("Flash should be initialized")
     }
