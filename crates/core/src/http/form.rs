@@ -117,7 +117,7 @@ impl FilePart {
     /// Get file size.
     #[inline]
     pub fn size(&self) -> u64 {
-        self.u64
+        self.size
     }
     /// If you do not want the file on disk to be deleted when Self drops, call this
     /// function.  It will become your responsibility to clean up.
