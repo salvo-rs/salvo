@@ -6,6 +6,7 @@ exclude = ["examples/work-with-tower", "examples/db-prisma-orm", "examples/with-
 version = "0.38.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
+rust-version = "1.64"
 description = """
 Salvo is a powerful and simple Rust web server framework.
 """
