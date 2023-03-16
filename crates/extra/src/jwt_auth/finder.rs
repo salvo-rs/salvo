@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use salvo_core::async_trait;
-use salvo_core::http::header::{HeaderName, AUTHORIZATION};
+use salvo_core::http::header::{HeaderName, AUTHORIZATION, PROXY_AUTHORIZATION};
 use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
@@ -25,7 +25,7 @@ impl HeaderFinder {
     pub fn new() -> Self {
         Self {
             cared_methods: ALL_METHODS.clone(),
-            header_names: vec![AUTHORIZATION],
+            header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
         }
     }
 
