@@ -45,3 +45,54 @@ impl CsrfCipher for BcryptCipher {
         (token, secret.as_bytes().to_vec())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bcrypt_cipher_new() {
+        let cipher = BcryptCipher::new();
+        assert_eq!(cipher.cost, 8);
+        assert_eq!(cipher.token_size, 32);
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_with_token_size() {
+        let cipher = BcryptCipher::new().with_token_size(16);
+        assert_eq!(cipher.token_size, 16);
+    }
+
+    #[test]
+    #[should_panic(expected = "length must be between 1 and 72")]
+    fn test_bcrypt_cipher_with_invalid_token_size() {
+        BcryptCipher::new().with_token_size(0);
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_with_cost() {
+        let cipher = BcryptCipher::new().with_cost(10);
+        assert_eq!(cipher.cost, 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "cost must be between 4 and 31")]
+    fn test_bcrypt_cipher_with_invalid_cost() {
+        BcryptCipher::new().with_cost(32);
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_verify_and_generate() {
+        let cipher = BcryptCipher::new();
+        let (token, secret) = cipher.generate();
+        assert!(cipher.verify(&token, &secret));
+    }
+
+    #[test]
+    fn test_bcrypt_cipher_verify_invalid_token() {
+        let cipher = BcryptCipher::new();
+        let (token, secret) = cipher.generate();
+        let invalid_token = vec![0; token.len()];
+        assert!(!cipher.verify(&invalid_token, &secret));
+    }
+}

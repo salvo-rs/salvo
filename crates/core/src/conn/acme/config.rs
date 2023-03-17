@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
-use std::sync::{Arc};
+use std::sync::Arc;
 use std::time::Duration;
 
 use http::Uri;
@@ -49,8 +49,8 @@ impl Debug for AcmeConfig {
 pub struct AcmeConfigBuilder {
     pub(crate) directory_name: String,
     pub(crate) directory_url: String,
-    pub(crate) domains: HashSet<String>,
-    pub(crate) contacts: HashSet<String>,
+    pub(crate) domains: Vec<String>,
+    pub(crate) contacts: Vec<String>,
     pub(crate) challenge_type: ChallengeType,
     pub(crate) cache_path: Option<PathBuf>,
     pub(crate) keys_for_http01: Option<Arc<RwLock<HashMap<String, String>>>>,
@@ -63,7 +63,7 @@ impl AcmeConfigBuilder {
         Self {
             directory_name: "lets_encrypt".to_string(),
             directory_url: LETS_ENCRYPT_PRODUCTION.to_string(),
-            domains: HashSet::new(),
+            domains: Vec::new(),
             contacts: Default::default(),
             challenge_type: ChallengeType::TlsAlpn01,
             cache_path: None,
@@ -86,27 +86,27 @@ impl AcmeConfigBuilder {
 
     /// Sets domains.
     #[inline]
-    pub fn domains(mut self, domains: impl Into<HashSet<String>>) -> Self {
+    pub fn domains(mut self, domains: impl Into<Vec<String>>) -> Self {
         self.domains = domains.into();
         self
     }
     /// Add a domain.
     #[inline]
     pub fn add_domain(mut self, domain: impl Into<String>) -> Self {
-        self.domains.insert(domain.into());
+        self.domains.push(domain.into());
         self
     }
 
     /// Sets contact email for the ACME account.
     #[inline]
-    pub fn contacts(mut self, contacts: impl Into<HashSet<String>>) -> Self {
+    pub fn contacts(mut self, contacts: impl Into<Vec<String>>) -> Self {
         self.contacts = contacts.into();
         self
     }
     /// Add a contact email for the ACME account.
     #[inline]
     pub fn add_contact(mut self, contact: impl Into<String>) -> Self {
-        self.contacts.insert(contact.into());
+        self.contacts.push(contact.into());
         self
     }
 
@@ -171,13 +171,42 @@ impl AcmeConfigBuilder {
         Ok(AcmeConfig {
             directory_name,
             directory_url,
-            domains: domains.into_iter().collect(),
-            contacts: contacts.into_iter().collect(),
+            domains,
+            contacts,
             key_pair: Arc::new(KeyPair::generate()?),
             challenge_type,
             cache_path,
             keys_for_http01,
             before_expired,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_acme_config_builder() {
+        let domains = vec!["example.com".to_string(), "example.org".to_string()];
+        let contacts = vec!["mailto:admin@example.com".to_string()];
+
+        let acme_config = AcmeConfig::builder()
+            .directory("test_directory", "https://test-directory-url.com")
+            .domains(domains.clone())
+            .contacts(contacts.clone())
+            .http01_challege()
+            .cache_path("test_cache_path")
+            .before_expired(Duration::from_secs(24 * 60 * 60))
+            .build()
+            .unwrap();
+
+        assert_eq!(acme_config.directory_name, "test_directory");
+        assert_eq!(acme_config.directory_url, "https://test-directory-url.com");
+        assert_eq!(acme_config.domains, domains);
+        assert_eq!(acme_config.contacts, contacts);
+        assert_eq!(acme_config.challenge_type, ChallengeType::Http01);
+        assert_eq!(acme_config.cache_path, Some(PathBuf::from("test_cache_path")));
+        assert_eq!(acme_config.before_expired, Duration::from_secs(24 * 60 * 60));
     }
 }

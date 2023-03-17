@@ -117,3 +117,41 @@ impl CsrfTokenFinder for JsonFinder {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use salvo_core::test::TestClient;
+
+    #[tokio::test]
+    async fn test_query_finder() {
+        let query_finder = QueryFinder::new();
+        let mut req = TestClient::get("http://test.com/?csrf-token=test_token").build();
+        let token = query_finder.find_token(&mut req).await;
+        assert_eq!(token, Some("test_token".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_header_finder() {
+        let header_finder = HeaderFinder::new("x-csrf-token");
+        let mut req =TestClient::get("http://test.com").add_header("x-csrf-token", "test_token", true).build();
+        let token = header_finder.find_token(&mut req).await;
+        assert_eq!(token, Some("test_token".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_form_finder() {
+        let form_finder = FormFinder::new("csrf-token");
+        let mut req = TestClient::get("http://test.com").raw_form("csrf-token=test_token").build();
+        let token = form_finder.find_token(&mut req).await;
+        assert_eq!(token, Some("test_token".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_json_finder() {
+        let json_finder = JsonFinder::new("csrf-token");
+        let mut req = TestClient::get("http://test.com").raw_json(r#"{"csrf-token":"test_token"}"#).build();
+        let token = json_finder.find_token(&mut req).await;
+        assert_eq!(token, Some("test_token".to_string()));
+    }
+}

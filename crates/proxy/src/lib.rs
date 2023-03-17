@@ -295,12 +295,35 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     None
 }
 
+
+// Unit tests for Proxy
 #[cfg(test)]
 mod tests {
-    use salvo_core::prelude::*;
-    // use salvo_core::test::{ResponseExt, TestClient};
-
     use super::*;
+
+    #[test]
+    fn test_encode_url_path() {
+        let path = "/test/path";
+        let encoded_path = encode_url_path(path);
+        assert_eq!(encoded_path, "/test/path");
+    }
+
+    #[test]
+    fn test_upstreams_elect() {
+        let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
+        let proxy = Proxy::new(upstreams.clone());
+        let elected_upstream = proxy.upstreams().elect().unwrap();
+        assert!(upstreams.contains(&elected_upstream));
+    }
+
+    #[test]
+    fn test_get_upgrade_type() {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONNECTION, HeaderValue::from_static("upgrade"));
+        headers.insert(UPGRADE, HeaderValue::from_static("websocket"));
+        let upgrade_type = get_upgrade_type(&headers);
+        assert_eq!(upgrade_type, Some("websocket"));
+    }
 
     //TODO: https://github.com/hyperium/http-body/issues/88
     // #[tokio::test]

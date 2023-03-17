@@ -171,3 +171,36 @@ fn file_hash_part(data: &[String]) -> String {
     }
     URL_SAFE_NO_PAD.encode(ctx.finish())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn test_acme_cache() {
+        let cache_path = PathBuf::from("temp/test_cache");
+        let directory_name = "test_directory";
+        let domains = vec!["example.com".to_string(), "www.example.com".to_string()];
+        let key_data = b"test_key_data";
+        let cert_data = b"test_cert_data";
+
+        // Test write_key
+        let result = AcmeCache::write_key(&cache_path, directory_name, &domains, key_data).await;
+        assert!(result.is_ok());
+
+        // Test read_key
+        let result = AcmeCache::read_key(&cache_path, directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), key_data);
+
+        // Test write_cert
+        let result = AcmeCache::write_cert(&cache_path, directory_name, &domains, cert_data).await;
+        assert!(result.is_ok());
+
+        // Test read_cert
+        let result = AcmeCache::read_cert(&cache_path, directory_name, &domains).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().unwrap(), cert_data);
+    }
+}

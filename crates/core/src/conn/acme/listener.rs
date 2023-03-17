@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::io::{Error as IoError, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
@@ -52,7 +51,7 @@ impl<T> AcmeListener<T> {
 
     /// Sets domains.
     #[inline]
-    pub fn domains(self, domains: impl Into<HashSet<String>>) -> Self {
+    pub fn domains(self, domains: impl Into<Vec<String>>) -> Self {
         Self {
             config_builder: self.config_builder.domains(domains),
             ..self
@@ -69,7 +68,7 @@ impl<T> AcmeListener<T> {
 
     /// Add contact emails for the ACME account.
     #[inline]
-    pub fn contacts(self, contacts: impl Into<HashSet<String>>) -> Self {
+    pub fn contacts(self, contacts: impl Into<Vec<String>>) -> Self {
         Self {
             config_builder: self.config_builder.contacts(contacts.into()),
             ..self

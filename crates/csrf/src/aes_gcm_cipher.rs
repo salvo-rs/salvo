@@ -54,3 +54,24 @@ impl CsrfCipher for AesGcmCipher {
         (token, secret)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::AesGcmCipher;
+    use super::CsrfCipher;
+
+    #[test]
+    fn test_aes_gcm_cipher() {
+        let aead_key = [0u8; 32];
+        let cipher = AesGcmCipher::new(aead_key);
+
+        let (token, secret) = cipher.generate();
+        assert!(cipher.verify(&token, &secret));
+
+        let invalid_secret = vec![0u8; secret.len()];
+        assert!(!cipher.verify(&token, &invalid_secret));
+
+        let invalid_token = vec![0u8; token.len()];
+        assert!(!cipher.verify(&invalid_token, &secret));
+    }
+}
