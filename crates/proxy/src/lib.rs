@@ -295,7 +295,6 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
     None
 }
 
-
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
