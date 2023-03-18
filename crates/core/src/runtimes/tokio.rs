@@ -24,7 +24,6 @@ where
 }
 
 /// A Timer that uses the tokio runtime.
-
 #[derive(Clone, Debug)]
 pub struct TokioTimer;
 
@@ -73,7 +72,6 @@ impl Future for TokioSleep {
 
 // Use HasSleep to get tokio::time::Sleep to implement Unpin.
 // see https://docs.rs/tokio/latest/tokio/time/struct.Sleep.html
-
 impl Sleep for TokioSleep {}
 
 #[inline]

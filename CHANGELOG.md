@@ -48,7 +48,7 @@
 ### 0.15.0
 - core: Use hyper Server and remove TlsServer. Add TlsListener, TcpListener, UnixListener, JoinedListener.
 - core: depot api changed.
-- core: change trait ```Handler``` and add ```FlowCtrl```.
+- core: change trait `Handler` and add `FlowCtrl`.
 - extra: add session supports.
 
 ### 0.14.0

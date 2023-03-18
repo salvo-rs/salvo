@@ -58,7 +58,7 @@ where
 ///
 /// ## Sending a request with no body
 ///
-/// ```rust
+/// ```
 /// # use salvo::http3::{quic, client::*};
 /// # use http::{Request, Response};
 /// # use bytes::Buf;
@@ -84,7 +84,7 @@ where
 ///
 /// ## Sending a request with a body and trailers
 ///
-/// ```rust
+/// ```
 /// # use salvo::http3::{quic, client::*};
 /// # use http::{Request, Response, HeaderMap};
 /// # use bytes::{Buf, Bytes};
@@ -265,7 +265,7 @@ where
 ///
 /// ## Drive a connection concurrenty
 ///
-/// ```rust
+/// ```
 /// # use bytes::Buf;
 /// # use futures_util::future;
 /// # use salvo::http3::{client::*, quic};
@@ -288,7 +288,7 @@ where
 ///
 /// ## Shutdown a connection gracefully
 ///
-/// ```rust
+/// ```
 /// # use bytes::Buf;
 /// # use futures_util::future;
 /// # use salvo::http3::{client::*, quic};
@@ -443,7 +443,8 @@ where
 /// Set the configuration for a new client.
 ///
 /// # Examples
-/// ```rust
+/// 
+/// ```
 /// # use salvo::http3::quic;
 /// # async fn doc<C, O, B>(quic: C)
 /// # where
@@ -530,7 +531,7 @@ impl Builder {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
 /// # use salvo::http3::{quic, client::*};
 /// # use http::{Request, Response};
 /// # use bytes::Buf;

@@ -24,7 +24,7 @@ impl Handler for MaxSize {
         }
     }
 }
-/// Create a new ```MaxSize```.
+/// Create a new `MaxSize`.
 #[inline]
 pub fn max_size(size: u64) -> MaxSize {
     MaxSize(size)

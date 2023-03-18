@@ -1,4 +1,7 @@
-//! filter
+//! filter module
+//!
+//! This module provides filters for routing requests based on various criteria 
+//! such as uri scheme, hostname, port, path, and HTTP method.
 
 mod opts;
 mod others;
@@ -15,6 +18,7 @@ pub use others::*;
 pub use path::*;
 
 /// Fiter trait for filter request.
+
 pub trait Filter: fmt::Debug + Send + Sync + 'static {
     #[doc(hidden)]
     fn type_id(&self) -> std::any::TypeId {
@@ -24,7 +28,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    /// Create a new filter use ```And``` filter.
+    /// Create a new filter use `And` filter.
     #[inline]
     fn and<F>(self, other: F) -> And<Self, F>
     where
@@ -37,7 +41,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
         }
     }
 
-    /// Create a new filter use ```Or``` filter.
+    /// Create a new filter use `Or` filter.
     #[inline]
     fn or<F>(self, other: F) -> Or<Self, F>
     where
@@ -50,7 +54,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
         }
     }
 
-    /// Create a new filter use ```AndThen``` filter.
+    /// Create a new filter use `AndThen` filter.
     #[inline]
     fn and_then<F>(self, fun: F) -> AndThen<Self, F>
     where
@@ -63,7 +67,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
         }
     }
 
-    /// Create a new filter use ```OrElse``` filter.
+    /// Create a new filter use `OrElse` filter.
     #[inline]
     fn or_else<F>(self, fun: F) -> OrElse<Self, F>
     where
@@ -76,11 +80,11 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
         }
     }
 
-    /// Filter ```Request``` and returns false or true.
+    /// Filter `Request` and returns false or true.
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
-/// ```FnFilter``` accpect a function as it's param, use this function to filter request.
+/// `FnFilter` accpect a function as it's param, use this function to filter request.
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
 pub struct FnFilter<F>(pub F);
@@ -120,7 +124,7 @@ pub fn port(port: u16, default: bool) -> PortFilter {
     PortFilter(port, default)
 }
 
-/// Filter request use ```PathFilter```.
+/// Filter request use `PathFilter`.
 #[inline]
 pub fn path(path: impl Into<String>) -> PathFilter {
     PathFilter::new(path)

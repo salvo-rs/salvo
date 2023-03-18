@@ -291,14 +291,35 @@ impl Response {
         }
     }
 
-    /// Sets status code.
+    /// Sets status code and returns `&mut Self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::StatusCode;
+    /// use salvo_core::http::response::Response;
+    ///
+    /// let mut res = Response::new();
+    /// res.with_status_code(StatusCode::OK);
+    /// ```
     #[inline]
     pub fn with_status_code(&mut self, code: StatusCode) -> &mut Self {
         self.set_status_code(code);
         self
     }
 
-    /// Get content type.
+    /// Get content type..
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::{Response, StatusCode};
+    ///
+    /// let mut res = Response::new();
+    /// assert_eq!(None, res.content_type());
+    /// res.headers_mut().insert("content-type", "text/plain".parse().unwrap());
+    /// assert_eq!(Some(mime::TEXT_PLAIN), res.content_type());
+    ///
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         self.headers
@@ -308,17 +329,38 @@ impl Response {
     }
 
     /// Get http error if exists, only exists after use `set_status_error` set http error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::{Response, StatusCode, StatusError};
+    ///
+    /// let mut res = Response::new();
+    /// res.set_status_error(StatusError::bad_request());
+    /// assert!(res.status_error().is_some());
+    ///
     #[inline]
     pub fn status_error(&self) -> Option<&StatusError> {
         self.status_error.as_ref()
     }
     /// Sets http error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::{StatusCode, StatusError};
+    /// use salvo_core::http::response::Response;
+    ///
+    /// let mut res = Response::new();
+    /// res.set_status_error(StatusError::bad_request());
+    /// assert!(res.status_error().is_some());
+    ///
     #[inline]
     pub fn set_status_error(&mut self, e: StatusError) {
         self.status_code = Some(e.code);
         self.status_error = Some(e);
     }
-    /// Sets http error.
+    /// Sets http error and returns `&mut Self`.
     #[inline]
     pub fn with_status_error(&mut self, e: StatusError) -> &mut Self {
         self.set_status_error(e);
@@ -326,7 +368,15 @@ impl Response {
     }
 
     /// Render content.
-    #[inline]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::{Response, StatusCode};
+    ///
+    /// let mut res = Response::new();
+    /// res.render("hello world");
+    /// ```
     pub fn render<P>(&mut self, piece: P)
     where
         P: Piece,
@@ -334,7 +384,16 @@ impl Response {
         piece.render(self);
     }
 
-    /// Render content.
+    /// Renders content and returns `&mut Self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use salvo_core::http::{Response, StatusCode};
+    ///
+    /// let mut res = Response::new();
+    /// res.with_render("hello world");
+    /// ```
     #[inline]
     pub fn with_render<P>(&mut self, piece: P) -> &mut Self
     where

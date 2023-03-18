@@ -16,11 +16,11 @@ use crate::{async_trait, Error};
 /// More utils functions for response.
 #[async_trait]
 pub trait ResponseExt {
-    /// Take body as ```String``` from response.
+    /// Take body as `String` from response.
     async fn take_string(&mut self) -> crate::Result<String>;
     /// Take body as deserialize it to type `T` instance.
     async fn take_json<T: DeserializeOwned>(&mut self) -> crate::Result<T>;
-    /// Take body as ```String``` from response with charset.
+    /// Take body as `String` from response with charset.
     async fn take_string_with_charset(&mut self, charset: &str, compress: Option<&str>) -> crate::Result<String>;
     /// Take all body bytes. If body is none, it will creates and returns a new [`Bytes`].
     async fn take_bytes(&mut self) -> crate::Result<Bytes>;

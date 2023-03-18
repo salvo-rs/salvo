@@ -14,7 +14,7 @@ mod extract;
 mod handler;
 mod shared;
 
-/// `handler` is a pro macro to help create `Handler` from function or impl block easily.
+/// `handler` is a macro to help create `Handler` from function or impl block easily.
 ///
 /// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`.
 ///

@@ -2,7 +2,7 @@
 //!
 //! A web application can specify several different Catchers to handle errors.
 //!
-//! They can be set via the ```with_catchers``` function of ```Server```:
+//! They can be set via the `with_catchers` function of `Server`:
 //!
 //! # Example
 //!

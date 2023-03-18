@@ -46,7 +46,7 @@ pub use self::routing::{FlowCtrl, Router};
 pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writer::{Piece, Writer};
-/// Result type wich has salvo::Error as it's error type.
+/// Result type which has `salvo::Error` as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A list of things that automatically imports into application use salvo_core.

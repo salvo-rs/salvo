@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
-/// Depot if for store temp data of current request. Each handler can read or write data to it.
+/// Depot is for store temp data of current request. Each handler can read or write data to it.
 ///
 /// # Example
 ///
@@ -32,7 +32,7 @@ pub struct Depot {
 }
 
 impl Depot {
-    /// Creates an empty ```Depot```.
+    /// Creates an empty `Depot`.
     ///
     /// The depot is initially created with a capacity of 0, so it will not allocate until it is first inserted into.
     #[inline]
@@ -46,7 +46,7 @@ impl Depot {
         &self.map
     }
 
-    /// Creates an empty ```Depot``` with the specified capacity.
+    /// Creates an empty `Depot` with the specified capacity.
     ///
     /// The depot will be able to hold at least capacity elements without reallocating. If capacity is 0, the depot will not allocate.
     #[inline]
