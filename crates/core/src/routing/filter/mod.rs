@@ -1,6 +1,6 @@
 //! filter module
 //!
-//! This module provides filters for routing requests based on various criteria 
+//! This module provides filters for routing requests based on various criteria
 //! such as uri scheme, hostname, port, path, and HTTP method.
 
 mod opts;

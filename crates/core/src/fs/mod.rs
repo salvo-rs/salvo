@@ -18,7 +18,7 @@ pub(crate) enum ChunkedState<T> {
 }
 
 /// A stream of bytes that reads a file in chunks.
-/// 
+///
 /// This struct is used to read a file in chunks, where each chunk is a `Bytes` object.
 /// It implements the `Stream` trait from the `futures_util` crate.
 pub struct ChunkedFile<T> {
