@@ -5,7 +5,7 @@ use cruet::Inflector;
 
 use self::RenameRule::*;
 
-/// Source from for a field.
+/// Source for a field.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum SourceFrom {
