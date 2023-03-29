@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["memory-store", "fixed-guard", "sliding-guard"]
-all = ["memory-store", "sliding-guard", "fixed-guard"]
+all = ["memory-store", "fixed-guard", "sliding-guard"]
 memory-store = ["dep:moka"]
 fixed-guard = []
 sliding-guard = []
