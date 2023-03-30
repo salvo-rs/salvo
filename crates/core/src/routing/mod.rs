@@ -112,6 +112,14 @@ fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
+#[doc(hidden)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[non_exhaustive]
+pub enum FlowCtrlStage {
+    Routing,
+    Catching,
+}
+
 /// `FlowCtrl` is used to control the flow of execute handlers.
 ///
 /// When a request is comming, [`Router`] will detect it and get the matched one.
@@ -133,7 +141,7 @@ pub struct FlowCtrl {
 impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
-    pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
+    pub fn new(stage: FlowCtrlStage, handlers: Vec<Arc<dyn Handler>>) -> Self {
         FlowCtrl {
             catching: None,
             is_ceased: false,
