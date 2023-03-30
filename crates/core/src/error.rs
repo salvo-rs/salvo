@@ -195,7 +195,6 @@ mod tests {
         assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
-
     #[tokio::test]
     async fn test_error() {
         let mut req = Request::default();
