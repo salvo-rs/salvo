@@ -141,7 +141,7 @@ pub struct FlowCtrl {
 impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
-    pub fn new(stage: FlowCtrlStage, handlers: Vec<Arc<dyn Handler>>) -> Self {
+    pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
         FlowCtrl {
             catching: None,
             is_ceased: false,
