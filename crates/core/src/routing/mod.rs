@@ -112,14 +112,6 @@ fn decode_url_path_safely(path: &str) -> String {
         .to_string()
 }
 
-#[doc(hidden)]
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-#[non_exhaustive]
-pub enum FlowCtrlStage {
-    Routing,
-    Catching,
-}
-
 /// `FlowCtrl` is used to control the flow of execute handlers.
 ///
 /// When a request is comming, [`Router`] will detect it and get the matched one.
@@ -132,7 +124,7 @@ pub enum FlowCtrlStage {
 ///
 /// [`Router`]: crate::routing::Router
 pub struct FlowCtrl {
-    stage: FlowCtrlStage,
+    catching: Option<bool>,
     is_ceased: bool,
     cursor: usize,
     pub(crate) handlers: Vec<Arc<dyn Handler>>,
@@ -141,9 +133,9 @@ pub struct FlowCtrl {
 impl FlowCtrl {
     /// Create new `FlowCtrl`.
     #[inline]
-    pub fn new(stage: FlowCtrlStage, handlers: Vec<Arc<dyn Handler>>) -> Self {
+    pub fn new(handlers: Vec<Arc<dyn Handler>>) -> Self {
         FlowCtrl {
-            stage,
+            catching: None,
             is_ceased: false,
             cursor: 0,
             handlers,
@@ -160,7 +152,10 @@ impl FlowCtrl {
     /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
-        if self.stage == FlowCtrlStage::Routing && res.is_stamped() {
+        if self.catching.is_none() {
+            self.catching = Some(res.is_stamped());
+        }
+        if !self.catching.unwrap_or_default() && res.is_stamped() {
             self.skip_rest();
             return false;
         }
@@ -171,7 +166,7 @@ impl FlowCtrl {
             while let Some(h) = handler.take() {
                 self.cursor += 1;
                 h.handle(req, depot, res, self).await;
-                if self.stage == FlowCtrlStage::Routing && res.is_stamped() {
+                if !self.catching.unwrap_or_default() && res.is_stamped() {
                     self.skip_rest();
                     return true;
                 } else if self.has_next() {
