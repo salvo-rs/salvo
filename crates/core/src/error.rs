@@ -25,8 +25,12 @@ pub enum Error {
     SerdeJson(serde_json::Error),
     /// Anyhow error.
     #[cfg(feature = "anyhow")]
-    #[cfg_attr(docsrs, doc(cfg(unix)))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
     Anyhow(anyhow::Error),
+    /// Anyhow error.
+    #[cfg(feature = "eyre")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "eyre")))]
+    Eyre(eyre::Report),
     /// Custom error that does not fall under any other error kind.
     Other(BoxedError),
 }
@@ -49,6 +53,8 @@ impl Display for Error {
             Self::SerdeJson(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
+            #[cfg(feature = "eyre")]
+            Self::Eyre(e) => Display::fmt(e, f),
             Self::Other(e) => Display::fmt(e, f),
         }
     }
@@ -101,6 +107,15 @@ cfg_feature! {
         }
     }
 }
+cfg_feature! {
+    #![feature = "eyre"]
+    impl From<eyre::Report> for Error {
+        #[inline]
+        fn from(e: eyre::Report) -> Error {
+            Error::Eyre(e)
+        }
+    }
+}
 
 impl From<BoxedError> for Error {
     #[inline]
@@ -137,6 +152,20 @@ cfg_feature! {
         }
     }
 }
+cfg_feature! {
+    #![feature = "eyre"]
+    #[async_trait]
+    impl Writer for eyre::Report {
+        #[inline]
+        async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+            tracing::error!(error = ?self, "eyre error occurred");
+            #[cfg(debug_assertions)]
+            res.set_status_error(StatusError::internal_server_error().with_detail(self.to_string()));
+            #[cfg(not(debug_assertions))]
+            res.set_status_error(StatusError::internal_server_error());
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -151,6 +180,17 @@ mod tests {
         let mut res = Response::default();
         let mut depot = Depot::new();
         let e: anyhow::Error = anyhow::anyhow!("detail message");
+        e.write(&mut req, &mut depot, &mut res).await;
+        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "eyre")]
+    async fn test_eyre() {
+        let mut req = Request::default();
+        let mut res = Response::default();
+        let mut depot = Depot::new();
+        let e: eyre::Report = eyre::Report::msg!("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }

@@ -14,6 +14,10 @@ async fn handle_anyhow() -> Result<(), anyhow::Error> {
     Err(anyhow::anyhow!("handled anyhow error"))
 }
 #[handler]
+async fn handle_eyre() -> eyre::Result<()> {
+    Err(eyre::Report::msg("handled eyre error"))
+}
+#[handler]
 async fn handle_custom() -> Result<(), CustomError> {
     Err(CustomError)
 }
@@ -24,6 +28,7 @@ async fn main() {
 
     let router = Router::new()
         .push(Router::with_path("anyhow").get(handle_anyhow))
+        .push(Router::with_path("eyre").get(handle_eyre))
         .push(Router::with_path("custom").get(handle_custom));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
