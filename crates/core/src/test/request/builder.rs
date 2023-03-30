@@ -285,7 +285,7 @@ where
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
         let mut res = Response::with_cookies(req.cookies.clone());
-        let mut ctrl = FlowCtrl::new(FlowCtrlStage::Routing, vec![self.clone()]);
+        let mut ctrl = FlowCtrl::new(vec![self.clone()]);
         self.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
         res
     }

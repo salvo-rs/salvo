@@ -218,7 +218,7 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new(FlowCtrlStage::Routing, [&dm.hoops[..], &[dm.handler]].concat());
+                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code().is_none() {
                     res.set_status_code(StatusCode::OK);
