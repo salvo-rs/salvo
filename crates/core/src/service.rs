@@ -49,7 +49,7 @@ impl Service {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// 
+    ///
     /// # use salvo_core::prelude::*;
     /// # use salvo_core::catcher::Catcher;
     ///
