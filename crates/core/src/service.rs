@@ -8,17 +8,17 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
-use crate::catcher::CatcherImpl;
+use crate::catcher::default_catch;
 use crate::conn::SocketAddr;
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
-use crate::routing::{FlowCtrl, PathState, Router};
-use crate::{Catcher, Depot};
+use crate::routing::{FlowCtrl, FlowCtrlStage, PathState, Router};
+use crate::{Depot, Handler};
 
 /// Service http request.
 pub struct Service {
     pub(crate) router: Arc<Router>,
-    pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
+    pub(crate) catchers: Vec<Arc<dyn Handler>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 
@@ -31,7 +31,7 @@ impl Service {
     {
         Service {
             router: router.into(),
-            catchers: Arc::new(vec![]),
+            catchers: vec![],
             allowed_media_types: Arc::new(vec![]),
         }
     }
@@ -42,46 +42,78 @@ impl Service {
         self.router.clone()
     }
 
-    /// When the response code is 400-600 and the body is empty, capture and set the return value.
-    /// If catchers is not set, the default [`CatcherImpl`] will be used.
+    /// When the response code is 400-600 and the body is empty, capture and set the error page content.
+    /// If catchers is not set, the default error page will be used.
     ///
     /// # Example
     ///
     /// ```
+    /// # use std::sync::Arc;
+    /// 
     /// # use salvo_core::prelude::*;
-    /// # use salvo_core::Catcher;
+    /// # use salvo_core::catcher::Catcher;
     ///
-    /// struct Handle404;
-    /// impl Catcher for Handle404 {
-    ///     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
-    ///         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
-    ///             res.render("Custom 404 Error Page");
-    ///             true
-    ///         } else {
-    ///             false
-    ///         }
+    /// #[handler]
+    /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    ///         res.render("Custom 404 Error Page");
+    ///         ctrl.skip_rest();
     ///     }
     /// }
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+    ///     let catchers: Vec<Arc<dyn Handler>> = vec![Arc::new(handle404)];
     ///     Service::new(Router::new()).with_catchers(catchers);
     /// }
     /// ```
     #[inline]
     pub fn with_catchers<T>(mut self, catchers: T) -> Self
     where
-        T: Into<Arc<Vec<Box<dyn Catcher>>>>,
+        T: Into<Vec<Arc<dyn Handler>>>,
     {
         self.catchers = catchers.into();
         self
     }
 
+    /// When the response code is 400-600 and the body is empty, capture and set the error page content.
+    /// If catchers is not set, the default error page will be used.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use salvo_core::prelude::*;
+    /// # use salvo_core::catcher::Catcher;
+    ///
+    /// #[handler]
+    /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    ///         res.render("Custom 404 Error Page");
+    ///         ctrl.skip_rest();
+    ///     }
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     Service::new(Router::new()).with_catcher(handle404);
+    /// }
+    /// ```
+    #[inline]
+    pub fn with_catcher<H: Handler>(mut self, catcher: H) -> Self {
+        self.catchers.push(Arc::new(catcher));
+        self
+    }
+
     /// Get catchers list.
     #[inline]
-    pub fn catchers(&self) -> Arc<Vec<Box<dyn Catcher>>> {
-        self.catchers.clone()
+    pub fn catchers(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.catchers
+    }
+
+    /// Get catchers list.
+    #[inline]
+    pub fn catchers_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.catchers
     }
 
     /// Sets allowed media types list and returns `Self` for write code chained.
@@ -158,7 +190,7 @@ pub struct HyperHandler {
     pub(crate) remote_addr: SocketAddr,
     pub(crate) http_scheme: Scheme,
     pub(crate) router: Arc<Router>,
-    pub(crate) catchers: Arc<Vec<Box<dyn Catcher>>>,
+    pub(crate) catchers: Vec<Arc<dyn Handler>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
@@ -186,7 +218,7 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
+                let mut ctrl = FlowCtrl::new(FlowCtrlStage::Routing, [&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code().is_none() {
                     res.set_status_code(StatusCode::OK);
@@ -230,15 +262,11 @@ impl HyperHandler {
                 );
             }
             if res.body.is_none() && has_error {
-                let mut catched = false;
-                for catcher in catchers.iter() {
-                    if catcher.catch(&req, &depot, &mut res) {
-                        catched = true;
-                        break;
-                    }
-                }
-                if !catched {
-                    CatcherImpl.catch(&req, &depot, &mut res);
+                if !catchers.is_empty() {
+                    let mut ctrl = FlowCtrl::new(FlowCtrlStage::Catching, catchers.clone());
+                    ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                } else {
+                    default_catch(&req, &mut res, None);
                 }
             }
             #[cfg(debug_assertions)]

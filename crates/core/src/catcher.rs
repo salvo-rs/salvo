@@ -1,4 +1,4 @@
-//! [`Catcher`] tarit and it's defalut implement [`CatcherImpl`].
+//! [`Catcher`] is the defalut implement [`Handler`] for catch page error.
 //!
 //! A web application can specify several different Catchers to handle errors.
 //!
@@ -8,24 +8,19 @@
 //!
 //! ```
 //! # use salvo_core::prelude::*;
-//! # use salvo_core::Catcher;
+//! # use salvo_core::catcher::Catcher;
 //!
-//! struct Handle404;
-//! impl Catcher for Handle404 {
-//!     fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
-//!         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
-//!             res.render("Custom 404 Error Page");
-//!             true
-//!         } else {
-//!             false
-//!         }
+//! #[handler]
+//! async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+//!     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+//!         res.render("Custom 404 Error Page");
+//!         ctrl.skip_rest();
 //!     }
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
-//!     Service::new(Router::new()).with_catchers(catchers);
+//!     Service::new(Router::new()).with_catcher(handle404);
 //! }
 //! ```
 //!
@@ -33,32 +28,31 @@
 //! through the [`Catcher`] set by the user. If the [`Catcher`] catches the error,
 //! it will return `true`.
 //!
-//! If your custom catchers does not capture this error, then the system uses the
-//! default [`CatcherImpl`] to capture processing errors and send the default error page.
+//! If your custom catchers does not capture this error, then the system uses
+//! [`default_catch`] to capture processing errors and send the default error page.
 
+use std::borrow::Cow;
+
+use async_trait::async_trait;
 use mime::Mime;
 use once_cell::sync::Lazy;
 
 use crate::http::StatusError;
 use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
-use crate::Depot;
+use crate::{Depot, FlowCtrl, Handler};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
+const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
-/// Catch http response error.
-pub trait Catcher: Send + Sync + 'static {
-    /// If the current catcher caught the error, it will returns true.
-    ///
-    /// If current catcher is not interested in current error, it will returns false.
-    /// Salvo will try to use next catcher to catch this error.
-    ///
-    /// If all custom catchers can not catch this error, [`CatcherImpl`] will be used
-    /// to catch it.
-    fn catch(&self, req: &Request, depot: &Depot, res: &mut Response) -> bool;
-}
 #[inline]
-fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_html(
+    code: StatusCode,
+    name: &str,
+    summary: Option<&str>,
+    detail: Option<&str>,
+    footer: Option<&str>,
+) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -90,16 +84,14 @@ fn status_error_html(code: StatusCode, name: &str, summary: Option<&str>, detail
     </style>
 </head>
 <body>
-    <div>
-        <h1>{0}: {1}</h1>{2}{3}<hr />
-        <footer><a href="https://salvo.rs" target="_blank">salvo</a></footer>
-    </div>
+    <div><h1>{0}: {1}</h1>{2}{3}<hr><footer>{4}</footer></div>
 </body>
 </html>"#,
         code.as_u16(),
         name,
         summary.map(|summary| format!("<h3>{summary}</h3>")).unwrap_or_default(),
         format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
+        footer.unwrap_or(SALVO_LINK)
     )
 }
 #[inline]
@@ -134,7 +126,7 @@ fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail:
 }
 /// Create bytes from `StatusError`.
 #[inline]
-pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec<u8>) {
+pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Vec<u8>) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
         "text/html".parse().unwrap()
     } else {
@@ -144,7 +136,13 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
         "plain" => status_error_plain(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
         "json" => status_error_json(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
         "xml" => status_error_xml(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        _ => status_error_html(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        _ => status_error_html(
+            err.code,
+            &err.name,
+            err.summary.as_deref(),
+            err.detail.as_deref(),
+            footer,
+        ),
     };
     (format, content.as_bytes().to_owned())
 }
@@ -152,67 +150,58 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
 /// Default implementation of [`Catcher`].
 ///
 /// If http status is error, and user is not set custom catcher to catch them,
-/// `CatcherImpl` will catch them.
+/// `default_catch` will used to catch them.
 ///
-/// `CatcherImpl` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+/// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 #[derive(Default)]
-pub struct CatcherImpl{
-    hoops: Vec<Arc<dyn Handler>>,
+pub struct Catcher {
+    footer: Option<Cow<'static, str>>,
 }
-impl CatcherImpl {
-    pub fn new() -> Self{
-        CatcherImpl {
-            hoops: vec![],
-        }
+impl Catcher {
+    /// Create new `Catcher`.
+    pub fn new() -> Self {
+        Catcher { footer: None }
+    }
+    /// Create with footer.
+    #[inline]
+    pub fn with_footer(footer: impl Into<Cow<'static, str>>) -> Self {
+        Self::new().footer(footer)
     }
 
-    /// Add a handler as middleware.
-    #[inline]
-    pub fn with_hoop<H: Handler>(handler: H) -> Self {
-        Self::new().hoop(handler)
-    }
-
-    /// Get middlewares reference.
-    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
-        &self.hoops
-    }
-    /// Get middlewares mutable reference.
-    #[inline]
-    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
-        &mut self.hoops
-    }
-    
-    /// Add a handler as middleware.
-    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
-        self.hoops.push(Arc::new(handler));
+    /// Set footer.
+    pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
+        self.footer = Some(footer.into()).into();
         self
     }
 }
-impl Catcher for CatcherImpl {
-    fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
+#[async_trait]
+impl Handler for Catcher {
+    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
-        if !status.is_server_error() && !status.is_client_error() {
-            return false;
+        if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
+            default_catch(req, res, self.footer.as_deref());
         }
-
-        fn inner_catch(req: &Request, _depot: &Depot, res: &mut Response) {
-            let format = guess_accept_mime(req, None);
-            let (format, data) = if res.status_error.is_some() {
-                status_error_bytes(res.status_error.as_ref().unwrap(), &format)
-            } else {
-                status_error_bytes(&StatusError::from_code(status).unwrap(), &format)
-            };
-            res.headers_mut()
-                .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
-            res.write_body(data).ok();
-        }
-      
-        true
     }
+}
+
+#[doc(hidden)]
+pub fn default_catch(req: &Request, res: &mut Response, footer: Option<&str>) {
+    let format = guess_accept_mime(req, None);
+    let (format, data) = if res.status_error.is_some() {
+        status_error_bytes(res.status_error.as_ref().unwrap(), &format, footer)
+    } else {
+        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+        status_error_bytes(&StatusError::from_code(status).unwrap(), &format, footer)
+    };
+    res.headers_mut()
+        .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+    res.write_body(data).ok();
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
@@ -227,15 +216,11 @@ mod tests {
         }
     }
 
-    struct Handle404;
-    impl Catcher for Handle404 {
-        fn catch(&self, _req: &Request, _depot: &Depot, res: &mut Response) -> bool {
-            if let Some(StatusCode::NOT_FOUND) = res.status_code() {
-                res.render("Custom 404 Error Page");
-                true
-            } else {
-                false
-            }
+    #[handler(internal)]
+    async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+            res.render("Custom 404 Error Page");
+            ctrl.skip_rest();
         }
     }
 
@@ -267,7 +252,7 @@ mod tests {
             "Hello World"
         }
         let router = Router::new().get(hello);
-        let catchers: Vec<Box<dyn Catcher>> = vec![Box::new(Handle404)];
+        let catchers: Vec<Arc<dyn Handler>> = vec![Arc::new(handle404)];
         let service = Service::new(router).with_catchers(catchers);
 
         async fn access(service: &Service, name: &str) -> String {

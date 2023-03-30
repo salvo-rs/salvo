@@ -35,7 +35,6 @@ cfg_feature! {
     pub mod test;
 }
 
-pub use self::catcher::{Catcher, CatcherImpl};
 pub use self::conn::Listener;
 pub use self::depot::Depot;
 pub use self::error::{BoxedError, Error};
