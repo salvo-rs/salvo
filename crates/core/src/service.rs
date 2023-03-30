@@ -12,7 +12,7 @@ use crate::catcher::default_catch;
 use crate::conn::SocketAddr;
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
-use crate::routing::{FlowCtrl, FlowCtrlStage, PathState, Router};
+use crate::routing::{FlowCtrl, PathState, Router};
 use crate::{Depot, Handler};
 
 /// Service http request.
@@ -218,7 +218,7 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new(FlowCtrlStage::Routing, [&dm.hoops[..], &[dm.handler]].concat());
+                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code().is_none() {
                     res.set_status_code(StatusCode::OK);
@@ -263,7 +263,7 @@ impl HyperHandler {
             }
             if res.body.is_none() && has_error {
                 if !catchers.is_empty() {
-                    let mut ctrl = FlowCtrl::new(FlowCtrlStage::Catching, catchers.clone());
+                    let mut ctrl = FlowCtrl::new(catchers.clone());
                     ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 } else {
                     default_catch(&req, &mut res, None);

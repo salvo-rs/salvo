@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::http::body::ReqBody;
 use crate::http::Method;
-use crate::routing::{FlowCtrl, FlowCtrlStage, Router};
+use crate::routing::{FlowCtrl, Router};
 use crate::{async_trait, Depot, Error, Handler, Request, Response, Service};
 
 /// `RequestBuilder` is the main way of building requests.
@@ -285,7 +285,7 @@ where
         let mut res = Response::new();
         #[cfg(feature = "cookie")]
         let mut res = Response::with_cookies(req.cookies.clone());
-        let mut ctrl = FlowCtrl::new(FlowCtrlStage::Routing, vec![self.clone()]);
+        let mut ctrl = FlowCtrl::new(vec![self.clone()]);
         self.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
         res
     }
