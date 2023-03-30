@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie", "http1", "fix-http1-request-uri", "http2", "test"]
-full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "anyhow"]
+full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "anyhow", "eyre"]
 cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
@@ -41,6 +41,7 @@ bytes.workspace = true
 cookie = { workspace = true, features = ["percent-encode"], optional = true }
 encoding_rs = { workspace = true, optional = true }
 enumflags2.workspace = true
+eyre = { workspace = true, optional = true }
 fastrand.workspace = true
 form_urlencoded.workspace = true
 futures-util = { workspace = true, features = ["io"] }
