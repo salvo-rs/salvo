@@ -155,22 +155,58 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime) -> (Mime, Vec
 /// `CatcherImpl` will catch them.
 ///
 /// `CatcherImpl` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
-pub struct CatcherImpl;
+#[derive(Default)]
+pub struct CatcherImpl{
+    hoops: Vec<Arc<dyn Handler>>,
+}
+impl CatcherImpl {
+    pub fn new() -> Self{
+        CatcherImpl {
+            hoops: vec![],
+        }
+    }
+
+    /// Add a handler as middleware.
+    #[inline]
+    pub fn with_hoop<H: Handler>(handler: H) -> Self {
+        Self::new().hoop(handler)
+    }
+
+    /// Get middlewares reference.
+    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.hoops
+    }
+    /// Get middlewares mutable reference.
+    #[inline]
+    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.hoops
+    }
+    
+    /// Add a handler as middleware.
+    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
+        self.hoops.push(Arc::new(handler));
+        self
+    }
+}
 impl Catcher for CatcherImpl {
     fn catch(&self, req: &Request, _depot: &Depot, res: &mut Response) -> bool {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if !status.is_server_error() && !status.is_client_error() {
             return false;
         }
-        let format = guess_accept_mime(req, None);
-        let (format, data) = if res.status_error.is_some() {
-            status_error_bytes(res.status_error.as_ref().unwrap(), &format)
-        } else {
-            status_error_bytes(&StatusError::from_code(status).unwrap(), &format)
-        };
-        res.headers_mut()
-            .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
-        res.write_body(data).ok();
+
+        fn inner_catch(req: &Request, _depot: &Depot, res: &mut Response) {
+            let format = guess_accept_mime(req, None);
+            let (format, data) = if res.status_error.is_some() {
+                status_error_bytes(res.status_error.as_ref().unwrap(), &format)
+            } else {
+                status_error_bytes(&StatusError::from_code(status).unwrap(), &format)
+            };
+            res.headers_mut()
+                .insert(header::CONTENT_TYPE, format.to_string().parse().unwrap());
+            res.write_body(data).ok();
+        }
+      
         true
     }
 }
