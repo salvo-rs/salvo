@@ -190,10 +190,11 @@ mod tests {
         let mut req = Request::default();
         let mut res = Response::default();
         let mut depot = Depot::new();
-        let e: eyre::Report = eyre::Report::msg!("detail message");
+        let e: eyre::Report = eyre::Report::msg("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
         assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
+
 
     #[tokio::test]
     async fn test_error() {
