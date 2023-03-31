@@ -8,17 +8,17 @@ use http::uri::Scheme;
 use hyper::service::Service as HyperService;
 use hyper::{Method, Request as HyperRequest, Response as HyperResponse};
 
-use crate::catcher::default_catch;
+use crate::catcher::{write_error_default, Catcher};
 use crate::conn::SocketAddr;
 use crate::http::body::{ReqBody, ResBody};
 use crate::http::{Mime, Request, Response, StatusCode};
 use crate::routing::{FlowCtrl, PathState, Router};
-use crate::{Depot, Handler};
+use crate::Depot;
 
 /// Service http request.
 pub struct Service {
     pub(crate) router: Arc<Router>,
-    pub(crate) catchers: Vec<Arc<dyn Handler>>,
+    pub(crate) catcher: Option<Arc<Catcher>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
 }
 
@@ -31,7 +31,7 @@ impl Service {
     {
         Service {
             router: router.into(),
-            catchers: vec![],
+            catcher: None,
             allowed_media_types: Arc::new(vec![]),
         }
     }
@@ -48,8 +48,6 @@ impl Service {
     /// # Example
     ///
     /// ```
-    /// # use std::sync::Arc;
-    ///
     /// # use salvo_core::prelude::*;
     /// # use salvo_core::catcher::Catcher;
     ///
@@ -63,57 +61,19 @@ impl Service {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let catchers: Vec<Arc<dyn Handler>> = vec![Arc::new(handle404)];
-    ///     Service::new(Router::new()).with_catchers(catchers);
+    ///     Service::new(Router::new()).catcher(handle404);
     /// }
     /// ```
     #[inline]
-    pub fn with_catchers<T>(mut self, catchers: T) -> Self
-    where
-        T: Into<Vec<Arc<dyn Handler>>>,
-    {
-        self.catchers = catchers.into();
+    pub fn with_catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
+        self.catcher = Some(catcher.into());
         self
     }
 
-    /// When the response code is 400-600 and the body is empty, capture and set the error page content.
-    /// If catchers is not set, the default error page will be used.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use salvo_core::prelude::*;
-    /// # use salvo_core::catcher::Catcher;
-    ///
-    /// #[handler]
-    /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
-    ///         res.render("Custom 404 Error Page");
-    ///         ctrl.skip_rest();
-    ///     }
-    /// }
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     Service::new(Router::new()).with_catcher(handle404);
-    /// }
-    /// ```
+    /// Get catcher.
     #[inline]
-    pub fn with_catcher<H: Handler>(mut self, catcher: H) -> Self {
-        self.catchers.push(Arc::new(catcher));
-        self
-    }
-
-    /// Get catchers list.
-    #[inline]
-    pub fn catchers(&self) -> &Vec<Arc<dyn Handler>> {
-        &self.catchers
-    }
-
-    /// Get catchers list.
-    #[inline]
-    pub fn catchers_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
-        &mut self.catchers
+    pub fn catcher(&self) -> Option<Arc<Catcher>> {
+        self.catcher.clone()
     }
 
     /// Sets allowed media types list and returns `Self` for write code chained.
@@ -157,7 +117,7 @@ impl Service {
             remote_addr,
             http_scheme,
             router: self.router.clone(),
-            catchers: self.catchers.clone(),
+            catcher: self.catcher.clone(),
             allowed_media_types: self.allowed_media_types.clone(),
             alt_svc_h3,
         }
@@ -190,7 +150,7 @@ pub struct HyperHandler {
     pub(crate) remote_addr: SocketAddr,
     pub(crate) http_scheme: Scheme,
     pub(crate) router: Arc<Router>,
-    pub(crate) catchers: Vec<Arc<dyn Handler>>,
+    pub(crate) catcher: Option<Arc<Catcher>>,
     pub(crate) allowed_media_types: Arc<Vec<Mime>>,
     pub(crate) alt_svc_h3: Option<HeaderValue>,
 }
@@ -198,7 +158,7 @@ impl HyperHandler {
     /// Handle [`Request`] and returns [`Response`].
     #[inline]
     pub fn handle(&self, mut req: Request) -> impl Future<Output = Response> {
-        let catchers = self.catchers.clone();
+        let catcher = self.catcher.clone();
         let allowed_media_types = self.allowed_media_types.clone();
         req.local_addr = self.local_addr.clone();
         req.remote_addr = self.remote_addr.clone();
@@ -262,11 +222,10 @@ impl HyperHandler {
                 );
             }
             if res.body.is_none() && has_error {
-                if !catchers.is_empty() {
-                    let mut ctrl = FlowCtrl::new(catchers.clone());
-                    ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                if let Some(catcher) = catcher {
+                    catcher.catch(&mut req, &mut depot, &mut res).await;
                 } else {
-                    default_catch(&req, &mut res, None);
+                    write_error_default(&req, &mut res, None);
                 }
             }
             #[cfg(debug_assertions)]
