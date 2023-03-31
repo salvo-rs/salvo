@@ -20,7 +20,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     Service::new(Router::new()).with_catcher(handle404);
+//!     Service::new(Router::new()).with_catcher(Catcher::default().hoop(handle404));
 //! }
 //! ```
 //!
@@ -275,8 +275,6 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
@@ -327,8 +325,7 @@ mod tests {
             "Hello World"
         }
         let router = Router::new().get(hello);
-        let catchers: Vec<Arc<dyn Handler>> = vec![Arc::new(handle404)];
-        let service = Service::new(router).with_catchers(catchers);
+        let service = Service::new(router).with_catcher(Catcher::default().hoop(handle404));
 
         async fn access(service: &Service, name: &str) -> String {
             TestClient::get(format!("http://127.0.0.1:5800/{}", name))

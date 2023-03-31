@@ -61,7 +61,7 @@ impl Service {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     Service::new(Router::new()).catcher(handle404);
+    ///     Service::new(Router::new()).with_catcher(Catcher::default().hoop(handle404));
     /// }
     /// ```
     #[inline]
