@@ -20,7 +20,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     Service::new(Router::new()).with_catcher(handle404);
+//!     Service::new(Router::new()).with_catcher(Catcher::default().hoop(handle404));
 //! }
 //! ```
 //!
@@ -29,17 +29,18 @@
 //! it will return `true`.
 //!
 //! If your custom catchers does not capture this error, then the system uses
-//! [`default_catch`] to capture processing errors and send the default error page.
+//! [`write_error_default`] to capture processing errors and send the default error page.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use mime::Mime;
 use once_cell::sync::Lazy;
 
-use crate::http::StatusError;
-use crate::http::{guess_accept_mime, header, Request, Response, StatusCode};
-use crate::{Depot, FlowCtrl, Handler};
+use crate::handler::{Handler, WhenHoop};
+use crate::http::{guess_accept_mime, header, Request, Response, StatusCode, StatusError};
+use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
 const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
@@ -150,17 +151,91 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
 /// Default implementation of [`Catcher`].
 ///
 /// If http status is error, and user is not set custom catcher to catch them,
-/// `default_catch` will used to catch them.
+/// `write_error_default` will used to catch them.
 ///
 /// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
-#[derive(Default)]
 pub struct Catcher {
-    footer: Option<Cow<'static, str>>,
+    hoops: Vec<Arc<dyn Handler>>,
+    handler: Arc<dyn Handler>,
+}
+impl Default for Catcher {
+    fn default() -> Self {
+        Catcher {
+            handler: Arc::new(DefaultHandler::new()),
+            hoops: vec![],
+        }
+    }
 }
 impl Catcher {
     /// Create new `Catcher`.
+    pub fn new<H: Into<Arc<dyn Handler>>>(handler: H) -> Self {
+        Catcher {
+            handler: handler.into(),
+            hoops: vec![],
+        }
+    }
+
+    /// Get current catcher's middlewares reference.
+    #[inline]
+    pub fn hoops(&self) -> &Vec<Arc<dyn Handler>> {
+        &self.hoops
+    }
+    /// Get current catcher's middlewares mutable reference.
+    #[inline]
+    pub fn hoops_mut(&mut self) -> &mut Vec<Arc<dyn Handler>> {
+        &mut self.hoops
+    }
+
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
+    /// handle the request.
+    #[inline]
+    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
+        self.hoops.push(Arc::new(handler));
+        self
+    }
+
+    /// Add a handler as middleware, it will run the handler in current router or it's descendants
+    /// handle the request. This middleware only effective when the filter return true.
+    #[inline]
+    pub fn hoop_when<H, F>(mut self, handler: H, filter: F) -> Self
+    where
+        H: Handler,
+        F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        self.hoops.push(Arc::new(WhenHoop { inner: handler, filter }));
+        self
+    }
+
+    /// Catch error and send error page.
+    pub async fn catch(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
+        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&self.handler]).cloned().collect());
+        ctrl.call_next(req, depot, res).await;
+    }
+}
+
+impl<H> From<H> for Catcher
+where
+    H: Into<Arc<dyn Handler>>,
+{
+    fn from(handler: H) -> Self {
+        Catcher::new(handler)
+    }
+}
+
+/// Default [`Handler`] for [`Catcher`].
+///
+/// If http status is error, and user is not set custom catcher to catch them,
+/// `write_error_default` will used to catch them.
+///
+/// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+#[derive(Default)]
+pub struct DefaultHandler {
+    footer: Option<Cow<'static, str>>,
+}
+impl DefaultHandler {
+    /// Create new `Catcher`.
     pub fn new() -> Self {
-        Catcher { footer: None }
+        DefaultHandler { footer: None }
     }
     /// Create with footer.
     #[inline]
@@ -170,22 +245,22 @@ impl Catcher {
 
     /// Set footer.
     pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
-        self.footer = Some(footer.into()).into();
+        self.footer = Some(footer.into());
         self
     }
 }
 #[async_trait]
-impl Handler for Catcher {
+impl Handler for DefaultHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
-            default_catch(req, res, self.footer.as_deref());
+            write_error_default(req, res, self.footer.as_deref());
         }
     }
 }
 
 #[doc(hidden)]
-pub fn default_catch(req: &Request, res: &mut Response, footer: Option<&str>) {
+pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&str>) {
     let format = guess_accept_mime(req, None);
     let (format, data) = if res.status_error.is_some() {
         status_error_bytes(res.status_error.as_ref().unwrap(), &format, footer)
@@ -200,8 +275,6 @@ pub fn default_catch(req: &Request, res: &mut Response, footer: Option<&str>) {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
 
@@ -252,8 +325,7 @@ mod tests {
             "Hello World"
         }
         let router = Router::new().get(hello);
-        let catchers: Vec<Arc<dyn Handler>> = vec![Arc::new(handle404)];
-        let service = Service::new(router).with_catchers(catchers);
+        let service = Service::new(router).with_catcher(Catcher::default().hoop(handle404));
 
         async fn access(service: &Service, name: &str) -> String {
             TestClient::get(format!("http://127.0.0.1:5800/{}", name))
