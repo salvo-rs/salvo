@@ -101,17 +101,7 @@ where
     }
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
-        let inner = TokioTcpListener::bind(self.local_addr).await?;
-        let holding = Holding {
-            local_addr: inner.local_addr()?.into(),
-            http_version: Version::HTTP_11,
-            http_scheme: Scheme::HTTP,
-        };
-
-        Ok(TcpAcceptor {
-            inner,
-            holdings: vec![holding],
-        })
+        TokioTcpListener::bind(self.local_addr).await?.try_into()
     }
 }
 /// TcpAcceptor
