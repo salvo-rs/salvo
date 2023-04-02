@@ -1,5 +1,5 @@
 //! TcpListener and it's implements.
-use std::io::Result as IoResult;
+use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
 use std::vec;
 
@@ -114,11 +114,26 @@ where
         })
     }
 }
-
 /// TcpAcceptor
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,
+}
+
+impl TryFrom<TokioTcpListener> for TcpAcceptor {
+    type Error = IoError;
+    fn try_from(inner: TokioTcpListener) -> Result<Self, Self::Error> {
+        let holding = Holding {
+            local_addr: inner.local_addr()?.into(),
+            http_version: Version::HTTP_11,
+            http_scheme: Scheme::HTTP,
+        };
+
+        Ok(TcpAcceptor {
+            inner,
+            holdings: vec![holding],
+        })
+    }
 }
 
 #[async_trait]
