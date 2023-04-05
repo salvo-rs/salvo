@@ -77,7 +77,7 @@ impl Flash {
     /// Add a new message with level `Error`.
     #[inline]
     pub fn error(&mut self, message: impl Into<String>) -> &mut Self {
-        self.0.push(FlashMessage::warning(message));
+        self.0.push(FlashMessage::error(message));
         self
     }
 }
