@@ -134,17 +134,17 @@ pub(crate) async fn request(
 
     tracing::debug!(uri = %uri, "http request");
 
-    let resp = cli
+    let res = cli
         .request(req)
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send http request: {}", e)))?;
-    if !resp.status().is_success() {
+    if !res.status().is_success() {
         return Err(IoError::new(
             ErrorKind::Other,
-            format!("unexpected status code: status = {}", resp.status()),
+            format!("unexpected status code: status = {}", res.status()),
         ));
     }
-    Ok(resp)
+    Ok(res)
 }
 #[inline]
 pub(crate) async fn request_json<T, R>(
