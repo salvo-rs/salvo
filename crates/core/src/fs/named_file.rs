@@ -484,8 +484,8 @@ impl NamedFile {
         let mut offset = 0;
 
         // check for range header
-        // let mut range = None;
-        if let Some(range) = req_headers.get(RANGE) {
+        let range = req_headers.get(RANGE);
+        if let Some(range) = range {
             if let Ok(range) = range.to_str() {
                 if let Ok(range) = HttpRange::parse(range, length) {
                     length = range[0].length;
@@ -509,7 +509,7 @@ impl NamedFile {
             return;
         }
 
-        if offset != 0 || length != self.metadata.len() {
+        if offset != 0 || length != self.metadata.len() || range.is_some() {
             res.set_status_code(StatusCode::PARTIAL_CONTENT);
             match ContentRange::bytes(offset..offset + length - 1, self.metadata.len()) {
                 Ok(content_range) => {
