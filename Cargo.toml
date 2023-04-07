@@ -40,7 +40,7 @@ form_urlencoded = "1"
 futures-util = "0.3"
 headers = "0.3"
 http = "0.2"
-http-body-util = "0.1.0-rc.2"                                                               #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
+http-body-util = "0.1.0-rc.2"                                                                #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 hmac = "0.12"
 hex = "0.4"
 hyper = "=1.0.0-rc.3"
@@ -55,6 +55,10 @@ multimap = "0.8"
 native-tls = "0.2"
 once_cell = "1"
 openssl = "0.10"
+opentelemetry-http = { version = "0.7", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.10", default-features = false }
+opentelemetry-prometheus = { version = "0.11", default-features = false }
+opentelemetry = { version = "0.18", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
@@ -76,6 +80,7 @@ salvo-cache = { path = "./crates/cache", default-features = false }
 salvo-cors = { path = "./crates/cors", default-features = false }
 salvo-csrf = { path = "./crates/csrf", default-features = false }
 salvo-flash = { path = "./crates/flash", default-features = false }
+salvo-otel = { path = "./crates/otel", default-features = false }
 salvo-proxy = { path = "./crates/proxy", default-features = false }
 salvo-rate-limiter = { path = "./crates/rate-limiter", default-features = false }
 salvo-serve-static = { path = "./crates/serve-static", default-features = false }
