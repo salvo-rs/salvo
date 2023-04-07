@@ -1,5 +1,5 @@
+use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
-use salvo::otel::{Tracing, Metrics};
 
 mod exporter;
 use exporter::Exporter;
