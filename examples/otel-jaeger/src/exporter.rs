@@ -1,22 +1,31 @@
-use std::collections::HashMap;
-
-use opentelemetry::sdk::{
-    export::metrics::aggregation,
-    metrics::{controllers, controllers::BasicController, processors, selectors},
-};
+use opentelemetry::sdk::export::metrics::aggregation;
+use opentelemetry::sdk::metrics::{processors, controllers, selectors};
+use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, Registry, TextEncoder};
 
-use salvo::http::{Method, Request, Response, StatusCode};
+use salvo::http::{header, Method, StatusCode};
+use salvo::prelude::*;
 
-pub struct ExporterHandler(PrometheusExporter);
+pub struct Exporter(PrometheusExporter);
 #[handler]
-impl ExporterHandler {
-    pub fn new(exporter: PrometheusExporter) -> Self {
+impl Exporter {
+    pub fn new() -> Self {
+        let controller = controllers::basic(
+            processors::factory(
+                selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
+                aggregation::cumulative_temporality_selector(),
+            ),
+        )
+        .build();
+        let exporter = opentelemetry_prometheus::exporter(controller)
+            .with_registry(Registry::new_custom(None, None).expect("create prometheus registry"))
+            .init();
         Self(exporter)
     }
-    fn handle(&self, req: Request, res: &mut Response) {
+    fn handle(&self, req: &mut Request, res: &mut Response) {
         if req.method() != Method::GET {
-            return StatusCode::METHOD_NOT_ALLOWED.into();
+            res.set_status_code(StatusCode::METHOD_NOT_ALLOWED);
+            return;
         }
 
         let encoder = TextEncoder::new();
@@ -24,7 +33,8 @@ impl ExporterHandler {
         let mut body = Vec::new();
         match encoder.encode(&metric_families, &mut body) {
             Ok(()) => {
-                res.stuff(TEXT_PLAIN, body);
+                res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true).ok();
+                res.set_body(body.into());
             }
             Err(_) => {
                 res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
