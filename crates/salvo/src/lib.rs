@@ -125,7 +125,6 @@ cfg_feature! {
     pub use salvo_otel as otel;
 }
 
-
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
     pub use salvo_core::prelude::*;

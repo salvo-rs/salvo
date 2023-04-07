@@ -7,9 +7,9 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
 use reqwest::Client;
 use reqwest::Url;
+use salvo::http::Method;
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
-use salvo::http::Method;
 
 mod exporter;
 use exporter::Exporter;

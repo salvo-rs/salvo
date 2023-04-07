@@ -1,5 +1,5 @@
 use opentelemetry::sdk::export::metrics::aggregation;
-use opentelemetry::sdk::metrics::{processors, controllers, selectors};
+use opentelemetry::sdk::metrics::{controllers, processors, selectors};
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, Registry, TextEncoder};
 
@@ -10,12 +10,10 @@ pub struct Exporter(PrometheusExporter);
 #[handler]
 impl Exporter {
     pub fn new() -> Self {
-        let controller = controllers::basic(
-            processors::factory(
-                selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
-                aggregation::cumulative_temporality_selector(),
-            ),
-        )
+        let controller = controllers::basic(processors::factory(
+            selectors::simple::histogram([1.0, 2.0, 5.0, 10.0, 20.0, 50.0]),
+            aggregation::cumulative_temporality_selector(),
+        ))
         .build();
         let exporter = opentelemetry_prometheus::exporter(controller)
             .with_registry(Registry::new_custom(None, None).expect("create prometheus registry"))
@@ -33,7 +31,8 @@ impl Exporter {
         let mut body = Vec::new();
         match encoder.encode(&metric_families, &mut body) {
             Ok(()) => {
-                res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true).ok();
+                res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true)
+                    .ok();
                 res.set_body(body.into());
             }
             Err(_) => {
