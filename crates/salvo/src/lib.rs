@@ -119,6 +119,11 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_serve_static as serve_static;
 }
+cfg_feature! {
+    #![feature ="otel"]
+    #[doc(no_inline)]
+    pub use salvo_otel as otel;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
