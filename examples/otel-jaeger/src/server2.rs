@@ -29,7 +29,7 @@ async fn main() {
     let router = Router::new()
         .hoop(Metrics::new())
         .hoop(Tracing::new(tracer))
-        .push(Router::with_path("api1").get(index))
+        .push(Router::with_path("api2").get(index))
         .push(Router::with_path("metrics").get(Exporter::new()));
     let acceptor = TcpListener::new("127.0.0.1:5801").bind().await;
     Server::new(acceptor).serve(router).await;
