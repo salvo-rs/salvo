@@ -1,88 +1,209 @@
 use cruet::Inflector;
-use darling::{FromDeriveInput, FromField, FromMeta};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{Attribute, DeriveInput, Error, Generics, Lit, Meta, NestedMeta, Type};
+use syn::parse::Parse;
+use syn::parse::ParseStream;
+use syn::punctuated::Punctuated;
+use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, MetaNameValue, Token, Type};
 
-use crate::shared::{is_internal, omit_type_path_lifetimes, salvo_crate};
+use crate::shared::{omit_type_path_lifetimes, salvo_crate};
 
-// #[derive(Debug)]
-struct Field {
+struct FieldInfo {
     ident: Option<Ident>,
-    // attrs: Vec<Attribute>,
     ty: Type,
-    sources: Vec<RawSource>,
+    sources: Vec<SourceInfo>,
     aliases: Vec<String>,
     rename: Option<String>,
 }
-#[derive(FromMeta, Debug)]
-struct RawSource {
+impl TryFrom<&Field> for FieldInfo {
+    type Error = Error;
+
+    fn try_from(field: &Field) -> Result<Self, Self::Error> {
+        let ident = field.ident.clone();
+        let attrs = field.attrs.clone();
+        let mut sources = Vec::with_capacity(field.attrs.len());
+        let mut aliases = Vec::with_capacity(field.attrs.len());
+        let mut rename = None;
+        for attr in attrs {
+            if attr.path().is_ident("extract") {
+                let extract: ExtractFieldInfo = attr.parse_args()?;
+                sources.extend(extract.sources);
+                aliases.extend(extract.aliases);
+                if extract.rename.is_some() {
+                    rename = extract.rename;
+                }
+            }
+        }
+        Ok(Self {
+            ident,
+            ty: field.ty.clone(),
+            sources,
+            aliases,
+            rename,
+        })
+    }
+}
+
+#[derive(Default, Debug)]
+struct ExtractStructInfo {
+    default_sources: Vec<SourceInfo>,
+    rename_all: Option<String>,
+    internal: bool,
+}
+impl Parse for ExtractStructInfo {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut extract = Self::default();
+        while !input.is_empty() {
+            let id = input.parse::<syn::Ident>()?;
+            if id.to_string() == "default_source" {
+                let item;
+                syn::parenthesized!(item in input);
+                extract.default_sources.push(item.parse::<SourceInfo>()?);
+            } else if id.to_string() == "rename_all" {
+                input.parse::<Token![=]>()?;
+                let expr = input.parse::<Expr>()?;
+                extract.rename_all = Some(expr_lit_value(&expr)?);
+            } else if id.to_string() == "internal" {
+                extract.internal = true;
+            } else {
+                return Err(input.error("unexpected attribute"));
+            }
+            input.parse::<Token![,]>().ok();
+        }
+        Ok(extract)
+    }
+}
+
+#[derive(Default, Debug)]
+struct ExtractFieldInfo {
+    sources: Vec<SourceInfo>,
+    aliases: Vec<String>,
+    rename: Option<String>,
+}
+impl Parse for ExtractFieldInfo {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut extract = Self::default();
+        while !input.is_empty() {
+            let id = input.parse::<syn::Ident>()?;
+            if id.to_string() == "source" {
+                let item;
+                syn::parenthesized!(item in input);
+                extract.sources.push(item.parse::<SourceInfo>()?);
+            } else if id.to_string() == "rename" {
+                input.parse::<Token![=]>()?;
+                print!("rename: 1111");
+                let expr = input.parse::<Expr>()?;
+                extract.rename = Some(expr_lit_value(&expr)?);
+                print!("rename: {:?}", extract.rename);
+            } else if id.to_string() == "alias" {
+                input.parse::<Token![=]>()?;
+                let expr = input.parse::<Expr>()?;
+                extract.aliases.push(expr_lit_value(&expr)?);
+            } else {
+                return Err(input.error("unexpected attribute"));
+            }
+            input.parse::<Token![,]>().ok();
+        }
+        Ok(extract)
+    }
+}
+#[derive(Debug)]
+struct SourceInfo {
     from: String,
-    #[darling(default)]
     format: String,
 }
 
-impl FromField for Field {
-    fn from_field(field: &syn::Field) -> darling::Result<Self> {
-        let ident = field.ident.clone();
-        let attrs = field.attrs.clone();
-        let sources = parse_sources(&attrs, "source")?;
-        Ok(Self {
-            ident,
-            // attrs,
-            ty: field.ty.clone(),
-            sources,
-            aliases: parse_aliases(&field.attrs)?,
-            rename: parse_rename(&field.attrs)?,
-        })
+impl Parse for SourceInfo {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut source = SourceInfo {
+            from: "request".to_string(),
+            format: "".to_string(),
+        };
+        let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
+        for field in fields {
+            let id = field.path.get_ident().unwrap();
+            if id.to_string() == "from" {
+                source.from = expr_lit_value(&field.value)?;
+            } else if id.to_string() == "format" {
+                source.format = expr_lit_value(&field.value)?;
+            } else {
+                return Err(input.error("unexpected attribute"));
+            }
+        }
+        if source.format.is_empty() {
+            if source.from == "request" {
+                source.format = "request".to_string();
+            } else {
+                source.format = "multimap".to_string();
+            }
+        }
+        if !["request", "param", "query", "header", "body"].contains(&source.from.as_str()) {
+            return Err(Error::new(
+                input.span(),
+                format!("source from is invalid: {}", source.from),
+            ));
+        }
+        if !["multimap", "json", "request"].contains(&source.format.as_str()) {
+            return Err(Error::new(
+                input.span(),
+                format!("source format is invalid: {}", source.format),
+            ));
+        }
+        if source.from == "request" && source.format != "request" {
+            return Err(Error::new(
+                input.span(),
+                "source format must be `request` for `request` sources",
+            ));
+        }
+        Ok(source)
     }
 }
 
 struct ExtractibleArgs {
     ident: Ident,
     generics: Generics,
-    fields: Vec<Field>,
+    fields: Vec<FieldInfo>,
 
     internal: bool,
 
-    default_sources: Vec<RawSource>,
+    default_sources: Vec<SourceInfo>,
     rename_all: Option<String>,
 }
 
-impl FromDeriveInput for ExtractibleArgs {
-    fn from_derive_input(input: &DeriveInput) -> darling::Result<Self> {
+impl ExtractibleArgs {
+    fn from_derive_input(input: &DeriveInput) -> syn::Result<Self> {
         let ident = input.ident.clone();
         let generics = input.generics.clone();
         let attrs = input.attrs.clone();
-        let default_sources = parse_sources(&attrs, "default_source")?;
         let data = match &input.data {
             syn::Data::Struct(data) => data,
             _ => {
-                return Err(Error::new_spanned(ident, "Extractible can only be applied to an struct.").into());
+                return Err(Error::new_spanned(ident, "extractible can only be applied to an struct.").into());
             }
         };
         let mut fields = Vec::with_capacity(data.fields.len());
         for field in data.fields.iter() {
-            fields.push(Field::from_field(field)?);
+            fields.push(field.try_into()?);
         }
-        let mut internal = false;
+        let mut extract: Option<ExtractStructInfo> = None;
         for attr in &attrs {
-            if attr.path.is_ident("extract") {
-                if let Meta::List(list) = attr.parse_meta()? {
-                    if is_internal(list.nested.iter()) {
-                        internal = true;
-                        break;
-                    }
-                }
+            if attr.path().is_ident("extract") {
+                extract = Some(attr.parse_args()?);
+                break;
             }
         }
+        let ExtractStructInfo {
+            default_sources,
+            rename_all,
+            internal,
+        } = extract.unwrap_or_default();
         Ok(Self {
             ident,
             generics,
             fields,
             internal,
             default_sources,
-            rename_all: parse_rename_rule(&input.attrs)?,
+            rename_all,
         })
     }
 }
@@ -119,7 +240,7 @@ fn metadata_rename_rule(salvo: &Ident, input: &str) -> Result<TokenStream, Error
         }
     }
 }
-fn metadata_source(salvo: &Ident, source: &RawSource) -> TokenStream {
+fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
     let from = Ident::new(&source.from.to_pascal_case(), Span::call_site());
     let format = if source.format.to_lowercase() == "multimap" {
         Ident::new("MultiMap", Span::call_site())
@@ -251,107 +372,10 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     Ok(code)
 }
 
-fn parse_rename(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
-    for attr in attrs {
-        if attr.path.is_ident("extract") {
-            if let Meta::List(list) = attr.parse_meta()? {
-                for meta in list.nested.iter() {
-                    if let NestedMeta::Meta(Meta::NameValue(item)) = meta {
-                        if item.path.is_ident("rename") {
-                            if let Lit::Str(lit) = &item.lit {
-                                return Ok(Some(lit.value()));
-                            } else {
-                                return Err(darling::Error::custom(format!("invalid rename: {item:?}")));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+fn expr_lit_value(expr: &Expr) -> syn::Result<String> {
+    if let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = expr {
+        Ok(s.value())
+    } else {
+        Err(Error::new_spanned(expr, "invalid from expression"))
     }
-    Ok(None)
-}
-
-fn parse_rename_rule(attrs: &[syn::Attribute]) -> darling::Result<Option<String>> {
-    for attr in attrs {
-        if attr.path.is_ident("extract") {
-            if let Meta::List(list) = attr.parse_meta()? {
-                for meta in list.nested.iter() {
-                    if let NestedMeta::Meta(Meta::NameValue(item)) = meta {
-                        if item.path.is_ident("rename_all") {
-                            if let Lit::Str(lit) = &item.lit {
-                                return Ok(Some(lit.value()));
-                            } else {
-                                return Err(darling::Error::custom(format!("invalid alias: {item:?}")));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(None)
-}
-
-fn parse_aliases(attrs: &[syn::Attribute]) -> darling::Result<Vec<String>> {
-    let mut aliases = Vec::new();
-    for attr in attrs {
-        if attr.path.is_ident("extract") {
-            if let Meta::List(list) = attr.parse_meta()? {
-                for meta in list.nested.iter() {
-                    if let NestedMeta::Meta(Meta::NameValue(item)) = meta {
-                        if item.path.is_ident("alias") {
-                            if let Lit::Str(lit) = &item.lit {
-                                aliases.push(lit.value());
-                            } else {
-                                return Err(darling::Error::custom(format!("invalid alias: {item:?}")));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(aliases)
-}
-
-fn parse_sources(attrs: &[Attribute], key: &str) -> darling::Result<Vec<RawSource>> {
-    let mut sources = Vec::with_capacity(4);
-    for attr in attrs {
-        if attr.path.is_ident("extract") {
-            if let Meta::List(list) = attr.parse_meta()? {
-                for meta in list.nested.iter() {
-                    if matches!(meta, NestedMeta::Meta(Meta::List(item)) if item.path.is_ident(key)) {
-                        let mut source: RawSource = FromMeta::from_nested_meta(meta)?;
-                        if source.format.is_empty() {
-                            if source.from == "request" {
-                                source.format = "request".to_string();
-                            } else {
-                                source.format = "multimap".to_string();
-                            }
-                        }
-                        if !["request", "param", "query", "header", "body"].contains(&source.from.as_str()) {
-                            return Err(darling::Error::custom(format!(
-                                "source from is invalid: {}",
-                                source.from
-                            )));
-                        }
-                        if !["multimap", "json", "request"].contains(&source.format.as_str()) {
-                            return Err(darling::Error::custom(format!(
-                                "source format is invalid: {}",
-                                source.format
-                            )));
-                        }
-                        if source.from == "request" && source.format != "request" {
-                            return Err(darling::Error::custom(
-                                "source format must be `request` for `request` sources",
-                            ));
-                        }
-                        sources.push(source);
-                    }
-                }
-            }
-        }
-    }
-    Ok(sources)
 }

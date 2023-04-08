@@ -1,8 +1,8 @@
-use darling::ToTokens;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
+use quote::ToTokens;
 use regex::Regex;
-use syn::{FnArg, Ident, Meta, NestedMeta, PatType, Receiver, Type, TypePath};
+use syn::{FnArg, Ident, PatType, Receiver, Type, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),
@@ -85,13 +85,4 @@ pub(crate) fn omit_type_path_lifetimes(ty_path: &TypePath) -> TypePath {
     let ty_path = ty_path.into_token_stream().to_string();
     let ty_path = reg.replace_all(&ty_path, "'_");
     syn::parse_str(ty_path.as_ref()).unwrap()
-}
-
-pub(crate) fn is_internal<'a>(args: impl Iterator<Item = &'a NestedMeta>) -> bool {
-    for arg in args {
-        if matches!(arg,NestedMeta::Meta(Meta::Path(p)) if p.is_ident("internal")) {
-            return true;
-        }
-    }
-    false
 }
