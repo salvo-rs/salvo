@@ -70,6 +70,7 @@ impl Default for Compression {
                 "application/json".into(),
                 "application/xml".into(),
                 "application/rss+xml".into(),
+                "application/wasm".into(),
                 "image/svg+xml".into(),
             ],
             min_length: 1024,
