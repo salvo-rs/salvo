@@ -16,7 +16,7 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
             let docs = item_fn
                 .attrs
                 .iter()
-                .filter(|attr| attr.path.is_ident("doc"))
+                .filter(|attr| attr.path().is_ident("doc"))
                 .cloned()
                 .collect::<Vec<_>>();
 
@@ -45,7 +45,7 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
         Item::Impl(item_impl) => {
             let mut hmtd = None;
             for item in &item_impl.items {
-                if let ImplItem::Method(method) = item {
+                if let ImplItem::Fn(method) = item {
                     if method.sig.ident == Ident::new("handle", Span::call_site()) {
                         hmtd = Some(method);
                     }

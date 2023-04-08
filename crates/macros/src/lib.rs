@@ -8,7 +8,7 @@
 #![warn(clippy::future_not_send)]
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, Item};
+use syn::{parse_macro_input, DeriveInput, Item};
 
 mod extract;
 mod handler;
@@ -35,23 +35,26 @@ mod shared;
 /// ```
 #[proc_macro_attribute]
 pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let internal = shared::is_internal(args.iter());
+    let internal = !args.is_empty();
     let item = parse_macro_input!(input as Item);
-    match handler::generate(internal, item) {
+    let stream = match handler::generate(internal, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    // println!("{}", stream);
+    stream
 }
 
 /// Generate code for extractible type.
 #[proc_macro_derive(Extractible, attributes(extract))]
 pub fn derive_extractible(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as DeriveInput);
-    match extract::generate(args) {
+    let stream = match extract::generate(args) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    // println!("{}", stream);
+    stream
 }
 
 #[cfg(test)]
