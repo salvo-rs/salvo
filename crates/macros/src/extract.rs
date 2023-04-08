@@ -29,7 +29,7 @@ impl TryFrom<&Field> for FieldInfo {
                 let extract: ExtractFieldInfo = attr.parse_args()?;
                 sources.extend(extract.sources);
                 aliases.extend(extract.aliases);
-                if extract.rename.is_some() && rename.is_some() {
+                if extract.rename.is_some() {
                     rename = extract.rename;
                 }
             }
@@ -91,8 +91,10 @@ impl Parse for ExtractFieldInfo {
                 extract.sources.push(item.parse::<SourceInfo>()?);
             } else if id.to_string() == "rename" {
                 input.parse::<Token![=]>()?;
+                print!("rename: 1111");
                 let expr = input.parse::<Expr>()?;
                 extract.rename = Some(expr_lit_value(&expr)?);
+                print!("rename: {:?}", extract.rename);
             } else if id.to_string() == "alias" {
                 input.parse::<Token![=]>()?;
                 let expr = input.parse::<Expr>()?;
