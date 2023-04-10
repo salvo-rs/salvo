@@ -67,7 +67,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = "*"
+salvo = { git = "https://github.com/salvo-rs/salvo.git" }
 tokio = { version = "1", features = ["macros"] }
 ```
 在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello`, 这个函数只是简单地打印文本 `"Hello World"`.

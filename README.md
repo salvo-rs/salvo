@@ -64,7 +64,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = "*"
+salvo = { git = "https://github.com/salvo-rs/salvo.git" }
 tokio = { version = "1", features = ["macros"] }
 ```
 
