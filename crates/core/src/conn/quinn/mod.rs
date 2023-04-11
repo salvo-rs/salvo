@@ -8,11 +8,10 @@ use std::task::{Context, Poll};
 use std::vec;
 
 use bytes::Bytes;
-use futures_util::StreamExt;
+use h3_quinn::quinn::Endpoint;
 pub use h3_quinn::quinn::ServerConfig;
-use h3_quinn::quinn::{Endpoint, EndpointConfig, Incoming};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use http::uri::Scheme;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
@@ -45,25 +44,24 @@ where
     T: ToSocketAddrs + Send,
 {
     type Acceptor = QuinnAcceptor;
-    
+
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
     }
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self { local_addr, config } = self;
-        let socket = std::net::UdpSocket::bind(local_addr)?;
+        let socket = local_addr.to_socket_addrs()?.next().ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
         let holding = Holding {
-            local_addr: socket.local_addr()?.into(),
+            local_addr: socket.clone().into(),
             http_version: Version::HTTP_3,
             http_scheme: Scheme::HTTPS,
         };
         let crypto = config.build_server_config()?;
         let server_config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
-        let (_endpoint, incoming) = Endpoint::new(EndpointConfig::default(), Some(server_config), socket)?;
+        let endpoint = Endpoint::server(server_config, socket)?;
         Ok(QuinnAcceptor {
-            // endpoint,
-            incoming,
+            endpoint,
             holdings: vec![holding],
         })
     }
@@ -71,8 +69,7 @@ where
 
 /// QuinnAcceptor
 pub struct QuinnAcceptor {
-    // endpoint: Endpoint,
-    incoming: Incoming,
+    endpoint: Endpoint,
     holdings: Vec<Holding>,
 }
 
@@ -129,7 +126,7 @@ impl Acceptor for QuinnAcceptor {
 
     #[inline]
     async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
-        if let Some(new_conn) = self.incoming.next().await {
+        if let Some(new_conn) = self.endpoint.accept().await {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
