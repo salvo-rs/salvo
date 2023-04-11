@@ -58,7 +58,7 @@ once_cell.workspace = true
 percent-encoding.workspace = true
 pin-project = { workspace = true }
 parking_lot.workspace = true
-quinn = { workspace = true, optional = true, features = ["tls-rustls", "ring"] }
+quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
 rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }
