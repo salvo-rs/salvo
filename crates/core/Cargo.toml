@@ -42,7 +42,6 @@ cookie = { workspace = true, features = ["percent-encode"], optional = true }
 encoding_rs = { workspace = true, optional = true }
 enumflags2.workspace = true
 eyre = { workspace = true, optional = true }
-fastrand.workspace = true
 form_urlencoded.workspace = true
 futures-util = { workspace = true, features = ["io"] }
 headers.workspace = true
@@ -82,3 +81,6 @@ tokio-stream.workspace = true
 tracing.workspace = true
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }
+
+[dev-dependencies]
+fastrand.workspace = true
