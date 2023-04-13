@@ -16,7 +16,6 @@ pub(crate) enum InputType<'a> {
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
-#[inline]
 pub(crate) fn salvo_crate(internal: bool) -> syn::Ident {
     if internal {
         return Ident::new("crate", Span::call_site());
@@ -36,7 +35,6 @@ pub(crate) fn salvo_crate(internal: bool) -> syn::Ident {
     }
 }
 
-#[inline]
 pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
     if let FnArg::Typed(p) = input {
         if let Type::Reference(ty) = &*p.ty {

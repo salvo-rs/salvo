@@ -70,6 +70,7 @@ store if it requires it.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::future_not_send)]
+#![warn(rustdoc::broken_intra_doc_links)]
 
 pub use async_session::{CookieStore, MemoryStore, Session, SessionStore};
 

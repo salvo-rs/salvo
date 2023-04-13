@@ -6,6 +6,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::future_not_send)]
+#![warn(rustdoc::broken_intra_doc_links)]
 
 mod metrics;
 mod tracing;
