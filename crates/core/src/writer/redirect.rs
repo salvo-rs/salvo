@@ -25,7 +25,7 @@ impl Redirect {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303
     pub fn other(uri: impl TryInto<Uri>) -> Self {
-        Self::with_status_code(StatusCode::SEE_OTHER, uri).expect("invlid uri")
+        Self::with_status_code(StatusCode::SEE_OTHER, uri).expect("invalid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`307 Temporary Redirect`][mdn] status code.
@@ -36,7 +36,7 @@ impl Redirect {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307
     pub fn temporary(uri: impl TryInto<Uri>) -> Self {
-        Self::with_status_code(StatusCode::TEMPORARY_REDIRECT, uri).expect("invlid uri")
+        Self::with_status_code(StatusCode::TEMPORARY_REDIRECT, uri).expect("invalid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`308 Permanent Redirect`][mdn] status code.
@@ -47,7 +47,7 @@ impl Redirect {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/308
     pub fn permanent(uri: impl TryInto<Uri>) -> Self {
-        Self::with_status_code(StatusCode::PERMANENT_REDIRECT, uri).expect("invlid uri")
+        Self::with_status_code(StatusCode::PERMANENT_REDIRECT, uri).expect("invalid uri")
     }
 
     /// Create a new [`Redirect`] that uses a [`302 Found`][mdn] status code.
@@ -63,7 +63,7 @@ impl Redirect {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
     pub fn found(uri: impl TryInto<Uri>) -> Self {
-        Self::with_status_code(StatusCode::FOUND, uri).expect("invlid uri")
+        Self::with_status_code(StatusCode::FOUND, uri).expect("invalid uri")
     }
 
     /// Create a new [`Redirect`] that uses a status code.

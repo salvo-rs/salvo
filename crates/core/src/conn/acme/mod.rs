@@ -81,7 +81,7 @@ pub use listener::AcmeListener;
 
 /// Letsencrypt production directory url
 pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";
-/// Letsencrypt stagging directory url
+/// Letsencrypt staging directory url
 pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt.org/directory";
 
 /// Well known acme challenge path

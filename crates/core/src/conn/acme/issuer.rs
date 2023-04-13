@@ -112,7 +112,7 @@ pub(crate) async fn issue_cert(
             order_res
                 .certificate
                 .as_ref()
-                .ok_or_else(|| IoError::new(ErrorKind::Other, "invalid resonse: missing `certificate` url"))?,
+                .ok_or_else(|| IoError::new(ErrorKind::Other, "invalid response: missing `certificate` url"))?,
         )
         .await?
         .as_ref()

@@ -90,13 +90,13 @@ impl Depot {
         self.map.contains_key(key)
     }
 
-    /// Immutably borrows value from depot, returing none if value is not present in depot.
+    /// Immutably borrows value from depot, returning none if value is not present in depot.
     #[inline]
     pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Option<&V> {
         self.map.get(key).and_then(|b| b.downcast_ref::<V>())
     }
 
-    /// Mutably borrows value from depot, returing none if value is not present in depot.
+    /// Mutably borrows value from depot, returning none if value is not present in depot.
     #[inline]
     pub fn get_mut<V: Any + Send + Sync>(&mut self, key: &str) -> Option<&mut V> {
         self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())

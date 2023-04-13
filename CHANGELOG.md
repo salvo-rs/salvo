@@ -36,7 +36,7 @@
 
 ### 0.16.2
   - Fix cookie not write bug.
-  - rename all features name, repalce '_' with '-'.
+  - rename all features name, replace '_' with '-'.
 
 ### 0.16.1
   - Add trait IntoAddrIncoming.
@@ -56,7 +56,7 @@
 - core::http: Cleanup StatusError.
 - core::http: Use FlowState to control write data to response.
 - core: remove impl Handler for tuple.
-- extra::baisc_auth: 
+- extra::basic_auth: 
     - add USERNAME_KEY and BasicAuthDepotExt
     - remove context_key functions.
 - extra::jwt_auth:
