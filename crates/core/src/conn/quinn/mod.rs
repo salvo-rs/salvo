@@ -53,7 +53,7 @@ where
         let Self { local_addr, config } = self;
         let socket = local_addr.to_socket_addrs()?.next().ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
         let holding = Holding {
-            local_addr: socket.clone().into(),
+            local_addr: socket.into(),
             http_version: Version::HTTP_3,
             http_scheme: Scheme::HTTPS,
         };
