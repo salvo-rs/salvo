@@ -35,7 +35,7 @@ pub trait AcmeCache {
     /// ## Errors
     ///
     /// Returns an error when the private key was unable to be written
-    /// sucessfully.
+    /// successfully.
     async fn read_key(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
@@ -49,7 +49,7 @@ pub trait AcmeCache {
     /// ## Errors
     ///
     /// Returns an error when the certificate was unable to be written
-    /// sucessfully.
+    /// successfully.
     async fn write_key(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 
     /// Returns the previously written certificate retrieved from `Acme`. The parameters are:
@@ -62,7 +62,7 @@ pub trait AcmeCache {
     /// ## Errors
     ///
     /// Returns an error when the certificate was unable to be written
-    /// sucessfully.
+    /// successfully.
     async fn read_cert(&self, directory_name: &str, domains: &[String]) -> Result<Option<Vec<u8>>, Self::Error>;
 
     /// Writes a certificate retrieved from `Acme`. The parameters are:
@@ -76,7 +76,7 @@ pub trait AcmeCache {
     /// ## Errors
     ///
     /// Returns an error when the certificate was unable to be written
-    /// sucessfully.
+    /// successfully.
     async fn write_cert(&self, directory_name: &str, domains: &[String], data: &[u8]) -> Result<(), Self::Error>;
 }
 

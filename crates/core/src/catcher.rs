@@ -1,4 +1,4 @@
-//! [`Catcher`] is the defalut implement [`Handler`] for catch page error.
+//! [`Catcher`] is the default implement [`Handler`] for catch page error.
 //!
 //! A web application can specify several different Catchers to handle errors.
 //!

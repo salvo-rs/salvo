@@ -39,7 +39,7 @@ impl Debug for AcmeConfig {
             .field("directory_name", &self.directory_name)
             .field("directory_url", &self.directory_url)
             .field("domains", &self.domains)
-            .field("contaccts", &self.contacts)
+            .field("contacts", &self.contacts)
             .field("cache_path", &self.cache_path)
             .finish()
     }

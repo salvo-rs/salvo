@@ -97,7 +97,7 @@ async fn main() {
 ```
 
 ### Middleware
-There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concpets like associated type, generic type. You can write middleware if you can write function!!!**
+There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concepts like associated type, generic type. You can write middleware if you can write function!!!**
 
 ```rust
 use salvo::http::header::{self, HeaderValue};
@@ -116,7 +116,7 @@ Then add it to router:
 Router::new().hoop(add_header).get(hello)
 ```
 
-This is a very simple middleware, it add `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
+This is a very simple middleware, it adds `Header` to `Response`, view [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/middleware-add-header/src/main.rs).
 
 ### Chainable tree routing system
 
