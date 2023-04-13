@@ -25,7 +25,7 @@ jobs:
       - name: Check published version
         run: echo PREV_VERSION=$(cargo search salvo --limit 1 | sed -nE 's/^[^"]*"//; s/".*//1p' -) >> $GITHUB_ENV
 
-      - name: Auto tag lastest version
+      - name: Auto tag latest version
         uses: bullrich/commit-autotag@main
         if: env.NEXT_VERSION != env.PREV_VERSION
         env:
@@ -103,4 +103,4 @@ jobs:
         run: |
           echo "Cargo Publishing..."
           cargo publish --no-verify
-          echo "New version $NEXT_VERSION has published"
+          echo "New version $NEXT_VERSION has been published"

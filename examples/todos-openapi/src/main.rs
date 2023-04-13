@@ -234,7 +234,7 @@ mod models {
 
     #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
-        /// Happens when Todo item alredy exists
+        /// Happens when Todo item already exists
         Config(String),
         /// Todo not found from storage
         NotFound(String),

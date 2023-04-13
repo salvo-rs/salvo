@@ -5,7 +5,7 @@ use http::StatusCode;
 
 use crate::{async_trait, Depot, Request, Response, Writer};
 
-/// Resut type with `StatusError` has it's error type.
+/// Result type with `StatusError` has it's error type.
 pub type StatusResult<T> = Result<T, StatusError>;
 
 macro_rules! default_errors {

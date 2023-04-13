@@ -95,7 +95,7 @@ impl<T> AcmeListener<T> {
                 .routers
                 .push(Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).handle(handler));
         } else {
-            panic!("`HTTP-01` challage's key should not none");
+            panic!("`HTTP-01` challenge's key should not be none");
         }
         Self { config_builder, ..self }
     }

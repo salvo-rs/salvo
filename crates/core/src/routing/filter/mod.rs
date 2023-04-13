@@ -84,7 +84,7 @@ pub trait Filter: fmt::Debug + Send + Sync + 'static {
     fn filter(&self, req: &mut Request, path: &mut PathState) -> bool;
 }
 
-/// `FnFilter` accpect a function as it's param, use this function to filter request.
+/// `FnFilter` accepts a function as it's param, use this function to filter request.
 #[derive(Copy, Clone)]
 #[allow(missing_debug_implementations)]
 pub struct FnFilter<F>(pub F);

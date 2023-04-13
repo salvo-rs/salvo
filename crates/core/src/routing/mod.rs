@@ -21,7 +21,7 @@ pub struct PathState {
     pub(crate) parts: Vec<String>,
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
-    pub(crate) end_slash: bool, // For rest match, we want includs the last slash.
+    pub(crate) end_slash: bool, // For rest match, we want include the last slash.
 }
 impl PathState {
     /// Create new `PathState`.
@@ -122,7 +122,7 @@ pub enum FlowCtrlStage {
 
 /// `FlowCtrl` is used to control the flow of execute handlers.
 ///
-/// When a request is comming, [`Router`] will detect it and get the matched one.
+/// When a request is coming, [`Router`] will detect it and get the matched one.
 /// And then salvo will collect all handlers (including added as middlewares) in a list.
 /// All handlers in this list will executed one by one. Each handler can use `FlowCtrl` to control this
 /// flow, let the flow call next handler or skip all rest handlers.
@@ -157,7 +157,7 @@ impl FlowCtrl {
 
     /// Call next handler. If get next handler and executed, returns true, otherwise returns false.
     ///
-    /// If resposne's statuse code is error or is redirection, all reset handlers will skipped.
+    /// If response status code is error or is redirection, all reset handlers will be skipped.
     #[inline]
     pub async fn call_next(&mut self, req: &mut Request, depot: &mut Depot, res: &mut Response) -> bool {
         if self.catching.is_none() {

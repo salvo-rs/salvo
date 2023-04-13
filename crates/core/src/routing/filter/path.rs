@@ -490,13 +490,13 @@ impl PathParser {
                         //start to scan fn part
                         let sign = self.scan_ident()?;
                         self.skip_blanks();
-                        let lb = self.curr().ok_or_else(|| "path ended unexcept".to_owned())?;
+                        let lb = self.curr().ok_or_else(|| "path ended unexpectedly".to_owned())?;
                         let args = if lb == '[' || lb == '(' {
                             let rb = if lb == '[' { ']' } else { ')' };
                             let mut args = "".to_owned();
                             ch = self
                                 .next(true)
-                                .ok_or_else(|| "current postion is out of index when scan ident".to_owned())?;
+                                .ok_or_else(|| "current position is out of index when scan ident".to_owned())?;
                             while ch != rb {
                                 args.push(ch);
                                 if let Some(c) = self.next(false) {
@@ -506,7 +506,7 @@ impl PathParser {
                                 }
                             }
                             if self.next(false).is_none() {
-                                return Err(format!("ended unexcept, should end with: {rb}"));
+                                return Err(format!("ended unexpectedly, should end with: {rb}"));
                             }
                             if args.is_empty() {
                                 vec![]
@@ -538,7 +538,7 @@ impl PathParser {
                     wisps.push(Box::new(NamedWisp(name)));
                     if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
                         return Err(format!(
-                                "named part must be the last one in current segement, expect '/' or end, but found {:?} at offset: {}",
+                                "named part must be the last one in current segment, expected '/' or end, but found {:?} at offset: {}",
                                 self.curr(),
                                 self.offset
                             ));
