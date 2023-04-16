@@ -20,8 +20,7 @@ builder! {
     ///
     /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct Responses {
         /// Map containing status code as a key with represented response as a value.
@@ -101,8 +100,7 @@ builder! {
     ///
     /// [response]: https://spec.openapis.org/oas/latest.html#response-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct Response {
         /// Description of the response. Response support markdown syntax.

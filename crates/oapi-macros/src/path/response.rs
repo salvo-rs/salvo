@@ -20,7 +20,7 @@ use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTy
 
 pub mod derive;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub enum Response<'r> {
     /// A type that implements `salvo_oapi::IntoResponses`.
     IntoResponses(ExprPath),
@@ -41,8 +41,7 @@ impl Parse for Response<'_> {
 }
 
 /// Parsed representation of response attributes from `#[salvo_oapi::path]` attribute.
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct ResponseTuple<'r> {
     status_code: ResponseStatus,
     inner: Option<ResponseTupleInner<'r>>,
@@ -77,7 +76,7 @@ impl<'r> ResponseTuple<'r> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum ResponseTupleInner<'r> {
     Value(ResponseValue<'r>),
     Ref(InlineType<'r>),
@@ -196,8 +195,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct ResponseValue<'r> {
     description: String,
     response_type: Option<PathType<'r>>,
@@ -393,8 +391,7 @@ trait DeriveResponseValue: Parse {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct DeriveToResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
@@ -557,8 +554,7 @@ impl Parse for DeriveIntoResponsesValue {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
@@ -640,7 +636,7 @@ impl ToTokens for ResponseStatus {
 //   ("application/json" = Response, example = "...", examples(..., ...)),
 //   ("application/json2" = Response2, example = "...", examples("...", "..."))
 // )
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Content<'c>(
     String,
     PathType<'c>,
@@ -774,8 +770,7 @@ impl ToTokens for Responses<'_> {
 ///     ]
 /// )]
 /// ```
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct Header {
     name: String,
     value_type: Option<InlineType<'static>>,

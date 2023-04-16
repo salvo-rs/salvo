@@ -27,8 +27,7 @@ builder! {
     ///
     /// [example]: https://spec.openapis.org/oas/latest.html#example-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     pub struct Example {
         /// Short description for the [`Example`].

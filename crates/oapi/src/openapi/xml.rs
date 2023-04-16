@@ -28,8 +28,7 @@ builder! {
     /// [schema_object]: https://spec.openapis.org/oas/latest.html#schema-object
     /// [schema]: ../schema/index.html
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     pub struct Xml {
         /// Used to replace the name of attribute or type used in schema property.
         /// When used with [`Xml::wrapped`] attribute the name will be used as a wrapper name

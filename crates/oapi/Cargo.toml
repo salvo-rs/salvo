@@ -14,7 +14,6 @@ authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 
 [features]
 default = []
-debug = []
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false }

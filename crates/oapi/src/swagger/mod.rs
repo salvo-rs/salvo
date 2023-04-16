@@ -22,8 +22,7 @@ use serde::Serialize;
 struct SwaggerUiDist;
 
 #[non_exhaustive]
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct SwaggerUi {
     urls: Vec<(Url<'static>, OpenApi)>,
     config: Config<'static>,
@@ -236,8 +235,7 @@ impl Handler for SwaggerUi {
 
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, Serialize, Clone)]
+#[derive(Default, Serialize, Clone,Debug)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,

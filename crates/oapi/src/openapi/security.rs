@@ -97,9 +97,8 @@ impl SecurityRequirement {
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
 /// ```
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SecurityScheme {
     /// Oauth flow authentication.
     #[serde(rename = "oauth2")]
@@ -121,9 +120,8 @@ pub enum SecurityScheme {
 }
 
 /// Api key authentication [`SecurityScheme`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(tag = "in", rename_all = "lowercase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ApiKey {
     /// Create api key which is placed in HTTP header.
     Header(ApiKeyValue),
@@ -135,8 +133,7 @@ pub enum ApiKey {
 
 /// Value object for [`ApiKey`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
     pub name: String,
@@ -187,9 +184,8 @@ builder! {
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq,Debug)]
     #[serde(rename_all = "camelCase")]
-    #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Http {
         /// Http authorization scheme in HTTP `Authorization` header value.
         pub scheme: HttpAuthScheme,
@@ -270,8 +266,7 @@ impl HttpBuilder {
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
 /// Types are maintained at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpAuthScheme {
     Basic,
@@ -296,9 +291,8 @@ impl Default for HttpAuthScheme {
 
 /// Open id connect [`SecurityScheme`]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenIdConnect {
     /// Url of the [`OpenIdConnect`] to discover OAuth2 connect values.
     pub open_id_connect_url: String,
@@ -343,8 +337,7 @@ impl OpenIdConnect {
 
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: BTreeMap<String, Flow>,
@@ -442,9 +435,8 @@ impl OAuth2 {
 ///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(untagged)]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Flow {
     /// Define implicit [`Flow`] type. See [`Implicit::new`] for usage details.
     ///
@@ -471,9 +463,8 @@ impl Flow {
 
 /// Implicit [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Implicit {
     /// Authorization token url for the flow.
     pub authorization_url: String,
@@ -554,9 +545,8 @@ impl Implicit {
 
 /// Authorization code [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AuthorizationCode {
     /// Url for authorization token.
     pub authorization_url: String,
@@ -649,9 +639,8 @@ impl AuthorizationCode {
 
 /// Password [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Password {
     /// Token url for this OAuth2 flow. OAuth2 standard requires TLS.
     pub token_url: String,
@@ -731,9 +720,8 @@ impl Password {
 
 /// Client credentials [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ClientCredentials {
     /// Token url used for [`ClientCredentials`] flow. OAuth2 standard requires TLS.
     pub token_url: String,
@@ -842,8 +830,7 @@ impl ClientCredentials {
 ///     ("read:items", "read my items")
 /// ]);
 /// ```
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 pub struct Scopes {
     scopes: BTreeMap<String, String>,
 }

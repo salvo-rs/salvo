@@ -23,8 +23,7 @@ builder! {
     ///
     /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     pub struct Paths {
         /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
         /// api endpoints.
@@ -100,8 +99,7 @@ builder! {
     ///
     /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq,Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct PathItem {
         /// Optional summary intended to apply all operations in this [`PathItem`].
@@ -180,9 +178,8 @@ impl PathItemBuilder {
 }
 
 /// Path item operation type.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone,Debug)]
 #[serde(rename_all = "lowercase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathItemType {
     /// Type mapping for HTTP _GET_ request.
     Get,
@@ -211,8 +208,7 @@ builder! {
     ///
     /// [operation]: https://spec.openapis.org/oas/latest.html#operation-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq,Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct Operation {
         /// List of tags used for grouping operations.
@@ -438,8 +434,7 @@ builder! {
     ///
     /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq,Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct Parameter {
         /// Name of the parameter.
@@ -573,9 +568,8 @@ impl ParameterBuilder {
 }
 
 /// In definition of [`Parameter`].
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone,Debug)]
 #[serde(rename_all = "lowercase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
     /// Declares that parameter is used as query parameter.
     Query,
@@ -594,8 +588,7 @@ impl Default for ParameterIn {
 }
 
 /// Defines how [`Parameter`] should be serialized.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ParameterStyle {
     /// Path style parameters defined by [RFC6570](https://tools.ietf.org/html/rfc6570#section-3.2.7)

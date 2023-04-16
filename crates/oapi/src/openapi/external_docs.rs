@@ -10,8 +10,7 @@ builder! {
 
     /// Reference of external resource allowing extended documentation.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     pub struct ExternalDocs {
         /// Target url for external documentation location.

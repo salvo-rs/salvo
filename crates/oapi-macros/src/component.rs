@@ -55,7 +55,7 @@ pub fn is_required(field_rule: Option<&SerdeValue>, container_rules: Option<&Ser
         && !is_default(&container_rules, &field_rule)
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum TypeTreeValue<'t> {
     TypePath(&'t TypePath),
     Path(&'t Path),
@@ -78,8 +78,7 @@ impl PartialEq for TypeTreeValue<'_> {
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
-#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
-#[derive(Clone)]
+#[derive(Clone,Debug, PartialEq)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
     pub value_type: ValueType,
@@ -309,37 +308,14 @@ impl<'t> TypeTree<'t> {
     }
 }
 
-#[cfg(not(feature = "debug"))]
-impl PartialEq for TypeTree<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        let path_eg = match (self.path.as_ref(), other.path.as_ref()) {
-            (Some(Cow::Borrowed(self_path)), Some(Cow::Borrowed(other_path))) => {
-                self_path.into_token_stream().to_string() == other_path.into_token_stream().to_string()
-            }
-            (Some(Cow::Owned(self_path)), Some(Cow::Owned(other_path))) => {
-                self_path.to_token_stream().to_string() == other_path.into_token_stream().to_string()
-            }
-            (None, None) => true,
-            _ => false,
-        };
-
-        path_eg
-            && self.value_type == other.value_type
-            && self.generic_type == other.generic_type
-            && self.children == other.children
-    }
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy,Debug, PartialEq, Eq)]
 pub enum ValueType {
     Primitive,
     Object,
     Tuple,
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy,Debug)]
 pub enum GenericType {
     Vec,
     Map,
@@ -392,7 +368,7 @@ impl Rename for FieldRename {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct ComponentSchemaProps<'c> {
     pub type_tree: &'c TypeTree<'c>,
     pub features: Option<Vec<Feature>>,
@@ -401,7 +377,7 @@ pub struct ComponentSchemaProps<'c> {
     pub object_name: &'c str,
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct ComponentSchema {
     tokens: TokenStream,
 }

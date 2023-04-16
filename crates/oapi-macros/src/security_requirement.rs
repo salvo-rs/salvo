@@ -10,8 +10,7 @@ use syn::{
 
 use crate::Array;
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct SecurityRequirementAttr {
     name: Option<String>,
     scopes: Option<Vec<String>>,

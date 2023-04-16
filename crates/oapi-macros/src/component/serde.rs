@@ -22,8 +22,7 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct SerdeValue {
     pub skip: bool,
     pub rename: Option<String>,
@@ -109,8 +108,7 @@ impl Default for SerdeEnumRepr {
 }
 
 /// Attributes defined within a `#[serde(...)]` container attribute.
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
     pub enum_repr: SerdeEnumRepr,
@@ -275,8 +273,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         })
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub enum RenameRule {
     Lower,
     Upper,

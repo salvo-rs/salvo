@@ -14,8 +14,7 @@ builder! {
     ///
     /// [tag]: https://spec.openapis.org/oas/latest.html#tag-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     pub struct Tag {
         /// Name of the tag. Should match to tag of **operation**.

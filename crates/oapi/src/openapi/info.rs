@@ -35,8 +35,7 @@ builder! {
     ///
     /// [info]: <https://spec.openapis.org/oas/latest.html#info-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     pub struct Info {
         /// Title of the API.
@@ -133,8 +132,7 @@ builder! {
     ///
     /// [contact]: <https://spec.openapis.org/oas/latest.html#contact-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     pub struct Contact {
         /// Identifying name of the contact person or organization of the API.
@@ -182,8 +180,7 @@ builder! {
     ///
     /// [license]: <https://spec.openapis.org/oas/latest.html#license-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq,Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct License {
         /// Name of the license used e.g MIT or Apache-2.0

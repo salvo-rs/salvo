@@ -17,8 +17,7 @@ const END_MARKER: &str = "//</editor-fold>";
 ///     .use_pkce_with_authorization_code_grant(true);
 /// ```
 #[non_exhaustive]
-#[derive(Default, Clone, Serialize)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Clone,Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     /// oauth client_id the Swagger UI is using for auth flow.

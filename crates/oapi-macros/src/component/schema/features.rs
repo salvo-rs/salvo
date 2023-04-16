@@ -14,7 +14,7 @@ use crate::{
     ResultExt,
 };
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct NamedFieldStructFeatures(Vec<Feature>);
 
 impl Parse for NamedFieldStructFeatures {
@@ -34,7 +34,7 @@ impl Parse for NamedFieldStructFeatures {
 
 impl_into_inner!(NamedFieldStructFeatures);
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct UnnamedFieldStructFeatures(Vec<Feature>);
 
 impl Parse for UnnamedFieldStructFeatures {

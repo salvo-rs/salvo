@@ -20,8 +20,7 @@ use self::info::Info;
 
 mod info;
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct OpenApiAttr<'o> {
     info: Option<Info<'o>>,
     paths: Punctuated<ExprPath, Comma>,
@@ -131,7 +130,7 @@ impl Parse for OpenApiAttr<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[ derive(Debug)                                                                                  ]
 struct Schema(TypePath);
 
 impl Parse for Schema {
@@ -140,7 +139,7 @@ impl Parse for Schema {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Response(TypePath);
 
 impl Parse for Response {
@@ -149,7 +148,7 @@ impl Parse for Response {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Modifier {
     and: And,
     ident: Ident,
@@ -174,8 +173,7 @@ impl Parse for Modifier {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct Tag {
     name: String,
     description: Option<String>,
@@ -242,8 +240,7 @@ impl ToTokens for Tag {
 }
 
 // (url = "http:://url", description = "description", variables(...))
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct Server {
     url: String,
     description: Option<String>,
@@ -331,8 +328,7 @@ impl ToTokens for Server {
 
 // ("username" = (default = "demo", description = "This is default username for the API")),
 // ("port" = (enum_values = (8080, 5000, 4545)))
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct ServerVariable {
     name: String,
     default: String,
@@ -452,8 +448,7 @@ impl ToTokens for OpenApi<'_> {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct Components {
     schemas: Vec<Schema>,
     responses: Vec<Response>,

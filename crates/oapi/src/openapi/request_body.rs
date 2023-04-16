@@ -14,8 +14,7 @@ builder! {
     ///
     /// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct RequestBody {
         /// Additional description of [`RequestBody`] supporting markdown syntax.

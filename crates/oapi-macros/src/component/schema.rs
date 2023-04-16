@@ -173,7 +173,7 @@ impl ToTokens for Schema<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[ derive(Debug)]
 enum SchemaVariant<'a> {
     Named(NamedStructSchema<'a>),
     Unnamed(UnnamedStructSchema<'a>),
@@ -259,7 +259,7 @@ impl ToTokens for SchemaVariant<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct UnitStructVariant;
 
 impl ToTokens for UnitStructVariant {
@@ -271,7 +271,7 @@ impl ToTokens for UnitStructVariant {
     }
 }
     
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct NamedStructSchema<'a> {
     pub struct_name: Cow<'a, str>,
     pub fields: &'a Punctuated<Field, Comma>,
@@ -502,7 +502,7 @@ impl ToTokens for NamedStructSchema<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct UnnamedStructSchema<'a> {
     struct_name: Cow<'a, str>,
     fields: &'a Punctuated<Field, Comma>,
@@ -601,7 +601,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct EnumSchema<'a> {
     schema_type: EnumSchemaType<'a>,
     schema_as: Option<As>,
@@ -720,7 +720,7 @@ impl ToTokens for EnumSchema<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum EnumSchemaType<'e> {
     Simple(SimpleEnum<'e>),
     #[cfg(feature = "repr")]
@@ -760,7 +760,7 @@ impl ToTokens for EnumSchemaType<'_> {
 }
 
 #[cfg(feature = "repr")]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct ReprEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
@@ -822,7 +822,7 @@ fn rename_enum_variant<'a>(
     super::rename::<VariantRename>(name, rename_to, rename_all)
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct SimpleEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
@@ -913,7 +913,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
     tokens.extend(enum_variant_features.to_token_stream());
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[ derive(Debug)]
 struct ComplexEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
@@ -1448,11 +1448,10 @@ impl ToTokens for ComplexEnum<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq)]
+#[derive(PartialEq,Debug)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum Property {
     Schema(ComponentSchema),
     WithSchema(Feature),
@@ -1502,7 +1501,7 @@ fn is_flatten(rule: &Option<SerdeValue>) -> bool {
     rule.as_ref().map(|value| value.flatten).unwrap_or(false)
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct AliasSchema {
     pub name: String,
     pub ty: Type,
