@@ -28,7 +28,6 @@ impl SchemaType<'_> {
         #[cfg(not(any(
             feature = "chrono",
             feature = "decimal",
-            feature = "rocket_extras",
             feature = "uuid",
             feature = "time",
         )))]
@@ -39,7 +38,6 @@ impl SchemaType<'_> {
         #[cfg(any(
             feature = "chrono",
             feature = "decimal",
-            feature = "rocket_extras",
             feature = "uuid",
             feature = "time",
         ))]
@@ -54,11 +52,6 @@ impl SchemaType<'_> {
             #[cfg(feature = "decimal")]
             if !primitive {
                 primitive = is_primitive_rust_decimal(name);
-            }
-
-            #[cfg(feature = "rocket_extras")]
-            if !primitive {
-                primitive = matches!(name, "PathBuf");
             }
 
             #[cfg(feature = "uuid")]
@@ -185,8 +178,6 @@ impl ToTokens for SchemaType<'_> {
             "Date" | "Duration" => tokens.extend(quote! { #root::oapi::openapi::SchemaType::String }),
             #[cfg(feature = "decimal")]
             "Decimal" => tokens.extend(quote! { #root::oapi::openapi::SchemaType::String }),
-            #[cfg(feature = "rocket_extras")]
-            "PathBuf" => tokens.extend(quote! { #root::oapi::openapi::SchemaType::String }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { #root::oapi::openapi::SchemaType::String }),
             #[cfg(feature = "time")]

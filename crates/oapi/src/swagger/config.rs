@@ -255,34 +255,6 @@ impl<'a> Config<'a> {
         Self::new_(urls, Some(oauth_config))
     }
 
-    /// Configure defaults for current [`Config`].
-    ///
-    /// A new [`Config`] will be created with given `urls` and its _**default values**_ and
-    /// _**url, urls and urls_primary_name**_ will be moved to the current [`Config`] the method
-    /// is called on.
-    ///
-    /// Current config will be returned with configured default values.
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
-    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))))]
-    fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
-        let Config {
-            dom_id,
-            deep_linking,
-            url,
-            urls,
-            urls_primary_name,
-            ..
-        } = Config::new(urls);
-
-        self.dom_id = dom_id;
-        self.deep_linking = deep_linking;
-        self.url = url;
-        self.urls = urls;
-        self.urls_primary_name = urls_primary_name;
-
-        self
-    }
-
     /// Add url to fetch external configuration from.
     ///
     /// # Examples

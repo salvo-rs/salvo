@@ -63,19 +63,6 @@ struct IntoParamsType<'a> {
 }
 
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct MacroPath {
-    path: String,
-    args: Vec<MacroArg>,
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-enum MacroArg {
-    #[cfg_attr(not(any(feature = "actix_extras", feature = "rocket_extras")), allow(dead_code))]
-    Path(ArgValue),
-    #[cfg(feature = "rocket_extras")]
-    Query(ArgValue),
-}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -99,12 +86,6 @@ trait ArgumentResolver {
     }
 }
 
-trait PathResolver {
-    fn resolve_path(_: &Option<String>) -> Option<MacroPath> {
-        None
-    }
-}
-
 trait PathOperationResolver {
     fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
         None
@@ -113,7 +94,6 @@ trait PathOperationResolver {
 
 struct PathOperations;
 impl ArgumentResolver for PathOperations {}
-impl PathResolver for PathOperations {}
 impl PathOperationResolver for PathOperations {}
 
 #[proc_macro_error]
@@ -1045,170 +1025,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// # Security Requirement Attributes
-///
-/// * `name` Define the name for security requirement. This must match to name of existing
-///   [`SecuritySchema`][security_schema].
-/// * `scopes = [...]` Define the list of scopes needed. These must be scopes defined already in
-///   existing [`SecuritySchema`][security_schema].
-///
-/// **Security Requirement supported formats:**
-///
-/// ```text
-/// (),
-/// ("name" = []),
-/// ("name" = ["scope1", "scope2"]),
-/// ```
-///
-/// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
-/// security requirement is optional for operation.
-///
-/// ```
-/// use serde_json::json;
-///
-/// /// Get Pet by id
-/// #[salvo_oapi::path(
-///     responses(
-///         (status = 200, description = "Pet found from database")
-///     ),
-///     params(
-///         ("id", description = "Pet id"),
-///     )
-/// )]
-/// #[get("/pet/{id}")]
-/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
-/// }
-/// ```
-///
-/// ```
-/// use serde_json::json;
-///
-/// /// Get Pet by id
-/// #[salvo_oapi::path(
-///     responses(
-///         (status = 200, description = "Pet found from database")
-///     )
-/// )]
-/// #[get("/pet/{id}")]
-/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
-/// }
-/// ```
-///
-/// # rocket_extras feature support for rocket
-///
-/// **rocket_extras** feature enhances path operation parameter support. It gives **salvo_oapi** ability to parse `path`, `path parameters`
-/// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.
-///
-/// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
-///    type.
-/// 2. It is able to determine `parameter_in` for [`IntoParams`][into_params] trait used for `FromForm` type of query parameters.
-///
-/// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/salvo_oapi/tree/master/examples/rocket-todo).
-///
-///
-/// # axum_extras feature support for axum
-///
-/// **axum_extras** feature enhances parameter support for path operation in following ways.
-///
-/// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
-///    parameter names and types from it.
-/// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///   _`Path<...>`_ or _`Query<...>`_ handler function arguments.
-///
-/// _**Resole path argument types from tuple style handler arguments.**_
-/// ```
-/// # use axum::extract::Path;
-/// /// Get todo by id and name.
-/// #[salvo_oapi::path(
-///     get,
-///     path = "/todo/{id}",
-///     params(
-///         ("id", description = "Todo id"),
-///         ("name", description = "Todo name")
-///     ),
-///     responses(
-///         (status = 200, description = "Get todo success", body = String)
-///     )
-/// )]
-/// async fn get_todo(
-///     Path((id, name)): Path<(i32, String)>
-/// ) -> String {
-///     String::new()
-/// }
-/// ```
-///
-/// _**Use `IntoParams` to resolve query parameters.**_
-/// ```
-/// # use serde::Deserialize;
-/// # use salvo_oapi::IntoParams;
-/// # use axum::{extract::Query, Json};
-/// #[derive(Deserialize, IntoParams)]
-/// struct TodoSearchQuery {
-///     /// Search by value. Search is incase sensitive.
-///     value: String,
-///     /// Search by `done` status.
-///     done: bool,
-/// }
-///
-/// /// Search Todos by query params.
-/// #[salvo_oapi::path(
-///     get,
-///     path = "/todo/search",
-///     params(
-///         TodoSearchQuery
-///     ),
-///     responses(
-///         (status = 200, description = "List matching todos by query", body = [String])
-///     )
-/// )]
-/// async fn search_todos(
-///     query: Query<TodoSearchQuery>,
-/// ) -> Json<Vec<String>> {
-///     Json(vec![])
-/// }
-/// ```
-///
-/// # Examples
-///
-/// _**More complete example.**_
-/// ```
-/// # struct Pet {
-/// #    id: u64,
-/// #    name: String,
-/// # }
-/// #
-/// #[salvo_oapi::path(
-///    post,
-///    operation_id = "custom_post_pet",
-///    path = "/pet",
-///    tag = "pet_handlers",
-///    request_body(content = Pet, description = "Pet to store the database", content_type = "application/json"),
-///    responses(
-///         (status = 200, description = "Pet stored successfully", body = Pet, content_type = "application/json",
-///             headers(
-///                 ("x-cache-len" = String, description = "Cache length")
-///             ),
-///             example = json!({"id": 1, "name": "bob the cat"})
-///         ),
-///    ),
-///    params(
-///      ("x-csrf-token" = String, Header, deprecated, description = "Current csrf token of user"),
-///    ),
-///    security(
-///        (),
-///        ("my_auth" = ["read:items", "edit:items"]),
-///        ("token_jwt" = [])
-///    )
-/// )]
-/// fn post_pet(pet: Pet) -> Pet {
-///     Pet {
-///         id: 4,
-///         name: "bob the cat".to_string(),
-///     }
-/// }
-/// ```
 ///
 /// _**More minimal example with the defaults.**_
 /// ```
