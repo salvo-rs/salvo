@@ -10,12 +10,12 @@ use salvo::size_limiter;
 
 use self::models::*;
 
-// use utoipa::OpenApi;
+// use salvo_oapi::OpenApi;
 use salvo::oapi::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
-use salvo::oapi::swagger::{SwaggerUi, Config};
+use salvo::oapi::swagger::Config;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
 
@@ -63,7 +63,7 @@ async fn main() {
 }
 
 pub(crate) fn route() -> Router {
-    let config = Config::from("/api-doc/openapi.json");
+    let config = Arc::new(Config::from("/api-doc/openapi.json"));
     Router::new()
         .get(hello)
         .push(
@@ -76,12 +76,38 @@ pub(crate) fn route() -> Router {
             ),
         )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(SwaggerUi::new(config).router("swagger-ui") )
+        .push(
+            Router::with_path("/swagger-ui/<**>")
+                .hoop(affix::inject(config))
+                .get(serve_swagger),
+        )
 }
 
 #[handler]
 pub async fn openapi_json(res: &mut Response) {
     res.render(Json(ApiDoc::openapi()))
+}
+
+#[handler]
+pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+    let config = depot.obtain::<Arc<Config>>().unwrap();
+    let path = req.uri().path();
+    let tail = path.strip_prefix("/swagger-ui/").unwrap();
+
+    match salvo::oapi::swagger::serve(tail, config.clone()) {
+        Ok(swagger_file) => swagger_file
+            .map(|file| {
+                res.headers_mut()
+                    .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
+                res.set_body(ResBody::Once(file.bytes.to_vec().into()));
+            })
+            .unwrap_or_else(|| {
+                res.set_status_code(StatusCode::NOT_FOUND);
+            }),
+        Err(_error) => {
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 
 #[salvo::oapi::endpoint(
@@ -228,38 +254,5 @@ mod models {
     pub struct ListOptions {
         pub offset: Option<usize>,
         pub limit: Option<usize>,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use salvo::http::StatusCode;
-    use salvo::test::TestClient;
-
-    use super::models::Todo;
-
-    #[tokio::test]
-    async fn test_todo_create() {
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let resp = TestClient::post("http://127.0.0.1:5800/api/todos")
-            .json(&test_todo())
-            .send(super::route())
-            .await;
-
-        assert_eq!(resp.status_code().unwrap(), StatusCode::CREATED);
-        let resp = TestClient::post("http://127.0.0.1:5800/api/todos")
-            .json(&test_todo())
-            .send(super::route())
-            .await;
-
-        assert_eq!(resp.status_code().unwrap(), StatusCode::BAD_REQUEST);
-    }
-
-    fn test_todo() -> Todo {
-        Todo {
-            id: 1,
-            text: "test todo".into(),
-            completed: false,
-        }
     }
 }

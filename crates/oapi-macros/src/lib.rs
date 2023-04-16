@@ -678,7 +678,6 @@ impl PathOperationResolver for PathOperations {}
 /// [openapi_derive]: derive.OpenApi.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
-    println!("BBBBBBBBBBBBBBBBBBBBBBddddB00000000000");
     let DeriveInput {
         attrs,
         ident,
@@ -687,12 +686,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    println!("BBBBBBBBBBBBBBBBBBBBBBddddBBBBB111");
     let schema = Schema::new(&data, &attrs, &ident, &generics, &vis);
-    println!("BBBBBBBBBBBBBBBBBBBBBBBBBBB");
-    let stream = schema.to_token_stream().into();
-    println!("{}", stream);
-    stream
+    schema.to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -2429,10 +2424,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
         description: None,
         object_name: "",
     });
-
-    let stream = schema.to_token_stream().into();
-    println!("{}", stream);
-    stream
+    schema.to_token_stream().into()
+    // let stream = schema.to_token_stream().into();
+    // println!("{}", stream);
+    // stream
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
