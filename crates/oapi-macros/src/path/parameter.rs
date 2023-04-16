@@ -36,7 +36,7 @@ use super::InlineType;
 /// * ("id", path, deprecated, description = "Users database id"),
 ///
 /// The `= String` type statement is optional if automatic resolution is supported.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub enum Parameter<'a> {
     Value(ValueParameter<'a>),
     /// Identifier for a struct that implements `IntoParams` trait.
@@ -81,7 +81,7 @@ impl ToTokens for Parameter<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[ derive(Debug)]
 struct ParameterSchema<'p> {
     parameter_type: ParameterType<'p>,
     features: Vec<Feature>,
@@ -116,13 +116,12 @@ impl ToTokens for ParameterSchema<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum ParameterType<'p> {
     Parsed(InlineType<'p>),
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct ValueParameter<'a> {
     pub name: Cow<'a, str>,
     parameter_in: ParameterIn,
@@ -179,8 +178,7 @@ impl Parse for ValueParameter<'_> {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct ParameterFeatures(Vec<Feature>);
 
 impl Parse for ParameterFeatures {
@@ -282,15 +280,14 @@ impl ToTokens for ValueParameter<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct StructParameter {
     pub path: ExprPath,
     /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::IntoParams::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy,Debug)]
 pub enum ParameterIn {
     Query,
     Path,
@@ -354,8 +351,7 @@ impl ToTokens for ParameterIn {
 }
 
 /// See definitions from `salvo_oapi` crate path.rs
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Copy, Clone,Debug)]
 pub enum ParameterStyle {
     Matrix,
     Label,

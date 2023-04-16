@@ -49,7 +49,7 @@ impl Parse for IntoParamsFeatures {
 
 impl_into_inner!(IntoParamsFeatures);
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct IntoParams {
     /// Attributes tagged on the whole struct or enum.
     pub attrs: Vec<Attribute>,
@@ -202,7 +202,7 @@ impl IntoParams {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct FieldParamContainerAttributes<'a> {
     /// See [`IntoParamsAttr::style`].
     style: &'a Option<Feature>,
@@ -253,7 +253,7 @@ impl Parse for FieldFeatures {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Param<'a> {
     /// Field in the container used to create a single parameter.
     field: &'a Field,

@@ -9,8 +9,7 @@ use syn::{parenthesized, Error, LitStr, Token};
 
 use crate::parse_utils;
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub(super) enum Str {
     String(String),
     IncludeStr(TokenStream2),
@@ -43,8 +42,7 @@ impl ToTokens for Str {
     }
 }
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Clone,Debug)]
 pub(super) struct Info<'i> {
     title: Option<String>,
     version: Option<String>,
@@ -162,8 +160,7 @@ impl ToTokens for Info<'_> {
     }
 }
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Clone,Debug)]
 pub(super) struct License<'l> {
     name: Cow<'l, str>,
     url: Option<Cow<'l, str>>,
@@ -230,8 +227,7 @@ impl From<String> for License<'_> {
     }
 }
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Clone,Debug)]
 pub(super) struct Contact<'c> {
     name: Option<Cow<'c, str>>,
     email: Option<Cow<'c, str>>,

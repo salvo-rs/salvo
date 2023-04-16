@@ -59,8 +59,7 @@ builder! {
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#openapi-object>.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq,Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct OpenApi {
         /// OpenAPI document version.
@@ -260,8 +259,7 @@ impl OpenApiBuilder {
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 pub enum OpenApiVersion {
     /// Will serialize to `3.0.3` the latest from 3.0 serde.
     #[serde(rename = "3.0.3")]
@@ -277,8 +275,7 @@ impl Default for OpenApiVersion {
 /// Value used to indicate whether reusable schema, parameter or operation is deprecated.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq, Eq, Clone,Debug)]
 pub enum Deprecated {
     True,
     False,
@@ -329,8 +326,7 @@ impl Default for Deprecated {
 /// Value used to indicate whether parameter or property is required.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq, Eq, Clone,Debug)]
 pub enum Required {
     True,
     False,
@@ -382,8 +378,7 @@ impl Default for Required {
 ///
 /// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
 /// other given type such as [`Schema`] or [`Response`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
 #[serde(untagged)]
 pub enum RefOr<T> {
     Ref(Ref),
@@ -466,7 +461,7 @@ macro_rules! builder {
         #[doc = concat!("Builder for [`", stringify!($name),
             "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
         $( #[$builder_meta] )*
-        #[cfg_attr(feature = "debug", derive(Debug))]
+        #[ derive(Debug)]
         $vis $key $builder_name {
             $( $field: $field_ty, )*
         }

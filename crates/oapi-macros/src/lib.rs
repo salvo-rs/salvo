@@ -48,7 +48,7 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct ValueArgument<'a> {
     name: Option<Cow<'a, str>>,
     type_tree: Option<TypeTree<'a>>,
@@ -56,7 +56,7 @@ struct ValueArgument<'a> {
 
 /// Represents Identifier with `parameter_in` provider function which is used to
 /// update the `parameter_in` to [`Parameter::Struct`].
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct IntoParamsType<'a> {
     parameter_in_provider: TokenStream,
     type_path: Option<Cow<'a, syn::Path>>,
@@ -71,7 +71,7 @@ struct ArgValue {
     original_name: String,
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct ResolvedOperation {
     path_operation: crate::path::PathOperation,
     path: String,
@@ -1165,6 +1165,7 @@ pub fn endpoint(attr: TokenStream, item: TokenStream) -> TokenStream {
             .map(|operation| mem::take(&mut operation.path))
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
+    println!("Resolved path: {:?}", resolved_path);
 
     let path = Path::new(path_attribute, fn_name)
         .path_operation(resolved_operation.map(|operation| operation.path_operation))
@@ -2248,7 +2249,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
 /// or without correctly to OpenAPI JSON.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[ derive(Debug)]
 enum Array<'a, T>
 where
     T: Sized + ToTokens,
@@ -2307,7 +2308,7 @@ where
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum Deprecated {
     True,
     False,
@@ -2333,8 +2334,7 @@ impl ToTokens for Deprecated {
     }
 }
 
-#[derive(PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq, Eq,Debug)]
 enum Required {
     True,
     False,
@@ -2367,8 +2367,7 @@ impl ToTokens for Required {
     }
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 struct ExternalDocs {
     url: String,
     description: Option<String>,
@@ -2426,7 +2425,7 @@ impl ToTokens for ExternalDocs {
 
 /// Represents OpenAPI Any value used in example and default fields.
 #[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),

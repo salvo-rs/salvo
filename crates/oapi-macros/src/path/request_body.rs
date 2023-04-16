@@ -48,8 +48,7 @@ use super::{PathType, PathTypeTree};
 ///    request_body = Option<[Foo]>,
 /// )]
 /// ```
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
     content_type: Option<String>,

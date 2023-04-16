@@ -7,8 +7,7 @@ use syn::{parenthesized, Error, LitStr, Token};
 use crate::{parse_utils, AnyValue};
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub(super) struct Example {
     pub(super) name: String,
     pub(super) summary: Option<String>,

@@ -81,8 +81,7 @@ pub trait Parse {
         Self: std::marker::Sized;
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum Feature {
     Example(Example),
     Default(Default),
@@ -388,8 +387,7 @@ is_validatable! {
     Required => false
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Example(AnyValue);
 
 impl Parse for Example {
@@ -412,8 +410,7 @@ impl From<Example> for Feature {
 
 name!(Example = "example");
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Default(pub(crate) Option<AnyValue>);
 
 impl Default {
@@ -449,8 +446,7 @@ impl From<self::Default> for Feature {
 
 name!(Default = "default");
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Inline(bool);
 
 impl Parse for Inline {
@@ -473,8 +469,7 @@ impl From<Inline> for Feature {
 
 name!(Inline = "inline");
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Clone,Debug)]
 pub struct XmlAttr(schema::xml::XmlAttr);
 
 impl XmlAttr {
@@ -528,8 +523,7 @@ impl From<XmlAttr> for Feature {
 
 name!(XmlAttr = "xml");
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Format(SchemaFormat<'static>);
 
 impl Parse for Format {
@@ -552,8 +546,7 @@ impl From<Format> for Feature {
 
 name!(Format = "format");
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct ValueType(syn::Type);
 
 impl ValueType {
@@ -577,8 +570,7 @@ impl From<ValueType> for Feature {
 
 name!(ValueType = "value_type");
 
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Copy,Debug)]
 pub struct WriteOnly(bool);
 
 impl Parse for WriteOnly {
@@ -601,8 +593,7 @@ impl From<WriteOnly> for Feature {
 
 name!(WriteOnly = "write_only");
 
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Copy,Debug)]
 pub struct ReadOnly(bool);
 
 impl Parse for ReadOnly {
@@ -625,8 +616,7 @@ impl From<ReadOnly> for Feature {
 
 name!(ReadOnly = "read_only");
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Title(String);
 
 impl Parse for Title {
@@ -649,8 +639,7 @@ impl From<Title> for Feature {
 
 name!(Title = "title");
 
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Copy,Debug)]
 pub struct Nullable(bool);
 
 impl Nullable {
@@ -679,8 +668,7 @@ impl From<Nullable> for Feature {
 
 name!(Nullable = "nullable");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Rename(String);
 
 impl Rename {
@@ -709,8 +697,7 @@ impl From<Rename> for Feature {
 
 name!(Rename = "rename");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct RenameAll(RenameRule);
 
 impl RenameAll {
@@ -739,8 +726,7 @@ impl From<RenameAll> for Feature {
 
 name!(RenameAll = "rename_all");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Style(ParameterStyle);
 
 impl From<ParameterStyle> for Style {
@@ -769,8 +755,7 @@ impl From<Style> for Feature {
 
 name!(Style = "style");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AllowReserved(bool);
 
 impl Parse for AllowReserved {
@@ -793,8 +778,7 @@ impl From<AllowReserved> for Feature {
 
 name!(AllowReserved = "allow_reserved");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Explode(bool);
 
 impl Parse for Explode {
@@ -817,8 +801,7 @@ impl From<Explode> for Feature {
 
 name!(Explode = "explode");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct ParameterIn(parameter::ParameterIn);
 
 impl Parse for ParameterIn {
@@ -842,8 +825,7 @@ impl From<ParameterIn> for Feature {
 name!(ParameterIn = "parameter_in");
 
 /// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Names(Vec<String>);
 
 impl Names {
@@ -871,8 +853,7 @@ impl From<Names> for Feature {
 
 name!(Names = "names");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MultipleOf(f64, Ident);
 
 impl Validate for MultipleOf {
@@ -905,8 +886,7 @@ impl From<MultipleOf> for Feature {
 
 name!(MultipleOf = "multiple_of");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Maximum(f64, Ident);
 
 impl Validate for Maximum {
@@ -942,8 +922,7 @@ impl From<Maximum> for Feature {
 
 name!(Maximum = "maximum");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Minimum(f64, Ident);
 
 impl Minimum {
@@ -985,8 +964,7 @@ impl From<Minimum> for Feature {
 
 name!(Minimum = "minimum");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct ExclusiveMaximum(f64, Ident);
 
 impl Validate for ExclusiveMaximum {
@@ -1022,8 +1000,7 @@ impl From<ExclusiveMaximum> for Feature {
 
 name!(ExclusiveMaximum = "exclusive_maximum");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct ExclusiveMinimum(f64, Ident);
 
 impl Validate for ExclusiveMinimum {
@@ -1059,8 +1036,7 @@ impl From<ExclusiveMinimum> for Feature {
 
 name!(ExclusiveMinimum = "exclusive_minimum");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MaxLength(usize, Ident);
 
 impl Validate for MaxLength {
@@ -1096,8 +1072,7 @@ impl From<MaxLength> for Feature {
 
 name!(MaxLength = "max_length");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MinLength(usize, Ident);
 
 impl Validate for MinLength {
@@ -1133,8 +1108,7 @@ impl From<MinLength> for Feature {
 
 name!(MinLength = "min_length");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Pattern(String, Ident);
 
 impl Validate for Pattern {
@@ -1171,8 +1145,7 @@ impl From<Pattern> for Feature {
 
 name!(Pattern = "pattern");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MaxItems(usize, Ident);
 
 impl Validate for MaxItems {
@@ -1208,8 +1181,7 @@ impl From<MaxItems> for Feature {
 
 name!(MaxItems = "max_items");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MinItems(usize, Ident);
 
 impl Validate for MinItems {
@@ -1245,8 +1217,7 @@ impl From<MinItems> for Feature {
 
 name!(MinItems = "min_items");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MaxProperties(usize, Ident);
 
 impl Parse for MaxProperties {
@@ -1272,8 +1243,7 @@ impl From<MaxProperties> for Feature {
 
 name!(MaxProperties = "max_properties");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct MinProperties(usize, Ident);
 
 impl Parse for MinProperties {
@@ -1299,8 +1269,7 @@ impl From<MinProperties> for Feature {
 
 name!(MinProperties = "min_properties");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct SchemaWith(TypePath);
 
 impl Parse for SchemaWith {
@@ -1326,8 +1295,7 @@ impl From<SchemaWith> for Feature {
 
 name!(SchemaWith = "schema_with");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Description(String);
 
 impl Parse for Description {
@@ -1357,8 +1325,7 @@ name!(Description = "description");
 ///
 /// This feature supports only syntax parsed from salvo_oapi specific macro attributes, it does not
 /// support Rust `#[deprecated]` attribute.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Deprecated(bool);
 
 impl Parse for Deprecated {
@@ -1385,8 +1352,7 @@ impl From<Deprecated> for Feature {
 
 name!(Deprecated = "deprecated");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct As(pub TypePath);
 
 impl Parse for As {
@@ -1406,8 +1372,7 @@ impl From<As> for Feature {
 
 name!(As = "as");
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AdditionalProperties(bool);
 
 impl Parse for AdditionalProperties {
@@ -1439,8 +1404,7 @@ impl From<AdditionalProperties> for Feature {
     }
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct Required(pub bool);
 
 impl Required {

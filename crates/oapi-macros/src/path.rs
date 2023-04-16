@@ -56,8 +56,7 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 ///    ]
 /// )]
 /// ```
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default,Debug)]
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBodyAttr<'p>>,
@@ -152,7 +151,7 @@ impl Parse for PathAttr<'_> {
 ///   * "head"
 ///   * "patch"
 ///   * "trace"
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub enum PathOperation {
     Get,
     Post,
@@ -353,7 +352,7 @@ impl<'p> ToTokens for Path<'p> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Operation<'a> {
     operation_id: Expr,
     summary: Option<&'a String>,
@@ -417,7 +416,7 @@ impl ToTokens for Operation<'_> {
 }
 
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 enum PathType<'p> {
     Ref(String),
     MediaType(InlineType<'p>),
@@ -445,7 +444,7 @@ impl Parse for PathType<'_> {
 }
 
 // inline(syn::Type) | syn::Type
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct InlineType<'i> {
     ty: Cow<'i, Type>,
     is_inline: bool,

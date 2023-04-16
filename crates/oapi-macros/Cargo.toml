@@ -37,7 +37,7 @@ time = { workspace = true, features = ["serde-human-readable"] }
 serde_with.workspace = true
 
 [features]
-debug = ["syn/extra-traits"]
+default = []
 chrono = []
 yaml = []
 decimal = []

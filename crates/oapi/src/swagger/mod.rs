@@ -22,8 +22,7 @@ use serde::Serialize;
 struct SwaggerUiDist;
 
 #[non_exhaustive]
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone,Debug)]
 pub struct SwaggerUi {
     urls: Vec<(Url<'static>, OpenApi)>,
     config: Config<'static>,
@@ -214,7 +213,7 @@ impl SwaggerUi {
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let mut path = req.params().get("**file_path").map(|s| &**s).unwrap_or_default();
+        let mut path = req.params().get("**").map(|s| &**s).unwrap_or_default();
         match (serve(path, &self.config)) {
             Ok(Some(file)) => {
                 res.headers_mut()
@@ -234,8 +233,7 @@ impl Handler for SwaggerUi {
 
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, Serialize, Clone)]
+#[derive(Default, Serialize, Clone,Debug)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,
@@ -343,16 +341,17 @@ pub struct SwaggerFile<'a> {
 ///
 /// [examples]: https://github.com/juhaku/salvo/tree/master/examples
 pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
-    let mut file_path = path;
+    let path  = if path.is_empty() || path == "/" {
+        "index.html"
+    } else {
+        path
+    };
 
-    if file_path.is_empty() || file_path == "/" {
-        file_path = "index.html";
-    }
-
-    if let Some(file) = SwaggerUiDist::get(file_path) {
+println!("===========path: {}", path);
+    if let Some(file) = SwaggerUiDist::get(path) {
         let mut bytes = file.data;
 
-        if file_path == "swagger-initializer.js" {
+        if path == "swagger-initializer.js" {
             let mut file = match String::from_utf8(bytes.to_vec()) {
                 Ok(file) => file,
                 Err(error) => return Err(Box::new(error)),
@@ -372,7 +371,7 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
 
         Ok(Some(SwaggerFile {
             bytes,
-            content_type: mime_guess::from_path(file_path).first_or_octet_stream().to_string(),
+            content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
         }))
     } else {
         Ok(None)

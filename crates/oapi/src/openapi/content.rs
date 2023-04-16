@@ -14,8 +14,7 @@ builder! {
 
 
     /// Content holds request body content or response content.
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[non_exhaustive]
     pub struct Content {
         /// Schema used in response body or request body.

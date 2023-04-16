@@ -54,8 +54,7 @@ builder! {
     ///
     /// [components]: https://spec.openapis.org/oas/latest.html#components-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct Components {
         /// Map of reusable [OpenAPI Schema Object][schema]s.
@@ -238,8 +237,7 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
     /// Defines array schema from another schema. Typically used with
@@ -271,9 +269,8 @@ impl Default for Schema {
 /// [`OneOf`] composite object.
 ///
 /// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
-#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Default,Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Discriminator {
     /// Defines a discriminator property name which must be found within all composite
     /// objects.
@@ -306,8 +303,7 @@ builder! {
     /// See [`Schema::OneOf`] for more details.
     ///
     /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Clone, Default,Debug, PartialEq)]
     pub struct OneOf {
         /// Components of _OneOf_ component.
         #[serde(rename = "oneOf")]
@@ -426,8 +422,7 @@ builder! {
     /// See [`Schema::AllOf`] for more details.
     ///
     /// [allof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Clone, Default,Debug, PartialEq)]
     pub struct AllOf {
         /// Components of _AllOf_ component.
         #[serde(rename = "allOf")]
@@ -551,8 +546,7 @@ builder! {
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct Object {
         /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
@@ -867,8 +861,7 @@ impl From<ObjectBuilder> for RefOr<Schema> {
 /// AdditionalProperties is used to define values of map fields of the [`Schema`].
 ///
 /// The value can either be [`RefOr`] or _`bool`_.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum AdditionalProperties<T> {
     /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
@@ -900,8 +893,7 @@ impl From<Ref> for AdditionalProperties<Schema> {
 ///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
 pub struct Ref {
     /// Reference location of the actual component.
     #[serde(rename = "$ref")]
@@ -971,8 +963,7 @@ builder! {
     ///
     /// See [`Schema::Array`] for more details.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone, PartialEq)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Serialize, Deserialize, Clone,Debug, PartialEq)]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
         /// Type will always be [`SchemaType::Array`]
@@ -1128,8 +1119,7 @@ where
 }
 
 /// Represents data type of [`Schema`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaType {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
@@ -1161,8 +1151,7 @@ impl Default for SchemaType {
 /// supported by the UI it may default back to [`SchemaType`] alone.
 /// Format is an open value, so you can use any formats, even not those defined by the
 /// OpenAPI Specification.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase", untagged)]
 pub enum SchemaFormat {
     /// Use to define additional detail about the value.
@@ -1173,8 +1162,7 @@ pub enum SchemaFormat {
 }
 
 /// Known schema format modifier property to provide fine detail of the primitive type.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum KnownFormat {
     /// 8 bit integer.
