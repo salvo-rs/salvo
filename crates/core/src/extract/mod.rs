@@ -77,38 +77,3 @@ pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
 }
-
-/// Wrapper for Extractible type. `Handler`'s parameters does not allow two extractible types has lifetime, wrap these types with `LazyExtract`.
-#[derive(Deserialize)]
-pub struct LazyExtract<T> {
-    #[serde(skip)]
-    _inner: PhantomData<T>,
-}
-
-impl<'de, T: Extractible<'de> + Send> Default for LazyExtract<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'de, T: Extractible<'de> + Send> LazyExtract<T> {
-    /// Create a new `LazyExtract` instance.
-    pub fn new() -> Self {
-        LazyExtract {
-            _inner: PhantomData::<T>,
-        }
-    }
-
-    /// Get the inner type.
-    pub async fn extract(self, req: &'de mut Request) -> Result<T, ParseError> {
-        req.extract().await
-    }
-}
-impl<'de, T> Extractible<'de> for LazyExtract<T>
-where
-    T: Extractible<'de> + Send,
-{
-    fn metadata() -> &'de Metadata {
-        T::metadata()
-    }
-}

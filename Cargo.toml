@@ -48,6 +48,7 @@ hex = "0.4"
 hyper = "=1.0.0-rc.3"
 hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", branch = "salvo2" }
 hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev = "3c37c5b" }
+indexmap = "1"
 jsonwebtoken = "8"
 mime = "0.3"
 mime_guess = "2"
@@ -65,6 +66,9 @@ parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
 pin-project = "1"
+proc-macro-crate = "1"
+proc-macro-error = "1"
+proc-macro2 = "1"
 quinn = { version = "0.9", default-features = false }
 rand = "0.8"
 rcgen = "0.10"
@@ -80,6 +84,8 @@ salvo-cache = { path = "./crates/cache", default-features = false }
 salvo-cors = { path = "./crates/cors", default-features = false }
 salvo-csrf = { path = "./crates/csrf", default-features = false }
 salvo-flash = { path = "./crates/flash", default-features = false }
+salvo-oapi = { path = "./crates/oapi", default-features = false }
+salvo-oapi-macros = { path = "./crates/oapi-macros", default-features = false }
 salvo-otel = { path = "./crates/otel", default-features = false }
 salvo-proxy = { path = "./crates/proxy", default-features = false }
 salvo-rate-limiter = { path = "./crates/rate-limiter", default-features = false }
@@ -101,10 +107,18 @@ tokio-openssl = "0.6"
 tokio-stream = { version = "0.1", default-features = false }
 tokio-util = "0.7"
 tokio-tungstenite = { version = "0.18", default-features = false }
+tracing-subscriber = { version = "0.3" }
 tracing = "0.1"
 tracing-test = "0.2.1"
 url = "2"
-proc-macro-crate = "1"
-proc-macro2 = "1"
 quote = "1"
 x509-parser = "0.15"
+
+derive_builder = "0.12"
+assert-json-diff = "2"
+chrono = "0.4"
+paste = "1"
+rust_decimal = "1"
+serde_with = "2"
+smallvec = "1"
+zip = "0.6"

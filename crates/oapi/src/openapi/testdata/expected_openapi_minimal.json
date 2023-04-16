@@ -1,0 +1,13 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "My api",
+    "description": "My api description",
+    "license": {
+      "name": "MIT",
+      "url": "http://mit.licence"
+    },
+    "version": "1.0.0"
+  },
+  "paths": {}
+}

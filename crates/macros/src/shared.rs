@@ -12,7 +12,6 @@ pub(crate) enum InputType<'a> {
     Unknown,
     Receiver(&'a Receiver),
     NoReference(&'a PatType),
-    LazyExtract(&'a PatType),
 }
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
@@ -60,13 +59,8 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
             }
         } else if let Type::Path(nty) = &*p.ty {
             let ident = &nty.path.segments.last().unwrap().ident;
-            if ident == "LazyExtract" {
-                // like owned type or other type
-                InputType::LazyExtract(p)
-            } else {
-                // like owned type or other type
-                InputType::NoReference(p)
-            }
+            // like owned type or other type
+            InputType::NoReference(p)
         } else {
             InputType::NoReference(p)
         }

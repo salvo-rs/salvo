@@ -125,6 +125,16 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_otel as otel;
 }
+cfg_feature! {
+    #![feature ="oapi"]
+    #[doc(no_inline)]
+    pub use salvo_oapi as oapi;
+}
+cfg_feature! {
+    #![feature ="swagger"]
+    #[doc(no_inline)]
+    pub use salvo_swagger as swagger;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {

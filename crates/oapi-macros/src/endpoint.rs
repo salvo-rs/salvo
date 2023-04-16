@@ -5,7 +5,8 @@ use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 use crate::shared::*;
 
 pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> {
-    let salvo = salvo_crate(internal);
+    let salvo = salvo_crate(false);
+    let 
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = &item_fn.attrs;

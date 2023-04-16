@@ -25,7 +25,7 @@ path = "src/lib.rs"
 
 [features]
 default = ["test", "http1", "http2", "quinn", "cookie"]
-full = ["test", "cookie", "rustls", "native-tls", "openssl", "unix", "anyhow", "eyre", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static", "otel"]
+full = ["test", "cookie", "rustls", "native-tls", "openssl", "unix", "anyhow", "eyre", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static", "otel", "oapi"]
 cookie = ["salvo_core/cookie"]
 http1 = ["salvo_core/http1"]
 http2 = ["salvo_core/http2"]
@@ -60,6 +60,7 @@ rate-limiter = ["dep:salvo-rate-limiter"]
 session = ["dep:salvo-session"]
 serve-static = ["dep:salvo-serve-static"]
 otel = ["dep:salvo-otel"]
+oapi = ["dep:salvo-oapi"]
 
 [dependencies]
 salvo_core = { workspace = true }
@@ -73,3 +74,4 @@ salvo-session = { workspace = true, optional = true }
 salvo-serve-static = { workspace = true, features = ["all"], optional = true }
 salvo-proxy = { workspace = true, optional = true }
 salvo-otel = { workspace = true, optional = true }
+salvo-oapi = { workspace = true, optional = true }
