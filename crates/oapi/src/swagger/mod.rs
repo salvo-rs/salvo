@@ -215,7 +215,7 @@ impl SwaggerUi {
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let mut path = req.params().get("**file_path").map(|s| &**s).unwrap_or_default();
+        let mut path = req.params().get("**").map(|s| &**s).unwrap_or_default();
         match (serve(path, &self.config)) {
             Ok(Some(file)) => {
                 res.headers_mut()
@@ -342,47 +342,18 @@ pub struct SwaggerFile<'a> {
 /// _There are also implementations in [examples of salvo repository][examples]._
 ///
 /// [examples]: https://github.com/juhaku/salvo/tree/master/examples
-///
-/// # Examples
-///
-/// _**Reference implementation with `actix-web`.**_
-/// ```rust
-/// # use actix_web::HttpResponse;
-/// # use std::sync::Arc;
-/// # use salvo_swagger_ui::Config;
-/// // The config should be created in main function or in initialization before
-/// // creation of the handler which will handle serving the Swagger UI.
-/// let config = Arc::new(Config::from("/api-doc.json"));
-///
-/// // This "/" is for demonstrative purposes only. The actual path should point to
-/// // file within Swagger UI. In real implementation this is the `tail` path from root of the
-/// // Swagger UI to the file served.
-/// let tail_path = "/";
-///
-/// fn get_swagger_ui(tail_path: String, config: Arc<Config>) -> HttpResponse {
-///   match salvo_swagger_ui::serve(tail_path.as_ref(), config) {
-///       Ok(swagger_file) => swagger_file
-///           .map(|file| {
-///               HttpResponse::Ok()
-///                   .content_type(file.content_type)
-///                   .body(file.bytes.to_vec())
-///           })
-///           .unwrap_or_else(|| HttpResponse::NotFound().finish()),
-///       Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
-///   }
-/// }
-/// ```
 pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
-    let mut file_path = path;
+    let path  = if path.is_empty() || path == "/" {
+        "index.html"
+    } else {
+        path
+    };
 
-    if file_path.is_empty() || file_path == "/" {
-        file_path = "index.html";
-    }
-
-    if let Some(file) = SwaggerUiDist::get(file_path) {
+println!("===========path: {}", path);
+    if let Some(file) = SwaggerUiDist::get(path) {
         let mut bytes = file.data;
 
-        if file_path == "swagger-initializer.js" {
+        if path == "swagger-initializer.js" {
             let mut file = match String::from_utf8(bytes.to_vec()) {
                 Ok(file) => file,
                 Err(error) => return Err(Box::new(error)),
@@ -402,7 +373,7 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
 
         Ok(Some(SwaggerFile {
             bytes,
-            content_type: mime_guess::from_path(file_path).first_or_octet_stream().to_string(),
+            content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
         }))
     } else {
         Ok(None)
