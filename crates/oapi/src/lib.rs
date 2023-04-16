@@ -6,54 +6,6 @@ pub mod swagger;
 use std::collections::{BTreeMap, HashMap};
 pub use salvo_oapi_macros::*;
 
-/// Trait for implementing OpenAPI specification in Rust.
-///
-/// This trait is derivable and can be used with `#[derive]` attribute. The derived implementation
-/// will use Cargo provided environment variables to implement the default information. For a details of
-/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
-///
-/// # Examples
-///
-/// Below is derived example of `OpenApi`.
-/// ```
-/// use salvo_oapi::OpenApi;
-/// #[derive(OpenApi)]
-/// #[openapi()]
-/// struct OpenApiDoc;
-/// ```
-///
-/// This manual `OpenApi` trait implementation is approximately equal to the above derived one except the derive
-/// implementation will by default use the Cargo environment variables to set defaults for *application name,
-/// version, application description, license, author name & email*.
-///
-///```rust
-/// struct OpenApiDoc;
-///
-/// impl salvo_oapi::OpenApi for OpenApiDoc {
-///     fn openapi() -> salvo_oapi::openapi::OpenApi {
-///         use salvo_oapi::{ToSchema, Path};
-///         salvo_oapi::openapi::OpenApiBuilder::new()
-///             .info(salvo_oapi::openapi::InfoBuilder::new()
-///                 .title("application name")
-///                 .version("version")
-///                 .description(Some("application description"))
-///                 .license(Some(salvo_oapi::openapi::License::new("MIT")))
-///                 .contact(
-///                     Some(salvo_oapi::openapi::ContactBuilder::new()
-///                         .name(Some("author name"))
-///                         .email(Some("author email")).build()),
-///             ).build())
-///             .paths(salvo_oapi::openapi::path::Paths::new())
-///             .components(Some(salvo_oapi::openapi::Components::new()))
-///             .build()
-///     }
-/// }
-/// ```
-/// [derive]: derive.OpenApi.html
-pub trait OpenApi {
-    fn openapi() -> openapi::OpenApi;
-}
-
 /// Trait for implementing OpenAPI Schema object.
 ///
 /// Generated schemas can be referenced or reused in path operations.

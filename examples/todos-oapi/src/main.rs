@@ -1,42 +1,35 @@
 use once_cell::sync::Lazy;
 
-use salvo::prelude::*;
 use salvo::oapi::openapi;
+use salvo::prelude::*;
 use salvo::size_limiter;
 
 use self::models::*;
 
 // use utoipa::OpenApi;
+use salvo::oapi::openapi::OpenApi;
+use salvo::oapi::swagger::{Config, SwaggerUi};
 use salvo::oapi::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
+    Modify,
 };
-use salvo::oapi::swagger::{SwaggerUi, Config};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
+static API_DOC: Lazy<OpenApi> = Lazy::new(|| {
+    OpenApi::new()
+        .path(list_todos)
+        .path(create_todo)
+        .path(delete_todo)
+        .path(update_todo)
+        .component(schemas(models::Todo, models::TodoError))
+        .modifier(&SecurityAddon)
+        .tag(Tag::new().name("todo").description("Todo items management endpoints."))
+});
 
 #[handler]
 async fn hello(res: &mut Response) {
     res.render("Hello");
 }
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        list_todos,
-        create_todo,
-        delete_todo,
-        update_todo,
-    ),
-    components(
-        schemas(models::Todo, models::TodoError)
-    ),
-    modifiers(&SecurityAddon),
-    tags(
-        (name = "todo", description = "Todo items management endpoints.")
-    )
-)]
-struct ApiDoc;
 
 struct SecurityAddon;
 
@@ -72,12 +65,12 @@ pub(crate) fn route() -> Router {
             ),
         )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(SwaggerUi::new(config).router("swagger-ui") )
+        .push(SwaggerUi::new(config).router("swagger-ui"))
 }
 
 #[handler]
 pub async fn openapi_json(res: &mut Response) {
-    res.render(Json(ApiDoc::openapi()))
+    res.render(Json(&API_DOC))
 }
 
 #[salvo::oapi::endpoint(
@@ -193,9 +186,9 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 }
 
 mod models {
+    use salvo::oapi::ToSchema;
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use salvo::oapi::ToSchema;
 
     pub type Db = Mutex<Vec<Todo>>;
 

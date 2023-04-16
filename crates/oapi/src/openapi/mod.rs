@@ -6,7 +6,7 @@ pub use self::{
     content::{Content, ContentBuilder},
     external_docs::ExternalDocs,
     header::{Header, HeaderBuilder},
-    info::{Contact, ContactBuilder, Info, InfoBuilder, License, LicenseBuilder},
+    info::{Contact, Info, License},
     path::{PathItem, PathItemType, Paths, PathsBuilder},
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
@@ -490,7 +490,7 @@ mod tests {
     use serde_json::json;
 
     use crate::openapi::{
-        info::InfoBuilder,
+        info::Info,
         path::{OperationBuilder, PathsBuilder},
     };
 
@@ -506,13 +506,10 @@ mod tests {
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
         let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
-            InfoBuilder::new()
-                .title("My api")
-                .version("1.0.0")
+            Info::new("My api", "1.0.0")
                 .description(Some("My api description"))
                 .license(Some(
-                    LicenseBuilder::new()
-                        .name("MIT")
+                    License::new("MIT")
                         .url(Some("http://mit.licence"))
                         .build(),
                 ))

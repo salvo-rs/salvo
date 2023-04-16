@@ -10,62 +10,57 @@ use serde::{Deserialize, Serialize};
 
 use super::{builder, set_value};
 
-builder! {
-    /// # Examples
+/// # Examples
+///
+/// Create [`Info`]].
+/// ```
+/// # use salvo_oapi::openapi::{Info, Contact};
+/// let info = Info::new()
+///      .title("My api")
+///      .version("1.0.0")
+///      .contact(Some(Contact::new()
+///           .name(Some("Admin Admin"))
+///           .email(Some("amdin@petapi.com"))
+///           .build()
+///       ))
+///      .build();
+/// ```
+/// OpenAPI [Info][info] object represents metadata of the API.
+///
+/// You can use [`Info::new`] to construct a new [`Info`] object.
+///
+/// [info]: <https://spec.openapis.org/oas/latest.html#info-object>
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Info {
+    /// Title of the API.
+    pub title: String,
+
+    /// Optional description of the API.
     ///
-    /// Create [`Info`] using [`InfoBuilder`].
-    /// ```
-    /// # use salvo_oapi::openapi::{Info, InfoBuilder, ContactBuilder};
-    /// let info = InfoBuilder::new()
-    ///      .title("My api")
-    ///      .version("1.0.0")
-    ///      .contact(Some(ContactBuilder::new()
-    ///           .name(Some("Admin Admin"))
-    ///           .email(Some("amdin@petapi.com"))
-    ///           .build()
-    ///       ))
-    ///      .build();
-    /// ```
-    InfoBuilder;
+    /// Value supports markdown syntax.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
-    /// OpenAPI [Info][info] object represents metadata of the API.
+    /// Optional url for terms of service.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terms_of_service: Option<String>,
+
+    /// Contact information of exposed API.
     ///
-    /// You can use [`Info::new`] to construct a new [`Info`] object or alternatively use [`InfoBuilder::new`]
-    /// to construct a new [`Info`] with chainable configuration methods.
+    /// See more details at: <https://spec.openapis.org/oas/latest.html#contact-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact: Option<Contact>,
+
+    /// License of the API.
     ///
-    /// [info]: <https://spec.openapis.org/oas/latest.html#info-object>
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Info {
-        /// Title of the API.
-        pub title: String,
+    /// See more details at: <https://spec.openapis.org/oas/latest.html#license-object>.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license: Option<License>,
 
-        /// Optional description of the API.
-        ///
-        /// Value supports markdown syntax.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-
-        /// Optional url for terms of service.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub terms_of_service: Option<String>,
-
-        /// Contact information of exposed API.
-        ///
-        /// See more details at: <https://spec.openapis.org/oas/latest.html#contact-object>.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub contact: Option<Contact>,
-
-        /// License of the API.
-        ///
-        /// See more details at: <https://spec.openapis.org/oas/latest.html#license-object>.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub license: Option<License>,
-
-        /// Document version typically the API version.
-        pub version: String,
-    }
+    /// Document version typically the API version.
+    pub version: String,
 }
 
 impl Info {
@@ -87,9 +82,6 @@ impl Info {
             ..Default::default()
         }
     }
-}
-
-impl InfoBuilder {
     /// Add title of the API.
     pub fn title<I: Into<String>>(mut self, title: I) -> Self {
         set_value!(self title title.into())
@@ -121,32 +113,26 @@ impl InfoBuilder {
     }
 }
 
-builder! {
-    /// See the [`InfoBuilder`] for combined usage example.
-    ContactBuilder;
+/// OpenAPI [Contact][contact] information of the API.
+///
+/// You can use [`Contact::new`] to construct a new [`Contact`] object.
+///
+/// [contact]: <https://spec.openapis.org/oas/latest.html#contact-object>
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Contact {
+    /// Identifying name of the contact person or organization of the API.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 
-    /// OpenAPI [Contact][contact] information of the API.
-    ///
-    /// You can use [`Contact::new`] to construct a new [`Contact`] object or alternatively
-    /// use [`ContactBuilder::new`] to construct a new [`Contact`] with chainable configuration methods.
-    ///
-    /// [contact]: <https://spec.openapis.org/oas/latest.html#contact-object>
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Contact {
-        /// Identifying name of the contact person or organization of the API.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub name: Option<String>,
+    /// Url pointing to contact information of the API.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 
-        /// Url pointing to contact information of the API.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub url: Option<String>,
-
-        /// Email of the contact person or the organization of the API.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub email: Option<String>,
-    }
+    /// Email of the contact person or the organization of the API.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
 }
 
 impl Contact {
@@ -154,9 +140,6 @@ impl Contact {
     pub fn new() -> Self {
         Default::default()
     }
-}
-
-impl ContactBuilder {
     /// Add name contact person or organization of the API.
     pub fn name<S: Into<String>>(mut self, name: Option<S>) -> Self {
         set_value!(self name name.map(|name| name.into()))
@@ -173,23 +156,19 @@ impl ContactBuilder {
     }
 }
 
-builder! {
-    LicenseBuilder;
+/// OpenAPI [License][license] information of the API.
+///
+/// [license]: <https://spec.openapis.org/oas/latest.html#license-object>
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct License {
+    /// Name of the license used e.g MIT or Apache-2.0
+    pub name: String,
 
-    /// OpenAPI [License][license] information of the API.
-    ///
-    /// [license]: <https://spec.openapis.org/oas/latest.html#license-object>
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq,Debug)]
-    #[serde(rename_all = "camelCase")]
-    pub struct License {
-        /// Name of the license used e.g MIT or Apache-2.0
-        pub name: String,
-
-        /// Optional url pointing to the license.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub url: Option<String>,
-    }
+    /// Optional url pointing to the license.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 impl License {
@@ -202,9 +181,6 @@ impl License {
             ..Default::default()
         }
     }
-}
-
-impl LicenseBuilder {
     /// Add name of the license used in API.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
         set_value!(self name name.into())
