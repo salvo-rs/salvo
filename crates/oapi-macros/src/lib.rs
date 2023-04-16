@@ -80,21 +80,14 @@ struct ResolvedOperation {
 trait ArgumentResolver {
     fn resolve_arguments(
         _: &'_ Punctuated<syn::FnArg, Comma>,
-        _: Option<Vec<MacroArg>>,
     ) -> (Option<Vec<ValueArgument<'_>>>, Option<Vec<IntoParamsType<'_>>>) {
         (None, None)
     }
 }
 
-trait PathOperationResolver {
-    fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
-        None
-    }
-}
 
 struct PathOperations;
 impl ArgumentResolver for PathOperations {}
-impl PathOperationResolver for PathOperations {}
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
@@ -1157,19 +1150,7 @@ pub fn endpoint(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
-
-    let resolved_path = PathOperations::resolve_path(
-        &resolved_operation
-            .as_mut()
-            .map(|operation| mem::take(&mut operation.path))
-            .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
-    );
-    println!("Resolved path: {:?}", resolved_path);
-
     let path = Path::new(path_attribute, fn_name)
-        .path_operation(resolved_operation.map(|operation| operation.path_operation))
-        .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.iter().find_map(|attr| {
             if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
