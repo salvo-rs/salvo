@@ -352,11 +352,6 @@ struct ArgValue {
 ///     value: T
 /// }
 ///
-/// #[derive(OpenApi)]
-/// #[openapi(
-///     components(schemas(StatusMessage, StatusNumber))
-/// )]
-/// struct ApiDoc;
 /// ```
 ///
 /// The `#[aliases(...)]` is just syntactic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)

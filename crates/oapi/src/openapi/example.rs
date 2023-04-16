@@ -78,7 +78,7 @@ impl Example {
 }
 
 impl From<Example> for RefOr<Example> {
-    fn from(example_builder: Example) -> Self {
-        Self::T(example_builder.build())
+    fn from(example: Example) -> Self {
+        Self::T(example)
     }
 }

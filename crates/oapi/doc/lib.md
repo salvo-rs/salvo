@@ -75,9 +75,9 @@ dependency as follows.
 salvo_oapi = { version = "0.3"] }
 ```
 
-**Note!** To use `salvo_oapi` together with Swagger UI you can use the [`salvo_oapi-swagger-ui`][salvo_oapi_swagger] crate.
+**Note!** To use `salvo_oapi` together with Swagger UI you can use the [`salvo-oapi-swagger-ui`][salvo_oapi_swagger] crate.
 
-[salvo_oapi_swagger]: <https://docs.rs/salvo_oapi-swagger-ui/>
+[salvo_oapi_swagger]: <https://docs.rs/salvo-oapi-swagger-ui/>
 
 # Examples
 
@@ -172,12 +172,8 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 #   name: String,
 #   age: Option<i32>,
 # }
-# use salvo_oapi::OpenApi;
-#[derive(OpenApi)]
-#[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
-struct ApiDoc;
 
-println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+println!("{}", doc.to_pretty_json().unwrap());
 ```
 
 # Modify OpenAPI at runtime
@@ -190,7 +186,7 @@ See [`Modify`] trait for examples on how to modify generated OpenAPI via it.
 
 # Go beyond the surface
 
-* See how to serve OpenAPI doc via Swagger UI check [`salvo_oapi-swagger-ui`][salvo_oapi_swagger] crate for more details.
+* See how to serve OpenAPI doc via Swagger UI check [`salvo-oapi-swagger-ui`][salvo_oapi_swagger] crate for more details.
 * Browse to [examples](https://github.com/juhaku/salvo_oapi/tree/master/examples) for more comprehensive examples.
 * Check [`derive@IntoResponses`] and [`derive@ToResponse`] for examples on deriving responses.
 * More about OpenAPI security in [security documentation][security].

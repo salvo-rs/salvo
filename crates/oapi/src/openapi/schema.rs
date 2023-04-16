@@ -19,7 +19,7 @@ pub fn empty() -> Schema {
     Schema::Object(
         Object::new()
             .nullable(true)
-            .default(Some(serde_json::Value::Null))
+            .default_value(serde_json::Value::Null)
             .into(),
     )
 }
@@ -303,18 +303,18 @@ impl OneOf {
     }
 
     /// Add or change optional description for `OneOf` component.
-    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Option<Value>) -> Self {
-        set_value!(self default default)
+    pub fn default_value(mut self, default: Value) -> Self {
+        set_value!(self default Some(default))
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
@@ -408,23 +408,23 @@ impl AllOf {
     }
 
     /// Add or change optional description for `AllOf` component.
-    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Option<Value>) -> Self {
-        set_value!(self default default)
+    pub fn default_value(mut self, default: Value) -> Self {
+        set_value!(self default Some(default))
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 
     /// Add or change discriminator field of the composite [`AllOf`] type.
-    pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
-        set_value!(self discriminator discriminator)
+    pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
+        set_value!(self discriminator Some(discriminator))
     }
 
     /// Add or change nullable flag for [`Object`].
@@ -626,42 +626,41 @@ impl Object {
 
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
         mut self,
-        additional_properties: Option<I>,
+        additional_properties: I,
     ) -> Self {
-        set_value!(self additional_properties additional_properties.map(|additional_properties| Box::new(additional_properties.into())))
+        set_value!(self additional_properties Some(Box::new(additional_properties.into())))
     }
 
     /// Add field to the required fields of [`Object`].
-    pub fn required<I: Into<String>>(mut self, required_field: I) -> Self {
-        self.required.push(required_field.into());
-
+    pub fn required(mut self, required_field:  impl Into<String>) -> Self {
+        self.required.push(Some(required_field.into()));
         self
     }
 
     /// Add or change the title of the [`Object`].
-    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
-        set_value!(self title title.map(|title| title.into()))
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        set_value!(self title Some(title.into()))
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
-    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Option<Value>) -> Self {
-        set_value!(self default default)
+    pub fn default_value(mut self, default: Value) -> Self {
+        set_value!(self default Some(default))
     }
 
     /// Add or change deprecated status for [`Object`].
-    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        set_value!(self deprecated deprecated)
+    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
+        set_value!(self deprecated Some(deprecated))
     }
 
     /// Add or change enum property variants.
-    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<Value>>(mut self, enum_values: Option<I>) -> Self {
+    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<Value>>(mut self, enum_values: I) -> Self {
         set_value!(self enum_values
-                enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
+                Some(enum_values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
     /// Add or change example shown in UI of the value for richer documentation.

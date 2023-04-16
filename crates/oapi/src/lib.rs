@@ -37,8 +37,8 @@ pub use salvo_oapi_macros::*;
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> salvo_oapi::ToSchema<'__s> for Pet {
-///     fn schema() -> (&'__s str, salvo_oapi::openapi::RefOr<salvo_oapi::openapi::schema::Schema>) {
+/// impl<'a> salvo_oapi::ToSchema<'a> for Pet {
+///     fn schema() -> (&'a str, salvo_oapi::openapi::RefOr<salvo_oapi::openapi::schema::Schema>) {
 ///          (
 ///             "Pet",
 ///             salvo_oapi::openapi::Object::new()
@@ -72,21 +72,21 @@ pub use salvo_oapi_macros::*;
 ///         ) }
 /// }
 /// ```
-pub trait ToSchema<'__s> {
+pub trait ToSchema<'a> {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
+    fn schema() -> (&'a str, openapi::RefOr<openapi::schema::Schema>);
 
     /// Optional set of alias schemas for the [`ToSchema::schema`].
     ///
     /// Typically there is no need to manually implement this method but it is instead implemented
     /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
+    fn aliases() -> Vec<(&'a str, openapi::schema::Schema)> {
         Vec::new()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
+impl<'a, T: ToSchema<'a>> From<T> for openapi::RefOr<openapi::schema::Schema> {
     fn from(_: T) -> Self {
         T::schema().1
     }
@@ -97,8 +97,8 @@ impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema
 /// [`openapi::schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl<'__s> ToSchema<'__s> for TupleUnit {
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
+impl<'a> ToSchema<'a> for TupleUnit {
+    fn schema() -> (&'a str, openapi::RefOr<openapi::schema::Schema>) {
         ("TupleUnit", openapi::schema::empty().into())
     }
 }
@@ -212,19 +212,19 @@ impl_partial_schema_primitive!(
 
 impl_partial_schema!(&str);
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
+impl<'a, T: ToSchema<'a>> PartialSchema for Vec<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
+impl<'a, T: ToSchema<'a>> PartialSchema for Option<Vec<T>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<Vec<T>>).into()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
+impl<'a, T: ToSchema<'a>> PartialSchema for [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -234,7 +234,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
+impl<'a, T: ToSchema<'a>> PartialSchema for &[T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -244,7 +244,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
+impl<'a, T: ToSchema<'a>> PartialSchema for &mut [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -254,7 +254,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
+impl<'a, T: ToSchema<'a>> PartialSchema for Option<&[T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -264,7 +264,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
+impl<'a, T: ToSchema<'a>> PartialSchema for Option<&mut [T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -274,13 +274,13 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
+impl<'a, T: ToSchema<'a>> PartialSchema for Option<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
+impl<'a, K: PartialSchema, V: ToSchema<'a>> PartialSchema for BTreeMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -290,7 +290,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V>
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
+impl<'a, K: PartialSchema, V: ToSchema<'a>> PartialSchema for Option<BTreeMap<K, V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -300,7 +300,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> {
+impl<'a, K: PartialSchema, V: ToSchema<'a>> PartialSchema for HashMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -310,7 +310,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> 
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
+impl<'a, K: PartialSchema, V: ToSchema<'a>> PartialSchema for Option<HashMap<K, V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -426,10 +426,7 @@ pub trait Path {
 /// ```
 /// # use salvo_oapi::{OpenApi, Modify};
 /// # use salvo_oapi::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};
-/// #[derive(OpenApi)]
-/// #[openapi(modifiers(&SecurityAddon))]
-/// struct ApiDoc;
-///
+/// 
 /// struct SecurityAddon;
 ///
 /// impl Modify for SecurityAddon {
@@ -456,9 +453,6 @@ pub trait Path {
 /// ```
 /// # use salvo_oapi::{OpenApi, Modify};
 /// # use salvo_oapi::openapi::Server;
-/// #[derive(OpenApi)]
-/// #[openapi(modifiers(&ServerAddon))]
-/// struct ApiDoc;
 ///
 /// struct ServerAddon;
 ///
@@ -536,7 +530,7 @@ pub trait Modify {
 /// ```
 /// [derive]: derive.IntoParams.html
 pub trait IntoParams {
-    /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `salvo_oapi-macros` library to
+    /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn into_params(
         parameter_in_provider: impl Fn() -> Option<openapi::path::ParameterIn>,

@@ -70,9 +70,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::SwaggerUi;
     /// # use salvo_oapi::OpenApi;
-    /// # #[derive(OpenApi)]
-    /// # #[openapi()]
-    /// # struct ApiDoc;
+    /// 
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", ApiDoc::openapi());
     /// ```
@@ -95,12 +93,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
-    /// # #[derive(OpenApi)]
-    /// # #[openapi()]
-    /// # struct ApiDoc;
-    /// # #[derive(OpenApi)]
-    /// # #[openapi()]
-    /// # struct ApiDoc2;
+    /// 
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
     ///       vec![
@@ -188,9 +181,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::{SwaggerUi, oauth};
     /// # use salvo_oapi::OpenApi;
-    /// # #[derive(OpenApi)]
-    /// # #[openapi()]
-    /// # struct ApiDoc;
+    /// 
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", ApiDoc::openapi())
     ///     .oauth(oauth::Config::new()
