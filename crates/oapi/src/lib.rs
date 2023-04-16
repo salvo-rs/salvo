@@ -250,15 +250,15 @@ pub trait PartialSchema {
     fn schema() -> openapi::RefOr<openapi::schema::Schema>;
 }
 
-// #[rustfmt::skip]
-// impl_partial_schema_primitive!(
-//     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
-//     Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>, 
-//     Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
-//     Option<String>, Option<&str>, Option<char>
-// );
+#[rustfmt::skip]
+impl_partial_schema_primitive!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>, 
+    Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
+    Option<String>, Option<&str>, Option<char>
+);
 
-// impl_partial_schema!(&str);
+impl_partial_schema!(&str);
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {

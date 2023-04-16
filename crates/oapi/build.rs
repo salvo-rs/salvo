@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::env::{self, VarError};
+use std::env::{self};
 use std::fs::{self, File};
 use std::io;
 use std::path::PathBuf;
@@ -11,10 +11,7 @@ const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.15.5";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{}.zip", SWAGGER_UI_DIST_ZIP);
-    println!(
-        "cargo:rustc-env=SALVO_SWAGGER_UI_VERSION={}",
-        SWAGGER_UI_DIST_ZIP
-    );
+    println!("cargo:rustc-env=SALVO_SWAGGER_UI_VERSION={}", SWAGGER_UI_DIST_ZIP);
 
     let target_dir = env::var("OUT_DIR").unwrap();
     println!("cargo:rustc-env=SALVO_SWAGGER_DIR={}", &target_dir);
@@ -81,14 +78,9 @@ fn extract_within_path<const N: usize>(
 fn replace_default_url_with_config(target_dir: &str) {
     let regex = Regex::new(r#"(?ms)url:.*deep.*true,"#).unwrap();
 
-    let path = [
-        target_dir,
-        SWAGGER_UI_DIST_ZIP,
-        "dist",
-        "swagger-initializer.js",
-    ]
-    .iter()
-    .collect::<PathBuf>();
+    let path = [target_dir, SWAGGER_UI_DIST_ZIP, "dist", "swagger-initializer.js"]
+        .iter()
+        .collect::<PathBuf>();
 
     let mut swagger_initializer = fs::read_to_string(&path).unwrap();
     swagger_initializer = swagger_initializer.replace("layout: \"StandaloneLayout\"", "");

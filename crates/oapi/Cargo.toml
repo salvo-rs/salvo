@@ -38,7 +38,7 @@ url = { workspace = true, optional = true }
 bson = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 once_cell.workspace = true
-indexmap.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 tokio.workspace = true
 tracing.workspace = true
 rust-embed = { workspace = true, features = ["interpolate-folder-path"] }

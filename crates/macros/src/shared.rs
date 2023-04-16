@@ -57,10 +57,6 @@ pub(crate) fn parse_input_type(input: &FnArg) -> InputType {
             } else {
                 InputType::Unknown
             }
-        } else if let Type::Path(nty) = &*p.ty {
-            let ident = &nty.path.segments.last().unwrap().ident;
-            // like owned type or other type
-            InputType::NoReference(p)
         } else {
             InputType::NoReference(p)
         }

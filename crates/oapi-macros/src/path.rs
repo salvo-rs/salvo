@@ -224,13 +224,7 @@ impl<'p> Path<'p> {
             deprecated: None,
         }
     }
-
-    pub fn path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
-        self.path_operation = path_operation;
-
-        self
-    }
-
+    
     pub fn path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
         self.path = path_provider();
 

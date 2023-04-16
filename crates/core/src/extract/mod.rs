@@ -62,14 +62,10 @@
 //!
 //! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
-use std::marker::PhantomData;
-
 use serde::Deserialize;
 
 /// Metadata types.
 pub mod metadata;
-use crate::http::ParseError;
-use crate::Request;
 pub use metadata::Metadata;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.

@@ -392,7 +392,6 @@ impl<'c> ComponentSchema {
             object_name,
         }: ComponentSchemaProps,
     ) -> Self {
-        let root = crate::root_crate();
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);

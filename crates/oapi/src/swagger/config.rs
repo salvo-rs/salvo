@@ -1,9 +1,5 @@
-use std::{borrow::Cow, error::Error, mem, sync::Arc};
+use std::{borrow::Cow};
 
-use indexmap::IndexMap;
-use rust_embed::RustEmbed;
-use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 use serde::Serialize;
 
 use super::oauth;
@@ -205,7 +201,7 @@ impl<'a> Config<'a> {
     }
 
     fn new_config_with_single_url(mut urls: Vec<Url<'a>>) -> Self {
-        let url = urls.get_mut(0).map(mem::take).unwrap();
+        let url = urls.get_mut(0).map(std::mem::take).unwrap();
         let primary_name = if url.primary { Some(url.name.to_string()) } else { None };
 
         Self {

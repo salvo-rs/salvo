@@ -1,9 +1,5 @@
 use once_cell::sync::Lazy;
-use std::sync::Arc;
 
-use salvo::affix;
-use salvo::http::header::{self, HeaderValue};
-use salvo::http::response::ResBody;
 use salvo::prelude::*;
 use salvo::oapi::openapi;
 use salvo::size_limiter;

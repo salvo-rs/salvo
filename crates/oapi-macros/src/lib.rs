@@ -7,8 +7,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::borrow::Cow;
-use std::{mem, ops::Deref};
+use std::ops::Deref;
 
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
@@ -20,7 +19,6 @@ use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
-use syn::token::Comma;
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -48,46 +46,12 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[derive(Debug)]
-struct ValueArgument<'a> {
-    name: Option<Cow<'a, str>>,
-    type_tree: Option<TypeTree<'a>>,
-}
-
-/// Represents Identifier with `parameter_in` provider function which is used to
-/// update the `parameter_in` to [`Parameter::Struct`].
-#[derive(Debug)]
-struct IntoParamsType<'a> {
-    parameter_in_provider: TokenStream,
-    type_path: Option<Cow<'a, syn::Path>>,
-}
-
-
-
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ArgValue {
     name: String,
     original_name: String,
 }
-
-#[derive(Debug)]
-struct ResolvedOperation {
-    path_operation: crate::path::PathOperation,
-    path: String,
-}
-
-trait ArgumentResolver {
-    fn resolve_arguments(
-        _: &'_ Punctuated<syn::FnArg, Comma>,
-    ) -> (Option<Vec<ValueArgument<'_>>>, Option<Vec<IntoParamsType<'_>>>) {
-        (None, None)
-    }
-}
-
-
-struct PathOperations;
-impl ArgumentResolver for PathOperations {}
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
@@ -2230,7 +2194,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
 /// or without correctly to OpenAPI JSON.
-#[ derive(Debug)]
+#[derive(Debug)]
 enum Array<'a, T>
 where
     T: Sized + ToTokens,
@@ -2315,7 +2279,7 @@ impl ToTokens for Deprecated {
     }
 }
 
-#[derive(PartialEq, Eq,Debug)]
+#[derive(PartialEq, Eq, Debug)]
 enum Required {
     True,
     False,
@@ -2348,7 +2312,7 @@ impl ToTokens for Required {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct ExternalDocs {
     url: String,
     description: Option<String>,
@@ -2405,8 +2369,7 @@ impl ToTokens for ExternalDocs {
 }
 
 /// Represents OpenAPI Any value used in example and default fields.
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),

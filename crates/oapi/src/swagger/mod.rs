@@ -5,13 +5,12 @@
 //! [salvo]: <https://docs.rs/salvo/>
 //!
 //! ```
-use std::{borrow::Cow, error::Error, mem, sync::Arc};
+use std::{borrow::Cow, error::Error};
 
 pub mod oauth;
 mod config;
 pub use config::Config;
 use crate::openapi::OpenApi;
-use indexmap::IndexMap;
 use rust_embed::RustEmbed;
 use salvo_core::http::{header, StatusError, HeaderValue, ResBody};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
@@ -213,8 +212,8 @@ impl SwaggerUi {
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let mut path = req.params().get("**").map(|s| &**s).unwrap_or_default();
-        match (serve(path, &self.config)) {
+        let path = req.params().get("**").map(|s| &**s).unwrap_or_default();
+        match serve(path, &self.config) {
             Ok(Some(file)) => {
                 res.headers_mut()
                     .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
