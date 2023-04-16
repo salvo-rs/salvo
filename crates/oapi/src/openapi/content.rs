@@ -5,13 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
-use super::builder;
 use super::example::Example;
 use super::{encoding::Encoding, set_value, RefOr, Schema};
-
-builder! {
-    ContentBuilder;
-
 
     /// Content holds request body content or response content.
     #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
@@ -42,7 +37,6 @@ builder! {
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub encoding: BTreeMap<String, Encoding>,
     }
-}
 
 impl Content {
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
@@ -51,9 +45,7 @@ impl Content {
             ..Self::default()
         }
     }
-}
-
-impl ContentBuilder {
+    
     /// Add schema.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self schema component.into())

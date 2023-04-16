@@ -106,7 +106,7 @@ impl ToTokens for Tag {
         let root = crate::root_crate();
         let name = &self.name;
         tokens.extend(quote! {
-            #root::oapi::openapi::tag::TagBuilder::new().name(#name)
+            #root::oapi::openapi::tag::Tag::new().name(#name)
         });
 
         if let Some(ref description) = self.description {
@@ -319,7 +319,7 @@ impl ToTokens for Components {
         }
 
         let builder_tokens = self.schemas.iter().fold(
-            quote! { #root::oapi::openapi::ComponentsBuilder::new() },
+            quote! { #root::oapi::openapi::Components::new() },
             |mut tokens, schema| {
                 let Schema(path) = schema;
 
@@ -350,7 +350,7 @@ impl ToTokens for Components {
 fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
     let root = crate::root_crate();
     handler_paths.iter().fold(
-        quote! { #root::oapi::openapi::path::PathsBuilder::new() },
+        quote! { #root::oapi::openapi::path::Paths::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();

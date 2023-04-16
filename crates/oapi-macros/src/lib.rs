@@ -572,9 +572,9 @@ struct ArgValue {
 ///
 /// _**Use `schema_with` to manually implement schema for a field.**_
 /// ```
-/// # use salvo_oapi::openapi::schema::{Object, ObjectBuilder};
+/// # use salvo_oapi::openapi::schema::Object;
 /// fn custom_type() -> Object {
-///     ObjectBuilder::new()
+///     Object::new()
 ///         .schema_type(salvo_oapi::openapi::SchemaType::String)
 ///         .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
 ///             "email".to_string(),
@@ -1439,9 +1439,9 @@ pub fn endpoint(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// _**Use `schema_with` to manually implement schema for a field.**_
 /// ```
-/// # use salvo_oapi::openapi::schema::{Object, ObjectBuilder};
+/// # use salvo_oapi::openapi::schema::Object;
 /// fn custom_type() -> Object {
-///     ObjectBuilder::new()
+///     Object::new()
 ///         .schema_type(salvo_oapi::openapi::SchemaType::String)
 ///         .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
 ///             "email".to_string(),
@@ -1915,7 +1915,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 ///
 /// _**Create vec of pets schema.**_
 /// ```
-/// # use salvo_oapi::openapi::schema::{Schema, Array, Object, ObjectBuilder, SchemaFormat,
+/// # use salvo_oapi::openapi::schema::{Schema, Array, Object, SchemaFormat,
 /// # KnownFormat, SchemaType};
 /// # use salvo_oapi::openapi::RefOr;
 /// #[derive(salvo_oapi::ToSchema)]
@@ -1928,8 +1928,8 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 /// // will output
 /// let generated = RefOr::T(Schema::Array(
 ///     Array::new(
-///         ObjectBuilder::new()
-///             .property("id", ObjectBuilder::new()
+///         Object::new()
+///             .property("id", Object::new()
 ///                 .schema_type(SchemaType::Integer)
 ///                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
 ///                 .build())

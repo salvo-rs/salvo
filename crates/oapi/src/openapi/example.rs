@@ -6,20 +6,8 @@
 //! [request_body]: request_body/struct.RequestBody.html
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value, RefOr};
+use super::{set_value, RefOr};
 
-builder! {
-    /// # Examples
-    ///
-    /// _**Construct a new [`Example`] via builder**_
-    /// ```
-    /// # use salvo_oapi::openapi::example::ExampleBuilder;
-    /// let example = ExampleBuilder::new()
-    ///     .summary("Example string response")
-    ///     .value(Some(serde_json::json!("Example value")))
-    ///     .build();
-    /// ```
-    ExampleBuilder;
 
     /// Implements [OpenAPI Example Object][example].
     ///
@@ -50,7 +38,6 @@ builder! {
         #[serde(skip_serializing_if = "String::is_empty")]
         pub external_value: String,
     }
-}
 
 impl Example {
     /// Construct a new empty [`Example`]. This is effectively same as calling
@@ -58,9 +45,6 @@ impl Example {
     pub fn new() -> Self {
         Self::default()
     }
-}
-
-impl ExampleBuilder {
     /// Add or change a short description for the [`Example`]. Setting this to empty `String`
     /// will make it not render in the generated OpenAPI document.
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
@@ -93,8 +77,8 @@ impl ExampleBuilder {
     }
 }
 
-impl From<ExampleBuilder> for RefOr<Example> {
-    fn from(example_builder: ExampleBuilder) -> Self {
+impl From<Example> for RefOr<Example> {
+    fn from(example_builder: Example) -> Self {
         Self::T(example_builder.build())
     }
 }

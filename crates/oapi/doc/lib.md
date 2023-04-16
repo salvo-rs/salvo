@@ -185,31 +185,6 @@ println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 You can modify generated OpenAPI at runtime either via generated types directly or using
 [`Modify`] trait.
 
-_**Modify generated OpenAPI via types directly.**_
-```rust
-# use salvo_oapi::OpenApi;
-#[derive(OpenApi)]
-#[openapi(
-    info(description = "My Api description"),
-)]
-struct ApiDoc;
-
-let mut doc = ApiDoc::openapi();
-doc.info.title = String::from("My Api");
-```
-
-_**You can even convert the generated [`OpenApi`] to [`openapi::OpenApiBuilder`].**_
-```rust
-# use salvo_oapi::openapi::OpenApiBuilder;
-# use salvo_oapi::OpenApi;
-#[derive(OpenApi)]
-#[openapi(
-    info(description = "My Api description"),
-)]
-struct ApiDoc;
-
-let builder: OpenApiBuilder = ApiDoc::openapi().into();
-```
 
 See [`Modify`] trait for examples on how to modify generated OpenAPI via it.
 

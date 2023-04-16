@@ -41,10 +41,10 @@ pub use salvo_oapi_macros::*;
 ///     fn schema() -> (&'__s str, salvo_oapi::openapi::RefOr<salvo_oapi::openapi::schema::Schema>) {
 ///          (
 ///             "Pet",
-///             salvo_oapi::openapi::ObjectBuilder::new()
+///             salvo_oapi::openapi::Object::new()
 ///                 .property(
 ///                     "id",
-///                     salvo_oapi::openapi::ObjectBuilder::new()
+///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
 ///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(
 ///                             salvo_oapi::openapi::KnownFormat::Int64,
@@ -53,13 +53,13 @@ pub use salvo_oapi_macros::*;
 ///                 .required("id")
 ///                 .property(
 ///                     "name",
-///                     salvo_oapi::openapi::ObjectBuilder::new()
+///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::String),
 ///                 )
 ///                 .required("name")
 ///                 .property(
 ///                     "age",
-///                     salvo_oapi::openapi::ObjectBuilder::new()
+///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
 ///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(
 ///                             salvo_oapi::openapi::KnownFormat::Int32,
@@ -144,7 +144,7 @@ mod oapi {
 /// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
 /// # use salvo_oapi::openapi::RefOr;
 /// #
 /// struct MyType;
@@ -152,7 +152,7 @@ mod oapi {
 /// impl PartialSchema for MyType {
 ///     fn schema() -> RefOr<Schema> {
 ///         // ... impl schema generation here
-///         RefOr::T(Schema::Object(ObjectBuilder::new().build()))
+///         RefOr::T(Schema::Object(Object::new().build()))
 ///     }
 /// }
 /// ```
@@ -162,7 +162,7 @@ mod oapi {
 /// _**Create number schema from u64.**_
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
 /// # use salvo_oapi::openapi::RefOr;
 /// #
 /// let number: RefOr<Schema> = u64::schema().into();
@@ -170,7 +170,7 @@ mod oapi {
 /// // would be equal to manual implementation
 /// let number2 = RefOr::T(
 ///     Schema::Object(
-///         ObjectBuilder::new()
+///         Object::new()
 ///             .schema_type(SchemaType::Integer)
 ///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
 ///             .minimum(Some(0.0))
@@ -183,13 +183,13 @@ mod oapi {
 /// _**Construct a Pet object schema manually.**_
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::ObjectBuilder;
+/// # use salvo_oapi::openapi::schema::Object;
 /// struct Pet {
 ///     id: i32,
 ///     name: String,
 /// }
 ///
-/// let pet_schema = ObjectBuilder::new()
+/// let pet_schema = Object::new()
 ///     .property("id", i32::schema())
 ///     .property("name", String::schema())
 ///     .required("id").required("name")
@@ -359,7 +359,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// Example of what would manual implementation roughly look like of above `#[salvo_oapi::path(...)]` macro.
 /// ```
-/// salvo_oapi::openapi::PathsBuilder::new().path(
+/// salvo_oapi::openapi::Paths::new().path(
 ///         "/pets/{id}",
 ///         salvo_oapi::openapi::PathItem::new(
 ///             salvo_oapi::openapi::PathItemType::Get,
@@ -368,7 +368,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///                     salvo_oapi::openapi::ResponsesBuilder::new()
 ///                         .response(
 ///                             "200",
-///                             salvo_oapi::openapi::ResponseBuilder::new()
+///                             salvo_oapi::openapi::Response::new()
 ///                                 .description("Pet found successfully")
 ///                                 .content("application/json",
 ///                                     salvo_oapi::openapi::Content::new(
@@ -390,7 +390,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///                         .deprecated(Some(salvo_oapi::openapi::Deprecated::False))
 ///                         .description(Some("Pet database id to get Pet for"))
 ///                         .schema(
-///                             Some(salvo_oapi::openapi::ObjectBuilder::new()
+///                             Some(salvo_oapi::openapi::Object::new()
 ///                                 .schema_type(salvo_oapi::openapi::SchemaType::Integer)
 ///                                 .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)))),
 ///                         ),
@@ -435,7 +435,7 @@ pub trait Path {
 /// impl Modify for SecurityAddon {
 ///     fn modify(&self, openapi: &mut salvo_oapi::openapi::OpenApi) {
 ///          openapi.components = Some(
-///              salvo_oapi::openapi::ComponentsBuilder::new()
+///              salvo_oapi::openapi::Components::new()
 ///                  .security_scheme(
 ///                      "api_jwt_token",
 ///                      SecurityScheme::Http(
@@ -515,7 +515,7 @@ pub trait Modify {
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
-///                     salvo_oapi::openapi::ObjectBuilder::new()
+///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
 ///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64))),
 ///                 ))
@@ -526,7 +526,7 @@ pub trait Modify {
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
-///                     salvo_oapi::openapi::ObjectBuilder::new()
+///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::String),
 ///                 ))
 ///                 .build(),
@@ -551,7 +551,7 @@ pub trait IntoParams {
 /// ```
 /// use std::collections::BTreeMap;
 /// use salvo_oapi::{
-///     openapi::{Response, ResponseBuilder, ResponsesBuilder, RefOr},
+///     openapi::{Response, Response, ResponsesBuilder, RefOr},
 ///     IntoResponses,
 /// };
 ///
@@ -563,8 +563,8 @@ pub trait IntoParams {
 /// impl IntoResponses for MyResponse {
 ///     fn responses() -> BTreeMap<String, RefOr<Response>> {
 ///         ResponsesBuilder::new()
-///             .response("200", ResponseBuilder::new().description("Ok"))
-///             .response("404", ResponseBuilder::new().description("Not Found"))
+///             .response("200", Response::new().description("Ok"))
+///             .response("404", Response::new().description("Not Found"))
 ///             .build()
 ///             .into()
 ///     }
@@ -584,7 +584,7 @@ pub trait IntoResponses {
 ///
 /// ```
 /// use salvo_oapi::{
-///     openapi::{RefOr, Response, ResponseBuilder},
+///     openapi::{RefOr, Response, Response},
 ///     ToResponse,
 /// };
 ///
@@ -594,7 +594,7 @@ pub trait IntoResponses {
 ///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
-///             ResponseBuilder::new().description("My Response").build().into(),
+///             Response::new().description("My Response").build().into(),
 ///         )
 ///     }
 /// }

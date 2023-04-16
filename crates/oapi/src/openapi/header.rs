@@ -4,10 +4,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value, Object, RefOr, Schema, SchemaType};
+use super::{set_value, Object, RefOr, Schema, SchemaType};
 
-builder! {
-    HeaderBuilder;
+
 
     /// Implements [OpenAPI Header Object][header] for response headers.
     ///
@@ -22,7 +21,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
     }
-}
 
 impl Header {
     /// Construct a new [`Header`] with custom schema. If you wish to construct a default
@@ -48,18 +46,6 @@ impl Header {
             ..Default::default()
         }
     }
-}
-
-impl Default for Header {
-    fn default() -> Self {
-        Self {
-            description: Default::default(),
-            schema: Object::with_type(SchemaType::String).into(),
-        }
-    }
-}
-
-impl HeaderBuilder {
     /// Add schema of header.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self schema component.into())
@@ -68,5 +54,14 @@ impl HeaderBuilder {
     /// Add additional description for header.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
+    }
+}
+
+impl Default for Header {
+    fn default() -> Self {
+        Self {
+            description: Default::default(),
+            schema: Object::with_type(SchemaType::String).into(),
+        }
     }
 }

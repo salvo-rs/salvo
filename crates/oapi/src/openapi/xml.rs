@@ -5,20 +5,9 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
+use super::{set_value};
 
-builder! {
-    /// # Examples
-    ///
-    /// Create [`Xml`] with [`XmlBuilder`].
-    /// ```
-    /// # use salvo_oapi::openapi::xml::XmlBuilder;
-    ///  let xml = XmlBuilder::new()
-    ///     .name(Some("some_name"))
-    ///     .prefix(Some("prefix"))
-    ///     .build();
-    /// ```
-    XmlBuilder;
+
     /// Implements [OpenAPI Xml Object][xml_object].
     ///
     /// Can be used to modify xml output format of specific [OpenAPI Schema Object][schema_object] which are
@@ -53,7 +42,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub wrapped: Option<bool>,
     }
-}
 
 impl Xml {
     /// Construct a new [`Xml`] object.
@@ -64,7 +52,7 @@ impl Xml {
     }
 }
 
-impl XmlBuilder {
+impl Xml {
     /// Add [`Xml::name`] to xml object.
     ///
     /// Builder style chainable consuming add name method.

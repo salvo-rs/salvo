@@ -503,7 +503,7 @@ impl<'c> ComponentSchema {
             });
 
         tokens.extend(quote! {
-            #root::oapi::openapi::ObjectBuilder::new()
+            #root::oapi::openapi::Object::new()
                 #additional_properties
                 #description_stream
                 #deprecated_stream
@@ -544,7 +544,7 @@ impl<'c> ComponentSchema {
             .unwrap_or(false)
         {
             quote! {
-                #root::oapi::openapi::ObjectBuilder::new()
+                #root::oapi::openapi::Object::new()
                     .schema_type(#root::oapi::openapi::schema::SchemaType::String)
                     .format(Some(#root::oapi::openapi::SchemaFormat::KnownFormat(#root::oapi::openapi::KnownFormat::Binary)))
             }
@@ -558,7 +558,7 @@ impl<'c> ComponentSchema {
             });
 
             quote! {
-                #root::oapi::openapi::schema::ArrayBuilder::new()
+                #root::oapi::openapi::schema::Array::new()
                     .items(#component_schema)
             }
         };
@@ -614,7 +614,7 @@ impl<'c> ComponentSchema {
                 }
 
                 tokens.extend(quote! {
-                    #root::oapi::openapi::ObjectBuilder::new().schema_type(#schema_type)
+                    #root::oapi::openapi::Object::new().schema_type(#schema_type)
                 });
 
                 let format: SchemaFormat = (type_path).into();
@@ -637,7 +637,7 @@ impl<'c> ComponentSchema {
 
                 if type_tree.is_object() {
                     tokens.extend(quote! {
-                        #root::oapi::openapi::ObjectBuilder::new()
+                        #root::oapi::openapi::Object::new()
                             #description_stream #deprecated_stream #nullable
                     })
                 } else {
@@ -646,7 +646,7 @@ impl<'c> ComponentSchema {
                         nullable
                             .map(|nullable| {
                                 quote_spanned! {type_path.span()=>
-                                    #root::oapi::openapi::schema::AllOfBuilder::new()
+                                    #root::oapi::openapi::schema::AllOf::new()
                                         #nullable
                                         .item(<#type_path as #root::oapi::ToSchema>::schema().1)
                                 }
@@ -665,7 +665,7 @@ impl<'c> ComponentSchema {
                         nullable
                             .map(|nullable| {
                                 quote! {
-                                    #root::oapi::openapi::schema::AllOfBuilder::new()
+                                    #root::oapi::openapi::schema::AllOf::new()
                                         #nullable
                                         .item(#root::oapi::openapi::Ref::from_schema_name(#name))
                                 }
@@ -685,7 +685,7 @@ impl<'c> ComponentSchema {
                     .as_ref()
                     .map(|children| {
                         let all_of = children.iter().fold(
-                            quote! { #root::oapi::openapi::schema::AllOfBuilder::new() },
+                            quote! { #root::oapi::openapi::schema::AllOf::new() },
                             |mut all_of, child| {
                                 let features = if child.is_option() {
                                     Some(vec![Feature::Nullable(Nullable::new())])
@@ -706,7 +706,7 @@ impl<'c> ComponentSchema {
                             },
                         );
                         quote! {
-                            #root::oapi::openapi::schema::ArrayBuilder::new()
+                            #root::oapi::openapi::schema::Array::new()
                                 .items(#all_of)
                                 #nullable
                                 #description_stream

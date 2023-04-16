@@ -75,7 +75,7 @@ where
         let name = &self.name;
 
         quote! {
-            #root::oapi::openapi::schema::ObjectBuilder::new()
+            #root::oapi::openapi::schema::Object::new()
                 #title
                 #example
                 .property(#name, #variant)
@@ -126,7 +126,7 @@ where
         let enum_type = &self.enum_type;
 
         tokens.extend(quote! {
-            #root::oapi::openapi::ObjectBuilder::new()
+            #root::oapi::openapi::Object::new()
                 #title
                 #example
                 .schema_type(#schema_type)
@@ -187,7 +187,7 @@ where
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOfBuilder>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -208,10 +208,10 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #root::oapi::openapi::schema::ObjectBuilder::new()
+                        #root::oapi::openapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #root::oapi::openapi::schema::ObjectBuilder::new()
+                                #root::oapi::openapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -249,7 +249,7 @@ impl ToTokens for UntaggedEnum {
         let title = &self.title;
 
         tokens.extend(quote! {
-            #root::oapi::openapi::schema::ObjectBuilder::new()
+            #root::oapi::openapi::schema::Object::new()
                 .nullable(true)
                 .default(Some(serde_json::Value::Null))
                 #title
@@ -279,7 +279,7 @@ where
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOfBuilder>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -300,17 +300,17 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #root::oapi::openapi::schema::ObjectBuilder::new()
+                        #root::oapi::openapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #root::oapi::openapi::schema::ObjectBuilder::new()
+                                #root::oapi::openapi::schema::Object::new()
                                     .schema_type(#root::oapi::openapi::schema::SchemaType::String)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#content]))
                             )
                             .required(#tag)
                             .property(
                                 #content,
-                                #root::oapi::openapi::schema::ObjectBuilder::new()
+                                #root::oapi::openapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -388,7 +388,7 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
         let mut tokens = TokenStream::new();
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOfBuilder>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         });
 

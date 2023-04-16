@@ -9,10 +9,9 @@ use serde::{Deserialize, Serialize};
 use crate::openapi::{Ref, RefOr};
 use crate::IntoResponses;
 
-use super::{builder, header::Header, set_value, Content};
+use super::{header::Header, set_value, Content};
 
-builder! {
-    ResponsesBuilder;
+
 
     /// Implements [OpenAPI Responses Object][responses].
     ///
@@ -27,15 +26,11 @@ builder! {
         #[serde(flatten)]
         pub responses: BTreeMap<String, RefOr<Response>>,
     }
-}
 
 impl Responses {
     pub fn new() -> Self {
         Default::default()
     }
-}
-
-impl ResponsesBuilder {
     /// Add a [`Response`].
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
@@ -91,8 +86,6 @@ where
     }
 }
 
-builder! {
-    ResponseBuilder;
 
     /// Implements [OpenAPI Response Object][response].
     ///
@@ -117,7 +110,6 @@ builder! {
         #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
         pub content: IndexMap<String, Content>,
     }
-}
 
 impl Response {
     /// Construct a new [`Response`].
@@ -129,9 +121,6 @@ impl Response {
             ..Default::default()
         }
     }
-}
-
-impl ResponseBuilder {
     /// Add description. Description supports markdown syntax.
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
         set_value!(self description description.into())
@@ -152,9 +141,9 @@ impl ResponseBuilder {
     }
 }
 
-impl From<ResponseBuilder> for RefOr<Response> {
-    fn from(builder: ResponseBuilder) -> Self {
-        Self::T(builder.build())
+impl From<Response> for RefOr<Response> {
+    fn from(res: Response) -> Self {
+        Self::T(res)
     }
 }
 
@@ -166,14 +155,14 @@ impl From<Ref> for RefOr<Response> {
 
 /// Trait with convenience functions for documenting response bodies.
 ///
-/// With a single method call we can add [`Content`] to our [`ResponseBuilder`] and [`Response`]
+/// With a single method call we can add [`Content`] to our [`Response`] and [`Response`]
 /// that references a [schema][schema] using content-type `"application/json"`.
 ///
 /// _**Add json response from schema ref.**_
 /// ```
-/// use salvo_oapi::openapi::response::{ResponseBuilder, ResponseExt};
+/// use salvo_oapi::openapi::response::{Response, ResponseExt};
 ///
-/// let request = ResponseBuilder::new()
+/// let request = Response::new()
 ///     .description("A sample response")
 ///     .json_schema_ref("MyResponsePayload").build();
 /// ```
@@ -215,8 +204,8 @@ impl ResponseExt for Response {
 }
 
 #[cfg(feature = "openapi_extensions")]
-impl ResponseExt for ResponseBuilder {
-    fn json_schema_ref(self, ref_name: &str) -> ResponseBuilder {
+impl ResponseExt for Response {
+    fn json_schema_ref(self, ref_name: &str) -> Response {
         self.content(
             "application/json",
             Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
@@ -226,7 +215,7 @@ impl ResponseExt for ResponseBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{Content, ResponseBuilder, Responses};
+    use super::{Content, Response, Responses};
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
@@ -239,7 +228,7 @@ mod tests {
 
     #[test]
     fn response_builder() -> Result<(), serde_json::Error> {
-        let request_body = ResponseBuilder::new()
+        let request_body = Response::new()
             .description("A sample response")
             .content(
                 "application/json",
@@ -270,13 +259,13 @@ mod openapi_extensions_tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::openapi::ResponseBuilder;
+    use crate::openapi::Response;
 
     use super::ResponseExt;
 
     #[test]
     fn response_ext() {
-        let request_body = ResponseBuilder::new()
+        let request_body = Response::new()
             .description("A sample response")
             .build()
             .json_schema_ref("MySchemaPayload");
@@ -298,7 +287,7 @@ mod openapi_extensions_tests {
 
     #[test]
     fn response_builder_ext() {
-        let request_body = ResponseBuilder::new()
+        let request_body = Response::new()
             .description("A sample response")
             .json_schema_ref("MySchemaPayload")
             .build();

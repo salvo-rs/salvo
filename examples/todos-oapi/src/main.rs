@@ -7,7 +7,7 @@ use salvo::size_limiter;
 use self::models::*;
 
 // use utoipa::OpenApi;
-use salvo::oapi::openapi::OpenApi;
+use salvo::oapi::openapi::{Components, Info, OpenApi, Tag, Paths};
 use salvo::oapi::swagger::{Config, SwaggerUi};
 use salvo::oapi::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -16,12 +16,16 @@ use salvo::oapi::{
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
 static API_DOC: Lazy<OpenApi> = Lazy::new(|| {
-    OpenApi::new()
-        .path(list_todos)
-        .path(create_todo)
-        .path(delete_todo)
-        .path(update_todo)
-        .component(schemas(models::Todo, models::TodoError))
+    let components = Components::new(); //.schema(models::Todo, models::TodoError);
+    OpenApi::new(Info::new("abc", "0.0.1"))
+        .paths(
+            Paths::new()
+                .path(list_todos)
+                .path(create_todo)
+                .path(delete_todo)
+                .path(update_todo),
+        )
+        .components(components)
         .modifier(&SecurityAddon)
         .tag(Tag::new().name("todo").description("Todo items management endpoints."))
 });

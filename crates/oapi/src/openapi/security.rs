@@ -7,7 +7,6 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::builder;
 
 /// OpenAPI [security requirement][security] object.
 ///
@@ -50,10 +49,7 @@ impl SecurityRequirement {
     /// # use salvo_oapi::openapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
-    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
-        name: N,
-        scopes: S,
-    ) -> Self {
+    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(name: N, scopes: S) -> Self {
         Self {
             value: BTreeMap::from_iter(iter::once_with(|| {
                 (
@@ -97,7 +93,7 @@ impl SecurityRequirement {
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
 /// ```
-#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SecurityScheme {
     /// Oauth flow authentication.
@@ -120,7 +116,7 @@ pub enum SecurityScheme {
 }
 
 /// Api key authentication [`SecurityScheme`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(tag = "in", rename_all = "lowercase")]
 pub enum ApiKey {
     /// Create api key which is placed in HTTP header.
@@ -133,7 +129,7 @@ pub enum ApiKey {
 
 /// Value object for [`ApiKey`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone,Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
     pub name: String,
@@ -177,27 +173,23 @@ impl ApiKeyValue {
     }
 }
 
-builder! {
-    HttpBuilder;
+/// Http authentication [`SecurityScheme`] builder.
+///
+/// Methods can be chained to configure _bearer_format_ or to add _description_.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Http {
+    /// Http authorization scheme in HTTP `Authorization` header value.
+    pub scheme: HttpAuthScheme,
 
-    /// Http authentication [`SecurityScheme`] builder.
-    ///
-    /// Methods can be chained to configure _bearer_format_ or to add _description_.
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq,Debug)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Http {
-        /// Http authorization scheme in HTTP `Authorization` header value.
-        pub scheme: HttpAuthScheme,
+    /// Optional hint to client how the bearer token is formatted. Valid only with [`HttpAuthScheme::Bearer`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bearer_format: Option<String>,
 
-        /// Optional hint to client how the bearer token is formatted. Valid only with [`HttpAuthScheme::Bearer`].
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub bearer_format: Option<String>,
-
-        /// Optional description of [`Http`] [`SecurityScheme`] supporting markdown syntax.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-    }
+    /// Optional description of [`Http`] [`SecurityScheme`] supporting markdown syntax.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 impl Http {
@@ -219,9 +211,6 @@ impl Http {
             description: None,
         }
     }
-}
-
-impl HttpBuilder {
     /// Add or change http authentication scheme used.
     ///
     /// # Examples
@@ -266,7 +255,7 @@ impl HttpBuilder {
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
 /// Types are maintained at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpAuthScheme {
     Basic,
@@ -291,7 +280,7 @@ impl Default for HttpAuthScheme {
 
 /// Open id connect [`SecurityScheme`]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenIdConnect {
     /// Url of the [`OpenIdConnect`] to discover OAuth2 connect values.
@@ -337,7 +326,7 @@ impl OpenIdConnect {
 
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: BTreeMap<String, Flow>,
@@ -416,10 +405,7 @@ impl OAuth2 {
     ///    ),
     /// ], "my oauth2 flow");
     /// ```
-    pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(
-        flows: I,
-        description: S,
-    ) -> Self {
+    pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(flows: I, description: S) -> Self {
         Self {
             flows: BTreeMap::from_iter(
                 flows
@@ -435,7 +421,7 @@ impl OAuth2 {
 ///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(untagged)]
 pub enum Flow {
     /// Define implicit [`Flow`] type. See [`Implicit::new`] for usage details.
@@ -463,7 +449,7 @@ impl Flow {
 
 /// Implicit [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Implicit {
     /// Authorization token url for the flow.
@@ -530,11 +516,7 @@ impl Implicit {
     ///     "https://localhost/refresh-token"
     /// );
     /// ```
-    pub fn with_refresh_url<S: Into<String>>(
-        authorization_url: S,
-        scopes: Scopes,
-        refresh_url: S,
-    ) -> Self {
+    pub fn with_refresh_url<S: Into<String>>(authorization_url: S, scopes: Scopes, refresh_url: S) -> Self {
         Self {
             authorization_url: authorization_url.into(),
             refresh_url: Some(refresh_url.into()),
@@ -545,7 +527,7 @@ impl Implicit {
 
 /// Authorization code [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizationCode {
     /// Url for authorization token.
@@ -592,11 +574,7 @@ impl AuthorizationCode {
     ///     Scopes::new(),
     /// );
     /// ```
-    pub fn new<A: Into<String>, T: Into<String>>(
-        authorization_url: A,
-        token_url: T,
-        scopes: Scopes,
-    ) -> Self {
+    pub fn new<A: Into<String>, T: Into<String>>(authorization_url: A, token_url: T, scopes: Scopes) -> Self {
         Self {
             authorization_url: authorization_url.into(),
             token_url: token_url.into(),
@@ -639,7 +617,7 @@ impl AuthorizationCode {
 
 /// Password [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Password {
     /// Token url for this OAuth2 flow. OAuth2 standard requires TLS.
@@ -720,7 +698,7 @@ impl Password {
 
 /// Client credentials [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientCredentials {
     /// Token url used for [`ClientCredentials`] flow. OAuth2 standard requires TLS.
@@ -830,7 +808,7 @@ impl ClientCredentials {
 ///     ("read:items", "read my items")
 /// ]);
 /// ```
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq,Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Scopes {
     scopes: BTreeMap<String, String>,
 }
@@ -847,9 +825,7 @@ impl Scopes {
     /// let scopes = Scopes::new();
     /// ```
     pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
+        Self { ..Default::default() }
     }
 
     /// Construct new [`Scopes`] with holding one scope.

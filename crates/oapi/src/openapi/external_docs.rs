@@ -3,10 +3,7 @@
 //! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
-
-builder! {
-    ExternalDocsBuilder;
+use super::{ set_value};
 
     /// Reference of external resource allowing extended documentation.
     #[non_exhaustive]
@@ -18,7 +15,6 @@ builder! {
         /// Additional description supporting markdown syntax of the external documentation.
         pub description: Option<String>,
     }
-}
 
 impl ExternalDocs {
     /// Construct a new [`ExternalDocs`].
@@ -37,9 +33,7 @@ impl ExternalDocs {
             ..Default::default()
         }
     }
-}
-
-impl ExternalDocsBuilder {
+    
     /// Add target url for external documentation location.
     pub fn url<I: Into<String>>(mut self, url: I) -> Self {
         set_value!(self url url.into())

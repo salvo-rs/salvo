@@ -269,7 +269,7 @@ impl ToTokens for ResponseTuple<'_> {
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
                 tokens.extend(quote! {
-                    #root::oapi::openapi::ResponseBuilder::new().description(#description)
+                    #root::oapi::openapi::Response::new().description(#description)
                 });
 
                 let create_content = |path_type: &PathType,

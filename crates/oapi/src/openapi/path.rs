@@ -7,14 +7,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    builder,
     request_body::RequestBody,
     response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
 };
 
-builder! {
-    PathsBuilder;
 
     /// Implements [OpenAPI Paths Object][paths].
     ///
@@ -29,7 +26,6 @@ builder! {
         /// api endpoints.
         pub paths: BTreeMap<String, PathItem>,
     }
-}
 
 impl Paths {
     /// Construct a new [`Paths`] object.
@@ -74,9 +70,7 @@ impl Paths {
             .get(path.as_ref())
             .and_then(|path| path.operations.get(&item_type))
     }
-}
 
-impl PathsBuilder {
     /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
     /// [`PathItem`] with already found path item operations.
     pub fn path<I: Into<String>>(mut self, path: I, mut item: PathItem) -> Self {
@@ -90,9 +84,6 @@ impl PathsBuilder {
         self
     }
 }
-
-builder! {
-    PathItemBuilder;
 
     /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s available on
     /// a single path.
@@ -127,7 +118,6 @@ builder! {
         #[serde(flatten)]
         pub operations: BTreeMap<PathItemType, Operation>,
     }
-}
 
 impl PathItem {
     /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`PathItemType`].
@@ -139,9 +129,7 @@ impl PathItem {
             ..Default::default()
         }
     }
-}
-
-impl PathItemBuilder {
+    
     /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`PathItemType`].
     pub fn operation<O: Into<Operation>>(
@@ -201,8 +189,7 @@ pub enum PathItemType {
     Connect,
 }
 
-builder! {
-    OperationBuilder;
+
 
     /// Implements [OpenAPI Operation Object][operation] object.
     ///
@@ -285,16 +272,12 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub servers: Option<Vec<Server>>,
     }
-}
 
 impl Operation {
     /// Construct a new API [`Operation`].
     pub fn new() -> Self {
         Default::default()
     }
-}
-
-impl OperationBuilder {
     /// Add or change tags of the [`Operation`].
     pub fn tags<I: IntoIterator<Item = String>>(mut self, tags: Option<I>) -> Self {
         set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
@@ -427,8 +410,6 @@ impl OperationBuilder {
     }
 }
 
-builder! {
-    ParameterBuilder;
 
     /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
     ///
@@ -495,7 +476,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         example: Option<Value>,
     }
-}
 
 impl Parameter {
     /// Constructs a new required [`Parameter`] with given name.
@@ -506,9 +486,6 @@ impl Parameter {
             ..Default::default()
         }
     }
-}
-
-impl ParameterBuilder {
     /// Add name of the [`Parameter`].
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
         set_value!(self name name.into())

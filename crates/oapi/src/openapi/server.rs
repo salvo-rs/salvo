@@ -45,10 +45,9 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
+use super::{ set_value};
 
-builder! {
-    ServerBuilder;
+
 
     /// Represents target server object. It can be used to alter server connection for
     /// _**path operations**_.
@@ -75,7 +74,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub variables: Option<BTreeMap<String, ServerVariable>>,
     }
-}
 
 impl Server {
     /// Construct a new [`Server`] with given url. Url can be valid http url or context path of the url.
@@ -105,9 +103,6 @@ impl Server {
             ..Default::default()
         }
     }
-}
-
-impl ServerBuilder {
     /// Add url to the target [`Server`].
     pub fn url<U: Into<String>>(mut self, url: U) -> Self {
         set_value!(self url url.into())
@@ -145,8 +140,7 @@ impl ServerBuilder {
     }
 }
 
-builder! {
-    ServerVariableBuilder;
+
 
     /// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in [`Server::url`].
     ///
@@ -167,9 +161,8 @@ builder! {
         #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
         enum_values: Option<Vec<String>>,
     }
-}
 
-impl ServerVariableBuilder {
+impl ServerVariable {
     /// Add default value for substitution.
     pub fn default_value<S: Into<String>>(mut self, default_value: S) -> Self {
         set_value!(self default_value default_value.into())
