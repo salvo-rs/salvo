@@ -3,7 +3,6 @@ use proc_macro_crate::{crate_name, FoundCrate};
 use syn::Ident;
 
 // https://github.com/bkchr/proc-macro-crate/issues/14
-#[inline]
 pub(crate) fn root_crate() -> syn::Ident {
     match crate_name("salvo-oapi") {
         Ok(oapi) => match oapi {
