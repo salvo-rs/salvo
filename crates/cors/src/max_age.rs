@@ -22,6 +22,13 @@ impl MaxAge {
         Self(MaxAgeInner::Exact(Some(max_age.as_secs().into())))
     }
 
+    /// Set a static max-age value
+    ///
+    /// See [`CorsLayer::max_age`][super::CorsLayer::max_age] for more details.
+    pub fn seconds(seconds: u64) -> Self {
+        Self(MaxAgeInner::Exact(Some(seconds.into())))
+    }
+
     /// Set the max-age based on the preflight request parts
     ///
     /// See [`CorsLayer::max_age`][super::CorsLayer::max_age] for more details.
@@ -35,11 +42,12 @@ impl MaxAge {
     pub(super) fn to_header(
         &self,
         origin: Option<&HeaderValue>,
-        parts: &RequestParts,
+        req: &Request,
+        depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
         let max_age = match &self.0 {
             MaxAgeInner::Exact(v) => v.clone()?,
-            MaxAgeInner::Fn(c) => c(origin?, parts).as_secs().into(),
+            MaxAgeInner::Fn(c) => c(origin?, req, depot).as_secs().into(),
         };
 
         Some((header::ACCESS_CONTROL_MAX_AGE, max_age))
@@ -58,6 +66,24 @@ impl fmt::Debug for MaxAge {
 impl From<Duration> for MaxAge {
     fn from(max_age: Duration) -> Self {
         Self::exact(max_age)
+    }
+}
+
+impl From<u64> for MaxAge {
+    fn from(max_age: u64) -> Self {
+        Self(MaxAgeInner::Exact(Some(max_age.into())))
+    }
+}
+
+impl From<u32> for MaxAge {
+    fn from(max_age: u32) -> Self {
+        Self(MaxAgeInner::Exact(Some(max_age.into())))
+    }
+}
+
+impl From<usize> for MaxAge {
+    fn from(max_age: u64) -> Self {
+        Self(MaxAgeInner::Exact(Some(max_age.into())))
     }
 }
 

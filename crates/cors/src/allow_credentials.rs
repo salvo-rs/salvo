@@ -32,7 +32,7 @@ impl AllowCredentials {
     /// [`CorsLayer::allow_credentials`]: super::CorsLayer::allow_credentials
     pub fn predicate<F>(f: F) -> Self
     where
-        F: Fn(&HeaderValue, &RequestParts) -> bool + Send + Sync + 'static,
+        F: Fn(&HeaderValue, &Request, depot: &Depot) -> bool + Send + Sync + 'static,
     {
         Self(AllowCredentialsInner::Predicate(Arc::new(f)))
     }
@@ -44,7 +44,8 @@ impl AllowCredentials {
     pub(super) fn to_header(
         &self,
         origin: Option<&HeaderValue>,
-        parts: &RequestParts,
+        req: &Request,
+        depot: &Depot
     ) -> Option<(HeaderName, HeaderValue)> {
         #[allow(clippy::declare_interior_mutable_const)]
         const TRUE: HeaderValue = HeaderValue::from_static("true");
@@ -52,7 +53,7 @@ impl AllowCredentials {
         let allow_creds = match &self.0 {
             AllowCredentialsInner::Yes => true,
             AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Predicate(c) => c(origin?, parts),
+            AllowCredentialsInner::Predicate(c) => c(origin?, req, depot),
         };
 
         allow_creds.then(|| (header::ACCESS_CONTROL_ALLOW_CREDENTIALS, TRUE))

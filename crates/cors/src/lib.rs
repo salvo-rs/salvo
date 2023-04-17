@@ -85,9 +85,13 @@ where
     }
 }
 
-/// A constructed via `salvo_cors::Cors::builder()`.
+/// [`Cors`] middleware which adds headers for [CORS][mdn].
+///
+/// See the [module docs](crate::cors) for an example.
+///
+/// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 #[derive(Clone, Debug)]
-pub struct CorsBuilder {
+pub struct Cors {
     allow_credentials: AllowCredentials,
     allow_headers: AllowHeaders,
     allow_methods: AllowMethods,
@@ -96,14 +100,14 @@ pub struct CorsBuilder {
     max_age: MaxAge,
     vary: Vary,
 }
-impl Default for CorsBuilder {
+impl Default for Cors {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CorsBuilder {
+impl CorsB {
     /// Create new `CorsBuilder`.
     #[inline]
     pub fn new() -> Self {
@@ -185,8 +189,8 @@ impl CorsBuilder {
     ///     .max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]
-    pub fn max_age(mut self, seconds: impl Seconds) -> Self {
-        self.max_age = Some(seconds.seconds());
+    pub fn max_age(mut self, max_age: impl Into<MaxAge>) -> Self {
+        self.max_age = max_age.into();
         self
     }
 
@@ -204,123 +208,39 @@ impl CorsBuilder {
         self
     }
 
-    /// Adds a header to the list of exposed headers.
+    /// Set the value of the [`Access-Control-Allow-Origin`][mdn] header.
     ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `http::header::HeaderName`.
+    /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     #[inline]
-    pub fn expose_header<H>(mut self, header: H) -> Self
-    where
-        HeaderName: TryFrom<H>,
+    pub fn allow_origin(self, origin: impl impl  Into<AllowOrigin>) -> Self {
+        self.allow_origin = origin.into();
+        self
+    }
+
+
+    /// Set the value of the [`Access-Control-Expose-Headers`][mdn] header.
+    ///
+    /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
+    #[inline]
+    pub fn expose_headers<I>(mut self, headers: impl Into<ExposeHeaders>) -> Self
     {
-        let header = match TryFrom::try_from(header) {
-            Ok(m) => m,
-            Err(_) => panic!("illegal Header"),
-        };
-        self.exposed_headers.insert(header);
+        self.expose_headers = headers.into();
         self
     }
 
-    /// Adds multiple headers to the list of exposed headers.
+    /// Set the value(s) of the [`Vary`][mdn] header.
     ///
-    /// # Panics
+    /// In contrast to the other headers, this one has a non-empty default of
+    /// [`preflight_request_headers()`].
     ///
-    /// Panics if any of the headers are not a valid `http::header::HeaderName`.
-    #[inline]
-    pub fn expose_headers<I>(mut self, headers: I) -> Self
-    where
-        I: IntoIterator,
-        HeaderName: TryFrom<I::Item>,
-    {
-        let iter = headers.into_iter().map(|h| match TryFrom::try_from(h) {
-            Ok(h) => h,
-            Err(_) => panic!("illegal Header"),
-        });
-        self.exposed_headers.extend(iter);
+    /// You only need to set this is you want to remove some of these defaults,
+    /// or if you use a closure for one of the other headers and want to add a
+    /// vary header accordingly.
+    ///
+    /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
+    pub fn vary<T>(mut self, headers: impl Into<Vary>) -> Self  {
+        self.vary = headers.into();
         self
-    }
-
-    /// Sets that *any* `Origin` header is allowed.
-    ///
-    /// # Warning
-    ///
-    /// This can allow websites you didn't intend to access this resource,
-    /// it is usually better to set an explicit list.
-    #[inline]
-    pub fn allow_any_origin(mut self) -> Self {
-        self.origins = None;
-        self
-    }
-
-    /// Add an origin to the existing list of allowed `Origin`s.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `Origin`.
-    #[inline]
-    pub fn allow_origin(self, origin: impl IntoOrigin) -> Self {
-        self.allow_origins(Some(origin))
-    }
-
-    /// Add multiple origins to the existing list of allowed `Origin`s.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `Origin`.
-    #[inline]
-    pub fn allow_origins<I>(mut self, origins: I) -> Self
-    where
-        I: IntoIterator,
-        I::Item: IntoOrigin,
-    {
-        let iter = origins.into_iter().map(IntoOrigin::into_origin).map(|origin| {
-            origin
-                .to_string()
-                .parse()
-                .expect("Origin is always a valid HeaderValue")
-        });
-
-        self.origins.get_or_insert_with(HashSet::new).extend(iter);
-
-        self
-    }
-
-    /// Builds the `Cors` wrapper from the configured settings.
-    ///
-    /// This step isn't *required*, as the `CorsBuilder` itself can be passed
-    /// to `Filter::with`. This just allows constructing once, thus not needing
-    /// to pay the cost of "building" every time.
-    pub fn build(self) -> Cors {
-        let expose_headers_header = if self.exposed_headers.is_empty() {
-            None
-        } else {
-            Some(self.exposed_headers.iter().cloned().collect())
-        };
-        let allowed_headers_header = self.allowed_headers.iter().cloned().collect();
-        let methods_header = self.methods.iter().cloned().collect();
-
-        let CorsBuilder {
-            credentials,
-            allowed_headers,
-            // exposed_headers,
-            max_age,
-            methods,
-            origins,
-            ..
-        } = self;
-
-        Cors {
-            credentials,
-            allowed_headers,
-            // exposed_headers,
-            max_age,
-            methods,
-            origins,
-            allowed_headers_header,
-            expose_headers_header,
-            methods_header,
-        }
     }
 }
 
@@ -346,129 +266,47 @@ impl Display for Forbidden {
 
 impl StdError for Forbidden {}
 
-#[non_exhaustive]
-#[derive(Debug)]
-enum Validated {
-    Preflight(HeaderValue),
-    Simple(HeaderValue),
-    NotCors,
-}
-
-/// Cors
-#[derive(Debug)]
-pub struct Cors {
-    credentials: bool,
-    allowed_headers: HashSet<HeaderName>,
-    // exposed_headers: HashSet<HeaderName>,
-    max_age: Option<u64>,
-    methods: HashSet<Method>,
-    origins: Option<HashSet<HeaderValue>>,
-    allowed_headers_header: AccessControlAllowHeaders,
-    expose_headers_header: Option<AccessControlExposeHeaders>,
-    methods_header: AccessControlAllowMethods,
-}
-impl Cors {
-    /// Returns `CorsBuilder` instance for build `Cors`.
-    #[inline]
-    pub fn builder() -> CorsBuilder {
-        CorsBuilder::default()
-    }
-    fn check_request(&self, method: &Method, headers: &HeaderMap) -> Result<Validated, Forbidden> {
-        match (headers.get(header::ORIGIN), method) {
-            (Some(origin), &Method::OPTIONS) => {
-                // OPTIONS requests are preflight CORS requests...
-                if !self.is_origin_allowed(origin) {
-                    return Err(Forbidden::Origin);
-                }
-
-                if let Some(req_method) = headers.get(header::ACCESS_CONTROL_REQUEST_METHOD) {
-                    if !self.is_method_allowed(req_method) {
-                        return Err(Forbidden::Method);
-                    }
-                } else {
-                    tracing::debug!("preflight request missing access-control-request-method header");
-                    return Err(Forbidden::Method);
-                }
-
-                if let Some(req_headers) = headers.get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
-                    let headers = req_headers.to_str().map_err(|_| Forbidden::Header)?;
-                    for header in headers.split(',') {
-                        if !self.is_header_allowed(header) {
-                            return Err(Forbidden::Header);
-                        }
-                    }
-                }
-
-                Ok(Validated::Preflight(origin.clone()))
-            }
-            (Some(origin), _) => {
-                // Any other method, simply check for a valid origin...
-                tracing::debug!("origin header: {:?}", origin);
-                if self.is_origin_allowed(origin) {
-                    Ok(Validated::Simple(origin.clone()))
-                } else {
-                    Err(Forbidden::Origin)
-                }
-            }
-            (None, _) => {
-                // No `ORIGIN` header means this isn't CORS!
-                Ok(Validated::NotCors)
-            }
-        }
-    }
-
-    #[inline]
-    fn is_method_allowed(&self, header: &HeaderValue) -> bool {
-        Method::from_bytes(header.as_bytes())
-            .map(|method| self.methods.contains(&method))
-            .unwrap_or(false)
-    }
-
-    #[inline]
-    fn is_header_allowed(&self, header: &str) -> bool {
-        HeaderName::from_bytes(header.as_bytes())
-            .map(|header| self.allowed_headers.contains(&header))
-            .unwrap_or(false)
-    }
-
-    #[inline]
-    fn is_origin_allowed(&self, origin: &HeaderValue) -> bool {
-        if let Some(ref allowed) = self.origins {
-            allowed.contains(origin)
-        } else {
-            true
-        }
-    }
-
-    #[inline]
-    fn append_preflight_headers(&self, headers: &mut HeaderMap) {
-        self.append_common_headers(headers);
-
-        headers.typed_insert(self.allowed_headers_header.clone());
-        headers.typed_insert(self.methods_header.clone());
-
-        if let Some(max_age) = self.max_age {
-            headers.insert(header::ACCESS_CONTROL_MAX_AGE, max_age.into());
-        }
-    }
-
-    #[inline]
-    fn append_common_headers(&self, headers: &mut HeaderMap) {
-        if self.credentials {
-            headers.insert(
-                header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                HeaderValue::from_static("true"),
-            );
-        }
-        if let Some(expose_headers_header) = &self.expose_headers_header {
-            headers.typed_insert(expose_headers_header.clone())
-        }
-    }
-}
 
 #[async_trait]
 impl Handler for Cors {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        let origin = req.headers().get(&header::ORIGIN);
+
+        let mut headers = HeaderMap::new();
+
+        // These headers are applied to both preflight and subsequent regular CORS requests:
+        // https://fetch.spec.whatwg.org/#http-responses
+
+        headers.extend(Self.allow_origin.to_header(origin, req, depot));
+        headers.extend(self.allow_credentials.to_header(origin, req, depot));
+
+        let mut vary_headers = self.vary.values();
+        if let Some(first) = vary_headers.next() {
+            let mut header = match headers.entry(header::VARY) {
+                header::Entry::Occupied(_) => {
+                    unreachable!("no vary header inserted up to this point")
+                }
+                header::Entry::Vacant(v) => v.insert_entry(first),
+            };
+
+            for val in vary_headers {
+                header.append(val);
+            }
+        }
+
+        // Return results immediately upon preflight request
+        if parts.method == Method::OPTIONS {
+            // These headers are applied only to preflight requests
+            headers.extend(self.allow_methods.to_header(req, depot));
+            headers.extend(self.allow_headers.to_header(req, depot));
+            headers.extend(self.max_age.to_header(origin, req, depot));
+            ctrl.call_next(req, depot, res).await;
+        } else {
+            // This header is applied only to non-preflight requests
+            headers.extend(self.expose_headers.to_header(req, depot));
+            ctrl.call_next(req, depot, res).await;
+        }
+        
         let validated = self.check_request(req.method(), req.headers());
 
         match validated {
@@ -491,26 +329,6 @@ impl Handler for Cors {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-    }
-}
-
-/// Seconds
-pub trait Seconds {
-    /// Get seconds.
-    fn seconds(self) -> u64;
-}
-
-impl Seconds for u32 {
-    #[inline]
-    fn seconds(self) -> u64 {
-        self.into()
-    }
-}
-
-impl Seconds for ::std::time::Duration {
-    #[inline]
-    fn seconds(self) -> u64 {
-        self.as_secs()
     }
 }
 
