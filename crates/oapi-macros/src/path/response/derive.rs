@@ -175,9 +175,8 @@ impl ToTokens for IntoResponses {
         tokens.extend(quote!{
             impl #impl_generics #root::oapi::IntoResponses for #ident #ty_generics #where_clause {
                 fn responses() -> std::collections::BTreeMap<String, #root::oapi::openapi::RefOr<#root::oapi::openapi::response::Response>> {
-                    #root::oapi::openapi::response::ResponsesBuilder::new()
+                    #root::oapi::openapi::response::Responses::new()
                         #responses
-                        .build()
                         .into()
                 }
             }

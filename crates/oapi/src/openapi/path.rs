@@ -482,8 +482,8 @@ impl Parameter {
     }
 
     /// Add or change description of the [`Parameter`].
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
@@ -569,7 +569,7 @@ pub enum ParameterStyle {
 
 #[cfg(test)]
 mod tests {
-    use super::{Operation, OperationBuilder};
+    use super::{Operation, Operation};
     use crate::openapi::{security::SecurityRequirement, server::Server};
 
     #[test]
@@ -594,7 +594,7 @@ mod tests {
     fn operation_builder_security() {
         let security_requirement1 = SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
-        let operation = OperationBuilder::new()
+        let operation = Operation::new()
             .security(security_requirement1)
             .security(security_requirement2)
             .build();
@@ -606,7 +606,7 @@ mod tests {
     fn operation_builder_server() {
         let server1 = Server::new("/api");
         let server2 = Server::new("/admin");
-        let operation = OperationBuilder::new().server(server1).server(server2).build();
+        let operation = Operation::new().server(server1).server(server2).build();
 
         assert!(operation.servers.is_some());
     }

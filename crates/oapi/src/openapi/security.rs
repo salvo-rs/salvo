@@ -90,7 +90,7 @@ impl SecurityRequirement {
 /// ```
 /// # use salvo_oapi::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 /// SecurityScheme::Http(
-///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
+///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT")
 /// );
 /// ```
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -215,10 +215,10 @@ impl Http {
     ///
     /// # Examples
     ///
-    /// Create new [`Http`] [`SecurityScheme`] via [`HttpBuilder`].
+    /// Create new [`Http`] [`SecurityScheme`].
     /// ```
     /// # use salvo_oapi::openapi::security::{HttpBuilder, HttpAuthScheme};
-    /// let http = HttpBuilder::new().scheme(HttpAuthScheme::Basic).build();
+    /// let http = Http::new().scheme(HttpAuthScheme::Basic();
     /// ```
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
         self.scheme = scheme;
@@ -233,8 +233,8 @@ impl Http {
     ///
     /// Add JTW bearer format for security schema.
     /// ```
-    /// # use salvo_oapi::openapi::security::{HttpBuilder, HttpAuthScheme};
-    /// HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build();
+    /// # use salvo_oapi::openapi::security::{Http, HttpAuthScheme};
+    /// Http::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT");
     /// ```
     pub fn bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
         if self.scheme == HttpAuthScheme::Bearer {
@@ -245,8 +245,8 @@ impl Http {
     }
 
     /// Add or change optional description supporting markdown syntax.
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        self.description = description.map(|description| description.into());
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        self.description = Some(description.into());
 
         self
     }
@@ -889,7 +889,7 @@ mod tests {
     test_fn! {
     security_schema_correct_http_bearer_json:
     SecurityScheme::Http(
-        HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
+        Http::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT")
     );
     r###"{
   "type": "http",

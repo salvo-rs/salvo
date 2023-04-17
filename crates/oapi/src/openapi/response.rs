@@ -11,50 +11,38 @@ use crate::IntoResponses;
 
 use super::{header::Header, set_value, Content};
 
-
-
-    /// Implements [OpenAPI Responses Object][responses].
-    ///
-    /// Responses is a map holding api operation responses identified by their status code.
-    ///
-    /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Responses {
-        /// Map containing status code as a key with represented response as a value.
-        #[serde(flatten)]
-        pub responses: BTreeMap<String, RefOr<Response>>,
-    }
+/// Implements [OpenAPI Responses Object][responses].
+///
+/// Responses is a map holding api operation responses identified by their status code.
+///
+/// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Responses {
+    /// Map containing status code as a key with represented response as a value.
+    #[serde(flatten)]
+    pub responses: BTreeMap<String, RefOr<Response>>,
+}
 
 impl Responses {
     pub fn new() -> Self {
         Default::default()
     }
     /// Add a [`Response`].
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
-        mut self,
-        code: S,
-        response: R,
-    ) -> Self {
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
         self.responses.insert(code.into(), response.into());
 
         self
     }
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
-    pub fn responses_from_iter<
-        I: IntoIterator<Item = (C, R)>,
-        C: Into<String>,
-        R: Into<RefOr<Response>>,
-    >(
+    pub fn responses_from_iter<I: IntoIterator<Item = (C, R)>, C: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         iter: I,
     ) -> Self {
-        self.responses.extend(
-            iter.into_iter()
-                .map(|(code, response)| (code.into(), response.into())),
-        );
+        self.responses
+            .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
         self
     }
 
@@ -78,38 +66,34 @@ where
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
         Self {
-            responses: BTreeMap::from_iter(
-                iter.into_iter()
-                    .map(|(code, response)| (code.into(), response.into())),
-            ),
+            responses: BTreeMap::from_iter(iter.into_iter().map(|(code, response)| (code.into(), response.into()))),
         }
     }
 }
 
+/// Implements [OpenAPI Response Object][response].
+///
+/// Response is api operation response.
+///
+/// [response]: https://spec.openapis.org/oas/latest.html#response-object
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Response {
+    /// Description of the response. Response support markdown syntax.
+    pub description: String,
 
-    /// Implements [OpenAPI Response Object][response].
+    /// Map of headers identified by their name. `Content-Type` header will be ignored.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    pub headers: BTreeMap<String, Header>,
+
+    /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
     ///
-    /// Response is api operation response.
-    ///
-    /// [response]: https://spec.openapis.org/oas/latest.html#response-object
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Response {
-        /// Description of the response. Response support markdown syntax.
-        pub description: String,
-
-        /// Map of headers identified by their name. `Content-Type` header will be ignored.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub headers: BTreeMap<String, Header>,
-
-        /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
-        ///
-        /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
-        /// will create and show default example according to the first entry in `content` map.
-        #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
-        pub content: IndexMap<String, Content>,
-    }
+    /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
+    /// will create and show default example according to the first entry in `content` map.
+    #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
+    pub content: IndexMap<String, Content>,
+}
 
 impl Response {
     /// Construct a new [`Response`].
@@ -158,7 +142,7 @@ impl From<Ref> for RefOr<Response> {
 ///
 /// let request = Response::new()
 ///     .description("A sample response")
-///     .json_schema_ref("MyResponsePayload").build();
+///     .json_schema_ref("MyResponsePayload");
 /// ```
 ///
 /// If serialized to JSON, the above will result in a response schema like this.
@@ -222,13 +206,11 @@ mod tests {
 
     #[test]
     fn response_builder() -> Result<(), serde_json::Error> {
-        let request_body = Response::new()
-            .description("A sample response")
+        let request_body = Response::new("A sample response")
             .content(
                 "application/json",
                 Content::new(crate::openapi::Ref::from_schema_name("MySchemaPayload")),
-            )
-            .build();
+            );
         let serialized = serde_json::to_string_pretty(&request_body)?;
         println!("serialized json:\n {serialized}");
         assert_json_eq!(
@@ -259,9 +241,7 @@ mod openapi_extensions_tests {
 
     #[test]
     fn response_ext() {
-        let request_body = Response::new()
-            .description("A sample response")
-            .build()
+        let request_body = Response::new("A sample response")
             .json_schema_ref("MySchemaPayload");
 
         assert_json_eq!(
@@ -281,10 +261,8 @@ mod openapi_extensions_tests {
 
     #[test]
     fn response_builder_ext() {
-        let request_body = Response::new()
-            .description("A sample response")
-            .json_schema_ref("MySchemaPayload")
-            .build();
+        let request_body = Response::new("A sample response")
+            .json_schema_ref("MySchemaPayload");
         assert_json_eq!(
             request_body,
             json!({

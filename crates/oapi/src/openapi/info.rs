@@ -21,9 +21,7 @@ use super::{ set_value};
 ///      .contact(Some(Contact::new()
 ///           .name(Some("Admin Admin"))
 ///           .email(Some("amdin@petapi.com"))
-///           .build()
-///       ))
-///      .build();
+///       ));
 /// ```
 /// OpenAPI [Info][info] object represents metadata of the API.
 ///
@@ -93,8 +91,8 @@ impl Info {
     }
 
     /// Add description of the API.
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add url for terms of the API.

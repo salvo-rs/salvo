@@ -369,7 +369,7 @@ impl ToTokens for Param<'_> {
             .unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
-        tokens.extend(quote! { #root::oapi::openapi::path::ParameterBuilder::new()
+        tokens.extend(quote! { #root::oapi::openapi::path::Parameter::new()
             .name(#name)
         });
         tokens.extend(
@@ -388,12 +388,12 @@ impl ToTokens for Param<'_> {
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
-            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
+            tokens.extend(quote! { .schema(Some(#schema_with)) });
         } else {
             let description =
                 CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
             if !description.is_empty() {
-                tokens.extend(quote! { .description(Some(#description))})
+                tokens.extend(quote! { .description(#description)})
             }
 
             let value_type = param_features.pop_value_type_feature();
@@ -424,7 +424,7 @@ impl ToTokens for Param<'_> {
                 object_name: "",
             });
 
-            tokens.extend(quote! { .schema(Some(#schema)).build() });
+            tokens.extend(quote! { .schema(Some(#schema)) });
         }
     }
 }

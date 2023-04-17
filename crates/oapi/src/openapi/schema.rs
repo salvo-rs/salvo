@@ -67,8 +67,9 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(&mut self, name: N, security_schema: S) {
+    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_schema: S) -> Self {
         self.security_schemes.insert(name.into(), security_schema.into());
+        self
     }
 
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
@@ -78,11 +79,12 @@ impl Components {
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
-        &mut self,
+        mut self,
         schemas: I,
-    ) {
+    ) -> Self {
         self.security_schemes
             .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+        self
     }
 
     /// Add [`Schema`] to [`Components`].
@@ -1095,29 +1097,28 @@ mod tests {
                                     "id",
                                     Object::new()
                                         .schema_type(SchemaType::Integer)
-                                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-                                        .description(Some("Id of credential"))
-                                        .default(Some(json!(1i32))),
+                                        .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
+                                        .description("Id of credential")
+                                        .default(json!(1i32)),
                                 )
                                 .property(
                                     "name",
                                     Object::new()
                                         .schema_type(SchemaType::String)
-                                        .description(Some("Name of credential")),
+                                        .description("Name of credential"),
                                 )
                                 .property(
                                     "status",
                                     Object::new()
                                         .schema_type(SchemaType::String)
-                                        .default(Some(json!("Active")))
-                                        .description(Some("Credential status"))
-                                        .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
+                                        .default(json!("Active"))
+                                        .description("Credential status")
+                                        .enum_values(["Active", "NotActive", "Locked", "Expired"]),
                                 )
                                 .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
                                 .property("tags", Object::with_type(SchemaType::String).to_array()),
                         ),
-                    )
-                    .build(),
+                    ),
             );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
@@ -1193,26 +1194,25 @@ mod tests {
                 Object::new()
                     .schema_type(SchemaType::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-                    .description(Some("Id of credential"))
-                    .default(Some(json!(1i32))),
+                    .description("Id of credential")
+                    .default(json!(1i32)),
             )
             .property(
                 "name",
                 Object::new()
                     .schema_type(SchemaType::String)
-                    .description(Some("Name of credential")),
+                    .description("Name of credential"),
             )
             .property(
                 "status",
                 Object::new()
                     .schema_type(SchemaType::String)
                     .default(Some(json!("Active")))
-                    .description(Some("Credential status"))
-                    .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
+                    .description("Credential status")
+                    .enum_values(["Active", "NotActive", "Locked", "Expired"]),
             )
             .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
-            .property("tags", Object::with_type(SchemaType::String).to_array())
-            .build();
+            .property("tags", Object::with_type(SchemaType::String).to_array());
 
         #[cfg(not(feature = "preserve_order"))]
         assert_eq!(
@@ -1231,8 +1231,7 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = Object::new()
-            .additional_properties(Object::new().schema_type(SchemaType::String))
-            .build();
+            .additional_properties(Object::new().schema_type(SchemaType::String));
         assert_json_eq!(
             json_value,
             json!({
@@ -1244,8 +1243,7 @@ mod tests {
         );
 
         let json_value = Object::new()
-            .additional_properties(Ref::from_schema_name("ComplexModel"))
-            .build();
+            .additional_properties(Ref::from_schema_name("ComplexModel"));
         assert_json_eq!(
             json_value,
             json!({
@@ -1259,7 +1257,7 @@ mod tests {
 
     #[test]
     fn test_object_with_title() {
-        let json_value = Object::new().title(Some("SomeName")).build();
+        let json_value = Object::new().title(Some("SomeName"));
         assert_json_eq!(
             json_value,
             json!({
@@ -1273,8 +1271,7 @@ mod tests {
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
         let json_value = Object::new()
-            .example(Some(json!({"age": 20, "name": "bob the cat"})))
-            .build();
+            .example(Some(json!({"age": 20, "name": "bob the cat"})));
 
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(
@@ -1297,7 +1294,7 @@ mod tests {
                 Object::new()
                     .schema_type(SchemaType::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-                    .description(Some("Id of credential"))
+                    .description("Id of credential")
                     .default(Some(json!(1i32))),
             ),
         );
@@ -1313,7 +1310,7 @@ mod tests {
                 Object::new()
                     .schema_type(SchemaType::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-                    .description(Some("Id of credential"))
+                    .description("Id of credential")
                     .default(Some(json!(1i32))),
             ),
         );
@@ -1332,9 +1329,8 @@ mod tests {
                         .required("name"),
                 ),
             )])
-            .responses_from_iter(vec![("200", Response::new().description("Okay").build())])
-            .security_scheme("TLS", SecurityScheme::MutualTls { description: None })
-            .build();
+            .responses_from_iter(vec![("200", Response::new("Okay"))])
+            .security_scheme("TLS", SecurityScheme::MutualTls { description: None });
 
         let serialized_components = serde_json::to_string(&components).unwrap();
 
@@ -1350,8 +1346,7 @@ mod tests {
     fn reserialize_deserialized_object_component() {
         let prop = Object::new()
             .property("name", Object::new().schema_type(SchemaType::String))
-            .required("name")
-            .build();
+            .required("name");
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object = serde_json::from_str(serialized_components.as_str()).unwrap();
@@ -1364,7 +1359,7 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = Object::new().schema_type(SchemaType::String).build();
+        let prop = Object::new().schema_type(SchemaType::String);
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object = serde_json::from_str(serialized_components.as_str()).unwrap();
@@ -1385,13 +1380,10 @@ mod tests {
                         Array::default()
                             .items(RefOr::T(Schema::Object(
                                 Object::new()
-                                    .property("element", RefOr::Ref(Ref::new("#/test")))
-                                    .build(),
-                            )))
-                            .build(),
+                                    .property("element", RefOr::Ref(Ref::new("#/test"))),
+                            ))),
                     )),
-                )
-                .build(),
+                ),
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -1419,24 +1411,18 @@ mod tests {
                                 Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
-                                            .property("element", RefOr::Ref(Ref::new("#/test")))
-                                            .build(),
-                                    )))
-                                    .build(),
+                                            .property("element", RefOr::Ref(Ref::new("#/test"))),
+                                    ))),
                             ))
                             .item(Schema::Array(
                                 Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
-                                            .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
-                                            .build(),
-                                    )))
-                                    .build(),
-                            ))
-                            .build(),
+                                            .property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
+                                    ))),
+                            )),
                     )),
-                )
-                .build(),
+                ),
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -1464,20 +1450,15 @@ mod tests {
                                 Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
-                                            .property("element", RefOr::Ref(Ref::new("#/test")))
-                                            .build(),
-                                    )))
-                                    .build(),
+                                            .property("element", RefOr::Ref(Ref::new("#/test"))),
+                                    ))),
                             ))
                             .item(RefOr::T(Schema::Object(
                                 Object::new()
-                                    .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
-                                    .build(),
-                            )))
-                            .build(),
+                                    .property("foobar", RefOr::Ref(Ref::new("#/foobar"))),
+                            ))),
                     )),
-                )
-                .build(),
+                ),
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -1499,10 +1480,8 @@ mod tests {
             Array::default()
                 .items(RefOr::T(Schema::Object(
                     Object::new()
-                        .property("element", RefOr::Ref(Ref::new("#/test")))
-                        .build(),
-                )))
-                .build(),
+                        .property("element", RefOr::Ref(Ref::new("#/test"))),
+                ))),
         ));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -1523,10 +1502,8 @@ mod tests {
         let ref_or_schema = Array::new()
             .items(RefOr::T(Schema::Object(
                 Object::new()
-                    .property("element", RefOr::Ref(Ref::new("#/test")))
-                    .build(),
-            )))
-            .build();
+                    .property("element", RefOr::Ref(Ref::new("#/test"))),
+            )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         println!("----------------------------");
@@ -1548,8 +1525,7 @@ mod tests {
                 .property(
                     "map",
                     Object::new().additional_properties(AdditionalProperties::FreeForm(true)),
-                )
-                .build(),
+                ),
         );
 
         let json_str = serde_json::to_string(&schema).unwrap();
@@ -1574,8 +1550,7 @@ mod tests {
                     Object::new().additional_properties(
                         Object::new().property("name", Object::with_type(SchemaType::String)),
                     ),
-                )
-                .build(),
+                ),
         );
 
         let json_str = serde_json::to_string(&schema).unwrap();

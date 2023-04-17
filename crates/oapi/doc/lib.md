@@ -176,14 +176,6 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 println!("{}", doc.to_pretty_json().unwrap());
 ```
 
-# Modify OpenAPI at runtime
-
-You can modify generated OpenAPI at runtime either via generated types directly or using
-[`Modify`] trait.
-
-
-See [`Modify`] trait for examples on how to modify generated OpenAPI via it.
-
 # Go beyond the surface
 
 * See how to serve OpenAPI doc via Swagger UI check [`salvo-oapi-swagger-ui`][salvo_oapi_swagger] crate for more details.

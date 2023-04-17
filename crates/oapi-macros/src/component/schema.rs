@@ -496,7 +496,7 @@ impl ToTokens for NamedStructSchema<'_> {
         let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
         if !description.is_empty() {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             })
         }
     }
@@ -589,7 +589,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
         let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
         if !description.is_empty() && !is_object {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             })
         }
 
@@ -753,7 +753,7 @@ impl ToTokens for EnumSchemaType<'_> {
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         if !description.is_empty() {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             })
         }
     }

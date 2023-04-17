@@ -90,7 +90,7 @@ struct ParameterSchema<'p> {
 impl ToTokens for ParameterSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut to_tokens = |param_schema, required| {
-            tokens.extend(quote! { .schema(Some(#param_schema)).required(#required) });
+            tokens.extend(quote! { .schema(#param_schema).required(#required) });
         };
 
         match &self.parameter_type {
@@ -256,7 +256,7 @@ impl ToTokens for ValueParameter<'_> {
         let root = crate::root_crate();
         let name = &*self.name;
         tokens.extend(quote! {
-            #root::oapi::openapi::path::ParameterBuilder::from(#root::oapi::openapi::path::Parameter::new(#name))
+            #root::oapi::openapi::path::Parameter::from(#root::oapi::openapi::path::Parameter::new(#name))
         });
         let parameter_in = &self.parameter_in;
         tokens.extend(quote! { .parameter_in(#parameter_in) });

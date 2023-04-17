@@ -309,11 +309,10 @@ _**Use `schema_with` to manually implement schema for a field.**_
 fn custom_type() -> Object {
     Object::new()
         .schema_type(salvo_oapi::openapi::SchemaType::String)
-        .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
+        .format(salvo_oapi::openapi::SchemaFormat::Custom(
             "email".to_string(),
-        )))
-        .description(Some("this is the description"))
-        .build()
+        ))
+        .description("this is the description")
 }
 
 #[derive(salvo_oapi::IntoParams)]

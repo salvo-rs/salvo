@@ -269,7 +269,7 @@ impl ToTokens for ResponseTuple<'_> {
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
                 tokens.extend(quote! {
-                    #root::oapi::openapi::Response::new().description(#description)
+                    #root::oapi::openapi::Response::new(#description)
                 });
 
                 let create_content = |path_type: &PathType,
@@ -297,7 +297,7 @@ impl ToTokens for ResponseTuple<'_> {
                     };
 
                     let mut content =
-                        quote! { #root::oapi::openapi::ContentBuilder::new().schema(#content_schema) };
+                        quote! { #root::oapi::openapi::Content::new(#content_schema) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -316,9 +316,8 @@ impl ToTokens for ResponseTuple<'_> {
                             .examples_from_iter(#examples)
                         ))
                     }
-
                     quote! {
-                        #content.build()
+                        #content
                     }
                 };
 
@@ -372,8 +371,6 @@ impl ToTokens for ResponseTuple<'_> {
                         .header(#name, #header)
                     })
                 });
-
-                tokens.extend(quote! { .build() });
             }
         }
     }
@@ -693,7 +690,7 @@ impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let root = crate::root_crate();
         tokens.extend(self.0.iter().fold(
-            quote! { #root::oapi::openapi::ResponsesBuilder::new() },
+            quote! { #root::oapi::openapi::Responses::new() },
             |mut acc, response| {
                 match response {
                     Response::IntoResponses(path) => {
@@ -711,8 +708,6 @@ impl ToTokens for Responses<'_> {
                 acc
             },
         ));
-
-        tokens.extend(quote! { .build() });
     }
 }
 
@@ -853,11 +848,9 @@ impl ToTokens for Header {
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             })
         }
-
-        tokens.extend(quote! { .build() })
     }
 }
 

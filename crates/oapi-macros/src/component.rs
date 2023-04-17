@@ -728,11 +728,11 @@ impl<'c> ComponentSchema {
                     Some(comment)
                 }
             })
-            .map(|description| quote! { .description(Some(#description)) })
+            .map(|description| quote! { .description(#description) })
     }
 
     fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
-        deprecated.map(|deprecated| quote! { .deprecated(Some(#deprecated)) })
+        deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
     }
 }
 

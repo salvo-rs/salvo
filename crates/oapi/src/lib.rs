@@ -153,7 +153,7 @@ mod oapi {
 /// impl PartialSchema for MyType {
 ///     fn schema() -> RefOr<Schema> {
 ///         // ... impl schema generation here
-///         RefOr::T(Schema::Object(Object::new().build()))
+///         RefOr::T(Schema::Object(Object::new()))
 ///     }
 /// }
 /// ```
@@ -175,7 +175,6 @@ mod oapi {
 ///             .schema_type(SchemaType::Integer)
 ///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
 ///             .minimum(Some(0.0))
-///             .build()
 ///         )
 ///     );
 /// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
@@ -193,8 +192,7 @@ mod oapi {
 /// let pet_schema = Object::new()
 ///     .property("id", i32::schema())
 ///     .property("name", String::schema())
-///     .required("id").required("name")
-///     .build();
+///     .required("id").required("name");
 /// ```
 ///
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
@@ -364,13 +362,12 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///         "/pets/{id}",
 ///         salvo_oapi::openapi::PathItem::new(
 ///             salvo_oapi::openapi::PathItemType::Get,
-///             salvo_oapi::openapi::path::OperationBuilder::new()
+///             salvo_oapi::openapi::path::Operation::new()
 ///                 .responses(
-///                     salvo_oapi::openapi::ResponsesBuilder::new()
+///                     salvo_oapi::openapi::Responses::new()
 ///                         .response(
 ///                             "200",
-///                             salvo_oapi::openapi::Response::new()
-///                                 .description("Pet found successfully")
+///                             salvo_oapi::openapi::Response::new("Pet found successfully")
 ///                                 .content("application/json",
 ///                                     salvo_oapi::openapi::Content::new(
 ///                                         salvo_oapi::openapi::Ref::from_schema_name("Pet"),
@@ -379,21 +376,21 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///                         )
 ///                         .response("404", salvo_oapi::openapi::Response::new("Pet was not found")),
 ///                 )
-///                 .operation_id(Some("get_pet_by_id"))
-///                 .deprecated(Some(salvo_oapi::openapi::Deprecated::False))
-///                 .summary(Some("Get pet by id"))
-///                 .description(Some("Get pet by id\n\nGet pet from database by pet database id\n"))
+///                 .operation_id("get_pet_by_id")
+///                 .deprecated(salvo_oapi::openapi::Deprecated::False)
+///                 .summary("Get pet by id")
+///                 .description("Get pet by id\n\nGet pet from database by pet database id\n")
 ///                 .parameter(
-///                     salvo_oapi::openapi::path::ParameterBuilder::new()
+///                     salvo_oapi::openapi::path::Parameter::new()
 ///                         .name("id")
 ///                         .parameter_in(salvo_oapi::openapi::path::ParameterIn::Path)
 ///                         .required(salvo_oapi::openapi::Required::True)
-///                         .deprecated(Some(salvo_oapi::openapi::Deprecated::False))
-///                         .description(Some("Pet database id to get Pet for"))
+///                         .deprecated(salvo_oapi::openapi::Deprecated::False)
+///                         .description("Pet database id to get Pet for")
 ///                         .schema(
-///                             Some(salvo_oapi::openapi::Object::new()
+///                             salvo_oapi::openapi::Object::new()
 ///                                 .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                                 .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)))),
+///                                 .format(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)),
 ///                         ),
 ///                 )
 ///                 .tag("pet_api"),
@@ -406,67 +403,6 @@ pub trait Path {
     fn path() -> &'static str;
 
     fn path_item(default_tag: Option<&str>) -> openapi::path::PathItem;
-}
-
-/// Trait that allows OpenApi modification at runtime.
-///
-/// Implement this trait if you wish to modify the OpenApi at runtime before it is being consumed
-/// *(Before `salvo_oapi::OpenApi::openapi()` function returns)*.
-/// This is trait can be used to add or change already generated OpenApi spec to alter the generated
-/// specification by user defined condition. For example you can add definitions that should be loaded
-/// from some configuration at runtime what may not be available during compile time.
-///
-/// See more about [`OpenApi`][derive] derive at [derive documentation][derive].
-///
-/// [derive]: derive.OpenApi.html
-/// [security_schema]: openapi/security/enum.SecuritySchema.html
-///
-/// # Examples
-///
-/// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
-/// ```
-/// # use salvo_oapi::{OpenApi, Modify};
-/// # use salvo_oapi::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};
-/// 
-/// struct SecurityAddon;
-///
-/// impl Modify for SecurityAddon {
-///     fn modify(&self, openapi: &mut salvo_oapi::openapi::OpenApi) {
-///          openapi.components = Some(
-///              salvo_oapi::openapi::Components::new()
-///                  .security_scheme(
-///                      "api_jwt_token",
-///                      SecurityScheme::Http(
-///                          HttpBuilder::new()
-///                              .scheme(HttpAuthScheme::Bearer)
-///                              .bearer_format("JWT")
-///                              .build(),
-///                      ),
-///                  )
-///                  .build(),
-///          )
-///      }
-/// }
-/// ```
-///
-/// Add [OpenAPI Server Object][server] to alter the target server url. This can be used to give context
-/// path for api operations.
-/// ```
-/// # use salvo_oapi::{OpenApi, Modify};
-/// # use salvo_oapi::openapi::Server;
-///
-/// struct ServerAddon;
-///
-/// impl Modify for ServerAddon {
-///     fn modify(&self, openapi: &mut salvo_oapi::openapi::OpenApi) {
-///         openapi.servers = Some(vec![Server::new("/api")])
-///     }
-/// }
-/// ```
-///
-/// [server]: https://spec.openapis.org/oas/latest.html#server-object
-pub trait Modify {
-    fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
 /// Trait used to convert implementing type to OpenAPI parameters.
@@ -504,27 +440,25 @@ pub trait Modify {
 ///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::openapi::path::ParameterIn>
 ///     ) -> Vec<salvo_oapi::openapi::path::Parameter> {
 ///         vec![
-///             salvo_oapi::openapi::path::ParameterBuilder::new()
+///             salvo_oapi::openapi::path::Parameter::new()
 ///                 .name("id")
 ///                 .required(salvo_oapi::openapi::Required::True)
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
-///                 .description(Some("Id of pet"))
+///                 .description("Id of pet")
 ///                 .schema(Some(
 ///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64))),
-///                 ))
-///                 .build(),
-///             salvo_oapi::openapi::path::ParameterBuilder::new()
+///                         .format(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)),
+///                 )),
+///             salvo_oapi::openapi::path::Parameter::new()
 ///                 .name("name")
 ///                 .required(salvo_oapi::openapi::Required::True)
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
-///                 .description(Some("Name of pet"))
-///                 .schema(Some(
+///                 .description("Name of pet")
+///                 .schema(
 ///                     salvo_oapi::openapi::Object::new()
 ///                         .schema_type(salvo_oapi::openapi::SchemaType::String),
-///                 ))
-///                 .build(),
+///                 ),
 ///         ]
 ///     }
 /// }
@@ -546,7 +480,7 @@ pub trait IntoParams {
 /// ```
 /// use std::collections::BTreeMap;
 /// use salvo_oapi::{
-///     openapi::{Response, Response, ResponsesBuilder, RefOr},
+///     openapi::{Response, Response, Responses, RefOr},
 ///     IntoResponses,
 /// };
 ///
@@ -557,10 +491,9 @@ pub trait IntoParams {
 ///
 /// impl IntoResponses for MyResponse {
 ///     fn responses() -> BTreeMap<String, RefOr<Response>> {
-///         ResponsesBuilder::new()
-///             .response("200", Response::new().description("Ok"))
-///             .response("404", Response::new().description("Not Found"))
-///             .build()
+///         Responses::new()
+///             .response("200", Response::new("Ok"))
+///             .response("404", Response::new("Not Found"))
 ///             .into()
 ///     }
 /// }
@@ -589,7 +522,7 @@ pub trait IntoResponses {
 ///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
-///             Response::new().description("My Response").build().into(),
+///             Response::new("My Response").into(),
 ///         )
 ///     }
 /// }

@@ -52,8 +52,8 @@ impl Header {
     }
 
     /// Add additional description for header.
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 }
 

@@ -519,8 +519,7 @@ fn custom_type() -> Object {
         .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
             "email".to_string(),
         )))
-        .description(Some("this is the description"))
-        .build()
+        .description("this is the description")
 }
 
 #[derive(salvo_oapi::ToSchema)]

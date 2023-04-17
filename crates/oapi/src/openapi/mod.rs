@@ -109,7 +109,7 @@ impl OpenApi {
     /// #
     /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"), Paths::new());
     /// ```
-    pub fn new<P: Into<Paths>>(info: Info) -> Self {
+    pub fn new(info: Info) -> Self {
         Self {
             info,
             ..Default::default()
@@ -375,7 +375,7 @@ mod tests {
 
     use crate::openapi::{
         info::Info,
-        path::{OperationBuilder, Paths},
+        path::{Operation, Paths},
     };
 
     use super::{response::Response, *};
@@ -391,9 +391,8 @@ mod tests {
         let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
-                .description(Some("My api description"))
-                .license(Some(License::new("MIT").url(Some("http://mit.licence")).build()))
-                .build(),
+                .description("My api description")
+                .license(License::new("MIT").url(Some("http://mit.licence"))),
             Paths::new(),
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
@@ -414,21 +413,21 @@ mod tests {
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Get,
-                        OperationBuilder::new().response("200", Response::new("Get users list")),
+                        Operation::new().response("200", Response::new("Get users list")),
                     ),
                 )
                 .path(
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Post,
-                        OperationBuilder::new().response("200", Response::new("Post new user")),
+                        Operation::new().response("200", Response::new("Post new user")),
                     ),
                 )
                 .path(
                     "/api/v1/users/{id}",
                     PathItem::new(
                         PathItemType::Get,
-                        OperationBuilder::new().response("200", Response::new("Get user by id")),
+                        Operation::new().response("200", Response::new("Get user by id")),
                     ),
                 ),
         );
@@ -452,7 +451,7 @@ mod tests {
                     "/api/v1/user",
                     PathItem::new(
                         PathItemType::Get,
-                        OperationBuilder::new().response("200", Response::new("Get user success")),
+                        Operation::new().response("200", Response::new("Get user success")),
                     ),
                 )
                 .build(),
@@ -466,21 +465,21 @@ mod tests {
                         "/api/v1/user",
                         PathItem::new(
                             PathItemType::Get,
-                            OperationBuilder::new().response("200", Response::new("This will not get added")),
+                            Operation::new().response("200", Response::new("This will not get added")),
                         ),
                     )
                     .path(
                         "/ap/v2/user",
                         PathItem::new(
                             PathItemType::Get,
-                            OperationBuilder::new().response("200", Response::new("Get user success 2")),
+                            Operation::new().response("200", Response::new("Get user success 2")),
                         ),
                     )
                     .path(
                         "/api/v2/user",
                         PathItem::new(
                             PathItemType::Post,
-                            OperationBuilder::new().response("200", Response::new("Get user success")),
+                            Operation::new().response("200", Response::new("Get user success")),
                         ),
                     )
                     .build(),
@@ -491,7 +490,7 @@ mod tests {
                         "User2",
                         Object::new()
                             .schema_type(SchemaType::Object)
-                            .property("name", Object::new().schema_type(SchemaType::String).build()),
+                            .property("name", Object::new().schema_type(SchemaType::String)),
                     )
                     .build(),
             ))

@@ -11,8 +11,7 @@ use self::models::*;
 
 // use utoipa::OpenApi;
 use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
+    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},OpenApi,
 };
 use utoipa_swagger_ui::Config;
 

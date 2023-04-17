@@ -153,8 +153,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };
             let mut content = quote! {
-                #root::oapi::openapi::content::ContentBuilder::new()
-                    .schema(#media_type_schema)
+                #root::oapi::openapi::content::Content::new(#media_type_schema)
             };
 
             if let Some(ref example) = self.example {
@@ -178,8 +177,8 @@ impl ToTokens for RequestBodyAttr<'_> {
             match body_type {
                 PathType::Ref(_) => {
                     tokens.extend(quote! {
-                        #root::oapi::openapi::request_body::RequestBodyBuilder::new()
-                            .content("application/json", #content.build())
+                        #root::oapi::openapi::request_body::RequestBody::new()
+                            .content("application/json", #content)
                     });
                 }
                 PathType::MediaType(body_type) => {
@@ -190,9 +189,9 @@ impl ToTokens for RequestBodyAttr<'_> {
                         .as_deref()
                         .unwrap_or_else(|| type_tree.get_default_content_type());
                     tokens.extend(quote! {
-                        #root::oapi::openapi::request_body::RequestBodyBuilder::new()
-                            .content(#content_type, #content.build())
-                            .required(Some(#required))
+                        #root::oapi::openapi::request_body::RequestBody::new()
+                            .content(#content_type, #content)
+                            .required(#required)
                     });
                 }
                 PathType::InlineSchema(_, _) => {
@@ -203,10 +202,8 @@ impl ToTokens for RequestBodyAttr<'_> {
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             })
         }
-
-        tokens.extend(quote! { .build() })
     }
 }

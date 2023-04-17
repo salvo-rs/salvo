@@ -33,9 +33,7 @@ mod openapi;
 mod path;
 mod schema_type;
 mod security_requirement;
-mod shared;
 mod parse_utils;
-pub(crate) use shared::*;
 
 use crate::path::{Path, PathAttr};
 
@@ -372,11 +370,9 @@ impl ToTokens for ExternalDocs {
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             });
         }
-
-        tokens.extend(quote! { .build() })
     }
 }
 

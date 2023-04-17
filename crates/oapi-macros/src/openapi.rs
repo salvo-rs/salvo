@@ -106,12 +106,12 @@ impl ToTokens for Tag {
         let root = crate::root_crate();
         let name = &self.name;
         tokens.extend(quote! {
-            #root::oapi::openapi::tag::Tag::new().name(#name)
+            #root::oapi::openapi::tag::Tag::default().name(#name)
         });
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .description(Some(#description))
+                .description(#description)
             });
         }
 
@@ -120,8 +120,6 @@ impl ToTokens for Tag {
                 .external_docs(Some(#external_docs))
             });
         }
-
-        tokens.extend(quote! { .build() })
     }
 }
 
@@ -174,7 +172,7 @@ impl ToTokens for Server {
         let description = &self
             .description
             .as_ref()
-            .map(|description| quote! { .description(Some(#description)) });
+            .map(|description| quote! { .description(#description) });
 
         let parameters = self
             .variables
@@ -185,11 +183,11 @@ impl ToTokens for Server {
                 let description = &variable
                     .description
                     .as_ref()
-                    .map(|description| quote! { .description(Some(#description)) });
+                    .map(|description| quote! { .description(#description) });
                 let enum_values = &variable.enum_values.as_ref().map(|enum_values| {
                     let enum_values = enum_values.iter().collect::<Array<&LitStr>>();
 
-                    quote! { .enum_values(Some(#enum_values)) }
+                    quote! { .enum_values(#enum_values) }
                 });
 
                 quote! {
@@ -207,7 +205,6 @@ impl ToTokens for Server {
                 .url(#url)
                 #description
                 #parameters
-                .build()
         })
     }
 }
@@ -343,7 +340,7 @@ impl ToTokens for Components {
                     builder_tokens
                 });
 
-        tokens.extend(quote! { #builder_tokens.build() });
+        tokens.extend(quote! { #builder_tokens });
     }
 }
 

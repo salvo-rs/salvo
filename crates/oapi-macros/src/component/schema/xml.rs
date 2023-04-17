@@ -128,7 +128,5 @@ impl ToTokens for XmlAttr {
                 })
             }
         }
-
-        tokens.extend(quote! { .build() })
     }
 }

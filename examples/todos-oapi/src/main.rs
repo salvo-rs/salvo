@@ -7,44 +7,34 @@ use salvo::size_limiter;
 use self::models::*;
 
 // use utoipa::OpenApi;
-use salvo::oapi::openapi::{Components, Info, OpenApi, Tag, Paths};
+use salvo::oapi::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use salvo::oapi::openapi::{Components, Info, OpenApi, Paths, Tag};
 use salvo::oapi::swagger::{Config, SwaggerUi};
-use salvo::oapi::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify,
-};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
 static API_DOC: Lazy<OpenApi> = Lazy::new(|| {
-    let components = Components::new(); //.schema(models::Todo, models::TodoError);
+    let components = Components::new().add_security_scheme(
+        "api_key",
+        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
+    ); //.schema(models::Todo, models::TodoError);
     OpenApi::new(Info::new("abc", "0.0.1"))
         .paths(
-            Paths::new()
-                .path(list_todos)
-                .path(create_todo)
-                .path(delete_todo)
-                .path(update_todo),
+            Paths::new(), //     .path("list", list_todos)
+                          //     .path("lists", create_todo)
+                          //     .path("listxx", delete_todo)
+                          //     .path("listcsd", update_todo),
         )
         .components(components)
-        .modifier(&SecurityAddon)
-        .tag(Tag::new().name("todo").description("Todo items management endpoints."))
+        .tags(
+            vec![Tag::default()
+                .name("todo")
+                .description("Todo items management endpoints.")],
+        )
 });
 
 #[handler]
 async fn hello(res: &mut Response) {
     res.render("Hello");
-}
-
-struct SecurityAddon;
-
-impl Modify for SecurityAddon {
-    fn modify(&self, openapi: &mut openapi::OpenApi) {
-        let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
-        components.add_security_scheme(
-            "api_key",
-            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
-        )
-    }
 }
 
 #[tokio::main]
@@ -74,7 +64,7 @@ pub(crate) fn route() -> Router {
 
 #[handler]
 pub async fn openapi_json(res: &mut Response) {
-    res.render(Json(&API_DOC))
+    res.render(Json(&&*API_DOC))
 }
 
 #[salvo::oapi::endpoint(

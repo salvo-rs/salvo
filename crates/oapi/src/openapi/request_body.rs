@@ -33,13 +33,13 @@ impl RequestBody {
         Default::default()
     }
     /// Add description for [`RequestBody`].
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Define [`RequestBody`] required.
-    pub fn required(mut self, required: Option<Required>) -> Self {
-        set_value!(self required required)
+    pub fn required(mut self, required: Required) -> Self {
+        set_value!(self required Some(required))
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
@@ -52,15 +52,15 @@ impl RequestBody {
 
 /// Trait with convenience functions for documenting request bodies.
 ///
-/// With a single method call we can add [`Content`] to our [`RequestBodyBuilder`] and
+/// With a single method call we can add [`Content`] to our [`RequestBody`] and
 /// [`RequestBody`] that references a [schema][schema] using
 /// content-type `"application/json"`.
 ///
 /// _**Add json request body from schema ref.**_
 /// ```
-/// use salvo_oapi::openapi::request_body::{RequestBodyBuilder, RequestBodyExt};
+/// use salvo_oapi::openapi::request_body::{RequestBody, RequestBodyExt};
 ///
-/// let request = RequestBodyBuilder::new().json_schema_ref("EmailPayload").build();
+/// let request = RequestBody::new().json_schema_ref("EmailPayload");
 /// ```
 ///
 /// If serialized to JSON, the above will result in a requestBody schema like this.
@@ -98,8 +98,8 @@ impl RequestBodyExt for RequestBody {
 }
 
 #[cfg(feature = "openapi_extensions")]
-impl RequestBodyExt for RequestBodyBuilder {
-    fn json_schema_ref(self, ref_name: &str) -> RequestBodyBuilder {
+impl RequestBodyExt for RequestBody {
+    fn json_schema_ref(self, ref_name: &str) -> RequestBody {
         self.content(
             "application/json",
             crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
@@ -112,7 +112,7 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use super::{Content, RequestBody, RequestBodyBuilder, Required};
+    use super::{Content, RequestBody, RequestBody, Required};
 
     #[test]
     fn request_body_new() {
@@ -125,14 +125,13 @@ mod tests {
 
     #[test]
     fn request_body_builder() -> Result<(), serde_json::Error> {
-        let request_body = RequestBodyBuilder::new()
-            .description(Some("A sample requestBody"))
-            .required(Some(Required::True))
+        let request_body = RequestBody::new()
+            .description("A sample requestBody")
+            .required(Required::True)
             .content(
                 "application/json",
                 Content::new(crate::openapi::Ref::from_schema_name("EmailPayload")),
-            )
-            .build();
+            );
         let serialized = serde_json::to_string_pretty(&request_body)?;
         println!("serialized json:\n {serialized}");
         assert_json_eq!(
@@ -159,14 +158,13 @@ mod openapi_extensions_tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::openapi::request_body::RequestBodyBuilder;
+    use crate::openapi::request_body::RequestBody;
 
     use super::RequestBodyExt;
 
     #[test]
     fn request_body_ext() {
-        let request_body = RequestBodyBuilder::new()
-            .build()
+        let request_body = RequestBody::new()
             // build a RequestBody first to test the method
             .json_schema_ref("EmailPayload");
         assert_json_eq!(
@@ -185,9 +183,8 @@ mod openapi_extensions_tests {
 
     #[test]
     fn request_body_builder_ext() {
-        let request_body = RequestBodyBuilder::new()
-            .json_schema_ref("EmailPayload")
-            .build();
+        let request_body = RequestBody::new()
+            .json_schema_ref("EmailPayload");
         assert_json_eq!(
             request_body,
             json!({

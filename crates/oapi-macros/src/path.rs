@@ -361,11 +361,11 @@ struct Operation<'a> {
 impl ToTokens for Operation<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let root = crate::root_crate();
-        tokens.extend(quote! { #root::oapi::openapi::path::OperationBuilder::new() });
+        tokens.extend(quote! { #root::oapi::openapi::path::Operation::new() });
 
         if let Some(request_body) = self.request_body {
             tokens.extend(quote! {
-                .request_body(Some(#request_body))
+                .request_body(#request_body)
             })
         }
 
@@ -375,12 +375,12 @@ impl ToTokens for Operation<'_> {
         });
         if let Some(security_requirements) = self.security {
             tokens.extend(quote! {
-                .securities(Some(#security_requirements))
+                .securities(#security_requirements)
             })
         }
         let operation_id = &self.operation_id;
         tokens.extend(quote_spanned! { operation_id.span() =>
-            .operation_id(Some(#operation_id))
+            .operation_id(#operation_id)
         });
 
         if let Some(deprecated) = self.deprecated.map(Into::<Deprecated>::into) {

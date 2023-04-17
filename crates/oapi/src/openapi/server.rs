@@ -11,8 +11,6 @@
 //!
 //! Optionally it also supports parameter substitution with `{variable}` syntax.
 //!
-//! See [`Modify`][modify] trait for details how add servers to [`OpenApi`][openapi].
-//!
 //! # Examples
 //!
 //! Create new server with relative path.
@@ -40,7 +38,6 @@
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
-//! [modify]: ../../trait.Modify.html
 use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
@@ -109,8 +106,8 @@ impl Server {
     }
 
     /// Add or change description of the [`Server`].
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].
@@ -169,8 +166,8 @@ impl ServerVariable {
     }
 
     /// Add or change description of substituted parameter.
-    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change possible values used to substitute parameter.
@@ -215,7 +212,7 @@ mod tests {
             .description(Some("api version"))
             .default_value("v1"))
         .parameter("username", ServerVariableBuilder::new()
-            .default_value("the_user")).build();
+            .default_value("the_user"));
     r###"{
   "url": "/api/{version}/{username}",
   "variables": {
