@@ -44,15 +44,57 @@ use salvo_core::http::headers::{
 use salvo_core::http::{Method, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
+mod allow_credentials;
+mod allow_headers;
+mod allow_methods;
+mod allow_origin;
+mod expose_headers;
+mod max_age;
+mod vary;
+
+pub use self::{
+    allow_credentials::AllowCredentials, allow_headers::AllowHeaders, allow_methods::AllowMethods,
+    allow_origin::AllowOrigin, expose_headers::ExposeHeaders, max_age::MaxAge, vary::Vary,
+};
+
+#[allow(clippy::declare_interior_mutable_const)]
+const WILDCARD: HeaderValue = HeaderValue::from_static("*");
+
+/// Represents a wildcard value (`*`) used with some CORS headers such as
+/// [`CorsLayer::allow_methods`].
+#[derive(Debug, Clone, Copy)]
+#[must_use]
+pub struct Any;
+
+fn separated_by_commas<I>(mut iter: I) -> Option<HeaderValue>
+where
+    I: Iterator<Item = HeaderValue>,
+{
+    match iter.next() {
+        Some(fst) => {
+            let mut result = BytesMut::from(fst.as_bytes());
+            for val in iter {
+                result.reserve(val.len() + 1);
+                result.put_u8(b',');
+                result.extend_from_slice(val.as_bytes());
+            }
+
+            Some(HeaderValue::from_maybe_shared(result.freeze()).unwrap())
+        }
+        None => None,
+    }
+}
+
 /// A constructed via `salvo_cors::Cors::builder()`.
 #[derive(Clone, Debug)]
 pub struct CorsBuilder {
-    credentials: bool,
-    allowed_headers: HashSet<HeaderName>,
-    exposed_headers: HashSet<HeaderName>,
-    max_age: Option<u64>,
-    methods: HashSet<Method>,
-    origins: Option<HashSet<HeaderValue>>,
+    allow_credentials: AllowCredentials,
+    allow_headers: AllowHeaders,
+    allow_methods: AllowMethods,
+    allow_origin: AllowOrigin,
+    expose_headers: ExposeHeaders,
+    max_age: MaxAge,
+    vary: Vary,
 }
 impl Default for CorsBuilder {
     #[inline]
@@ -66,75 +108,52 @@ impl CorsBuilder {
     #[inline]
     pub fn new() -> Self {
         CorsBuilder {
-            credentials: false,
-            allowed_headers: HashSet::new(),
-            exposed_headers: HashSet::new(),
-            max_age: None,
-            methods: HashSet::new(),
-            origins: None,
+            allow_credentials: Default::default(),
+            allow_headers: Default::default(),
+            allow_methods: Default::default(),
+            allow_origin: Default::default(),
+            expose_headers: Default::default(),
+            max_age: Default::default(),
+            vary: Default::default(),
         }
     }
+    
+    /// A permissive configuration:
+    ///
+    /// - All request headers allowed.
+    /// - All methods allowed.
+    /// - All origins allowed.
+    /// - All headers exposed.
+    pub fn permissive() -> Self {
+        Self::new()
+            .allow_headers(Any)
+            .allow_methods(Any)
+            .allow_origin(Any)
+            .expose_headers(Any)
+    }
+
+    /// A very permissive configuration:
+    ///
+    /// - **Credentials allowed.**
+    /// - The method received in `Access-Control-Request-Method` is sent back
+    ///   as an allowed method.
+    /// - The origin of the preflight request is sent back as an allowed origin.
+    /// - The header names received in `Access-Control-Request-Headers` are sent
+    ///   back as allowed headers.
+    /// - No headers are currently exposed, but this may change in the future.
+    pub fn very_permissive() -> Self {
+        Self::new()
+            .allow_credentials(true)
+            .allow_headers(AllowHeaders::mirror_request())
+            .allow_methods(AllowMethods::mirror_request())
+            .allow_origin(AllowOrigin::mirror_request())
+    }
+
+
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
-    pub fn allow_credentials(mut self, allow: bool) -> Self {
-        self.credentials = allow;
-        self
-    }
-
-    /// Adds a method to the existing list of allowed request methods.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `http::Method`.
-    #[inline]
-    pub fn allow_method<M>(mut self, method: M) -> Self
-    where
-        Method: TryFrom<M>,
-    {
-        let method = match TryFrom::try_from(method) {
-            Ok(m) => m,
-            Err(_) => panic!("illegal Method"),
-        };
-        self.methods.insert(method);
-        self
-    }
-
-    /// Adds multiple methods to the existing list of allowed request methods.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `http::Method`.
-    #[inline]
-    pub fn allow_methods<I>(mut self, methods: I) -> Self
-    where
-        I: IntoIterator,
-        Method: TryFrom<I::Item>,
-    {
-        let iter = methods.into_iter().map(|m| match TryFrom::try_from(m) {
-            Ok(m) => m,
-            Err(_) => panic!("illegal Method"),
-        });
-        self.methods.extend(iter);
-        self
-    }
-
-    /// Adds a header to the list of allowed request headers.
-    ///
-    /// **Note**: These should match the values the browser sends via `Access-Control-Request-Headers`, e.g. `content-type`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the provided argument is not a valid `http::header::HeaderName`.
-    #[inline]
-    pub fn allow_header<H>(mut self, header: H) -> Self
-    where
-        HeaderName: TryFrom<H>,
-    {
-        let header = match TryFrom::try_from(header) {
-            Ok(m) => m,
-            Err(_) => panic!("illegal Header"),
-        };
-        self.allowed_headers.insert(header);
+    pub fn allow_credentials(mut self, allow_credentials: impl Into<AllowCredentials>) -> Self {
+        self.allow_credentials = allow_credentials.into();
         self
     }
 
@@ -146,16 +165,42 @@ impl CorsBuilder {
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn allow_headers<I>(mut self, headers: I) -> Self
-    where
-        I: IntoIterator,
-        HeaderName: TryFrom<I::Item>,
+    pub fn allow_headers(mut self, headers: impl Into<AllowHeaders>) -> Self
     {
-        let iter = headers.into_iter().map(|h| match TryFrom::try_from(h) {
-            Ok(h) => h,
-            Err(_) => panic!("illegal Header"),
-        });
-        self.allowed_headers.extend(iter);
+        self.allow_headers = headers.into();
+        self
+    }
+
+    /// Sets the `Access-Control-Max-Age` header.
+    ///
+    /// # Example
+    ///
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use salvo_core::prelude::*;
+    ///
+    /// let cors = salvo_cors::Cors::builder()
+    ///     .max_age(30) // 30u32 seconds
+    ///     .max_age(Duration::from_secs(30)); // or a Duration
+    /// ```
+    #[inline]
+    pub fn max_age(mut self, seconds: impl Seconds) -> Self {
+        self.max_age = Some(seconds.seconds());
+        self
+    }
+
+    /// Adds multiple methods to the existing list of allowed request methods.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided argument is not a valid `http::Method`.
+    #[inline]
+    pub fn allow_methods<I>(mut self, methods: I) -> Self
+    where
+        I: Into<AllowMethods>,
+    {
+        self.allow_methods = methods.into();
         self
     }
 
@@ -241,25 +286,6 @@ impl CorsBuilder {
         self
     }
 
-    /// Sets the `Access-Control-Max-Age` header.
-    ///
-    /// # Example
-    ///
-    ///
-    /// ```
-    /// use std::time::Duration;
-    /// use salvo_core::prelude::*;
-    ///
-    /// let cors = salvo_cors::Cors::builder()
-    ///     .max_age(30) // 30u32 seconds
-    ///     .max_age(Duration::from_secs(30)); // or a Duration
-    /// ```
-    #[inline]
-    pub fn max_age(mut self, seconds: impl Seconds) -> Self {
-        self.max_age = Some(seconds.seconds());
-        self
-    }
-
     /// Builds the `Cors` wrapper from the configured settings.
     ///
     /// This step isn't *required*, as the `CorsBuilder` itself can be passed
@@ -298,17 +324,12 @@ impl CorsBuilder {
     }
 }
 
+#[non_exhaustive]
+#[derive(Debug)]
 enum Forbidden {
     Origin,
     Method,
     Header,
-}
-
-impl fmt::Debug for Forbidden {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.debug_tuple("CorsForbidden").field(&self).finish()
-    }
 }
 
 impl Display for Forbidden {
@@ -325,6 +346,8 @@ impl Display for Forbidden {
 
 impl StdError for Forbidden {}
 
+#[non_exhaustive]
+#[derive(Debug)]
 enum Validated {
     Preflight(HeaderValue),
     Simple(HeaderValue),
@@ -491,19 +514,18 @@ impl Seconds for ::std::time::Duration {
     }
 }
 
-/// IntoOrigin
-pub trait IntoOrigin {
-    /// Convert to `Origin`.
-    fn into_origin(self) -> Origin;
+/// Returns an iterator over the three request headers that may be involved in a CORS preflight request.
+///
+/// This is the default set of header names returned in the `vary` header
+pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {
+    #[allow(deprecated)] // Can be changed when MSRV >= 1.53
+    array::IntoIter::new([
+        header::ORIGIN,
+        header::ACCESS_CONTROL_REQUEST_METHOD,
+        header::ACCESS_CONTROL_REQUEST_HEADERS,
+    ])
 }
 
-impl<'a> IntoOrigin for &'a str {
-    #[inline]
-    fn into_origin(self) -> Origin {
-        let (scheme, rest) = self.split_once("://").expect("bad url format");
-        Origin::try_from_parts(scheme, rest, None).expect("invalid origin")
-    }
-}
 
 #[cfg(test)]
 mod tests {
