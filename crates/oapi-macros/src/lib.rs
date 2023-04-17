@@ -1926,8 +1926,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 ///         Object::new()
 ///             .property("id", Object::new()
 ///                 .schema_type(SchemaType::Integer)
-///                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-///                 .build())
+///                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32))))
 ///             .required("id")
 ///             .property("name", Object::with_type(SchemaType::String))
 ///             .required("name")
@@ -1974,7 +1973,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
     });
     // schema.to_token_stream().into()
     let stream = schema.to_token_stream().into();
-    println!("{}", stream);
+    println!("bbbb{}", stream);
     stream
 }
 

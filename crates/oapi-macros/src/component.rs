@@ -558,8 +558,7 @@ impl<'c> ComponentSchema {
             });
 
             quote! {
-                #root::oapi::openapi::schema::Array::new()
-                    .items(#component_schema)
+                #root::oapi::openapi::schema::Array::new(#component_schema)
             }
         };
 
@@ -706,8 +705,7 @@ impl<'c> ComponentSchema {
                             },
                         );
                         quote! {
-                            #root::oapi::openapi::schema::Array::new()
-                                .items(#all_of)
+                            #root::oapi::openapi::schema::Array::new(#all_of)
                                 #nullable
                                 #description_stream
                                 #deprecated_stream

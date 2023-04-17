@@ -624,16 +624,13 @@ impl Object {
         self
     }
 
-    pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
-        mut self,
-        additional_properties: I,
-    ) -> Self {
+    pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(mut self, additional_properties: I) -> Self {
         set_value!(self additional_properties Some(Box::new(additional_properties.into())))
     }
 
     /// Add field to the required fields of [`Object`].
-    pub fn required(mut self, required_field:  impl Into<String>) -> Self {
-        self.required.push(Some(required_field.into()));
+    pub fn required(mut self, required_field: impl Into<String>) -> Self {
+        self.required.push(required_field.into());
         self
     }
 
@@ -823,7 +820,6 @@ impl From<Ref> for RefOr<Schema> {
     }
 }
 
-
 impl Default for RefOr<Schema> {
     fn default() -> Self {
         Self::T(Schema::Object(Object::new()))
@@ -831,7 +827,6 @@ impl Default for RefOr<Schema> {
 }
 
 impl ToArray for RefOr<Schema> {}
-
 
 /// Array represents [`Vec`] or [`slice`] type  of items.
 ///
@@ -1306,18 +1301,16 @@ mod tests {
 
     #[test]
     fn test_array_builder() {
-        let array: Array = Array::new()
-            .items(
-                Object::new().property(
-                    "id",
-                    Object::new()
-                        .schema_type(SchemaType::Integer)
-                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
-                        .description(Some("Id of credential"))
-                        .default(Some(json!(1i32))),
-                ),
-            )
-            .build();
+        let array: Array = Array::new(
+            Object::new().property(
+                "id",
+                Object::new()
+                    .schema_type(SchemaType::Integer)
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .description(Some("Id of credential"))
+                    .default(Some(json!(1i32))),
+            ),
+        );
 
         assert!(matches!(array.schema_type, SchemaType::Array));
     }
@@ -1383,7 +1376,7 @@ mod tests {
                 .property(
                     "test",
                     RefOr::T(Schema::Array(
-                        Array::new()
+                        Array::default()
                             .items(RefOr::T(Schema::Object(
                                 Object::new()
                                     .property("element", RefOr::Ref(Ref::new("#/test")))
@@ -1417,7 +1410,7 @@ mod tests {
                     RefOr::T(Schema::OneOf(
                         OneOf::new()
                             .item(Schema::Array(
-                                Array::new()
+                                Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
                                             .property("element", RefOr::Ref(Ref::new("#/test")))
@@ -1426,7 +1419,7 @@ mod tests {
                                     .build(),
                             ))
                             .item(Schema::Array(
-                                Array::new()
+                                Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
                                             .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
@@ -1462,7 +1455,7 @@ mod tests {
                     RefOr::T(Schema::AllOf(
                         AllOf::new()
                             .item(Schema::Array(
-                                Array::new()
+                                Array::default()
                                     .items(RefOr::T(Schema::Object(
                                         Object::new()
                                             .property("element", RefOr::Ref(Ref::new("#/test")))
@@ -1497,7 +1490,7 @@ mod tests {
     #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
         let ref_or_schema = RefOr::T(Schema::Array(
-            Array::new()
+            Array::default()
                 .items(RefOr::T(Schema::Object(
                     Object::new()
                         .property("element", RefOr::Ref(Ref::new("#/test")))
