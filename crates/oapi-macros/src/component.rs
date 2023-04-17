@@ -499,7 +499,7 @@ impl<'c> ComponentSchema {
                     object_name,
                 });
 
-                quote! { .additional_properties(Some(#schema_property)) }
+                quote! { .additional_properties(#schema_property) }
             });
 
         tokens.extend(quote! {

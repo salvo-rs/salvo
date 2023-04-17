@@ -99,15 +99,13 @@ impl<V: Variant> Enum<'_, V> {
         items.into_iter().collect()
     }
 
-    pub fn with_title<I: Into<TokenStream>>(mut self, title: Option<I>) -> Self {
-        self.title = title.map(|title| title.into());
-
+    pub fn with_title<I: Into<TokenStream>>(mut self, title: I) -> Self {
+        self.title = Some(title.into());
         self
     }
 
-    pub fn with_example<I: Into<TokenStream>>(mut self, example: Option<I>) -> Self {
-        self.example = example.map(|example| example.into());
-
+    pub fn with_example<I: Into<TokenStream>>(mut self, example: I) -> Self {
+        self.example = Some(example.into());
         self
     }
 }

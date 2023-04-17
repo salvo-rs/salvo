@@ -202,8 +202,8 @@ impl OpenApi {
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
-    pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
-        set_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+    pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
+        set_value!(self servers Some(servers.into_iter().collect()))
     }
 
     /// Add [`Paths`] to configure operations and endpoints of the API.
@@ -212,23 +212,23 @@ impl OpenApi {
     }
 
     /// Add [`Components`] to configure reusable schemas.
-    pub fn components(mut self, components: impl Into<Option<Components>>) -> Self {
-        set_value!(self components components.into())
+    pub fn components(mut self, components: impl Into<Components>) -> Self {
+        set_value!(self components Some(components.into()))
     }
 
     /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
-    pub fn security<I: IntoIterator<Item = SecurityRequirement>>(mut self, security: Option<I>) -> Self {
-        set_value!(self security security.map(|security| security.into_iter().collect()))
+    pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
+        set_value!(self security Some(security.into_iter().collect()))
     }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
-    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: Option<I>) -> Self {
-        set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
+    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
+        set_value!(self tags Some(tags.into_iter().collect()))
     }
 
     /// Add [`ExternalDocs`] for referring additional documentation.
-    pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
-        set_value!(self external_docs external_docs)
+    pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
+        set_value!(self external_docs Some(external_docs))
     }
 }
 

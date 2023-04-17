@@ -176,10 +176,9 @@ impl ServerVariable {
     /// Add or change possible values used to substitute parameter.
     pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(
         mut self,
-        enum_values: Option<I>,
+        enum_values: I,
     ) -> Self {
-        set_value!(self enum_values enum_values
-            .map(|enum_values| enum_values.into_iter().map(|value| value.into()).collect()))
+        set_value!(self enum_values Some(enum_values.into_iter().map(|value| value.into()).collect()))
     }
 }
 

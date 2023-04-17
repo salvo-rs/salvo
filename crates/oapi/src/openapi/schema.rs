@@ -661,23 +661,23 @@ impl Object {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 
     /// Add or change write only flag for [`Object`].
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 
     /// Add or change read only flag for [`Object`].
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
+    pub fn read_only(mut self, read_only:bool) -> Self {
+        set_value!(self read_only Some(read_only))
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
-    pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        set_value!(self xml xml)
+    pub fn xml(mut self, xml: Xml) -> Self {
+        set_value!(self xml Some(xml))
     }
 
     /// Add or change nullable flag for [`Object`].
@@ -686,53 +686,53 @@ impl Object {
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
-    pub fn multiple_of(mut self, multiple_of: Option<f64>) -> Self {
-        set_value!(self multiple_of multiple_of)
+    pub fn multiple_of(mut self, multiple_of: f64) -> Self {
+        set_value!(self multiple_of Some(multiple_of))
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
-    pub fn maximum(mut self, maximum: Option<f64>) -> Self {
-        set_value!(self maximum maximum)
+    pub fn maximum(mut self, maximum: f64) -> Self {
+        set_value!(self maximum Some(maximum))
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
-    pub fn minimum(mut self, minimum: Option<f64>) -> Self {
-        set_value!(self minimum minimum)
+    pub fn minimum(mut self, minimum: f64) -> Self {
+        set_value!(self minimum Some(minimum))
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
-    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<f64>) -> Self {
-        set_value!(self exclusive_maximum exclusive_maximum)
+    pub fn exclusive_maximum(mut self, exclusive_maximum: f64) -> Self {
+        set_value!(self exclusive_maximum Some(exclusive_maximum))
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
-    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<f64>) -> Self {
-        set_value!(self exclusive_minimum exclusive_minimum)
+    pub fn exclusive_minimum(mut self, exclusive_minimum: f64) -> Self {
+        set_value!(self exclusive_minimum Some(exclusive_minimum))
     }
 
     /// Set or change maximum length for `string` values.
-    pub fn max_length(mut self, max_length: Option<usize>) -> Self {
-        set_value!(self max_length max_length)
+    pub fn max_length(mut self, max_length: usize) -> Self {
+        set_value!(self max_length Some(max_length))
     }
 
     /// Set or change minimum length for `string` values.
-    pub fn min_length(mut self, min_length: Option<usize>) -> Self {
-        set_value!(self min_length min_length)
+    pub fn min_length(mut self, min_length: usize) -> Self {
+        set_value!(self min_length Some(min_length))
     }
 
     /// Set or change a valid regular expression for `string` value to match.
-    pub fn pattern<I: Into<String>>(mut self, pattern: Option<I>) -> Self {
-        set_value!(self pattern pattern.map(|pattern| pattern.into()))
+    pub fn pattern<I: Into<String>>(mut self, pattern: I) -> Self {
+        set_value!(self pattern Some(pattern.into()))
     }
 
     /// Set or change maximum number of properties the [`Object`] can hold.
-    pub fn max_properties(mut self, max_properties: Option<usize>) -> Self {
-        set_value!(self max_properties max_properties)
+    pub fn max_properties(mut self, max_properties: usize) -> Self {
+        set_value!(self max_properties Some(max_properties))
     }
 
     /// Set or change minimum number of properties the [`Object`] can hold.
-    pub fn min_properties(mut self, min_properties: Option<usize>) -> Self {
-        set_value!(self min_properties min_properties)
+    pub fn min_properties(mut self, min_properties: usize) -> Self {
+        set_value!(self min_properties Some(min_properties))
     }
 }
 
@@ -817,6 +817,12 @@ impl Ref {
 impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
+    }
+}
+
+impl<T> From<T> for RefOr<T> {
+    fn from(t: T) -> Self {
+        Self::T(t)
     }
 }
 
@@ -915,8 +921,8 @@ impl Array {
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
-    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
+    pub fn description<I: Into<String>>(mut self, description: I) -> Self {
+        set_value!(self description Some(description.into()))
     }
 
     /// Add or change deprecated status for [`Array`].
@@ -1225,7 +1231,7 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = Object::new()
-            .additional_properties(Some(Object::new().schema_type(SchemaType::String)))
+            .additional_properties(Object::new().schema_type(SchemaType::String))
             .build();
         assert_json_eq!(
             json_value,
@@ -1238,7 +1244,7 @@ mod tests {
         );
 
         let json_value = Object::new()
-            .additional_properties(Some(Ref::from_schema_name("ComplexModel")))
+            .additional_properties(Ref::from_schema_name("ComplexModel"))
             .build();
         assert_json_eq!(
             json_value,
@@ -1541,7 +1547,7 @@ mod tests {
             Object::new()
                 .property(
                     "map",
-                    Object::new().additional_properties(Some(AdditionalProperties::FreeForm(true))),
+                    Object::new().additional_properties(AdditionalProperties::FreeForm(true)),
                 )
                 .build(),
         );
@@ -1565,9 +1571,9 @@ mod tests {
             Object::new()
                 .property(
                     "map",
-                    Object::new().additional_properties(Some(
+                    Object::new().additional_properties(
                         Object::new().property("name", Object::with_type(SchemaType::String)),
-                    )),
+                    ),
                 )
                 .build(),
         );

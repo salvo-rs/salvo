@@ -76,9 +76,3 @@ impl Example {
         set_value!(self external_value external_value.into())
     }
 }
-
-impl From<Example> for RefOr<Example> {
-    fn from(example: Example) -> Self {
-        Self::T(example)
-    }
-}

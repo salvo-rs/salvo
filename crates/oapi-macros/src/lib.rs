@@ -25,6 +25,7 @@ use syn::{
     token::Bracket,
     DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
 };
+use proc_macro_crate::{crate_name, FoundCrate};
 
 mod component;
 mod doc_comment;
@@ -33,6 +34,7 @@ mod path;
 mod schema_type;
 mod security_requirement;
 mod shared;
+mod parse_utils;
 pub(crate) use shared::*;
 
 use crate::path::{Path, PathAttr};
@@ -45,11 +47,15 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct ArgValue {
-    name: String,
-    original_name: String,
+// https://github.com/bkchr/proc-macro-crate/issues/14
+pub(crate) fn root_crate() -> syn::Ident {
+    match crate_name("salvo-oapi") {
+        Ok(oapi) => match oapi {
+            FoundCrate::Itself => syn::Ident::new("crate", Span::call_site()),
+            FoundCrate::Name(name) => syn::Ident::new(&name, Span::call_site()),
+        },
+        Err(_) => Ident::new("salvo", Span::call_site()),
+    }
 }
 
 #[proc_macro_error]
@@ -483,84 +489,5 @@ trait OptionExt<T> {
 impl<T> OptionExt<T> for Option<T> {
     fn expect_or_abort(self, message: &str) -> T {
         self.unwrap_or_else(|| abort!(Span::call_site(), message))
-    }
-}
-
-/// Parsing utils
-mod parse_utils {
-    use proc_macro2::{Group, Ident, TokenStream};
-    use syn::{
-        parenthesized,
-        parse::{Parse, ParseStream},
-        punctuated::Punctuated,
-        token::Comma,
-        Error, LitBool, LitStr, Token,
-    };
-
-    use crate::ResultExt;
-
-    pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
-        input
-            .parse::<Token![=]>()
-            .expect_or_abort("expected equals token before value assignment");
-        next()
-    }
-
-    pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
-        Ok(parse_next(input, || input.parse::<LitStr>())?.value())
-    }
-
-    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
-    where
-        T: Sized,
-        T: Parse,
-        R: FromIterator<T>,
-    {
-        Punctuated::<Group, Comma>::parse_terminated(input).and_then(|groups| {
-            groups
-                .into_iter()
-                .map(|group| syn::parse2::<T>(group.stream()))
-                .collect::<syn::Result<R>>()
-        })
-    }
-
-    pub fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Comma>>
-    where
-        T: Parse,
-    {
-        let content;
-        parenthesized!(content in input);
-        Punctuated::<T, Comma>::parse_terminated(&content)
-    }
-
-    pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
-        if input.peek(Token![=]) && input.peek2(LitBool) {
-            input.parse::<Token![=]>()?;
-
-            Ok(input.parse::<LitBool>()?.value())
-        } else {
-            Ok(true)
-        }
-    }
-
-    /// Parse `json!(...)` as a [`TokenStream`].
-    pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
-        if input.peek(syn::Ident) && input.peek2(Token![!]) {
-            input.parse::<Ident>().and_then(|ident| {
-                if ident != "json" {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!("unexpected token {ident}, expected: json!(...)"),
-                    ));
-                }
-
-                Ok(ident)
-            })?;
-            input.parse::<Token![!]>()?;
-
-            Ok(input.parse::<Group>()?.stream())
-        } else {
-            Err(Error::new(input.span(), "unexpected token, expected json!(...)"))
-        }
     }
 }

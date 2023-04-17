@@ -50,7 +50,7 @@ pub struct Schema<'a> {
 }
 
 impl<'a> Schema<'a> {
-    const TO_SCHEMA_LIFETIME: &'static str = "'a";
+    const TO_SCHEMA_LIFETIME: &'static str = "'__s";
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
@@ -1020,14 +1020,18 @@ impl ComplexEnum<'_> {
                 let example = pop_feature!(unit_features => Feature::Example(_));
 
                 // Unit variant is just simple enum with single variant.
-                Enum::new([SimpleEnumVariant {
+               let mut sev = Enum::new([SimpleEnumVariant {
                     value: variant_name
                         .unwrap_or(Cow::Borrowed(&name))
                         .to_token_stream(),
-                }])
-                .with_title(title.as_ref().map(ToTokens::to_token_stream))
-                .with_example(example.as_ref().map(ToTokens::to_token_stream))
-                .to_token_stream()
+                }]);
+                if let Some(title) = title {
+                    sev = sev.with_title(title.to_token_stream());
+                }
+                if let Some(example) = example {
+                    sev = sev.with_example(example.to_token_stream());
+                }
+                sev.to_token_stream()
             }
         }
     }

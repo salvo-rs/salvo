@@ -141,12 +141,6 @@ impl Response {
     }
 }
 
-impl From<Response> for RefOr<Response> {
-    fn from(res: Response) -> Self {
-        Self::T(res)
-    }
-}
-
 impl From<Ref> for RefOr<Response> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
