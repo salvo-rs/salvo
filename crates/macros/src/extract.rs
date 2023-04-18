@@ -55,15 +55,15 @@ impl Parse for ExtractStructInfo {
         let mut extract = Self::default();
         while !input.is_empty() {
             let id = input.parse::<syn::Ident>()?;
-            if id.to_string() == "default_source" {
+            if id == "default_source" {
                 let item;
                 syn::parenthesized!(item in input);
                 extract.default_sources.push(item.parse::<SourceInfo>()?);
-            } else if id.to_string() == "rename_all" {
+            } else if id == "rename_all" {
                 input.parse::<Token![=]>()?;
                 let expr = input.parse::<Expr>()?;
                 extract.rename_all = Some(expr_lit_value(&expr)?);
-            } else if id.to_string() == "internal" {
+            } else if id == "internal" {
                 extract.internal = true;
             } else {
                 return Err(input.error("unexpected attribute"));
@@ -85,17 +85,17 @@ impl Parse for ExtractFieldInfo {
         let mut extract = Self::default();
         while !input.is_empty() {
             let id = input.parse::<syn::Ident>()?;
-            if id.to_string() == "source" {
+            if id == "source" {
                 let item;
                 syn::parenthesized!(item in input);
                 extract.sources.push(item.parse::<SourceInfo>()?);
-            } else if id.to_string() == "rename" {
+            } else if id == "rename" {
                 input.parse::<Token![=]>()?;
                 print!("rename: 1111");
                 let expr = input.parse::<Expr>()?;
                 extract.rename = Some(expr_lit_value(&expr)?);
                 print!("rename: {:?}", extract.rename);
-            } else if id.to_string() == "alias" {
+            } else if id == "alias" {
                 input.parse::<Token![=]>()?;
                 let expr = input.parse::<Expr>()?;
                 extract.aliases.push(expr_lit_value(&expr)?);
@@ -122,9 +122,9 @@ impl Parse for SourceInfo {
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
         for field in fields {
             let id = field.path.get_ident().unwrap();
-            if id.to_string() == "from" {
+            if id == "from" {
                 source.from = expr_lit_value(&field.value)?;
-            } else if id.to_string() == "format" {
+            } else if id == "format" {
                 source.format = expr_lit_value(&field.value)?;
             } else {
                 return Err(input.error("unexpected attribute"));
@@ -178,7 +178,10 @@ impl ExtractibleArgs {
         let data = match &input.data {
             syn::Data::Struct(data) => data,
             _ => {
-                return Err(Error::new_spanned(ident, "extractible can only be applied to an struct.").into());
+                return Err(Error::new_spanned(
+                    ident,
+                    "extractible can only be applied to an struct.",
+                ));
             }
         };
         let mut fields = Vec::with_capacity(data.fields.len());
