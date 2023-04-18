@@ -52,7 +52,10 @@ impl AllowCredentials {
             AllowCredentialsInner::Judge(c) => c(origin?, req, depot),
         };
 
-        allow_creds.then_some((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true")))
+        allow_creds.then_some((
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            HeaderValue::from_static("true"),
+        ))
     }
 }
 

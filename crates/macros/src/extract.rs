@@ -178,7 +178,10 @@ impl ExtractibleArgs {
         let data = match &input.data {
             syn::Data::Struct(data) => data,
             _ => {
-                return Err(Error::new_spanned(ident, "extractible can only be applied to an struct."));
+                return Err(Error::new_spanned(
+                    ident,
+                    "extractible can only be applied to an struct.",
+                ));
             }
         };
         let mut fields = Vec::with_capacity(data.fields.len());

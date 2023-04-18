@@ -1,5 +1,5 @@
-use salvo_core::http::{header::HeaderName, HeaderValue};
 use super::preflight_request_headers;
+use salvo_core::http::{header::HeaderName, HeaderValue};
 
 /// Holds configuration for how to set the [`Vary`][mdn] header.
 ///

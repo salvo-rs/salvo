@@ -148,12 +148,20 @@ impl<'a> From<&'a String> for AllowOrigin {
 
 impl<'a> From<Vec<&'a str>> for AllowOrigin {
     fn from(vals: Vec<&'a str>) -> Self {
-        Self::list(vals.iter().map(|v| HeaderValue::from_str(v).unwrap()).collect::<Vec<_>>())
+        Self::list(
+            vals.iter()
+                .map(|v| HeaderValue::from_str(v).unwrap())
+                .collect::<Vec<_>>(),
+        )
     }
 }
 impl<'a> From<&'a Vec<String>> for AllowOrigin {
     fn from(vals: &'a Vec<String>) -> Self {
-        Self::list(vals.iter().map(|v| HeaderValue::from_str(v).unwrap()).collect::<Vec<_>>())
+        Self::list(
+            vals.iter()
+                .map(|v| HeaderValue::from_str(v).unwrap())
+                .collect::<Vec<_>>(),
+        )
     }
 }
 
