@@ -1,6 +1,5 @@
 [workspace]
-members = ["crates/*", "examples/*"]
-exclude = ["examples/work-with-tower", "examples/db-prisma-orm", "examples/with-listenfd", "examples/ws-chat-with-salvo-websocket"]
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.38.0"

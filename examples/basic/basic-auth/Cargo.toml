@@ -1,0 +1,12 @@
+[package]
+name = "example-basic-auth"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+
+[dependencies]
+salvo = { workspace = true, features = ["basic-auth", "test"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
