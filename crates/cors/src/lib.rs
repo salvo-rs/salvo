@@ -298,17 +298,11 @@ impl CorsBuilder {
     }
 }
 
+#[derive(Debug)]
 enum Forbidden {
     Origin,
     Method,
     Header,
-}
-
-impl fmt::Debug for Forbidden {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.debug_tuple("CorsForbidden").field(&self).finish()
-    }
 }
 
 impl Display for Forbidden {
