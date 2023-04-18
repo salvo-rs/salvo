@@ -1,0 +1,179 @@
+use std::{fmt, sync::Arc};
+
+use salvo_core::http::header::{self, HeaderName, HeaderValue};
+use salvo_core::{Depot, Request};
+
+use super::{Any, WILDCARD};
+
+/// Holds configuration for how to set the [`Access-Control-Allow-Origin`][mdn] header.
+///
+/// See [`Cors::allow_origin`] for more details.
+///
+/// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+/// [`Cors::allow_origin`]: super::Cors::allow_origin
+#[derive(Clone, Default)]
+#[must_use]
+pub struct AllowOrigin(OriginInner);
+
+type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
+impl AllowOrigin {
+    /// Allow any origin by sending a wildcard (`*`)
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn any() -> Self {
+        Self(OriginInner::Exact(WILDCARD.clone()))
+    }
+
+    /// Set a single allowed origin
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn exact(origin: HeaderValue) -> Self {
+        Self(OriginInner::Exact(origin))
+    }
+
+    /// Set multiple allowed origins
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// # Panics
+    ///
+    /// If the iterator contains a wildcard (`*`).
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn list<I>(origins: I) -> Self
+    where
+        I: IntoIterator<Item = HeaderValue>,
+    {
+        let origins = origins.into_iter().collect::<Vec<_>>();
+        if origins.iter().any(|o| o == WILDCARD) {
+            panic!("Wildcard origin (`*`) cannot be passed to `AllowOrigin::list`. Use `AllowOrigin::any()` instead");
+        } else {
+            Self(OriginInner::List(origins))
+        }
+    }
+
+    /// Set the allowed origins from a predicate
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn judge<F>(f: F) -> Self
+    where
+        F: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
+    {
+        Self(OriginInner::Judge(Arc::new(f)))
+    }
+
+    /// Allow any origin, by mirroring the request origin
+    ///
+    /// This is equivalent to
+    /// [`AllowOrigin::predicate(|_, _| true)`][Self::predicate].
+    ///
+    /// See [`Cors::allow_origin`] for more details.
+    ///
+    /// [`Cors::allow_origin`]: super::Cors::allow_origin
+    pub fn mirror_request() -> Self {
+        Self::judge(|_, _, _| true)
+    }
+
+    pub(super) fn is_wildcard(&self) -> bool {
+        matches!(&self.0, OriginInner::Exact(v) if v == WILDCARD)
+    }
+
+    pub(super) fn to_header(
+        &self,
+        origin: Option<&HeaderValue>,
+        req: &Request,
+        depot: &Depot,
+    ) -> Option<(HeaderName, HeaderValue)> {
+        let allow_origin = match &self.0 {
+            OriginInner::Exact(v) => v.clone(),
+            OriginInner::List(l) => origin.filter(|o| l.contains(o))?.clone(),
+            OriginInner::Judge(c) => origin.filter(|origin| c(origin, req, depot))?.clone(),
+        };
+
+        Some((header::ACCESS_CONTROL_ALLOW_ORIGIN, allow_origin))
+    }
+}
+
+impl fmt::Debug for AllowOrigin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            OriginInner::Exact(inner) => f.debug_tuple("Exact").field(inner).finish(),
+            OriginInner::List(inner) => f.debug_tuple("List").field(inner).finish(),
+            OriginInner::Judge(_) => f.debug_tuple("Judge").finish(),
+        }
+    }
+}
+
+impl From<Any> for AllowOrigin {
+    fn from(_: Any) -> Self {
+        Self::any()
+    }
+}
+
+impl From<HeaderValue> for AllowOrigin {
+    fn from(val: HeaderValue) -> Self {
+        Self::exact(val)
+    }
+}
+
+impl<const N: usize> From<[HeaderValue; N]> for AllowOrigin {
+    fn from(arr: [HeaderValue; N]) -> Self {
+        Self::list(arr)
+    }
+}
+
+impl From<Vec<HeaderValue>> for AllowOrigin {
+    fn from(vec: Vec<HeaderValue>) -> Self {
+        Self::list(vec)
+    }
+}
+
+impl<'a> From<&'a str> for AllowOrigin {
+    fn from(val: &'a str) -> Self {
+        Self::exact(HeaderValue::from_str(val).unwrap())
+    }
+}
+
+impl<'a> From<&'a String> for AllowOrigin {
+    fn from(val: &'a String) -> Self {
+        Self::exact(HeaderValue::from_str(val).unwrap())
+    }
+}
+
+impl<'a> From<Vec<&'a str>> for AllowOrigin {
+    fn from(vals: Vec<&'a str>) -> Self {
+        Self::list(
+            vals.iter()
+                .map(|v| HeaderValue::from_str(v).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    }
+}
+impl<'a> From<&'a Vec<String>> for AllowOrigin {
+    fn from(vals: &'a Vec<String>) -> Self {
+        Self::list(
+            vals.iter()
+                .map(|v| HeaderValue::from_str(v).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    }
+}
+
+#[derive(Clone)]
+enum OriginInner {
+    Exact(HeaderValue),
+    List(Vec<HeaderValue>),
+    Judge(JudgeFn),
+}
+
+impl Default for OriginInner {
+    fn default() -> Self {
+        Self::List(Vec::new())
+    }
+}
