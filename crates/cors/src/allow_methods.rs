@@ -1,5 +1,5 @@
+use std::fmt;
 use std::sync::Arc;
-use std::{fmt};
 
 use salvo_core::http::header::{self, HeaderName, HeaderValue};
 use salvo_core::http::Method;

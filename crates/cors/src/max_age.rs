@@ -89,7 +89,6 @@ impl From<usize> for MaxAge {
     }
 }
 
-
 impl From<i64> for MaxAge {
     fn from(max_age: i64) -> Self {
         Self(MaxAgeInner::Exact(max_age.into()))
