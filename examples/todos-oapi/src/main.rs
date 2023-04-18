@@ -1,6 +1,5 @@
 use once_cell::sync::Lazy;
 
-use salvo::oapi::openapi;
 use salvo::prelude::*;
 use salvo::size_limiter;
 

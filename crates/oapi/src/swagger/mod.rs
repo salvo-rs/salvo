@@ -337,7 +337,6 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
         path
     };
 
-println!("===========path: {}", path);
     if let Some(file) = SwaggerUiDist::get(path) {
         let mut bytes = file.data;
 
