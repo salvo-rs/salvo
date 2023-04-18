@@ -114,7 +114,7 @@ impl Server {
     ///
     /// * `name` Defines name of the parameter which is being substituted within the url. If url has
     ///   `{username}` substitution then the name should be `username`.
-    /// * `parameter` Use [`ServerVariableBuilder`] to define how the parameter is being substituted
+    /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
     ///   within the url.
     pub fn parameter<N: Into<String>, V: Into<ServerVariable>>(
         mut self,

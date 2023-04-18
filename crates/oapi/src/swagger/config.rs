@@ -17,19 +17,19 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 ///
 /// In simple case create config directly from url that points to the api doc json.
 /// ```rust
-/// # use salvo_swagger_ui::Config;
+/// # use salvo::oapi::swaggerConfig;
 /// let config = Config::from("/api-doc.json");
 /// ```
 ///
 /// If there is multiple api docs to serve config can be also directly created with [`Config::new`]
 /// ```rust
-/// # use salvo_swagger_ui::Config;
+/// # use salvo::oapi::swaggerConfig;
 /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
 /// ```
 ///
 /// Or same as above but more verbose syntax.
 /// ```rust
-/// # use salvo_swagger_ui::{Config, Url};
+/// # use salvo::oapi::swagger{Config, Url};
 /// let config = Config::new([
 ///     Url::new("api1", "/api-docs/openapi1.json"),
 ///     Url::new("api2", "/api-docs/openapi2.json")
@@ -38,7 +38,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 ///
 /// With oauth config.
 /// ```rust
-/// # use salvo_swagger_ui::{Config, oauth};
+/// # use salvo::oapi::swagger{Config, oauth};
 /// let config = Config::with_oauth_config(
 ///     ["/api-docs/openapi1.json", "/api-docs/openapi2.json"],
 ///     oauth::Config::new(),
@@ -219,13 +219,12 @@ impl<'a> Config<'a> {
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
     /// [`Url`]s provided to the [`Config`] will only change the urls Swagger UI is going to use to
-    /// fetch the API document. This does not change the URL that is defined with [`SwaggerUi::url`]
-    /// or [`SwaggerUi::urls`] which defines the URL the API document is exposed from.
+    /// fetch the API document.
     ///
     /// # Examples
     /// Create new config with 2 api doc urls.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
     /// ```
     pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
@@ -237,7 +236,7 @@ impl<'a> Config<'a> {
     /// # Examples
     /// Create new config with oauth config.
     /// ```rust
-    /// # use salvo_swagger_ui::{Config, oauth};
+    /// # use salvo::oapi::swagger{Config, oauth};
     /// let config = Config::with_oauth_config(
     ///     ["/api-docs/openapi1.json", "/api-docs/openapi2.json"],
     ///     oauth::Config::new(),
@@ -256,7 +255,7 @@ impl<'a> Config<'a> {
     ///
     /// Set external config url.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .config_url("http://url.to.external.config");
     /// ```
@@ -274,7 +273,7 @@ impl<'a> Config<'a> {
     ///
     /// Set custom dom id where the Swagger UI will place it's content.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"]).dom_id("#my-id");
     /// ```
     pub fn dom_id<S: Into<String>>(mut self, dom_id: S) -> Self {
@@ -292,7 +291,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable query config.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .query_config_enabled(true);
     /// ```
@@ -314,7 +313,7 @@ impl<'a> Config<'a> {
     ///
     /// Disable the deep linking.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .deep_linking(false);
     /// ```
@@ -332,7 +331,7 @@ impl<'a> Config<'a> {
     ///
     /// Allow operation id to be shown.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_operation_id(true);
     /// ```
@@ -350,7 +349,7 @@ impl<'a> Config<'a> {
     ///
     /// Configure Swagger to use Base Layout instead of Standalone
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .use_base_layout();
     /// ```
@@ -368,7 +367,7 @@ impl<'a> Config<'a> {
     ///
     /// Hide all the models.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_models_expand_depth(-1);
     /// ```
@@ -383,7 +382,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_expand_depth(1);
     /// ```
@@ -403,7 +402,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_rendering(r#"["example"*, "model"]"#);
     /// ```
@@ -420,7 +419,7 @@ impl<'a> Config<'a> {
     /// # Examples
     /// Enable request duration of the _**'Try it out'**_ requests.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_request_duration(true);
     /// ```
@@ -439,7 +438,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .doc_expansion(r#"["list"*, "full", "none"]"#);
     /// ```
@@ -460,7 +459,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable filtering.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .filter(true);
     /// ```
@@ -478,7 +477,7 @@ impl<'a> Config<'a> {
     ///
     /// Display only 4 operations.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .max_displayed_tags(4);
     /// ```
@@ -495,7 +494,7 @@ impl<'a> Config<'a> {
     ///
     /// Show vendor extensions.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_extensions(true);
     /// ```
@@ -513,7 +512,7 @@ impl<'a> Config<'a> {
     ///
     /// Show common extensions.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_common_extensions(true);
     /// ```
@@ -531,7 +530,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable _**'Try it out'**_ section by default.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .try_it_out_enabled(true);
     /// ```
@@ -551,7 +550,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable request snippets section.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .request_snippets_enabled(true);
     /// ```
@@ -567,7 +566,7 @@ impl<'a> Config<'a> {
     ///
     /// Add oauth redirect url.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .oauth2_redirect_url("http://my.oauth2.redirect.url");
     /// ```
@@ -585,7 +584,7 @@ impl<'a> Config<'a> {
     ///
     /// Use request after `requestInterceptor` to produce the curl command.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_mutated_request(true);
     /// ```
@@ -608,14 +607,14 @@ impl<'a> Config<'a> {
     ///
     /// Set allowed http methods explicitly.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .supported_submit_methods(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
     /// ```
     ///
     /// Allow _**'Try it out'**_ for only GET operations.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .supported_submit_methods(["get"]);
     /// ```
@@ -645,7 +644,7 @@ impl<'a> Config<'a> {
     ///
     /// Disable the validator.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .validator_url("none");
     /// ```
@@ -667,7 +666,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable passing credentials to CORS requests.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .with_credentials(true);
     /// ```
@@ -686,7 +685,7 @@ impl<'a> Config<'a> {
     ///
     /// Persists authorization throughout browser close and refresh.
     /// ```rust
-    /// # use salvo_swagger_ui::Config;
+    /// # use salvo::oapi::swaggerConfig;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .persist_authorization(true);
     /// ```

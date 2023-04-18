@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::openapi::{Ref, RefOr};
+use crate::{Ref, RefOr};
 use crate::IntoResponses;
 
 use super::{header::Header, set_value, Content};

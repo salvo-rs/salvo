@@ -1,6 +1,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-pub mod openapi;
+mod openapi;
+pub use openapi::*;
 pub mod swagger;
 
 use std::collections::{BTreeMap, HashMap};
@@ -75,18 +76,18 @@ pub use salvo_oapi_macros::*;
 pub trait ToSchema<'__s> {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
+    fn schema() -> (&'__s str, RefOr<schema::Schema>);
 
     /// Optional set of alias schemas for the [`ToSchema::schema`].
     ///
     /// Typically there is no need to manually implement this method but it is instead implemented
     /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
+    fn aliases() -> Vec<(&'__s str, schema::Schema)> {
         Vec::new()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
+impl<'__s, T: ToSchema<'__s>> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
         T::schema().1
     }
@@ -94,13 +95,13 @@ impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema
 
 
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
-/// This will serialize to _`null`_ in JSON and [`openapi::schema::empty`] is used to create the
-/// [`openapi::schema::Schema`] for the type.
+/// This will serialize to _`null`_ in JSON and [`schema::empty`] is used to create the
+/// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
 
 impl<'__s> ToSchema<'__s> for TupleUnit {
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
-        ("TupleUnit", openapi::schema::empty().into())
+    fn schema() -> (&'__s str, RefOr<schema::Schema>) {
+        ("TupleUnit", schema::empty().into())
     }
 }
 
@@ -113,7 +114,7 @@ macro_rules! impl_partial_schema {
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl PartialSchema for $($tt)* {
-            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+            fn schema() -> RefOr<schema::Schema> {
                 schema!( $($tt)* ).into()
             }
         }
@@ -198,7 +199,7 @@ mod oapi {
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 pub trait PartialSchema {
     /// Return ref or schema of implementing type that can then be used to construct combined schemas.
-    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
+    fn schema() -> RefOr<schema::Schema>;
 }
 
 #[rustfmt::skip]
@@ -212,19 +213,19 @@ impl_partial_schema_primitive!(
 impl_partial_schema!(&str);
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Option<Vec<T>>).into()
     }
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             [T]
@@ -234,7 +235,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             &[T]
@@ -244,7 +245,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             &mut [T]
@@ -254,7 +255,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             Option<&[T]>
@@ -264,7 +265,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             Option<&mut [T]>
@@ -274,13 +275,13 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
 }
 
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             BTreeMap<K, V>
@@ -290,7 +291,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V>
 }
 
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             Option<BTreeMap<K, V>>
@@ -300,7 +301,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
 }
 
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             HashMap<K, V>
@@ -310,7 +311,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> 
 }
 
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+    fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             Option<HashMap<K, V>>
@@ -500,7 +501,7 @@ pub trait IntoParams {
 /// ```
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::Response>>;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be

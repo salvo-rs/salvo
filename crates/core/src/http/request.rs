@@ -547,7 +547,7 @@ impl Request {
 
     /// Get request payload with default max size limit.
     ///
-    /// https://github.com/hyperium/hyper/issues/3111
+    /// <https://github.com/hyperium/hyper/issues/3111>
     /// *Notice: This method takes body.
     #[inline]
     pub async fn payload(&mut self) -> Result<&Bytes, ParseError> {
@@ -556,7 +556,7 @@ impl Request {
 
     /// Get request payload with max size limit.
     ///
-    /// https://github.com/hyperium/hyper/issues/3111
+    /// <https://github.com/hyperium/hyper/issues/3111>
     /// *Notice: This method takes body.
     #[inline]
     pub async fn payload_with_max_size(&mut self, max_size: usize) -> Result<&Bytes, ParseError> {

@@ -9,29 +9,27 @@ pub use self::{
     info::{Contact, Info, License},
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
-    schema::{
-        AllOf, Array, Components, Discriminator, KnownFormat, Object, OneOf, Ref, Schema, SchemaFormat, SchemaType,
-        ToArray,
-    },
-    security::SecurityRequirement,
+    schema::{Array, Components, Ref, Discriminator, KnownFormat, Object, Schema, SchemaFormat, SchemaType, ToArray},
+    security::{SecurityScheme, SecurityRequirement},
     server::{Server, ServerVariable},
     tag::Tag,
+    xml::Xml,
 };
 
-pub mod content;
-pub mod encoding;
-pub mod example;
-pub mod external_docs;
-pub mod header;
+mod content;
+mod encoding;
+mod example;
+mod external_docs;
+mod header;
 pub mod info;
 pub mod path;
-pub mod request_body;
+mod request_body;
 pub mod response;
 pub mod schema;
 pub mod security;
 pub mod server;
-pub mod tag;
-pub mod xml;
+mod tag;
+mod xml;
 
 /// Root object of the OpenAPI document.
 ///
@@ -357,7 +355,7 @@ impl Default for Required {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(untagged)]
 pub enum RefOr<T> {
-    Ref(Ref),
+    Ref(schema::Ref),
     T(T),
 }
 

@@ -5,15 +5,15 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::{And, Comma},
-    Attribute, Error, ExprPath, LitStr, Token, TypePath,
+ Error, ExprPath, LitStr, Token, TypePath,
 };
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
-    ExternalDocs, ResultExt,
+    parse_utils, path::PATH_STRUCT_PREFIX, Array,
+    ExternalDocs,
 };
 
 #[ derive(Debug)                                                                                  ]
@@ -342,43 +342,4 @@ impl ToTokens for Components {
 
         tokens.extend(quote! { #builder_tokens });
     }
-}
-
-fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
-    let root = crate::root_crate();
-    handler_paths.iter().fold(
-        quote! { #root::oapi::openapi::path::Paths::new() },
-        |mut paths, handler| {
-            let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
-
-            let tag = &*segments
-                .iter()
-                .take(segments.len() - 1)
-                .map(|part| part.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
-
-            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
-            let handler_ident_name = &*handler_ident.to_string();
-
-            let usage = syn::parse_str::<ExprPath>(
-                &vec![
-                    if tag.is_empty() { None } else { Some(tag) },
-                    Some(handler_ident_name),
-                ]
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>()
-                .join("::"),
-            )
-            .unwrap();
-
-            paths.extend(quote! {
-                .path(#usage::path(), #usage::path_item(Some(#tag)))
-            });
-
-            paths
-        },
-    )
 }

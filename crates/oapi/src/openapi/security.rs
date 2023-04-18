@@ -216,8 +216,9 @@ impl Http {
     /// # Examples
     ///
     /// Create new [`Http`] [`SecurityScheme`].
+    /// 
     /// ```
-    /// # use salvo_oapi::openapi::security::{HttpBuilder, HttpAuthScheme};
+    /// use salvo_oapi::openapi::security::{Http, HttpAuthScheme};
     /// let http = Http::new().scheme(HttpAuthScheme::Basic();
     /// ```
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {

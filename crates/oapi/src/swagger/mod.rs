@@ -4,7 +4,6 @@
 //!
 //! [salvo]: <https://docs.rs/salvo/>
 //!
-//! ```
 use std::{borrow::Cow, error::Error};
 
 pub mod oauth;
@@ -241,7 +240,7 @@ impl<'a> Url<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_swagger_ui::Url;
+    /// # use salvo::oapi::swaggerUrl;
     /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
     pub fn new(name: &'a str, url: &'a str) -> Self {
@@ -266,7 +265,7 @@ impl<'a> Url<'a> {
     ///
     /// Set "My Api" as primary.
     /// ```rust
-    /// # use salvo_swagger_ui::Url;
+    /// # use salvo::oapi::swaggerUrl;
     /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {

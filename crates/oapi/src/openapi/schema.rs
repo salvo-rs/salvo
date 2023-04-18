@@ -7,9 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::RefOr;
-use super::{security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
-use crate::{ToResponse, ToSchema};
+use crate::{SecurityScheme, RefOr, set_value, ToResponse, ToSchema, Xml, Deprecated, Response};
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
