@@ -3,12 +3,13 @@
 //! # Example
 //!
 //! ```
+//! use salvo_core::http::Method;
 //! use salvo_core::prelude::*;
 //! use salvo_cors::Cors;
 //!
-//! let cors_handler = Cors::builder()
+//! let cors_handler = Cors::new()
 //!     .allow_origin("https://salvo.rs")
-//!     .allow_methods(vec!["GET", "POST", "DELETE"]).build();
+//!     .allow_methods(vec![Method::GET, Method::POST, Method::DELETE]).into_handler();
 //!
 //! let router = Router::new().hoop(cors_handler).post(upload_file).options(upload_file);
 //! #[handler]
@@ -19,9 +20,8 @@
 //! If you want to allow any router:
 //! ```
 //! use salvo_core::prelude::*;
-//! use salvo_cors::Cors;
-//! let cors_handler = Cors::builder()
-//!     .allow_any_origin().build();
+//! use salvo_cors::{self as cors, Cors};
+//! let cors_handler = Cors::new().allow_origin(cors::Any).into_handler();
 //! ```
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -32,16 +32,9 @@
 #![warn(clippy::future_not_send)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::collections::HashSet;
-use std::convert::TryFrom;
-use std::error::Error as StdError;
-use std::fmt::{self, Display, Formatter};
-
+use bytes::{BufMut, BytesMut};
 use salvo_core::http::header::{self, HeaderMap, HeaderName, HeaderValue};
-use salvo_core::http::headers::{
-    AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin,
-};
-use salvo_core::http::{Method, Request, Response, StatusCode};
+use salvo_core::http::{Method, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 mod allow_credentials;
@@ -57,11 +50,10 @@ pub use self::{
     allow_origin::AllowOrigin, expose_headers::ExposeHeaders, max_age::MaxAge, vary::Vary,
 };
 
-#[allow(clippy::declare_interior_mutable_const)]
-const WILDCARD: HeaderValue = HeaderValue::from_static("*");
+static WILDCARD: HeaderValue = HeaderValue::from_static("*");
 
 /// Represents a wildcard value (`*`) used with some CORS headers such as
-/// [`CorsLayer::allow_methods`].
+/// [`Cors::allow_methods`].
 #[derive(Debug, Clone, Copy)]
 #[must_use]
 pub struct Any;
@@ -107,11 +99,11 @@ impl Default for Cors {
     }
 }
 
-impl CorsB {
-    /// Create new `CorsBuilder`.
+impl Cors {
+    /// Create new `Cors`.
     #[inline]
     pub fn new() -> Self {
-        CorsBuilder {
+        Cors {
             allow_credentials: Default::default(),
             allow_headers: Default::default(),
             allow_methods: Default::default(),
@@ -121,7 +113,7 @@ impl CorsB {
             vary: Default::default(),
         }
     }
-    
+
     /// A permissive configuration:
     ///
     /// - All request headers allowed.
@@ -153,7 +145,6 @@ impl CorsB {
             .allow_origin(AllowOrigin::mirror_request())
     }
 
-
     /// Sets whether to add the `Access-Control-Allow-Credentials` header.
     #[inline]
     pub fn allow_credentials(mut self, allow_credentials: impl Into<AllowCredentials>) -> Self {
@@ -169,8 +160,7 @@ impl CorsB {
     ///
     /// Panics if any of the headers are not a valid `http::header::HeaderName`.
     #[inline]
-    pub fn allow_headers(mut self, headers: impl Into<AllowHeaders>) -> Self
-    {
+    pub fn allow_headers(mut self, headers: impl Into<AllowHeaders>) -> Self {
         self.allow_headers = headers.into();
         self
     }
@@ -183,10 +173,10 @@ impl CorsB {
     /// ```
     /// use std::time::Duration;
     /// use salvo_core::prelude::*;
+    /// use salvo_cors::Cors;
     ///
-    /// let cors = salvo_cors::Cors::builder()
-    ///     .max_age(30) // 30u32 seconds
-    ///     .max_age(Duration::from_secs(30)); // or a Duration
+    /// let cors = Cors::new().max_age(30); // 30u32 seconds
+    /// let cors = Cors::new().max_age(Duration::from_secs(30)); // or a Duration
     /// ```
     #[inline]
     pub fn max_age(mut self, max_age: impl Into<MaxAge>) -> Self {
@@ -212,18 +202,16 @@ impl CorsB {
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
     #[inline]
-    pub fn allow_origin(self, origin: impl impl  Into<AllowOrigin>) -> Self {
+    pub fn allow_origin(mut self, origin: impl Into<AllowOrigin>) -> Self {
         self.allow_origin = origin.into();
         self
     }
-
 
     /// Set the value of the [`Access-Control-Expose-Headers`][mdn] header.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
     #[inline]
-    pub fn expose_headers<I>(mut self, headers: impl Into<ExposeHeaders>) -> Self
-    {
+    pub fn expose_headers(mut self, headers: impl Into<ExposeHeaders>) -> Self {
         self.expose_headers = headers.into();
         self
     }
@@ -238,37 +226,50 @@ impl CorsB {
     /// vary header accordingly.
     ///
     /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
-    pub fn vary<T>(mut self, headers: impl Into<Vary>) -> Self  {
+    pub fn vary<T>(mut self, headers: impl Into<Vary>) -> Self {
         self.vary = headers.into();
         self
     }
-}
 
-#[non_exhaustive]
-#[derive(Debug)]
-enum Forbidden {
-    Origin,
-    Method,
-    Header,
-}
+    /// Returns a new `CorsHandler` using current cors settings.
+    pub fn into_handler(self) -> CorsHandler {
+        self.ensure_usable_cors_rules();
+        CorsHandler(self)
+    }
+    fn ensure_usable_cors_rules(&self) {
+        if self.allow_credentials.is_true() {
+            assert!(
+                !self.allow_headers.is_wildcard(),
+                "Invalid CORS configuration: Cannot combine `Access-Control-Allow-Credentials: true` \
+                 with `Access-Control-Allow-Headers: *`"
+            );
 
-impl Display for Forbidden {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let detail = match self {
-            Forbidden::Origin => "origin not allowed",
-            Forbidden::Method => "request-method not allowed",
-            Forbidden::Header => "header not allowed",
-        };
-        write!(f, "CORS request forbidden: {detail}")
+            assert!(
+                !self.allow_methods.is_wildcard(),
+                "Invalid CORS configuration: Cannot combine `Access-Control-Allow-Credentials: true` \
+                 with `Access-Control-Allow-Methods: *`"
+            );
+
+            assert!(
+                !self.allow_origin.is_wildcard(),
+                "Invalid CORS configuration: Cannot combine `Access-Control-Allow-Credentials: true` \
+                 with `Access-Control-Allow-Origin: *`"
+            );
+
+            assert!(
+                !self.expose_headers.is_wildcard(),
+                "Invalid CORS configuration: Cannot combine `Access-Control-Allow-Credentials: true` \
+                 with `Access-Control-Expose-Headers: *`"
+            );
+        }
     }
 }
 
-impl StdError for Forbidden {}
-
+/// CorsHandler
+pub struct CorsHandler(Cors);
 
 #[async_trait]
-impl Handler for Cors {
+impl Handler for CorsHandler {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let origin = req.headers().get(&header::ORIGIN);
 
@@ -277,10 +278,10 @@ impl Handler for Cors {
         // These headers are applied to both preflight and subsequent regular CORS requests:
         // https://fetch.spec.whatwg.org/#http-responses
 
-        headers.extend(Self.allow_origin.to_header(origin, req, depot));
-        headers.extend(self.allow_credentials.to_header(origin, req, depot));
+        headers.extend(self.0.allow_origin.to_header(origin, req, depot));
+        headers.extend(self.0.allow_credentials.to_header(origin, req, depot));
 
-        let mut vary_headers = self.vary.values();
+        let mut vary_headers = self.0.vary.values();
         if let Some(first) = vary_headers.next() {
             let mut header = match headers.entry(header::VARY) {
                 header::Entry::Occupied(_) => {
@@ -295,40 +296,17 @@ impl Handler for Cors {
         }
 
         // Return results immediately upon preflight request
-        if parts.method == Method::OPTIONS {
+        if req.method() == Method::OPTIONS {
             // These headers are applied only to preflight requests
-            headers.extend(self.allow_methods.to_header(req, depot));
-            headers.extend(self.allow_headers.to_header(req, depot));
-            headers.extend(self.max_age.to_header(origin, req, depot));
-            ctrl.call_next(req, depot, res).await;
+            headers.extend(self.0.allow_methods.to_header(origin, req, depot));
+            headers.extend(self.0.allow_headers.to_header(origin, req, depot));
+            headers.extend(self.0.max_age.to_header(origin, req, depot));
         } else {
             // This header is applied only to non-preflight requests
-            headers.extend(self.expose_headers.to_header(req, depot));
-            ctrl.call_next(req, depot, res).await;
+            headers.extend(self.0.expose_headers.to_header(origin, req, depot));
         }
-        
-        let validated = self.check_request(req.method(), req.headers());
-
-        match validated {
-            Ok(Validated::Preflight(origin)) => {
-                self.append_preflight_headers(res.headers_mut());
-                res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                ctrl.call_next(req, depot, res).await;
-            }
-            Ok(Validated::Simple(origin)) => {
-                self.append_common_headers(res.headers_mut());
-                res.headers_mut().insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                ctrl.call_next(req, depot, res).await;
-            }
-            Err(e) => {
-                tracing::error!(error = ?e, "cors validate failed");
-                res.set_status_code(StatusCode::FORBIDDEN);
-                ctrl.skip_rest();
-            }
-            _ => {
-                ctrl.call_next(req, depot, res).await;
-            }
-        }
+        res.headers_mut().extend(headers);
+        ctrl.call_next(req, depot, res).await;
     }
 }
 
@@ -336,28 +314,27 @@ impl Handler for Cors {
 ///
 /// This is the default set of header names returned in the `vary` header
 pub fn preflight_request_headers() -> impl Iterator<Item = HeaderName> {
-    #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-    array::IntoIter::new([
+    [
         header::ORIGIN,
         header::ACCESS_CONTROL_REQUEST_METHOD,
         header::ACCESS_CONTROL_REQUEST_HEADERS,
-    ])
+    ]
+    .into_iter()
 }
-
 
 #[cfg(test)]
 mod tests {
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
-    use salvo_core::test::{ResponseExt, TestClient};
+    use salvo_core::test::TestClient;
 
     use super::*;
 
     #[tokio::test]
     async fn test_cors() {
-        let cors_handler = Cors::builder()
+        let cors_handler = Cors::new()
             .allow_origin("https://salvo.rs")
-            .allow_methods(vec!["GET", "POST", "OPTIONS"])
+            .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
             .allow_headers(vec![
                 "CONTENT-TYPE",
                 "Access-Control-Request-Method",
@@ -365,7 +342,7 @@ mod tests {
                 "Access-Control-Allow-Headers",
                 "Access-Control-Max-Age",
             ])
-            .build();
+            .into_handler();
 
         #[handler]
         async fn hello() -> &'static str {
@@ -401,31 +378,5 @@ mod tests {
             "POST, GET, DELETE, OPTIONS"
         );
         assert!(headers.get(ACCESS_CONTROL_ALLOW_HEADERS).is_none());
-
-        let content = TestClient::get("https://salvo.rs/hello")
-            .add_header("origin", "https://salvo.rs", true)
-            .send(&service)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("hello"));
-
-        let content = TestClient::get("https://google.rs/hello")
-            .send(&service)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("hello"));
-
-        let content = TestClient::get("https://google.rs/hello")
-            .add_header("origin", "https://google.rs", true)
-            .send(&service)
-            .await
-            .take_string()
-            .await
-            .unwrap();
-        assert!(content.contains("Forbidden"));
     }
 }

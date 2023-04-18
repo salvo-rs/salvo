@@ -1,24 +1,21 @@
-use std::array;
-
-use http::{header::HeaderName, HeaderValue};
-
+use salvo_core::http::{header::HeaderName, HeaderValue};
 use super::preflight_request_headers;
 
 /// Holds configuration for how to set the [`Vary`][mdn] header.
 ///
-/// See [`CorsLayer::vary`] for more details.
+/// See [`Cors::vary`] for more details.
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
-/// [`CorsLayer::vary`]: super::CorsLayer::vary
+/// [`Cors::vary`]: super::Cors::vary
 #[derive(Clone, Debug)]
 pub struct Vary(Vec<HeaderValue>);
 
 impl Vary {
     /// Set the list of header names to return as vary header values
     ///
-    /// See [`CorsLayer::vary`] for more details.
+    /// See [`Cors::vary`] for more details.
     ///
-    /// [`CorsLayer::vary`]: super::CorsLayer::vary
+    /// [`Cors::vary`]: super::Cors::vary
     pub fn list<I>(headers: I) -> Self
     where
         I: IntoIterator<Item = HeaderName>,
@@ -39,8 +36,7 @@ impl Default for Vary {
 
 impl<const N: usize> From<[HeaderName; N]> for Vary {
     fn from(arr: [HeaderName; N]) -> Self {
-        #[allow(deprecated)] // Can be changed when MSRV >= 1.53
-        Self::list(array::IntoIter::new(arr))
+        Self::list(arr)
     }
 }
 

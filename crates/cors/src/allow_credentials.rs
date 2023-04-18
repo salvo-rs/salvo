@@ -1,24 +1,23 @@
 use std::{fmt, sync::Arc};
 
-use http::{
-    header::{self, HeaderName, HeaderValue},
-    request::Parts as RequestParts,
-};
+use salvo_core::http::header::{self, HeaderName, HeaderValue};
+use salvo_core::{Depot, Request};
 
 /// Holds configuration for how to set the [`Access-Control-Allow-Credentials`][mdn] header.
 ///
-/// See [`CorsLayer::allow_credentials`] for more details.
+/// See [`Cors::allow_credentials`] for more details.
 ///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
-/// [`CorsLayer::allow_credentials`]: super::CorsLayer::allow_credentials
+/// [`Cors::allow_credentials`]: super::Cors::allow_credentials
 #[derive(Clone, Default)]
 #[must_use]
 pub struct AllowCredentials(AllowCredentialsInner);
 
+type JudgeFn = Arc<dyn for<'a> Fn(&'a HeaderValue, &'a Request, &'a Depot) -> bool + Send + Sync + 'static>;
 impl AllowCredentials {
     /// Allow credentials for all requests
     ///
-    /// See [`CorsLayer::allow_credentials`] for more details.
+    /// See [`Cors::allow_credentials`] for more details.
     ///
     /// [`CorsLayer::allow_credentials`]: super::CorsLayer::allow_credentials
     pub fn yes() -> Self {
@@ -27,14 +26,14 @@ impl AllowCredentials {
 
     /// Allow credentials for some requests, based on a given predicate
     ///
-    /// See [`CorsLayer::allow_credentials`] for more details.
+    /// See [`Cors::allow_credentials`] for more details.
     ///
-    /// [`CorsLayer::allow_credentials`]: super::CorsLayer::allow_credentials
-    pub fn predicate<F>(f: F) -> Self
+    /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
+    pub fn judge<F>(f: F) -> Self
     where
-        F: Fn(&HeaderValue, &Request, depot: &Depot) -> bool + Send + Sync + 'static,
+        F: Fn(&HeaderValue, &Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Self(AllowCredentialsInner::Predicate(Arc::new(f)))
+        Self(AllowCredentialsInner::Judge(Arc::new(f)))
     }
 
     pub(super) fn is_true(&self) -> bool {
@@ -45,18 +44,15 @@ impl AllowCredentials {
         &self,
         origin: Option<&HeaderValue>,
         req: &Request,
-        depot: &Depot
+        depot: &Depot,
     ) -> Option<(HeaderName, HeaderValue)> {
-        #[allow(clippy::declare_interior_mutable_const)]
-        const TRUE: HeaderValue = HeaderValue::from_static("true");
-
         let allow_creds = match &self.0 {
             AllowCredentialsInner::Yes => true,
             AllowCredentialsInner::No => false,
-            AllowCredentialsInner::Predicate(c) => c(origin?, req, depot),
+            AllowCredentialsInner::Judge(c) => c(origin?, req, depot),
         };
 
-        allow_creds.then(|| (header::ACCESS_CONTROL_ALLOW_CREDENTIALS, TRUE))
+        allow_creds.then_some((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true")))
     }
 }
 
@@ -74,22 +70,15 @@ impl fmt::Debug for AllowCredentials {
         match self.0 {
             AllowCredentialsInner::Yes => f.debug_tuple("Yes").finish(),
             AllowCredentialsInner::No => f.debug_tuple("No").finish(),
-            AllowCredentialsInner::Predicate(_) => f.debug_tuple("Predicate").finish(),
+            AllowCredentialsInner::Judge(_) => f.debug_tuple("Judge").finish(),
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 enum AllowCredentialsInner {
     Yes,
+    #[default]
     No,
-    Predicate(
-        Arc<dyn for<'a> Fn(&'a HeaderValue, &'a RequestParts) -> bool + Send + Sync + 'static>,
-    ),
-}
-
-impl Default for AllowCredentialsInner {
-    fn default() -> Self {
-        Self::No
-    }
+    Judge(JudgeFn),
 }
