@@ -30,14 +30,14 @@ impl Header {
     ///
     /// Create new [`Header`] with integer type.
     /// ```
-    /// # use salvo_oapi::openapi::header::Header;
-    /// # use salvo_oapi::openapi::{Object, SchemaType};
+    /// # use salvo_oapi::header::Header;
+    /// # use salvo_oapi::{Object, SchemaType};
     /// let header = Header::new(Object::with_type(SchemaType::Integer));
     /// ```
     ///
     /// Create a new [`Header`] with default type `String`
     /// ```
-    /// # use salvo_oapi::openapi::header::Header;
+    /// # use salvo_oapi::header::Header;
     /// let header = Header::default();
     /// ```
     pub fn new<C: Into<RefOr<Schema>>>(component: C) -> Self {

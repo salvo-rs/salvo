@@ -39,7 +39,7 @@ impl Paths {
     ///
     /// _**Get user path item.**_
     /// ```
-    /// # use salvo_oapi::openapi::path::{Paths, PathItemType};
+    /// # use salvo_oapi::path::{Paths, PathItemType};
     /// # let paths = Paths::new();
     /// let path_item = paths.get_path_item("/api/v1/user");
     /// ```
@@ -56,7 +56,7 @@ impl Paths {
     ///
     /// _**Get user operation from paths.**_
     /// ```
-    /// # use salvo_oapi::openapi::path::{Paths, PathItemType};
+    /// # use salvo_oapi::path::{Paths, PathItemType};
     /// # let paths = Paths::new();
     /// let operation = paths.get_path_operation("/api/v1/user", PathItemType::Get);
     /// ```

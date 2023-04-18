@@ -24,7 +24,7 @@ impl ExternalDocs {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::openapi::external_docs::ExternalDocs;
+    /// # use salvo_oapi::external_docs::ExternalDocs;
     /// let external_docs = ExternalDocs::new("https://pet-api.external.docs");
     /// ```
     pub fn new<S: AsRef<str>>(url: S) -> Self {

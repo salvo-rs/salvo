@@ -4,7 +4,7 @@ version.workspace = true
 edition = "2021"
 description = "Macros for salvo"
 license = "MIT/Apache-2.0"
-documentation = "https://docs.rs/salvo-oapi/"
+documentation = "https://docs.rs/salvo-oapi-macros/"
 homepage = "https://github.com/salvo-rs/salvo"
 repository = "https://github.com/salvo-rs/salvo"
 keywords = ["http", "async", "openapi", "swagger"]
@@ -20,9 +20,9 @@ syn = { workspace = true, features = ["full", "extra-traits"] }
 quote.workspace = true
 proc-macro-crate.workspace = true
 proc-macro-error.workspace = true
-regex = { version = "1.7", optional = true }
-lazy_static = { version = "1.4", optional = true }
-uuid = { version = "1", optional = true }
+regex = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+inventory.workspace = true
 
 [dev-dependencies]
 salvo-oapi = { workspace = true, default-features = false }

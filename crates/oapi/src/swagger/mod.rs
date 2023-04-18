@@ -59,9 +59,9 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-docs/openapi.json", salvo_oapi::openapi::OpenApi::new(
-    ///        salvo_oapi::openapi::Info::new("my application", "0.1.0"),
-    ///        salvo_oapi::openapi::Paths::new(),
+    ///     .url("/api-docs/openapi.json", salvo_oapi::OpenApi::new(
+    ///        salvo_oapi::Info::new("my application", "0.1.0"),
+    ///        salvo_oapi::Paths::new(),
     /// ));
     /// ```
     ///

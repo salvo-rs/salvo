@@ -15,19 +15,19 @@
 //!
 //! Create new server with relative path.
 //! ```rust
-//! # use salvo_oapi::openapi::server::Server;
+//! # use salvo_oapi::server::Server;
 //! Server::new("/api/v1");
 //! ```
 //!
 //! Create server with custom url using a builder.
 //! ```rust
-//! # use salvo_oapi::openapi::server::ServerBuilder;
+//! # use salvo_oapi::server::ServerBuilder;
 //! ServerBuilder::new().url("https://alternative.api.url.test/api").build();
 //! ```
 //!
 //! Create server with builder and variable substitution.
 //! ```rust
-//! # use salvo_oapi::openapi::server::{ServerBuilder, ServerVariableBuilder};
+//! # use salvo_oapi::server::{ServerBuilder, ServerVariableBuilder};
 //! ServerBuilder::new().url("/api/{version}/{username}")
 //!     .parameter("version", ServerVariableBuilder::new()
 //!         .enum_values(Some(["v1", "v2"]))
@@ -85,13 +85,13 @@ impl Server {
     ///
     /// Create new server with url path.
     /// ```
-    /// # use salvo_oapi::openapi::server::Server;
+    /// # use salvo_oapi::server::Server;
     ///  Server::new("/api/v1");
     /// ```
     ///
     /// Create new server with alternative server.
     /// ```
-    /// # use salvo_oapi::openapi::server::Server;
+    /// # use salvo_oapi::server::Server;
     ///  Server::new("https://alternative.pet-api.test/api/v1");
     /// ```
     pub fn new<S: Into<String>>(url: S) -> Self {

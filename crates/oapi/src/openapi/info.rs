@@ -14,7 +14,7 @@ use super::{ set_value};
 ///
 /// Create [`Info`]].
 /// ```
-/// # use salvo_oapi::openapi::{Info, Contact};
+/// # use salvo_oapi::{Info, Contact};
 /// let info = Info::new()
 ///      .title("My api")
 ///      .version("1.0.0")
@@ -70,7 +70,7 @@ impl Info {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::openapi::Info;
+    /// # use salvo_oapi::Info;
     /// let info = Info::new("Pet api", "1.1.0");
     /// ```
     pub fn new<S: Into<String>>(title: S, version: S) -> Self {

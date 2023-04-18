@@ -40,13 +40,13 @@ impl SecurityRequirement {
     ///
     /// Create new security requirement with scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::SecurityRequirement;
+    /// # use salvo_oapi::security::SecurityRequirement;
     /// SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
     /// ```
     ///
     /// You can also create an empty security requirement with `Default::default()`.
     /// ```
-    /// # use salvo_oapi::openapi::security::SecurityRequirement;
+    /// # use salvo_oapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
     pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(name: N, scopes: S) -> Self {
@@ -72,7 +72,7 @@ impl SecurityRequirement {
 ///
 /// Create implicit oauth2 flow security schema for path operations.
 /// ```
-/// # use salvo_oapi::openapi::security::{SecurityScheme, OAuth2, Implicit, Flow, Scopes};
+/// # use salvo_oapi::security::{SecurityScheme, OAuth2, Implicit, Flow, Scopes};
 /// SecurityScheme::OAuth2(
 ///     OAuth2::with_description([Flow::Implicit(
 ///         Implicit::new(
@@ -88,7 +88,7 @@ impl SecurityRequirement {
 ///
 /// Create JWT header authentication.
 /// ```
-/// # use salvo_oapi::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
+/// # use salvo_oapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 /// SecurityScheme::Http(
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT")
 /// );
@@ -146,7 +146,7 @@ impl ApiKeyValue {
     ///
     /// Create new api key security schema with name `api_key`.
     /// ```
-    /// # use salvo_oapi::openapi::security::ApiKeyValue;
+    /// # use salvo_oapi::security::ApiKeyValue;
     /// let api_key = ApiKeyValue::new("api_key");
     /// ```
     pub fn new<S: Into<String>>(name: S) -> Self {
@@ -162,7 +162,7 @@ impl ApiKeyValue {
     ///
     /// Create new api key security schema with name `api_key` with description.
     /// ```
-    /// # use salvo_oapi::openapi::security::ApiKeyValue;
+    /// # use salvo_oapi::security::ApiKeyValue;
     /// let api_key = ApiKeyValue::with_description("api_key", "my api_key token");
     /// ```
     pub fn with_description<S: Into<String>>(name: S, description: S) -> Self {
@@ -201,7 +201,7 @@ impl Http {
     ///
     /// Create http security schema with basic authentication.
     /// ```
-    /// # use salvo_oapi::openapi::security::{SecurityScheme, Http, HttpAuthScheme};
+    /// # use salvo_oapi::security::{SecurityScheme, Http, HttpAuthScheme};
     /// SecurityScheme::Http(Http::new(HttpAuthScheme::Basic));
     /// ```
     pub fn new(scheme: HttpAuthScheme) -> Self {
@@ -218,7 +218,7 @@ impl Http {
     /// Create new [`Http`] [`SecurityScheme`].
     /// 
     /// ```
-    /// use salvo_oapi::openapi::security::{Http, HttpAuthScheme};
+    /// use salvo_oapi::security::{Http, HttpAuthScheme};
     /// let http = Http::new().scheme(HttpAuthScheme::Basic();
     /// ```
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
@@ -234,7 +234,7 @@ impl Http {
     ///
     /// Add JTW bearer format for security schema.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Http, HttpAuthScheme};
+    /// # use salvo_oapi::security::{Http, HttpAuthScheme};
     /// Http::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT");
     /// ```
     pub fn bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
@@ -298,7 +298,7 @@ impl OpenIdConnect {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::openapi::security::OpenIdConnect;
+    /// # use salvo_oapi::security::OpenIdConnect;
     /// OpenIdConnect::new("https://localhost/openid");
     /// ```
     pub fn new<S: Into<String>>(open_id_connect_url: S) -> Self {
@@ -314,7 +314,7 @@ impl OpenIdConnect {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::openapi::security::OpenIdConnect;
+    /// # use salvo_oapi::security::OpenIdConnect;
     /// OpenIdConnect::with_description("https://localhost/openid", "my pet api open id connect");
     /// ```
     pub fn with_description<S: Into<String>>(open_id_connect_url: S, description: S) -> Self {
@@ -346,7 +346,7 @@ impl OAuth2 {
     ///
     /// Create new OAuth2 flow with multiple authentication flows.
     /// ```
-    /// # use salvo_oapi::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
+    /// # use salvo_oapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
     /// OAuth2::new([Flow::Password(
     ///     Password::with_refresh_url(
     ///         "https://localhost/oauth/token",
@@ -384,7 +384,7 @@ impl OAuth2 {
     ///
     /// Create new OAuth2 flow with multiple authentication flows with description.
     /// ```
-    /// # use salvo_oapi::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
+    /// # use salvo_oapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
     /// OAuth2::with_description([Flow::Password(
     ///     Password::with_refresh_url(
     ///         "https://localhost/oauth/token",
@@ -475,7 +475,7 @@ impl Implicit {
     ///
     /// Create new implicit flow with scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Implicit, Scopes};
+    /// # use salvo_oapi::security::{Implicit, Scopes};
     /// Implicit::new(
     ///     "https://localhost/auth/dialog",
     ///     Scopes::from_iter([
@@ -487,7 +487,7 @@ impl Implicit {
     ///
     /// Create new implicit flow without any scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Implicit, Scopes};
+    /// # use salvo_oapi::security::{Implicit, Scopes};
     /// Implicit::new(
     ///     "https://localhost/auth/dialog",
     ///     Scopes::new(),
@@ -510,7 +510,7 @@ impl Implicit {
     ///
     /// Create a new implicit oauth2 flow with refresh token.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Implicit, Scopes};
+    /// # use salvo_oapi::security::{Implicit, Scopes};
     /// Implicit::with_refresh_url(
     ///     "https://localhost/auth/dialog",
     ///     Scopes::new(),
@@ -555,7 +555,7 @@ impl AuthorizationCode {
     ///
     /// Create new authorization code flow with scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{AuthorizationCode, Scopes};
+    /// # use salvo_oapi::security::{AuthorizationCode, Scopes};
     /// AuthorizationCode::new(
     ///     "https://localhost/auth/dialog",
     ///     "https://localhost/token",
@@ -568,7 +568,7 @@ impl AuthorizationCode {
     ///
     /// Create new authorization code flow without any scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{AuthorizationCode, Scopes};
+    /// # use salvo_oapi::security::{AuthorizationCode, Scopes};
     /// AuthorizationCode::new(
     ///     "https://localhost/auth/dialog",
     ///     "https://localhost/token",
@@ -593,7 +593,7 @@ impl AuthorizationCode {
     ///
     /// Create [`AuthorizationCode`] OAuth2 flow with refresh url.
     /// ```
-    /// # use salvo_oapi::openapi::security::{AuthorizationCode, Scopes};
+    /// # use salvo_oapi::security::{AuthorizationCode, Scopes};
     /// AuthorizationCode::with_refresh_url(
     ///     "https://localhost/auth/dialog",
     ///     "https://localhost/token",
@@ -643,7 +643,7 @@ impl Password {
     ///
     /// Create new password flow with scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Password, Scopes};
+    /// # use salvo_oapi::security::{Password, Scopes};
     /// Password::new(
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
@@ -655,7 +655,7 @@ impl Password {
     ///
     /// Create new password flow without any scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Password, Scopes};
+    /// # use salvo_oapi::security::{Password, Scopes};
     /// Password::new(
     ///     "https://localhost/token",
     ///     Scopes::new(),
@@ -678,7 +678,7 @@ impl Password {
     ///
     /// Create new password flow with refresh url.
     /// ```
-    /// # use salvo_oapi::openapi::security::{Password, Scopes};
+    /// # use salvo_oapi::security::{Password, Scopes};
     /// Password::with_refresh_url(
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
@@ -724,7 +724,7 @@ impl ClientCredentials {
     ///
     /// Create new client credentials flow with scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{ClientCredentials, Scopes};
+    /// # use salvo_oapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
@@ -736,7 +736,7 @@ impl ClientCredentials {
     ///
     /// Create new client credentials flow without any scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::{ClientCredentials, Scopes};
+    /// # use salvo_oapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
     ///     "https://localhost/token",
     ///     Scopes::new(),
@@ -759,7 +759,7 @@ impl ClientCredentials {
     ///
     /// Create new client credentials for with refresh url.
     /// ```
-    /// # use salvo_oapi::openapi::security::{ClientCredentials, Scopes};
+    /// # use salvo_oapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::with_refresh_url(
     ///     "https://localhost/token",
     ///     Scopes::from_iter([
@@ -791,19 +791,19 @@ impl ClientCredentials {
 ///
 /// Create empty map of scopes.
 /// ```
-/// # use salvo_oapi::openapi::security::Scopes;
+/// # use salvo_oapi::security::Scopes;
 /// let scopes = Scopes::new();
 /// ```
 ///
 /// Create [`Scopes`] holding one scope.
 /// ```
-/// # use salvo_oapi::openapi::security::Scopes;
+/// # use salvo_oapi::security::Scopes;
 /// let scopes = Scopes::one("edit:item", "edit pets");
 /// ```
 ///
 /// Create map of scopes from iterator.
 /// ```
-/// # use salvo_oapi::openapi::security::Scopes;
+/// # use salvo_oapi::security::Scopes;
 /// let scopes = Scopes::from_iter([
 ///     ("edit:items", "edit my items"),
 ///     ("read:items", "read my items")
@@ -822,7 +822,7 @@ impl Scopes {
     ///
     /// Create empty map of scopes.
     /// ```
-    /// # use salvo_oapi::openapi::security::Scopes;
+    /// # use salvo_oapi::security::Scopes;
     /// let scopes = Scopes::new();
     /// ```
     pub fn new() -> Self {
@@ -838,7 +838,7 @@ impl Scopes {
     ///
     /// Create map of scopes with one scope item.
     /// ```
-    /// # use salvo_oapi::openapi::security::Scopes;
+    /// # use salvo_oapi::security::Scopes;
     /// let scopes = Scopes::one("edit:item", "edit items");
     /// ```
     pub fn one<S: Into<String>>(scope: S, description: S) -> Self {

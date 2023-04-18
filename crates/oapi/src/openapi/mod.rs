@@ -103,7 +103,7 @@ impl OpenApi {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::openapi::{Info, Paths, OpenApi};
+    /// # use salvo_oapi::{Info, Paths, OpenApi};
     /// #
     /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"), Paths::new());
     /// ```

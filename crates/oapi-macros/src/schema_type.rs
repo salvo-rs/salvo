@@ -192,7 +192,7 @@ impl ToTokens for SchemaType<'_> {
 /// Either Rust type component variant or enum variant schema variant.
 #[derive(Clone,Debug)]
 pub enum SchemaFormat<'c> {
-    /// [`salvo_oapi::openapi::schema::SchemaFormat`] enum variant schema format.
+    /// [`salvo_oapi::schema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
     /// Rust type schema format.
     Type(Type<'c>),
@@ -312,7 +312,7 @@ impl ToTokens for Type<'_> {
     }
 }
 
-/// [`Parse`] and [`ToTokens`] implementation for [`salvo_oapi::openapi::schema::SchemaFormat`].
+/// [`Parse`] and [`ToTokens`] implementation for [`salvo_oapi::schema::SchemaFormat`].
 #[derive(Clone,Debug)]
 pub enum Variant {
     Int32,

@@ -22,9 +22,9 @@ let schema = salvo_oapi::schema!(#[inline] Vec<Pet>);
 
 _**Create vec of pets schema.**_
 ```
-# use salvo_oapi::openapi::schema::{Schema, Array, Object, SchemaFormat,
+# use salvo_oapi::schema::{Schema, Array, Object, SchemaFormat,
 # KnownFormat, SchemaType};
-# use salvo_oapi::openapi::RefOr;
+# use salvo_oapi::RefOr;
 #[derive(salvo_oapi::ToSchema)]
 struct Pet {
     id: i32,

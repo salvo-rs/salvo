@@ -113,7 +113,7 @@ impl Components {
     ///
     /// # Examples
     /// ```
-    /// # use salvo_oapi::openapi::schema::{Components, Object,
+    /// # use salvo_oapi::schema::{Components, Object,
     /// #    SchemaType, Schema};
     /// Components::new().schemas_from_iter([(
     ///     "Pet",
@@ -225,7 +225,7 @@ impl Discriminator {
     ///
     /// Create a new [`Discriminator`] object for `pet_type` property.
     /// ```
-    /// # use salvo_oapi::openapi::schema::Discriminator;
+    /// # use salvo_oapi::schema::Discriminator;
     /// let discriminator = Discriminator::new("pet_type");
     /// ```
     pub fn new<I: Into<String>>(property_name: I) -> Self {
@@ -284,7 +284,7 @@ impl OneOf {
     ///
     /// Create [`OneOf`] component with initial capacity of 5.
     /// ```
-    /// # use salvo_oapi::openapi::schema::OneOf;
+    /// # use salvo_oapi::schema::OneOf;
     /// let one_of = OneOf::with_capacity(5);
     /// ```
     pub fn with_capacity(capacity: usize) -> Self {
@@ -389,7 +389,7 @@ impl AllOf {
     ///
     /// Create [`AllOf`] component with initial capacity of 5.
     /// ```
-    /// # use salvo_oapi::openapi::schema::AllOf;
+    /// # use salvo_oapi::schema::AllOf;
     /// let one_of = AllOf::with_capacity(5);
     /// ```
     pub fn with_capacity(capacity: usize) -> Self {
@@ -596,7 +596,7 @@ impl Object {
     ///
     /// Create [`std::string`] object type which can be used to define `string` field of an object.
     /// ```
-    /// # use salvo_oapi::openapi::schema::{Object, SchemaType};
+    /// # use salvo_oapi::schema::{Object, SchemaType};
     /// let object = Object::with_type(SchemaType::String);
     /// ```
     pub fn with_type(schema_type: SchemaType) -> Self {
@@ -906,7 +906,7 @@ impl Array {
     ///
     /// Create a `String` array component.
     /// ```
-    /// # use salvo_oapi::openapi::schema::{Schema, Array, SchemaType, Object};
+    /// # use salvo_oapi::schema::{Schema, Array, SchemaType, Object};
     /// let string_array = Array::new(Object::with_type(SchemaType::String));
     /// ```
     pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {

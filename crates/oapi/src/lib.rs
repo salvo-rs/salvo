@@ -39,31 +39,31 @@ pub use salvo_oapi_macros::*;
 /// # }
 /// #
 /// impl<'__s> salvo_oapi::ToSchema<'__s> for Pet {
-///     fn schema() -> (&'__s str, salvo_oapi::openapi::RefOr<salvo_oapi::openapi::schema::Schema>) {
+///     fn schema() -> (&'__s str, salvo_oapi::RefOr<salvo_oapi::schema::Schema>) {
 ///          (
 ///             "Pet",
-///             salvo_oapi::openapi::Object::new()
+///             salvo_oapi::Object::new()
 ///                 .property(
 ///                     "id",
-///                     salvo_oapi::openapi::Object::new()
-///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(
-///                             salvo_oapi::openapi::KnownFormat::Int64,
+///                     salvo_oapi::Object::new()
+///                         .schema_type(salvo_oapi::SchemaType::Integer)
+///                         .format(Some(salvo_oapi::SchemaFormat::KnownFormat(
+///                             salvo_oapi::KnownFormat::Int64,
 ///                         ))),
 ///                 )
 ///                 .required("id")
 ///                 .property(
 ///                     "name",
-///                     salvo_oapi::openapi::Object::new()
-///                         .schema_type(salvo_oapi::openapi::SchemaType::String),
+///                     salvo_oapi::Object::new()
+///                         .schema_type(salvo_oapi::SchemaType::String),
 ///                 )
 ///                 .required("name")
 ///                 .property(
 ///                     "age",
-///                     salvo_oapi::openapi::Object::new()
-///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                         .format(Some(salvo_oapi::openapi::SchemaFormat::KnownFormat(
-///                             salvo_oapi::openapi::KnownFormat::Int32,
+///                     salvo_oapi::Object::new()
+///                         .schema_type(salvo_oapi::SchemaType::Integer)
+///                         .format(Some(salvo_oapi::SchemaFormat::KnownFormat(
+///                             salvo_oapi::KnownFormat::Int32,
 ///                         ))),
 ///                 )
 ///                 .example(Some(serde_json::json!({
@@ -146,8 +146,8 @@ mod oapi {
 /// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
-/// # use salvo_oapi::openapi::RefOr;
+/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
+/// # use salvo_oapi::RefOr;
 /// #
 /// struct MyType;
 ///
@@ -164,8 +164,8 @@ mod oapi {
 /// _**Create number schema from u64.**_
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
-/// # use salvo_oapi::openapi::RefOr;
+/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
+/// # use salvo_oapi::RefOr;
 /// #
 /// let number: RefOr<Schema> = u64::schema().into();
 ///
@@ -184,7 +184,7 @@ mod oapi {
 /// _**Construct a Pet object schema manually.**_
 /// ```
 /// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::openapi::schema::Object;
+/// # use salvo_oapi::schema::Object;
 /// struct Pet {
 ///     id: i32,
 ///     name: String,
@@ -359,39 +359,39 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// Example of what would manual implementation roughly look like of above `#[salvo_oapi::path(...)]` macro.
 /// ```
-/// salvo_oapi::openapi::Paths::new().path(
+/// salvo_oapi::Paths::new().path(
 ///         "/pets/{id}",
-///         salvo_oapi::openapi::PathItem::new(
-///             salvo_oapi::openapi::PathItemType::Get,
-///             salvo_oapi::openapi::path::Operation::new()
+///         salvo_oapi::PathItem::new(
+///             salvo_oapi::PathItemType::Get,
+///             salvo_oapi::path::Operation::new()
 ///                 .responses(
-///                     salvo_oapi::openapi::Responses::new()
+///                     salvo_oapi::Responses::new()
 ///                         .response(
 ///                             "200",
-///                             salvo_oapi::openapi::Response::new("Pet found successfully")
+///                             salvo_oapi::Response::new("Pet found successfully")
 ///                                 .content("application/json",
-///                                     salvo_oapi::openapi::Content::new(
-///                                         salvo_oapi::openapi::Ref::from_schema_name("Pet"),
+///                                     salvo_oapi::Content::new(
+///                                         salvo_oapi::Ref::from_schema_name("Pet"),
 ///                                     ),
 ///                             ),
 ///                         )
-///                         .response("404", salvo_oapi::openapi::Response::new("Pet was not found")),
+///                         .response("404", salvo_oapi::Response::new("Pet was not found")),
 ///                 )
 ///                 .operation_id("get_pet_by_id")
-///                 .deprecated(salvo_oapi::openapi::Deprecated::False)
+///                 .deprecated(salvo_oapi::Deprecated::False)
 ///                 .summary("Get pet by id")
 ///                 .description("Get pet by id\n\nGet pet from database by pet database id\n")
 ///                 .parameter(
-///                     salvo_oapi::openapi::path::Parameter::new()
+///                     salvo_oapi::path::Parameter::new()
 ///                         .name("id")
-///                         .parameter_in(salvo_oapi::openapi::path::ParameterIn::Path)
-///                         .required(salvo_oapi::openapi::Required::True)
-///                         .deprecated(salvo_oapi::openapi::Deprecated::False)
+///                         .parameter_in(salvo_oapi::path::ParameterIn::Path)
+///                         .required(salvo_oapi::Required::True)
+///                         .deprecated(salvo_oapi::Deprecated::False)
 ///                         .description("Pet database id to get Pet for")
 ///                         .schema(
-///                             salvo_oapi::openapi::Object::new()
-///                                 .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                                 .format(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)),
+///                             salvo_oapi::Object::new()
+///                                 .schema_type(salvo_oapi::SchemaType::Integer)
+///                                 .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::KnownFormat::Int64)),
 ///                         ),
 ///                 )
 ///                 .tag("pet_api"),
@@ -438,27 +438,27 @@ pub trait Path {
 /// # }
 /// impl salvo_oapi::IntoParams for PetParams {
 ///     fn into_params(
-///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::openapi::path::ParameterIn>
-///     ) -> Vec<salvo_oapi::openapi::path::Parameter> {
+///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::path::ParameterIn>
+///     ) -> Vec<salvo_oapi::path::Parameter> {
 ///         vec![
-///             salvo_oapi::openapi::path::Parameter::new()
+///             salvo_oapi::path::Parameter::new()
 ///                 .name("id")
-///                 .required(salvo_oapi::openapi::Required::True)
+///                 .required(salvo_oapi::Required::True)
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description("Id of pet")
 ///                 .schema(Some(
-///                     salvo_oapi::openapi::Object::new()
-///                         .schema_type(salvo_oapi::openapi::SchemaType::Integer)
-///                         .format(salvo_oapi::openapi::SchemaFormat::KnownFormat(salvo_oapi::openapi::KnownFormat::Int64)),
+///                     salvo_oapi::Object::new()
+///                         .schema_type(salvo_oapi::SchemaType::Integer)
+///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::KnownFormat::Int64)),
 ///                 )),
-///             salvo_oapi::openapi::path::Parameter::new()
+///             salvo_oapi::path::Parameter::new()
 ///                 .name("name")
-///                 .required(salvo_oapi::openapi::Required::True)
+///                 .required(salvo_oapi::Required::True)
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description("Name of pet")
 ///                 .schema(
-///                     salvo_oapi::openapi::Object::new()
-///                         .schema_type(salvo_oapi::openapi::SchemaType::String),
+///                     salvo_oapi::Object::new()
+///                         .schema_type(salvo_oapi::SchemaType::String),
 ///                 ),
 ///         ]
 ///     }
@@ -534,6 +534,12 @@ pub trait ToResponse<'__r> {
     /// Returns a tuple of response component name (to be referenced) to a response.
     fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
 }
+
+pub struct Endpoint {
+    pub type_id: std::any::TypeId,
+    pub operation: path::Operation,
+}
+inventory::collect!(Endpoint);
 
 #[cfg(test)]
 mod tests {

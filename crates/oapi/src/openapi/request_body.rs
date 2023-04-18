@@ -58,7 +58,7 @@ impl RequestBody {
 ///
 /// _**Add json request body from schema ref.**_
 /// ```
-/// use salvo_oapi::openapi::request_body::{RequestBody, RequestBodyExt};
+/// use salvo_oapi::request_body::{RequestBody, RequestBodyExt};
 ///
 /// let request = RequestBody::new().json_schema_ref("EmailPayload");
 /// ```

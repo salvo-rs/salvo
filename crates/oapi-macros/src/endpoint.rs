@@ -2,11 +2,30 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
-use crate::shared::*;
-
 pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> {
-    let salvo = salvo_crate(false);
-    let 
+    
+    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+
+    let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
+    let fn_name = &*ast_fn.sig.ident.to_string();
+
+    let path = Path::new(path_attribute, fn_name)
+        .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
+        .deprecated(ast_fn.attrs.iter().find_map(|attr| {
+            if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
+                None
+            } else {
+                Some(true)
+            }
+        }));
+
+    quote! {
+       #path
+        #ast_fn
+    }
+    .into()
+    
+    let salvo = root_crate(false);
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = &item_fn.attrs;
@@ -65,6 +84,9 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
                 #[#salvo::async_trait]
                 impl #impl_generics #salvo::Handler for #ty #where_clause {
                     #hfn
+                }
+                inventory::submit! {
+                    Flag::new('v', "verbose")
                 }
             })
         }

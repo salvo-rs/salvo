@@ -138,7 +138,7 @@ impl From<Ref> for RefOr<Response> {
 ///
 /// _**Add json response from schema ref.**_
 /// ```
-/// use salvo_oapi::openapi::response::{Response, ResponseExt};
+/// use salvo_oapi::response::{Response, ResponseExt};
 ///
 /// let request = Response::new()
 ///     .description("A sample response")

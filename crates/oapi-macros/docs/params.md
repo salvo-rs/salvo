@@ -305,11 +305,11 @@ struct Item {
 
 _**Use `schema_with` to manually implement schema for a field.**_
 ```
-# use salvo_oapi::openapi::schema::Object;
+# use salvo_oapi::schema::Object;
 fn custom_type() -> Object {
     Object::new()
-        .schema_type(salvo_oapi::openapi::SchemaType::String)
-        .format(salvo_oapi::openapi::SchemaFormat::Custom(
+        .schema_type(salvo_oapi::SchemaType::String)
+        .format(salvo_oapi::SchemaFormat::Custom(
             "email".to_string(),
         ))
         .description("this is the description")

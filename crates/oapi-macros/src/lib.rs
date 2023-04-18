@@ -34,6 +34,7 @@ mod path;
 mod schema_type;
 mod security_requirement;
 mod parse_utils;
+mod endpoint;
 
 use crate::path::{Path, PathAttr};
 
@@ -76,26 +77,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 #[doc = include_str!("../docs/endpoint.md")]
 pub fn endpoint(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
-
-    let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
-    let fn_name = &*ast_fn.sig.ident.to_string();
-
-    let path = Path::new(path_attribute, fn_name)
-        .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
-        .deprecated(ast_fn.attrs.iter().find_map(|attr| {
-            if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
-                None
-            } else {
-                Some(true)
-            }
-        }));
-
-    quote! {
-       #path
-        #ast_fn
-    }
-    .into()
+    endpoint::generate(attr, item)
 }
 
 #[proc_macro_error]
@@ -158,7 +140,6 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 
     into_responses.to_token_stream().into()
 }
-
 
 #[proc_macro]
 #[doc = include_str!("../docs/schema.md")]
