@@ -539,13 +539,13 @@ spec.**_
  }
 ```
 
-More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
+More examples for _`value_type`_ in [`IntoParameters` derive docs][into_parameters].
 
 [to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [binary]: openapi/schema/enum.KnownFormat.html#variant.Binary
 [xml]: openapi/xml/struct.Xml.html
-[into_params]: derive.IntoParams.html
+[into_parameters]: derive.IntoParameters.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [serde attributes]: https://serde.rs/attributes.html
 [discriminator]: openapi/schema/struct.Discriminator.html

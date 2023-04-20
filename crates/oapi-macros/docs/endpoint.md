@@ -229,7 +229,7 @@ responses(MyResponse)
 
 # Params Attributes
 
-The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
+The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParameters
 Type](#intoparams-type).
 
 ## Tuples
@@ -246,7 +246,7 @@ tuples separated by commas:
   equals sign E.g. _`"id" = String`_
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
-  This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
+  This must be one of the variants of [`parameter::ParameterIn`][in_enum].
   E.g. _`Path, Query, Header, Cookie`_
 
 * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
@@ -326,10 +326,10 @@ params(
 )
 ```
 
-## IntoParams Type
+## IntoParameters Type
 
-In the IntoParams parameters format, the parameters are specified using an identifier for a type
-that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
+In the IntoParameters parameters format, the parameters are specified using an identifier for a type
+that implements [`IntoParameters`][into_parameters]. See [`IntoParameters`][into_parameters] for an
 example.
 
 ```text
@@ -464,10 +464,10 @@ fn get_user() -> User {
 [security]: openapi/security/struct.SecurityRequirement.html
 [security_schema]: openapi/security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[into_params]: trait.IntoParams.html
+[into_parameters]: trait.IntoParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
 [into_responses_trait]: trait.IntoResponses.html
-[into_params_derive]: derive.IntoParams.html
+[into_parameters_derive]: derive.IntoParameters.html
 [to_response_trait]: trait.ToResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html

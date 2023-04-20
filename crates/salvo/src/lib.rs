@@ -130,11 +130,6 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_oapi as oapi;
 }
-cfg_feature! {
-    #![feature ="swagger"]
-    #[doc(no_inline)]
-    pub use salvo_swagger as swagger;
-}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
@@ -202,5 +197,9 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="serve-static"]
         pub use salvo_serve_static::{StaticFile, StaticDir};
+    }
+    cfg_feature! {
+        #![feature ="oapi"]
+        pub use salvo_oapi::endpoint;
     }
 }

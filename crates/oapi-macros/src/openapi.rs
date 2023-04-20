@@ -100,7 +100,7 @@ impl ToTokens for Tag {
         let oapi = crate::oapi_crate();
         let name = &self.name;
         tokens.extend(quote! {
-            #oapi::oapi::openapi::tag::Tag::default().name(#name)
+            #oapi::oapi::tag::Tag::default().name(#name)
         });
 
         if let Some(ref description) = self.description {
@@ -186,7 +186,7 @@ impl ToTokens for Server {
                 });
 
                 quote! {
-                    .parameter(#name, #oapi::oapi::openapi::server::ServerVariableBuilder::new()
+                    .parameter(#name, #oapi::oapi::server::ServerVariableBuilder::new()
                         .default_value(#default_value)
                         #description
                         #enum_values
@@ -196,7 +196,7 @@ impl ToTokens for Server {
             .collect::<TokenStream>();
 
         tokens.extend(quote! {
-            #oapi::oapi::openapi::server::ServerBuilder::new()
+            #oapi::oapi::server::ServerBuilder::new()
                 .url(#url)
                 #description
                 #parameters
@@ -311,7 +311,7 @@ impl ToTokens for Components {
         }
 
         let builder_tokens = self.schemas.iter().fold(
-            quote! { #oapi::oapi::openapi::Components::new() },
+            quote! { #oapi::oapi::Components::new() },
             |mut tokens, schema| {
                 let Schema(path) = schema;
 

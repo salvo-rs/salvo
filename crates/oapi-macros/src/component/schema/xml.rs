@@ -89,7 +89,7 @@ impl ToTokens for XmlAttr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            #oapi::oapi::openapi::xml::XmlBuilder::new()
+            #oapi::oapi::xml::XmlBuilder::new()
         });
 
         if let Some(ref name) = self.name {

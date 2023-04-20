@@ -91,7 +91,7 @@ impl RequestBodyExt for RequestBody {
     fn json_schema_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
             "application/json".to_string(),
-            crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            crate::Content::new(crate::Ref::from_schema_name(ref_name)),
         );
         self
     }
@@ -102,7 +102,7 @@ impl RequestBodyExt for RequestBody {
     fn json_schema_ref(self, ref_name: &str) -> RequestBody {
         self.content(
             "application/json",
-            crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            crate::Content::new(crate::Ref::from_schema_name(ref_name)),
         )
     }
 }
@@ -130,7 +130,7 @@ mod tests {
             .required(Required::True)
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_schema_name("EmailPayload")),
+                Content::new(crate::Ref::from_schema_name("EmailPayload")),
             );
         let serialized = serde_json::to_string_pretty(&request_body)?;
         println!("serialized json:\n {serialized}");
@@ -158,7 +158,7 @@ mod openapi_extensions_tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::openapi::request_body::RequestBody;
+    use crate::request_body::RequestBody;
 
     use super::RequestBodyExt;
 

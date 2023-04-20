@@ -48,11 +48,11 @@ impl ToTokens for SecurityRequirementAttr {
             let scopes_len = scopes.len();
 
             tokens.extend(quote! {
-                #oapi::oapi::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
+                #oapi::oapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
             })
         } else {
             tokens.extend(quote! {
-                #oapi::oapi::openapi::security::SecurityRequirement::default()
+                #oapi::oapi::security::SecurityRequirement::default()
             })
         }
     }

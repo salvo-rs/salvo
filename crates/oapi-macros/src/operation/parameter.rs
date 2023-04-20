@@ -39,7 +39,7 @@ use super::InlineType;
 #[derive(Debug)]
 pub enum Parameter<'a> {
     Value(ValueParameter<'a>),
-    /// Identifier for a struct that implements `IntoParams` trait.
+    /// Identifier for a struct that implements `IntoParameters` trait.
     Struct(StructParameter),
 }
 
@@ -73,7 +73,7 @@ impl ToTokens for Parameter<'_> {
                     .unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        Some(<#path as #oapi::oapi::IntoParams>::into_params(#parameter_in_provider))
+                        Some(<#path as #oapi::oapi::IntoParameters>::into_parameters(#parameter_in_provider))
                     )
                 })
             }
@@ -256,7 +256,7 @@ impl ToTokens for ValueParameter<'_> {
         let oapi = crate::oapi_crate();
         let name = &*self.name;
         tokens.extend(quote! {
-            #oapi::oapi::openapi::path::Parameter::from(#oapi::oapi::openapi::path::Parameter::new(#name))
+            #oapi::oapi::parameter::Parameter::from(#oapi::oapi::parameter::Parameter::new(#name))
         });
         let parameter_in = &self.parameter_in;
         tokens.extend(quote! { .parameter_in(#parameter_in) });
@@ -283,7 +283,7 @@ impl ToTokens for ValueParameter<'_> {
 #[derive(Debug)]
 pub struct StructParameter {
     pub path: ExprPath,
-    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::IntoParams::into_param`]
+    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::IntoParameters::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 
@@ -342,10 +342,10 @@ impl ToTokens for ParameterIn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::Path => quote! { #oapi::oapi::openapi::path::ParameterIn::Path },
-            Self::Query => quote! { #oapi::oapi::openapi::path::ParameterIn::Query },
-            Self::Header => quote! { #oapi::oapi::openapi::path::ParameterIn::Header },
-            Self::Cookie => quote! { #oapi::oapi::openapi::path::ParameterIn::Cookie },
+            Self::Path => quote! { #oapi::oapi::parameter::ParameterIn::Path },
+            Self::Query => quote! { #oapi::oapi::parameter::ParameterIn::Query },
+            Self::Header => quote! { #oapi::oapi::parameter::ParameterIn::Header },
+            Self::Cookie => quote! { #oapi::oapi::parameter::ParameterIn::Cookie },
         })
     }
 }
@@ -385,25 +385,25 @@ impl ToTokens for ParameterStyle {
         let oapi = crate::oapi_crate();
         match self {
             ParameterStyle::Matrix => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::Matrix })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix })
             }
             ParameterStyle::Label => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::Label })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label })
             }
             ParameterStyle::Form => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::Form })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form })
             }
             ParameterStyle::Simple => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::Simple })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple })
             }
             ParameterStyle::SpaceDelimited => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::SpaceDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
             }
             ParameterStyle::PipeDelimited => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::PipeDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
             }
             ParameterStyle::DeepObject => {
-                tokens.extend(quote! { #oapi::oapi::openapi::path::ParameterStyle::DeepObject })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject })
             }
         }
     }

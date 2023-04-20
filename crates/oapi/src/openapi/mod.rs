@@ -375,7 +375,7 @@ pub(crate) use set_value;
 mod tests {
     use serde_json::json;
 
-    use crate::openapi::{
+    use crate::{
         info::Info,
         path::{Operation, Paths},
     };

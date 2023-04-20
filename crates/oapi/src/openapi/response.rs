@@ -175,7 +175,7 @@ impl ResponseExt for Response {
     fn json_schema_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
-            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            Content::new(crate::Ref::from_schema_name(ref_name)),
         );
         self
     }
@@ -186,7 +186,7 @@ impl ResponseExt for Response {
     fn json_schema_ref(self, ref_name: &str) -> Response {
         self.content(
             "application/json",
-            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            Content::new(crate::Ref::from_schema_name(ref_name)),
         )
     }
 }
@@ -209,7 +209,7 @@ mod tests {
         let request_body = Response::new("A sample response")
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_schema_name("MySchemaPayload")),
+                Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
             );
         let serialized = serde_json::to_string_pretty(&request_body)?;
         println!("serialized json:\n {serialized}");
@@ -235,7 +235,7 @@ mod openapi_extensions_tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use crate::openapi::Response;
+    use crate::Response;
 
     use super::ResponseExt;
 

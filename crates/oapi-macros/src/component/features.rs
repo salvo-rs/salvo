@@ -99,7 +99,7 @@ pub enum Feature {
     AllowReserved(AllowReserved),
     Explode(Explode),
     ParameterIn(ParameterIn),
-    IntoParamsNames(Names),
+    IntoParametersNames(Names),
     MultipleOf(MultipleOf),
     Maximum(Maximum),
     Minimum(Minimum),
@@ -231,11 +231,11 @@ impl ToTokens for Feature {
                 // inline feature is ignored by `ToTokens`
                 TokenStream::new()
             }
-            Feature::IntoParamsNames(_) => {
+            Feature::IntoParametersNames(_) => {
                 abort! {
                     Span::call_site(),
                     "Names feature does not support `ToTokens`";
-                    help = "Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."
+                    help = "Names is only used with IntoParameters to artificially give names for unnamed struct type `IntoParameters`."
                 }
             }
             Feature::As(_) => {
@@ -270,7 +270,7 @@ impl Display for Feature {
             Feature::RenameAll(rename_all) => rename_all.fmt(f),
             Feature::ValueType(value_type) => value_type.fmt(f),
             Feature::Inline(inline) => inline.fmt(f),
-            Feature::IntoParamsNames(names) => names.fmt(f),
+            Feature::IntoParametersNames(names) => names.fmt(f),
             Feature::MultipleOf(multiple_of) => multiple_of.fmt(f),
             Feature::Maximum(maximum) => maximum.fmt(f),
             Feature::Minimum(minimum) => minimum.fmt(f),
@@ -312,7 +312,7 @@ impl Validatable for Feature {
             Feature::RenameAll(rename_all) => rename_all.is_validatable(),
             Feature::ValueType(value_type) => value_type.is_validatable(),
             Feature::Inline(inline) => inline.is_validatable(),
-            Feature::IntoParamsNames(names) => names.is_validatable(),
+            Feature::IntoParametersNames(names) => names.is_validatable(),
             Feature::MultipleOf(multiple_of) => multiple_of.is_validatable(),
             Feature::Maximum(maximum) => maximum.is_validatable(),
             Feature::Minimum(minimum) => minimum.is_validatable(),
@@ -824,7 +824,7 @@ impl From<ParameterIn> for Feature {
 
 name!(ParameterIn = "parameter_in");
 
-/// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
+/// Specify names of unnamed fields with `names(...) attribute for `IntoParameters` derive.
 #[derive(Clone,Debug)]
 pub struct Names(Vec<String>);
 
@@ -847,7 +847,7 @@ impl Parse for Names {
 
 impl From<Names> for Feature {
     fn from(value: Names) -> Self {
-        Feature::IntoParamsNames(value)
+        Feature::IntoParametersNames(value)
     }
 }
 
@@ -1389,7 +1389,7 @@ impl ToTokens for AdditionalProperties {
         let oapi = crate::oapi_crate();
         let additional_properties = &self.0;
         tokens.extend(quote!(
-            #oapi::oapi::openapi::schema::AdditionalProperties::FreeForm(
+            #oapi::oapi::schema::AdditionalProperties::FreeForm(
                 #additional_properties
             )
         ))

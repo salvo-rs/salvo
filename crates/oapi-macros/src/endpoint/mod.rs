@@ -1,9 +1,9 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, quote};
+use quote::{quote, ToTokens};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{InputType, omit_type_path_lifetimes, parse_input_type};
+use crate::{omit_type_path_lifetimes, parse_input_type, InputType};
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
@@ -18,16 +18,21 @@ fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<Token
         doc_comments,
         deprecated,
     } = attr;
+    let tfn = Ident::new(&format!("__salvo_oapi_type_id_{}", name), Span::call_site());
     let ofn = Ident::new(&format!("__salvo_oapi_operation_{}", name), Span::call_site());
+    let opc = operation_id.map(|opt_id| quote! { operation.operation_id = #opt_id; });
     Ok(quote! {
-        fn #ofn() -> #oapi::Operation {
-            let mut operation #oapi::Operation::new(#operation_id);
-            operation.operation_id = #operation_id;
+        fn #tfn() -> ::std::any::TypeId {
+            ::std::any::TypeId::of::<#name>()
+        }
+        fn #ofn() -> #oapi::oapi::Operation {
+            let mut operation = #oapi::oapi::Operation::new();
+            #opc
             #(#modifiers)*
             operation
         }
         #oapi::oapi::__private::inventory::submit! {
-            Endpoint::new(#name::type_id, #ofn)
+            #oapi::oapi::Endpoint::new(#tfn, #ofn)
         }
     })
 }
@@ -172,7 +177,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                         };
                     });
                     modifiers.push(quote! {
-                        <#ty as #oapi::endpoint::OperationModifier>::modify(&mut operation);
+                        <#ty as #oapi::endpoint::Modifier<#oapi::oapi::Operation>>::modify(&mut operation);
                     });
                 } else {
                     return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
@@ -189,7 +194,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             if sig.asyncness.is_none() {
                 quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
@@ -197,7 +202,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             } else {
                 quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -208,7 +213,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             if sig.asyncness.is_none() {
                 quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                     }
@@ -216,7 +221,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             } else {
                 quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, req, depot, res).await;
                     }

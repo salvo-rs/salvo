@@ -7,6 +7,12 @@ pub struct Endpoint {
     pub operation: fn() -> Operation,
 }
 
+impl Endpoint {
+    pub const fn new(type_id: fn() -> TypeId, operation: fn() -> Operation) -> Self {
+        Self { type_id, operation }
+    }
+}
+
 // pub trait ToOperation {
 //     fn operation(&self) -> Operation;
 // }

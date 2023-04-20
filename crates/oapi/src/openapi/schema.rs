@@ -1077,7 +1077,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::*;
-    use crate::openapi::*;
+    use crate::*;
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {

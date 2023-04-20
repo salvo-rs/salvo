@@ -220,7 +220,7 @@ impl Operation {
 #[cfg(test)]
 mod tests {
     use super::{Operation, Operation};
-    use crate::openapi::{security::SecurityRequirement, server::Server};
+    use crate::{security::SecurityRequirement, server::Server};
 
     #[test]
     fn operation_new() {

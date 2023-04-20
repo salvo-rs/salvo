@@ -92,7 +92,7 @@ impl ToTokens for ToResponse<'_> {
 
         tokens.extend(quote! {
             impl #to_response_impl_generics #oapi::oapi::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
-                fn response() -> (& #lifetime str, #oapi::oapi::openapi::RefOr<#oapi::oapi::openapi::response::Response>) {
+                fn response() -> (& #lifetime str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
                     (#name, #response.into())
                 }
             }
@@ -158,7 +158,7 @@ impl ToTokens for IntoResponses {
                 })
                 .map(|response| {
                     let status = &response.status_code;
-                    quote!((#status, #oapi::oapi::openapi::RefOr::from(#response)))
+                    quote!((#status, #oapi::oapi::RefOr::from(#response)))
                 })
                 .collect::<Array<TokenStream>>(),
             Data::Union(_) => abort!(self.ident, "`IntoResponses` does not support `Union` type"),
@@ -174,8 +174,8 @@ impl ToTokens for IntoResponses {
         };
         tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::IntoResponses for #ident #ty_generics #where_clause {
-                fn responses() -> std::collections::BTreeMap<String, #oapi::oapi::openapi::RefOr<#oapi::oapi::openapi::response::Response>> {
-                    #oapi::oapi::openapi::response::Responses::new()
+                fn responses() -> std::collections::BTreeMap<String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>> {
+                    #oapi::oapi::response::Responses::new()
                         #responses
                         .into()
                 }

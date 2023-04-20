@@ -1,7 +1,7 @@
 Generate [path parameters][path_params] from struct's
 fields.
 
-This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
+This is `#[derive]` implementation for [`IntoParameters`][into_parameters] trait.
 
 Typically path parameters need to be defined within [`#[salvo_oapi::path(...params(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
@@ -18,47 +18,47 @@ While it is totally okay to declare deprecated with reason
 
 Doc comment on struct fields will be used as description for the generated parameters.
 ```
-#[derive(salvo_oapi::IntoParams)]
+#[derive(salvo_oapi::IntoParameters)]
 struct Query {
     /// Query todo items by name.
     name: String
 }
 ```
 
-# IntoParams Container Attributes for `#[into_params(...)]`
+# IntoParameters Container Attributes for `#[into_parameters(...)]`
 
-The following attributes are available for use in on the container attribute `#[into_params(...)]` for the struct
-deriving `IntoParams`:
+The following attributes are available for use in on the container attribute `#[into_parameters(...)]` for the struct
+deriving `IntoParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
    __Only__ supported on __unnamed structs__.
 * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
    values are based on _`parameter_in`_ attribute.
 * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-   [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+   [`parameter::ParameterIn`][in_enum]. There is no default value, if this attribute is not
    supplied, then the value is determined by the `parameter_in_provider` in
-   [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+   [`IntoParameters::into_parameters()`](trait.IntoParameters.html#tymethod.into_parameters).
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(names("id"))]
+#[derive(IntoParameters)]
+#[into_parameters(names("id"))]
 struct Id(u64);
 ```
 
 Use `names` to define names for multiple unnamed arguments.
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(names("id", "name"))]
+#[derive(IntoParameters)]
+#[into_parameters(names("id", "name"))]
 struct IdAndName(u64, String);
 ```
 
-# IntoParams Field Attributes for `#[param(...)]`
+# IntoParameters Field Attributes for `#[param(...)]`
 
 The following attributes are available for use in the `#[param(...)]` on struct fields:
 
@@ -96,7 +96,7 @@ The following attributes are available for use in the `#[param(...)]` on struct 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
 * `required = ...` Can be used to enforce required status for the parameter. [See
-   rules][derive@IntoParams#field-nullability-and-required-rules]
+   rules][derive@IntoParameters#field-nullability-and-required-rules]
 
 * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 
@@ -134,12 +134,12 @@ The following attributes are available for use in the `#[param(...)]` on struct 
 
 #### Field nullability and required rules
 
-Same rules for nullability and required status apply for _`IntoParams`_ field attributes as for
+Same rules for nullability and required status apply for _`IntoParameters`_ field attributes as for
 _`ToSchema`_ field attributes. [See the rules][`derive@ToSchema#field-nullability-and-required-rules`].
 
 # Partial `#[serde(...)]` attributes support
 
-IntoParams derive has partial support for [serde attributes]. These supported attributes will reflect to the
+IntoParameters derive has partial support for [serde attributes]. These supported attributes will reflect to the
 generated OpenAPI doc. The following attributes are currently supported:
 
 * `rename_all = "..."` Supported at the container level.
@@ -152,14 +152,14 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 # Examples
 
-_**Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
+_**Demonstrate [`IntoParameters`][into_parameters] usage with resolving `Path` and `Query` parameters
 with _`salvo`_**_.
 ```
 use serde::Deserialize;
 use serde_json::json;
-use salvo_oapi::IntoParams;
+use salvo_oapi::IntoParameters;
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParameters)]
 struct PetPathArgs {
     /// Id of pet
     id: i64,
@@ -167,7 +167,7 @@ struct PetPathArgs {
     name: String,
 }
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParameters)]
 struct Filter {
     /// Age filter for pets
     #[deprecated]
@@ -187,11 +187,11 @@ async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder
 }
 ```
 
-_**Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
+_**Demonstrate [`IntoParameters`][into_parameters] usage with the `#[into_parameters(...)]` container attribute to
 be used as a path query, and inlining a schema query field:**_
 ```
 use serde::Deserialize;
-use salvo_oapi::{IntoParams, ToSchema};
+use salvo_oapi::{IntoParameters, ToSchema};
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -200,8 +200,8 @@ enum PetKind {
     Cat,
 }
 
-#[derive(Deserialize, IntoParams)]
-#[into_params(style = Form, parameter_in = Query)]
+#[derive(Deserialize, IntoParameters)]
+#[into_parameters(style = Form, parameter_in = Query)]
 struct PetQuery {
     /// Name of pet
     name: Option<String>,
@@ -227,10 +227,10 @@ async fn get_pet(query: PetQuery) {
 
 _**Override `String` with `i64` using `value_type` attribute.**_
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = i64)]
     id: String,
@@ -239,10 +239,10 @@ struct Filter {
 
 _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will render as `type: object` in OpenAPI spec.**_
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Object)]
     id: String,
@@ -251,10 +251,10 @@ struct Filter {
 
 _**You can use a generic type to override the default type of the field.**_
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Option<String>)]
     id: String
@@ -263,10 +263,10 @@ struct Filter {
 
 _**You can even override a [`Vec`] with another one.**_
 ```
-# use salvo_oapi::IntoParams;
+# use salvo_oapi::IntoParameters;
 #
-#[derive(IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Vec<i32>)]
     id: Vec<String>
@@ -275,15 +275,15 @@ struct Filter {
 
 _**We can override value with another [`ToSchema`][to_schema].**_
 ```
-# use salvo_oapi::{IntoParams, ToSchema};
+# use salvo_oapi::{IntoParameters, ToSchema};
 #
 #[derive(ToSchema)]
 struct Id {
     value: i64,
 }
 
-#[derive(IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Id)]
     id: String
@@ -292,7 +292,7 @@ struct Filter {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::IntoParams)]
+#[derive(salvo_oapi::IntoParameters)]
 struct Item {
     #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
@@ -315,8 +315,8 @@ fn custom_type() -> Object {
         .description("this is the description")
 }
 
-#[derive(salvo_oapi::IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(salvo_oapi::IntoParameters)]
+#[into_parameters(parameter_in = Query)]
 struct Query {
     #[param(schema_with = custom_type)]
     email: String,
@@ -326,7 +326,7 @@ struct Query {
 [to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
-[into_params]: trait.IntoParams.html
+[into_parameters]: trait.IntoParameters.html
 [path_params]: attr.path.html#params-attributes
 [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 [style]: openapi/path/enum.ParameterStyle.html

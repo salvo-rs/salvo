@@ -9,7 +9,7 @@ use std::{borrow::Cow, error::Error};
 pub mod oauth;
 mod config;
 pub use config::Config;
-use crate::openapi::OpenApi;
+use crate::OpenApi;
 use rust_embed::RustEmbed;
 use salvo_core::http::{header, StatusError, HeaderValue, ResBody};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};

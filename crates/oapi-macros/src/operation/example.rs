@@ -96,7 +96,7 @@ impl ToTokens for Example {
             .map(|external_value| quote!(.external_value(#external_value)));
 
         tokens.extend(quote! {
-            #oapi::oapi::openapi::example::ExampleBuilder::new()
+            #oapi::oapi::example::ExampleBuilder::new()
                 #summary
                 #description
                 #value

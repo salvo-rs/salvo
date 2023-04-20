@@ -7,6 +7,7 @@ pub mod endpoint;
 
 use std::collections::{BTreeMap, HashMap};
 pub use salvo_oapi_macros::*;
+pub use endpoint::Endpoint;
 
 /// Trait for implementing OpenAPI Schema object.
 ///
@@ -114,7 +115,7 @@ macro_rules! impl_partial_schema {
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl PartialSchema for $($tt)* {
-            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+            fn schema() -> crate::RefOr<crate::schema::Schema> {
                 schema!( $($tt)* ).into()
             }
         }
@@ -136,7 +137,7 @@ mod oapi {
 // Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly 
 // from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
 #[doc(hidden)]
-mod __private {
+pub mod __private {
     pub use inventory;
 }
 
@@ -155,9 +156,9 @@ pub trait Modifier<T> {
 /// The trait can be implemented manually easily on any type. This trait comes especially handy
 /// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
 /// ```rust
-/// # use utoipa::PartialSchema;
-/// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
-/// # use utoipa::openapi::RefOr;
+/// # use salvo::oapi::PartialSchema;
+/// # use salvo::oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use salvo::oapi::RefOr;
 /// #
 /// struct MyType;
 ///
@@ -173,9 +174,9 @@ pub trait Modifier<T> {
 ///
 /// _**Create number schema from u64.**_
 /// ```rust
-/// # use utoipa::PartialSchema;
-/// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
-/// # use utoipa::openapi::RefOr;
+/// # use salvo::oapi::PartialSchema;
+/// # use salvo::oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use salvo::oapi::RefOr;
 /// #
 /// let number: RefOr<Schema> = u64::schema().into();
 ///
@@ -194,8 +195,8 @@ pub trait Modifier<T> {
 ///
 /// _**Construct a Pet object schema manually.**_
 /// ```rust
-/// # use utoipa::PartialSchema;
-/// # use utoipa::openapi::schema::ObjectBuilder;
+/// # use salvo::oapi::PartialSchema;
+/// # use salvo::oapi::schema::ObjectBuilder;
 /// struct Pet {
 ///     id: i32,
 ///     name: String,
@@ -212,7 +213,7 @@ pub trait Modifier<T> {
 pub trait PartialSchema {
     /// Return ref or schema of implementing type that can then be used to
     /// construct combined schemas.
-    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
+    fn schema() -> crate::RefOr<crate::schema::Schema>;
 }
 
 #[rustfmt::skip]
@@ -336,17 +337,17 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
-/// For more details of `#[derive(IntoParams)]` refer to [derive documentation][derive].
+/// For more details of `#[derive(IntoParameters)]` refer to [derive documentation][derive].
 ///
 /// # Examples
 ///
-/// Derive [`IntoParams`] implementation. This example will fail to compile because [`IntoParams`] cannot
+/// Derive [`IntoParameters`] implementation. This example will fail to compile because [`IntoParameters`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
-/// use salvo_oapi::{IntoParams};
+/// use salvo_oapi::{IntoParameters};
 ///
-/// #[derive(IntoParams)]
+/// #[derive(IntoParameters)]
 /// struct PetParams {
 ///     /// Id of pet
 ///     id: i64,
@@ -355,7 +356,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// }
 /// ```
 ///
-/// Roughly equal manual implementation of [`IntoParams`] trait.
+/// Roughly equal manual implementation of [`IntoParameters`] trait.
 /// ```
 /// # struct PetParams {
 /// #    /// Id of pet
@@ -363,8 +364,8 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// #    /// Name of pet
 /// #    name: String, 
 /// # }
-/// impl salvo_oapi::IntoParams for PetParams {
-///     fn into_params(
+/// impl salvo_oapi::IntoParameters for PetParams {
+///     fn into_parameters(
 ///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::path::ParameterIn>
 ///     ) -> Vec<salvo_oapi::path::Parameter> {
 ///         vec![
@@ -407,10 +408,7 @@ pub trait IntoParameters {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{
-///     openapi::{Response, Response, Responses, RefOr},
-///     IntoResponses,
-/// };
+/// use salvo_oapi::{Response, Response, Responses, RefOr, IntoResponses };
 ///
 /// enum MyResponse {
 ///     Ok,
@@ -459,7 +457,7 @@ pub trait IntoResponses {
 /// [derive]: derive.ToResponse.html
 pub trait ToResponse<'__r> {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
+    fn response() -> (&'__r str, RefOr<crate::Response>);
 }
 
 #[cfg(test)]

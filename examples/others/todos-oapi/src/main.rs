@@ -6,8 +6,8 @@ use salvo::size_limiter;
 use self::models::*;
 
 // use utoipa::OpenApi;
-use salvo::oapi::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
-use salvo::oapi::openapi::{Components, Info, OpenApi, Paths, Tag};
+use salvo::oapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use salvo::oapi::{Components, Info, OpenApi, Paths, Tag};
 use salvo::oapi::swagger::{Config, SwaggerUi};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
@@ -63,7 +63,7 @@ pub async fn openapi_json(res: &mut Response) {
     res.render(Json(&&*API_DOC))
 }
 
-#[salvo::oapi::endpoint(
+#[endpoint(
     responses(
         (status = 200, description = "List all todos successfully", body = [Todo])
     )
@@ -80,7 +80,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
     res.render(Json(todos));
 }
 
-#[salvo::oapi::endpoint(
+#[endpoint(
         request_body = Todo,
         responses(
             (status = 201, description = "Todo created successfully", body = Todo),
@@ -106,13 +106,11 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-        put,
-        path = "/api/todos/{id}",
         responses(
             (status = 200, description = "Todo modified successfully"),
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
-        params(
+        parameters(
             ("id" = i32, Path, description = "Id of todo item to modify")
         )
     )]
@@ -135,14 +133,12 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-    delete,
-    path = "/api/todos/{id}",
     responses(
         (status = 200, description = "Todo deleted successfully"),
         (status = 401, description = "Unauthorized to delete Todo"),
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
-    params(
+    parameters(
         ("id" = i32, Path, description = "Id of todo item to delete")
     ),
     security(

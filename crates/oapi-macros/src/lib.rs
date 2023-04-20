@@ -12,7 +12,7 @@ use std::ops::Deref;
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
 
-use component::into_params::IntoParams;
+use component::into_parameters::IntoParameters;
 use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
@@ -80,16 +80,18 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
+   let stream =  match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    println!("stream:{}",stream);
+    stream
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(IntoParams, attributes(param, into_params))]
+#[proc_macro_derive(IntoParameters, attributes(param, into_parameters))]
 #[doc = include_str!("../docs/params.md")]
-pub fn into_params(input: TokenStream) -> TokenStream {
+pub fn into_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -98,14 +100,14 @@ pub fn into_params(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_params = IntoParams {
+    let into_parameters = IntoParameters {
         attrs,
         generics,
         data,
         ident,
     };
 
-    into_params.to_token_stream().into()
+    into_parameters.to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -185,7 +187,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
     });
     // schema.to_token_stream().into()
     let stream = schema.to_token_stream().into();
-    println!("bbbb{}", stream);
+    // println!("bbbb{}", stream);
     stream
 }
 
@@ -270,8 +272,8 @@ impl ToTokens for Deprecated {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote! { #oapi::oapi::openapi::Deprecated::False },
-            Self::True => quote! { #oapi::oapi::openapi::Deprecated::True },
+            Self::False => quote! { #oapi::oapi::Deprecated::False },
+            Self::True => quote! { #oapi::oapi::Deprecated::True },
         })
     }
 }
@@ -303,8 +305,8 @@ impl ToTokens for Required {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote! { #oapi::oapi::openapi::Required::False },
-            Self::True => quote! { #oapi::oapi::openapi::Required::True },
+            Self::False => quote! { #oapi::oapi::Required::False },
+            Self::True => quote! { #oapi::oapi::Required::True },
         })
     }
 }
@@ -351,7 +353,7 @@ impl ToTokens for ExternalDocs {
         let oapi = crate::oapi_crate();
         let url = &self.url;
         tokens.extend(quote! {
-            #oapi::oapi::openapi::external_docs::ExternalDocsBuilder::new()
+            #oapi::oapi::external_docs::ExternalDocsBuilder::new()
                 .url(#url)
         });
 

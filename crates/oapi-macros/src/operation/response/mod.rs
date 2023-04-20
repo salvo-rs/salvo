@@ -262,14 +262,14 @@ impl ToTokens for ResponseTuple<'_> {
                     });
                 } else {
                     tokens.extend(quote! {
-                        #oapi::oapi::openapi::Ref::from_response_name(<#path as #oapi::oapi::ToResponse>::response().0)
+                        #oapi::oapi::Ref::from_response_name(<#path as #oapi::oapi::ToResponse>::response().0)
                     });
                 }
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
                 tokens.extend(quote! {
-                    #oapi::oapi::openapi::Response::new(#description)
+                    #oapi::oapi::Response::new(#description)
                 });
 
                 let create_content = |path_type: &PathType,
@@ -278,7 +278,7 @@ impl ToTokens for ResponseTuple<'_> {
                  -> TokenStream2 {
                     let content_schema = match path_type {
                         PathType::Ref(ref_type) => quote! {
-                            #oapi::oapi::openapi::schema::Ref::new(#ref_type)
+                            #oapi::oapi::schema::Ref::new(#ref_type)
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
@@ -297,7 +297,7 @@ impl ToTokens for ResponseTuple<'_> {
                     };
 
                     let mut content =
-                        quote! { #oapi::oapi::openapi::Content::new(#content_schema) };
+                        quote! { #oapi::oapi::Content::new(#content_schema) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -690,7 +690,7 @@ impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         tokens.extend(self.0.iter().fold(
-            quote! { #oapi::oapi::openapi::Responses::new() },
+            quote! { #oapi::oapi::Responses::new() },
             |mut acc, response| {
                 match response {
                     Response::IntoResponses(path) => {
@@ -837,12 +837,12 @@ impl ToTokens for Header {
             .to_token_stream();
 
             tokens.extend(quote! {
-                #oapi::oapi::openapi::HeaderBuilder::new().schema(#media_type_schema)
+                #oapi::oapi::HeaderBuilder::new().schema(#media_type_schema)
             })
         } else {
             // default header (string type)
             tokens.extend(quote! {
-                Into::<#oapi::oapi::openapi::HeaderBuilder>::into(#oapi::oapi::openapi::Header::default())
+                Into::<#oapi::oapi::HeaderBuilder>::into(#oapi::oapi::Header::default())
             })
         };
 

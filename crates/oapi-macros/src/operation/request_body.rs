@@ -137,7 +137,7 @@ impl ToTokens for RequestBodyAttr<'_> {
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
                 PathType::Ref(ref_type) => quote! {
-                    #oapi::oapi::openapi::schema::Ref::new(#ref_type)
+                    #oapi::oapi::schema::Ref::new(#ref_type)
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
@@ -153,7 +153,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };
             let mut content = quote! {
-                #oapi::oapi::openapi::content::Content::new(#media_type_schema)
+                #oapi::oapi::content::Content::new(#media_type_schema)
             };
 
             if let Some(ref example) = self.example {
@@ -177,7 +177,7 @@ impl ToTokens for RequestBodyAttr<'_> {
             match body_type {
                 PathType::Ref(_) => {
                     tokens.extend(quote! {
-                        #oapi::oapi::openapi::request_body::RequestBody::new()
+                        #oapi::oapi::request_body::RequestBody::new()
                             .content("application/json", #content)
                     });
                 }
@@ -189,7 +189,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                         .as_deref()
                         .unwrap_or_else(|| type_tree.get_default_content_type());
                     tokens.extend(quote! {
-                        #oapi::oapi::openapi::request_body::RequestBody::new()
+                        #oapi::oapi::request_body::RequestBody::new()
                             .content(#content_type, #content)
                             .required(#required)
                     });

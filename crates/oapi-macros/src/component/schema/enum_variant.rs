@@ -75,7 +75,7 @@ where
         let name = &self.name;
 
         quote! {
-            #oapi::oapi::openapi::schema::Object::new()
+            #oapi::oapi::schema::Object::new()
                 #title
                 #example
                 .property(#name, #variant)
@@ -124,7 +124,7 @@ where
         let enum_type = &self.enum_type;
 
         tokens.extend(quote! {
-            #oapi::oapi::openapi::Object::new()
+            #oapi::oapi::Object::new()
                 #title
                 #example
                 .schema_type(#schema_type)
@@ -185,7 +185,7 @@ where
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -206,10 +206,10 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #oapi::oapi::openapi::schema::Object::new()
+                        #oapi::oapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #oapi::oapi::openapi::schema::Object::new()
+                                #oapi::oapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -247,7 +247,7 @@ impl ToTokens for UntaggedEnum {
         let title = &self.title;
 
         tokens.extend(quote! {
-            #oapi::oapi::openapi::schema::Object::new()
+            #oapi::oapi::schema::Object::new()
                 .nullable(true)
                 .default(Some(serde_json::Value::Null))
                 #title
@@ -277,7 +277,7 @@ where
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -298,17 +298,17 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #oapi::oapi::openapi::schema::Object::new()
+                        #oapi::oapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #oapi::oapi::openapi::schema::Object::new()
-                                    .schema_type(#oapi::oapi::openapi::schema::SchemaType::String)
+                                #oapi::oapi::schema::Object::new()
+                                    .schema_type(#oapi::oapi::schema::SchemaType::String)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#content]))
                             )
                             .required(#tag)
                             .property(
                                 #content,
-                                #oapi::oapi::openapi::schema::Object::new()
+                                #oapi::oapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -355,7 +355,7 @@ where
         // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
             quote! {
-                .discriminator(Some(#oapi::oapi::openapi::schema::Discriminator::new(#tag)))
+                .discriminator(Some(#oapi::oapi::schema::Discriminator::new(#tag)))
             }
         });
 
@@ -386,7 +386,7 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
         let mut tokens = TokenStream::new();
 
         tokens.extend(quote! {
-            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         });
 
