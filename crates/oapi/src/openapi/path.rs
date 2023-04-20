@@ -8,7 +8,6 @@ use serde_json::Value;
 
 use super::{
     request_body::RequestBody,
-    response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
 };
 use crate::{Operation, Parameter};
