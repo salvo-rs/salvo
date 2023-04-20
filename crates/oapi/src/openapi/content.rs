@@ -30,7 +30,7 @@ use super::{encoding::Encoding, set_value, RefOr, Schema};
         ///
         /// The key, being the property name, MUST exist in the [`Content::schema`] as a property, with
         /// `schema` being a [`Schema::Object`] and this object containing the same property key in
-        /// [`Object::properties`](crate::openapi::schema::Object::properties).
+        /// [`Object::properties`](crate::schema::Object::properties).
         ///
         /// The encoding object SHALL only apply to `request_body` objects when the media type is
         /// multipart or `application/x-www-form-urlencoded`.
