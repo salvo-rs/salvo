@@ -78,7 +78,7 @@ impl PartialEq for TypeTreeValue<'_> {
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
-#[derive(Clone,Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
     pub value_type: ValueType,
@@ -308,14 +308,14 @@ impl<'t> TypeTree<'t> {
     }
 }
 
-#[derive(Clone, Copy,Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ValueType {
     Primitive,
     Object,
     Tuple,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy,Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum GenericType {
     Vec,
     Map,
@@ -683,27 +683,27 @@ impl<'c> ComponentSchema {
                     .children
                     .as_ref()
                     .map(|children| {
-                        let all_of = children.iter().fold(
-                            quote! { #oapi::oapi::schema::AllOf::new() },
-                            |mut all_of, child| {
-                                let features = if child.is_option() {
-                                    Some(vec![Feature::Nullable(Nullable::new())])
-                                } else {
-                                    None
-                                };
+                        let all_of =
+                            children
+                                .iter()
+                                .fold(quote! { #oapi::oapi::schema::AllOf::new() }, |mut all_of, child| {
+                                    let features = if child.is_option() {
+                                        Some(vec![Feature::Nullable(Nullable::new())])
+                                    } else {
+                                        None
+                                    };
 
-                                let item = ComponentSchema::new(ComponentSchemaProps {
-                                    type_tree: child,
-                                    features,
-                                    description: None,
-                                    deprecated: None,
-                                    object_name,
+                                    let item = ComponentSchema::new(ComponentSchemaProps {
+                                        type_tree: child,
+                                        features,
+                                        description: None,
+                                        deprecated: None,
+                                        object_name,
+                                    });
+                                    all_of.extend(quote!( .item(#item) ));
+
+                                    all_of
                                 });
-                                all_of.extend(quote!( .item(#item) ));
-
-                                all_of
-                            },
-                        );
                         quote! {
                             #oapi::oapi::schema::Array::new(#all_of)
                                 #nullable

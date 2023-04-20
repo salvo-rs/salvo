@@ -2,12 +2,12 @@
 
 mod openapi;
 pub use openapi::*;
-pub mod swagger;
 pub mod endpoint;
+pub mod swagger;
 
-use std::collections::{BTreeMap, HashMap};
-pub use salvo_oapi_macros::*;
 pub use endpoint::Endpoint;
+pub use salvo_oapi_macros::*;
+use std::collections::{BTreeMap, HashMap};
 
 /// Trait for implementing OpenAPI Schema object.
 ///
@@ -128,13 +128,13 @@ macro_rules! impl_partial_schema_primitive {
     };
 }
 
-// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly 
+// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
 // from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
 #[doc(hidden)]
 mod oapi {
     pub use super::*;
 }
-// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly 
+// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
 // from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
 #[doc(hidden)]
 pub mod __private {
@@ -362,7 +362,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// #    /// Id of pet
 /// #    id: i64,
 /// #    /// Name of pet
-/// #    name: String, 
+/// #    name: String,
 /// # }
 /// impl salvo_oapi::IntoParameters for PetParams {
 ///     fn into_parameters(
@@ -396,9 +396,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 pub trait IntoParameters {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn into_parameters(
-        parameter_in_provider: impl Fn() -> Option<ParameterIn>,
-    ) -> Vec<Parameter>;
+    fn into_parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
@@ -470,26 +468,10 @@ mod tests {
     #[test]
     fn test_partial_schema() {
         for (name, schema, value) in [
-            (
-                "i8",
-                i8::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i16",
-                i16::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i32",
-                i32::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i64",
-                i64::schema(),
-                json!({"type": "integer", "format": "int64"}),
-            ),
+            ("i8", i8::schema(), json!({"type": "integer", "format": "int32"})),
+            ("i16", i16::schema(), json!({"type": "integer", "format": "int32"})),
+            ("i32", i32::schema(), json!({"type": "integer", "format": "int32"})),
+            ("i64", i64::schema(), json!({"type": "integer", "format": "int64"})),
             ("i128", i128::schema(), json!({"type": "integer"})),
             ("isize", isize::schema(), json!({"type": "integer"})),
             (
@@ -512,35 +494,16 @@ mod tests {
                 u64::schema(),
                 json!({"type": "integer", "format": "int64", "minimum": 0.0}),
             ),
-            (
-                "u128",
-                u128::schema(),
-                json!({"type": "integer", "minimum": 0.0}),
-            ),
-            (
-                "usize",
-                usize::schema(),
-                json!({"type": "integer", "minimum": 0.0 }),
-            ),
+            ("u128", u128::schema(), json!({"type": "integer", "minimum": 0.0})),
+            ("usize", usize::schema(), json!({"type": "integer", "minimum": 0.0 })),
             ("bool", bool::schema(), json!({"type": "boolean"})),
             ("str", str::schema(), json!({"type": "string"})),
             ("String", String::schema(), json!({"type": "string"})),
             ("char", char::schema(), json!({"type": "string"})),
-            (
-                "f32",
-                f32::schema(),
-                json!({"type": "number", "format": "float"}),
-            ),
-            (
-                "f64",
-                f64::schema(),
-                json!({"type": "number", "format": "double"}),
-            ),
+            ("f32", f32::schema(), json!({"type": "number", "format": "float"})),
+            ("f64", f64::schema(), json!({"type": "number", "format": "double"})),
         ] {
-            println!(
-                "{name}: {json}",
-                json = serde_json::to_string(&schema).unwrap()
-            );
+            println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
             let schema = serde_json::to_value(schema).unwrap();
             assert_json_eq!(schema, value);
         }

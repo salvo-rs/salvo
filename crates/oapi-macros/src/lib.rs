@@ -21,11 +21,11 @@ use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use proc_macro_crate::{crate_name, FoundCrate};
 use syn::{
     bracketed,
-    parse::{Parse, ParseStream},Item,
-    parse_macro_input,PatType,
+    parse::{Parse, ParseStream},
+    parse_macro_input,
     punctuated::Punctuated,
-    token::Bracket,Receiver,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    token::Bracket,
+    DeriveInput, ExprPath, Item, ItemFn, Lit, LitStr, Member, PatType, Receiver, Token,
 };
 
 mod component;
@@ -38,15 +38,14 @@ mod security_requirement;
 mod shared;
 
 use self::{
-    shared::*,
-    endpoint::EndpointAttr,
     component::{
         features::{self, Feature},
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
+    endpoint::EndpointAttr,
     operation::response::derive::{IntoResponses, ToResponse},
+    shared::*,
 };
-
 
 pub(crate) fn salvo_crate() -> syn::Ident {
     match crate_name("salvo-oapi") {
@@ -80,11 +79,11 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-   let stream =  match endpoint::generate(attr, item) {
+    let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     };
-    println!("stream:{}",stream);
+    println!("stream:{}", stream);
     stream
 }
 

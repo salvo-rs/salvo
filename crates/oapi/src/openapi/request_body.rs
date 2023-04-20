@@ -7,25 +7,24 @@ use serde::{Deserialize, Serialize};
 
 use super::{set_value, Content, Required};
 
+/// Implements [OpenAPI Request Body][request_body].
+///
+/// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestBody {
+    /// Additional description of [`RequestBody`] supporting markdown syntax.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
-    /// Implements [OpenAPI Request Body][request_body].
-    ///
-    /// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct RequestBody {
-        /// Additional description of [`RequestBody`] supporting markdown syntax.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
+    /// Map of request body contents mapped by content type e.g. `application/json`.
+    pub content: BTreeMap<String, Content>,
 
-        /// Map of request body contents mapped by content type e.g. `application/json`.
-        pub content: BTreeMap<String, Content>,
-
-        /// Determines whether request body is required in the request or not.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub required: Option<Required>,
-    }
+    /// Determines whether request body is required in the request or not.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required: Option<Required>,
+}
 
 impl RequestBody {
     /// Construct a new [`RequestBody`].
@@ -183,8 +182,7 @@ mod openapi_extensions_tests {
 
     #[test]
     fn request_body_builder_ext() {
-        let request_body = RequestBody::new()
-            .json_schema_ref("EmailPayload");
+        let request_body = RequestBody::new().json_schema_ref("EmailPayload");
         assert_json_eq!(
             request_body,
             json!({

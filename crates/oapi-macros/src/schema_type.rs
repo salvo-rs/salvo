@@ -25,22 +25,12 @@ impl SchemaType<'_> {
         };
         let name = &*last_segment.ident.to_string();
 
-        #[cfg(not(any(
-            feature = "chrono",
-            feature = "decimal",
-            feature = "uuid",
-            feature = "time",
-        )))]
+        #[cfg(not(any(feature = "chrono", feature = "decimal", feature = "uuid", feature = "time",)))]
         {
             is_primitive(name)
         }
 
-        #[cfg(any(
-            feature = "chrono",
-            feature = "decimal",
-            feature = "uuid",
-            feature = "time",
-        ))]
+        #[cfg(any(feature = "chrono", feature = "decimal", feature = "uuid", feature = "time",))]
         {
             let mut primitive = is_primitive(name);
 
@@ -61,10 +51,7 @@ impl SchemaType<'_> {
 
             #[cfg(feature = "time")]
             if !primitive {
-                primitive = matches!(
-                    name,
-                    "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
-                );
+                primitive = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration");
             }
 
             primitive
@@ -74,17 +61,7 @@ impl SchemaType<'_> {
     pub fn is_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
-            "i8" | "i16"
-                | "i32"
-                | "i64"
-                | "i128"
-                | "isize"
-                | "u8"
-                | "u16"
-                | "u32"
-                | "u64"
-                | "u128"
-                | "usize"
+            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
         )
     }
 
@@ -140,10 +117,7 @@ fn is_primitive(name: &str) -> bool {
 #[inline]
 #[cfg(feature = "chrono")]
 fn is_primitive_chrono(name: &str) -> bool {
-    matches!(
-        name,
-        "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime"
-    )
+    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime")
 }
 
 #[inline]
@@ -155,18 +129,19 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
 impl ToTokens for SchemaType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        let last_segment = self.0.segments.last().unwrap_or_else(|| {
-            abort_call_site!("expected there to be at least one segment in the path")
-        });
+        let last_segment = self
+            .0
+            .segments
+            .last()
+            .unwrap_or_else(|| abort_call_site!("expected there to be at least one segment in the path"));
         let name = &*last_segment.ident.to_string();
 
         match name {
-            "String" | "str" | "char" => {
-                tokens.extend(quote! {#oapi::oapi::SchemaType::String})
-            }
+            "String" | "str" | "char" => tokens.extend(quote! {#oapi::oapi::SchemaType::String}),
             "bool" => tokens.extend(quote! { #oapi::oapi::SchemaType::Boolean }),
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => tokens.extend(quote! { #oapi::oapi::SchemaType::Integer }),
+            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaType::Integer })
+            }
             "f32" | "f64" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
@@ -181,16 +156,14 @@ impl ToTokens for SchemaType<'_> {
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "time")]
-            "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaType::String })
-            }
+            "PrimitiveDateTime" | "OffsetDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             _ => tokens.extend(quote! { #oapi::oapi::SchemaType::Object }),
         }
     }
 }
 
 /// Either Rust type component variant or enum variant schema variant.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum SchemaFormat<'c> {
     /// [`salvo_oapi::schema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
@@ -229,7 +202,7 @@ impl ToTokens for SchemaFormat<'_> {
 }
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Type<'a>(&'a syn::Path);
 
 impl Type<'_> {
@@ -281,24 +254,34 @@ fn is_known_format(name: &str) -> bool {
 impl ToTokens for Type<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        let last_segment = self.0.segments.last().unwrap_or_else(|| {
-            abort_call_site!("expected there to be at least one segment in the path")
-        });
+        let last_segment = self
+            .0
+            .segments
+            .last()
+            .unwrap_or_else(|| abort_call_site!("expected there to be at least one segment in the path"));
         let name = &*last_segment.ident.to_string();
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) })
             }
-            "i64" | "u64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) }),
+            "i64" | "u64" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) })
+            }
             "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
             "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
             #[cfg(feature = "chrono")]
-            "NaiveDate" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
+            "NaiveDate" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) })
+            }
             #[cfg(feature = "chrono")]
-            "DateTime" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) }),
+            "DateTime" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+            }
             #[cfg(feature = "chrono")]
-            "NaiveDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) }),
+            "NaiveDateTime" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+            }
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
             #[cfg(feature = "uuid")]
@@ -313,7 +296,7 @@ impl ToTokens for Type<'_> {
 }
 
 /// [`Parse`] and [`ToTokens`] implementation for [`salvo_oapi::schema::SchemaFormat`].
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum Variant {
     Int32,
     Int64,
@@ -332,8 +315,7 @@ pub enum Variant {
 impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const FORMATS: [&str; 10] = [
-            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
-            "Uuid",
+            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password", "Uuid",
         ];
         let known_formats = FORMATS
             .into_iter()

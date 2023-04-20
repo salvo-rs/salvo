@@ -5,11 +5,10 @@ use syn::{
 
 use crate::{
     component::features::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Example,
-        ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems,
-        MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
-        MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title,
-        ValueType, WriteOnly, XmlAttr,
+        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Example, ExclusiveMaximum,
+        ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge,
+        MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
+        Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
     },
     ResultExt,
 };
@@ -198,10 +197,7 @@ pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribut
         .reduce(|acc, item| acc.merge(item))
 }
 
-pub fn parse_schema_features_with<
-    T: Merge<T>,
-    P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy,
->(
+pub fn parse_schema_features_with<T: Merge<T>, P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy>(
     attributes: &[Attribute],
     parser: P,
 ) -> Option<T> {

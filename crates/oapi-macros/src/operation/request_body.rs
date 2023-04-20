@@ -48,7 +48,7 @@ use super::{PathType, PathTypeTree};
 ///    request_body = Option<[Foo]>,
 /// )]
 /// ```
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
     content_type: Option<String>,
@@ -76,33 +76,24 @@ impl Parse for RequestBodyAttr<'_> {
 
                 match attribute_name {
                     "content" => {
-                        request_body_attr.content = Some(
-                            parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
+                        request_body_attr.content =
+                            Some(parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
                                 Error::new(
                                     error.span(),
-                                    format!(
-                                        "unexpected token, expected type such as String, {error}",
-                                    ),
+                                    format!("unexpected token, expected type such as String, {error}",),
                                 )
-                            })?,
-                        );
+                            })?);
                     }
                     "content_type" => {
-                        request_body_attr.content_type =
-                            Some(parse_utils::parse_next_literal_str(&group)?)
+                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str(&group)?)
                     }
-                    "description" => {
-                        request_body_attr.description =
-                            Some(parse_utils::parse_next_literal_str(&group)?)
-                    }
+                    "description" => request_body_attr.description = Some(parse_utils::parse_next_literal_str(&group)?),
                     "example" => {
-                        request_body_attr.example = Some(parse_utils::parse_next(&group, || {
-                            AnyValue::parse_json(&group)
-                        })?)
+                        request_body_attr.example =
+                            Some(parse_utils::parse_next(&group, || AnyValue::parse_json(&group))?)
                     }
                     "examples" => {
-                        request_body_attr.examples =
-                            Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                        request_body_attr.examples = Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }

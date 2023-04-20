@@ -6,8 +6,8 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Ref, RefOr};
 use crate::IntoResponses;
+use crate::{Ref, RefOr};
 
 use super::{header::Header, set_value, Content};
 
@@ -184,10 +184,7 @@ impl ResponseExt for Response {
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for Response {
     fn json_schema_ref(self, ref_name: &str) -> Response {
-        self.content(
-            "application/json",
-            Content::new(crate::Ref::from_schema_name(ref_name)),
-        )
+        self.content("application/json", Content::new(crate::Ref::from_schema_name(ref_name)))
     }
 }
 
@@ -206,11 +203,10 @@ mod tests {
 
     #[test]
     fn response_builder() -> Result<(), serde_json::Error> {
-        let request_body = Response::new("A sample response")
-            .content(
-                "application/json",
-                Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
-            );
+        let request_body = Response::new("A sample response").content(
+            "application/json",
+            Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
+        );
         let serialized = serde_json::to_string_pretty(&request_body)?;
         println!("serialized json:\n {serialized}");
         assert_json_eq!(
@@ -241,8 +237,7 @@ mod openapi_extensions_tests {
 
     #[test]
     fn response_ext() {
-        let request_body = Response::new("A sample response")
-            .json_schema_ref("MySchemaPayload");
+        let request_body = Response::new("A sample response").json_schema_ref("MySchemaPayload");
 
         assert_json_eq!(
             request_body,
@@ -261,8 +256,7 @@ mod openapi_extensions_tests {
 
     #[test]
     fn response_builder_ext() {
-        let request_body = Response::new("A sample response")
-            .json_schema_ref("MySchemaPayload");
+        let request_body = Response::new("A sample response").json_schema_ref("MySchemaPayload");
         assert_json_eq!(
             request_body,
             json!({

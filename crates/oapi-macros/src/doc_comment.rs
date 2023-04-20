@@ -7,16 +7,14 @@ use syn::{Attribute, Expr, Lit, Meta};
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
 
 /// CommentAttributes holds Vec of parsed doc comments
-#[ derive(Debug)]
+#[derive(Debug)]
 pub(crate) struct CommentAttributes(pub(crate) Vec<String>);
 
 impl CommentAttributes {
     /// Creates new [`CommentAttributes`] instance from [`Attribute`] slice filtering out all
     /// other attributes which are not `doc` comments
     pub(crate) fn from_attributes(attributes: &[Attribute]) -> Self {
-        Self(Self::as_string_vec(
-            attributes.iter().filter(Self::is_doc_attribute),
-        ))
+        Self(Self::as_string_vec(attributes.iter().filter(Self::is_doc_attribute)))
     }
 
     fn is_doc_attribute(attribute: &&Attribute) -> bool {
@@ -31,10 +29,7 @@ impl CommentAttributes {
     }
 
     fn as_string_vec<'a, I: Iterator<Item = &'a Attribute>>(attributes: I) -> Vec<String> {
-        attributes
-            .into_iter()
-            .filter_map(Self::parse_doc_comment)
-            .collect()
+        attributes.into_iter().filter_map(Self::parse_doc_comment).collect()
     }
 
     fn parse_doc_comment(attribute: &Attribute) -> Option<String> {

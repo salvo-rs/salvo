@@ -42,35 +42,33 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::{ set_value};
+use super::set_value;
 
-
-
-    /// Represents target server object. It can be used to alter server connection for
-    /// _**path operations**_.
+/// Represents target server object. It can be used to alter server connection for
+/// _**path operations**_.
+///
+/// By default OpenAPI will implicitly implement [`Server`] with `url = "/"` if no servers is provided to
+/// the [`OpenApi`][openapi].
+///
+/// [openapi]: ../struct.OpenApi.html
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Server {
+    /// Target url of the [`Server`]. It can be valid http url or relative path.
     ///
-    /// By default OpenAPI will implicitly implement [`Server`] with `url = "/"` if no servers is provided to
-    /// the [`OpenApi`][openapi].
-    ///
-    /// [openapi]: ../struct.OpenApi.html
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Server {
-        /// Target url of the [`Server`]. It can be valid http url or relative path.
-        ///
-        /// Url also supports variable substitution with `{variable}` syntax. The substitutions
-        /// then can be configured with [`Server::variables`] map.
-        pub url: String,
+    /// Url also supports variable substitution with `{variable}` syntax. The substitutions
+    /// then can be configured with [`Server::variables`] map.
+    pub url: String,
 
-        /// Optional description describing the target server url. Description supports markdown syntax.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
+    /// Optional description describing the target server url. Description supports markdown syntax.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
-        /// Optional map of variable name and its substitution value used in [`Server::url`].
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub variables: Option<BTreeMap<String, ServerVariable>>,
-    }
+    /// Optional map of variable name and its substitution value used in [`Server::url`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<BTreeMap<String, ServerVariable>>,
+}
 
 impl Server {
     /// Construct a new [`Server`] with given url. Url can be valid http url or context path of the url.
@@ -116,48 +114,37 @@ impl Server {
     ///   `{username}` substitution then the name should be `username`.
     /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
     ///   within the url.
-    pub fn parameter<N: Into<String>, V: Into<ServerVariable>>(
-        mut self,
-        name: N,
-        variable: V,
-    ) -> Self {
+    pub fn parameter<N: Into<String>, V: Into<ServerVariable>>(mut self, name: N, variable: V) -> Self {
         match self.variables {
             Some(ref mut variables) => {
                 variables.insert(name.into(), variable.into());
             }
-            None => {
-                self.variables = Some(BTreeMap::from_iter(iter::once((
-                    name.into(),
-                    variable.into(),
-                ))))
-            }
+            None => self.variables = Some(BTreeMap::from_iter(iter::once((name.into(), variable.into())))),
         }
 
         self
     }
 }
 
+/// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in [`Server::url`].
+///
+/// [server_variable]: https://spec.openapis.org/oas/latest.html#server-variable-object
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+pub struct ServerVariable {
+    /// Default value used to substitute parameter if no other value is being provided.
+    #[serde(rename = "default")]
+    default_value: String,
 
+    /// Optional description describing the variable of substitution. Markdown syntax is supported.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
 
-    /// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in [`Server::url`].
-    ///
-    /// [server_variable]: https://spec.openapis.org/oas/latest.html#server-variable-object
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
-    pub struct ServerVariable {
-        /// Default value used to substitute parameter if no other value is being provided.
-        #[serde(rename = "default")]
-        default_value: String,
-
-        /// Optional description describing the variable of substitution. Markdown syntax is supported.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-
-        /// Enum values can be used to limit possible options for substitution. If enum values is used
-        /// the [`ServerVariable::default_value`] must contain one of the enum values.
-        #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-        enum_values: Option<Vec<String>>,
-    }
+    /// Enum values can be used to limit possible options for substitution. If enum values is used
+    /// the [`ServerVariable::default_value`] must contain one of the enum values.
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    enum_values: Option<Vec<String>>,
+}
 
 impl ServerVariable {
     /// Add default value for substitution.
@@ -171,10 +158,7 @@ impl ServerVariable {
     }
 
     /// Add or change possible values used to substitute parameter.
-    pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(
-        mut self,
-        enum_values: I,
-    ) -> Self {
+    pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(mut self, enum_values: I) -> Self {
         set_value!(self enum_values Some(enum_values.into_iter().map(|value| value.into()).collect()))
     }
 }

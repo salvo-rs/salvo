@@ -8,10 +8,7 @@ use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{
-    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type,
-    TypePath, Variant,
-};
+use syn::{Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type, TypePath, Variant};
 
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
@@ -19,8 +16,8 @@ use crate::operation::{InlineType, PathType};
 use crate::{Array, ResultExt};
 
 use super::{
-    Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
-    DeriveToResponseValue, ResponseTuple, ResponseTupleInner, ResponseValue,
+    Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue,
+    ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 
 pub struct ToResponse<'r> {
@@ -33,31 +30,18 @@ pub struct ToResponse<'r> {
 impl<'r> ToResponse<'r> {
     const LIFETIME: &'static str = "'__r";
 
-    pub fn new(
-        attributes: Vec<Attribute>,
-        data: &'r Data,
-        generics: Generics,
-        ident: Ident,
-    ) -> ToResponse<'r> {
+    pub fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> ToResponse<'r> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => {
-                    ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0
-                }
+                Fields::Named(fields) => ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0,
                 Fields::Unnamed(fields) => {
-                    let field = fields
-                        .unnamed
-                        .iter()
-                        .next()
-                        .expect("Unnamed struct must have 1 field");
+                    let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
 
                     ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
                 }
                 Fields::Unit => ToResponseUnitStructResponse::new(&attributes).0,
             },
-            Data::Enum(enum_value) => {
-                EnumResponse::new(&ident, &enum_value.variants, &attributes).0
-            }
+            Data::Enum(enum_value) => EnumResponse::new(&ident, &enum_value.variants, &attributes).0,
             Data::Union(_) => abort!(ident, "`ToResponse` does not support `Union` type"),
         };
 
@@ -85,9 +69,7 @@ impl ToTokens for ToResponse<'_> {
         let mut to_reponse_generics = self.generics.clone();
         to_reponse_generics
             .params
-            .push(syn::GenericParam::Lifetime(LifetimeParam::new(
-                lifetime.clone(),
-            )));
+            .push(syn::GenericParam::Lifetime(LifetimeParam::new(lifetime.clone())));
         let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
 
         tokens.extend(quote! {
@@ -113,21 +95,15 @@ impl ToTokens for IntoResponses {
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
-                    let response =
-                        NamedStructResponse::new(&self.attributes, &self.ident, &fields.named).0;
+                    let response = NamedStructResponse::new(&self.attributes, &self.ident, &fields.named).0;
                     let status = &response.status_code;
 
                     Array::from_iter(iter::once(quote!((#status, #response))))
                 }
                 Fields::Unnamed(fields) => {
-                    let field = fields
-                        .unnamed
-                        .iter()
-                        .next()
-                        .expect("Unnamed struct must have 1 field");
+                    let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
 
-                    let response =
-                        UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs).0;
+                    let response = UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs).0;
                     let status = &response.status_code;
 
                     Array::from_iter(iter::once(quote!((#status, #response))))
@@ -143,9 +119,7 @@ impl ToTokens for IntoResponses {
                 .variants
                 .iter()
                 .map(|variant| match &variant.fields {
-                    Fields::Named(fields) => {
-                        NamedStructResponse::new(&variant.attrs, &variant.ident, &fields.named).0
-                    }
+                    Fields::Named(fields) => NamedStructResponse::new(&variant.attrs, &variant.ident, &fields.named).0,
                     Fields::Unnamed(fields) => {
                         let field = fields
                             .unnamed
@@ -192,8 +166,7 @@ trait Response {
     }
 
     fn has_no_field_attributes(attribute: &Attribute) -> (bool, &'static str) {
-        const ERROR: &str =
-            "Unexpected field attribute, field attributes are only supported at unnamed fields";
+        const ERROR: &str = "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
         let ident = attribute.path().get_ident().unwrap();
         match &*ident.to_string() {
@@ -249,11 +222,12 @@ impl<'u> UnnamedStructResponse<'u> {
             (false, false) => Self(
                 (
                     status_code,
-                    ResponseValue::from_derive_into_responses_value(derive_value, description)
-                        .response_type(Some(PathType::MediaType(InlineType {
+                    ResponseValue::from_derive_into_responses_value(derive_value, description).response_type(Some(
+                        PathType::MediaType(InlineType {
                             ty: Cow::Borrowed(ty),
                             is_inline,
-                        }))),
+                        }),
+                    )),
                 )
                     .into(),
             ),
@@ -315,10 +289,7 @@ impl NamedStructResponse<'_> {
             (
                 status_code,
                 ResponseValue::from_derive_into_responses_value(derive_value, description)
-                    .response_type(Some(PathType::InlineSchema(
-                        inline_schema.to_token_stream(),
-                        ty,
-                    ))),
+                    .response_type(Some(PathType::InlineSchema(inline_schema.to_token_stream(), ty))),
             )
                 .into(),
         )
@@ -394,8 +365,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(inner_attributes, |attribute| {
-            const ERROR: &str =
-                "Unexpected attribute, `content` is only supported on unnamed field enum variant";
+            const ERROR: &str = "Unexpected attribute, `content` is only supported on unnamed field enum variant";
             if attribute.path().get_ident().unwrap() == "content" {
                 (false, ERROR)
             } else {
@@ -433,11 +403,7 @@ struct EnumResponse<'r>(ResponseTuple<'r>);
 impl Response for EnumResponse<'_> {}
 
 impl<'r> EnumResponse<'r> {
-    fn new(
-        ident: &Ident,
-        variants: &'r Punctuated<Variant, Comma>,
-        attributes: &[Attribute],
-    ) -> Self {
+    fn new(ident: &Ident, variants: &'r Punctuated<Variant, Comma>, attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(
             variants.iter().flat_map(|variant| &variant.attrs),
@@ -477,13 +443,9 @@ impl<'r> EnumResponse<'r> {
             description,
         });
         response_value.response_type = if content.is_empty() {
-            let inline_schema =
-                EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes);
+            let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes);
 
-            Some(PathType::InlineSchema(
-                inline_schema.into_token_stream(),
-                ty,
-            ))
+            Some(PathType::InlineSchema(inline_schema.into_token_stream(), ty))
         } else {
             None
         };
@@ -493,8 +455,7 @@ impl<'r> EnumResponse<'r> {
     }
 
     fn parse_variant_attributes(variant: &Variant) -> VariantAttributes {
-        let variant_derive_response_value =
-            DeriveToResponseValue::from_attributes(variant.attrs.as_slice());
+        let variant_derive_response_value = DeriveToResponseValue::from_attributes(variant.attrs.as_slice());
         // named enum variant should not have field attributes
         if let Fields::Named(named_fields) = &variant.fields {
             Self::validate_attributes(

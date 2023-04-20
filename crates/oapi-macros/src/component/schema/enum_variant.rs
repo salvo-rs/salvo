@@ -15,10 +15,7 @@ pub trait Variant {
 
     /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
-        (
-            SchemaType(&parse_quote!(str)).to_token_stream(),
-            quote! {&str},
-        )
+        (SchemaType(&parse_quote!(str)).to_token_stream(), quote! {&str})
     }
 }
 

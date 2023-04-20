@@ -3,18 +3,18 @@
 //! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
 use serde::{Deserialize, Serialize};
 
-use super::{ set_value};
+use super::set_value;
 
-    /// Reference of external resource allowing extended documentation.
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone,Debug, PartialEq, Eq)]
-    #[serde(rename_all = "camelCase")]
-    pub struct ExternalDocs {
-        /// Target url for external documentation location.
-        pub url: String,
-        /// Additional description supporting markdown syntax of the external documentation.
-        pub description: Option<String>,
-    }
+/// Reference of external resource allowing extended documentation.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalDocs {
+    /// Target url for external documentation location.
+    pub url: String,
+    /// Additional description supporting markdown syntax of the external documentation.
+    pub description: Option<String>,
+}
 
 impl ExternalDocs {
     /// Construct a new [`ExternalDocs`].
@@ -33,7 +33,7 @@ impl ExternalDocs {
             ..Default::default()
         }
     }
-    
+
     /// Add target url for external documentation location.
     pub fn url<I: Into<String>>(mut self, url: I) -> Self {
         set_value!(self url url.into())

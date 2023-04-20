@@ -17,7 +17,7 @@ const END_MARKER: &str = "//</editor-fold>";
 ///     .use_pkce_with_authorization_code_grant(true);
 /// ```
 #[non_exhaustive]
-#[derive(Default, Clone,Debug, Serialize)]
+#[derive(Default, Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     /// oauth client_id the Swagger UI is using for auth flow.
@@ -79,9 +79,7 @@ impl Config {
     /// let config = oauth::Config::new();
     /// ```
     pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
+        Self { ..Default::default() }
     }
 
     /// Add client_id into [`Config`].
@@ -205,10 +203,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .additional_query_string_params(HashMap::from([(String::from("a"), String::from("1"))]));
     /// ```
-    pub fn additional_query_string_params(
-        mut self,
-        additional_query_string_params: HashMap<String, String>,
-    ) -> Self {
+    pub fn additional_query_string_params(mut self, additional_query_string_params: HashMap<String, String>) -> Self {
         self.additional_query_string_params = Some(additional_query_string_params);
 
         self
@@ -233,8 +228,7 @@ impl Config {
         mut self,
         use_basic_authentication_with_access_code_grant: bool,
     ) -> Self {
-        self.use_basic_authentication_with_access_code_grant =
-            Some(use_basic_authentication_with_access_code_grant);
+        self.use_basic_authentication_with_access_code_grant = Some(use_basic_authentication_with_access_code_grant);
 
         self
     }
@@ -253,10 +247,7 @@ impl Config {
     /// let config = oauth::Config::new()
     ///     .use_pkce_with_authorization_code_grant(true);
     /// ```
-    pub fn use_pkce_with_authorization_code_grant(
-        mut self,
-        use_pkce_with_authorization_code_grant: bool,
-    ) -> Self {
+    pub fn use_pkce_with_authorization_code_grant(mut self, use_pkce_with_authorization_code_grant: bool) -> Self {
         self.use_pkce_with_authorization_code_grant = Some(use_pkce_with_authorization_code_grant);
 
         self

@@ -1,4 +1,4 @@
-use std::{borrow::Cow};
+use std::borrow::Cow;
 
 use serde::Serialize;
 
@@ -45,7 +45,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// );
 /// ```
 #[non_exhaustive]
-#[derive(Serialize, Clone,Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config<'a> {
     /// Url to fetch external configuration from.

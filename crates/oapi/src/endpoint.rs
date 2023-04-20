@@ -17,7 +17,6 @@ impl Endpoint {
 //     fn operation(&self) -> Operation;
 // }
 
-
 // pub fn add<F>(endpoint: Endpoint) where F: Fn() -> Endpoint + 'static {
 //     ENDPOINTS.write().insert(endpoint.type_id.clone(), endpoint));
 // }

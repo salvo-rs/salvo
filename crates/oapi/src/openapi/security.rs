@@ -7,7 +7,6 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-
 /// OpenAPI [security requirement][security] object.
 ///
 /// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
@@ -216,7 +215,7 @@ impl Http {
     /// # Examples
     ///
     /// Create new [`Http`] [`SecurityScheme`].
-    /// 
+    ///
     /// ```
     /// use salvo_oapi::security::{Http, HttpAuthScheme};
     /// let http = Http::new().scheme(HttpAuthScheme::Basic();

@@ -4,7 +4,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, LitStr, Token};
 
 use crate::parse_utils;
 
-#[derive(Default, Clone,Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct XmlAttr {
     pub name: Option<String>,
     pub namespace: Option<String>,
@@ -37,18 +37,11 @@ impl Parse for XmlAttr {
             let attribute_name = &*attribute.to_string();
 
             match attribute_name {
-                "name" => {
-                    xml.name =
-                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
-                }
+                "name" => xml.name = Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value()),
                 "namespace" => {
-                    xml.namespace =
-                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
+                    xml.namespace = Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
                 }
-                "prefix" => {
-                    xml.prefix =
-                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
-                }
+                "prefix" => xml.prefix = Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value()),
                 "attribute" => xml.is_attribute = parse_utils::parse_bool_or_true(input)?,
                 "wrapped" => {
                     // wrapped or wrapped(name = "wrap_name")
@@ -57,10 +50,7 @@ impl Parse for XmlAttr {
                         parenthesized!(group in input);
 
                         let wrapped_attribute = group.parse::<Ident>().map_err(|error| {
-                            Error::new(
-                                error.span(),
-                                format!("unexpected attribute, expected: name, {error}"),
-                            )
+                            Error::new(error.span(), format!("unexpected attribute, expected: name, {error}"))
                         })?;
                         if wrapped_attribute != "name" {
                             return Err(Error::new(

@@ -7,7 +7,7 @@ use syn::{parenthesized, Error, LitStr, Token};
 use crate::{parse_utils, AnyValue};
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub(super) struct Example {
     pub(super) name: String,
     pub(super) summary: Option<String>,
@@ -78,18 +78,12 @@ impl Parse for Example {
 impl ToTokens for Example {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        let summary = self
-            .summary
-            .as_ref()
-            .map(|summary| quote!(.summary(#summary)));
+        let summary = self.summary.as_ref().map(|summary| quote!(.summary(#summary)));
         let description = self
             .description
             .as_ref()
             .map(|description| quote!(.description(#description)));
-        let value = self
-            .value
-            .as_ref()
-            .map(|value| quote!(.value(Some(#value))));
+        let value = self.value.as_ref().map(|value| quote!(.value(Some(#value))));
         let external_value = self
             .external_value
             .as_ref()

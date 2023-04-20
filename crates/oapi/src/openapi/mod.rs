@@ -1,7 +1,7 @@
 //! Rust implementation of Openapi Spec V3.
 
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use salvo_core::Router;
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
     content::Content,
@@ -150,7 +150,7 @@ impl OpenApi {
     /// comparison. Items not found from `self` will be appended to `self`.
     ///
     /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
-    pub fn merge(mut self, mut other: OpenApi) -> Self{
+    pub fn merge(mut self, mut other: OpenApi) -> Self {
         if let Some(other_servers) = &mut other.servers {
             let servers = self.servers.get_or_insert(Vec::new());
             other_servers.retain(|server| !servers.contains(server));
@@ -200,7 +200,7 @@ impl OpenApi {
         self
     }
 
-    pub fn merge_router(mut self, router: &Router) -> Self{
+    pub fn merge_router(mut self, router: &Router) -> Self {
         println!("{:?}", router);
         self
     }

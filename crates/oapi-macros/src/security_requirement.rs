@@ -10,7 +10,7 @@ use syn::{
 
 use crate::Array;
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct SecurityRequirementAttr {
     name: Option<String>,
     scopes: Option<Vec<String>>,
@@ -19,9 +19,7 @@ pub struct SecurityRequirementAttr {
 impl Parse for SecurityRequirementAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.is_empty() {
-            return Ok(Self {
-                ..Default::default()
-            });
+            return Ok(Self { ..Default::default() });
         }
         let name = input.parse::<LitStr>()?.value();
         input.parse::<Token![=]>()?;

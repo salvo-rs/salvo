@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    request_body::RequestBody,
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
+    request_body::RequestBody, set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement,
+    Server,
 };
 use crate::{Operation, Parameter};
 

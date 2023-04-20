@@ -41,7 +41,7 @@ impl Parse for Response<'_> {
 }
 
 /// Parsed representation of response attributes from `#[salvo_oapi::path]` attribute.
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct ResponseTuple<'r> {
     status_code: ResponseStatus,
     inner: Option<ResponseTupleInner<'r>>,
@@ -68,9 +68,7 @@ impl<'r> ResponseTuple<'r> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
-            Some(ResponseTupleInner::Value(_)) => {
-                return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
-            }
+            Some(ResponseTupleInner::Value(_)) => return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG)),
         }
         Ok(())
     }
@@ -89,18 +87,14 @@ impl Parse for ResponseTuple<'_> {
         let mut response = ResponseTuple::default();
 
         while !input.is_empty() {
-            let ident = input.parse::<Ident>().map_err(|error| {
-                Error::new(
-                    error.span(),
-                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
-                )
-            })?;
+            let ident = input
+                .parse::<Ident>()
+                .map_err(|error| Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}")))?;
             let attribute_name = &*ident.to_string();
 
             match attribute_name {
                 "status" => {
-                    response.status_code =
-                        parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
+                    response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
                 }
                 "description" => {
                     response.as_value(input.span())?.description = parse::description(input)?;
@@ -110,8 +104,7 @@ impl Parse for ResponseTuple<'_> {
                         Some(parse_utils::parse_next(input, || input.parse())?);
                 }
                 "content_type" => {
-                    response.as_value(input.span())?.content_type =
-                        Some(parse::content_type(input)?);
+                    response.as_value(input.span())?.content_type = Some(parse::content_type(input)?);
                 }
                 "headers" => {
                     response.as_value(input.span())?.headers = parse::headers(input)?;
@@ -123,14 +116,10 @@ impl Parse for ResponseTuple<'_> {
                     response.as_value(input.span())?.examples = Some(parse::examples(input)?);
                 }
                 "content" => {
-                    response.as_value(input.span())?.content =
-                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    response.as_value(input.span())?.content = parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "response" => {
-                    response.set_ref_type(
-                        input.span(),
-                        parse_utils::parse_next(input, || input.parse())?,
-                    )?;
+                    response.set_ref_type(input.span(), parse_utils::parse_next(input, || input.parse())?)?;
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -195,7 +184,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct ResponseValue<'r> {
     description: String,
     response_type: Option<PathType<'r>>,
@@ -207,10 +196,7 @@ pub struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(
-        derive_value: DeriveToResponseValue,
-        description: String,
-    ) -> Self {
+    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -225,10 +211,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_into_responses_value(
-        response_value: DeriveIntoResponsesValue,
-        description: String,
-    ) -> Self {
+    fn from_derive_into_responses_value(response_value: DeriveIntoResponsesValue, description: String) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -296,8 +279,7 @@ impl ToTokens for ResponseTuple<'_> {
                         PathType::InlineSchema(schema, _) => schema.to_token_stream(),
                     };
 
-                    let mut content =
-                        quote! { #oapi::oapi::Content::new(#content_schema) };
+                    let mut content = quote! { #oapi::oapi::Content::new(#content_schema) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -361,9 +343,7 @@ impl ToTokens for ResponseTuple<'_> {
                         let content = create_content(body, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
-                    .for_each(|(content_type, content)| {
-                        tokens.extend(quote! { .content(#content_type, #content) })
-                    });
+                    .for_each(|(content_type, content)| tokens.extend(quote! { .content(#content_type, #content) }));
 
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;
@@ -388,7 +368,7 @@ trait DeriveResponseValue: Parse {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct DeriveToResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
@@ -551,7 +531,7 @@ impl Parse for DeriveIntoResponsesValue {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
@@ -657,20 +637,12 @@ impl Parse for Content<'_> {
             let ident = content.parse::<Ident>()?;
             let attribute_name = &*ident.to_string();
             match attribute_name {
-                "example" => {
-                    example = Some(parse_utils::parse_next(&content, || {
-                        AnyValue::parse_json(&content)
-                    })?)
-                }
-                "examples" => {
-                    examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
-                }
+                "example" => example = Some(parse_utils::parse_next(&content, || AnyValue::parse_json(&content))?),
+                "examples" => examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?),
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!(
-                            "unexpected attribute: {ident}, expected one of: example, examples"
-                        ),
+                        format!("unexpected attribute: {ident}, expected one of: example, examples"),
                     ));
                 }
             }
@@ -689,25 +661,26 @@ pub struct Responses<'a>(pub &'a [Response<'a>]);
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(self.0.iter().fold(
-            quote! { #oapi::oapi::Responses::new() },
-            |mut acc, response| {
-                match response {
-                    Response::IntoResponses(path) => {
-                        let span = path.span();
-                        acc.extend(quote_spanned! {span =>
-                            .responses_from_into_responses::<#path>()
-                        })
+        tokens.extend(
+            self.0
+                .iter()
+                .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
+                    match response {
+                        Response::IntoResponses(path) => {
+                            let span = path.span();
+                            acc.extend(quote_spanned! {span =>
+                                .responses_from_into_responses::<#path>()
+                            })
+                        }
+                        Response::Tuple(response) => {
+                            let code = &response.status_code;
+                            acc.extend(quote! { .response(#code, #response) });
+                        }
                     }
-                    Response::Tuple(response) => {
-                        let code = &response.status_code;
-                        acc.extend(quote! { .response(#code, #response) });
-                    }
-                }
 
-                acc
-            },
-        ));
+                    acc
+                }),
+        );
     }
 }
 
@@ -765,7 +738,7 @@ impl ToTokens for Responses<'_> {
 ///     ]
 /// )]
 /// ```
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct Header {
     name: String,
     value_type: Option<InlineType<'static>>,
@@ -805,10 +778,7 @@ impl Parse for Header {
                 })
                 .and_then(|ident| {
                     if ident != "description" {
-                        return Err(Error::new(
-                            ident.span(),
-                            "unexpected attribute, expected: description",
-                        ));
+                        return Err(Error::new(ident.span(), "unexpected attribute, expected: description"));
                     }
                     Ok(ident)
                 })?;
@@ -879,12 +849,10 @@ mod parse {
             } else if look_content_type.peek(Bracket) {
                 let content_types;
                 bracketed!(content_types in input);
-                Ok(
-                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
-                        .into_iter()
-                        .map(|lit| lit.value())
-                        .collect(),
-                )
+                Ok(Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                    .into_iter()
+                    .map(|lit| lit.value())
+                    .collect())
             } else {
                 Err(look_content_type.error())
             }

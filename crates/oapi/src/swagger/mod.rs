@@ -6,12 +6,12 @@
 //!
 use std::{borrow::Cow, error::Error};
 
-pub mod oauth;
 mod config;
-pub use config::Config;
+pub mod oauth;
 use crate::OpenApi;
+pub use config::Config;
 use rust_embed::RustEmbed;
-use salvo_core::http::{header, StatusError, HeaderValue, ResBody};
+use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 use serde::Serialize;
 
@@ -20,7 +20,7 @@ use serde::Serialize;
 struct SwaggerUiDist;
 
 #[non_exhaustive]
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct SwaggerUi {
     urls: Vec<(Url<'static>, OpenApi)>,
     config: Config<'static>,
@@ -69,7 +69,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::SwaggerUi;
     /// # use salvo_oapi::OpenApi;
-    /// 
+    ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", ApiDoc::openapi());
     /// ```
@@ -92,7 +92,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
-    /// 
+    ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
     ///       vec![
@@ -180,7 +180,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use salvo_oapi_swagger_ui::{SwaggerUi, oauth};
     /// # use salvo_oapi::OpenApi;
-    /// 
+    ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", ApiDoc::openapi())
     ///     .oauth(oauth::Config::new()
@@ -222,7 +222,7 @@ impl Handler for SwaggerUi {
 
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[derive(Default, Serialize, Clone,Debug)]
+#[derive(Default, Serialize, Clone, Debug)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,
@@ -304,7 +304,6 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
     }
 }
 
-
 /// Represents servable file of Swagger UI. This is used together with [`serve`] function
 /// to serve Swagger UI files via web server.
 #[non_exhaustive]
@@ -330,7 +329,7 @@ pub struct SwaggerFile<'a> {
 ///
 /// [examples]: https://github.com/juhaku/salvo/tree/master/examples
 pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
-    let path  = if path.is_empty() || path == "/" {
+    let path = if path.is_empty() || path == "/" {
         "index.html"
     } else {
         path

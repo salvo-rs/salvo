@@ -3,18 +3,15 @@ use std::borrow::Cow;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident,
-};
+use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident};
 
 use crate::{
     component::{
         self,
         features::{
-            self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
-            Explode, Format, Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
-            MultipleOf, Names, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
-            WriteOnly, XmlAttr,
+            self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
+            Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
+            ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -24,8 +21,8 @@ use crate::{
 
 use super::{
     features::{
-        impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature,
-        FeaturesExt, IntoInner, Merge, ToTokensExt,
+        impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt,
+        IntoInner, Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer},
     ComponentSchema, TypeTree,
@@ -140,10 +137,7 @@ impl ToTokens for IntoParameters {
 }
 
 impl IntoParameters {
-    fn get_struct_fields(
-        &self,
-        field_names: &Option<&Vec<String>>,
-    ) -> impl Iterator<Item = &Field> {
+    fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> impl Iterator<Item = &Field> {
         let ident = &self.ident;
         let abort = |note: &str| {
             abort! {
@@ -274,12 +268,7 @@ impl Param<'_> {
             .attrs
             .iter()
             .filter(|attribute| attribute.path().is_ident("param"))
-            .map(|attribute| {
-                attribute
-                    .parse_args::<FieldFeatures>()
-                    .unwrap_or_abort()
-                    .into_inner()
-            })
+            .map(|attribute| attribute.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
 
@@ -349,9 +338,7 @@ impl ToTokens for Param<'_> {
 
         let (schema_features, mut param_features) = self.resolve_field_features();
 
-        let rename = param_features
-            .pop_rename_feature()
-            .map(|rename| rename.into_value());
+        let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
         let rename_to = field_param_serde
             .as_ref()
             .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
@@ -365,22 +352,19 @@ impl ToTokens for Param<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
-            .unwrap_or(Cow::Borrowed(name));
+        let name = super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new()
             .name(#name)
         });
-        tokens.extend(
-            if let Some(ref parameter_in) = self.container_attributes.parameter_in {
-                parameter_in.into_token_stream()
-            } else {
-                quote! {
-                    .parameter_in(parameter_in_provider().unwrap_or_default())
-                }
-            },
-        );
+        tokens.extend(if let Some(ref parameter_in) = self.container_attributes.parameter_in {
+            parameter_in.into_token_stream()
+        } else {
+            quote! {
+                .parameter_in(parameter_in_provider().unwrap_or_default())
+            }
+        });
 
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
@@ -390,8 +374,7 @@ impl ToTokens for Param<'_> {
         if let Some(schema_with) = schema_with {
             tokens.extend(quote! { .schema(Some(#schema_with)) });
         } else {
-            let description =
-                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+            let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
             if !description.is_empty() {
                 tokens.extend(quote! { .description(#description)})
             }

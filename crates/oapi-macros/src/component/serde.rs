@@ -13,16 +13,14 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
     match next.token_tree() {
         Some((tt, next)) => match tt {
             TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
-            TokenTree::Literal(literal) => {
-                Some((literal.to_string().replace('\"', ""), literal.span()))
-            }
+            TokenTree::Literal(literal) => Some((literal.to_string().replace('\"', ""), literal.span())),
             _ => None,
         },
         _ => None,
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct SerdeValue {
     pub skip: bool,
     pub rename: Option<String>,
@@ -44,12 +42,8 @@ impl SerdeValue {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 match tt {
-                    TokenTree::Ident(ident) if ident == "skip" || ident == "skip_serializing" => {
-                        value.skip = true
-                    }
-                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => {
-                        value.skip_serializing_if = true
-                    }
+                    TokenTree::Ident(ident) if ident == "skip" || ident == "skip_serializing" => value.skip = true,
+                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => value.skip_serializing_if = true,
                     TokenTree::Ident(ident) if ident == "with" => {
                         value.double_option = parse_next_lit_str(next)
                             .and_then(|(literal, _)| {
@@ -108,7 +102,7 @@ impl Default for SerdeEnumRepr {
 }
 
 /// Attributes defined within a `#[serde(...)]` container attribute.
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
     pub enum_repr: SerdeEnumRepr,
@@ -136,17 +130,12 @@ impl SerdeContainer {
             "tag" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
-                        SerdeEnumRepr::ExternallyTagged => {
-                            SerdeEnumRepr::InternallyTagged { tag: literal }
-                        }
-                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { content } => {
-                            SerdeEnumRepr::AdjacentlyTagged {
-                                tag: literal,
-                                content: content.clone(),
-                            }
-                        }
-                        SerdeEnumRepr::InternallyTagged { .. }
-                        | SerdeEnumRepr::AdjacentlyTagged { .. } => {
+                        SerdeEnumRepr::ExternallyTagged => SerdeEnumRepr::InternallyTagged { tag: literal },
+                        SerdeEnumRepr::UnfinishedAdjacentlyTagged { content } => SerdeEnumRepr::AdjacentlyTagged {
+                            tag: literal,
+                            content: content.clone(),
+                        },
+                        SerdeEnumRepr::InternallyTagged { .. } | SerdeEnumRepr::AdjacentlyTagged { .. } => {
                             abort!(span, "Duplicate serde tag argument")
                         }
                         SerdeEnumRepr::Untagged => abort!(span, "Untagged enum cannot have tag"),
@@ -156,17 +145,14 @@ impl SerdeContainer {
             "content" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
-                        SerdeEnumRepr::InternallyTagged { tag } => {
-                            SerdeEnumRepr::AdjacentlyTagged {
-                                tag: tag.clone(),
-                                content: literal,
-                            }
-                        }
+                        SerdeEnumRepr::InternallyTagged { tag } => SerdeEnumRepr::AdjacentlyTagged {
+                            tag: tag.clone(),
+                            content: literal,
+                        },
                         SerdeEnumRepr::ExternallyTagged => {
                             SerdeEnumRepr::UnfinishedAdjacentlyTagged { content: literal }
                         }
-                        SerdeEnumRepr::AdjacentlyTagged { .. }
-                        | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                        SerdeEnumRepr::AdjacentlyTagged { .. } | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
                             abort!(span, "Duplicate serde content argument")
                         }
                         SerdeEnumRepr::Untagged => {
@@ -210,11 +196,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| {
-            serde_attribute
-                .parse_args_with(SerdeValue::parse)
-                .unwrap_or_abort()
-        })
+        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse).unwrap_or_abort())
         .fold(Some(SerdeValue::default()), |acc, value| {
             acc.map(|mut acc| {
                 if value.skip {
@@ -245,11 +227,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
-        .map(|serde_attribute| {
-            serde_attribute
-                .parse_args_with(SerdeContainer::parse)
-                .unwrap_or_abort()
-        })
+        .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse).unwrap_or_abort())
         .fold(Some(SerdeContainer::default()), |acc, value| {
             acc.map(|mut acc| {
                 if value.default {
@@ -273,7 +251,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         })
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum RenameRule {
     Lower,
     Upper,
