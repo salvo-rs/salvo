@@ -7,7 +7,7 @@ use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath}
 
 use crate::{
     parse_utils,
-    path::parameter::{self, ParameterStyle},
+    operation::parameter::{self, ParameterStyle},
     schema_type::{SchemaFormat, SchemaType},
     AnyValue,
 };
@@ -1386,10 +1386,10 @@ impl Parse for AdditionalProperties {
 
 impl ToTokens for AdditionalProperties {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let additional_properties = &self.0;
         tokens.extend(quote!(
-            #root::oapi::openapi::schema::AdditionalProperties::FreeForm(
+            #oapi::oapi::openapi::schema::AdditionalProperties::FreeForm(
                 #additional_properties
             )
         ))

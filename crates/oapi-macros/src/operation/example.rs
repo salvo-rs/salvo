@@ -77,7 +77,7 @@ impl Parse for Example {
 
 impl ToTokens for Example {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let summary = self
             .summary
             .as_ref()
@@ -96,7 +96,7 @@ impl ToTokens for Example {
             .map(|external_value| quote!(.external_value(#external_value)));
 
         tokens.extend(quote! {
-            #root::oapi::openapi::example::ExampleBuilder::new()
+            #oapi::oapi::openapi::example::ExampleBuilder::new()
                 #summary
                 #description
                 #value

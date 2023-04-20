@@ -20,7 +20,7 @@ syn = { workspace = true, features = ["full", "extra-traits"] }
 quote.workspace = true
 proc-macro-crate.workspace = true
 proc-macro-error.workspace = true
-regex = { workspace = true, optional = true }
+regex.workspace = true
 uuid = { workspace = true, optional = true }
 inventory.workspace = true
 

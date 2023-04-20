@@ -1,31 +1,39 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{ToTokens, quote};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
-pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> {
-    
-    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+use crate::doc_comment::CommentAttributes;
+use crate::{InputType, omit_type_path_lifetimes, parse_input_type};
+mod attr;
+pub(crate) use attr::EndpointAttr;
 
-    let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
-    let fn_name = &*ast_fn.sig.ident.to_string();
-
-    let path = Path::new(path_attribute, fn_name)
-        .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
-        .deprecated(ast_fn.attrs.iter().find_map(|attr| {
-            if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
-                None
-            } else {
-                Some(true)
-            }
-        }));
-
-    quote! {
-       #path
-        #ast_fn
-    }
-    .into()
-    
-    let salvo = root_crate(false);
+fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
+    let EndpointAttr {
+        operation_id,
+        request_body,
+        responses,
+        tags,
+        parameters,
+        security,
+        doc_comments,
+        deprecated,
+    } = attr;
+    let ofn = Ident::new(&format!("__salvo_oapi_operation_{}", name), Span::call_site());
+    Ok(quote! {
+        fn #ofn() -> #oapi::Operation {
+            let mut operation #oapi::Operation::new(#operation_id);
+            operation.operation_id = #operation_id;
+            #(#modifiers)*
+            operation
+        }
+        #oapi::oapi::__private::inventory::submit! {
+            Endpoint::new(#name::type_id, #ofn)
+        }
+    })
+}
+pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<TokenStream> {
+    let salvo = crate::salvo_crate();
+    let oapi = crate::oapi_crate();
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = &item_fn.attrs;
@@ -53,16 +61,38 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
                 }
             };
 
-            let hfn = handle_fn(&salvo, sig)?;
+            attr.doc_comments = Some(CommentAttributes::from_attributes(attrs).0);
+            attr.deprecated = attrs.iter().find_map(|attr| {
+                if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
+                    None
+                } else {
+                    Some(true)
+                }
+            });
+
+            let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
+            let meta = metadata(&oapi, attr, name, modifiers)?;
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
                     #hfn
+                    #meta
                 }
             })
         }
         Item::Impl(item_impl) => {
+            let attrs = &item_impl.attrs;
+
+            attr.doc_comments = Some(CommentAttributes::from_attributes(attrs).0);
+            attr.deprecated = attrs.iter().find_map(|attr| {
+                if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
+                    None
+                } else {
+                    Some(true)
+                }
+            });
+
             let mut hmtd = None;
             for item in &item_impl.items {
                 if let ImplItem::Fn(method) = item {
@@ -75,19 +105,19 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
                 return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
             }
             let hmtd = hmtd.unwrap();
-            let hfn = handle_fn(&salvo, &hmtd.sig)?;
+            let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
+            let name = Ident::new(&ty.to_token_stream().to_string(), Span::call_site());
+            let meta = metadata(&oapi, attr, &name, modifiers)?;
 
             Ok(quote! {
                 #item_impl
                 #[#salvo::async_trait]
                 impl #impl_generics #salvo::Handler for #ty #where_clause {
-                    #hfn
+                    #meta
                 }
-                inventory::submit! {
-                    Flag::new('v', "verbose")
-                }
+                #meta
             })
         }
         _ => Err(syn::Error::new_spanned(
@@ -97,10 +127,11 @@ pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> 
     }
 }
 
-fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
+fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
+    let mut modifiers = Vec::new();
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
@@ -140,6 +171,9 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                             }
                         };
                     });
+                    modifiers.push(quote! {
+                        <#ty as #oapi::endpoint::OperationModifier>::modify(&mut operation);
+                    });
                 } else {
                     return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
                 }
@@ -150,44 +184,45 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
         }
     }
 
-    match sig.output {
+    let hfn = match sig.output {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
-                Ok(quote! {
+                quote! {
                     #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
-                })
+                }
             } else {
-                Ok(quote! {
+                quote! {
                     #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
-                })
+                }
             }
         }
         ReturnType::Type(_, _) => {
             if sig.asyncness.is_none() {
-                Ok(quote! {
+                quote! {
                     #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                     }
-                })
+                }
             } else {
-                Ok(quote! {
+                quote! {
                     #[inline]
                     async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, req, depot, res).await;
                     }
-                })
+                }
             }
         }
-    }
+    };
+    Ok((hfn, modifiers))
 }

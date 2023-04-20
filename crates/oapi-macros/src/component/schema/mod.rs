@@ -77,7 +77,7 @@ impl<'a> Schema<'a> {
 
 impl ToTokens for Schema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let ident = self.ident;
         let variant = SchemaVariant::new(
             self.data,
@@ -115,7 +115,7 @@ impl ToTokens for Schema<'_> {
                 .collect::<Array<TokenStream>>();
 
             quote! {
-                fn aliases() -> Vec<(& #life str, #root::oapi::openapi::schema::Schema)> {
+                fn aliases() -> Vec<(& #life str, #oapi::oapi::openapi::schema::Schema)> {
                     #alias_schemas.to_vec()
                 }
             }
@@ -160,8 +160,8 @@ impl ToTokens for Schema<'_> {
         let (impl_generics, _, _) = impl_generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #impl_generics #root::oapi::ToSchema #schema_generics for #ident #ty_generics #where_clause {
-                fn schema() -> (& #life str, #root::oapi::openapi::RefOr<#root::oapi::openapi::schema::Schema>) {
+            impl #impl_generics #oapi::oapi::ToSchema #schema_generics for #ident #ty_generics #where_clause {
+                fn schema() -> (& #life str, #oapi::oapi::openapi::RefOr<#oapi::oapi::openapi::schema::Schema>) {
                     (#name, #variant.into())
                 }
 
@@ -264,9 +264,9 @@ struct UnitStructVariant;
 
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            #root::oapi::openapi::schema::empty()
+            #oapi::oapi::openapi::schema::empty()
         });
     }
 }
@@ -375,7 +375,7 @@ impl NamedStructSchema<'_> {
 
 impl ToTokens for NamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let container_rules = serde::parse_container(self.attributes);
 
         let object_tokens = self
@@ -391,7 +391,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 }
             })
             .fold(
-                quote! { #root::oapi::openapi::Object::new() },
+                quote! { #oapi::oapi::openapi::Object::new() },
                 |mut object_tokens, (field, field_rule)| {
                     let mut field_name = &*field.ident.as_ref().unwrap().to_string();
 
@@ -465,7 +465,7 @@ impl ToTokens for NamedStructSchema<'_> {
 
         if !flatten_fields.is_empty() {
             tokens.extend(quote! {
-                #root::oapi::openapi::AllOf::new()
+                #oapi::oapi::openapi::AllOf::new()
             });
 
             for field in flatten_fields {
@@ -513,7 +513,7 @@ struct UnnamedStructSchema<'a> {
 
 impl ToTokens for UnnamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let fields_len = self.fields.len();
         let first_field = self.fields.first().unwrap();
         let first_part = &TypeTree::from_type(&first_field.ty);
@@ -574,7 +574,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
             // Typically OpenAPI does not support multi type arrays thus we simply consider the case
             // as generic object array
             tokens.extend(quote! {
-                #root::oapi::openapi::Object::new()
+                #oapi::oapi::openapi::Object::new()
             });
 
             if let Some(deprecated) = deprecated {
@@ -1099,7 +1099,7 @@ impl ComplexEnum<'_> {
         container_rules: &Option<SerdeContainer>,
         rename_all: &Option<RenameAll>,
     ) -> TokenStream {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let (title_features, mut named_struct_features) = variant
@@ -1179,11 +1179,11 @@ impl ComplexEnum<'_> {
 
                     if is_reference {
                         quote! {
-                            #root::oapi::openapi::schema::AllOf::new()
+                            #oapi::oapi::openapi::schema::AllOf::new()
                                 #title
                                 .item(#unnamed_enum)
-                                .item(#root::oapi::openapi::schema::Object::new()
-                                    .schema_type(#root::oapi::openapi::schema::SchemaType::Object)
+                                .item(#oapi::oapi::openapi::schema::Object::new()
+                                    .schema_type(#oapi::oapi::openapi::schema::SchemaType::Object)
                                     .property(#tag, #variant_name_tokens)
                                     .required(#tag)
                                 )
@@ -1192,7 +1192,7 @@ impl ComplexEnum<'_> {
                         quote! {
                             #unnamed_enum
                                 #title
-                                .schema_type(#root::oapi::openapi::schema::SchemaType::Object)
+                                .schema_type(#oapi::oapi::openapi::schema::SchemaType::Object)
                                 .property(#tag, #variant_name_tokens)
                                 .required(#tag)
                         }
@@ -1231,7 +1231,7 @@ impl ComplexEnum<'_> {
                 }]);
 
                 quote! {
-                    #root::oapi::openapi::schema::Object::new()
+                    #oapi::oapi::openapi::schema::Object::new()
                         #title
                         .property(#tag, #variant_tokens)
                         .required(#tag)
@@ -1252,7 +1252,7 @@ impl ComplexEnum<'_> {
         container_rules: &Option<SerdeContainer>,
         rename_all: &Option<RenameAll>,
     ) -> TokenStream {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let (title_features, mut named_struct_features) = variant
@@ -1287,9 +1287,9 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }]);
                 quote! {
-                    #root::oapi::openapi::schema::Object::new()
+                    #oapi::oapi::openapi::schema::Object::new()
                         #title
-                        .schema_type(#root::oapi::openapi::schema::SchemaType::Object)
+                        .schema_type(#oapi::oapi::openapi::schema::SchemaType::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                         .property(#content, #named_enum)
@@ -1328,9 +1328,9 @@ impl ComplexEnum<'_> {
                     }]);
 
                     quote! {
-                        #root::oapi::openapi::schema::Object::new()
+                        #oapi::oapi::openapi::schema::Object::new()
                             #title
-                            .schema_type(#root::oapi::openapi::schema::SchemaType::Object)
+                            .schema_type(#oapi::oapi::openapi::schema::SchemaType::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
                             .property(#content, #unnamed_enum)
@@ -1372,7 +1372,7 @@ impl ComplexEnum<'_> {
                 }]);
 
                 quote! {
-                    #root::oapi::openapi::schema::Object::new()
+                    #oapi::oapi::openapi::schema::Object::new()
                         #title
                         .property(#tag, #variant_tokens)
                         .required(#tag)

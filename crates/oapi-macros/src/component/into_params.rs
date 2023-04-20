@@ -128,10 +128,10 @@ impl ToTokens for IntoParams {
             })
             .collect::<Array<Param>>();
 
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            impl #impl_generics #root::oapi::IntoParams for #ident #ty_generics #where_clause {
-                fn into_params(parameter_in_provider: impl Fn() -> Option<#root::oapi::openapi::path::ParameterIn>) -> Vec<#root::oapi::openapi::path::Parameter> {
+            impl #impl_generics #oapi::oapi::IntoParams for #ident #ty_generics #where_clause {
+                fn into_params(parameter_in_provider: impl Fn() -> Option<#oapi::oapi::openapi::path::ParameterIn>) -> Vec<#oapi::oapi::openapi::path::Parameter> {
                     #params.to_vec()
                 }
             }
@@ -329,7 +329,7 @@ impl Param<'_> {
 
 impl ToTokens for Param<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let field = self.field;
         let ident = &field.ident;
         let mut name = &*ident
@@ -369,7 +369,7 @@ impl ToTokens for Param<'_> {
             .unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
-        tokens.extend(quote! { #root::oapi::openapi::path::Parameter::new()
+        tokens.extend(quote! { #oapi::oapi::openapi::path::Parameter::new()
             .name(#name)
         });
         tokens.extend(

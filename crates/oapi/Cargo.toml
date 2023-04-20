@@ -25,6 +25,7 @@ num-traits.workspace = true
 thiserror.workspace = true
 bytes.workspace = true
 futures-util.workspace = true
+inventory.workspace = true
 
 # Non-feature optional dependencies
 email_address = { workspace = true, optional = true }

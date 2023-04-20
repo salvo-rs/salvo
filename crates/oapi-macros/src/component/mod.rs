@@ -472,7 +472,7 @@ impl<'c> ComponentSchema {
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
     ) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
@@ -503,7 +503,7 @@ impl<'c> ComponentSchema {
             });
 
         tokens.extend(quote! {
-            #root::oapi::openapi::Object::new()
+            #oapi::oapi::openapi::Object::new()
                 #additional_properties
                 #description_stream
                 #deprecated_stream
@@ -521,7 +521,7 @@ impl<'c> ComponentSchema {
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
     ) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let example = pop_feature!(features => Feature::Example(_));
         let xml = features.extract_vec_xml_feature(type_tree);
         let max_items = pop_feature!(features => Feature::MaxItems(_));
@@ -544,9 +544,9 @@ impl<'c> ComponentSchema {
             .unwrap_or(false)
         {
             quote! {
-                #root::oapi::openapi::Object::new()
-                    .schema_type(#root::oapi::openapi::schema::SchemaType::String)
-                    .format(Some(#root::oapi::openapi::SchemaFormat::KnownFormat(#root::oapi::openapi::KnownFormat::Binary)))
+                #oapi::oapi::openapi::Object::new()
+                    .schema_type(#oapi::oapi::openapi::schema::SchemaType::String)
+                    .format(Some(#oapi::oapi::openapi::SchemaFormat::KnownFormat(#oapi::oapi::openapi::KnownFormat::Binary)))
             }
         } else {
             let component_schema = ComponentSchema::new(ComponentSchemaProps {
@@ -558,7 +558,7 @@ impl<'c> ComponentSchema {
             });
 
             quote! {
-                #root::oapi::openapi::schema::Array::new(#component_schema)
+                #oapi::oapi::openapi::schema::Array::new(#component_schema)
             }
         };
 
@@ -598,7 +598,7 @@ impl<'c> ComponentSchema {
         deprecated_stream: Option<TokenStream>,
     ) {
         let nullable = pop_feature!(features => Feature::Nullable(_));
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -613,7 +613,7 @@ impl<'c> ComponentSchema {
                 }
 
                 tokens.extend(quote! {
-                    #root::oapi::openapi::Object::new().schema_type(#schema_type)
+                    #oapi::oapi::openapi::Object::new().schema_type(#schema_type)
                 });
 
                 let format: SchemaFormat = (type_path).into();
@@ -636,7 +636,7 @@ impl<'c> ComponentSchema {
 
                 if type_tree.is_object() {
                     tokens.extend(quote! {
-                        #root::oapi::openapi::Object::new()
+                        #oapi::oapi::openapi::Object::new()
                             #description_stream #deprecated_stream #nullable
                     })
                 } else {
@@ -645,14 +645,14 @@ impl<'c> ComponentSchema {
                         nullable
                             .map(|nullable| {
                                 quote_spanned! {type_path.span()=>
-                                    #root::oapi::openapi::schema::AllOf::new()
+                                    #oapi::oapi::openapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #root::oapi::ToSchema>::schema().1)
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::schema().1)
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #root::oapi::ToSchema>::schema().1
+                                    <#type_path as #oapi::oapi::ToSchema>::schema().1
                                 }
                             })
                             .to_tokens(tokens);
@@ -664,14 +664,14 @@ impl<'c> ComponentSchema {
                         nullable
                             .map(|nullable| {
                                 quote! {
-                                    #root::oapi::openapi::schema::AllOf::new()
+                                    #oapi::oapi::openapi::schema::AllOf::new()
                                         #nullable
-                                        .item(#root::oapi::openapi::Ref::from_schema_name(#name))
+                                        .item(#oapi::oapi::openapi::Ref::from_schema_name(#name))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    #root::oapi::openapi::Ref::from_schema_name(#name)
+                                    #oapi::oapi::openapi::Ref::from_schema_name(#name)
                                 }
                             })
                             .to_tokens(tokens);
@@ -684,7 +684,7 @@ impl<'c> ComponentSchema {
                     .as_ref()
                     .map(|children| {
                         let all_of = children.iter().fold(
-                            quote! { #root::oapi::openapi::schema::AllOf::new() },
+                            quote! { #oapi::oapi::openapi::schema::AllOf::new() },
                             |mut all_of, child| {
                                 let features = if child.is_option() {
                                     Some(vec![Feature::Nullable(Nullable::new())])
@@ -705,13 +705,13 @@ impl<'c> ComponentSchema {
                             },
                         );
                         quote! {
-                            #root::oapi::openapi::schema::Array::new(#all_of)
+                            #oapi::oapi::openapi::schema::Array::new(#all_of)
                                 #nullable
                                 #description_stream
                                 #deprecated_stream
                         }
                     })
-                    .unwrap_or_else(|| quote!(#root::oapi::openapi::schema::empty()))
+                    .unwrap_or_else(|| quote!(#oapi::oapi::openapi::schema::empty()))
                     .to_tokens(tokens);
                 tokens.extend(features.to_token_stream());
             }

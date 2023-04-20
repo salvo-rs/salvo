@@ -42,17 +42,17 @@ impl Parse for SecurityRequirementAttr {
 
 impl ToTokens for SecurityRequirementAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         if let (Some(name), Some(scopes)) = (&self.name, &self.scopes) {
             let scopes_array = scopes.iter().collect::<Array<&String>>();
             let scopes_len = scopes.len();
 
             tokens.extend(quote! {
-                #root::oapi::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
+                #oapi::oapi::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
             })
         } else {
             tokens.extend(quote! {
-                #root::oapi::openapi::security::SecurityRequirement::default()
+                #oapi::oapi::openapi::security::SecurityRequirement::default()
             })
         }
     }

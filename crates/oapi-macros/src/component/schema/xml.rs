@@ -87,9 +87,9 @@ impl Parse for XmlAttr {
 
 impl ToTokens for XmlAttr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            #root::oapi::openapi::xml::XmlBuilder::new()
+            #oapi::oapi::openapi::xml::XmlBuilder::new()
         });
 
         if let Some(ref name) = self.name {

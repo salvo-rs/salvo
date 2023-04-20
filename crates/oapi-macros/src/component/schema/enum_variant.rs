@@ -68,14 +68,14 @@ where
     T: ToTokens,
 {
     fn to_tokens(&self) -> TokenStream {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let title = &self.title;
         let example = &self.example;
         let variant = &self.item;
         let name = &self.name;
 
         quote! {
-            #root::oapi::openapi::schema::Object::new()
+            #oapi::oapi::openapi::schema::Object::new()
                 #title
                 #example
                 .property(#name, #variant)
@@ -115,7 +115,7 @@ where
     T: Variant,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let len = &self.len;
         let title = &self.title;
         let example = &self.example;
@@ -124,7 +124,7 @@ where
         let enum_type = &self.enum_type;
 
         tokens.extend(quote! {
-            #root::oapi::openapi::Object::new()
+            #oapi::oapi::openapi::Object::new()
                 #title
                 #example
                 .schema_type(#schema_type)
@@ -180,12 +180,12 @@ where
     T: Variant,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -199,17 +199,17 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
             .into_iter()
             .enumerate()
             .map(|(index, (tag, variant))| {
-                let root = crate::root_crate();
+                let oapi = crate::oapi_crate();
                 len = index + 1;
 
                 let (schema_type, enum_type) = variant.get_type();
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #root::oapi::openapi::schema::Object::new()
+                        #oapi::oapi::openapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #root::oapi::openapi::schema::Object::new()
+                                #oapi::oapi::openapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -243,11 +243,11 @@ impl UntaggedEnum {
 
 impl ToTokens for UntaggedEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let title = &self.title;
 
         tokens.extend(quote! {
-            #root::oapi::openapi::schema::Object::new()
+            #oapi::oapi::openapi::schema::Object::new()
                 .nullable(true)
                 .default(Some(serde_json::Value::Null))
                 #title
@@ -272,12 +272,12 @@ where
     T: Variant,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let len = &self.len;
         let items = &self.items;
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         })
     }
@@ -285,7 +285,7 @@ where
 
 impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for AdjacentlyTaggedEnum<V> {
     fn from_iter<T: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(iter: T) -> Self {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let mut len = 0;
 
         let items = iter
@@ -298,17 +298,17 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
                 let item = variant.to_tokens();
                 quote! {
                     .item(
-                        #root::oapi::openapi::schema::Object::new()
+                        #oapi::oapi::openapi::schema::Object::new()
                             .property(
                                 #tag,
-                                #root::oapi::openapi::schema::Object::new()
-                                    .schema_type(#root::oapi::openapi::schema::SchemaType::String)
+                                #oapi::oapi::openapi::schema::Object::new()
+                                    .schema_type(#oapi::oapi::openapi::schema::SchemaType::String)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#content]))
                             )
                             .required(#tag)
                             .property(
                                 #content,
-                                #root::oapi::openapi::schema::Object::new()
+                                #oapi::oapi::openapi::schema::Object::new()
                                     .schema_type(#schema_type)
                                     .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
                             )
@@ -348,14 +348,14 @@ where
     T: ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         self.items.to_tokens(tokens);
 
         // currently uses serde `tag` attribute as a discriminator. This discriminator
         // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
             quote! {
-                .discriminator(Some(#root::oapi::openapi::schema::Discriminator::new(#tag)))
+                .discriminator(Some(#oapi::oapi::openapi::schema::Discriminator::new(#tag)))
             }
         });
 
@@ -367,7 +367,7 @@ where
 
 impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
     fn from_iter<T: IntoIterator<Item = TokenStream>>(iter: T) -> Self {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let mut len = 0;
 
         let items = iter
@@ -386,7 +386,7 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
         let mut tokens = TokenStream::new();
 
         tokens.extend(quote! {
-            Into::<#root::oapi::openapi::schema::OneOf>::into(#root::oapi::openapi::OneOf::with_capacity(#len))
+            Into::<#oapi::oapi::openapi::schema::OneOf>::into(#oapi::oapi::openapi::OneOf::with_capacity(#len))
                 #items
         });
 

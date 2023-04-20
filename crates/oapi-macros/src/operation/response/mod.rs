@@ -252,24 +252,24 @@ impl<'r> ResponseValue<'r> {
 
 impl ToTokens for ResponseTuple<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
                 if res.is_inline {
                     tokens.extend(quote_spanned! {path.span()=>
-                        <#path as #root::oapi::ToResponse>::response().1
+                        <#path as #oapi::oapi::ToResponse>::response().1
                     });
                 } else {
                     tokens.extend(quote! {
-                        #root::oapi::openapi::Ref::from_response_name(<#path as #root::oapi::ToResponse>::response().0)
+                        #oapi::oapi::openapi::Ref::from_response_name(<#path as #oapi::oapi::ToResponse>::response().0)
                     });
                 }
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
                 tokens.extend(quote! {
-                    #root::oapi::openapi::Response::new(#description)
+                    #oapi::oapi::openapi::Response::new(#description)
                 });
 
                 let create_content = |path_type: &PathType,
@@ -278,7 +278,7 @@ impl ToTokens for ResponseTuple<'_> {
                  -> TokenStream2 {
                     let content_schema = match path_type {
                         PathType::Ref(ref_type) => quote! {
-                            #root::oapi::openapi::schema::Ref::new(#ref_type)
+                            #oapi::oapi::openapi::schema::Ref::new(#ref_type)
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
@@ -297,7 +297,7 @@ impl ToTokens for ResponseTuple<'_> {
                     };
 
                     let mut content =
-                        quote! { #root::oapi::openapi::Content::new(#content_schema) };
+                        quote! { #oapi::oapi::openapi::Content::new(#content_schema) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -688,9 +688,9 @@ pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(self.0.iter().fold(
-            quote! { #root::oapi::openapi::Responses::new() },
+            quote! { #oapi::oapi::openapi::Responses::new() },
             |mut acc, response| {
                 match response {
                     Response::IntoResponses(path) => {
@@ -822,7 +822,7 @@ impl Parse for Header {
 
 impl ToTokens for Header {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         if let Some(header_type) = &self.value_type {
             // header property with custom type
             let type_tree = header_type.as_type_tree();
@@ -837,12 +837,12 @@ impl ToTokens for Header {
             .to_token_stream();
 
             tokens.extend(quote! {
-                #root::oapi::openapi::HeaderBuilder::new().schema(#media_type_schema)
+                #oapi::oapi::openapi::HeaderBuilder::new().schema(#media_type_schema)
             })
         } else {
             // default header (string type)
             tokens.extend(quote! {
-                Into::<#root::oapi::openapi::HeaderBuilder>::into(#root::oapi::openapi::Header::default())
+                Into::<#oapi::oapi::openapi::HeaderBuilder>::into(#oapi::oapi::openapi::Header::default())
             })
         };
 
@@ -860,7 +860,7 @@ mod parse {
     use syn::token::{Bracket, Comma};
     use syn::{bracketed, parenthesized, LitStr, Result};
 
-    use crate::path::example::Example;
+    use crate::operation::example::Example;
     use crate::{parse_utils, AnyValue};
 
     use super::Header;

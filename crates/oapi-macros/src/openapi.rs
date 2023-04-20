@@ -5,18 +5,15 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::{And, Comma},
- Error, ExprPath, LitStr, Token, TypePath,
+    Error, ExprPath, LitStr, Token, TypePath,
 };
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, Array,
-    ExternalDocs,
-};
+use crate::{parse_utils, Array, ExternalDocs};
 
-#[ derive(Debug)                                                                                  ]
+#[derive(Debug)]
 struct Schema(TypePath);
 
 impl Parse for Schema {
@@ -59,7 +56,7 @@ impl Parse for Modifier {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct Tag {
     name: String,
     description: Option<String>,
@@ -68,22 +65,19 @@ struct Tag {
 
 impl Parse for Tag {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str =
-            "unexpected token, expected any of: name, description, external_docs";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: name, description, external_docs";
 
         let mut tag = Tag::default();
 
         while !input.is_empty() {
-            let ident = input.parse::<Ident>().map_err(|error| {
-                syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
-            })?;
+            let ident = input
+                .parse::<Ident>()
+                .map_err(|error| syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))?;
             let attribute_name = &*ident.to_string();
 
             match attribute_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str(input)?,
-                "description" => {
-                    tag.description = Some(parse_utils::parse_next_literal_str(input)?)
-                }
+                "description" => tag.description = Some(parse_utils::parse_next_literal_str(input)?),
                 "external_docs" => {
                     let content;
                     parenthesized!(content in input);
@@ -103,10 +97,10 @@ impl Parse for Tag {
 
 impl ToTokens for Tag {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let name = &self.name;
         tokens.extend(quote! {
-            #root::oapi::openapi::tag::Tag::default().name(#name)
+            #oapi::oapi::openapi::tag::Tag::default().name(#name)
         });
 
         if let Some(ref description) = self.description {
@@ -124,7 +118,7 @@ impl ToTokens for Tag {
 }
 
 // (url = "http:://url", description = "description", variables(...))
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct Server {
     url: String,
     description: Option<String>,
@@ -148,11 +142,12 @@ impl Parse for Server {
                     server.description =
                         Some(parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value())
                 }
-                "variables" => {
-                    server.variables = parse_utils::parse_punctuated_within_parenthesis(&server_stream)?
-                }
+                "variables" => server.variables = parse_utils::parse_punctuated_within_parenthesis(&server_stream)?,
                 _ => {
-                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables")))
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables"),
+                    ))
                 }
             }
 
@@ -167,7 +162,7 @@ impl Parse for Server {
 
 impl ToTokens for Server {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let url = &self.url;
         let description = &self
             .description
@@ -191,7 +186,7 @@ impl ToTokens for Server {
                 });
 
                 quote! {
-                    .parameter(#name, #root::oapi::openapi::server::ServerVariableBuilder::new()
+                    .parameter(#name, #oapi::oapi::openapi::server::ServerVariableBuilder::new()
                         .default_value(#default_value)
                         #description
                         #enum_values
@@ -201,7 +196,7 @@ impl ToTokens for Server {
             .collect::<TokenStream>();
 
         tokens.extend(quote! {
-            #root::oapi::openapi::server::ServerBuilder::new()
+            #oapi::oapi::openapi::server::ServerBuilder::new()
                 .url(#url)
                 #description
                 #parameters
@@ -211,7 +206,7 @@ impl ToTokens for Server {
 
 // ("username" = (default = "demo", description = "This is default username for the API")),
 // ("port" = (enum_values = (8080, 5000, 4545)))
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct ServerVariable {
     name: String,
     default: String,
@@ -238,20 +233,21 @@ impl Parse for ServerVariable {
 
             match attribute_name {
                 "default" => {
-                    server_variable.default =
-                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
+                    server_variable.default = parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
                 }
                 "description" => {
                     server_variable.description =
                         Some(parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value())
                 }
                 "enum_values" => {
-                    server_variable.enum_values =
-                        Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
+                    server_variable.enum_values = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
                 }
-                _ => {
-                    return Err(Error::new(ident.span(), format!( "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values")))
-                }
+                _ => return Err(Error::new(
+                    ident.span(),
+                    format!(
+                        "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values"
+                    ),
+                )),
             }
 
             if !content.is_empty() {
@@ -263,7 +259,7 @@ impl Parse for ServerVariable {
     }
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 struct Components {
     schemas: Vec<Schema>,
     responses: Vec<Response>,
@@ -273,16 +269,15 @@ impl Parse for Components {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
         parenthesized!(content in input);
-        const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute. expected one of: schemas, responses";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected attribute. expected one of: schemas, responses";
 
         let mut schemas: Vec<Schema> = Vec::new();
         let mut responses: Vec<Response> = Vec::new();
 
         while !content.is_empty() {
-            let ident = content.parse::<Ident>().map_err(|error| {
-                Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
-            })?;
+            let ident = content
+                .parse::<Ident>()
+                .map_err(|error| Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))?;
             let attribute = &*ident.to_string();
 
             match attribute {
@@ -310,13 +305,13 @@ impl Parse for Components {
 
 impl ToTokens for Components {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         if self.schemas.is_empty() && self.responses.is_empty() {
             return;
         }
 
         let builder_tokens = self.schemas.iter().fold(
-            quote! { #root::oapi::openapi::Components::new() },
+            quote! { #oapi::oapi::openapi::Components::new() },
             |mut tokens, schema| {
                 let Schema(path) = schema;
 
@@ -328,17 +323,17 @@ impl ToTokens for Components {
             },
         );
 
-        let builder_tokens =
-            self.responses
-                .iter()
-                .fold(builder_tokens, |mut builder_tokens, responses| {
-                    let Response(path) = responses;
+        let builder_tokens = self
+            .responses
+            .iter()
+            .fold(builder_tokens, |mut builder_tokens, responses| {
+                let Response(path) = responses;
 
-                    builder_tokens.extend(quote_spanned! {path.span() =>
-                        .response_from::<#path>()
-                    });
-                    builder_tokens
+                builder_tokens.extend(quote_spanned! {path.span() =>
+                    .response_from::<#path>()
                 });
+                builder_tokens
+            });
 
         tokens.extend(quote! { #builder_tokens });
     }

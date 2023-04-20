@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{path::ParameterStyle, set_value, Header};
+use super::parameter::ParameterStyle;
+use super::{set_value, Header};
 
 /// A single encoding definition applied to a single schema [`Object
 /// property`](crate::openapi::schema::Object::properties).

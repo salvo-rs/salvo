@@ -15,7 +15,7 @@ use syn::{
 
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
-use crate::path::{InlineType, PathType};
+use crate::operation::{InlineType, PathType};
 use crate::{Array, ResultExt};
 
 use super::{
@@ -74,7 +74,7 @@ impl<'r> ToResponse<'r> {
 
 impl ToTokens for ToResponse<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let lifetime = &self.lifetime;
@@ -91,8 +91,8 @@ impl ToTokens for ToResponse<'_> {
         let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #to_response_impl_generics #root::oapi::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
-                fn response() -> (& #lifetime str, #root::oapi::openapi::RefOr<#root::oapi::openapi::response::Response>) {
+            impl #to_response_impl_generics #oapi::oapi::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
+                fn response() -> (& #lifetime str, #oapi::oapi::openapi::RefOr<#oapi::oapi::openapi::response::Response>) {
                     (#name, #response.into())
                 }
             }
@@ -109,7 +109,7 @@ pub struct IntoResponses {
 
 impl ToTokens for IntoResponses {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
@@ -158,7 +158,7 @@ impl ToTokens for IntoResponses {
                 })
                 .map(|response| {
                     let status = &response.status_code;
-                    quote!((#status, #root::oapi::openapi::RefOr::from(#response)))
+                    quote!((#status, #oapi::oapi::openapi::RefOr::from(#response)))
                 })
                 .collect::<Array<TokenStream>>(),
             Data::Union(_) => abort!(self.ident, "`IntoResponses` does not support `Union` type"),
@@ -173,9 +173,9 @@ impl ToTokens for IntoResponses {
             None
         };
         tokens.extend(quote!{
-            impl #impl_generics #root::oapi::IntoResponses for #ident #ty_generics #where_clause {
-                fn responses() -> std::collections::BTreeMap<String, #root::oapi::openapi::RefOr<#root::oapi::openapi::response::Response>> {
-                    #root::oapi::openapi::response::Responses::new()
+            impl #impl_generics #oapi::oapi::IntoResponses for #ident #ty_generics #where_clause {
+                fn responses() -> std::collections::BTreeMap<String, #oapi::oapi::openapi::RefOr<#oapi::oapi::openapi::response::Response>> {
+                    #oapi::oapi::openapi::response::Responses::new()
                         #responses
                         .into()
                 }

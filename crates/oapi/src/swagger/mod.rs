@@ -194,7 +194,7 @@ impl SwaggerUi {
         self
     }
 
-    pub fn router(self, path: impl Into<String>) -> Router {
+    pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(format!("{}/<**>", path.into())).handle(self)
     }
 }

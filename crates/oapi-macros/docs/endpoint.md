@@ -32,11 +32,6 @@ fn operation() {}
   The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long
   as its result can be converted to a `String` using `String::from`.
 
-* `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to beginning of **path**.
-  This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework
-  allows operation to be defined under some context path or scope which does not reflect to the resolved path then this
-  **context_path** can become handy to alter the path.
-
 * `tag = "..."` Can be used to group operations. Operations with same tag are grouped together. By default
   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
   then default value _`crate`_ is used instead.

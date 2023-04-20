@@ -18,36 +18,37 @@ use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro_crate::{crate_name, FoundCrate};
 use syn::{
     bracketed,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseStream},Item,
+    parse_macro_input,PatType,
     punctuated::Punctuated,
-    token::Bracket,
+    token::Bracket,Receiver,
     DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
 };
-use proc_macro_crate::{crate_name, FoundCrate};
 
 mod component;
 mod doc_comment;
-mod openapi;
-mod path;
+mod endpoint;
+mod operation;
+mod parse_utils;
 mod schema_type;
 mod security_requirement;
-mod parse_utils;
-mod endpoint;
-
-use crate::path::{Path, PathAttr};
+mod shared;
 
 use self::{
+    shared::*,
+    endpoint::EndpointAttr,
     component::{
         features::{self, Feature},
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
-    path::response::derive::{IntoResponses, ToResponse},
+    operation::response::derive::{IntoResponses, ToResponse},
 };
 
-// https://github.com/bkchr/proc-macro-crate/issues/14
-pub(crate) fn root_crate() -> syn::Ident {
+
+pub(crate) fn salvo_crate() -> syn::Ident {
     match crate_name("salvo-oapi") {
         Ok(oapi) => match oapi {
             FoundCrate::Itself => syn::Ident::new("crate", Span::call_site()),
@@ -76,8 +77,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 #[proc_macro_error]
 #[proc_macro_attribute]
 #[doc = include_str!("../docs/endpoint.md")]
-pub fn endpoint(attr: TokenStream, item: TokenStream) -> TokenStream {
-    endpoint::generate(attr, item)
+pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let attr = syn::parse_macro_input!(attr as EndpointAttr);
+    let item = parse_macro_input!(input as Item);
+    match endpoint::generate(attr, item) {
+        Ok(stream) => stream.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
 #[proc_macro_error]
@@ -262,10 +268,10 @@ impl From<bool> for Deprecated {
 
 impl ToTokens for Deprecated {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote! { #root::oapi::openapi::Deprecated::False },
-            Self::True => quote! { #root::oapi::openapi::Deprecated::True },
+            Self::False => quote! { #oapi::oapi::openapi::Deprecated::False },
+            Self::True => quote! { #oapi::oapi::openapi::Deprecated::True },
         })
     }
 }
@@ -295,10 +301,10 @@ impl From<features::Required> for Required {
 
 impl ToTokens for Required {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote! { #root::oapi::openapi::Required::False },
-            Self::True => quote! { #root::oapi::openapi::Required::True },
+            Self::False => quote! { #oapi::oapi::openapi::Required::False },
+            Self::True => quote! { #oapi::oapi::openapi::Required::True },
         })
     }
 }
@@ -342,10 +348,10 @@ impl Parse for ExternalDocs {
 
 impl ToTokens for ExternalDocs {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let root = crate::root_crate();
+        let oapi = crate::oapi_crate();
         let url = &self.url;
         tokens.extend(quote! {
-            #root::oapi::openapi::external_docs::ExternalDocsBuilder::new()
+            #oapi::oapi::openapi::external_docs::ExternalDocsBuilder::new()
                 .url(#url)
         });
 

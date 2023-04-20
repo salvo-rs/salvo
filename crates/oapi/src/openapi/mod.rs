@@ -7,10 +7,12 @@ pub use self::{
     external_docs::ExternalDocs,
     header::Header,
     info::{Contact, Info, License},
+    operation::Operation,
+    parameter::{Parameter, ParameterIn, ParameterStyle},
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
-    schema::{Array, Components, Ref, Discriminator, KnownFormat, Object, Schema, SchemaFormat, SchemaType, ToArray},
-    security::{SecurityScheme, SecurityRequirement},
+    schema::{Array, Components, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
+    security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable},
     tag::Tag,
     xml::Xml,
@@ -22,6 +24,8 @@ mod example;
 mod external_docs;
 mod header;
 pub mod info;
+pub mod operation;
+pub mod parameter;
 pub mod path;
 mod request_body;
 pub mod response;

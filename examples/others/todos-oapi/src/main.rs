@@ -24,11 +24,9 @@ static API_DOC: Lazy<OpenApi> = Lazy::new(|| {
                           //     .path("listcsd", update_todo),
         )
         .components(components)
-        .tags(
-            vec![Tag::default()
-                .name("todo")
-                .description("Todo items management endpoints.")],
-        )
+        .tags(vec![Tag::default()
+            .name("todo")
+            .description("Todo items management endpoints.")])
 });
 
 #[handler]
@@ -45,7 +43,6 @@ async fn main() {
 }
 
 pub(crate) fn route() -> Router {
-    let config = Config::from("/api-doc/openapi.json");
     Router::new()
         .get(hello)
         .push(
@@ -58,7 +55,7 @@ pub(crate) fn route() -> Router {
             ),
         )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(SwaggerUi::new(config).router("swagger-ui"))
+        .push(SwaggerUi::new(Config::from("/api-doc/openapi.json")).into_router("swagger-ui"))
 }
 
 #[handler]
@@ -67,13 +64,10 @@ pub async fn openapi_json(res: &mut Response) {
 }
 
 #[salvo::oapi::endpoint(
-    get,
-    path = "/api/todos",
     responses(
         (status = 200, description = "List all todos successfully", body = [Todo])
     )
 )]
-#[handler]
 pub async fn list_todos(req: &mut Request, res: &mut Response) {
     let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
     let todos = STORE.lock().await;
@@ -87,15 +81,12 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 }
 
 #[salvo::oapi::endpoint(
-        post,
-        path = "/api/todos",
         request_body = Todo,
         responses(
             (status = 201, description = "Todo created successfully", body = Todo),
             (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
         )
     )]
-#[handler]
 pub async fn create_todo(req: &mut Request, res: &mut Response) {
     let new_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?new_todo, "create todo");
@@ -114,7 +105,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
     res.set_status_code(StatusCode::CREATED);
 }
 
-#[salvo::oapi::endpoint(
+#[endpoint(
         put,
         path = "/api/todos/{id}",
         responses(
@@ -125,7 +116,6 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
             ("id" = i32, Path, description = "Id of todo item to modify")
         )
     )]
-#[handler]
 pub async fn update_todo(req: &mut Request, res: &mut Response) {
     let id = req.param::<u64>("id").unwrap();
     let updated_todo = req.parse_body::<Todo>().await.unwrap();
@@ -144,7 +134,7 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
     res.set_status_code(StatusCode::NOT_FOUND);
 }
 
-#[salvo::oapi::endpoint(
+#[endpoint(
     delete,
     path = "/api/todos/{id}",
     responses(
@@ -159,7 +149,6 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
         ("api_key" = [])
     )
 )]
-#[handler]
 pub async fn delete_todo(req: &mut Request, res: &mut Response) {
     let id = req.param::<u64>("id").unwrap();
     tracing::debug!(id = ?id, "delete todo");
