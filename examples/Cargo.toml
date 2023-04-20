@@ -1,6 +1,6 @@
 [workspace]
-members = ["basic/*", "databases/*", "https/*", "middlewares/*", "others/*"]
-exclude = ["others/work-with-tower", "databases/db-prisma-orm", "others/with-listenfd", "middlewares/ws-chat-with-salvo-websocket"]
+members = ["*"]
+exclude = ["work-with-tower", "db-prisma-orm", "with-listenfd", "ws-chat-with-salvo-websocket"]
 
 [workspace.package]
 version = "0.38.0"

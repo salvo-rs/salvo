@@ -1702,6 +1702,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-db-graphql"
+version = "0.1.0"
+dependencies = [
+ "juniper",
+ "parking_lot 0.12.1",
+ "salvo",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "example-db-mongodb"
 version = "0.1.0"
 dependencies = [
@@ -1811,18 +1823,6 @@ dependencies = [
 name = "example-flash-session-store"
 version = "0.1.0"
 dependencies = [
- "salvo",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "example-graphql"
-version = "0.1.0"
-dependencies = [
- "juniper",
- "parking_lot 0.12.1",
  "salvo",
  "tokio",
  "tracing",
@@ -2087,6 +2087,17 @@ version = "0.1.0"
 dependencies = [
  "askama",
  "salvo",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "example-test"
+version = "0.1.0"
+dependencies = [
+ "salvo",
+ "serde",
  "tokio",
  "tracing",
  "tracing-subscriber",

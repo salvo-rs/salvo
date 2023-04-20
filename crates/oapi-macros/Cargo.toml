@@ -2,7 +2,7 @@
 name = "salvo-oapi-macros"
 version.workspace = true
 edition = "2021"
-description = "Macros for salvo"
+description = "Macros for salvo-oapi"
 license = "MIT/Apache-2.0"
 documentation = "https://docs.rs/salvo-oapi-macros/"
 homepage = "https://github.com/salvo-rs/salvo"
