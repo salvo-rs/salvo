@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo_rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RemoteIpIssuer};
+use salvo::rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RemoteIpIssuer};
 
 #[handler]
 async fn hello() -> &'static str {

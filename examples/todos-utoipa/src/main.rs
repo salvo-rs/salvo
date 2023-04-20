@@ -9,11 +9,8 @@ use salvo::size_limiter;
 
 use self::models::*;
 
-// use utoipa::OpenApi;
-use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
-};
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::Config;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
@@ -93,6 +90,7 @@ pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Respo
     let path = req.uri().path();
     let tail = path.strip_prefix("/swagger-ui/").unwrap();
 
+    println!("==========tail {}", tail);
     match utoipa_swagger_ui::serve(tail, config.clone()) {
         Ok(swagger_file) => swagger_file
             .map(|file| {

@@ -6,7 +6,7 @@ publish = false
 
 
 [dependencies]
-salvo = { path = "../../crates/salvo", features = ["rustls"] }
+salvo = { workspace = true, features = ["rustls"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 hyper = { version = "0.14.20", features = ["server"] }
 listenfd = "1.0.0"
-salvo = { path = "../../crates/salvo" }
+salvo = { workspace = true }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

@@ -6,9 +6,9 @@ publish = false
 
 
 [dependencies]
-anyhow = "1"
-eyre = "0.6"
-salvo = { path = "../../crates/salvo", features = ["anyhow", "eyre"] }
+anyhow.workspace = true
+eyre.workspace = true
+salvo = { workspace = true, features = ["anyhow", "eyre"] }
 tokio = { version = "1", features = ["macros"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing.workspace = true
+tracing-subscriber.workspace = true
