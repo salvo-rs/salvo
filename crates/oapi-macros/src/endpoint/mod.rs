@@ -18,8 +18,8 @@ fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<Token
         doc_comments,
         deprecated,
     } = attr;
-    let tfn = Ident::new(&format!("__salvo_oapi_type_id_{}", name), Span::call_site());
-    let ofn = Ident::new(&format!("__salvo_oapi_operation_{}", name), Span::call_site());
+    let tfn = Ident::new(&format!("salvo_oapi_type_id_{}", name), Span::call_site());
+    let ofn = Ident::new(&format!("salvo_oapi_operation_{}", name), Span::call_site());
     let opc = operation_id.map(|opt_id| quote! { operation.operation_id = #opt_id; });
     Ok(quote! {
         fn #tfn() -> ::std::any::TypeId {
@@ -82,8 +82,8 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
                     #hfn
-                    #meta
                 }
+                #meta
             })
         }
         Item::Impl(item_impl) => {
