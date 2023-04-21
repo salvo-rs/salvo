@@ -157,7 +157,7 @@ impl ToTokens for Schema<'_> {
         let (impl_generics, _, _) = impl_generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #impl_generics #oapi::oapi::ToSchema #schema_generics for #ident #ty_generics #where_clause {
+            impl #impl_generics #oapi::oapi::AsSchema #schema_generics for #ident #ty_generics #where_clause {
                 fn schema() -> (& #life str, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>) {
                     (#name, #variant.into())
                 }

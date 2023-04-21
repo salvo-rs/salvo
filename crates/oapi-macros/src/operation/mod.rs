@@ -1,22 +1,18 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::abort;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprLit, Lit, LitStr, Type};
+use syn::{Expr, LitStr, Type};
 
-use crate::{
-    component::{GenericType, TypeTree},
-    endpoint::EndpointAttr,
-    features::Deprecated,
-    schema_type::SchemaType,
-    security_requirement::SecurityRequirementAttr,
-    Array,
-};
+use crate::component::{GenericType, TypeTree};
+use crate::endpoint::EndpointAttr;
+use crate::schema_type::SchemaType;
+use crate::security_requirement::SecurityRequirementAttr;
+use crate::Array;
 
 pub mod example;
 pub mod parameter;

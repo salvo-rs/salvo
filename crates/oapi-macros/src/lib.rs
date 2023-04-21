@@ -10,22 +10,20 @@
 use std::ops::Deref;
 
 use component::schema::Schema;
-use doc_comment::CommentAttributes;
 
-use component::into_parameters::IntoParameters;
+use component::parameters::AsParameters;
 use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
-use proc_macro_crate::{crate_name, FoundCrate};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, Item, ItemFn, Lit, LitStr, Member, PatType, Receiver, Token,
+    DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -49,9 +47,9 @@ pub(crate) use self::{
 };
 
 #[proc_macro_error]
-#[proc_macro_derive(ToSchema, attributes(schema, aliases))]
-#[doc = include_str!("../docs/derive_to_schema.md")]
-pub fn derive_to_schema(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(AsSchema, attributes(schema, aliases))]
+#[doc = include_str!("../docs/derive_as_schema.md")]
+pub fn derive_as_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -77,7 +75,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(IntoParameters, attributes(param, into_parameters))]
+#[proc_macro_derive(AsParameters, attributes(param, into_parameters))]
 #[doc = include_str!("../docs/params.md")]
 pub fn into_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -88,7 +86,7 @@ pub fn into_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_parameters = IntoParameters {
+    let into_parameters = AsParameters {
         attrs,
         generics,
         data,
@@ -158,7 +156,6 @@ pub fn schema(input: TokenStream) -> TokenStream {
             };
 
             let ty = input.parse()?;
-
             Ok(Self { inline, ty })
         }
     }

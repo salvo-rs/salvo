@@ -1,7 +1,7 @@
 Generate [path parameters][path_params] from struct's
 fields.
 
-This is `#[derive]` implementation for [`IntoParameters`][into_parameters] trait.
+This is `#[derive]` implementation for [`AsParameters`][into_parameters] trait.
 
 Typically path parameters need to be defined within [`#[salvo_oapi::path(...params(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
@@ -18,17 +18,17 @@ While it is totally okay to declare deprecated with reason
 
 Doc comment on struct fields will be used as description for the generated parameters.
 ```
-#[derive(salvo_oapi::IntoParameters)]
+#[derive(salvo_oapi::AsParameters)]
 struct Query {
     /// Query todo items by name.
     name: String
 }
 ```
 
-# IntoParameters Container Attributes for `#[into_parameters(...)]`
+# AsParameters Container Attributes for `#[into_parameters(...)]`
 
 The following attributes are available for use in on the container attribute `#[into_parameters(...)]` for the struct
-deriving `IntoParameters`:
+deriving `AsParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
    __Only__ supported on __unnamed structs__.
@@ -37,28 +37,28 @@ deriving `IntoParameters`:
 * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
    [`parameter::ParameterIn`][in_enum]. There is no default value, if this attribute is not
    supplied, then the value is determined by the `parameter_in_provider` in
-   [`IntoParameters::into_parameters()`](trait.IntoParameters.html#tymethod.into_parameters).
+   [`AsParameters::into_parameters()`](trait.AsParameters.html#tymethod.into_parameters).
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(names("id"))]
 struct Id(u64);
 ```
 
 Use `names` to define names for multiple unnamed arguments.
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(names("id", "name"))]
 struct IdAndName(u64, String);
 ```
 
-# IntoParameters Field Attributes for `#[param(...)]`
+# AsParameters Field Attributes for `#[param(...)]`
 
 The following attributes are available for use in the `#[param(...)]` on struct fields:
 
@@ -73,11 +73,11 @@ The following attributes are available for use in the `#[param(...)]` on struct 
 
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`AsSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object.
 
-* `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
+* `inline` If set, the schema for this field's type needs to be a [`AsSchema`][to_schema], and
   the schema definition will be inlined.
 
 * `default = ...` Can be method reference or _`json!(...)`_.
@@ -91,12 +91,12 @@ The following attributes are available for use in the `#[param(...)]` on struct 
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+   See configuration options at xml attributes of [`AsSchema`][to_schema_xml]
 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
 * `required = ...` Can be used to enforce required status for the parameter. [See
-   rules][derive@IntoParameters#field-nullability-and-required-rules]
+   rules][derive@AsParameters#field-nullability-and-required-rules]
 
 * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 
@@ -134,12 +134,12 @@ The following attributes are available for use in the `#[param(...)]` on struct 
 
 #### Field nullability and required rules
 
-Same rules for nullability and required status apply for _`IntoParameters`_ field attributes as for
-_`ToSchema`_ field attributes. [See the rules][`derive@ToSchema#field-nullability-and-required-rules`].
+Same rules for nullability and required status apply for _`AsParameters`_ field attributes as for
+_`AsSchema`_ field attributes. [See the rules][`derive@AsSchema#field-nullability-and-required-rules`].
 
 # Partial `#[serde(...)]` attributes support
 
-IntoParameters derive has partial support for [serde attributes]. These supported attributes will reflect to the
+AsParameters derive has partial support for [serde attributes]. These supported attributes will reflect to the
 generated OpenAPI doc. The following attributes are currently supported:
 
 * `rename_all = "..."` Supported at the container level.
@@ -152,14 +152,14 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 # Examples
 
-_**Demonstrate [`IntoParameters`][into_parameters] usage with resolving `Path` and `Query` parameters
+_**Demonstrate [`AsParameters`][into_parameters] usage with resolving `Path` and `Query` parameters
 with _`salvo`_**_.
 ```
 use serde::Deserialize;
 use serde_json::json;
-use salvo_oapi::IntoParameters;
+use salvo_oapi::AsParameters;
 
-#[derive(Deserialize, IntoParameters)]
+#[derive(Deserialize, AsParameters)]
 struct PetPathArgs {
     /// Id of pet
     id: i64,
@@ -167,7 +167,7 @@ struct PetPathArgs {
     name: String,
 }
 
-#[derive(Deserialize, IntoParameters)]
+#[derive(Deserialize, AsParameters)]
 struct Filter {
     /// Age filter for pets
     #[deprecated]
@@ -187,20 +187,20 @@ async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder
 }
 ```
 
-_**Demonstrate [`IntoParameters`][into_parameters] usage with the `#[into_parameters(...)]` container attribute to
+_**Demonstrate [`AsParameters`][into_parameters] usage with the `#[into_parameters(...)]` container attribute to
 be used as a path query, and inlining a schema query field:**_
 ```
 use serde::Deserialize;
-use salvo_oapi::{IntoParameters, ToSchema};
+use salvo_oapi::{AsParameters, AsSchema};
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, AsSchema)]
 #[serde(rename_all = "snake_case")]
 enum PetKind {
     Dog,
     Cat,
 }
 
-#[derive(Deserialize, IntoParameters)]
+#[derive(Deserialize, AsParameters)]
 #[into_parameters(style = Form, parameter_in = Query)]
 struct PetQuery {
     /// Name of pet
@@ -227,9 +227,9 @@ async fn get_pet(query: PetQuery) {
 
 _**Override `String` with `i64` using `value_type` attribute.**_
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = i64)]
@@ -239,9 +239,9 @@ struct Filter {
 
 _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will render as `type: object` in OpenAPI spec.**_
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Object)]
@@ -251,9 +251,9 @@ struct Filter {
 
 _**You can use a generic type to override the default type of the field.**_
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Option<String>)]
@@ -263,9 +263,9 @@ struct Filter {
 
 _**You can even override a [`Vec`] with another one.**_
 ```
-# use salvo_oapi::IntoParameters;
+# use salvo_oapi::AsParameters;
 #
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Vec<i32>)]
@@ -273,16 +273,16 @@ struct Filter {
 }
 ```
 
-_**We can override value with another [`ToSchema`][to_schema].**_
+_**We can override value with another [`AsSchema`][to_schema].**_
 ```
-# use salvo_oapi::{IntoParameters, ToSchema};
+# use salvo_oapi::{AsParameters, AsSchema};
 #
-#[derive(ToSchema)]
+#[derive(AsSchema)]
 struct Id {
     value: i64,
 }
 
-#[derive(IntoParameters)]
+#[derive(AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Id)]
@@ -292,7 +292,7 @@ struct Filter {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::IntoParameters)]
+#[derive(salvo_oapi::AsParameters)]
 struct Item {
     #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
@@ -315,7 +315,7 @@ fn custom_type() -> Object {
         .description("this is the description")
 }
 
-#[derive(salvo_oapi::IntoParameters)]
+#[derive(salvo_oapi::AsParameters)]
 #[into_parameters(parameter_in = Query)]
 struct Query {
     #[param(schema_with = custom_type)]
@@ -323,14 +323,14 @@ struct Query {
 }
 ```
 
-[to_schema]: trait.ToSchema.html
+[to_schema]: trait.AsSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
-[into_parameters]: trait.IntoParameters.html
+[into_parameters]: trait.AsParameters.html
 [path_params]: attr.path.html#params-attributes
 [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 [style]: openapi/path/enum.ParameterStyle.html
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [serde attributes]: https://serde.rs/attributes.html
-[to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+[to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

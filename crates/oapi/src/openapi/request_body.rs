@@ -75,7 +75,7 @@ impl RequestBody {
 /// }
 /// ```
 ///
-/// [schema]: crate::ToSchema
+/// [schema]: crate::AsSchema
 ///
 #[cfg(feature = "openapi_extensions")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]

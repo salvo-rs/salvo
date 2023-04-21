@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{set_value, Deprecated, RefOr, Response, SecurityScheme, ToResponse, ToSchema, Xml};
+use crate::{set_value, Deprecated, RefOr, Response, SecurityScheme, ToResponse, AsSchema, Xml};
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
@@ -98,11 +98,11 @@ impl Components {
         self
     }
 
-    pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
+    pub fn schema_from<'s, I: AsSchema<'s>>(mut self) -> Self {
         let aliases = I::aliases();
 
         // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
-        // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
+        // Eventually aliases functionality should be extracted out from the `AsSchema`. Aliases
         // are created when the main schema is a generic type which should be included in OpenAPI
         // spec in its generic form.
         if aliases.is_empty() {
@@ -496,10 +496,10 @@ pub struct Object {
     /// Map of fields with their [`Schema`] types.
     ///
     /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
-    /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
+    /// properties map backing implementation to retain property order of [`AsSchema`][to_schema].
     /// By default [`BTreeMap`] will be used.
     ///
-    /// [to_schema]: crate::ToSchema
+    /// [to_schema]: crate::AsSchema
     #[serde(
         skip_serializing_if = "ObjectPropertiesMap::is_empty",
         default = "ObjectPropertiesMap::new"

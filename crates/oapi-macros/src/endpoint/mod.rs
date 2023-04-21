@@ -19,6 +19,9 @@ fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<Token
         fn #ofn() -> #oapi::oapi::Operation {
             let mut operation = #opt;
             #(#modifiers)*
+            if operation.operation_id.is_none() {
+                operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
+            }
             operation
         }
         #oapi::oapi::__private::inventory::submit! {

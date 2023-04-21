@@ -58,7 +58,6 @@ pub async fn openapi_json(res: &mut Response) {
 }
 
 #[endpoint(
-    operation_id = "list_todos",
     responses(
         (status = 200, description = "List all todos successfully", body = [Todo])
     )
@@ -76,7 +75,6 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-    operation_id = "create_todo",
     request_body = Todo,
     responses(
         (status = 201, description = "Todo created successfully", body = Todo),
@@ -102,7 +100,6 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-    operation_id = "update_todo",
     responses(
         (status = 200, description = "Todo modified successfully"),
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
@@ -130,7 +127,6 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-    operation_id = "delete_todo",
     responses(
         (status = 200, description = "Todo deleted successfully"),
         (status = 401, description = "Unauthorized to delete Todo"),
@@ -162,7 +158,7 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 }
 
 mod models {
-    use salvo::oapi::ToSchema;
+    use salvo::oapi::AsSchema;
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
 
@@ -172,7 +168,7 @@ mod models {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Serialize, Deserialize, ToSchema)]
+    #[derive(Serialize, Deserialize, AsSchema)]
     pub(super) enum TodoError {
         /// Happens when Todo item already exists
         Config(String),
@@ -180,7 +176,7 @@ mod models {
         NotFound(String),
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, AsSchema)]
     pub struct Todo {
         #[schema(example = 1)]
         pub id: u64,

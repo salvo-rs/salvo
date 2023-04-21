@@ -10,7 +10,7 @@ _`#[content]`_ attributes is used to make enum variant a content of a specific t
 response.
 
 _`#[to_schema]`_ attribute is used to inline a schema for a response in unnamed structs or
-enum variants with `#[content]` attribute. **Note!** [`ToSchema`] need to be implemented for
+enum variants with `#[content]` attribute. **Note!** [`AsSchema`] need to be implemented for
 the field or variant type.
 
 Type derived with _`ToResponse`_ uses provided doc comment as a description for the response. It
@@ -35,10 +35,10 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
    allows users to use new type pattern to define one inner field which is used as a schema for
    the generated response. This allows users to define `Vec` and `Option` response types.
    Additionally these types can also be used with `#[to_schema]` attribute to inline the
-   field's type schema if it implements [`ToSchema`] derive macro.
+   field's type schema if it implements [`AsSchema`] derive macro.
 
    ```rust
-    # #[derive(salvo_oapi::ToSchema)]
+    # #[derive(salvo_oapi::AsSchema)]
     # struct Person {
     #     name: String,
     # }
@@ -61,14 +61,14 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
    these variants can also be used with `#[to_schema]` attribute to inline the variant's type schema
-   if it implements [`ToSchema`] derive macro.
+   if it implements [`AsSchema`] derive macro.
 
    ```rust
-    #[derive(salvo_oapi::ToSchema)]
+    #[derive(salvo_oapi::AsSchema)]
     struct Admin {
         name: String,
     }
-    #[derive(salvo_oapi::ToSchema)]
+    #[derive(salvo_oapi::AsSchema)]
     struct Admin2 {
         name: String,
         id: i32,
@@ -152,8 +152,8 @@ _**Create a response from named struct.**_
 ```
  /// This is description
  ///
- /// It will also be used in `ToSchema` if present
- #[derive(salvo_oapi::ToSchema, salvo_oapi::ToResponse)]
+ /// It will also be used in `AsSchema` if present
+ #[derive(salvo_oapi::AsSchema, salvo_oapi::ToResponse)]
  #[response(
      description = "Override description for response",
      content_type = "text/xml"
@@ -172,7 +172,7 @@ _**Create a response from named struct.**_
 
 _**Create inlined person list response.**_
 ```
- # #[derive(salvo_oapi::ToSchema)]
+ # #[derive(salvo_oapi::AsSchema)]
  # struct Person {
  #     name: String,
  # }

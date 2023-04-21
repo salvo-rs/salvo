@@ -84,9 +84,13 @@ use crate::{Depot, Request};
 ///
 /// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
+    /// routers is the children of current router.
     pub routers: Vec<Router>,
+    /// filters is the filters of current router.
     pub filters: Vec<Box<dyn Filter>>,
+    /// hoops is the middlewares of current router.
     pub hoops: Vec<Arc<dyn Handler>>,
+    /// handler is the handler of current router.
     pub handler: Option<Arc<dyn Handler>>,
 }
 #[doc(hidden)]

@@ -51,7 +51,7 @@ fn operation() {}
 * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
+  [`AsSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
   json file for body schema. **Note!** Sapid does **not** guarantee that free form _`ref`_ is accessbile via
   OpenAPI doc or Swagger UI, users are eligible to make these guarantees.
 
@@ -59,7 +59,7 @@ fn operation() {}
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-  which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+  which is the default for [`AsSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
   to make these guarantees.
@@ -99,7 +99,7 @@ _**Example request body definitions.**_
   response body. Can be _`body = Type`_, _`body = inline(Type)`_, or _`body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+  [`AsSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
   to make these guarantees.
@@ -215,7 +215,7 @@ responses(MyResponse)
 * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
+  [`AsSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
   response header.
 
 * `description = "..."` Can be used to define optional description for the response header as str.
@@ -229,7 +229,7 @@ responses(MyResponse)
 
 # Params Attributes
 
-The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParameters
+The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
 Type](#intoparams-type).
 
 ## Tuples
@@ -242,7 +242,7 @@ tuples separated by commas:
 * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
+  [`AsSchema`][to_schema] types. Parameter type is placed after `name` with
   equals sign E.g. _`"id" = String`_
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -278,7 +278,7 @@ enabled.
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 
 * `xml(...)` Can be used to define [`Xml`][xml] object properties for the parameter type.
-   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+   See configuration options at xml attributes of [`AsSchema`][to_schema_xml]
 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
@@ -326,10 +326,10 @@ params(
 )
 ```
 
-## IntoParameters Type
+## AsParameters Type
 
-In the IntoParameters parameters format, the parameters are specified using an identifier for a type
-that implements [`IntoParameters`][into_parameters]. See [`IntoParameters`][into_parameters] for an
+In the AsParameters parameters format, the parameters are specified using an identifier for a type
+that implements [`AsParameters`][into_parameters]. See [`AsParameters`][into_parameters] for an
 example.
 
 ```text
@@ -459,16 +459,16 @@ fn get_user() -> User {
 
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [path]: trait.Path.html
-[to_schema]: trait.ToSchema.html
+[to_schema]: trait.AsSchema.html
 [openapi]: derive.OpenApi.html
 [security]: openapi/security/struct.SecurityRequirement.html
 [security_schema]: openapi/security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[into_parameters]: trait.IntoParameters.html
+[into_parameters]: trait.AsParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
 [into_responses_trait]: trait.IntoResponses.html
-[into_parameters_derive]: derive.IntoParameters.html
+[into_parameters_derive]: derive.AsParameters.html
 [to_response_trait]: trait.ToResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
-[to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+[to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

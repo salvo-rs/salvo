@@ -17,7 +17,7 @@ a response without content since there is no inner fields.
 Unnamed field _`struct`_ decorated with [`derive@IntoResponses`] will by default create a response with
 referenced [schema][to_schema] if field is object or schema if type is [primitive
 type][primitive]. _`#[to_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
-the schema if type of the field implements [`ToSchema`][to_schema] trait. Alternatively
+the schema if type of the field implements [`AsSchema`][to_schema] trait. Alternatively
 _`#[to_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
 [response][to_response] or inline a reusable [response][to_response]. In both cases the field
 type is expected to implement [`ToResponse`][to_response] trait.
@@ -79,7 +79,7 @@ It can also be overridden with _`description = "..."`_ attribute.
 
 _**Use `IntoResponses` to define [`salvo_oapi::path`][path] responses.**_
 ```
-#[derive(salvo_oapi::ToSchema)]
+#[derive(salvo_oapi::AsSchema)]
 struct BadRequest {
     message: String,
 }
@@ -127,7 +127,7 @@ struct NotFound;
 
 _**Unnamed struct response with inlined response schema.**_
 ```
-# #[derive(salvo_oapi::ToSchema)]
+# #[derive(salvo_oapi::AsSchema)]
 # struct Foo;
 #[derive(salvo_oapi::IntoResponses)]
 #[response(status = 201)]
@@ -140,7 +140,7 @@ _**Enum with multiple responses.**_
 # struct Response {
 #     message: String,
 # }
-# #[derive(salvo_oapi::ToSchema)]
+# #[derive(salvo_oapi::AsSchema)]
 # struct BadRequest {}
 #[derive(salvo_oapi::IntoResponses)]
 enum UserResponses {
@@ -163,7 +163,7 @@ enum UserResponses {
 ```
 
 [into_responses]: trait.IntoResponses.html
-[to_schema]: trait.ToSchema.html
+[to_schema]: trait.AsSchema.html
 [to_response]: trait.ToResponse.html
 [path_into_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html

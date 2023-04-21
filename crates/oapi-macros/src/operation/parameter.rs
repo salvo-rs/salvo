@@ -38,7 +38,7 @@ use super::InlineType;
 #[derive(Debug)]
 pub enum Parameter<'a> {
     Value(ValueParameter<'a>),
-    /// Identifier for a struct that implements `IntoParameters` trait.
+    /// Identifier for a struct that implements `AsParameters` trait.
     Struct(StructParameter),
 }
 
@@ -67,7 +67,7 @@ impl ToTokens for Parameter<'_> {
                 let parameter_in_provider = parameter_in_fn.as_ref().unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        Some(<#path as #oapi::oapi::IntoParameters>::into_parameters(#parameter_in_provider))
+                        Some(<#path as #oapi::oapi::AsParameters>::into_parameters(#parameter_in_provider))
                     )
                 })
             }
@@ -275,7 +275,7 @@ impl ToTokens for ValueParameter<'_> {
 #[derive(Debug)]
 pub struct StructParameter {
     pub path: ExprPath,
-    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::IntoParameters::into_param`]
+    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::AsParameters::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 

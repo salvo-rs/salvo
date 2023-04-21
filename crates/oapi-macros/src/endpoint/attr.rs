@@ -1,19 +1,10 @@
-use std::{io::Error, str::FromStr};
-
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Paren;
 use syn::Expr;
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::component::{GenericType, TypeTree};
-use crate::{parse_utils, Deprecated};
-use crate::{security_requirement::SecurityRequirementAttr, Array};
-
-use crate::operation::Response;
-use crate::operation::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
+use crate::operation::{parameter::Parameter, request_body::RequestBodyAttr, Response};
+use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array};
 
 #[derive(Default, Debug)]
 pub struct EndpointAttr<'p> {

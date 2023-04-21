@@ -15,16 +15,16 @@ use std::collections::{BTreeMap, HashMap};
 /// Generated schemas can be referenced or reused in path operations.
 ///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
-/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
+/// `#[derive(AsSchema)]` refer to [derive documentation][derive].
 ///
-/// [derive]: derive.ToSchema.html
+/// [derive]: derive.AsSchema.html
 ///
 /// # Examples
 ///
-/// Use `#[derive]` to implement `ToSchema` trait.
+/// Use `#[derive]` to implement `AsSchema` trait.
 /// ```
-/// # use salvo_oapi::ToSchema;
-/// #[derive(ToSchema)]
+/// # use salvo_oapi::AsSchema;
+/// #[derive(AsSchema)]
 /// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
 ///     id: u64,
@@ -41,7 +41,7 @@ use std::collections::{BTreeMap, HashMap};
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> salvo_oapi::ToSchema<'__s> for Pet {
+/// impl<'__s> salvo_oapi::AsSchema<'__s> for Pet {
 ///     fn schema() -> (&'__s str, salvo_oapi::RefOr<salvo_oapi::schema::Schema>) {
 ///          (
 ///             "Pet",
@@ -76,21 +76,21 @@ use std::collections::{BTreeMap, HashMap};
 ///         ) }
 /// }
 /// ```
-pub trait ToSchema<'__s> {
+pub trait AsSchema<'__s> {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn schema() -> (&'__s str, RefOr<schema::Schema>);
 
-    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    /// Optional set of alias schemas for the [`AsSchema::schema`].
     ///
     /// Typically there is no need to manually implement this method but it is instead implemented
-    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    /// by derive [`macro@AsSchema`] when `#[aliases(...)]` attribute is defined.
     fn aliases() -> Vec<(&'__s str, schema::Schema)> {
         Vec::new()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> From<T> for RefOr<schema::Schema> {
+impl<'__s, T: AsSchema<'__s>> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
         T::schema().1
     }
@@ -101,7 +101,7 @@ impl<'__s, T: ToSchema<'__s>> From<T> for RefOr<schema::Schema> {
 /// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl<'__s> ToSchema<'__s> for TupleUnit {
+impl<'__s> AsSchema<'__s> for TupleUnit {
     fn schema() -> (&'__s str, RefOr<schema::Schema>) {
         ("TupleUnit", schema::empty().into())
     }
@@ -227,19 +227,19 @@ impl_partial_schema_primitive!(
 
 impl_partial_schema!(&str);
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for Vec<T> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<Vec<T>> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Option<Vec<T>>).into()
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for [T] {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -249,7 +249,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for &[T] {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -259,7 +259,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for &mut [T] {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -269,7 +269,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<&[T]> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -279,7 +279,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<&mut [T]> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -289,13 +289,13 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
+impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<T> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
+impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for BTreeMap<K, V> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -305,7 +305,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V>
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
+impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -315,7 +315,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> {
+impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for HashMap<K, V> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -325,7 +325,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> 
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
+impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -338,17 +338,17 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
-/// For more details of `#[derive(IntoParameters)]` refer to [derive documentation][derive].
+/// For more details of `#[derive(AsParameters)]` refer to [derive documentation][derive].
 ///
 /// # Examples
 ///
-/// Derive [`IntoParameters`] implementation. This example will fail to compile because [`IntoParameters`] cannot
+/// Derive [`AsParameters`] implementation. This example will fail to compile because [`AsParameters`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
-/// use salvo_oapi::{IntoParameters};
+/// use salvo_oapi::{AsParameters};
 ///
-/// #[derive(IntoParameters)]
+/// #[derive(AsParameters)]
 /// struct PetParams {
 ///     /// Id of pet
 ///     id: i64,
@@ -357,7 +357,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// }
 /// ```
 ///
-/// Roughly equal manual implementation of [`IntoParameters`] trait.
+/// Roughly equal manual implementation of [`AsParameters`] trait.
 /// ```
 /// # struct PetParams {
 /// #    /// Id of pet
@@ -365,7 +365,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// #    /// Name of pet
 /// #    name: String,
 /// # }
-/// impl salvo_oapi::IntoParameters for PetParams {
+/// impl salvo_oapi::AsParameters for PetParams {
 ///     fn into_parameters(
 ///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::path::ParameterIn>
 ///     ) -> Vec<salvo_oapi::path::Parameter> {
@@ -393,8 +393,8 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///     }
 /// }
 /// ```
-/// [derive]: derive.IntoParameters.html
-pub trait IntoParameters {
+/// [derive]: derive.AsParameters.html
+pub trait AsParameters {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn into_parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;

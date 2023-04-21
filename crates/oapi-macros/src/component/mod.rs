@@ -14,7 +14,7 @@ use self::features::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nulla
 use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
-pub mod into_parameters;
+pub mod parameters;
 
 pub mod features;
 pub mod schema;
@@ -647,12 +647,12 @@ impl<'c> ComponentSchema {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::schema().1)
+                                        .item(<#type_path as #oapi::oapi::AsSchema>::schema().1)
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::schema().1
+                                    <#type_path as #oapi::oapi::AsSchema>::schema().1
                                 }
                             })
                             .to_tokens(tokens);

@@ -36,14 +36,14 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
   `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according
   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
   override default `string` representation users have to use `value_type` attribute to override the type.
-  See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
+  See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.AsSchema.html) for more details.
 * **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
-  to override the type. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
+  to override the type. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.AsSchema.html) for more details.
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
-  See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
+  See the `value_type` in [`AsSchema` derive docs][to_schema_derive].
 * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
 * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
@@ -51,14 +51,14 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
   See the [`request_body`](https://docs.rs/salvo_oapi/latest/salvo_oapi/openapi/request_body/index.html) and
   [`response`](https://docs.rs/salvo_oapi/latest/salvo_oapi/openapi/response/index.html) docs for examples.
 * **repr** Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
-  C-like enum representation. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
+  C-like enum representation. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.AsSchema.html) for more details.
 * **preserve_order** Preserve order of properties when serializing the schema for a component.
   When enabled, the properties are listed in order of fields in the corresponding struct definition.
   When disabled, the properties are listed in alphabetical order.
 * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
 
-Sapid implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
+Sapid implicitly has partial support for `serde` attributes. See [`AsSchema` derive][serde] for more details.
 
 # Install
 
@@ -81,11 +81,11 @@ salvo_oapi = { version = "0.3"] }
 
 # Examples
 
-Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
+Create a struct or it could be an enum also. Add `AsSchema` derive macro to it so it can be registered
 as a component in openapi schema.
 ```rust
-use salvo_oapi::ToSchema;
-#[derive(ToSchema)]
+use salvo_oapi::AsSchema;
+#[derive(AsSchema)]
 struct Pet {
    id: u64,
    name: String,
@@ -97,9 +97,9 @@ Create an handler that would handle your business logic and add `path` proc attr
 ```rust
 mod pet_api {
 #     use salvo_oapi::OpenApi;
-#     use salvo_oapi::ToSchema;
+#     use salvo_oapi::AsSchema;
 #
-#     #[derive(ToSchema)]
+#     #[derive(AsSchema)]
 #     struct Pet {
 #       id: u64,
 #       name: String,
@@ -133,9 +133,9 @@ Sapid has support for [http](https://crates.io/crates/http) `StatusCode` in resp
 Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
 ```rust
 # mod pet_api {
-#     use salvo_oapi::ToSchema;
+#     use salvo_oapi::AsSchema;
 #
-#     #[derive(ToSchema)]
+#     #[derive(AsSchema)]
 #     struct Pet {
 #       id: u64,
 #       name: String,
@@ -164,9 +164,9 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 #         }
 #     }
 # }
-# use salvo_oapi::ToSchema;
+# use salvo_oapi::AsSchema;
 #
-# #[derive(ToSchema)]
+# #[derive(AsSchema)]
 # struct Pet {
 #   id: u64,
 #   name: String,
@@ -184,7 +184,7 @@ println!("{}", doc.to_pretty_json().unwrap());
 * More about OpenAPI security in [security documentation][security].
 
 [path]: attr.path.html
-[serde]: derive.ToSchema.html#partial-serde-attributes-support
+[serde]: derive.AsSchema.html#partial-serde-attributes-support
 
 [security]: openapi/security/index.html
-[to_schema_derive]: derive.ToSchema.html
+[to_schema_derive]: derive.AsSchema.html

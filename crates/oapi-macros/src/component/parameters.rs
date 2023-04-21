@@ -28,12 +28,12 @@ use super::{
     ComponentSchema, TypeTree,
 };
 
-impl_merge!(IntoParametersFeatures, FieldFeatures);
+impl_merge!(AsParametersFeatures, FieldFeatures);
 
 /// Container attribute `#[into_parameters(...)]`.
-pub struct IntoParametersFeatures(Vec<Feature>);
+pub struct AsParametersFeatures(Vec<Feature>);
 
-impl Parse for IntoParametersFeatures {
+impl Parse for AsParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             input as Style,
@@ -44,10 +44,10 @@ impl Parse for IntoParametersFeatures {
     }
 }
 
-impl_into_inner!(IntoParametersFeatures);
+impl_into_inner!(AsParametersFeatures);
 
 #[derive(Debug)]
-pub struct IntoParameters {
+pub struct AsParameters {
     /// Attributes tagged on the whole struct or enum.
     pub attrs: Vec<Attribute>,
     /// Generics required to complete the definition.
@@ -58,7 +58,7 @@ pub struct IntoParameters {
     pub ident: Ident,
 }
 
-impl ToTokens for IntoParameters {
+impl ToTokens for AsParameters {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
@@ -69,7 +69,7 @@ impl ToTokens for IntoParameters {
             .filter(|attr| attr.path().is_ident("into_parameters"))
             .map(|attribute| {
                 attribute
-                    .parse_args::<IntoParametersFeatures>()
+                    .parse_args::<AsParametersFeatures>()
                     .unwrap_or_abort()
                     .into_inner()
             })
@@ -87,9 +87,9 @@ impl ToTokens for IntoParameters {
 
         let names = into_parameters_features.as_mut().and_then(|features| {
             features
-                .pop_by(|feature| matches!(feature, Feature::IntoParametersNames(_)))
+                .pop_by(|feature| matches!(feature, Feature::AsParametersNames(_)))
                 .and_then(|feature| match feature {
-                    Feature::IntoParametersNames(names) => Some(names.into_values()),
+                    Feature::AsParametersNames(names) => Some(names.into_values()),
                     _ => None,
                 })
         });
@@ -127,7 +127,7 @@ impl ToTokens for IntoParameters {
 
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
-            impl #impl_generics #oapi::oapi::IntoParameters for #ident #ty_generics #where_clause {
+            impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
                 fn into_parameters(parameter_in_provider: impl Fn() -> Option<#oapi::oapi::parameter::ParameterIn>) -> Vec<#oapi::oapi::parameter::Parameter> {
                     #params.to_vec()
                 }
@@ -136,7 +136,7 @@ impl ToTokens for IntoParameters {
     }
 }
 
-impl IntoParameters {
+impl AsParameters {
     fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> impl Iterator<Item = &Field> {
         let ident = &self.ident;
         let abort = |note: &str| {
@@ -198,11 +198,11 @@ impl IntoParameters {
 
 #[derive(Debug)]
 pub struct FieldParamContainerAttributes<'a> {
-    /// See [`IntoParametersAttr::style`].
+    /// See [`AsParametersAttr::style`].
     style: &'a Option<Feature>,
-    /// See [`IntoParametersAttr::names`]. The name that applies to this field.
+    /// See [`AsParametersAttr::names`]. The name that applies to this field.
     name: Option<&'a String>,
-    /// See [`IntoParametersAttr::parameter_in`].
+    /// See [`AsParametersAttr::parameter_in`].
     parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
     rename_all: Option<&'a RenameAll>,
