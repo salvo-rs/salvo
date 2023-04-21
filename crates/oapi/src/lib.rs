@@ -407,14 +407,14 @@ pub trait AsParameters {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Response, Responses, RefOr, IntoResponses };
+/// use salvo_oapi::{Response, Response, Responses, RefOr, AsResponses };
 ///
 /// enum MyResponse {
 ///     Ok,
 ///     NotFound,
 /// }
 ///
-/// impl IntoResponses for MyResponse {
+/// impl AsResponses for MyResponse {
 ///     fn responses() -> BTreeMap<String, RefOr<Response>> {
 ///         Responses::new()
 ///             .response("200", Response::new("Ok"))
@@ -423,7 +423,7 @@ pub trait AsParameters {
 ///     }
 /// }
 /// ```
-pub trait IntoResponses {
+pub trait AsResponses {
     /// Returns an ordered map of response codes to responses.
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::Response>>;
 }
@@ -431,19 +431,19 @@ pub trait IntoResponses {
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
-/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
+/// _`AsResponse`_ trait can also be derived with [`#[derive(AsResponse)]`][derive].
 ///
 /// # Examples
 ///
 /// ```
 /// use salvo_oapi::{
 ///     openapi::{RefOr, Response, Response},
-///     ToResponse,
+///     AsResponse,
 /// };
 ///
 /// struct MyResponse;
 ///
-/// impl<'__r> ToResponse<'__r> for MyResponse {
+/// impl<'__r> AsResponse<'__r> for MyResponse {
 ///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
@@ -453,8 +453,8 @@ pub trait IntoResponses {
 /// }
 /// ```
 ///
-/// [derive]: derive.ToResponse.html
-pub trait ToResponse<'__r> {
+/// [derive]: derive.AsResponse.html
+pub trait AsResponse<'__r> {
     /// Returns a tuple of response component name (to be referenced) to a response.
     fn response() -> (&'__r str, RefOr<crate::Response>);
 }

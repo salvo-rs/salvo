@@ -16,36 +16,36 @@ use crate::operation::{InlineType, PathType};
 use crate::{Array, ResultExt};
 
 use super::{
-    Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue,
+    Content, DeriveAsResponsesValue, DeriveResponseValue, DeriveResponsesAttributes, DeriveAsResponseValue,
     ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 
-pub struct ToResponse<'r> {
+pub struct AsResponse<'r> {
     ident: Ident,
     lifetime: Lifetime,
     generics: Generics,
     response: ResponseTuple<'r>,
 }
 
-impl<'r> ToResponse<'r> {
+impl<'r> AsResponse<'r> {
     const LIFETIME: &'static str = "'__r";
 
-    pub fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> ToResponse<'r> {
+    pub fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> AsResponse<'r> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0,
+                Fields::Named(fields) => AsResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0,
                 Fields::Unnamed(fields) => {
                     let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
 
-                    ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
+                    AsResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
                 }
-                Fields::Unit => ToResponseUnitStructResponse::new(&attributes).0,
+                Fields::Unit => AsResponseUnitStructResponse::new(&attributes).0,
             },
             Data::Enum(enum_value) => EnumResponse::new(&ident, &enum_value.variants, &attributes).0,
-            Data::Union(_) => abort!(ident, "`ToResponse` does not support `Union` type"),
+            Data::Union(_) => abort!(ident, "`AsResponse` does not support `Union` type"),
         };
 
-        let lifetime = Lifetime::new(ToResponse::LIFETIME, Span::call_site());
+        let lifetime = Lifetime::new(AsResponse::LIFETIME, Span::call_site());
 
         Self {
             ident,
@@ -56,7 +56,7 @@ impl<'r> ToResponse<'r> {
     }
 }
 
-impl ToTokens for ToResponse<'_> {
+impl ToTokens for AsResponse<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
@@ -73,7 +73,7 @@ impl ToTokens for ToResponse<'_> {
         let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #to_response_impl_generics #oapi::oapi::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
+            impl #to_response_impl_generics #oapi::oapi::AsResponse <#lifetime> for #ident #ty_generics #where_clause {
                 fn response() -> (& #lifetime str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
                     (#name, #response.into())
                 }
@@ -82,14 +82,14 @@ impl ToTokens for ToResponse<'_> {
     }
 }
 
-pub struct IntoResponses {
+pub struct AsResponses {
     pub attributes: Vec<Attribute>,
     pub data: Data,
     pub generics: Generics,
     pub ident: Ident,
 }
 
-impl ToTokens for IntoResponses {
+impl ToTokens for AsResponses {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
         let responses = match &self.data {
@@ -135,7 +135,7 @@ impl ToTokens for IntoResponses {
                     quote!((#status, #oapi::oapi::RefOr::from(#response)))
                 })
                 .collect::<Array<TokenStream>>(),
-            Data::Union(_) => abort!(self.ident, "`IntoResponses` does not support `Union` type"),
+            Data::Union(_) => abort!(self.ident, "`AsResponses` does not support `Union` type"),
         };
 
         let ident = &self.ident;
@@ -147,7 +147,7 @@ impl ToTokens for IntoResponses {
             None
         };
         tokens.extend(quote!{
-            impl #impl_generics #oapi::oapi::IntoResponses for #ident #ty_generics #where_clause {
+            impl #impl_generics #oapi::oapi::AsResponses for #ident #ty_generics #where_clause {
                 fn responses() -> std::collections::BTreeMap<String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>> {
                     #oapi::oapi::response::Responses::new()
                         #responses
@@ -213,8 +213,8 @@ impl<'u> UnnamedStructResponse<'u> {
                 "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"
             )
         }
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
-            .expect("`IntoResponses` must have `#[response(...)]` attribute");
+        let mut derive_value = DeriveAsResponsesValue::from_attributes(attributes)
+            .expect("`AsResponses` must have `#[response(...)]` attribute");
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let status_code = mem::take(&mut derive_value.status);
 
@@ -267,8 +267,8 @@ impl NamedStructResponse<'_> {
             Self::has_no_field_attributes,
         );
 
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
-            .expect("`IntoResponses` must have `#[response(...)]` attribute");
+        let mut derive_value = DeriveAsResponsesValue::from_attributes(attributes)
+            .expect("`AsResponses` must have `#[response(...)]` attribute");
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let status_code = mem::take(&mut derive_value.status);
 
@@ -304,8 +304,8 @@ impl UnitStructResponse<'_> {
     fn new(attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
 
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
-            .expect("`IntoResponses` must have `#[response(...)]` attribute");
+        let mut derive_value = DeriveAsResponsesValue::from_attributes(attributes)
+            .expect("`AsResponses` must have `#[response(...)]` attribute");
         let status_code = mem::take(&mut derive_value.status);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
 
@@ -319,11 +319,11 @@ impl UnitStructResponse<'_> {
     }
 }
 
-struct ToResponseNamedStructResponse<'p>(ResponseTuple<'p>);
+struct AsResponseNamedStructResponse<'p>(ResponseTuple<'p>);
 
-impl Response for ToResponseNamedStructResponse<'_> {}
+impl Response for AsResponseNamedStructResponse<'_> {}
 
-impl<'p> ToResponseNamedStructResponse<'p> {
+impl<'p> AsResponseNamedStructResponse<'p> {
     fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Comma>) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(
@@ -331,7 +331,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
             Self::has_no_field_attributes,
         );
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveAsResponseValue::from_attributes(attributes);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let ty = Self::to_type(ident);
 
@@ -357,11 +357,11 @@ impl<'p> ToResponseNamedStructResponse<'p> {
     }
 }
 
-struct ToResponseUnnamedStructResponse<'c>(ResponseTuple<'c>);
+struct AsResponseUnnamedStructResponse<'c>(ResponseTuple<'c>);
 
-impl Response for ToResponseUnnamedStructResponse<'_> {}
+impl Response for AsResponseUnnamedStructResponse<'_> {}
 
-impl<'u> ToResponseUnnamedStructResponse<'u> {
+impl<'u> AsResponseUnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(inner_attributes, |attribute| {
@@ -372,7 +372,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
                 (true, ERROR)
             }
         });
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveAsResponseValue::from_attributes(attributes);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
 
         let is_inline = inner_attributes
@@ -394,7 +394,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
 struct VariantAttributes<'r> {
     type_and_content: Option<(&'r Type, String)>,
-    derive_value: Option<DeriveToResponseValue>,
+    derive_value: Option<DeriveAsResponseValue>,
     is_inline: bool,
 }
 
@@ -419,7 +419,7 @@ impl<'r> EnumResponse<'r> {
             .filter_map(Self::to_content);
         let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveAsResponseValue::from_attributes(attributes);
         if let Some(derive_value) = &derive_value {
             if (!content.is_empty() && derive_value.example.is_some())
                 || (!content.is_empty() && derive_value.examples.is_some())
@@ -455,7 +455,7 @@ impl<'r> EnumResponse<'r> {
     }
 
     fn parse_variant_attributes(variant: &Variant) -> VariantAttributes {
-        let variant_derive_response_value = DeriveToResponseValue::from_attributes(variant.attrs.as_slice());
+        let variant_derive_response_value = DeriveAsResponseValue::from_attributes(variant.attrs.as_slice());
         // named enum variant should not have field attributes
         if let Fields::Named(named_fields) = &variant.fields {
             Self::validate_attributes(
@@ -525,15 +525,15 @@ impl<'r> EnumResponse<'r> {
     }
 }
 
-struct ToResponseUnitStructResponse<'u>(ResponseTuple<'u>);
+struct AsResponseUnitStructResponse<'u>(ResponseTuple<'u>);
 
-impl Response for ToResponseUnitStructResponse<'_> {}
+impl Response for AsResponseUnitStructResponse<'_> {}
 
-impl ToResponseUnitStructResponse<'_> {
+impl AsResponseUnitStructResponse<'_> {
     fn new(attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveAsResponseValue::from_attributes(attributes);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             derive_value,

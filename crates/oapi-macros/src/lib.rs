@@ -41,7 +41,7 @@ pub(crate) use self::{
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
     endpoint::EndpointAttr,
-    operation::response::derive::{IntoResponses, ToResponse},
+    operation::response::derive::{AsResponses, AsResponse},
     operation::Operation,
     shared::*,
 };
@@ -97,7 +97,7 @@ pub fn into_parameters(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
+#[proc_macro_derive(AsResponse, attributes(response, content, to_schema))]
 #[doc = include_str!("../docs/response.md")]
 pub fn to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -108,14 +108,14 @@ pub fn to_response(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let response = ToResponse::new(attrs, &data, generics, ident);
+    let response = AsResponse::new(attrs, &data, generics, ident);
 
     response.to_token_stream().into()
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(IntoResponses, attributes(response, to_schema, ref_response, to_response))]
-#[doc = include_str!("../docs/into_responses.md")]
+#[proc_macro_derive(AsResponses, attributes(response, to_schema, ref_response, to_response))]
+#[doc = include_str!("../docs/derive_as_responses.md")]
 pub fn into_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -125,7 +125,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_responses = IntoResponses {
+    let into_responses = AsResponses {
         attributes: attrs,
         ident,
         generics,

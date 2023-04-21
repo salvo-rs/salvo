@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::IntoResponses;
+use crate::AsResponses;
 use crate::{Ref, RefOr};
 
 use super::{header::Header, set_value, Content};
@@ -46,8 +46,8 @@ impl Responses {
         self
     }
 
-    /// Add responses from a type that implements [`IntoResponses`].
-    pub fn responses_from_into_responses<I: IntoResponses>(mut self) -> Self {
+    /// Add responses from a type that implements [`AsResponses`].
+    pub fn responses_from_into_responses<I: AsResponses>(mut self) -> Self {
         self.responses.extend(I::responses());
         self
     }
@@ -159,7 +159,7 @@ impl From<Ref> for RefOr<Response> {
 /// }
 /// ```
 ///
-/// [response]: crate::ToResponse
+/// [response]: crate::AsResponse
 /// [schema]: crate::AsSchema
 ///
 #[cfg(feature = "openapi_extensions")]

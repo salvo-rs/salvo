@@ -119,7 +119,7 @@ _**Example request body definitions.**_
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
-* `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
+* `response = ...` Type what implements [`AsResponse`][to_response_trait] trait. This can alternatively be used to
    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 
 * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
@@ -184,26 +184,26 @@ responses(
 )
 ```
 
-### Using `ToResponse` for reusable responses
+### Using `AsResponse` for reusable responses
 
-_**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
+_**`ReusableResponse` must be a type that implements [`AsResponse`][to_response_trait].**_
 ```text
 responses(
     (status = 200, response = ReusableResponse)
 )
 ```
 
-_**[`ToResponse`][to_response_trait] can also be inlined to the responses map.**_
+_**[`AsResponse`][to_response_trait] can also be inlined to the responses map.**_
 ```text
 responses(
     (status = 200, response = inline(ReusableResponse))
 )
 ```
 
-## Responses from `IntoResponses`
+## Responses from `AsResponses`
 
 _**Responses for a path can be specified with one or more types that implement
-[`IntoResponses`][into_responses_trait].**_
+[`AsResponses`][into_responses_trait].**_
 ```text
 responses(MyResponse)
 ```
@@ -466,9 +466,9 @@ fn get_user() -> User {
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [into_parameters]: trait.AsParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
-[into_responses_trait]: trait.IntoResponses.html
+[into_responses_trait]: trait.AsResponses.html
 [into_parameters_derive]: derive.AsParameters.html
-[to_response_trait]: trait.ToResponse.html
+[to_response_trait]: trait.AsResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
 [to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{set_value, Deprecated, RefOr, Response, SecurityScheme, ToResponse, AsSchema, Xml};
+use crate::{set_value, Deprecated, RefOr, Response, SecurityScheme, AsResponse, AsSchema, Xml};
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
@@ -146,7 +146,7 @@ impl Components {
         self
     }
 
-    pub fn response_from<'r, I: ToResponse<'r>>(self) -> Self {
+    pub fn response_from<'r, I: AsResponse<'r>>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }

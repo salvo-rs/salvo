@@ -180,7 +180,7 @@ println!("{}", doc.to_pretty_json().unwrap());
 
 * See how to serve OpenAPI doc via Swagger UI check [`salvo-oapi-swagger-ui`][salvo_oapi_swagger] crate for more details.
 * Browse to [examples](https://github.com/juhaku/salvo_oapi/tree/master/examples) for more comprehensive examples.
-* Check [`derive@IntoResponses`] and [`derive@ToResponse`] for examples on deriving responses.
+* Check [`derive@AsResponses`] and [`derive@AsResponse`] for examples on deriving responses.
 * More about OpenAPI security in [security documentation][security].
 
 [path]: attr.path.html

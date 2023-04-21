@@ -22,8 +22,8 @@ pub mod derive;
 
 #[derive(Debug)]
 pub enum Response<'r> {
-    /// A type that implements `salvo_oapi::IntoResponses`.
-    IntoResponses(ExprPath),
+    /// A type that implements `salvo_oapi::AsResponses`.
+    AsResponses(ExprPath),
     /// The tuple definition of a response.
     Tuple(ResponseTuple<'r>),
 }
@@ -31,7 +31,7 @@ pub enum Response<'r> {
 impl Parse for Response<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::IntoResponses(input.parse()?))
+            Ok(Self::AsResponses(input.parse()?))
         } else {
             let response;
             parenthesized!(response in input);
@@ -160,18 +160,18 @@ pub struct DeriveResponsesAttributes<T> {
     description: String,
 }
 
-impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
-    fn from(value: DeriveResponsesAttributes<DeriveIntoResponsesValue>) -> Self {
+impl<'r> From<DeriveResponsesAttributes<DeriveAsResponsesValue>> for ResponseValue<'r> {
+    fn from(value: DeriveResponsesAttributes<DeriveAsResponsesValue>) -> Self {
         Self::from_derive_into_responses_value(value.derive_value, value.description)
     }
 }
 
-impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'r> {
+impl<'r> From<DeriveResponsesAttributes<Option<DeriveAsResponseValue>>> for ResponseValue<'r> {
     fn from(
-        DeriveResponsesAttributes::<Option<DeriveToResponseValue>> {
+        DeriveResponsesAttributes::<Option<DeriveAsResponseValue>> {
             derive_value,
             description,
-        }: DeriveResponsesAttributes<Option<DeriveToResponseValue>>,
+        }: DeriveResponsesAttributes<Option<DeriveAsResponseValue>>,
     ) -> Self {
         if let Some(derive_value) = derive_value {
             ResponseValue::from_derive_to_response_value(derive_value, description)
@@ -196,7 +196,7 @@ pub struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
+    fn from_derive_to_response_value(derive_value: DeriveAsResponseValue, description: String) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -211,7 +211,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_into_responses_value(response_value: DeriveIntoResponsesValue, description: String) -> Self {
+    fn from_derive_into_responses_value(response_value: DeriveAsResponsesValue, description: String) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -241,11 +241,11 @@ impl ToTokens for ResponseTuple<'_> {
                 let path = &res.ty;
                 if res.is_inline {
                     tokens.extend(quote_spanned! {path.span()=>
-                        <#path as #oapi::oapi::ToResponse>::response().1
+                        <#path as #oapi::oapi::AsResponse>::response().1
                     });
                 } else {
                     tokens.extend(quote! {
-                        #oapi::oapi::Ref::from_response_name(<#path as #oapi::oapi::ToResponse>::response().0)
+                        #oapi::oapi::Ref::from_response_name(<#path as #oapi::oapi::AsResponse>::response().0)
                     });
                 }
             }
@@ -369,7 +369,7 @@ trait DeriveResponseValue: Parse {
 }
 
 #[derive(Default, Debug)]
-struct DeriveToResponseValue {
+struct DeriveAsResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     description: String,
@@ -377,7 +377,7 @@ struct DeriveToResponseValue {
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
-impl DeriveResponseValue for DeriveToResponseValue {
+impl DeriveResponseValue for DeriveAsResponseValue {
     fn merge_from(mut self, other: Self) -> Self {
         if other.content_type.is_some() {
             self.content_type = other.content_type;
@@ -399,9 +399,9 @@ impl DeriveResponseValue for DeriveToResponseValue {
     }
 }
 
-impl Parse for DeriveToResponseValue {
+impl Parse for DeriveAsResponseValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveToResponseValue::default();
+        let mut response = DeriveAsResponseValue::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
@@ -441,7 +441,7 @@ impl Parse for DeriveToResponseValue {
 }
 
 #[derive(Default)]
-struct DeriveIntoResponsesValue {
+struct DeriveAsResponsesValue {
     status: ResponseStatus,
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
@@ -450,7 +450,7 @@ struct DeriveIntoResponsesValue {
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
-impl DeriveResponseValue for DeriveIntoResponsesValue {
+impl DeriveResponseValue for DeriveAsResponsesValue {
     fn merge_from(mut self, other: Self) -> Self {
         self.status = other.status;
 
@@ -474,9 +474,9 @@ impl DeriveResponseValue for DeriveIntoResponsesValue {
     }
 }
 
-impl Parse for DeriveIntoResponsesValue {
+impl Parse for DeriveAsResponsesValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveIntoResponsesValue::default();
+        let mut response = DeriveAsResponsesValue::default();
         const MISSING_STATUS_ERROR: &str = "missing expected `status` attribute";
         let first_span = input.span();
 
@@ -666,7 +666,7 @@ impl ToTokens for Responses<'_> {
                 .iter()
                 .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
                     match response {
-                        Response::IntoResponses(path) => {
+                        Response::AsResponses(path) => {
                             let span = path.span();
                             acc.extend(quote_spanned! {span =>
                                 .responses_from_into_responses::<#path>()
