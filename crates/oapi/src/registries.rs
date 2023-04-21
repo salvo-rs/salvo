@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use crate::{Schema, Operation};
+use crate::{Operation, Schema};
 
 pub struct OperationRegistry {
     pub type_id: fn() -> TypeId,
@@ -21,7 +21,6 @@ impl OperationRegistry {
     }
 }
 inventory::collect!(OperationRegistry);
-
 
 pub struct SchemaRegistry {
     pub type_id: fn() -> TypeId,

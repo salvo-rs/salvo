@@ -42,9 +42,9 @@ pub(crate) use self::{
         features::{self, Feature},
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
-    operation::Operation,
     endpoint::EndpointAttr,
     operation::response::derive::{IntoResponses, ToResponse},
+    operation::Operation,
     shared::*,
 };
 

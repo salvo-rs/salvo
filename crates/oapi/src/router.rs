@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
-use salvo_core::Router;
 use regex::Regex;
+use salvo_core::Router;
 
 use crate::path::PathItemType;
 
@@ -22,7 +22,7 @@ impl NormNode {
             if info.starts_with("path:") {
                 let path = info.split_once(':').unwrap().1;
                 node.path = Some(regex.replace(path, "{$1}").to_string());
-            } else  if info.starts_with("method:") {
+            } else if info.starts_with("method:") {
                 match info.split_once(':').unwrap().1 {
                     "GET" => node.method = Some(PathItemType::Get),
                     "POST" => node.method = Some(PathItemType::Post),
@@ -33,11 +33,11 @@ impl NormNode {
                     "CONNECT" => node.method = Some(PathItemType::Connect),
                     "TRACE" => node.method = Some(PathItemType::Trace),
                     "PATCH" => node.method = Some(PathItemType::Patch),
-                    _ => {},
+                    _ => {}
                 }
             }
         }
-        node.endpoint = router.handler.as_ref().map(|h|h.type_id());
+        node.endpoint = router.handler.as_ref().map(|h| h.type_id());
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {

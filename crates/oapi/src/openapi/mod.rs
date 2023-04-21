@@ -12,8 +12,8 @@ pub use self::{
     operation::Operation,
     parameter::{Parameter, ParameterIn, ParameterStyle},
     path::{PathItem, PathItemType},
-    response::{Response, Responses},
     request_body::RequestBody,
+    response::{Response, Responses},
     schema::{Array, Components, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable},
@@ -223,7 +223,12 @@ impl OpenApi {
                 let methods = if let Some(method) = &node.method {
                     vec![method.clone()]
                 } else {
-                    vec![PathItemType::Get, PathItemType::Post, PathItemType::Put, PathItemType::Patch]
+                    vec![
+                        PathItemType::Get,
+                        PathItemType::Post,
+                        PathItemType::Put,
+                        PathItemType::Patch,
+                    ]
                 };
                 let path_item = self.paths.entry(path.clone()).or_default();
                 for method in methods {

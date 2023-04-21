@@ -3,8 +3,8 @@
 mod openapi;
 pub use openapi::*;
 mod registries;
-pub mod swagger;
 mod router;
+pub mod swagger;
 
 pub use registries::{OperationRegistry, SchemaRegistry};
 pub use salvo_oapi_macros::*;
