@@ -106,7 +106,7 @@ impl Operation {
     }
 
     /// Append tag to [`Operation`] tags.
-    pub fn tag<S: Into<String>>(mut self, tag: S) -> Self {
+    pub fn add_tag<S: Into<String>>(mut self, tag: S) -> Self {
         let tag_string = tag.into();
         match self.tags {
             Some(ref mut tags) => tags.push(tag_string),
@@ -148,7 +148,7 @@ impl Operation {
     }
 
     /// Append parameter to [`Operation`] parameters.
-    pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
+    pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         match self.parameters {
             Some(ref mut parameters) => parameters.push(parameter.into()),
             None => {
@@ -173,7 +173,7 @@ impl Operation {
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
+    pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
         self.responses.responses.insert(code.into(), response.into());
 
         self
@@ -190,7 +190,7 @@ impl Operation {
     }
 
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
-    pub fn security(mut self, security: SecurityRequirement) -> Self {
+    pub fn add_security(mut self, security: SecurityRequirement) -> Self {
         if let Some(ref mut securities) = self.security {
             securities.push(security);
         } else {
@@ -206,7 +206,7 @@ impl Operation {
     }
 
     /// Append a new [`Server`] to the [`Operation`] servers.
-    pub fn server(mut self, server: Server) -> Self {
+    pub fn add_server(mut self, server: Server) -> Self {
         if let Some(ref mut servers) = self.servers {
             servers.push(server);
         } else {

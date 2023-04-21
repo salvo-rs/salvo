@@ -8,8 +8,8 @@ use self::models::*;
 
 // use utoipa::OpenApi;
 use salvo::oapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
-use salvo::oapi::swagger::{Config, SwaggerUi};
-use salvo::oapi::{Components, Info, OpenApi, Paths, Tag};
+use salvo::oapi::swagger::SwaggerUi;
+use salvo::oapi::{Components, Info, OpenApi, Tag};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
 static API_DOC: OnceCell<OpenApi> = OnceCell::new();
@@ -23,30 +23,30 @@ async fn hello(res: &mut Response) {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let mut router = Router::new()
-    .get(hello)
-    .push(
+    let router = Router::new().get(hello).push(
         Router::with_path("api").push(
             Router::with_path("todos")
                 .hoop(size_limiter::max_size(1024 * 16))
                 .get(list_todos)
                 .post(create_todo)
-                .push(Router::with_path("<id>").put(update_todo).delete(delete_todo)),
+                .push(Router::with_path("<id>").patch(update_todo).delete(delete_todo)),
         ),
     );
 
     let doc = OpenApi::new(Info::new("abc", "0.0.1"))
-        .components( Components::new().add_security_scheme(
+        .components(Components::new().add_security_scheme(
             "api_key",
             SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
         ))
         .tags(vec![Tag::default()
             .name("todo")
-            .description("Todo items management endpoints.")]).merge_router(&router);
+            .description("Todo items management endpoints.")])
+        .merge_router(&router);
     API_DOC.set(doc).unwrap();
 
-    let router = router.push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(SwaggerUi::new(Config::from("/api-doc/openapi.json")).into_router("swagger-ui"));
+    let router = router
+        .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;

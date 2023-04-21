@@ -84,10 +84,10 @@ use crate::{Depot, Request};
 ///
 /// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
-    pub(crate) routers: Vec<Router>,
-    pub(crate) filters: Vec<Box<dyn Filter>>,
-    pub(crate) hoops: Vec<Arc<dyn Handler>>,
-    pub(crate) handler: Option<Arc<dyn Handler>>,
+    pub routers: Vec<Router>,
+    pub filters: Vec<Box<dyn Filter>>,
+    pub hoops: Vec<Arc<dyn Handler>>,
+    pub handler: Option<Arc<dyn Handler>>,
 }
 #[doc(hidden)]
 pub struct DetectMatched {

@@ -79,12 +79,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    let stream = match endpoint::generate(attr, item) {
+    match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    };
-    println!("stream:{}", stream);
-    stream
+    }
 }
 
 #[proc_macro_error]
@@ -184,10 +182,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         description: None,
         object_name: "",
     });
-    // schema.to_token_stream().into()
-    let stream = schema.to_token_stream().into();
-    // println!("bbbb{}", stream);
-    stream
+    schema.to_token_stream().into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)

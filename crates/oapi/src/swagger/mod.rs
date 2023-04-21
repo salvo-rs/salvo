@@ -35,13 +35,13 @@ impl SwaggerUi {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi_swagger_ui::SwaggerUi;
+    /// # use salvo_oapi::swagger::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}");
     /// ```
-    pub fn new(config: Config<'static>) -> Self {
+    pub fn new(config: impl Into<Config<'static>>) -> Self {
         Self {
             urls: Vec::new(),
-            config,
+            config: config.into(),
             external_urls: Vec::new(),
         }
     }
@@ -57,7 +57,7 @@ impl SwaggerUi {
     ///
     /// Expose manually created OpenAPI doc.
     /// ```rust
-    /// # use salvo_oapi_swagger_ui::SwaggerUi;
+    /// # use salvo_oapi::swagger::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", salvo_oapi::OpenApi::new(
     ///        salvo_oapi::Info::new("my application", "0.1.0"),
@@ -67,7 +67,7 @@ impl SwaggerUi {
     ///
     /// Expose derived OpenAPI doc.
     /// ```rust
-    /// # use salvo_oapi_swagger_ui::SwaggerUi;
+    /// # use salvo_oapi::swagger::SwaggerUi;
     /// # use salvo_oapi::OpenApi;
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
@@ -90,7 +90,7 @@ impl SwaggerUi {
     ///
     /// Expose multiple api docs via Swagger UI.
     /// ```rust
-    /// # use salvo_oapi_swagger_ui::{SwaggerUi, Url};
+    /// # use salvo_oapi::swagger::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
@@ -120,7 +120,7 @@ impl SwaggerUi {
     ///
     /// Add external API doc to the [`SwaggerUi`].
     ///```rust
-    /// # use salvo_oapi_swagger_ui::{SwaggerUi, Url};
+    /// # use salvo_oapi::swagger::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
     /// # use serde_json::json;
     /// let external_openapi = json!({"openapi": "3.0.0"});
@@ -178,7 +178,7 @@ impl SwaggerUi {
     ///
     /// Enable pkce with default client_id.
     /// ```rust
-    /// # use salvo_oapi_swagger_ui::{SwaggerUi, oauth};
+    /// # use salvo_oapi::swagger::{SwaggerUi, oauth};
     /// # use salvo_oapi::OpenApi;
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")

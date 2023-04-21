@@ -4,6 +4,7 @@ mod openapi;
 pub use openapi::*;
 pub mod endpoint;
 pub mod swagger;
+mod router;
 
 pub use endpoint::Endpoint;
 pub use salvo_oapi_macros::*;

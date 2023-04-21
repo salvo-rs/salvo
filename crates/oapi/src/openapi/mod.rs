@@ -1,5 +1,8 @@
 //! Rust implementation of Openapi Spec V3.
 
+use std::any::TypeId;
+use std::collections::BTreeMap;
+
 use salvo_core::Router;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
@@ -10,7 +13,7 @@ pub use self::{
     info::{Contact, Info, License},
     operation::Operation,
     parameter::{Parameter, ParameterIn, ParameterStyle},
-    path::{PathItem, PathItemType, Paths},
+    path::{PathItem, PathItemType},
     response::{Response, Responses},
     schema::{Array, Components, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
     security::{SecurityRequirement, SecurityScheme},
@@ -35,6 +38,8 @@ pub mod security;
 pub mod server;
 mod tag;
 mod xml;
+
+use crate::router::NormNode;
 
 /// Root object of the OpenAPI document.
 ///
@@ -68,7 +73,7 @@ pub struct OpenApi {
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
     #[serde(flatten)]
-    pub paths: Paths,
+    pub paths: BTreeMap<String, PathItem>,
 
     /// Holds various reusable schemas for the OpenAPI document.
     ///
@@ -157,12 +162,9 @@ impl OpenApi {
             servers.append(other_servers);
         }
 
-        if !other.paths.paths.is_empty() {
-            other
-                .paths
-                .paths
-                .retain(|path, _| self.paths.get_path_item(path).is_none());
-            self.paths.paths.append(&mut other.paths.paths);
+        if !other.paths.is_empty() {
+            other.paths.retain(|path, _| self.paths.get(path).is_none());
+            self.paths.append(&mut other.paths);
         };
 
         if let Some(other_components) = &mut other.components {
@@ -201,8 +203,43 @@ impl OpenApi {
     }
 
     pub fn merge_router(mut self, router: &Router) -> Self {
-        println!("{:?}", router);
+        let mut node = NormNode::new(router);
+        self.merge_norm_node(&mut node, "");
         self
+    }
+
+    fn merge_norm_node(&mut self, node: &mut NormNode, base_path: &str) {
+        fn join_path(a: &str, b: &str) -> String {
+            if a.is_empty() {
+                b.to_owned()
+            } else if b.is_empty() {
+                a.to_owned()
+            } else {
+                format!("{}/{}", a.trim_end_matches('/'), b.trim_start_matches('/'))
+            }
+        }
+
+        let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
+        if let Some(endpoint) = &node.endpoint {
+            if let Some(operation) = crate::endpoint::get_operation(endpoint) {
+                let methods = if let Some(method) = &node.method {
+                    vec![method.clone()]
+                } else {
+                    vec![PathItemType::Get, PathItemType::Post, PathItemType::Put, PathItemType::Patch]
+                };
+                let path_item = self.paths.entry(path.clone()).or_default();
+                for method in methods {
+                    if !path_item.operations.contains_key(&method) {
+                        path_item.operations.insert(method, operation.clone());
+                    } else {
+                        tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
+                    }
+                }
+            }
+        }
+        for child in &mut node.children {
+            self.merge_norm_node(child, &path);
+        }
     }
 
     /// Add [`Info`] metadata of the API.
@@ -215,9 +252,18 @@ impl OpenApi {
         set_value!(self servers Some(servers.into_iter().collect()))
     }
 
-    /// Add [`Paths`] to configure operations and endpoints of the API.
-    pub fn paths(mut self, paths: impl Into<Paths>) -> Self {
-        set_value!(self paths paths.into())
+    /// Set paths to configure operations and endpoints of the API.
+    pub fn paths<P: IntoIterator<Item = (String, PathItem)>>(mut self, paths: P) -> Self {
+        set_value!(self paths paths.into_iter().collect())
+    }
+    /// Add [`PathItem`] to configure operations and endpoints of the API.
+    pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
+    where
+        P: Into<String>,
+        I: Into<PathItem>,
+    {
+        self.paths.insert(path.into(), item.into());
+        self
     }
 
     /// Add [`Components`] to configure reusable schemas.
