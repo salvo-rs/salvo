@@ -22,7 +22,7 @@ fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<Token
             operation
         }
         #oapi::oapi::__private::inventory::submit! {
-            #oapi::oapi::Endpoint::new(#tfn, #ofn)
+            #oapi::oapi::OperationRegistry::save(#tfn, #ofn)
         }
     })
 }

@@ -219,7 +219,7 @@ impl OpenApi {
 
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
         if let Some(endpoint) = &node.endpoint {
-            if let Some(operation) = crate::endpoint::get_operation(endpoint) {
+            if let Some(operation) = crate::OperationRegistry::find(endpoint) {
                 let methods = if let Some(method) = &node.method {
                     vec![method.clone()]
                 } else {

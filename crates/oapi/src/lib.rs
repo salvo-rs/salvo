@@ -2,11 +2,11 @@
 
 mod openapi;
 pub use openapi::*;
-pub mod endpoint;
+mod registries;
 pub mod swagger;
 mod router;
 
-pub use endpoint::Endpoint;
+pub use registries::{OperationRegistry, SchemaRegistry};
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
 
