@@ -25,10 +25,7 @@ pub(crate) fn oapi_crate() -> syn::Ident {
     }
 }
 // https://github.com/bkchr/proc-macro-crate/issues/14
-pub(crate) fn salvo_crate(internal: bool) -> syn::Ident {
-    if internal {
-        return Ident::new("crate", Span::call_site());
-    }
+pub(crate) fn salvo_crate() -> syn::Ident {
     match crate_name("salvo") {
         Ok(salvo) => match salvo {
             FoundCrate::Itself => Ident::new("salvo", Span::call_site()),

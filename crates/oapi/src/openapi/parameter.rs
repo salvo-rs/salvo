@@ -1,16 +1,10 @@
-//! Implements [OpenAPI Path Object][paths] types.
+//! Implements [OpenAPI Parameter Object][parameter] types.
 //!
-//! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::{collections::BTreeMap, iter};
-
+//! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{
-    request_body::RequestBody,
-    response::{Response, Responses},
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
-};
+use super::{set_value, Deprecated, RefOr, Required, Schema};
 
 /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
 ///

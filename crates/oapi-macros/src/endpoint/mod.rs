@@ -3,31 +3,21 @@ use quote::{quote, ToTokens};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, InputType};
+use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
+
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
 fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
-    let EndpointAttr {
-        operation_id,
-        request_body,
-        responses,
-        tags,
-        parameters,
-        security,
-        doc_comments,
-        deprecated,
-    } = attr;
-    let tfn = Ident::new(&format!("salvo_oapi_type_id_{}", name), Span::call_site());
-    let ofn = Ident::new(&format!("salvo_oapi_operation_{}", name), Span::call_site());
-    let opc = operation_id.map(|opt_id| quote! { operation.operation_id = #opt_id; });
+    let tfn = Ident::new(&format!("__salvo_oapi_type_id_{}", name), Span::call_site());
+    let ofn = Ident::new(&format!("__salvo_oapi_operation_{}", name), Span::call_site());
+    let opt = Operation::new(&attr);
     Ok(quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
         }
         fn #ofn() -> #oapi::oapi::Operation {
-            let mut operation = #oapi::oapi::Operation::new();
-            #opc
+            let mut operation = #opt;
             #(#modifiers)*
             operation
         }
@@ -120,7 +110,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 #item_impl
                 #[#salvo::async_trait]
                 impl #impl_generics #salvo::Handler for #ty #where_clause {
-                    #meta
+                    #hfn
                 }
                 #meta
             })

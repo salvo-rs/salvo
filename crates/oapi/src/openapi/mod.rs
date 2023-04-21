@@ -1,6 +1,4 @@
 //! Rust implementation of Openapi Spec V3.
-
-use std::any::TypeId;
 use std::collections::BTreeMap;
 
 use salvo_core::Router;
@@ -15,6 +13,7 @@ pub use self::{
     parameter::{Parameter, ParameterIn, ParameterStyle},
     path::{PathItem, PathItemType},
     response::{Response, Responses},
+    request_body::RequestBody,
     schema::{Array, Components, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable},
@@ -31,7 +30,7 @@ pub mod info;
 pub mod operation;
 pub mod parameter;
 pub mod path;
-mod request_body;
+pub mod request_body;
 pub mod response;
 pub mod schema;
 pub mod security;
@@ -72,7 +71,6 @@ pub struct OpenApi {
     /// Available paths and operations for the API.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
-    #[serde(flatten)]
     pub paths: BTreeMap<String, PathItem>,
 
     /// Holds various reusable schemas for the OpenAPI document.

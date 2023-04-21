@@ -1,19 +1,16 @@
-use std::borrow::Cow;
-use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::abort;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Paren;
+use syn::Expr;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
-use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
+use crate::{security_requirement::SecurityRequirementAttr, Array};
 
 use crate::operation::Response;
 use crate::operation::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};

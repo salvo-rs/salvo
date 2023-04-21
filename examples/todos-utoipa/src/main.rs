@@ -90,7 +90,6 @@ pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Respo
     let path = req.uri().path();
     let tail = path.strip_prefix("/swagger-ui/").unwrap();
 
-    println!("==========tail {}", tail);
     match utoipa_swagger_ui::serve(tail, config.clone()) {
         Ok(swagger_file) => swagger_file
             .map(|file| {

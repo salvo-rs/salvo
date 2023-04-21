@@ -59,7 +59,7 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
+            Parameter::Value(parameter) => tokens.extend(quote! { .add_parameter(#parameter) }),
             Parameter::Struct(StructParameter { path, parameter_in_fn }) => {
                 let last_ident = &path.path.segments.last().unwrap().ident;
 

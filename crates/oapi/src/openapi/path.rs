@@ -4,12 +4,8 @@
 use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
-use super::{
-    request_body::RequestBody, set_value, Deprecated, ExternalDocs, Operation, Parameter, RefOr, Required, Schema,
-    SecurityRequirement, Server,
-};
+use super::{set_value, Operation, Parameter, Server};
 
 /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s available on
 /// a single path.

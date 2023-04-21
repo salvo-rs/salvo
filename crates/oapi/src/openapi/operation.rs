@@ -1,15 +1,12 @@
-//! Implements [OpenAPI Path Object][paths] types.
+//! Implements [OpenAPI Operation Object][operation] types.
 //!
-//! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::{collections::BTreeMap, iter};
-
+//! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::{
     request_body::RequestBody,
     response::{Response, Responses},
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
+    set_value, Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
 use crate::Parameter;
 

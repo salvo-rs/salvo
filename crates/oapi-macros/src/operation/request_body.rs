@@ -144,7 +144,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };
             let mut content = quote! {
-                #oapi::oapi::content::Content::new(#media_type_schema)
+                #oapi::oapi::Content::new(#media_type_schema)
             };
 
             if let Some(ref example) = self.example {

@@ -37,25 +37,16 @@ mod schema_type;
 mod security_requirement;
 mod shared;
 
-use self::{
+pub(crate) use self::{
     component::{
         features::{self, Feature},
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
+    operation::Operation,
     endpoint::EndpointAttr,
     operation::response::derive::{IntoResponses, ToResponse},
     shared::*,
 };
-
-pub(crate) fn salvo_crate() -> syn::Ident {
-    match crate_name("salvo-oapi") {
-        Ok(oapi) => match oapi {
-            FoundCrate::Itself => syn::Ident::new("crate", Span::call_site()),
-            FoundCrate::Name(name) => syn::Ident::new(&name, Span::call_site()),
-        },
-        Err(_) => Ident::new("salvo", Span::call_site()),
-    }
-}
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
@@ -79,10 +70,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
+    let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
