@@ -1,5 +1,5 @@
 //! Rust implementation of Openapi Spec V3.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use salvo_core::Router;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
@@ -62,13 +62,13 @@ pub struct OpenApi {
     /// See more details at <https://spec.openapis.org/oas/latest.html#info-object>.
     pub info: Info,
 
-    /// Optional list of servers that provides the connectivity information to target servers.
+    /// List of servers that provides the connectivity information to target servers.
     ///
     /// This is implicitly one server with `url` set to `/`.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#server-object>.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Server>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub servers: BTreeSet<Server>,
 
     /// Available paths and operations for the API.
     ///
@@ -80,24 +80,24 @@ pub struct OpenApi {
     /// Few of these elements are security schemas and object schemas.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#components-object>.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub components: Option<Components>,
+    #[serde(skip_serializing_if = "Components::is_empty")]
+    pub components: Components,
 
     /// Declaration of global security mechanisms that can be used across the API. The individual operations
     /// can override the declarations. You can use `SecurityRequirement::default()` if you wish to make security
     /// optional by adding it to the list of securities.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#security-requirement-object>.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<SecurityRequirement>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub security: BTreeSet<SecurityRequirement>,
 
-    /// Optional list of tags can be used to add additional documentation to matching tags of operations.
+    /// List of tags can be used to add additional documentation to matching tags of operations.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#tag-object>.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<Tag>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub tags: BTreeSet<Tag>,
 
-    /// Optional global additional documentation reference.
+    /// Global additional documentation reference.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#external-documentation-object>.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -156,36 +156,11 @@ impl OpenApi {
     ///
     /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
     pub fn merge(mut self, mut other: OpenApi) -> Self {
-        if let Some(other_servers) = &mut other.servers {
-            let servers = self.servers.get_or_insert(Vec::new());
-            other_servers.retain(|server| !servers.contains(server));
-            servers.append(other_servers);
-        }
-
-        if !other.paths.is_empty() {
-            other.paths.retain(|path, _| self.paths.get(path).is_none());
-            self.paths.append(&mut other.paths);
-        };
-
-        if let Some(mut other_components) = other.components {
-            if let Some(components) = self.components.take() {
-                self.components = Some(components.merge(&mut other_components));
-            } else {
-                self.components = Some(other_components);
-            }
-        }
-
-        if let Some(other_security) = &mut other.security {
-            let security = self.security.get_or_insert(Vec::new());
-            other_security.retain(|requirement| !security.contains(requirement));
-            security.append(other_security);
-        }
-
-        if let Some(other_tags) = &mut other.tags {
-            let tags = self.tags.get_or_insert(Vec::new());
-            other_tags.retain(|tag| !tags.contains(tag));
-            tags.append(other_tags);
-        }
+        self.servers.append(&mut other.servers);
+        self.paths.append(&mut other.paths);
+        self.components.append(&mut other.components);
+        self.security.append(&mut other.security);
+        self.tags.append(&mut other.tags);
         self
     }
 
@@ -209,7 +184,7 @@ impl OpenApi {
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
         if let Some(type_id) = &node.type_id {
             if let Some(creator) = crate::EndpointRegistry::find(type_id) {
-                let Endpoint { operation, components } = (creator)();
+                let Endpoint { operation, mut components } = (creator)();
                 let methods = if let Some(method) = &node.method {
                     vec![method.clone()]
                 } else {
@@ -228,13 +203,7 @@ impl OpenApi {
                         tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
                     }
                 }
-                if let Some(mut new_compontents) = components {
-                    if let Some(compontents) = self.components.take() {
-                        self.components = Some(compontents.merge(&mut new_compontents));
-                    } else {
-                        self.components = Some(new_compontents);
-                    }
-                }
+                self.components.append(&mut components);
             }
         }
         for child in &mut node.children {
@@ -249,7 +218,7 @@ impl OpenApi {
 
     /// Add iterator of [`Server`]s to configure target servers.
     pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
-        set_value!(self servers Some(servers.into_iter().collect()))
+        set_value!(self servers servers.into_iter().collect())
     }
 
     /// Set paths to configure operations and endpoints of the API.
@@ -268,17 +237,17 @@ impl OpenApi {
 
     /// Add [`Components`] to configure reusable schemas.
     pub fn components(mut self, components: impl Into<Components>) -> Self {
-        set_value!(self components Some(components.into()))
+        set_value!(self components components.into())
     }
 
     /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
     pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
-        set_value!(self security Some(security.into_iter().collect()))
+        set_value!(self security security.into_iter().collect())
     }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
     pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
-        set_value!(self tags Some(tags.into_iter().collect()))
+        set_value!(self tags tags.into_iter().collect())
     }
 
     /// Add [`ExternalDocs`] for referring additional documentation.

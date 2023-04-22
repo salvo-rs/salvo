@@ -6,7 +6,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, LitStr, Type};
+use syn::{Expr, ExprPath, Path, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::endpoint::EndpointAttr;
@@ -14,11 +14,11 @@ use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementAttr;
 use crate::Array;
 
-pub mod example;
-pub mod parameter;
+pub(crate) mod example;
+pub(crate) mod parameter;
 pub(crate) mod request_body;
-pub mod response;
-pub use self::{
+pub(crate) mod response;
+pub(crate) use self::{
     parameter::Parameter,
     request_body::RequestBodyAttr,
     response::{Response, Responses},
@@ -27,8 +27,8 @@ mod status;
 
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
 #[derive(Debug)]
-enum PathType<'p> {
-    Ref(String),
+pub(crate) enum PathType<'p> {
+    Ref(Path),
     MediaType(InlineType<'p>),
     InlineSchema(TokenStream2, Type),
 }
@@ -46,7 +46,7 @@ impl Parse for PathType<'_> {
             input.parse::<Token![ref]>()?;
             let ref_stream;
             parenthesized!(ref_stream in input);
-            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
+            Ok(Self::Ref(ref_stream.parse::<ExprPath>()?.path))
         } else {
             Ok(Self::MediaType(input.parse()?))
         }
@@ -55,7 +55,7 @@ impl Parse for PathType<'_> {
 
 // inline(syn::Type) | syn::Type
 #[derive(Debug)]
-struct InlineType<'i> {
+pub(crate) struct InlineType<'i> {
     ty: Cow<'i, Type>,
     is_inline: bool,
 }
@@ -148,7 +148,6 @@ impl PathTypeTree for TypeTree<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Operation<'a> {
     operation_id: Option<&'a Expr>,
     summary: Option<&'a String>,
@@ -161,7 +160,7 @@ pub struct Operation<'a> {
 }
 
 impl<'a> Operation<'a> {
-    pub fn new(attr: &'a EndpointAttr) -> Self {
+    pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
         Self {
             deprecated: &attr.deprecated,
             operation_id: attr.operation_id.as_ref(),
@@ -172,6 +171,23 @@ impl<'a> Operation<'a> {
             responses: attr.responses.as_ref(),
             security: attr.security.as_ref(),
         }
+    }
+    pub(crate) fn modifiers(&self, components: &Ident) -> Vec<TokenStream2> {
+        let mut modifiers = vec![];
+        let oapi = crate::oapi_crate();
+        if let Some(request_body) = &self.request_body {
+            if let Some(content) = &request_body.content {
+                if let PathType::Ref(path) = &content {
+                    modifiers.push(quote! {
+                        {
+                            let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
+                            #components.schemas.insert(path, schema);
+                        }
+                    });
+                }
+            }
+        }
+        modifiers
     }
 }
 

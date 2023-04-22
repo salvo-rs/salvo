@@ -4,7 +4,7 @@ use crate::{Components, Operation};
 
 pub struct Endpoint {
     pub operation: Operation,
-    pub components: Option<Components>,
+    pub components: Components,
 }
 
 pub struct EndpointRegistry {

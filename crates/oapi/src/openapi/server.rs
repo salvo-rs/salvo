@@ -39,6 +39,7 @@
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
 use std::{collections::BTreeMap, iter};
+use std::cmp::{Ord, Ordering, PartialOrd};
 
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +69,17 @@ pub struct Server {
     /// Optional map of variable name and its substitution value used in [`Server::url`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<BTreeMap<String, ServerVariable>>,
+}
+
+impl Ord for Server {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.url.cmp(&other.url)
+    }
+}
+impl PartialOrd for Server {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Server {

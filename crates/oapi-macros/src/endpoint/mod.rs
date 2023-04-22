@@ -25,7 +25,7 @@ fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<Token
             }
             #oapi::oapi::Endpoint{
                 operation,
-                components: if components.is_empty() { None } else { Some(components) },
+                components,
             }
         }
         #oapi::oapi::__private::inventory::submit! {

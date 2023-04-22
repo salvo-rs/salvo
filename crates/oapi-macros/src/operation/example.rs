@@ -8,12 +8,12 @@ use crate::{parse_utils, AnyValue};
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default, Debug)]
-pub(super) struct Example {
-    pub(super) name: String,
-    pub(super) summary: Option<String>,
-    pub(super) description: Option<String>,
-    pub(super) value: Option<AnyValue>,
-    pub(super) external_value: Option<String>,
+pub(crate) struct Example {
+    pub(crate) name: String,
+    pub(crate) summary: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) value: Option<AnyValue>,
+    pub(crate) external_value: Option<String>,
 }
 
 impl Parse for Example {

@@ -49,12 +49,12 @@ use super::{PathType, PathTypeTree};
 /// )]
 /// ```
 #[derive(Default, Debug)]
-pub struct RequestBodyAttr<'r> {
-    content: Option<PathType<'r>>,
-    content_type: Option<String>,
-    description: Option<String>,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
+pub(crate) struct RequestBodyAttr<'r> {
+    pub(crate) content: Option<PathType<'r>>,
+    pub(crate) content_type: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) example: Option<AnyValue>,
+    pub(crate) examples: Option<Punctuated<Example, Comma>>,
 }
 
 impl Parse for RequestBodyAttr<'_> {

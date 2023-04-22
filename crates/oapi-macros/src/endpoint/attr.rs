@@ -7,16 +7,16 @@ use crate::operation::{parameter::Parameter, request_body::RequestBodyAttr, Resp
 use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array};
 
 #[derive(Default, Debug)]
-pub struct EndpointAttr<'p> {
-    pub request_body: Option<RequestBodyAttr<'p>>,
-    pub responses: Vec<Response<'p>>,
-    pub operation_id: Option<Expr>,
-    pub tags: Option<Vec<Expr>>,
-    pub parameters: Vec<Parameter<'p>>,
+pub(crate) struct EndpointAttr<'p> {
+    pub(crate) request_body: Option<RequestBodyAttr<'p>>,
+    pub(crate) responses: Vec<Response<'p>>,
+    pub(crate) operation_id: Option<Expr>,
+    pub(crate) tags: Option<Vec<Expr>>,
+    pub(crate) parameters: Vec<Parameter<'p>>,
     pub(crate) security: Option<Array<'p, SecurityRequirementAttr>>,
 
-    pub doc_comments: Option<Vec<String>>,
-    pub deprecated: Option<bool>,
+    pub(crate) doc_comments: Option<Vec<String>>,
+    pub(crate) deprecated: Option<bool>,
 }
 
 impl Parse for EndpointAttr<'_> {

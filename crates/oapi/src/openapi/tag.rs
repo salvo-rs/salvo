@@ -1,6 +1,8 @@
 //! Implements [OpenAPI Tag Object][tag] types.
 //!
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
+use std::cmp::{Ord, Ordering, PartialOrd};
+
 use serde::{Deserialize, Serialize};
 
 use super::{external_docs::ExternalDocs, set_value};
@@ -24,6 +26,16 @@ pub struct Tag {
     /// Additional external documentation for the tag.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
+}
+impl Ord for Tag {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+impl PartialOrd for Tag {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Tag {

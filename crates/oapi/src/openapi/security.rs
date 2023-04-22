@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 /// [path]: ../../attr.path.html
 /// [openapi]: ../../derive.OpenApi.html
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Ord, PartialOrd, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
     #[serde(flatten)]
     value: BTreeMap<String, Vec<String>>,

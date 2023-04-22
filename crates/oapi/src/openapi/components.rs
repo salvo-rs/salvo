@@ -162,7 +162,7 @@ impl Components {
         self
     }
 
-    pub fn merge(mut self, other: &mut Components) -> Self {
+    pub fn append(&mut self, other: &mut Components) {
         other.schemas.retain(|name, _| !self.schemas.contains_key(name));
         self.schemas.append(&mut other.schemas);
 
@@ -173,7 +173,6 @@ impl Components {
             .security_schemes
             .retain(|name, _| !self.security_schemes.contains_key(name));
         self.security_schemes.append(&mut other.security_schemes);
-        self
     }
 
     pub fn is_empty(&self) -> bool {
