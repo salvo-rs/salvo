@@ -186,12 +186,12 @@ impl ToTokens for RequestBodyAttr<'_> {
                     });
                 }
                 PathType::InlineSchema(_, _) => {
-                    unreachable!("PathType::InlineSchema is not implemented for RequestBodyAttr");
+                    unreachable!("`PathType::InlineSchema` is not implemented for `RequestBodyAttr`");
                 }
             }
         }
 
-        if let Some(ref description) = self.description {
+        if let Some(description) = &self.description {
             tokens.extend(quote! {
                 .description(#description)
             })

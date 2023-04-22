@@ -281,12 +281,12 @@ impl ToTokens for ResponseTuple<'_> {
 
                     let mut content = quote! { #oapi::oapi::Content::new(#content_schema) };
 
-                    if let Some(ref example) = example {
+                    if let Some(example) = &example {
                         content.extend(quote! {
                             .example(Some(#example))
                         })
                     }
-                    if let Some(ref examples) = examples {
+                    if let Some(examples) = &examples {
                         let examples = examples
                             .iter()
                             .map(|example| {
@@ -816,7 +816,7 @@ impl ToTokens for Header {
             })
         };
 
-        if let Some(ref description) = self.description {
+        if let Some(description) = &self.description {
             tokens.extend(quote! {
                 .description(#description)
             })

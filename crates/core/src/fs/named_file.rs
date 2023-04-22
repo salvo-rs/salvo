@@ -430,8 +430,8 @@ impl NamedFile {
         // check preconditions
         let precondition_failed = if !any_match(etag.as_ref(), req_headers) {
             true
-        } else if let (Some(ref last_modified), Some(since)) =
-            (last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
+        } else if let (Some(last_modified), Some(since)) =
+            (&last_modified, req_headers.typed_get::<IfUnmodifiedSince>())
         {
             !since.precondition_passes(*last_modified)
         } else {
@@ -444,7 +444,7 @@ impl NamedFile {
         } else if req_headers.contains_key(IF_NONE_MATCH) {
             false
         } else if let (Some(ref last_modified), Some(since)) =
-            (last_modified, req_headers.typed_get::<IfModifiedSince>())
+            (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
             !since.is_modified(*last_modified)
         } else {
