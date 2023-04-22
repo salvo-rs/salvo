@@ -118,7 +118,7 @@ impl ToTokens for Tag {
 }
 
 // (url = "http:://url", description = "description", variables(...))
-#[derive(Default, Debug)]
+#[derive(Default,  Debug)]
 struct Server {
     url: String,
     description: Option<String>,
