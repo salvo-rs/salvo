@@ -25,6 +25,98 @@ pub(crate) use self::{
 };
 mod status;
 
+pub struct Operation<'a> {
+    operation_id: Option<&'a Expr>,
+    summary: Option<&'a String>,
+    description: Option<&'a Vec<String>>,
+    deprecated: &'a Option<bool>,
+    parameters: &'a Vec<Parameter<'a>>,
+    request_body: Option<&'a RequestBodyAttr<'a>>,
+    responses: &'a Vec<Response<'a>>,
+    security: Option<&'a Array<'a, SecurityRequirementAttr>>,
+}
+
+impl<'a> Operation<'a> {
+    pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
+        Self {
+            deprecated: &attr.deprecated,
+            operation_id: attr.operation_id.as_ref(),
+            summary: attr.doc_comments.as_ref().and_then(|comments| comments.iter().next()),
+            description: attr.doc_comments.as_ref(),
+            parameters: attr.parameters.as_ref(),
+            request_body: attr.request_body.as_ref(),
+            responses: attr.responses.as_ref(),
+            security: attr.security.as_ref(),
+        }
+    }
+    pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
+        let mut modifiers = vec![];
+        let oapi = crate::oapi_crate();
+        if let Some(request_body) = &self.request_body {
+            if let Some(content) = &request_body.content {
+                if let PathType::Ref(path) = &content {
+                    modifiers.push(quote! {
+                        {
+                            let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
+                            components.schemas.insert(path, schema);
+                        }
+                    });
+                }
+            }
+        }
+        modifiers
+    }
+}
+
+impl ToTokens for Operation<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let oapi = crate::oapi_crate();
+        tokens.extend(quote! { #oapi::oapi::Operation::new() });
+        if let Some(request_body) = self.request_body {
+            tokens.extend(quote! {
+                .request_body(#request_body)
+            })
+        }
+
+        let responses = Responses(self.responses);
+        tokens.extend(quote! {
+            .responses(#responses)
+        });
+        if let Some(security_requirements) = self.security {
+            tokens.extend(quote! {
+                .securities(#security_requirements)
+            })
+        }
+        if let Some(operation_id) = &self.operation_id {
+            tokens.extend(quote_spanned! { operation_id.span() =>
+                .operation_id(#operation_id)
+            });
+        }
+
+        if let Some(deprecated) = self.deprecated {
+            tokens.extend(quote!( .deprecated(#deprecated)))
+        }
+
+        if let Some(summary) = self.summary {
+            tokens.extend(quote! {
+                .summary(#summary)
+            })
+        }
+
+        if let Some(description) = self.description {
+            let description = description.join("\n");
+
+            if !description.is_empty() {
+                tokens.extend(quote! {
+                    .description(#description)
+                })
+            }
+        }
+
+        self.parameters.iter().for_each(|parameter| parameter.to_tokens(tokens));
+    }
+}
+
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
 #[derive(Debug)]
 pub(crate) enum PathType<'p> {
@@ -145,97 +237,5 @@ impl PathTypeTree for TypeTree<'_> {
             Some(_) => self.children.as_ref().unwrap().iter().any(|child| child.is_array()),
             None => false,
         }
-    }
-}
-
-pub struct Operation<'a> {
-    operation_id: Option<&'a Expr>,
-    summary: Option<&'a String>,
-    description: Option<&'a Vec<String>>,
-    deprecated: &'a Option<bool>,
-    parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBodyAttr<'a>>,
-    responses: &'a Vec<Response<'a>>,
-    security: Option<&'a Array<'a, SecurityRequirementAttr>>,
-}
-
-impl<'a> Operation<'a> {
-    pub(crate) fn new(attr: &'a EndpointAttr) -> Self {
-        Self {
-            deprecated: &attr.deprecated,
-            operation_id: attr.operation_id.as_ref(),
-            summary: attr.doc_comments.as_ref().and_then(|comments| comments.iter().next()),
-            description: attr.doc_comments.as_ref(),
-            parameters: attr.parameters.as_ref(),
-            request_body: attr.request_body.as_ref(),
-            responses: attr.responses.as_ref(),
-            security: attr.security.as_ref(),
-        }
-    }
-    pub(crate) fn modifiers(&self, components: &Ident) -> Vec<TokenStream2> {
-        let mut modifiers = vec![];
-        let oapi = crate::oapi_crate();
-        if let Some(request_body) = &self.request_body {
-            if let Some(content) = &request_body.content {
-                if let PathType::Ref(path) = &content {
-                    modifiers.push(quote! {
-                        {
-                            let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
-                            #components.schemas.insert(path, schema);
-                        }
-                    });
-                }
-            }
-        }
-        modifiers
-    }
-}
-
-impl ToTokens for Operation<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let oapi = crate::oapi_crate();
-        tokens.extend(quote! { #oapi::oapi::Operation::new() });
-        if let Some(request_body) = self.request_body {
-            tokens.extend(quote! {
-                .request_body(#request_body)
-            })
-        }
-
-        let responses = Responses(self.responses);
-        tokens.extend(quote! {
-            .responses(#responses)
-        });
-        if let Some(security_requirements) = self.security {
-            tokens.extend(quote! {
-                .securities(#security_requirements)
-            })
-        }
-        if let Some(operation_id) = &self.operation_id {
-            tokens.extend(quote_spanned! { operation_id.span() =>
-                .operation_id(#operation_id)
-            });
-        }
-
-        if let Some(deprecated) = self.deprecated {
-            tokens.extend(quote!( .deprecated(#deprecated)))
-        }
-
-        if let Some(summary) = self.summary {
-            tokens.extend(quote! {
-                .summary(#summary)
-            })
-        }
-
-        if let Some(description) = self.description {
-            let description = description.join("\n");
-
-            if !description.is_empty() {
-                tokens.extend(quote! {
-                    .description(#description)
-                })
-            }
-        }
-
-        self.parameters.iter().for_each(|parameter| parameter.to_tokens(tokens));
     }
 }

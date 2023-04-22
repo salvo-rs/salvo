@@ -8,10 +8,11 @@ use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
-fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
+fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, mut modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
     let tfn = Ident::new(&format!("__salvo_oapi_endpoint_type_id_{}", name), Span::call_site());
     let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
+    modifiers.append(opt.modifiers().as_mut());
     Ok(quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
