@@ -162,7 +162,7 @@ pub struct DeriveResponsesAttributes<T> {
 
 impl<'r> From<DeriveResponsesAttributes<DeriveAsResponsesValue>> for ResponseValue<'r> {
     fn from(value: DeriveResponsesAttributes<DeriveAsResponsesValue>) -> Self {
-        Self::from_derive_into_responses_value(value.derive_value, value.description)
+        Self::from_derive_as_responses_value(value.derive_value, value.description)
     }
 }
 
@@ -211,7 +211,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_into_responses_value(response_value: DeriveAsResponsesValue, description: String) -> Self {
+    fn from_derive_as_responses_value(response_value: DeriveAsResponsesValue, description: String) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -669,7 +669,7 @@ impl ToTokens for Responses<'_> {
                         Response::AsResponses(path) => {
                             let span = path.span();
                             acc.extend(quote_spanned! {span =>
-                                .responses_from_into_responses::<#path>()
+                                .responses_from_as_responses::<#path>()
                             })
                         }
                         Response::Tuple(response) => {

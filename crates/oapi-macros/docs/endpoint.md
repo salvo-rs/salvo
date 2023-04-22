@@ -203,7 +203,7 @@ responses(
 ## Responses from `AsResponses`
 
 _**Responses for a path can be specified with one or more types that implement
-[`AsResponses`][into_responses_trait].**_
+[`AsResponses`][as_responses_trait].**_
 ```text
 responses(MyResponse)
 ```
@@ -329,7 +329,7 @@ params(
 ## AsParameters Type
 
 In the AsParameters parameters format, the parameters are specified using an identifier for a type
-that implements [`AsParameters`][into_parameters]. See [`AsParameters`][into_parameters] for an
+that implements [`AsParameters`][as_parameters]. See [`AsParameters`][as_parameters] for an
 example.
 
 ```text
@@ -464,10 +464,10 @@ fn get_user() -> User {
 [security]: openapi/security/struct.SecurityRequirement.html
 [security_schema]: openapi/security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[into_parameters]: trait.AsParameters.html
+[as_parameters]: trait.AsParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
-[into_responses_trait]: trait.AsResponses.html
-[into_parameters_derive]: derive.AsParameters.html
+[as_responses_trait]: trait.AsResponses.html
+[as_parameters_derive]: derive.AsParameters.html
 [to_response_trait]: trait.AsResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html

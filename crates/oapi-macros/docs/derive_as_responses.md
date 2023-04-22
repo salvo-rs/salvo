@@ -1,9 +1,9 @@
 Generate responses with status codes what
-can be attached to the [`salvo_oapi::path`][path_into_responses].
+can be attached to the [`salvo_oapi::path`][path_as_responses].
 
-This is `#[derive]` implementation of [`AsResponses`][into_responses] trait. [`derive@AsResponses`]
+This is `#[derive]` implementation of [`AsResponses`][as_responses] trait. [`derive@AsResponses`]
 can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
-[`salvo_oapi::path`][path_into_responses]. If _`struct`_ is decorated with [`derive@AsResponses`] it will be
+[`salvo_oapi::path`][path_as_responses]. If _`struct`_ is decorated with [`derive@AsResponses`] it will be
 used to create a map of responses containing single response. Decorating _`enum`_ with
 [`derive@AsResponses`] will create a map of responses with a response for each variant of the _`enum`_.
 
@@ -162,9 +162,9 @@ enum UserResponses {
 }
 ```
 
-[into_responses]: trait.AsResponses.html
+[as_responses]: trait.AsResponses.html
 [to_schema]: trait.AsSchema.html
 [to_response]: trait.AsResponse.html
-[path_into_responses]: attr.path.html#responses-from-intoresponses
+[path_as_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [path]: macro@crate::path

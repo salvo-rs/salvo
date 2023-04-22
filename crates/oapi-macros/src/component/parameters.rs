@@ -30,7 +30,7 @@ use super::{
 
 impl_merge!(AsParametersFeatures, FieldFeatures);
 
-/// Container attribute `#[into_parameters(...)]`.
+/// Container attribute `#[as_parameters(...)]`.
 pub struct AsParametersFeatures(Vec<Feature>);
 
 impl Parse for AsParametersFeatures {
@@ -63,10 +63,10 @@ impl ToTokens for AsParameters {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let mut into_parameters_features = self
+        let mut as_parameters_features = self
             .attrs
             .iter()
-            .filter(|attr| attr.path().is_ident("into_parameters"))
+            .filter(|attr| attr.path().is_ident("as_parameters"))
             .map(|attribute| {
                 attribute
                     .parse_args::<AsParametersFeatures>()
@@ -81,11 +81,11 @@ impl ToTokens for AsParameters {
             abort! {
                 ident,
                 "found `param` attribute in unsupported context";
-                help = "Did you mean `into_parameters`?",
+                help = "Did you mean `as_parameters`?",
             }
         }
 
-        let names = into_parameters_features.as_mut().and_then(|features| {
+        let names = as_parameters_features.as_mut().and_then(|features| {
             features
                 .pop_by(|feature| matches!(feature, Feature::AsParametersNames(_)))
                 .and_then(|feature| match feature {
@@ -94,17 +94,17 @@ impl ToTokens for AsParameters {
                 })
         });
 
-        let style = pop_feature!(into_parameters_features => Feature::Style(_));
-        let parameter_in = pop_feature!(into_parameters_features => Feature::ParameterIn(_));
-        let rename_all = pop_feature!(into_parameters_features => Feature::RenameAll(_));
+        let style = pop_feature!(as_parameters_features => Feature::Style(_));
+        let parameter_in = pop_feature!(as_parameters_features => Feature::ParameterIn(_));
+        let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
 
         let params = self
             .get_struct_fields(&names.as_ref())
             .enumerate()
             .map(|(index, field)| {
-                Param {
+                Parameter {
                     field,
-                    container_attributes: FieldParamContainerAttributes {
+                    container_attributes: FieldParameterContainerAttributes {
                         rename_all: rename_all.as_ref().and_then(|feature| {
                             match feature {
                                 Feature::RenameAll(rename_all) => Some(rename_all),
@@ -123,12 +123,12 @@ impl ToTokens for AsParameters {
                     serde_container: serde_container.as_ref(),
                 }
             })
-            .collect::<Array<Param>>();
+            .collect::<Array<Parameter>>();
 
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
-                fn into_parameters(parameter_in_provider: impl Fn() -> Option<#oapi::oapi::parameter::ParameterIn>) -> Vec<#oapi::oapi::parameter::Parameter> {
+                fn as_parameters(parameter_in_provider: impl Fn() -> Option<#oapi::oapi::parameter::ParameterIn>) -> Vec<#oapi::oapi::parameter::Parameter> {
                     #params.to_vec()
                 }
             }
@@ -153,7 +153,7 @@ impl AsParameters {
             Data::Struct(data_struct) => match &data_struct.fields {
                 syn::Fields::Named(named_fields) => {
                     if field_names.is_some() {
-                        abort! {ident, "`#[into_parameters(names(...))]` is not supported attribute on a struct with named fields"}
+                        abort! {ident, "`#[as_parameters(names(...))]` is not supported attribute on a struct with named fields"}
                     }
                     named_fields.named.iter()
                 }
@@ -180,7 +180,7 @@ impl AsParameters {
                         ident,
                         "declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}",
                             names.len(), unnamed_fields.len(), ident;
-                        help = r#"Did you forget to add a field name to `#[into_parameters(names(... , "field_name"))]`"#;
+                        help = r#"Did you forget to add a field name to `#[as_parameters(names(... , "field_name"))]`"#;
                         help = "Or have you added extra name but haven't defined a type?"
                     }
                 }
@@ -189,7 +189,7 @@ impl AsParameters {
                 abort! {
                     ident,
                     "struct with unnamed fields must have explicit name declarations.";
-                    help = "Try defining `#[into_parameters(names(...))]` over your type: {}", ident,
+                    help = "Try defining `#[as_parameters(names(...))]` over your type: {}", ident,
                 }
             }
         }
@@ -197,7 +197,7 @@ impl AsParameters {
 }
 
 #[derive(Debug)]
-pub struct FieldParamContainerAttributes<'a> {
+pub struct FieldParameterContainerAttributes<'a> {
     /// See [`AsParametersAttr::style`].
     style: &'a Option<Feature>,
     /// See [`AsParametersAttr::names`]. The name that applies to this field.
@@ -248,16 +248,16 @@ impl Parse for FieldFeatures {
 }
 
 #[derive(Debug)]
-struct Param<'a> {
+struct Parameter<'a> {
     /// Field in the container used to create a single parameter.
     field: &'a Field,
     /// Attributes on the container which are relevant for this macro.
-    container_attributes: FieldParamContainerAttributes<'a>,
-    /// Either serde rename all rule or into_parameters rename all rule if provided.
+    container_attributes: FieldParameterContainerAttributes<'a>,
+    /// Either serde rename all rule or as_parameters rename all rule if provided.
     serde_container: Option<&'a SerdeContainer>,
 }
 
-impl Param<'_> {
+impl Parameter<'_> {
     /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by
     /// whether they should be rendered in [`Param`] itself or in [`Param`]s schema.
     ///
@@ -316,7 +316,7 @@ impl Param<'_> {
     }
 }
 
-impl ToTokens for Param<'_> {
+impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let field = self.field;
@@ -327,7 +327,7 @@ impl ToTokens for Param<'_> {
             .or_else(|| self.container_attributes.name.cloned())
             .unwrap_or_else(|| abort!(
                 field, "No name specified for unnamed field.";
-                help = "Try adding #[into_parameters(names(...))] container attribute to specify the name for this field"
+                help = "Try adding #[as_parameters(names(...))] container attribute to specify the name for this field"
             ));
 
         if name.starts_with("r#") {

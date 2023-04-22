@@ -5,6 +5,7 @@ use salvo_core::Router;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
+    components::Components,
     content::Content,
     external_docs::ExternalDocs,
     header::Header,
@@ -14,13 +15,14 @@ pub use self::{
     path::{PathItem, PathItemType},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Components, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
+    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable},
     tag::Tag,
     xml::Xml,
 };
 
+mod components;
 mod content;
 mod encoding;
 mod example;
@@ -38,7 +40,7 @@ pub mod server;
 mod tag;
 mod xml;
 
-use crate::router::NormNode;
+use crate::{router::NormNode, Endpoint};
 
 /// Root object of the OpenAPI document.
 ///
@@ -165,25 +167,12 @@ impl OpenApi {
             self.paths.append(&mut other.paths);
         };
 
-        if let Some(other_components) = &mut other.components {
-            let components = self.components.get_or_insert(Components::default());
-
-            other_components
-                .schemas
-                .retain(|name, _| !components.schemas.contains_key(name));
-            components.schemas.append(&mut other_components.schemas);
-
-            other_components
-                .responses
-                .retain(|name, _| !components.responses.contains_key(name));
-            components.responses.append(&mut other_components.responses);
-
-            other_components
-                .security_schemes
-                .retain(|name, _| !components.security_schemes.contains_key(name));
-            components
-                .security_schemes
-                .append(&mut other_components.security_schemes);
+        if let Some(mut other_components) =  other.components {
+            if let Some(components) = self.components.take() {
+                self.components = Some(components.merge(&mut other_components));
+            } else {
+                self.components = Some(other_components);
+            }
         }
 
         if let Some(other_security) = &mut other.security {
@@ -218,8 +207,9 @@ impl OpenApi {
         }
 
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
-        if let Some(endpoint) = &node.endpoint {
-            if let Some(operation) = crate::OperationRegistry::find(endpoint) {
+        if let Some(type_id) = &node.type_id {
+            if let Some(creator) = crate::EndpointRegistry::find(type_id) {
+                let Endpoint { operation, components } = (creator)();
                 let methods = if let Some(method) = &node.method {
                     vec![method.clone()]
                 } else {
@@ -236,6 +226,13 @@ impl OpenApi {
                         path_item.operations.insert(method, operation.clone());
                     } else {
                         tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
+                    }
+                }
+                if let Some(mut new_compontents) =  components {
+                    if let Some(compontents) = self.components.take() {
+                        self.components = Some(compontents.merge(&mut new_compontents));
+                    } else {
+                        self.components = Some(new_compontents);
                     }
                 }
             }

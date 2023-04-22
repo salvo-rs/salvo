@@ -67,7 +67,7 @@ impl ToTokens for Parameter<'_> {
                 let parameter_in_provider = parameter_in_fn.as_ref().unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        Some(<#path as #oapi::oapi::AsParameters>::into_parameters(#parameter_in_provider))
+                        Some(<#path as #oapi::oapi::AsParameters>::as_parameters(#parameter_in_provider))
                     )
                 })
             }

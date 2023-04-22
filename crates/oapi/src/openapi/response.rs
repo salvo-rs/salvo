@@ -47,7 +47,7 @@ impl Responses {
     }
 
     /// Add responses from a type that implements [`AsResponses`].
-    pub fn responses_from_into_responses<I: AsResponses>(mut self) -> Self {
+    pub fn responses_from_as_responses<I: AsResponses>(mut self) -> Self {
         self.responses.extend(I::responses());
         self
     }

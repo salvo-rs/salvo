@@ -2,11 +2,11 @@
 
 mod openapi;
 pub use openapi::*;
-mod registries;
+mod endpoint;
+pub use endpoint::{Endpoint, EndpointRegistry};
 mod router;
 pub mod swagger;
 
-pub use registries::{OperationRegistry, SchemaRegistry};
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -366,7 +366,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// #    name: String,
 /// # }
 /// impl salvo_oapi::AsParameters for PetParams {
-///     fn into_parameters(
+///     fn as_parameters(
 ///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::path::ParameterIn>
 ///     ) -> Vec<salvo_oapi::path::Parameter> {
 ///         vec![
@@ -397,7 +397,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 pub trait AsParameters {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn into_parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
+    fn as_parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple

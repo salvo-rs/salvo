@@ -35,8 +35,7 @@ impl<'r> AsResponse<'r> {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => AsResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0,
                 Fields::Unnamed(fields) => {
-                    let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
-
+                    let field = fields.unnamed.iter().next().expect("unnamed struct must have 1 field");
                     AsResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
                 }
                 Fields::Unit => AsResponseUnitStructResponse::new(&attributes).0,
@@ -222,7 +221,7 @@ impl<'u> UnnamedStructResponse<'u> {
             (false, false) => Self(
                 (
                     status_code,
-                    ResponseValue::from_derive_into_responses_value(derive_value, description).response_type(Some(
+                    ResponseValue::from_derive_as_responses_value(derive_value, description).response_type(Some(
                         PathType::MediaType(InlineType {
                             ty: Cow::Borrowed(ty),
                             is_inline,
@@ -288,7 +287,7 @@ impl NamedStructResponse<'_> {
         Self(
             (
                 status_code,
-                ResponseValue::from_derive_into_responses_value(derive_value, description)
+                ResponseValue::from_derive_as_responses_value(derive_value, description)
                     .response_type(Some(PathType::InlineSchema(inline_schema.to_token_stream(), ty))),
             )
                 .into(),
@@ -312,7 +311,7 @@ impl UnitStructResponse<'_> {
         Self(
             (
                 status_code,
-                ResponseValue::from_derive_into_responses_value(derive_value, description),
+                ResponseValue::from_derive_as_responses_value(derive_value, description),
             )
                 .into(),
         )

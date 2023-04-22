@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{set_value, Deprecated, RefOr, Response, SecurityScheme, AsResponse, AsSchema, Xml};
+use crate::{set_value, Deprecated, RefOr, Xml};
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
@@ -20,161 +20,6 @@ pub fn empty() -> Schema {
             .default_value(serde_json::Value::Null)
             .into(),
     )
-}
-
-/// Implements [OpenAPI Components Object][components] which holds supported
-/// reusable objects.
-///
-/// Components can hold either reusable types themselves or references to other reusable
-/// types.
-///
-/// [components]: https://spec.openapis.org/oas/latest.html#components-object
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Components {
-    /// Map of reusable [OpenAPI Schema Object][schema]s.
-    ///
-    /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub schemas: BTreeMap<String, RefOr<Schema>>,
-
-    /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
-    /// Reference][reference]s to [OpenAPI Response Object][response]s.
-    ///
-    /// [response]: https://spec.openapis.org/oas/latest.html#response-object
-    /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub responses: BTreeMap<String, RefOr<Response>>,
-
-    /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
-    ///
-    /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub security_schemes: BTreeMap<String, SecurityScheme>,
-}
-
-impl Components {
-    /// Construct a new [`Components`].
-    pub fn new() -> Self {
-        Self { ..Default::default() }
-    }
-    /// Add [`SecurityScheme`] to [`Components`]
-    ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
-        mut self,
-        name: N,
-        security_schema: S,
-    ) -> Self {
-        self.security_schemes.insert(name.into(), security_schema.into());
-        self
-    }
-
-    /// Add iterator of [`SecurityScheme`]s to [`Components`].
-    ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
-        mut self,
-        schemas: I,
-    ) -> Self {
-        self.security_schemes
-            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
-        self
-    }
-
-    /// Add [`Schema`] to [`Components`].
-    ///
-    /// Accepts two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
-        self.schemas.insert(name.into(), schema.into());
-
-        self
-    }
-
-    pub fn schema_from<'s, I: AsSchema<'s>>(mut self) -> Self {
-        let aliases = I::aliases();
-
-        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
-        // Eventually aliases functionality should be extracted out from the `AsSchema`. Aliases
-        // are created when the main schema is a generic type which should be included in OpenAPI
-        // spec in its generic form.
-        if aliases.is_empty() {
-            let (name, schema) = I::schema();
-            self.schemas.insert(name.to_string(), schema);
-        }
-
-        self.schemas_from_iter(aliases)
-    }
-
-    /// Add [`Schema`]s from iterator.
-    ///
-    /// # Examples
-    /// ```
-    /// # use salvo_oapi::schema::{Components, Object,
-    /// #    SchemaType, Schema};
-    /// Components::new().schemas_from_iter([(
-    ///     "Pet",
-    ///     Schema::from(
-    ///         Object::new()
-    ///             .property(
-    ///                 "name",
-    ///                 Object::new().schema_type(SchemaType::String),
-    ///             )
-    ///             .required("name")
-    ///     ),
-    /// )]);
-    /// ```
-    pub fn schemas_from_iter<I: IntoIterator<Item = (S, C)>, C: Into<RefOr<Schema>>, S: Into<String>>(
-        mut self,
-        schemas: I,
-    ) -> Self {
-        self.schemas
-            .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
-
-        self
-    }
-
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, name: S, response: R) -> Self {
-        self.responses.insert(name.into(), response.into());
-        self
-    }
-
-    pub fn response_from<'r, I: AsResponse<'r>>(self) -> Self {
-        let (name, response) = I::response();
-        self.response(name, response)
-    }
-
-    pub fn responses_from_iter<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
-        mut self,
-        responses: I,
-    ) -> Self {
-        self.responses.extend(
-            responses
-                .into_iter()
-                .map(|(name, response)| (name.into(), response.into())),
-        );
-
-        self
-    }
-
-    /// Add [`SecurityScheme`] to [`Components`].
-    ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_schema: S) -> Self {
-        self.security_schemes.insert(name.into(), security_schema.into());
-
-        self
-    }
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -209,6 +54,16 @@ impl Default for Schema {
         Schema::Object(Object::default())
     }
 }
+
+// impl Schema {
+//     pub fn origin_type_id(&self) -> Option<TypeId> {
+//         if let Self::Object(o) = self {
+//             o.origin_type_id
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
 /// [`OneOf`] composite object.
@@ -464,6 +319,9 @@ type ObjectPropertiesMap<K, V> = indexmap::IndexMap<K, V>;
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
+    // #[doc(hidden)]
+    // #[serde(skip)]
+    // pub origin_type_id: Option<TypeId>,
     /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
     /// `string` types.
     #[serde(rename = "type")]

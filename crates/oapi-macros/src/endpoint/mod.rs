@@ -9,23 +9,27 @@ mod attr;
 pub(crate) use attr::EndpointAttr;
 
 fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
-    let tfn = Ident::new(&format!("__salvo_oapi_type_id_{}", name), Span::call_site());
-    let ofn = Ident::new(&format!("__salvo_oapi_operation_{}", name), Span::call_site());
+    let tfn = Ident::new(&format!("__salvo_oapi_endpoint_type_id_{}", name), Span::call_site());
+    let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
     Ok(quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
         }
-        fn #ofn() -> #oapi::oapi::Operation {
+        fn #cfn() -> #oapi::oapi::Endpoint {
             let mut operation = #opt;
+            let mut components = #oapi::oapi::Components::new();
             #(#modifiers)*
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
             }
-            operation
+            #oapi::oapi::Endpoint{
+                operation,
+                components: if components.is_empty() { None } else { Some(components) },
+            }
         }
         #oapi::oapi::__private::inventory::submit! {
-            #oapi::oapi::OperationRegistry::save(#tfn, #ofn)
+            #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
         }
     })
 }

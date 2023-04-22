@@ -1,7 +1,7 @@
 Generate [path parameters][path_params] from struct's
 fields.
 
-This is `#[derive]` implementation for [`AsParameters`][into_parameters] trait.
+This is `#[derive]` implementation for [`AsParameters`][as_parameters] trait.
 
 Typically path parameters need to be defined within [`#[salvo_oapi::path(...params(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
@@ -25,9 +25,9 @@ struct Query {
 }
 ```
 
-# AsParameters Container Attributes for `#[into_parameters(...)]`
+# AsParameters Container Attributes for `#[as_parameters(...)]`
 
-The following attributes are available for use in on the container attribute `#[into_parameters(...)]` for the struct
+The following attributes are available for use in on the container attribute `#[as_parameters(...)]` for the struct
 deriving `AsParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
@@ -37,7 +37,7 @@ deriving `AsParameters`:
 * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
    [`parameter::ParameterIn`][in_enum]. There is no default value, if this attribute is not
    supplied, then the value is determined by the `parameter_in_provider` in
-   [`AsParameters::into_parameters()`](trait.AsParameters.html#tymethod.into_parameters).
+   [`AsParameters::as_parameters()`](trait.AsParameters.html#tymethod.as_parameters).
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
@@ -45,7 +45,7 @@ Use `names` to define name for single unnamed argument.
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(names("id"))]
+#[as_parameters(names("id"))]
 struct Id(u64);
 ```
 
@@ -54,7 +54,7 @@ Use `names` to define names for multiple unnamed arguments.
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(names("id", "name"))]
+#[as_parameters(names("id", "name"))]
 struct IdAndName(u64, String);
 ```
 
@@ -152,7 +152,7 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 # Examples
 
-_**Demonstrate [`AsParameters`][into_parameters] usage with resolving `Path` and `Query` parameters
+_**Demonstrate [`AsParameters`][as_parameters] usage with resolving `Path` and `Query` parameters
 with _`salvo`_**_.
 ```
 use serde::Deserialize;
@@ -187,7 +187,7 @@ async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder
 }
 ```
 
-_**Demonstrate [`AsParameters`][into_parameters] usage with the `#[into_parameters(...)]` container attribute to
+_**Demonstrate [`AsParameters`][as_parameters] usage with the `#[as_parameters(...)]` container attribute to
 be used as a path query, and inlining a schema query field:**_
 ```
 use serde::Deserialize;
@@ -201,7 +201,7 @@ enum PetKind {
 }
 
 #[derive(Deserialize, AsParameters)]
-#[into_parameters(style = Form, parameter_in = Query)]
+#[as_parameters(style = Form, parameter_in = Query)]
 struct PetQuery {
     /// Name of pet
     name: Option<String>,
@@ -230,7 +230,7 @@ _**Override `String` with `i64` using `value_type` attribute.**_
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = i64)]
     id: String,
@@ -242,7 +242,7 @@ _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Object)]
     id: String,
@@ -254,7 +254,7 @@ _**You can use a generic type to override the default type of the field.**_
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Option<String>)]
     id: String
@@ -266,7 +266,7 @@ _**You can even override a [`Vec`] with another one.**_
 # use salvo_oapi::AsParameters;
 #
 #[derive(AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Vec<i32>)]
     id: Vec<String>
@@ -283,7 +283,7 @@ struct Id {
 }
 
 #[derive(AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Filter {
     #[param(value_type = Id)]
     id: String
@@ -316,7 +316,7 @@ fn custom_type() -> Object {
 }
 
 #[derive(salvo_oapi::AsParameters)]
-#[into_parameters(parameter_in = Query)]
+#[as_parameters(parameter_in = Query)]
 struct Query {
     #[param(schema_with = custom_type)]
     email: String,
@@ -326,7 +326,7 @@ struct Query {
 [to_schema]: trait.AsSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
-[into_parameters]: trait.AsParameters.html
+[as_parameters]: trait.AsParameters.html
 [path_params]: attr.path.html#params-attributes
 [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 [style]: openapi/path/enum.ParameterStyle.html

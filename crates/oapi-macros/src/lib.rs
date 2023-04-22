@@ -75,9 +75,9 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(AsParameters, attributes(param, into_parameters))]
-#[doc = include_str!("../docs/params.md")]
-pub fn into_parameters(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(AsParameters, attributes(parameter, as_parameters))]
+#[doc = include_str!("../docs/parameters.md")]
+pub fn as_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -86,20 +86,20 @@ pub fn into_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_parameters = AsParameters {
+    let as_parameters = AsParameters {
         attrs,
         generics,
         data,
         ident,
     };
 
-    into_parameters.to_token_stream().into()
+    as_parameters.to_token_stream().into()
 }
 
 #[proc_macro_error]
 #[proc_macro_derive(AsResponse, attributes(response, content, to_schema))]
-#[doc = include_str!("../docs/response.md")]
-pub fn to_response(input: TokenStream) -> TokenStream {
+#[doc = include_str!("../docs/as_response.md")]
+pub fn as_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -114,9 +114,9 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(AsResponses, attributes(response, to_schema, ref_response, to_response))]
+#[proc_macro_derive(AsResponses, attributes(response, to_schema, ref_response, as_response))]
 #[doc = include_str!("../docs/derive_as_responses.md")]
-pub fn into_responses(input: TokenStream) -> TokenStream {
+pub fn as_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -125,14 +125,14 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_responses = AsResponses {
+    let as_responses = AsResponses {
         attributes: attrs,
         ident,
         generics,
         data,
     };
 
-    into_responses.to_token_stream().into()
+    as_responses.to_token_stream().into()
 }
 
 #[proc_macro]
