@@ -16,7 +16,7 @@ use crate::operation::{InlineType, PathType};
 use crate::{Array, ResultExt};
 
 use super::{
-    Content, DeriveAsResponsesValue, DeriveResponseValue, DeriveResponsesAttributes, DeriveAsResponseValue,
+    Content, DeriveAsResponseValue, DeriveAsResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
     ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 

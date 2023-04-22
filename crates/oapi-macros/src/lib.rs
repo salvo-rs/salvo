@@ -41,7 +41,7 @@ pub(crate) use self::{
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
     endpoint::EndpointAttr,
-    operation::response::derive::{AsResponses, AsResponse},
+    operation::response::derive::{AsResponse, AsResponses},
     operation::Operation,
     shared::*,
 };

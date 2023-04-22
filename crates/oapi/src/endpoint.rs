@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use crate::{Operation, Components};
+use crate::{Components, Operation};
 
 pub struct Endpoint {
     pub operation: Operation,
@@ -13,10 +13,7 @@ pub struct EndpointRegistry {
 }
 
 impl EndpointRegistry {
-    pub const fn save(
-        type_id: fn() -> TypeId,
-        creator: fn() -> Endpoint,
-    ) -> Self {
+    pub const fn save(type_id: fn() -> TypeId, creator: fn() -> Endpoint) -> Self {
         Self { type_id, creator }
     }
     pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {

@@ -167,7 +167,7 @@ impl OpenApi {
             self.paths.append(&mut other.paths);
         };
 
-        if let Some(mut other_components) =  other.components {
+        if let Some(mut other_components) = other.components {
             if let Some(components) = self.components.take() {
                 self.components = Some(components.merge(&mut other_components));
             } else {
@@ -228,7 +228,7 @@ impl OpenApi {
                         tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
                     }
                 }
-                if let Some(mut new_compontents) =  components {
+                if let Some(mut new_compontents) = components {
                     if let Some(compontents) = self.components.take() {
                         self.components = Some(compontents.merge(&mut new_compontents));
                     } else {
