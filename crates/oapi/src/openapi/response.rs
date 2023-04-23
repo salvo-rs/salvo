@@ -75,7 +75,9 @@ where
     R: Into<RefOr<Response>>,
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
-        Self(BTreeMap::from_iter(iter.into_iter().map(|(code, response)| (code.into(), response.into()))))
+        Self(BTreeMap::from_iter(
+            iter.into_iter().map(|(code, response)| (code.into(), response.into())),
+        ))
     }
 }
 
