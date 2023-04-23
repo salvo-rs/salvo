@@ -51,9 +51,9 @@ use std::collections::{BTreeMap, HashMap};
 ///                     "id",
 ///                     salvo_oapi::Object::new()
 ///                         .schema_type(salvo_oapi::SchemaType::Integer)
-///                         .format(Some(salvo_oapi::SchemaFormat::KnownFormat(
+///                         .format(salvo_oapi::SchemaFormat::KnownFormat(
 ///                             salvo_oapi::KnownFormat::Int64,
-///                         ))),
+///                         )),
 ///                 )
 ///                 .required("id")
 ///                 .property(
@@ -66,13 +66,13 @@ use std::collections::{BTreeMap, HashMap};
 ///                     "age",
 ///                     salvo_oapi::Object::new()
 ///                         .schema_type(salvo_oapi::SchemaType::Integer)
-///                         .format(Some(salvo_oapi::SchemaFormat::KnownFormat(
+///                         .format(salvo_oapi::SchemaFormat::KnownFormat(
 ///                             salvo_oapi::KnownFormat::Int32,
-///                         ))),
+///                         )),
 ///                 )
-///                 .example(Some(serde_json::json!({
+///                 .example(serde_json::json!({
 ///                   "name":"bob the cat","id":1
-///                 })))
+///                 }))
 ///                 .into(),
 ///         ) }
 /// }

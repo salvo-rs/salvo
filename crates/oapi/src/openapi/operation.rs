@@ -153,7 +153,6 @@ impl Operation {
     /// * `response` is instances of [`Response`].
     pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
         self.responses.insert(code.into(), response.into());
-
         self
     }
 
@@ -170,7 +169,6 @@ impl Operation {
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
     pub fn add_security(mut self, security: SecurityRequirement) -> Self {
         self.securities.push(security);
-
         self
     }
 
@@ -188,25 +186,25 @@ impl Operation {
 
 #[cfg(test)]
 mod tests {
-    use super::{Operation, Operation};
+    use super::Operation;
     use crate::{security::SecurityRequirement, server::Server};
 
     #[test]
     fn operation_new() {
         let operation = Operation::new();
 
-        assert!(operation.tags.is_none());
+        assert!(operation.tags.is_empty());
         assert!(operation.summary.is_none());
         assert!(operation.description.is_none());
         assert!(operation.operation_id.is_none());
         assert!(operation.external_docs.is_none());
-        assert!(operation.parameters.is_none());
+        assert!(operation.parameters.is_empty());
         assert!(operation.request_body.is_none());
-        assert!(operation.responses.responses.is_empty());
+        assert!(operation.responses.is_empty());
         assert!(operation.callbacks.is_none());
         assert!(operation.deprecated.is_none());
-        assert!(operation.security.is_none());
-        assert!(operation.servers.is_none());
+        assert!(operation.securities.is_empty());
+        assert!(operation.servers.is_empty());
     }
 
     #[test]
@@ -214,19 +212,18 @@ mod tests {
         let security_requirement1 = SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = Operation::new()
-            .security(security_requirement1)
-            .security(security_requirement2)
-            .build();
+            .add_security(security_requirement1)
+            .add_security(security_requirement2);
 
-        assert!(operation.security.is_some());
+        assert!(operation.securities.is_empty());
     }
 
     #[test]
     fn operation_builder_server() {
         let server1 = Server::new("/api");
         let server2 = Server::new("/admin");
-        let operation = Operation::new().server(server1).server(server2).build();
+        let operation = Operation::new().add_server(server1).add_server(server2);
 
-        assert!(operation.servers.is_some());
+        assert!(operation.servers.is_empty());
     }
 }

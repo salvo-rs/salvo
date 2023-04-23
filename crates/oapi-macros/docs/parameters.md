@@ -18,7 +18,7 @@ While it is totally okay to declare deprecated with reason
 
 Doc comment on struct fields will be used as description for the generated parameters.
 ```
-#[derive(salvo_oapi::AsParameters)]
+#[derive(salvo_oapi::AsParameter)]
 struct Query {
     /// Query todo items by name.
     name: String
@@ -292,7 +292,7 @@ struct Filter {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsParameters)]
+#[derive(salvo_oapi::AsParameter)]
 struct Item {
     #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,

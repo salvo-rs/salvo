@@ -111,7 +111,7 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
-    use super::{Content, RequestBody, RequestBody, Required};
+    use super::{Content, RequestBody, Required};
 
     #[test]
     fn request_body_new() {

@@ -38,7 +38,7 @@ let generated = RefOr::T(Schema::Array(
         Object::new()
             .property("id", Object::new()
                 .schema_type(SchemaType::Integer)
-                .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32))))
+                .format(SchemaFormat::KnownFormat(KnownFormat::Int32)))
             .required("id")
             .property("name", Object::with_type(SchemaType::String))
             .required("name")

@@ -14,6 +14,13 @@ authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 
 [features]
 default = []
+chrono = ["salvo-oapi-macros/chrono"]
+decimal = ["salvo-oapi-macros/decimal"]
+yaml = ["serde_yaml", "salvo-oapi-macros/yaml"]
+uuid = ["salvo-oapi-macros/uuid"]
+time = ["salvo-oapi-macros/time"]
+smallvec = ["salvo-oapi-macros/smallvec"]
+indexmap = ["salvo-oapi-macros/indexmap"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false }
@@ -33,8 +40,6 @@ email_address = { workspace = true, optional = true }
 hostname-validator = { workspace = true, optional = true }
 
 # Feature optional dependencies
-chrono = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 bson = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
@@ -45,13 +50,14 @@ tracing.workspace = true
 rust-embed = { workspace = true, features = ["interpolate-folder-path"] }
 mime_guess.workspace = true
 serde_json.workspace = true
+serde_yaml = { workspace = true, optional = true }
 
 [build-dependencies]
 zip.workspace = true
 regex.workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+assert-json-diff.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true

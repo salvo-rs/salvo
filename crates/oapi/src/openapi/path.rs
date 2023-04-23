@@ -1,17 +1,42 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
+use std::ops::{Deref, DerefMut};
 use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
 use super::{set_value, Operation, Parameter, Server};
 
+/// Implements [OpenAPI Path Object][paths] types.
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
+pub struct Paths(BTreeMap<String, PathItem>);
+impl Deref for Paths {
+    type Target = BTreeMap<String, PathItem>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Paths {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Paths {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn path<K: Into<String>, V: Into<PathItem>>(mut self, key: K, value: V) -> Self {
+        self.0.insert(key.into(), value.into());
+        self
+    }
+}
+
 /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s available on
 /// a single path.
 ///
 /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
-#[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PathItem {

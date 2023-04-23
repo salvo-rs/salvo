@@ -27,7 +27,7 @@
 //!
 //! Create server with builder and variable substitution.
 //! ```rust
-//! # use salvo_oapi::server::{ServerBuilder, ServerVariableBuilder};
+//! # use salvo_oapi::server::{Server, ServerVariable};
 //! ServerBuilder::new().url("/api/{version}/{username}")
 //!     .parameter("version", ServerVariableBuilder::new()
 //!         .enum_values(Some(["v1", "v2"]))
@@ -159,6 +159,10 @@ pub struct ServerVariable {
 }
 
 impl ServerVariable {
+    /// Creawte new `ServerVariable` with default value.
+    pub fn new() -> Self {
+        Default::default()
+    }
     /// Add default value for substitution.
     pub fn default_value<S: Into<String>>(mut self, default_value: S) -> Self {
         set_value!(self default_value default_value.into())
@@ -202,12 +206,12 @@ mod tests {
 
     test_fn! {
     create_server_with_builder_and_variable_substitution:
-    ServerBuilder::new().url("/api/{version}/{username}")
-        .parameter("version", ServerVariableBuilder::new()
-            .enum_values(Some(["v1", "v2"]))
-            .description(Some("api version"))
+    Server::new("/api/{version}/{username}")
+        .parameter("version", ServerVariable::new()
+            .enum_values(["v1", "v2"])
+            .description("api version")
             .default_value("v1"))
-        .parameter("username", ServerVariableBuilder::new()
+        .parameter("username", ServerVariable::new()
             .default_value("the_user"));
     r###"{
   "url": "/api/{version}/{username}",

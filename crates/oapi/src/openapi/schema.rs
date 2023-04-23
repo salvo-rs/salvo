@@ -468,8 +468,8 @@ impl Object {
     }
 
     /// Add or change additional format for detailing the schema type.
-    pub fn format(mut self, format: Option<SchemaFormat>) -> Self {
-        set_value!(self format format)
+    pub fn format(mut self, format: SchemaFormat) -> Self {
+        set_value!(self format Some(format))
     }
 
     /// Add new property to the [`Object`].
@@ -938,43 +938,40 @@ mod tests {
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new()
-            .info(Info::new("My api", "1.0.0"))
-            .paths(Paths::new())
-            .components(
-                Components::new()
-                    .schema("Person", Ref::new("#/components/PersonModel"))
-                    .schema(
-                        "Credential",
-                        Schema::from(
-                            Object::new()
-                                .property(
-                                    "id",
-                                    Object::new()
-                                        .schema_type(SchemaType::Integer)
-                                        .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
-                                        .description("Id of credential")
-                                        .default(json!(1i32)),
-                                )
-                                .property(
-                                    "name",
-                                    Object::new()
-                                        .schema_type(SchemaType::String)
-                                        .description("Name of credential"),
-                                )
-                                .property(
-                                    "status",
-                                    Object::new()
-                                        .schema_type(SchemaType::String)
-                                        .default(json!("Active"))
-                                        .description("Credential status")
-                                        .enum_values(["Active", "NotActive", "Locked", "Expired"]),
-                                )
-                                .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
-                                .property("tags", Object::with_type(SchemaType::String).to_array()),
-                        ),
+        let openapi = OpenApi::new(Info::new("My api", "1.0.0")).components(
+            Components::new()
+                .schema("Person", Ref::new("#/components/PersonModel"))
+                .schema(
+                    "Credential",
+                    Schema::from(
+                        Object::new()
+                            .property(
+                                "id",
+                                Object::new()
+                                    .schema_type(SchemaType::Integer)
+                                    .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
+                                    .description("Id of credential")
+                                    .default_value(json!(1i32)),
+                            )
+                            .property(
+                                "name",
+                                Object::new()
+                                    .schema_type(SchemaType::String)
+                                    .description("Name of credential"),
+                            )
+                            .property(
+                                "status",
+                                Object::new()
+                                    .schema_type(SchemaType::String)
+                                    .default_value(json!("Active"))
+                                    .description("Credential status")
+                                    .enum_values(["Active", "NotActive", "Locked", "Expired"]),
+                            )
+                            .property("history", Array::new(Ref::from_schema_name("UpdateHistory")))
+                            .property("tags", Object::with_type(SchemaType::String).to_array()),
                     ),
-            );
+                ),
+        );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
         println!("serialized json:\n {serialized}");
@@ -1048,9 +1045,9 @@ mod tests {
                 "id",
                 Object::new()
                     .schema_type(SchemaType::Integer)
-                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(json!(1i32)),
+                    .default_value(json!(1i32)),
             )
             .property(
                 "name",
@@ -1062,7 +1059,7 @@ mod tests {
                 "status",
                 Object::new()
                     .schema_type(SchemaType::String)
-                    .default(Some(json!("Active")))
+                    .default_value(json!("Active"))
                     .description("Credential status")
                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
             )
@@ -1073,12 +1070,6 @@ mod tests {
         assert_eq!(
             json_value.properties.keys().collect::<Vec<_>>(),
             vec!["history", "id", "name", "status", "tags"]
-        );
-
-        #[cfg(feature = "preserve_order")]
-        assert_eq!(
-            json_value.properties.keys().collect::<Vec<_>>(),
-            vec!["id", "name", "status", "history", "tags"]
         );
     }
 
@@ -1110,7 +1101,7 @@ mod tests {
 
     #[test]
     fn test_object_with_title() {
-        let json_value = Object::new().title(Some("SomeName"));
+        let json_value = Object::new().title("SomeName");
         assert_json_eq!(
             json_value,
             json!({
@@ -1123,7 +1114,7 @@ mod tests {
     #[test]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
-        let json_value = Object::new().example(Some(json!({"age": 20, "name": "bob the cat"})));
+        let json_value = Object::new().example(json!({"age": 20, "name": "bob the cat"}));
 
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(
@@ -1145,9 +1136,9 @@ mod tests {
                 "id",
                 Object::new()
                     .schema_type(SchemaType::Integer)
-                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(Some(json!(1i32))),
+                    .default_value(json!(1i32)),
             ),
         );
 
@@ -1161,9 +1152,9 @@ mod tests {
                 "id",
                 Object::new()
                     .schema_type(SchemaType::Integer)
-                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(Some(json!(1i32))),
+                    .default_value(json!(1i32)),
             ),
         );
 
@@ -1325,7 +1316,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_array_builder() {
-        let ref_or_schema = Array::new().items(RefOr::T(Schema::Object(
+        let ref_or_schema = Array::new(RefOr::T(Schema::Object(
             Object::new().property("element", RefOr::Ref(Ref::new("#/test"))),
         )));
 

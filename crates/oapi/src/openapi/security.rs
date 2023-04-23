@@ -888,7 +888,7 @@ mod tests {
     test_fn! {
     security_schema_correct_http_bearer_json:
     SecurityScheme::Http(
-        Http::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT")
+        Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")
     );
     r###"{
   "type": "http",

@@ -546,7 +546,7 @@ impl<'c> ComponentSchema {
             quote! {
                 #oapi::oapi::Object::new()
                     .schema_type(#oapi::oapi::schema::SchemaType::String)
-                    .format(Some(#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Binary)))
+                    .format(#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Binary))
             }
         } else {
             let component_schema = ComponentSchema::new(ComponentSchemaProps {
@@ -619,7 +619,7 @@ impl<'c> ComponentSchema {
                 let format: SchemaFormat = (type_path).into();
                 if format.is_known_format() {
                     tokens.extend(quote! {
-                        .format(Some(#format))
+                        .format(#format)
                     })
                 }
 

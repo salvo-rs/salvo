@@ -49,6 +49,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
    - Every router can have one or many middlewares;
    - Integrated Multipart form processing;
    - Support WebSocket;
+   - Support OpenAPI;
    - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
@@ -280,6 +281,7 @@ View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/ext
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
 ```
+cd examples
 cargo run --bin example-basic-auth
 ```
 

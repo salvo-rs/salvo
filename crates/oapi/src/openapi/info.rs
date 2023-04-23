@@ -96,18 +96,18 @@ impl Info {
     }
 
     /// Add url for terms of the API.
-    pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: Option<S>) -> Self {
-        set_value!(self terms_of_service terms_of_service.map(|terms_of_service| terms_of_service.into()))
+    pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: S) -> Self {
+        set_value!(self terms_of_service Some(terms_of_service.into()))
     }
 
     /// Add contact information of the API.
-    pub fn contact(mut self, contact: Option<Contact>) -> Self {
-        set_value!(self contact contact)
+    pub fn contact(mut self, contact: Contact) -> Self {
+        set_value!(self contact Some(contact))
     }
 
     /// Add license of the API.
-    pub fn license(mut self, license: Option<License>) -> Self {
-        set_value!(self license license)
+    pub fn license(mut self, license: License) -> Self {
+        set_value!(self license Some(license))
     }
 }
 

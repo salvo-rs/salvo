@@ -1,5 +1,5 @@
 //! Rust implementation of Openapi Spec V3.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use salvo_core::Router;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
@@ -12,7 +12,7 @@ pub use self::{
     info::{Contact, Info, License},
     operation::Operation,
     parameter::{Parameter, ParameterIn, ParameterStyle, Parameters},
-    path::{PathItem, PathItemType},
+    path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
     schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
@@ -73,7 +73,7 @@ pub struct OpenApi {
     /// Available paths and operations for the API.
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
-    pub paths: BTreeMap<String, PathItem>,
+    pub paths: Paths,
 
     /// Holds various reusable schemas for the OpenAPI document.
     ///
@@ -225,8 +225,8 @@ impl OpenApi {
     }
 
     /// Set paths to configure operations and endpoints of the API.
-    pub fn paths<P: IntoIterator<Item = (String, PathItem)>>(mut self, paths: P) -> Self {
-        set_value!(self paths paths.into_iter().collect())
+    pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
+        set_value!(self paths paths.into())
     }
     /// Add [`PathItem`] to configure operations and endpoints of the API.
     pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
@@ -389,10 +389,7 @@ pub(crate) use set_value;
 mod tests {
     use serde_json::json;
 
-    use crate::{
-        info::Info,
-        path::{Operation, Paths},
-    };
+    use crate::{info::Info, Operation, Paths};
 
     use super::{response::Response, *};
 
@@ -404,12 +401,11 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
+        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
                 .description("My api description")
                 .license(License::new("MIT").url(Some("http://mit.licence"))),
-            Paths::new(),
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
 
@@ -422,34 +418,33 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new(
-            Info::new("My big api", "1.1.0"),
+        let openapi = OpenApi::new(Info::new("My big api", "1.1.0")).paths(
             Paths::new()
                 .path(
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Get,
-                        Operation::new().response("200", Response::new("Get users list")),
+                        Operation::new().add_response("200", Response::new("Get users list")),
                     ),
                 )
                 .path(
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Post,
-                        Operation::new().response("200", Response::new("Post new user")),
+                        Operation::new().add_response("200", Response::new("Post new user")),
                     ),
                 )
                 .path(
                     "/api/v1/users/{id}",
                     PathItem::new(
                         PathItemType::Get,
-                        Operation::new().response("200", Response::new("Get user by id")),
+                        Operation::new().add_response("200", Response::new("Get user by id")),
                     ),
                 ),
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("./openapi/testdata/expected_openapi_with_paths.json");
+        let expected = include_str!("../../testdata/expected_openapi_with_paths.json");
 
         assert_eq!(
             serialized, expected,
@@ -460,59 +455,49 @@ mod tests {
 
     #[test]
     fn merge_2_openapi_documents() {
-        let mut api_1 = OpenApi::new(
-            Info::new("Api", "v1"),
-            Paths::new()
-                .path(
-                    "/api/v1/user",
-                    PathItem::new(
-                        PathItemType::Get,
-                        Operation::new().response("200", Response::new("Get user success")),
-                    ),
-                )
-                .build(),
-        );
+        let mut api_1 = OpenApi::new(Info::new("Api", "v1")).paths(Paths::new().path(
+            "/api/v1/user",
+            PathItem::new(
+                PathItemType::Get,
+                Operation::new().add_response("200", Response::new("Get user success")),
+            ),
+        ));
 
-        let api_2 = OpenApi::new()
-            .info(Info::new("Api", "v2"))
+        let api_2 = OpenApi::new(Info::new("Api", "v2"))
             .paths(
                 Paths::new()
                     .path(
                         "/api/v1/user",
                         PathItem::new(
                             PathItemType::Get,
-                            Operation::new().response("200", Response::new("This will not get added")),
+                            Operation::new().add_response("200", Response::new("This will not get added")),
                         ),
                     )
                     .path(
                         "/ap/v2/user",
                         PathItem::new(
                             PathItemType::Get,
-                            Operation::new().response("200", Response::new("Get user success 2")),
+                            Operation::new().add_response("200", Response::new("Get user success 2")),
                         ),
                     )
                     .path(
                         "/api/v2/user",
                         PathItem::new(
                             PathItemType::Post,
-                            Operation::new().response("200", Response::new("Get user success")),
+                            Operation::new().add_response("200", Response::new("Get user success")),
                         ),
-                    )
-                    .build(),
+                    ),
             )
-            .components(Some(
-                Components::new()
-                    .schema(
-                        "User2",
-                        Object::new()
-                            .schema_type(SchemaType::Object)
-                            .property("name", Object::new().schema_type(SchemaType::String)),
-                    )
-                    .build(),
-            ))
-            .build();
+            .components(
+                Components::new().schema(
+                    "User2",
+                    Object::new()
+                        .schema_type(SchemaType::Object)
+                        .property("name", Object::new().schema_type(SchemaType::String)),
+                ),
+            );
 
-        api_1.merge(api_2);
+        api_1 = api_1.merge(api_2);
         let value = serde_json::to_value(&api_1).unwrap();
 
         assert_eq!(

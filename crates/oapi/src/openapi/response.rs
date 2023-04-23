@@ -205,8 +205,7 @@ mod tests {
     #[test]
     fn responses_new() {
         let responses = Responses::new();
-
-        assert!(responses.responses.is_empty());
+        assert!(responses.is_empty());
     }
 
     #[test]
