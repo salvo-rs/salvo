@@ -3,10 +3,10 @@
 mod openapi;
 pub use openapi::*;
 mod endpoint;
-pub use endpoint::{Endpoint, EndpointRegistry, EndpointModifier};
+pub use endpoint::{Endpoint, EndpointModifier, EndpointRegistry};
+pub mod extract;
 mod router;
 pub mod swagger;
-pub mod extract;
 
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
@@ -403,7 +403,6 @@ pub trait AsParameters {
 pub trait AsParameter {
     fn parameter(arg: Option<&str>) -> Parameter;
 }
-
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
 /// responses, to be used in operation.

@@ -11,7 +11,7 @@ pub use self::{
     header::Header,
     info::{Contact, Info, License},
     operation::Operation,
-    parameter::{Parameter, Parameters, ParameterIn, ParameterStyle},
+    parameter::{Parameter, ParameterIn, ParameterStyle, Parameters},
     path::{PathItem, PathItemType},
     request_body::RequestBody,
     response::{Response, Responses},
@@ -184,7 +184,10 @@ impl OpenApi {
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
         if let Some(type_id) = &node.type_id {
             if let Some(creator) = crate::EndpointRegistry::find(type_id) {
-                let Endpoint { operation, mut components } = (creator)();
+                let Endpoint {
+                    operation,
+                    mut components,
+                } = (creator)();
                 let methods = if let Some(method) = &node.method {
                     vec![method.clone()]
                 } else {

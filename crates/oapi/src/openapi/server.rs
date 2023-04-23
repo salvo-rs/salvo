@@ -38,8 +38,8 @@
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
-use std::{collections::BTreeMap, iter};
 use std::cmp::{Ord, Ordering, PartialOrd};
+use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
