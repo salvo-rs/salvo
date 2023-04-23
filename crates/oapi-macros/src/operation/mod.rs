@@ -52,15 +52,29 @@ impl<'a> Operation<'a> {
     pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
         let mut modifiers = vec![];
         let oapi = crate::oapi_crate();
+        println!("==================================0");
         if let Some(request_body) = &self.request_body {
+            println!("==================================1");
             if let Some(content) = &request_body.content {
-                if let PathType::Ref(path) = &content {
-                    modifiers.push(quote! {
-                        {
-                            let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
-                            components.schemas.insert(path, schema);
-                        }
-                    });
+                match &content {
+                    PathType::Ref(path) => {
+                        modifiers.push(quote! {
+                            {
+                                let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
+                                components.schemas.insert(path, schema);
+                            }
+                        });
+                    }
+                    PathType::MediaType(inline) => {
+                        let ty = &inline.ty;
+                        modifiers.push(quote! {
+                            {
+                                let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
+                                components.schemas.insert(path.into(), schema);
+                            }
+                        });
+                    }
+                    _ => {}
                 }
             }
         }
@@ -148,8 +162,8 @@ impl Parse for PathType<'_> {
 // inline(syn::Type) | syn::Type
 #[derive(Debug)]
 pub(crate) struct InlineType<'i> {
-    ty: Cow<'i, Type>,
-    is_inline: bool,
+    pub(crate) ty: Cow<'i, Type>,
+    pub(crate) is_inline: bool,
 }
 
 impl InlineType<'_> {
