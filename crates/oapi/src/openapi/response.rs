@@ -2,6 +2,7 @@
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
 use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -16,13 +17,22 @@ use super::{header::Header, set_value, Content};
 /// Responses is a map holding api operation responses identified by their status code.
 ///
 /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-#[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Responses {
-    /// Map containing status code as a key with represented response as a value.
-    #[serde(flatten)]
-    pub responses: BTreeMap<String, RefOr<Response>>,
+pub struct Responses(BTreeMap<String, RefOr<Response>>);
+
+impl Deref for Responses {
+    type Target = BTreeMap<String, RefOr<Response>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Responses {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Responses {
@@ -31,31 +41,31 @@ impl Responses {
     }
     /// Add a [`Response`].
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
-        self.responses.insert(code.into(), response.into());
+        self.0.insert(code.into(), response.into());
 
         self
     }
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
-    pub fn responses_from_iter<I: IntoIterator<Item = (C, R)>, C: Into<String>, R: Into<RefOr<Response>>>(
+    pub fn extend<I: IntoIterator<Item = (C, R)>, C: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         iter: I,
     ) -> Self {
-        self.responses
+        self.0
             .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
         self
     }
 
     /// Add responses from a type that implements [`AsResponses`].
     pub fn responses_from_as_responses<I: AsResponses>(mut self) -> Self {
-        self.responses.extend(I::responses());
+        self.0.extend(I::responses());
         self
     }
 }
 
 impl From<Responses> for BTreeMap<String, RefOr<Response>> {
     fn from(responses: Responses) -> Self {
-        responses.responses
+        responses.0
     }
 }
 
@@ -65,9 +75,7 @@ where
     R: Into<RefOr<Response>>,
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
-        Self {
-            responses: BTreeMap::from_iter(iter.into_iter().map(|(code, response)| (code.into(), response.into()))),
-        }
+        Self(BTreeMap::from_iter(iter.into_iter().map(|(code, response)| (code.into(), response.into()))))
     }
 }
 

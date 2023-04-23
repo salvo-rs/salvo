@@ -1,9 +1,6 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
-use std::cmp::{Ord, Ordering, PartialOrd};
-use std::collections::BTreeSet;
-
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -155,7 +152,7 @@ impl Operation {
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
     pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
-        self.responses.responses.insert(code.into(), response.into());
+        self.responses.insert(code.into(), response.into());
 
         self
     }

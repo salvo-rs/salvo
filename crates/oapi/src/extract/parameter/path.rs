@@ -1,4 +1,4 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
@@ -80,10 +80,10 @@ where
     T: Deserialize<'de>,
 {
     fn metadata() -> &'de Metadata {
-        panic!("metadata can not be extracted from `Path`")
+        unimplemented!("metadata can not be extracted from `Path`")
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
-        panic!("path parameter can not be extracted from request")
+    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+        unimplemented!("path parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Path<T>, ParseError> {
         let value = req
@@ -98,7 +98,7 @@ where
 
 #[async_trait]
 impl<T> EndpointModifier for Path<T> {
-    fn modify(components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
+    fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.append(Self::parameter(arg));
     }
 }

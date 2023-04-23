@@ -76,6 +76,21 @@ impl<'a> Operation<'a> {
                 }
             }
         }
+        for response in self.responses {
+            match response {
+                Response::AsResponses(path) => {
+                    modifiers.push(quote! {
+                        components.responses.extend(<#path as #oapi::oapi::AsResponses>::responses());
+                    });
+                }
+                Response::Tuple(tuple) => {
+                    let code = &tuple.status_code;
+                    modifiers.push(quote! {
+                        operation.responses.insert(#code.into(), #tuple.into());
+                    });
+                }
+            }
+        }
         modifiers
     }
 }

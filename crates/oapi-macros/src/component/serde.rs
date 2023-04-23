@@ -76,8 +76,9 @@ impl SerdeValue {
 
 /// The [Serde Enum representation](https://serde.rs/enum-representations.html) being used
 /// The default case (when no serde attributes are present) is `ExternallyTagged`.
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub enum SerdeEnumRepr {
+    #[default]
     ExternallyTagged,
     InternallyTagged {
         tag: String,
@@ -93,12 +94,6 @@ pub enum SerdeEnumRepr {
     UnfinishedAdjacentlyTagged {
         content: String,
     },
-}
-
-impl Default for SerdeEnumRepr {
-    fn default() -> SerdeEnumRepr {
-        SerdeEnumRepr::ExternallyTagged
-    }
 }
 
 /// Attributes defined within a `#[serde(...)]` container attribute.

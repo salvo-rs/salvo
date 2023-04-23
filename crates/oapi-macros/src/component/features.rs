@@ -1402,7 +1402,7 @@ pub struct Required(pub bool);
 
 impl Required {
     pub fn is_true(&self) -> bool {
-        self.0 == true
+        self.0
     }
 }
 

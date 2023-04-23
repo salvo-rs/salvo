@@ -1,4 +1,4 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
@@ -82,7 +82,7 @@ where
     fn metadata() -> &'de Metadata {
         panic!("metadata can not be extracted from `Query`")
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Query<T>, ParseError> {
@@ -98,7 +98,7 @@ where
 
 #[async_trait]
 impl<T> EndpointModifier for Query<T> {
-    fn modify(components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
+    fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.append(Self::parameter(arg));
     }
 }

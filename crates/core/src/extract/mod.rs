@@ -77,9 +77,12 @@ use crate::serde::from_request;
 pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
+
+    /// Extract data from request.
     async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
         from_request(req, Self::metadata()).await
     }
+    /// Extract data from request with a argument. This function used in macros internal.
     async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
         Self::extract(req).await
     }

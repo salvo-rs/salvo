@@ -1,9 +1,8 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
-use salvo_core::serde::from_str_val;
 use salvo_core::{async_trait, Request};
 use serde::Deserialize;
 use serde::Deserializer;
@@ -81,10 +80,10 @@ where
     T: Deserialize<'de>,
 {
     fn metadata() -> &'de Metadata {
-        panic!("metadata can not be extracted from `Header`")
+        unimplemented!("metadata can not be extracted from `Header`")
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
-        panic!("header parameter can not be extracted from request")
+    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+        unimplemented!("header parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Header<T>, ParseError> {
         let value = req.header(arg).ok_or_else(|| {
@@ -99,7 +98,7 @@ where
 
 #[async_trait]
 impl<T> EndpointModifier for Header<T> {
-    fn modify(components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
+    fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.append(Self::parameter(arg));
     }
 }

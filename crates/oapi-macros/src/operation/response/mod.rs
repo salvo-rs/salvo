@@ -43,7 +43,7 @@ impl Parse for Response<'_> {
 /// Parsed representation of response attributes from `#[salvo_oapi::path]` attribute.
 #[derive(Default, Debug)]
 pub struct ResponseTuple<'r> {
-    status_code: ResponseStatus,
+    pub status_code: ResponseStatus,
     inner: Option<ResponseTupleInner<'r>>,
 }
 
@@ -532,7 +532,7 @@ impl Parse for DeriveAsResponsesValue {
 }
 
 #[derive(Default, Debug)]
-struct ResponseStatus(TokenStream2);
+pub struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
     fn parse(input: ParseStream) -> syn::Result<Self> {

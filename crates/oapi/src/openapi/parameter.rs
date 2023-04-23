@@ -1,8 +1,6 @@
 //! Implements [OpenAPI Parameter Object][parameter] types.
 //!
 //! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
-use std::ops::{Deref, DerefMut};
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -18,7 +16,7 @@ impl Parameters {
         let exist_item = self
             .0
             .iter_mut()
-            .find(|item| item.name == parameter.name && item.parameter_in == item.parameter_in);
+            .find(|item| item.name == parameter.name && item.parameter_in == parameter.parameter_in);
 
         if let Some(exist_item) = exist_item {
             exist_item.fill_with(parameter);

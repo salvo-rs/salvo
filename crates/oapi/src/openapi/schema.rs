@@ -14,12 +14,7 @@ use crate::{set_value, Deprecated, RefOr, Xml};
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(
-        Object::new()
-            .nullable(true)
-            .default_value(serde_json::Value::Null)
-            .into(),
-    )
+    Schema::Object(Object::new().nullable(true).default_value(serde_json::Value::Null))
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be

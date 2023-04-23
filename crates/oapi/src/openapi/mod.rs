@@ -189,7 +189,7 @@ impl OpenApi {
                     mut components,
                 } = (creator)();
                 let methods = if let Some(method) = &node.method {
-                    vec![method.clone()]
+                    vec![*method]
                 } else {
                     vec![
                         PathItemType::Get,
@@ -200,8 +200,8 @@ impl OpenApi {
                 };
                 let path_item = self.paths.entry(path.clone()).or_default();
                 for method in methods {
-                    if !path_item.operations.contains_key(&method) {
-                        path_item.operations.insert(method, operation.clone());
+                    if let std::collections::btree_map::Entry::Vacant(e) = path_item.operations.entry(method) {
+                        e.insert(operation.clone());
                     } else {
                         tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
                     }
@@ -320,18 +320,13 @@ impl<'de> Deserialize<'de> for Deprecated {
     }
 }
 
-impl Default for Deprecated {
-    fn default() -> Self {
-        Deprecated::False
-    }
-}
-
 /// Value used to indicate whether parameter or property is required.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Default, Clone, Debug)]
 pub enum Required {
     True,
+    #[default]
     False,
 }
 
@@ -368,12 +363,6 @@ impl<'de> Deserialize<'de> for Required {
             }
         }
         deserializer.deserialize_bool(BoolVisitor)
-    }
-}
-
-impl Default for Required {
-    fn default() -> Self {
-        Required::False
     }
 }
 
