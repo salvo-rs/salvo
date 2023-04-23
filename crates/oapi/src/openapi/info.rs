@@ -15,12 +15,10 @@ use super::set_value;
 /// Create [`Info`]].
 /// ```
 /// # use salvo_oapi::{Info, Contact};
-/// let info = Info::new()
-///      .title("My api")
-///      .version("1.0.0")
-///      .contact(Some(Contact::new()
-///           .name(Some("Admin Admin"))
-///           .email(Some("amdin@petapi.com"))
+/// let info = Info::new("My api", "1.0.0")
+///      .contact(Contact::new()
+///           .name("Admin Admin")
+///           .email("amdin@petapi.com")
 ///       ));
 /// ```
 /// OpenAPI [Info][info] object represents metadata of the API.

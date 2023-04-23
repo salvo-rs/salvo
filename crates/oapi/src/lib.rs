@@ -158,9 +158,9 @@ pub trait Modifier<T> {
 /// The trait can be implemented manually easily on any type. This trait comes especially handy
 /// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
 /// ```rust
-/// # use salvo::oapi::PartialSchema;
-/// # use salvo::oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
-/// # use salvo::oapi::RefOr;
+/// # use salvo_oapi::PartialSchema;
+/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use salvo_oapi::RefOr;
 /// #
 /// struct MyType;
 ///
@@ -197,8 +197,8 @@ pub trait Modifier<T> {
 ///
 /// _**Construct a Pet object schema manually.**_
 /// ```rust
-/// # use salvo::oapi::PartialSchema;
-/// # use salvo::oapi::schema::ObjectBuilder;
+/// # use salvo_oapi::PartialSchema;
+/// # use salvo_oapi::schema::Object;
 /// struct Pet {
 ///     id: i32,
 ///     name: String,
@@ -367,30 +367,27 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// #    name: String,
 /// # }
 /// impl salvo_oapi::AsParameters for PetParams {
-///     fn as_parameters(
-///         parameter_in_provider: impl Fn() -> Option<salvo_oapi::path::ParameterIn>
-///     ) -> Vec<salvo_oapi::path::Parameter> {
-///         vec![
-///             salvo_oapi::path::Parameter::new()
-///                 .name("id")
+///     fn parameters() -> salvo_oapi::Parameters {
+///         salvo_oapi::Parameters::new().parameter(
+///             salvo_oapi::Parameter::new("id")
 ///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in(parameter_in_provider().unwrap_or_default())
+///                 .parameter_in()
 ///                 .description("Id of pet")
 ///                 .schema(Some(
 ///                     salvo_oapi::Object::new()
 ///                         .schema_type(salvo_oapi::SchemaType::Integer)
 ///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::KnownFormat::Int64)),
 ///                 )),
-///             salvo_oapi::path::Parameter::new()
-///                 .name("name")
+///         ).parameter(
+///             salvo_oapi::Parameter::new("name")
 ///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in(parameter_in_provider().unwrap_or_default())
+///                 .parameter_in()
 ///                 .description("Name of pet")
 ///                 .schema(
 ///                     salvo_oapi::Object::new()
 ///                         .schema_type(salvo_oapi::SchemaType::String),
 ///                 ),
-///         ]
+///         )
 ///     }
 /// }
 /// ```
@@ -398,7 +395,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 pub trait AsParameters {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
+    fn parameters() -> Parameters;
 }
 pub trait AsParameter {
     fn parameter(arg: Option<&str>) -> Parameter;
@@ -411,7 +408,7 @@ pub trait AsParameter {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Response, Responses, RefOr, AsResponses };
+/// use salvo_oapi::{Response, Responses, RefOr, AsResponses };
 ///
 /// enum MyResponse {
 ///     Ok,

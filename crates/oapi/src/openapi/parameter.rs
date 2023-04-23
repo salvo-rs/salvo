@@ -9,10 +9,13 @@ use super::{set_value, Deprecated, RefOr, Required, Schema};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
 pub struct Parameters(Vec<Parameter>);
 impl Parameters {
+    pub fn new() -> Self {
+        Default::default()
+    }
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn append(&mut self, parameter: Parameter) {
+    pub fn parameter(&mut self, parameter: Parameter) {
         let exist_item = self
             .0
             .iter_mut()
@@ -26,7 +29,7 @@ impl Parameters {
     }
     pub fn extend(&mut self, parameters: impl IntoIterator<Item = Parameter>) {
         for parameter in parameters {
-            self.append(parameter);
+            self.parameter(parameter);
         }
     }
 }

@@ -17,7 +17,7 @@ used as _`description`_.
 /// This is a summary of the operation
 ///
 /// All lines of the doc comment will be included to operation description.
-#[salvo_oapi::path(get, path = "/operation")]
+#[salvo_oapi::endpoint()]
 fn operation() {}
 ```
 
@@ -354,9 +354,7 @@ _**More minimal example with the defaults.**_
 #    name: String,
 # }
 #
-#[salvo_oapi::path(
-   post,
-   path = "/pet",
+#[salvo_oapi::endpoint(
    request_body = Pet,
    responses(
         (status = 200, description = "Pet stored successfully", body = Pet,
@@ -380,7 +378,7 @@ fn post_pet(pet: Pet) -> Pet {
 _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated OpenAPI spec and mark this operation as deprecated.**_
 ```
 # use serde_json::json;
-#[salvo_oapi::path(
+#[salvo_oapi::endpoint(
     responses(
         (status = 200, description = "Pet found from database")
     ),
@@ -398,8 +396,7 @@ async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
 _**Define context path for endpoint. The resolved **path** shown in OpenAPI doc will be `/api/pet/{id}`.**_
 ```
 # use serde_json::json;
-#[salvo_oapi::path(
-    context_path = "/api",
+#[salvo_oapi::endpoint(
     responses(
         (status = 200, description = "Pet found from database")
     )
@@ -417,9 +414,7 @@ _**Example with multiple return types**_
 #   id: String
 # }
 # impl User for User1 {}
-#[salvo_oapi::path(
-    get,
-    path = "/user",
+#[salvo_oapi::endpoint(
     responses(
         (status = 200, content(
                 ("application/vnd.user.v1+json" = User1, example = json!({"id": "id".to_string()})),
@@ -439,9 +434,7 @@ _**Example with multiple examples on single response.**_
 # struct User {
 #   name: String
 # }
-#[salvo_oapi::path(
-    get,
-    path = "/user",
+#[salvo_oapi::endpoint(
     responses(
         (status = 200, body = User,
             examples(

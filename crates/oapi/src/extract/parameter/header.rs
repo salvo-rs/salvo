@@ -99,6 +99,6 @@ where
 #[async_trait]
 impl<T> EndpointModifier for Header<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.append(Self::parameter(arg));
+        operation.parameters.parameter(Self::parameter(arg));
     }
 }

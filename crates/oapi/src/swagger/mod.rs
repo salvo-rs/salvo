@@ -60,9 +60,8 @@ impl SwaggerUi {
     /// # use salvo_oapi::swagger::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-docs/openapi.json", salvo_oapi::OpenApi::new(
-    ///        salvo_oapi::Info::new("my application", "0.1.0"),
-    ///        salvo_oapi::Paths::new(),
-    /// ));
+    ///        salvo_oapi::Info::new("my application", "0.1.0")
+    ///     ).path(salvo_oapi::Paths::new()));
     /// ```
     ///
     /// Expose derived OpenAPI doc.
@@ -240,7 +239,7 @@ impl<'a> Url<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo::oapi::swaggerUrl;
+    /// # use salvo_oapi::swagger::Url;
     /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
     pub fn new(name: &'a str, url: &'a str) -> Self {
@@ -265,7 +264,7 @@ impl<'a> Url<'a> {
     ///
     /// Set "My Api" as primary.
     /// ```rust
-    /// # use salvo::oapi::swaggerUrl;
+    /// # use salvo_oapi::swagger::Url;
     /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {

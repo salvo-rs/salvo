@@ -24,27 +24,27 @@ use super::{PathType, PathTypeTree};
 /// Request body in path with all supported info. Where content type is treated as a String and expected
 /// to be xml.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///    request_body = (content = String, description = "foobar", content_type = "text/xml"),
 /// )]
 ///
 /// It is also possible to provide the request body type simply by providing only the content object type.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///    request_body = Foo,
 /// )]
 /// ```
 ///
 /// Or the request body content can also be an array as well by surrounding it with brackets `[..]`.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///    request_body = [Foo],
 /// )]
 /// ```
 ///
 /// To define optional request body just wrap the type in `Option<type>`.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///    request_body = Option<[Foo]>,
 /// )]
 /// ```

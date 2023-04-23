@@ -18,7 +18,7 @@ use crate::{Parameter, Parameters};
 pub struct Operation {
     /// List of tags used for grouping operations.
     ///
-    /// When used with derive [`#[salvo_oapi::path(...)]`][derive_path] attribute macro the default
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the default
     /// value used will be resolved from handler path provided in `#[openapi(paths(...))]` with
     /// [`#[derive(OpenApi)]`][derive_openapi] macro. If path resolves to `None` value `crate` will
     /// be used by default.
@@ -30,7 +30,7 @@ pub struct Operation {
 
     /// Short summary what [`Operation`] does.
     ///
-    /// When used with derive [`#[salvo_oapi::path(...)]`][derive_path] attribute macro the value
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the value
     /// is taken from **first line** of doc comment.
     ///
     /// [derive_path]: ../../attr.path.html
@@ -39,7 +39,7 @@ pub struct Operation {
 
     /// Long explanation of [`Operation`] behaviour. Markdown syntax is supported.
     ///
-    /// When used with derive [`#[salvo_oapi::path(...)]`][derive_path] attribute macro the
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the
     /// doc comment is used as value for description.
     ///
     /// [derive_path]: ../../attr.path.html
@@ -48,7 +48,7 @@ pub struct Operation {
 
     /// Unique identifier for the API [`Operation`]. Most typically this is mapped to handler function name.
     ///
-    /// When used with derive [`#[salvo_oapi::path(...)]`][derive_path] attribute macro the handler function
+    /// When used with derive [`#[salvo_oapi::endpoint(...)]`][derive_path] attribute macro the handler function
     /// name will be used by default.
     ///
     /// [derive_path]: ../../attr.path.html
@@ -133,7 +133,7 @@ impl Operation {
 
     /// Append parameter to [`Operation`] parameters.
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
-        self.parameters.append(parameter.into());
+        self.parameters.parameter(parameter.into());
         self
     }
 

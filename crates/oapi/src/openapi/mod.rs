@@ -115,7 +115,7 @@ impl OpenApi {
     /// ```
     /// # use salvo_oapi::{Info, Paths, OpenApi};
     /// #
-    /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"), Paths::new());
+    /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"));
     /// ```
     pub fn new(info: Info) -> Self {
         Self {

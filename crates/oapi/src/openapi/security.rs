@@ -10,16 +10,15 @@ use serde::{Deserialize, Serialize};
 /// OpenAPI [security requirement][security] object.
 ///
 /// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
-/// to execute the operation. They can be defined in [`#[salvo_oapi::path(...)]`][path] or in `#[openapi(...)]`
-/// of [`OpenApi`][openapi].
+/// to execute the operation. They can be defined in [`#[salvo_oapi::endpoint(...)]`][endpoint].
 ///
 /// Applying the security requirement to [`OpenApi`][openapi] will make it globally
-/// available to all operations. When applied to specific [`#[salvo_oapi::path(...)]`][path] will only
+/// available to all operations. When applied to specific [`#[salvo_oapi::endpoint(...)]`][endpoint] will only
 /// make the security requirements available for that operation. Only one of the requirements must be
 /// satisfied.
 ///
 /// [security]: https://spec.openapis.org/oas/latest.html#security-requirement-object
-/// [path]: ../../attr.path.html
+/// [endpoint]: ../../attr.endpoint.html
 /// [openapi]: ../../derive.OpenApi.html
 #[derive(Serialize, Deserialize, Debug, Ord, PartialOrd, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
@@ -86,9 +85,9 @@ impl SecurityRequirement {
 ///
 /// Create JWT header authentication.
 /// ```
-/// # use salvo_oapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
+/// # use salvo_oapi::security::{SecurityScheme, HttpAuthScheme, Http};
 /// SecurityScheme::Http(
-///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT")
+///     Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")
 /// );
 /// ```
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -217,7 +216,7 @@ impl Http {
     ///
     /// ```
     /// use salvo_oapi::security::{Http, HttpAuthScheme};
-    /// let http = Http::new().scheme(HttpAuthScheme::Basic();
+    /// let http = Http::new(HttpAuthScheme::Basic());
     /// ```
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
         self.scheme = scheme;
@@ -233,7 +232,7 @@ impl Http {
     /// Add JTW bearer format for security schema.
     /// ```
     /// # use salvo_oapi::security::{Http, HttpAuthScheme};
-    /// Http::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT");
+    /// Http::new(HttpAuthScheme::Bearer).bearer_format("JWT");
     /// ```
     pub fn bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
         if self.scheme == HttpAuthScheme::Bearer {

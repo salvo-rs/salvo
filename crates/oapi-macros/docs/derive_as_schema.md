@@ -20,7 +20,7 @@ level doc comments will resolve to object descriptions.
 
 ```
 /// This is a pet
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi_macros::AsSchema)]
 struct Pet {
     /// Name for your pet
     name: String,
@@ -488,7 +488,7 @@ enum Random {
 
 _**Add `title` to the enum.**_
 ```
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi_macros::AsSchema)]
 #[schema(title = "UserType")]
 enum UserType {
     Admin,
@@ -499,7 +499,7 @@ enum UserType {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi_macros::AsSchema)]
 struct Item {
     #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
@@ -522,7 +522,7 @@ fn custom_type() -> Object {
         .description("this is the description")
 }
 
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi_macros::AsSchema)]
 struct Value {
     #[schema(schema_with = custom_type)]
     id: String,
@@ -532,14 +532,14 @@ struct Value {
 _**Use `as` attribute to change the name and the path of the schema in the generated OpenAPI
 spec.**_
 ```
- #[derive(salvo_oapi::AsSchema)]
+ #[derive(salvo_oapi_macros::AsSchema)]
  #[schema(as = api::models::person::Person)]
  struct Person {
      name: String,
  }
 ```
 
-More examples for _`value_type`_ in [`AsParameters` derive docs][as_parameters].
+More examples for _`value_type`_ in [`AsParameters` derive docs][parameters].
 
 [to_schema]: trait.AsSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html

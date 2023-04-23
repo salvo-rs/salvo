@@ -3,7 +3,7 @@ fields.
 
 This is `#[derive]` implementation for [`AsParameters`][as_parameters] trait.
 
-Typically path parameters need to be defined within [`#[salvo_oapi::path(...params(...))]`][path_params] section
+Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...params(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
 Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
 within `params(...)` section if description or other than default configuration need to be given.
@@ -25,9 +25,9 @@ struct Query {
 }
 ```
 
-# AsParameters Container Attributes for `#[as_parameters(...)]`
+# AsParameters Container Attributes for `#[parameters(...)]`
 
-The following attributes are available for use in on the container attribute `#[as_parameters(...)]` for the struct
+The following attributes are available for use in on the container attribute `#[parameters(...)]` for the struct
 deriving `AsParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
@@ -37,7 +37,7 @@ deriving `AsParameters`:
 * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
    [`parameter::ParameterIn`][in_enum]. There is no default value, if this attribute is not
    supplied, then the value is determined by the `parameter_in_provider` in
-   [`AsParameters::as_parameters()`](trait.AsParameters.html#tymethod.as_parameters).
+   [`AsParameters::parameters()`](trait.AsParameters.html#tymethod.parameters).
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
@@ -175,8 +175,8 @@ struct Filter {
     age: Option<Vec<i32>>,
 }
 
-#[salvo_oapi::path(
-    params(PetPathArgs, Filter),
+#[salvo_oapi::endpoint(
+    parameters(PetPathArgs, Filter),
     responses(
         (status = 200, description = "success response")
     )
@@ -212,9 +212,7 @@ struct PetQuery {
     kind: PetKind
 }
 
-#[salvo_oapi::path(
-    get,
-    path = "/get_pet",
+#[salvo_oapi::endpoint(
     params(PetQuery),
     responses(
         (status = 200, description = "success response")

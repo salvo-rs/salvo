@@ -40,7 +40,7 @@ impl Parse for Response<'_> {
     }
 }
 
-/// Parsed representation of response attributes from `#[salvo_oapi::path]` attribute.
+/// Parsed representation of response attributes from `#[salvo_oapi::endpoint]` attribute.
 #[derive(Default, Debug)]
 pub struct ResponseTuple<'r> {
     pub status_code: ResponseStatus,
@@ -684,7 +684,7 @@ impl ToTokens for Responses<'_> {
     }
 }
 
-/// Parsed representation of response header defined in `#[salvo_oapi::path(..)]` attribute.
+/// Parsed representation of response header defined in `#[salvo_oapi::endpoint(..)]` attribute.
 ///
 /// Supported configuration format is `("x-my-header-name" = type, description = "optional description of header")`.
 /// The `= type` and the `description = ".."` are optional configurations thus so the same configuration
@@ -698,7 +698,7 @@ impl ToTokens for Responses<'_> {
 /// Example of 200 success response which does return nothing back in response body, but returns a
 /// new csrf token in response headers.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
 ///         (status = 200, description = "success response",
@@ -712,7 +712,7 @@ impl ToTokens for Responses<'_> {
 ///
 /// Example with default values.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
 ///         (status = 200, description = "success response",
@@ -726,7 +726,7 @@ impl ToTokens for Responses<'_> {
 ///
 /// Example with multiple headers with default values.
 /// ```text
-/// #[salvo_oapi::path(
+/// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
 ///         (status = 200, description = "success response",

@@ -1,9 +1,9 @@
 Generate responses with status codes what
-can be attached to the [`salvo_oapi::path`][path_as_responses].
+can be attached to the [`salvo_oapi::endpoint`][path_as_responses].
 
 This is `#[derive]` implementation of [`AsResponses`][as_responses] trait. [`derive@AsResponses`]
 can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
-[`salvo_oapi::path`][path_as_responses]. If _`struct`_ is decorated with [`derive@AsResponses`] it will be
+[`salvo_oapi::endpoint`][path_as_responses]. If _`struct`_ is decorated with [`derive@AsResponses`] it will be
 used to create a map of responses containing single response. Decorating _`enum`_ with
 [`derive@AsResponses`] will create a map of responses with a response for each variant of the _`enum`_.
 
@@ -77,9 +77,9 @@ It can also be overridden with _`description = "..."`_ attribute.
 
 # Examples
 
-_**Use `AsResponses` to define [`salvo_oapi::path`][path] responses.**_
+_**Use `AsResponses` to define [`salvo_oapi::endpoint`][path] responses.**_
 ```
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi_macros::AsSchema)]
 struct BadRequest {
     message: String,
 }
@@ -97,9 +97,7 @@ enum UserResponses {
     BadRequest(BadRequest),
 }
 
-#[salvo_oapi::path(
-    get,
-    path = "/api/user",
+#[salvo_oapi::endpoint(
     responses(
         UserResponses
     )
@@ -127,7 +125,7 @@ struct NotFound;
 
 _**Unnamed struct response with inlined response schema.**_
 ```
-# #[derive(salvo_oapi::AsSchema)]
+# #[derive(salvo_oapi_macros::AsSchema)]
 # struct Foo;
 #[derive(salvo_oapi::AsResponses)]
 #[response(status = 201)]
@@ -136,11 +134,11 @@ struct CreatedResponse(#[to_schema] Foo);
 
 _**Enum with multiple responses.**_
 ```
-# #[derive(salvo_oapi::AsResponse)]
+# #[derive(salvo_oapi_macros::AsResponse)]
 # struct Response {
 #     message: String,
 # }
-# #[derive(salvo_oapi::AsSchema)]
+# #[derive(salvo_oapi_macros::AsSchema)]
 # struct BadRequest {}
 #[derive(salvo_oapi::AsResponses)]
 enum UserResponses {

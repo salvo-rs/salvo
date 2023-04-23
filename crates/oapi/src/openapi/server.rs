@@ -21,18 +21,18 @@
 //!
 //! Create server with custom url using a builder.
 //! ```rust
-//! # use salvo_oapi::server::ServerBuilder;
-//! ServerBuilder::new().url("https://alternative.api.url.test/api").build();
+//! # use salvo_oapi::server::Server;
+//! Server::new("https://alternative.api.url.test/api").build();
 //! ```
 //!
 //! Create server with builder and variable substitution.
 //! ```rust
 //! # use salvo_oapi::server::{Server, ServerVariable};
-//! ServerBuilder::new().url("/api/{version}/{username}")
-//!     .parameter("version", ServerVariableBuilder::new()
+//! Server::new("/api/{version}/{username}")
+//!     .parameter("version", ServerVariable::new()
 //!         .enum_values(Some(["v1", "v2"]))
 //!         .default_value("v1"))
-//!     .parameter("username", ServerVariableBuilder::new()
+//!     .parameter("username", ServerVariable::new()
 //!         .default_value("the_user")).build();
 //! ```
 //!

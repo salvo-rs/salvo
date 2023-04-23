@@ -360,11 +360,7 @@ impl ToTokens for Parameter<'_> {
         });
         tokens.extend(if let Some(ref parameter_in) = self.container_attributes.parameter_in {
             parameter_in.into_token_stream()
-        } else {
-            quote! {
-                .parameter_in(parameter_in_provider().unwrap_or_default())
-            }
-        });
+        };
 
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });

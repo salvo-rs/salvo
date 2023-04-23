@@ -93,7 +93,7 @@ struct Pet {
 }
 ```
 
-Create an handler that would handle your business logic and add `path` proc attribute macro over it.
+Create an handler that would handle your business logic and add `endpoint` proc attribute macro over it.
 ```rust
 mod pet_api {
 #     use salvo_oapi::OpenApi;
@@ -108,18 +108,16 @@ mod pet_api {
     /// Get pet by id
     ///
     /// Get pet from database by pet id
-    #[salvo_oapi::path(
-        get,
-        path = "/pets/{id}",
+    #[salvo_oapi::endpoint(
         responses(
             (status = 200, description = "Pet found successfully", body = Pet),
             (status = NOT_FOUND, description = "Pet was not found")
         ),
         params(
-            ("id" = u64, Path, description = "Pet database id to get Pet for"),
+            ("id", Path, description = "Pet database id to get Pet for"),
         )
     )]
-    async fn get_pet_by_id(pet_id: u64) -> Pet {
+    async fn get_pet_by_id(id: Path<u64>) -> Pet {
         Pet {
             id: pet_id,
             age: None,
@@ -134,6 +132,7 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 ```rust
 # mod pet_api {
 #     use salvo_oapi::AsSchema;
+#     use salvo_oapi::extract::Path;
 #
 #     #[derive(AsSchema)]
 #     struct Pet {
@@ -145,9 +144,7 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 #     /// Get pet by id
 #     ///
 #     /// Get pet from database by pet id
-#     #[salvo_oapi::path(
-#         get,
-#         path = "/pets/{id}",
+#     #[salvo_oapi::endpoint(
 #         responses(
 #             (status = 200, description = "Pet found successfully", body = Pet),
 #             (status = 404, description = "Pet was not found")
@@ -156,7 +153,7 @@ Tie the component and the above api to the openapi schema with following `OpenAp
 #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 #         )
 #     )]
-#     async fn get_pet_by_id(pet_id: u64) -> Pet {
+#     async fn get_pet_by_id(id: Path<u64>) -> Pet {
 #         Pet {
 #             id: pet_id,
 #             age: None,

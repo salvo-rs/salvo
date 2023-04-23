@@ -17,13 +17,13 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 ///
 /// In simple case create config directly from url that points to the api doc json.
 /// ```rust
-/// # use salvo_oapi::swaggerConfig;
+/// # use salvo_oapi::swagger::Config;
 /// let config = Config::from("/api-doc.json");
 /// ```
 ///
 /// If there is multiple api docs to serve config can be also directly created with [`Config::new`]
 /// ```rust
-/// # use salvo_oapi::swaggerConfig;
+/// # use salvo_oapi::swagger::Config;
 /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
 /// ```
 ///
@@ -38,7 +38,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 ///
 /// With oauth config.
 /// ```rust
-/// # use salvo_oapi::swagger{Config, oauth};
+/// # use salvo_oapi::swagger::{Config, oauth};
 /// let config = Config::with_oauth_config(
 ///     ["/api-docs/openapi1.json", "/api-docs/openapi2.json"],
 ///     oauth::Config::new(),
@@ -224,7 +224,7 @@ impl<'a> Config<'a> {
     /// # Examples
     /// Create new config with 2 api doc urls.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
     /// ```
     pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
@@ -255,7 +255,7 @@ impl<'a> Config<'a> {
     ///
     /// Set external config url.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .config_url("http://url.to.external.config");
     /// ```
@@ -291,7 +291,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable query config.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .query_config_enabled(true);
     /// ```
@@ -313,7 +313,7 @@ impl<'a> Config<'a> {
     ///
     /// Disable the deep linking.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .deep_linking(false);
     /// ```
@@ -331,7 +331,7 @@ impl<'a> Config<'a> {
     ///
     /// Allow operation id to be shown.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_operation_id(true);
     /// ```
@@ -367,7 +367,7 @@ impl<'a> Config<'a> {
     ///
     /// Hide all the models.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_models_expand_depth(-1);
     /// ```
@@ -382,7 +382,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_expand_depth(1);
     /// ```
@@ -402,7 +402,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_rendering(r#"["example"*, "model"]"#);
     /// ```
@@ -419,7 +419,7 @@ impl<'a> Config<'a> {
     /// # Examples
     /// Enable request duration of the _**'Try it out'**_ requests.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_request_duration(true);
     /// ```
@@ -438,7 +438,7 @@ impl<'a> Config<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .doc_expansion(r#"["list"*, "full", "none"]"#);
     /// ```
@@ -459,7 +459,7 @@ impl<'a> Config<'a> {
     ///
     /// Enable filtering.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .filter(true);
     /// ```
@@ -477,7 +477,7 @@ impl<'a> Config<'a> {
     ///
     /// Display only 4 operations.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .max_displayed_tags(4);
     /// ```
@@ -566,7 +566,7 @@ impl<'a> Config<'a> {
     ///
     /// Add oauth redirect url.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .oauth2_redirect_url("http://my.oauth2.redirect.url");
     /// ```
@@ -685,7 +685,7 @@ impl<'a> Config<'a> {
     ///
     /// Persists authorization throughout browser close and refresh.
     /// ```rust
-    /// # use salvo_oapi::swaggerConfig;
+    /// # use salvo_oapi::swagger::Config;
     /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .persist_authorization(true);
     /// ```

@@ -1,5 +1,5 @@
 Generate reusable OpenAPI response what can be used
-in [`salvo_oapi::path`][path] or in [`OpenApi`][openapi].
+in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
 
 This is `#[derive]` implementation for [`AsResponse`][to_response] trait.
 
@@ -38,7 +38,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    field's type schema if it implements [`AsSchema`] derive macro.
 
    ```rust
-    # #[derive(salvo_oapi::AsSchema)]
+    # #[derive(salvo_oapi_macros::AsSchema)]
     # struct Person {
     #     name: String,
     # }
@@ -64,11 +64,11 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    if it implements [`AsSchema`] derive macro.
 
    ```rust
-    #[derive(salvo_oapi::AsSchema)]
+    #[derive(salvo_oapi_macros::AsSchema)]
     struct Admin {
         name: String,
     }
-    #[derive(salvo_oapi::AsSchema)]
+    #[derive(salvo_oapi_macros::AsSchema)]
     struct Admin2 {
         name: String,
         id: i32,
@@ -136,9 +136,7 @@ struct PersonResponse {
 #[openapi(components(responses(PersonResponse)))]
 struct Doc;
 
-#[salvo_oapi::path(
-    get,
-    path = "/api/person",
+#[salvo_oapi::endpoint(
     responses(
         (status = 200, response = PersonResponse)
     )
@@ -172,7 +170,7 @@ _**Create a response from named struct.**_
 
 _**Create inlined person list response.**_
 ```
- # #[derive(salvo_oapi::AsSchema)]
+ # #[derive(salvo_oapi_macros::AsSchema)]
  # struct Person {
  #     name: String,
  # }
