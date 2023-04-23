@@ -1,122 +1,68 @@
 use once_cell::sync::Lazy;
-use std::sync::Arc;
+use once_cell::sync::OnceCell;
 
-use salvo::affix;
-use salvo::http::header::{self, HeaderValue};
-use salvo::http::response::ResBody;
 use salvo::prelude::*;
 use salvo::size_limiter;
 
 use self::models::*;
 
 // use utoipa::OpenApi;
-use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
-};
-use utoipa_swagger_ui::Config;
+use salvo::oapi::extract::*;
+use salvo::oapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use salvo::oapi::swagger::SwaggerUi;
+use salvo::oapi::{Components, Info, OpenApi, Tag};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
+static API_DOC: OnceCell<OpenApi> = OnceCell::new();
 
 #[handler]
 async fn hello(res: &mut Response) {
     res.render("Hello");
 }
 
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        list_todos,
-        create_todo,
-        delete_todo,
-        update_todo,
-    ),
-    components(
-        schemas(models::Todo, models::TodoError)
-    ),
-    modifiers(&SecurityAddon),
-    tags(
-        (name = "todo", description = "Todo items management endpoints.")
-    )
-)]
-struct ApiDoc;
-
-struct SecurityAddon;
-
-impl Modify for SecurityAddon {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
-        components.add_security_scheme(
-            "api_key",
-            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
-        )
-    }
-}
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    Server::new(acceptor).serve(route()).await;
-}
+    let router = Router::new().get(hello).push(
+        Router::with_path("api").push(
+            Router::with_path("todos")
+                .hoop(size_limiter::max_size(1024 * 16))
+                .get(list_todos)
+                .post(create_todo)
+                .push(Router::with_path("<id>").patch(update_todo).delete(delete_todo)),
+        ),
+    );
 
-pub(crate) fn route() -> Router {
-    let config = Arc::new(Config::from("/api-doc/openapi.json"));
-    Router::new()
-        .get(hello)
-        .push(
-            Router::with_path("api").push(
-                Router::with_path("todos")
-                    .hoop(size_limiter::max_size(1024 * 16))
-                    .get(list_todos)
-                    .post(create_todo)
-                    .push(Router::with_path("<id>").put(update_todo).delete(delete_todo)),
-            ),
-        )
+    let doc = OpenApi::new(Info::new("abc", "0.0.1"))
+        .components(Components::new().add_security_scheme(
+            "api_key",
+            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
+        ))
+        .tags(vec![Tag::default()
+            .name("todo")
+            .description("Todo items management endpoints.")])
+        .merge_router(&router);
+    API_DOC.set(doc).unwrap();
+
+    let router = router
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
-        .push(
-            Router::with_path("/swagger-ui/<**>")
-                .hoop(affix::inject(config))
-                .get(serve_swagger),
-        )
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 
 #[handler]
 pub async fn openapi_json(res: &mut Response) {
-    res.render(Json(ApiDoc::openapi()))
+    res.render(Json(API_DOC.get()))
 }
 
-#[handler]
-pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Response) {
-    let config = depot.obtain::<Arc<Config>>().unwrap();
-    let path = req.uri().path();
-    let tail = path.strip_prefix("/swagger-ui/").unwrap();
-
-    match utoipa_swagger_ui::serve(tail, config.clone()) {
-        Ok(swagger_file) => swagger_file
-            .map(|file| {
-                res.headers_mut()
-                    .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
-                res.set_body(ResBody::Once(file.bytes.to_vec().into()));
-            })
-            .unwrap_or_else(|| {
-                res.set_status_code(StatusCode::NOT_FOUND);
-            }),
-        Err(_error) => {
-            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/todos",
+#[endpoint(
     responses(
         (status = 200, description = "List all todos successfully", body = [Todo])
     )
 )]
-#[handler]
 pub async fn list_todos(req: &mut Request, res: &mut Response) {
     let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
     let todos = STORE.lock().await;
@@ -129,16 +75,13 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
     res.render(Json(todos));
 }
 
-#[utoipa::path(
-        post,
-        path = "/api/todos",
-        request_body = Todo,
-        responses(
-            (status = 201, description = "Todo created successfully", body = Todo),
-            (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
-        )
-    )]
-#[handler]
+#[endpoint(
+    request_body = Todo,
+    responses(
+        (status = 201, description = "Todo created successfully", body = Todo),
+        (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
+    )
+)]
 pub async fn create_todo(req: &mut Request, res: &mut Response) {
     let new_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?new_todo, "create todo");
@@ -157,26 +100,23 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
     res.set_status_code(StatusCode::CREATED);
 }
 
-#[utoipa::path(
-        put,
-        path = "/api/todos/{id}",
-        responses(
-            (status = 200, description = "Todo modified successfully"),
-            (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
-        ),
-        params(
-            ("id" = i32, Path, description = "Id of todo item to modify")
-        )
-    )]
-#[handler]
-pub async fn update_todo(req: &mut Request, res: &mut Response) {
-    let id = req.param::<u64>("id").unwrap();
+#[endpoint(
+    request_body = Todo,
+    responses(
+        (status = 200, description = "Todo modified successfully"),
+        (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
+    ),
+    parameters(
+        ("id", Path, description = "Id of todo item to modify")
+    )
+)]
+pub async fn update_todo(id: Path<u64>, req: &mut Request, res: &mut Response) {
     let updated_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter_mut() {
-        if todo.id == id {
+        if todo.id == *id {
             *todo = updated_todo;
             res.set_status_code(StatusCode::OK);
             return;
@@ -187,22 +127,19 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
     res.set_status_code(StatusCode::NOT_FOUND);
 }
 
-#[utoipa::path(
-    delete,
-    path = "/api/todos/{id}",
+#[endpoint(
     responses(
         (status = 200, description = "Todo deleted successfully"),
         (status = 401, description = "Unauthorized to delete Todo"),
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
-    params(
+    parameters(
         ("id" = i32, Path, description = "Id of todo item to delete")
     ),
     security(
         ("api_key" = [])
     )
 )]
-#[handler]
 pub async fn delete_todo(req: &mut Request, res: &mut Response) {
     let id = req.param::<u64>("id").unwrap();
     tracing::debug!(id = ?id, "delete todo");
@@ -222,9 +159,9 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 }
 
 mod models {
+    use salvo::oapi::AsSchema;
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::ToSchema;
 
     pub type Db = Mutex<Vec<Todo>>;
 
@@ -232,7 +169,7 @@ mod models {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Serialize, Deserialize, ToSchema)]
+    #[derive(Serialize, Deserialize, AsSchema)]
     pub(super) enum TodoError {
         /// Happens when Todo item already exists
         Config(String),
@@ -240,7 +177,7 @@ mod models {
         NotFound(String),
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, AsSchema)]
     pub struct Todo {
         #[schema(example = 1)]
         pub id: u64,

@@ -125,6 +125,11 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_otel as otel;
 }
+cfg_feature! {
+    #![feature ="oapi"]
+    #[doc(no_inline)]
+    pub use salvo_oapi as oapi;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
@@ -192,5 +197,9 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="serve-static"]
         pub use salvo_serve_static::{StaticFile, StaticDir};
+    }
+    cfg_feature! {
+        #![feature ="oapi"]
+        pub use salvo_oapi::endpoint;
     }
 }

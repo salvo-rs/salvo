@@ -17,7 +17,7 @@ name = "example-otel-server2"
 path = "src/server2.rs"
 
 [dependencies]
-salvo = { path = "../../crates/salvo", features = ["affix", "otel"] }
+salvo = { workspace = true, features = ["affix", "otel"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

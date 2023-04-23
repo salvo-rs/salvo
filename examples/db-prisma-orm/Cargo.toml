@@ -14,7 +14,7 @@ prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust
 prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="e12e693", default-features = false, features = ["migrations", "sqlite"]}
 
 serde = { version = "1.0.144", features = ["derive"] }
-salvo = { path = "../../crates/salvo" }
+salvo = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1.58"
 

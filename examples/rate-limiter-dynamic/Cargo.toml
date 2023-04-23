@@ -5,8 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-salvo = { path = "../../crates/salvo" }
-salvo-rate-limiter = { path = "../../crates/rate-limiter" }
+salvo = { workspace = true, features = ["rate-limiter"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
