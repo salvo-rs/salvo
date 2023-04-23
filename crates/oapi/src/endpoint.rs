@@ -7,6 +7,10 @@ pub struct Endpoint {
     pub components: Components,
 }
 
+pub trait EndpointModifier {
+    fn modify(compontents: &mut Components, operation: &mut Operation, arg: Option<&str>);
+}
+
 pub struct EndpointRegistry {
     pub type_id: fn() -> TypeId,
     pub creator: fn() -> Endpoint,

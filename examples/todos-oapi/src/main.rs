@@ -10,6 +10,7 @@ use self::models::*;
 use salvo::oapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use salvo::oapi::swagger::SwaggerUi;
 use salvo::oapi::{Components, Info, OpenApi, Tag};
+use salvo::oapi::extract::*;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
 static API_DOC: OnceCell<OpenApi> = OnceCell::new();
@@ -105,17 +106,16 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
     parameters(
-        ("id" = i32, Path, description = "Id of todo item to modify")
+        ("id", Path, description = "Id of todo item to modify")
     )
 )]
-pub async fn update_todo(req: &mut Request, res: &mut Response) {
-    let id = req.param::<u64>("id").unwrap();
+pub async fn update_todo(id: Path<u64>, req: &mut Request, res: &mut Response) {
     let updated_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter_mut() {
-        if todo.id == id {
+        if todo.id == *id {
             *todo = updated_todo;
             res.set_status_code(StatusCode::OK);
             return;

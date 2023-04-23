@@ -1,6 +1,9 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
+use std::collections::BTreeSet;
+use std::cmp::{Ord, Ordering, PartialOrd};
+
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -8,7 +11,7 @@ use super::{
     response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
-use crate::Parameter;
+use crate::{Parameter, Parameters};
 
 /// Implements [OpenAPI Operation Object][operation] object.
 ///
@@ -25,8 +28,8 @@ pub struct Operation {
     ///
     /// [derive_path]: ../../attr.path.html
     /// [derive_openapi]: ../../derive.OpenApi.html
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 
     /// Short summary what [`Operation`] does.
     ///
@@ -60,8 +63,8 @@ pub struct Operation {
     pub external_docs: Option<ExternalDocs>,
 
     /// List of applicable parameters for this [`Operation`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Vec<Parameter>>,
+    #[serde(skip_serializing_if = "Parameters::is_empty")]
+    pub parameters: Parameters,
 
     /// Optional request body for this [`Operation`].
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -83,12 +86,13 @@ pub struct Operation {
     ///
     /// Security for the [`Operation`] can be set to optional by adding empty security with
     /// [`SecurityRequirement::default`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<SecurityRequirement>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(rename = "security")]
+    pub securities: Vec<SecurityRequirement>,
 
     /// Alternative [`Server`]s for this [`Operation`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Server>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub servers: Vec<Server>,
 }
 
 impl Operation {
@@ -99,19 +103,12 @@ impl Operation {
 
     /// Add or change tags of the [`Operation`].
     pub fn tags<I: IntoIterator<Item = String>>(mut self, tags: I) -> Self {
-        set_value!(self tags Some(tags.into_iter().collect()))
+        set_value!(self tags tags.into_iter().collect())
     }
 
     /// Append tag to [`Operation`] tags.
     pub fn add_tag<S: Into<String>>(mut self, tag: S) -> Self {
-        let tag_string = tag.into();
-        match self.tags {
-            Some(ref mut tags) => tags.push(tag_string),
-            None => {
-                self.tags = Some(vec![tag_string]);
-            }
-        }
-
+        self.tags.push(tag.into());
         self
     }
 
@@ -132,27 +129,13 @@ impl Operation {
 
     /// Add or change parameters of the [`Operation`].
     pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(mut self, parameters: I) -> Self {
-        self.parameters = Some({
-            if let Some(mut params) = self.parameters {
-                params.extend(parameters.into_iter().map(|parameter| parameter.into()));
-                params
-            } else {
-                parameters.into_iter().map(|parameter| parameter.into()).collect()
-            }
-        });
-
+        self.parameters.extend(parameters.into_iter().map(|parameter| parameter.into()));
         self
     }
 
     /// Append parameter to [`Operation`] parameters.
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
-        match self.parameters {
-            Some(ref mut parameters) => parameters.push(parameter.into()),
-            None => {
-                self.parameters = Some(vec![parameter.into()]);
-            }
-        }
-
+        self.parameters.append(parameter.into());
         self
     }
 
@@ -183,33 +166,24 @@ impl Operation {
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
     pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(mut self, securities: I) -> Self {
-        set_value!(self security Some(securities.into_iter().collect()))
+        set_value!(self securities securities.into_iter().collect())
     }
 
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
     pub fn add_security(mut self, security: SecurityRequirement) -> Self {
-        if let Some(ref mut securities) = self.security {
-            securities.push(security);
-        } else {
-            self.security = Some(vec![security]);
-        }
+        self.securities.push(security);
 
         self
     }
 
     /// Add or change list of [`Server`]s of the [`Operation`].
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        set_value!(self servers Some(servers.into_iter().collect()))
+        set_value!(self servers servers.into_iter().collect())
     }
 
     /// Append a new [`Server`] to the [`Operation`] servers.
     pub fn add_server(mut self, server: Server) -> Self {
-        if let Some(ref mut servers) = self.servers {
-            servers.push(server);
-        } else {
-            self.servers = Some(vec![server]);
-        }
-
+        self.servers.push(server);
         self
     }
 }

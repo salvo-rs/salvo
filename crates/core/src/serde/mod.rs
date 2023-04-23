@@ -2,17 +2,17 @@ use std::borrow::Cow;
 use std::hash::Hash;
 use std::iter::Iterator;
 
-pub(crate) use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
+pub use serde::de::value::{Error as ValError, MapDeserializer, SeqDeserializer};
 use serde::de::{
     Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error as DeError, IntoDeserializer, VariantAccess, Visitor,
 };
 use serde::forward_to_deserialize_any;
 
 mod request;
-pub(crate) use request::from_request;
+pub use request::from_request;
 
 #[inline]
-pub(crate) fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>
+pub fn from_str_map<'de, I, T, K, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, V)> + 'de,
     T: Deserialize<'de>,
@@ -24,7 +24,7 @@ where
 }
 
 #[inline]
-pub(crate) fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, ValError>
+pub fn from_str_multi_map<'de, I, T, K, C, V>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = (K, C)> + 'de,
     T: Deserialize<'de>,
@@ -38,7 +38,6 @@ where
     T::deserialize(MapDeserializer::new(iter))
 }
 
-#[inline]
 pub(crate) fn from_str_multi_val<'de, I, T, C>(input: I) -> Result<T, ValError>
 where
     I: IntoIterator<Item = C> + 'de,
@@ -50,7 +49,7 @@ where
 }
 
 #[inline]
-pub(crate) fn from_str_val<'de, I, T>(input: I) -> Result<T, ValError>
+pub fn from_str_val<'de, I, T>(input: I) -> Result<T, ValError>
 where
     I: Into<Cow<'de, str>>,
     T: Deserialize<'de>,

@@ -8,7 +8,12 @@ use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
-fn metadata(oapi: &Ident, attr: EndpointAttr, name: &Ident, mut modifiers: Vec<TokenStream>) -> syn::Result<TokenStream> {
+fn metadata(
+    oapi: &Ident,
+    attr: EndpointAttr,
+    name: &Ident,
+    mut modifiers: Vec<TokenStream>,
+) -> syn::Result<TokenStream> {
     let tfn = Ident::new(&format!("__salvo_oapi_endpoint_type_id_{}", name), Span::call_site());
     let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
@@ -161,24 +166,27 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
+                    let idv = id.to_token_stream().to_string();
 
                     extract_ts.push(quote! {
-                        let #id: #ty = match req.extract().await {
-                            Ok(data) => data,
+                        let #id: #ty = match <#ty as #oapi::Extractible>::extract_with_arg(req, #idv).await {
+                            Ok(data) => {
+                                data
+                            },
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
                                 res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
-                                    "Extract data failed."
+                                    "extract data failed"
                                 ));
                                 return;
                             }
                         };
                     });
                     modifiers.push(quote! {
-                        <#ty as #oapi::endpoint::Modifier<#oapi::oapi::Components>>::modify(&mut operation);
+                         <#ty as #oapi::oapi::EndpointModifier>::modify(&mut components, &mut operation, Some(#idv));
                     });
                 } else {
-                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
+                    return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
             }
             InputType::Receiver(_) => {

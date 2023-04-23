@@ -62,14 +62,25 @@
 //!
 //! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
-use serde::Deserialize;
-
 /// Metadata types.
 pub mod metadata;
 pub use metadata::Metadata;
 
+use serde::Deserialize;
+use async_trait::async_trait;
+
+use crate::http::{ParseError, Request};
+use crate::serde::from_request;
+
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
+#[async_trait]
 pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
+    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+        from_request(req, Self::metadata()).await
+    }
+    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
+        Self::extract(req).await
+    }
 }

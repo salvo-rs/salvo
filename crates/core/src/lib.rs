@@ -27,7 +27,8 @@ pub mod handler;
 pub mod http;
 pub mod routing;
 pub mod runtimes;
-pub(crate) mod serde;
+#[doc(hidden)]
+pub mod serde;
 mod server;
 mod service;
 pub mod writer;

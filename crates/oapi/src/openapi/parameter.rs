@@ -1,10 +1,37 @@
 //! Implements [OpenAPI Parameter Object][parameter] types.
 //!
 //! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
+use std::ops::{Deref, DerefMut};
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{set_value, Deprecated, RefOr, Required, Schema};
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
+pub struct Parameters(Vec<Parameter>);
+impl Parameters {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn append(&mut self, parameter: Parameter) {
+        let exist_item = self
+            .0
+            .iter_mut()
+            .find(|item| item.name == parameter.name && item.parameter_in == item.parameter_in);
+
+        if let Some(exist_item) = exist_item {
+            exist_item.fill_with(parameter);
+        } else {
+            self.0.push(parameter);
+        }
+    }
+    pub fn extend(&mut self, parameters: impl IntoIterator<Item = Parameter>) {
+        for parameter in parameters {
+            self.append(parameter);
+        }
+    }
+}
 
 /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
 ///
@@ -89,6 +116,49 @@ impl Parameter {
     /// Add in of the [`Parameter`].
     pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
         set_value!(self parameter_in parameter_in)
+    }
+
+    pub fn fill_with(&mut self, other: Parameter) -> bool {
+        let Parameter {
+            name,
+            parameter_in,
+            description,
+            required,
+            deprecated,
+            schema,
+            style,
+            explode,
+            allow_reserved,
+            example,
+        } = other;
+        if name != self.name || parameter_in != self.parameter_in {
+            return false;
+        }
+        if self.description.is_none() {
+            self.description = description;
+        }
+
+        self.required = required;
+
+        if self.deprecated.is_none() {
+            self.deprecated = deprecated;
+        }
+        if self.schema.is_none() {
+            self.schema = schema;
+        }
+        if self.style.is_none() {
+            self.style = style;
+        }
+        if self.explode.is_none() {
+            self.explode = explode;
+        }
+        if self.allow_reserved.is_none() {
+            self.allow_reserved = allow_reserved;
+        }
+        if self.example.is_none() {
+            self.example = example;
+        }
+        true
     }
 
     /// Add required declaration of the [`Parameter`]. If [`ParameterIn::Path`] is

@@ -21,7 +21,6 @@ use serde::{Deserialize, Serialize};
 /// [security]: https://spec.openapis.org/oas/latest.html#security-requirement-object
 /// [path]: ../../attr.path.html
 /// [openapi]: ../../derive.OpenApi.html
-#[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug, Ord, PartialOrd, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
     #[serde(flatten)]

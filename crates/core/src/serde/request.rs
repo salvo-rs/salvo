@@ -17,7 +17,7 @@ use crate::Request;
 
 use super::{CowValue, VecValue};
 
-pub(crate) async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
+pub async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
 where
     T: Deserialize<'de>,
 {

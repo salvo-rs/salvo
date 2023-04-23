@@ -68,10 +68,12 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
+    let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]

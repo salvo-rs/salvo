@@ -11,7 +11,7 @@ pub use self::{
     header::Header,
     info::{Contact, Info, License},
     operation::Operation,
-    parameter::{Parameter, ParameterIn, ParameterStyle},
+    parameter::{Parameter, Parameters, ParameterIn, ParameterStyle},
     path::{PathItem, PathItemType},
     request_body::RequestBody,
     response::{Response, Responses},

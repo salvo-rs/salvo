@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
@@ -104,21 +104,22 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
+                    let idv = id.to_token_stream().to_string();
 
                     extract_ts.push(quote! {
-                        let #id: #ty = match req.extract().await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
                                 res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
-                                    "Extract data failed."
+                                    "extract data failed"
                                 ));
                                 return;
                             }
                         };
                     });
                 } else {
-                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
+                    return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
             }
             InputType::Receiver(_) => {

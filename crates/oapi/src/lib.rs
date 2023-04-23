@@ -3,9 +3,10 @@
 mod openapi;
 pub use openapi::*;
 mod endpoint;
-pub use endpoint::{Endpoint, EndpointRegistry};
+pub use endpoint::{Endpoint, EndpointRegistry, EndpointModifier};
 mod router;
 pub mod swagger;
+pub mod extract;
 
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
@@ -397,8 +398,12 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 pub trait AsParameters {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn as_parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
+    fn parameters(parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter>;
 }
+pub trait AsParameter {
+    fn parameter(arg: Option<&str>) -> Parameter;
+}
+
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
 /// responses, to be used in operation.

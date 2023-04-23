@@ -25,7 +25,6 @@ uuid = { workspace = true, optional = true }
 inventory.workspace = true
 
 [dev-dependencies]
-salvo-oapi = { workspace = true, default-features = false }
 serde_json.workspace = true
 serde.workspace = true
 paste.workspace = true

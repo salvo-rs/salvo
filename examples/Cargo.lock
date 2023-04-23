@@ -997,6 +997,7 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7efb37c3e1ccb1ff97164ad95ac1606e8ccd35b3fa0a7d99a304c7f4a428cc24"
 dependencies = [
+ "aes-gcm",
  "base64 0.21.0",
  "hmac 0.12.1",
  "percent-encoding",
@@ -2093,17 +2094,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "example-test"
-version = "0.1.0"
-dependencies = [
- "salvo",
- "serde",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "example-tls-native-tls"
 version = "0.1.0"
 dependencies = [
@@ -2180,6 +2170,19 @@ dependencies = [
 
 [[package]]
 name = "example-todos-oapi"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "salvo",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "example-todos-test"
 version = "0.1.0"
 dependencies = [
  "once_cell",
