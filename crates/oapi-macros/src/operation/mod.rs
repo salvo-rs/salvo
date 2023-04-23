@@ -52,9 +52,7 @@ impl<'a> Operation<'a> {
     pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
         let mut modifiers = vec![];
         let oapi = crate::oapi_crate();
-        println!("==================================0");
         if let Some(request_body) = &self.request_body {
-            println!("==================================1");
             if let Some(content) = &request_body.content {
                 match &content {
                     PathType::Ref(path) => {
