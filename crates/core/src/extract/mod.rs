@@ -66,8 +66,8 @@
 pub mod metadata;
 pub use metadata::Metadata;
 
-use serde::Deserialize;
 use async_trait::async_trait;
+use serde::Deserialize;
 
 use crate::http::{ParseError, Request};
 use crate::serde::from_request;

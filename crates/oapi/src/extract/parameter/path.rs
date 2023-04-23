@@ -1,5 +1,5 @@
-use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Display, Formatter};
+use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
@@ -62,7 +62,10 @@ where
     }
 }
 
-impl<T> fmt::Debug for Path<T> where T: fmt::Debug {
+impl<T> fmt::Debug for Path<T>
+where
+    T: fmt::Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Path")
             .field("name", &self.name)
@@ -83,12 +86,9 @@ where
         panic!("path parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Path<T>, ParseError> {
-        let value = req.param(arg).ok_or_else(|| {
-            ParseError::other(format!(
-                "path parameter {} not found or convert to type failed",
-                arg
-            ))
-        })?;
+        let value = req
+            .param(arg)
+            .ok_or_else(|| ParseError::other(format!("path parameter {} not found or convert to type failed", arg)))?;
         Ok(Path {
             name: arg.to_string(),
             value,

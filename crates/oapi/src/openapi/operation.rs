@@ -1,8 +1,8 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
-use std::collections::BTreeSet;
 use std::cmp::{Ord, Ordering, PartialOrd};
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -129,7 +129,8 @@ impl Operation {
 
     /// Add or change parameters of the [`Operation`].
     pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(mut self, parameters: I) -> Self {
-        self.parameters.extend(parameters.into_iter().map(|parameter| parameter.into()));
+        self.parameters
+            .extend(parameters.into_iter().map(|parameter| parameter.into()));
         self
     }
 

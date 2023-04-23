@@ -1,5 +1,5 @@
-use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Display, Formatter};
+use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
@@ -62,7 +62,10 @@ where
     }
 }
 
-impl<T> fmt::Debug for Query<T> where T: fmt::Debug {
+impl<T> fmt::Debug for Query<T>
+where
+    T: fmt::Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Query")
             .field("name", &self.name)
@@ -83,12 +86,9 @@ where
         panic!("query parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Query<T>, ParseError> {
-        let value = req.query(arg).ok_or_else(|| {
-            ParseError::other(format!(
-                "query parameter {} not found or convert to type failed",
-                arg
-            ))
-        })?;
+        let value = req
+            .query(arg)
+            .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
         Ok(Query {
             name: arg.to_string(),
             value,
