@@ -24,7 +24,7 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 pub struct SerdeValue {
     pub skip: bool,
     pub rename: Option<String>,
-    pub default: bool,
+    pub is_default: bool,
     pub flatten: bool,
     pub skip_serializing_if: bool,
     pub double_option: bool,
@@ -61,7 +61,7 @@ impl SerdeValue {
                             value.rename = Some(literal)
                         };
                     }
-                    TokenTree::Ident(ident) if ident == "default" => value.default = true,
+                    TokenTree::Ident(ident) if ident == "default" => value.is_default = true,
                     _ => (),
                 }
 
@@ -101,7 +101,7 @@ pub enum SerdeEnumRepr {
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
     pub enum_repr: SerdeEnumRepr,
-    pub default: bool,
+    pub is_default: bool,
 }
 
 impl SerdeContainer {
@@ -160,7 +160,7 @@ impl SerdeContainer {
                 self.enum_repr = SerdeEnumRepr::Untagged;
             }
             "default" => {
-                self.default = true;
+                self.is_default = true;
             }
             _ => {}
         }
@@ -206,8 +206,8 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
                 if value.flatten {
                     acc.flatten = value.flatten;
                 }
-                if value.default {
-                    acc.default = value.default;
+                if value.is_default {
+                    acc.is_default = value.is_default;
                 }
                 if value.double_option {
                     acc.double_option = value.double_option;
@@ -225,8 +225,8 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse).unwrap_or_abort())
         .fold(Some(SerdeContainer::default()), |acc, value| {
             acc.map(|mut acc| {
-                if value.default {
-                    acc.default = value.default;
+                if value.is_default {
+                    acc.is_default = value.is_default;
                 }
                 match value.enum_repr {
                     SerdeEnumRepr::ExternallyTagged => {}

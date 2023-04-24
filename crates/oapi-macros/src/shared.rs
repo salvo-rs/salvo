@@ -18,7 +18,7 @@ pub(crate) enum InputType<'a> {
 pub(crate) fn oapi_crate() -> syn::Ident {
     match crate_name("salvo-oapi") {
         Ok(oapi) => match oapi {
-            FoundCrate::Itself => syn::Ident::new("crate", Span::call_site()),
+            FoundCrate::Itself => syn::Ident::new("salvo_oapi", Span::call_site()),
             FoundCrate::Name(name) => syn::Ident::new(&name, Span::call_site()),
         },
         Err(_) => Ident::new("salvo", Span::call_site()),

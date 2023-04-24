@@ -48,7 +48,6 @@ impl TryFrom<&Field> for FieldInfo {
 struct ExtractStructInfo {
     default_sources: Vec<SourceInfo>,
     rename_all: Option<String>,
-    internal: bool,
 }
 impl Parse for ExtractStructInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -63,8 +62,6 @@ impl Parse for ExtractStructInfo {
                 input.parse::<Token![=]>()?;
                 let expr = input.parse::<Expr>()?;
                 extract.rename_all = Some(expr_lit_value(&expr)?);
-            } else if id == "internal" {
-                extract.internal = true;
             } else {
                 return Err(input.error("unexpected attribute"));
             }
@@ -164,8 +161,6 @@ struct ExtractibleArgs {
     generics: Generics,
     fields: Vec<FieldInfo>,
 
-    internal: bool,
-
     default_sources: Vec<SourceInfo>,
     rename_all: Option<String>,
 }
@@ -198,13 +193,11 @@ impl ExtractibleArgs {
         let ExtractStructInfo {
             default_sources,
             rename_all,
-            internal,
         } = extract.unwrap_or_default();
         Ok(Self {
             ident,
             generics,
             fields,
-            internal,
             default_sources,
             rename_all,
         })
@@ -263,7 +256,7 @@ fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
 
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
-    let salvo = salvo_crate(args.internal);
+    let salvo = salvo_crate();
     let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
 
     let name = &args.ident;

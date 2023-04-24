@@ -13,6 +13,8 @@ pub use hyper;
 pub use salvo_macros::handler;
 
 pub use salvo_macros as macros;
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo_core;
 
 #[macro_use]
 mod cfg;

@@ -29,21 +29,82 @@
 //! ```rust
 //! # use salvo_oapi::server::{Server, ServerVariable};
 //! Server::new("/api/{version}/{username}")
-//!     .parameter("version", ServerVariable::new()
+//!     .add_variable("version", ServerVariable::new()
 //!         .enum_values(["v1", "v2"])
 //!         .default_value("v1"))
-//!     .parameter("username", ServerVariable::new()
+//!     .add_variable("username", ServerVariable::new()
 //!         .default_value("the_user"));
 //! ```
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
 use std::cmp::{Ord, Ordering, PartialOrd};
-use std::{collections::BTreeMap, iter};
+use std::collections::{BTreeMap, BTreeSet};
+use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
 use super::set_value;
+
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
+
+pub struct Servers(pub BTreeSet<Server>);
+impl Deref for Servers {
+    type Target = BTreeSet<Server>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Servers {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Servers {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn server<S: Into<Server>>(mut self, server: S) -> Self {
+        self.insert(server);
+        self
+    }
+    pub fn insert<S: Into<Server>>(&mut self, server: S) {
+        let server = server.into();
+        let exist_server = self.0.iter().find(|s| s.url == server.url).cloned();
+        if let Some(mut exist_server) = exist_server {
+            let Server {
+                description,
+                mut variables,
+                ..
+            } = server;
+            exist_server.variables.append(&mut variables);
+            if !description.is_none() {
+                exist_server.description = description;
+            }
+            self.0.insert(exist_server);
+        } else {
+            self.0.insert(server);
+        }
+    }
+    pub fn append(&mut self, other: &mut Servers) {
+        let servers = std::mem::replace(&mut other.0, Default::default());
+        for server in servers {
+            self.insert(server);
+        }
+    }
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = Server>,
+    {
+        for server in iter.into_iter() {
+            self.insert(server);
+        }
+    }
+}
 
 /// Represents target server object. It can be used to alter server connection for
 /// _**path operations**_.
@@ -67,8 +128,8 @@ pub struct Server {
     pub description: Option<String>,
 
     /// Optional map of variable name and its substitution value used in [`Server::url`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub variables: Option<BTreeMap<String, ServerVariable>>,
+    #[serde(skip_serializing_if = "ServerVariables::is_empty")]
+    pub variables: ServerVariables,
 }
 
 impl Ord for Server {
@@ -126,15 +187,65 @@ impl Server {
     ///   `{username}` substitution then the name should be `username`.
     /// * `parameter` Use [`ServerVariable`] to define how the parameter is being substituted
     ///   within the url.
-    pub fn parameter<N: Into<String>, V: Into<ServerVariable>>(mut self, name: N, variable: V) -> Self {
-        match self.variables {
-            Some(ref mut variables) => {
-                variables.insert(name.into(), variable.into());
-            }
-            None => self.variables = Some(BTreeMap::from_iter(iter::once((name.into(), variable.into())))),
-        }
+    pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(mut self, name: N, variable: V) -> Self {
+        self.variables.insert(name.into(), variable.into());
 
         self
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq, Debug)]
+pub struct ServerVariables(pub BTreeMap<String, ServerVariable>);
+impl Deref for ServerVariables {
+    type Target = BTreeMap<String, ServerVariable>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for ServerVariables {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl ServerVariables {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(mut self, key: K, variable: V) -> Self {
+        self.insert(key, variable);
+        self
+    }
+    pub fn insert<K: Into<String>, V: Into<ServerVariable>>(&mut self, key: K, variable: V) {
+        let key = key.into();
+        let mut variable = variable.into();
+        self.0
+            .entry(key.clone())
+            .and_modify(|item| {
+                if !variable.description.is_none() {
+                    item.description = variable.description.take();
+                }
+                item.default_value = variable.default_value.clone();
+                item.enum_values.append(&mut variable.enum_values);
+            })
+            .or_insert(variable);
+    }
+    pub fn append(&mut self, other: &mut ServerVariables) {
+        let variables = std::mem::replace(&mut other.0, Default::default());
+        for (key, variable) in variables {
+            self.insert(key, variable);
+        }
+    }
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (String, ServerVariable)>,
+    {
+        for (key, variable) in iter.into_iter() {
+            self.insert(key, variable);
+        }
     }
 }
 
@@ -154,8 +265,8 @@ pub struct ServerVariable {
 
     /// Enum values can be used to limit possible options for substitution. If enum values is used
     /// the [`ServerVariable::default_value`] must contain one of the enum values.
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    enum_values: Option<Vec<String>>,
+    #[serde(rename = "enum", skip_serializing_if = "BTreeSet::is_empty")]
+    enum_values: BTreeSet<String>,
 }
 
 impl ServerVariable {
@@ -175,7 +286,7 @@ impl ServerVariable {
 
     /// Add or change possible values used to substitute parameter.
     pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(mut self, enum_values: I) -> Self {
-        set_value!(self enum_values Some(enum_values.into_iter().map(|value| value.into()).collect()))
+        set_value!(self enum_values enum_values.into_iter().map(|value| value.into()).collect())
     }
 }
 
@@ -207,11 +318,11 @@ mod tests {
     test_fn! {
     create_server_with_builder_and_variable_substitution:
     Server::new("/api/{version}/{username}")
-        .parameter("version", ServerVariable::new()
+        .add_variable("version", ServerVariable::new()
             .enum_values(["v1", "v2"])
             .description("api version")
             .default_value("v1"))
-        .parameter("username", ServerVariable::new()
+        .add_variable("username", ServerVariable::new()
             .default_value("the_user"));
     r###"{
   "url": "/api/{version}/{username}",

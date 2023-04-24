@@ -172,8 +172,8 @@ impl OneOf {
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
-    pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
-        set_value!(self discriminator discriminator)
+    pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
+        set_value!(self discriminator Some(discriminator))
     }
 
     /// Add or change nullable flag for [`Object`].
@@ -1172,7 +1172,7 @@ mod tests {
                         .required("name"),
                 ),
             )])
-            .responses_from_iter(vec![("200", Response::new("Okay"))])
+            .extend_responses(vec![("200", Response::new("Okay"))])
             .security_scheme("TLS", SecurityScheme::MutualTls { description: None });
 
         let serialized_components = serde_json::to_string(&components).unwrap();

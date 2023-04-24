@@ -26,6 +26,7 @@ inventory.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true
+salvo_core.workspace = true
 salvo-oapi.workspace = true
 serde_json.workspace = true
 serde.workspace = true

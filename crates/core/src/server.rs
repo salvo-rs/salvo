@@ -256,11 +256,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_server() {
-        #[handler(internal)]
+        #[handler]
         async fn hello() -> Result<&'static str, ()> {
             Ok("Hello World")
         }
-        #[handler(internal)]
+        #[handler]
         async fn json(res: &mut Response) {
             #[derive(Serialize, Debug)]
             struct User {

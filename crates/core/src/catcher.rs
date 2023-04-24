@@ -289,7 +289,7 @@ mod tests {
         }
     }
 
-    #[handler(internal)]
+    #[handler]
     async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Some(StatusCode::NOT_FOUND) = res.status_code() {
             res.render("Custom 404 Error Page");
@@ -299,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_error() {
-        #[handler(internal)]
+        #[handler]
         async fn handle_custom() -> Result<(), CustomError> {
             Err(CustomError)
         }
@@ -320,7 +320,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_catcher() {
-        #[handler(internal)]
+        #[handler]
         async fn hello() -> &'static str {
             "Hello World"
         }

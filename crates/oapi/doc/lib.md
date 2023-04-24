@@ -124,6 +124,7 @@ Sapid has support for [http](https://crates.io/crates/http) `StatusCode` in resp
 Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
 ```rust
 # mod pet_api {
+#     use salvo_core::prelude::*;
 #     use salvo_oapi::AsSchema;
 #     use salvo_oapi::extract::Path;
 #

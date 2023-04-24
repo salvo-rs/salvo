@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{set_value, Operation, Parameter, Server};
+use super::{set_value, Operation, Operations, Parameter, Parameters, Server, Servers};
 
 /// Implements [OpenAPI Path Object][paths] types.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
@@ -34,13 +34,27 @@ impl Paths {
     }
     pub fn insert<K: Into<String>, V: Into<PathItem>>(&mut self, key: K, value: V) {
         let key = key.into();
-        if !self.0.contains_key(&key) {
-            self.0.insert(key, value.into());
-        }
+        let mut value = value.into();
+        self.0
+            .entry(key.clone())
+            .and_modify(|item| {
+                if !value.summary.is_none() {
+                    item.summary = value.summary.take();
+                }
+                if !value.description.is_none() {
+                    item.description = value.description.take();
+                }
+                item.servers.append(&mut value.servers);
+                item.parameters.append(&mut value.parameters);
+                item.operations.append(&mut value.operations);
+            })
+            .or_insert(value);
     }
     pub fn append(&mut self, other: &mut Paths) {
-        other.0.append(&mut self.0);
-        std::mem::swap(&mut self.0, &mut other.0);
+        let items = std::mem::replace(&mut other.0, Default::default());
+        for item in items {
+            self.insert(item.0, item.1);
+        }
     }
 
     pub fn extend<I, K, V>(&mut self, iter: I)
@@ -73,19 +87,19 @@ pub struct PathItem {
 
     /// Alternative [`Server`] array to serve all [`Operation`]s in this [`PathItem`] overriding
     /// the global server array.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Server>>,
+    #[serde(skip_serializing_if = "Servers::is_empty")]
+    pub servers: Servers,
 
     /// List of [`Parameter`]s common to all [`Operation`]s in this [`PathItem`]. Parameters cannot
     /// contain duplicate parameters. They can be overridden in [`Operation`] level but cannot be
     /// removed there.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Vec<Parameter>>,
+    #[serde(skip_serializing_if = "Parameters::is_empty")]#[serde(flatten)]
+    pub parameters: Parameters,
 
     /// Map of operations in this [`PathItem`]. Operations can hold only one operation
     /// per [`PathItemType`].
     #[serde(flatten)]
-    pub operations: BTreeMap<PathItemType, Operation>,
+    pub operations: Operations,
 }
 
 impl PathItem {
@@ -94,8 +108,20 @@ impl PathItem {
         let operations = BTreeMap::from_iter(iter::once((path_item_type, operation.into())));
 
         Self {
-            operations,
+            operations: Operations(operations),
             ..Default::default()
+        }
+    }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.operations.append(&mut other.operations);
+        self.servers.append(&mut other.servers);
+        self.parameters.append(&mut other.parameters);
+        if other.description.is_none() {
+            self.description = other.description.take();
+        }
+        if !other.summary.is_none() {
+            self.summary = other.summary.take();
         }
     }
 
@@ -121,12 +147,12 @@ impl PathItem {
     /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`] overriding
     /// the global server array.
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        set_value!(self servers Some(servers.into_iter().collect()))
+        set_value!(self servers Servers(servers.into_iter().collect()))
     }
 
     /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
     pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
-        set_value!(self parameters Some(parameters.into_iter().collect()))
+        set_value!(self parameters Parameters(parameters.into_iter().collect()))
     }
 }
 

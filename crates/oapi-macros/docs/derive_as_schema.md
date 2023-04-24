@@ -152,7 +152,7 @@ See [`Xml`][xml] for more details.
 
 # Partial `#[serde(...)]` attributes support
 
-AsSchema derive has partial support for [serde attributes]. These supported attributes will reflect to the
+`AsSchema` derive has partial support for [serde attributes]. These supported attributes will reflect to the
 generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
 be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 

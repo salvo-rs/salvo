@@ -125,11 +125,21 @@ impl ToTokens for AsParameters {
             })
             .collect::<Array<Parameter>>();
 
+        let salvo = crate::salvo_crate();
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
-                fn as_parameters() -> #oapi::oapi::Parameters {
+                fn parameters() -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
+                }
+            }
+            
+            #[#salvo::async_trait]
+            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
+                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, arg: Option<&str>) {
+                    for parameter in Self::parameter(arg) {
+                        operation.parameters.insert(parameter);
+                    }
                 }
             }
         });
@@ -355,9 +365,7 @@ impl ToTokens for Parameter<'_> {
         let name = super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
-        tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new()
-            .name(#name)
-        });
+        tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
         if let Some(ref parameter_in) = self.container_attributes.parameter_in {
             tokens.extend(parameter_in.into_token_stream());
         }

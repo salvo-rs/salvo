@@ -52,8 +52,8 @@ pub struct Encoding {
 
 impl Encoding {
     /// Set the content type. See [`Encoding::content_type`].
-    pub fn content_type<S: Into<String>>(mut self, content_type: Option<S>) -> Self {
-        set_value!(self content_type content_type.map(Into::into))
+    pub fn content_type<S: Into<String>>(mut self, content_type: S) -> Self {
+        set_value!(self content_type Some(content_type.into()))
     }
 
     /// Add a [`Header`]. See [`Encoding::headers`].
@@ -64,17 +64,17 @@ impl Encoding {
     }
 
     /// Set the style [`ParameterStyle`]. See [`Encoding::style`].
-    pub fn style(mut self, style: Option<ParameterStyle>) -> Self {
-        set_value!(self style style)
+    pub fn style(mut self, style: ParameterStyle) -> Self {
+        set_value!(self style Some(style))
     }
 
     /// Set the explode. See [`Encoding::explode`].
-    pub fn explode(mut self, explode: Option<bool>) -> Self {
-        set_value!(self explode explode)
+    pub fn explode(mut self, explode: bool) -> Self {
+        set_value!(self explode Some(explode))
     }
 
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
-    pub fn allow_reserved(mut self, allow_reserved: Option<bool>) -> Self {
-        set_value!(self allow_reserved allow_reserved)
+    pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
+        set_value!(self allow_reserved Some(allow_reserved))
     }
 }

@@ -156,6 +156,7 @@ _**Demonstrate [`AsParameters`][as_parameters] usage with the `#[as_parameters(.
 be used as a path query, and inlining a schema query field:**_
 ```
 use serde::Deserialize;
+use salvo_core::prelude::*;
 use salvo_oapi::{AsParameters, AsSchema};
 
 #[derive(Deserialize, AsSchema)]

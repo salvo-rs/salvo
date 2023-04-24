@@ -7,7 +7,6 @@ use std::ops::{Deref, DerefMut};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::AsResponses;
 use crate::{Ref, RefOr};
 
 use super::{header::Header, set_value, Content};
@@ -49,8 +48,7 @@ impl Responses {
         self.0.insert(code.into(), response.into());
     }
     pub fn append(&mut self, other: &mut Responses) {
-        other.0.append(&mut self.0);
-        std::mem::swap(&mut self.0, &mut other.0);
+        self.0.append(&mut other.0);
     }
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
@@ -64,11 +62,11 @@ impl Responses {
             .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
     }
 
-    /// Add responses from a type that implements [`AsResponses`].
-    pub fn responses_from_as_responses<I: AsResponses>(mut self) -> Self {
-        self.0.extend(I::responses());
-        self
-    }
+    // Add responses from a type that implements [`AsResponses`].
+    // pub fn responses_from_as_responses<I: AsResponses>(mut self) -> Self {
+    //     self.0.extend(I::responses());
+    //     self
+    // }
 }
 
 impl From<Responses> for BTreeMap<String, RefOr<Response>> {

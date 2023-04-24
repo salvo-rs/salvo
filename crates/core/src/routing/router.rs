@@ -443,7 +443,7 @@ mod tests {
     use crate::test::TestClient;
     use crate::Response;
 
-    #[handler(internal)]
+    #[handler]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {

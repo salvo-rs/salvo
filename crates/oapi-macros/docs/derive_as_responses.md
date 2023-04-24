@@ -79,6 +79,7 @@ It can also be overridden with _`description = "..."`_ attribute.
 
 _**Use `AsResponses` to define [`salvo_oapi::endpoint`][path] responses.**_
 ```
+# use salvo_core::prelude::*;
 #[derive(salvo_oapi::AsSchema)]
 struct BadRequest {
     message: String,

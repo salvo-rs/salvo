@@ -141,7 +141,7 @@ impl ToTokens for AsResponses {
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let responses = if responses.len() > 0 {
-            Some(quote!( .responses_from_iter(#responses)))
+            Some(quote!( .extend(#responses)))
         } else {
             None
         };

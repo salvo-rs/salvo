@@ -306,7 +306,7 @@ impl NamedStructSchema<'_> {
             .as_ref()
             .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
             .unwrap_or(false);
-        let serde_default = container_rules.as_ref().map(|rules| rules.default).unwrap_or(false);
+        let serde_default = container_rules.as_ref().map(|rules| rules.is_default).unwrap_or(false);
 
         if schema_default || serde_default {
             let features_inner = field_features.get_or_insert(vec![]);

@@ -1,6 +1,9 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
+use std::collections::BTreeMap;
+use std::ops::{DerefMut, Deref};
+
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -8,7 +11,48 @@ use super::{
     response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
-use crate::{Parameter, Parameters};
+use crate::{Parameter, Parameters, Servers, PathItemType};
+
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
+pub struct Operations(pub BTreeMap<PathItemType, Operation>);
+impl Deref for Operations {
+    type Target = BTreeMap<PathItemType, Operation>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Operations {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Operations {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(mut self, item_type: K, operation: O) -> Self {
+        self.insert(item_type, operation);
+        self
+    }
+    pub fn insert<K: Into<PathItemType>, O: Into<Operation>>(&mut self, item_type: K, operation: O) {
+        self.0.insert(item_type.into(), operation.into());
+    }
+    pub fn append(&mut self, other: &mut Operations) {
+        self.0.append(&mut other.0);
+    }
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (PathItemType, Operation)>,
+    {
+        for (item_type, operation) in iter {
+            self.insert(item_type, operation);
+        }
+    }
+}
 
 /// Implements [OpenAPI Operation Object][operation] object.
 ///
@@ -88,8 +132,8 @@ pub struct Operation {
     pub securities: Vec<SecurityRequirement>,
 
     /// Alternative [`Server`]s for this [`Operation`].
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub servers: Vec<Server>,
+    #[serde(skip_serializing_if = "Servers::is_empty")]
+    pub servers: Servers,
 }
 
 impl Operation {
@@ -157,8 +201,8 @@ impl Operation {
     }
 
     /// Add or change deprecated status of the [`Operation`].
-    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        set_value!(self deprecated deprecated)
+    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
+        set_value!(self deprecated Some(deprecated))
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
@@ -174,12 +218,12 @@ impl Operation {
 
     /// Add or change list of [`Server`]s of the [`Operation`].
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        set_value!(self servers servers.into_iter().collect())
+        set_value!(self servers Servers(servers.into_iter().collect()))
     }
 
     /// Append a new [`Server`] to the [`Operation`] servers.
     pub fn add_server(mut self, server: Server) -> Self {
-        self.servers.push(server);
+        self.servers.insert(server);
         self
     }
 }
@@ -208,18 +252,18 @@ mod tests {
     }
 
     #[test]
-    fn operation_builder_security() {
+    fn operation_security() {
         let security_requirement1 = SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = Operation::new()
             .add_security(security_requirement1)
             .add_security(security_requirement2);
 
-        assert!(operation.securities.is_empty());
+        assert!(!operation.securities.is_empty());
     }
 
     #[test]
-    fn operation_builder_server() {
+    fn operation_server() {
         let server1 = Server::new("/api");
         let server2 = Server::new("/admin");
         let operation = Operation::new().add_server(server1).add_server(server2);

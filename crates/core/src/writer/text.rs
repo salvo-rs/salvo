@@ -79,7 +79,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_str() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> &'static str {
             "hello"
         }
@@ -93,7 +93,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_string() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> String {
             "hello".to_owned()
         }
@@ -106,7 +106,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_plain_text() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> Text<&'static str> {
             Text::Plain("hello")
         }
@@ -120,7 +120,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_json_text() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> Text<&'static str> {
             Text::Json(r#"{"hello": "world"}"#)
         }
@@ -136,7 +136,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_html_text() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> Text<&'static str> {
             Text::Html("<html><body>hello</body></html>")
         }

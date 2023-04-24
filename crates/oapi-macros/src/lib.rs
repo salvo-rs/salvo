@@ -58,9 +58,7 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let stream = Schema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into();
-    println!("{}", stream);
-    stream
+    Schema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -77,8 +75,8 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(AsParameters, attributes(parameter, as_parameters))]
-#[doc = include_str!("../docs/parameters.md")]
-pub fn as_parameters(input: TokenStream) -> TokenStream {
+#[doc = include_str!("../docs/derive_as_parameters.md")]
+pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -87,20 +85,18 @@ pub fn as_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let as_parameters = AsParameters {
+    AsParameters {
         attrs,
         generics,
         data,
         ident,
-    };
-
-    as_parameters.to_token_stream().into()
+    }.to_token_stream().into()
 }
 
 #[proc_macro_error]
 #[proc_macro_derive(AsResponse, attributes(response, content, to_schema))]
-#[doc = include_str!("../docs/as_response.md")]
-pub fn as_response(input: TokenStream) -> TokenStream {
+#[doc = include_str!("../docs/derive_as_response.md")]
+pub fn derive_as_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -108,10 +104,8 @@ pub fn as_response(input: TokenStream) -> TokenStream {
         data,
         ..
     } = syn::parse_macro_input!(input);
-
-    let response = AsResponse::new(attrs, &data, generics, ident);
-
-    response.to_token_stream().into()
+    
+    AsResponse::new(attrs, &data, generics, ident).to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -124,16 +118,16 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
         generics,
         data,
         ..
-    } = syn::parse_macro_input!(input);
+    } = syn::parse_macro_input!(input);   
 
-    let as_responses = AsResponses {
+    let stream = AsResponses {
         attributes: attrs,
         ident,
         generics,
         data,
-    };
-
-    as_responses.to_token_stream().into()
+    }.to_token_stream().into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro]

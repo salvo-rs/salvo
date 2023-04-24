@@ -289,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service() {
-        #[handler(internal)]
+        #[handler]
         async fn before1(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before1"));
             if req.query::<String>("b").unwrap_or_default() == "1" {
@@ -298,7 +298,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[handler(internal)]
+        #[handler]
         async fn before2(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before2"));
             if req.query::<String>("b").unwrap_or_default() == "2" {
@@ -307,7 +307,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[handler(internal)]
+        #[handler]
         async fn before3(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
             res.render(Text::Plain("before3"));
             if req.query::<String>("b").unwrap_or_default() == "3" {
@@ -316,7 +316,7 @@ mod tests {
                 ctrl.call_next(req, depot, res).await;
             }
         }
-        #[handler(internal)]
+        #[handler]
         async fn hello() -> Result<&'static str, ()> {
             Ok("hello")
         }

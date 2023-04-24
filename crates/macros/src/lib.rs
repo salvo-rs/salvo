@@ -35,10 +35,9 @@ mod shared;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn handler(args: TokenStream, input: TokenStream) -> TokenStream {
-    let internal = !args.is_empty();
+pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
-    match handler::generate(internal, item) {
+    match handler::generate(item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -71,7 +70,7 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            handler::generate(false, item).unwrap().to_string(),
+            handler::generate(item).unwrap().to_string(),
             quote! {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
@@ -112,7 +111,7 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            handler::generate(false, item).unwrap().to_string(),
+            handler::generate(item).unwrap().to_string(),
             quote! {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
@@ -160,7 +159,7 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            handler::generate(false, item).unwrap().to_string(),
+            handler::generate(item).unwrap().to_string(),
             quote! {
                 #[handler]
                 impl Hello {

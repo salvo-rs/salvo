@@ -190,8 +190,8 @@ impl Parameter {
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
-    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        set_value!(self deprecated deprecated)
+    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
+        set_value!(self deprecated Some(deprecated))
     }
 
     /// Add or change [`Parameter`]s schema.

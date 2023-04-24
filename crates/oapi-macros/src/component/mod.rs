@@ -23,8 +23,8 @@ pub mod serde;
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
 #[inline]
 fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&SerdeValue>) -> bool {
-    container_rules.as_ref().map(|rule| rule.default).unwrap_or(false)
-        || field_rule.as_ref().map(|rule| rule.default).unwrap_or(false)
+    container_rules.as_ref().map(|rule| rule.is_default).unwrap_or(false)
+        || field_rule.as_ref().map(|rule| rule.is_default).unwrap_or(false)
 }
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes

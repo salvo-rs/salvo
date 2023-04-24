@@ -136,7 +136,7 @@ impl Components {
         self.response(name, response)
     }
 
-    pub fn responses_from_iter<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
+    pub fn extend_responses<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         responses: I,
     ) -> Self {

@@ -14,6 +14,8 @@ mod cfg;
 pub use salvo_core as core;
 #[doc(no_inline)]
 pub use salvo_core::*;
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo;
 
 cfg_feature! {
     #![feature ="affix"]

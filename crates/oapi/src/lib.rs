@@ -11,6 +11,9 @@ pub mod swagger;
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
 
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo_oapi;
+
 /// Trait for implementing OpenAPI Schema object.
 ///
 /// Generated schemas can be referenced or reused in path operations.
