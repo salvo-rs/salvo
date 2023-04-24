@@ -345,9 +345,10 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
+/// use serde::Deserialize;
 /// use salvo_oapi::AsParameters;
 ///
-/// #[derive(AsParameters)]
+/// #[derive(Deserialize, AsParameters)]
 /// struct PetParams {
 ///     /// Id of pet
 ///     id: i64,
@@ -414,17 +415,16 @@ pub trait AsParameter {
 /// }
 ///
 /// impl AsResponses for MyResponse {
-///     fn responses() -> BTreeMap<String, RefOr<Response>> {
+///     fn responses() -> Responses {
 ///         Responses::new()
 ///             .response("200", Response::new("Ok"))
 ///             .response("404", Response::new("Not Found"))
-///             .into()
 ///     }
 /// }
 /// ```
 pub trait AsResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::Response>>;
+    fn responses() -> Responses;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be

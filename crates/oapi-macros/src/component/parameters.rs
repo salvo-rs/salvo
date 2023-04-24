@@ -109,24 +109,36 @@ impl ToTokens for AsParameters {
         let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
         let source_from = if let Some( Feature::ParameterIn(features::ParameterIn(parameter_in))) = parameter_in {
             match parameter_in {
-                ParameterIn::Query => quote!{  #salvo::extract::SourceFrom::Query },
-                ParameterIn::Header => quote!{  #salvo::extract::SourceFrom::Header },
-                ParameterIn::Path => quote!{ #salvo::extract::SourceFrom::Path },
-                ParameterIn::Cookie => quote!{  #salvo::extract::SourceFrom::Cookie },
+                ParameterIn::Query => quote!{  #salvo::extract::metadata::SourceFrom::Query },
+                ParameterIn::Header => quote!{  #salvo::extract::metadata::SourceFrom::Header },
+                ParameterIn::Path => quote!{ #salvo::extract::metadata::SourceFrom::Param },
+                ParameterIn::Cookie => quote!{  #salvo::extract::metadata::SourceFrom::Cookie },
             }
         } else {
-            quote!{ #salvo::extract::SourceFrom::Query }
+            quote!{ #salvo::extract::metadata::SourceFrom::Query }
         };
-        let default_source = quote!{ #salvo::extract::Source::new(#salvo::extract::SourceFrom::#source_from, #salvo::extract::SourceFormat::MultiMap) };
+        let default_source = quote!{ #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceFormat::MultiMap) };
         let fields = self
         .get_struct_fields(&names.as_ref())
         .enumerate()
-        .map(|(_, field)| {
-            quote!{ #salvo::extract::Field{
-                name: #field,
+        .map(|(index, field)| {
+            let name = if let Some(ident) = field.ident.as_ref() {
+                ident.to_string()
+            } else if let Some(name) = names.as_ref().and_then(|names|names.get(index)) {
+                name.to_string()
+            } else {
+                abort! {
+                    field,
+                    "tuple structs are not supported";
+                    help = "consider using a struct with named fields instead, or use `#[as_parameters(names(\"...\"))]` to specify a name for each field",
+                }
+            };
+            quote!{ #salvo::extract::metadata::Field{
+                name: #name,
                 sources: vec![],
                 aliases: vec![],
                 metadata: None,
+                rename: None,
             }}
         })
         .collect::<Vec<_>>();
@@ -158,19 +170,19 @@ impl ToTokens for AsParameters {
             .collect::<Array<Parameter>>();
 
 
-            let rename_all = rename_all.as_ref().and_then(|feature| match feature {
+            let rename_all = rename_all.as_ref().map(|feature| match feature {
                 Feature::RenameAll(RenameAll(rename_rule)) => match rename_rule {
-                    RenameRule::Lower => Some(quote!{ #salvo::extract::RenameRule::LowerCase }),
-                    RenameRule::Upper => Some(quote!{ #salvo::extract::RenameRule::UpperCase }),
-                    RenameRule::Camel => Some(quote!{ #salvo::extract::RenameRule::CamelCase }),
-                    RenameRule::Snake => Some(quote!{ #salvo::extract::RenameRule::SnakeCase }),
-                    RenameRule::ScreamingSnake => Some(quote!{ #salvo::extract::RenameRule::ScreamingSnakeCase }),
-                    RenameRule::Pascal => Some(quote!{ #salvo::extract::RenameRule::LowerCase }),
-                    RenameRule::Kebab => Some(quote!{ #salvo::extract::RenameRule::KebabCase }),
-                    RenameRule::ScreamingKebab => Some(quote!{ #salvo::extract::RenameRule::ScreamingKebabCase }),
+                    RenameRule::Lower => quote!{ Some(#salvo::extract::metadata::RenameRule::LowerCase) },
+                    RenameRule::Upper => quote!{ Some(#salvo::extract::metadata::RenameRule::UpperCase) },
+                    RenameRule::Camel => quote!{ Some(#salvo::extract::metadata::RenameRule::CamelCase) },
+                    RenameRule::Snake => quote!{ Some(#salvo::extract::metadata::RenameRule::SnakeCase) },
+                    RenameRule::ScreamingSnake => quote!{ Some(#salvo::extract::metadata::RenameRule::ScreamingSnakeCase) },
+                    RenameRule::Pascal => quote!{ Some(#salvo::extract::metadata::RenameRule::LowerCase) },
+                    RenameRule::Kebab => quote!{ Some(#salvo::extract::metadata::RenameRule::KebabCase) },
+                    RenameRule::ScreamingKebab => quote!{ Some(#salvo::extract::metadata::RenameRule::ScreamingKebabCase) },
                 },
-                _ => None,
-            });
+                _ => quote!{None},
+            }).unwrap_or_else(|| quote!{None});
             let name = ident.to_string();
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
@@ -182,29 +194,26 @@ impl ToTokens for AsParameters {
             #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
                 fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, arg: Option<&str>) {
-                    for parameter in Self::parameters(arg) {
+                    for parameter in Self::parameters() {
                         operation.parameters.insert(parameter);
                     }
                 }
             }
             #[#salvo::async_trait]
-            impl #de_impl_generics #salvo::Extractible<'de> for #ident #ty_generics #where_clause
-            where
-                T: serde::Deserialize<'de>,
-            {
-                fn metadata() -> &'de Metadata {
-                    Metadata {
+            impl #de_impl_generics #salvo::Extractible<'de> for #ident #ty_generics #where_clause {
+                fn metadata() -> &'de #salvo::extract::Metadata {
+                    &#salvo::extract::Metadata {
                         name: #name,
-                        default_sources: #default_source,
+                        default_sources: vec![#default_source],
                         fields: vec![#(#fields),*],
                         rename_all: #rename_all,
                     }
                 }
-                async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+                async fn extract(req: &'de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Path<T>, ParseError> {
-                    Self::extract(req)
+                async fn extract_with_arg(req: &'de mut #salvo::Request, _arg: &str) -> Result<Self, #salvo::http::ParseError> {
+                    Self::extract(req).await
                 }
             }
         });

@@ -27,6 +27,14 @@ impl DerefMut for Operations {
         &mut self.0
     }
 }
+impl IntoIterator for Operations {
+    type Item = (PathItemType, Operation);
+    type IntoIter = <BTreeMap<PathItemType, Operation> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 impl Operations {
     pub fn new() -> Self {
         Default::default()
@@ -201,8 +209,8 @@ impl Operation {
     }
 
     /// Add or change deprecated status of the [`Operation`].
-    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
-        set_value!(self deprecated Some(deprecated))
+    pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
+        set_value!(self deprecated Some(deprecated.into()))
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].

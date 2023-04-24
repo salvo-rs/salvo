@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AsResponse, AsSchema, RefOr, Response, Schema, SecurityScheme};
+use crate::{AsResponse, AsSchema, RefOr, Response, Responses, Schema, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.
@@ -31,7 +31,7 @@ pub struct Components {
     /// [response]: https://spec.openapis.org/oas/latest.html#response-object
     /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub responses: BTreeMap<String, RefOr<Response>>,
+    pub responses: Responses,
 
     /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
     ///
@@ -145,7 +145,6 @@ impl Components {
                 .into_iter()
                 .map(|(name, response)| (name.into(), response.into())),
         );
-
         self
     }
 

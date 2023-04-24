@@ -127,6 +127,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
 
 _**Use reusable response in operation handler.**_
 ```
+use salvo_core::http::{header::CONTENT_TYPE, HeaderValue};
 use salvo_core::prelude::*;
 use salvo_oapi::{AsSchema, AsResponse, endpoint};
 
@@ -154,6 +155,8 @@ fn get_person() -> PersonResponse {
 
 _**Create a response from named struct.**_
 ```
+use salvo_oapi::{AsSchema, AsResponse};
+
  /// This is description
  ///
  /// It will also be used in `AsSchema` if present

@@ -37,7 +37,7 @@ mod enum_variant;
 mod features;
 pub mod xml;
 
-pub struct Schema<'a> {
+pub struct AsSchema<'a> {
     ident: &'a Ident,
     attributes: &'a [Attribute],
     generics: &'a Generics,
@@ -46,7 +46,7 @@ pub struct Schema<'a> {
     vis: &'a Visibility,
 }
 
-impl<'a> Schema<'a> {
+impl<'a> AsSchema<'a> {
     const TO_SCHEMA_LIFETIME: &'static str = "'__s";
     pub fn new(
         data: &'a Data,
@@ -72,7 +72,7 @@ impl<'a> Schema<'a> {
     }
 }
 
-impl ToTokens for Schema<'_> {
+impl ToTokens for AsSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let ident = self.ident;
@@ -86,7 +86,7 @@ impl ToTokens for Schema<'_> {
 
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let life = &Lifetime::new(Schema::TO_SCHEMA_LIFETIME, Span::call_site());
+        let life = &Lifetime::new(AsSchema::TO_SCHEMA_LIFETIME, Span::call_site());
 
         let schema_ty: Type = parse_quote!(#ident #ty_generics);
         let schema_children = &*TypeTree::from_type(&schema_ty).children.unwrap_or_default();

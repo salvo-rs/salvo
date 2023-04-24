@@ -34,6 +34,15 @@ impl DerefMut for Responses {
     }
 }
 
+impl IntoIterator for Responses {
+    type Item = (String, RefOr<Response>);
+    type IntoIter = <BTreeMap<String, RefOr<Response>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl Responses {
     pub fn new() -> Self {
         Default::default()
@@ -52,7 +61,7 @@ impl Responses {
     }
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
-    pub fn extend<I, C, R>(mut self, iter: I)
+    pub fn extend<I, C, R>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (C, R)>,
         C: Into<String>,

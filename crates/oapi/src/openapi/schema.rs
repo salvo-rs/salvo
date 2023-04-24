@@ -808,8 +808,8 @@ impl Array {
     }
 
     /// Set [`Xml`] formatting for [`Array`].
-    pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        set_value!(self xml xml)
+    pub fn xml(mut self, xml: Xml) -> Self {
+        set_value!(self xml Some(xml))
     }
 
     /// Add or change nullable flag for [`Object`].

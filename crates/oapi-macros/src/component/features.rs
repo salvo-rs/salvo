@@ -169,7 +169,13 @@ impl Feature {
 impl ToTokens for Feature {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let feature = match &self {
-            Feature::Default(default) => quote! { .default(#default) },
+            Feature::Default(default) => {
+                if let Some(default) = &default.0 {
+                    quote! { .default_value(#default) }
+                } else {
+                    quote! {}
+                }
+            }
             Feature::Example(example) => quote! { .example(#example) },
             Feature::XmlAttr(xml) => quote! { .xml(#xml) },
             Feature::Format(format) => quote! { .format(#format) },

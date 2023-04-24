@@ -8,6 +8,16 @@ use super::{set_value, Deprecated, RefOr, Required, Schema};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
 pub struct Parameters(pub Vec<Parameter>);
+
+impl IntoIterator for Parameters {
+    type Item = Parameter;
+    type IntoIter = <Vec<Parameter> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl Parameters {
     pub fn new() -> Self {
         Default::default()
@@ -190,8 +200,8 @@ impl Parameter {
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
-    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
-        set_value!(self deprecated Some(deprecated))
+    pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
+        set_value!(self deprecated Some(deprecated.into()))
     }
 
     /// Add or change [`Parameter`]s schema.

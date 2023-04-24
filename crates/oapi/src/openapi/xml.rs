@@ -53,36 +53,36 @@ impl Xml {
     /// Add [`Xml::name`] to xml object.
     ///
     /// Builder style chainable consuming add name method.
-    pub fn name<S: Into<Cow<'static, str>>>(mut self, name: Option<S>) -> Self {
-        set_value!(self name name.map(|name| name.into()))
+    pub fn name<S: Into<Cow<'static, str>>>(mut self, name: S) -> Self {
+        set_value!(self name Some(name.into()))
     }
 
     /// Add [`Xml::namespace`] to xml object.
     ///
     /// Builder style chainable consuming add namespace method.
-    pub fn namespace<S: Into<Cow<'static, str>>>(mut self, namespace: Option<S>) -> Self {
-        set_value!(self namespace namespace.map(|namespace| namespace.into()))
+    pub fn namespace<S: Into<Cow<'static, str>>>(mut self, namespace: S) -> Self {
+        set_value!(self namespace Some(namespace.into()))
     }
 
     /// Add [`Xml::prefix`] to xml object.
     ///
     /// Builder style chainable consuming add prefix method.
-    pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: Option<S>) -> Self {
-        set_value!(self prefix prefix.map(|prefix| prefix.into()))
+    pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: S) -> Self {
+        set_value!(self prefix Some(prefix.into()))
     }
 
     /// Mark [`Xml`] object as attribute. See [`Xml::attribute`]
     ///
     /// Builder style chainable consuming add attribute method.
-    pub fn attribute(mut self, attribute: Option<bool>) -> Self {
-        set_value!(self attribute attribute)
+    pub fn attribute(mut self, attribute: bool) -> Self {
+        set_value!(self attribute Some(attribute))
     }
 
     /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`]
     ///
     /// Builder style chainable consuming add wrapped method.
-    pub fn wrapped(mut self, wrapped: Option<bool>) -> Self {
-        set_value!(self wrapped wrapped)
+    pub fn wrapped(mut self, wrapped: bool) -> Self {
+        set_value!(self wrapped Some(wrapped))
     }
 }
 

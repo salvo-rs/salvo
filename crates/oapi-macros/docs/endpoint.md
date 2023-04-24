@@ -18,7 +18,7 @@ used as _`description`_.
 ///
 /// All lines of the doc comment will be included to operation description.
 #[salvo_oapi::endpoint()]
-fn operation() {}
+fn endpoint() {}
 ```
 
 # Path Attributes
@@ -397,6 +397,7 @@ async fn get_pet_by_id(id: Path<i32>, res: &mut Response) {
 
 _**Example with multiple return types**_
 ```
+# use salvo_core::prelude::*;
 # trait User {}
 # struct User1 {
 #   id: String
@@ -411,13 +412,14 @@ _**Example with multiple return types**_
         )
     )
 )]
-fn get_user() -> Box<dyn User> {
-  Box::new(User1 {id: "id".to_string()})
+async fn get_user() {
 }
 ````
 
 _**Example with multiple examples on single response.**_
 ``rust
+# use salvo_core::prelude::*;
+
 # #[derive(serde::Serialize, serde::Deserialize)]
 # struct User {
 #   name: String
@@ -433,8 +435,8 @@ _**Example with multiple examples on single response.**_
         )
     )
 )]
-fn get_user() -> User {
-  User {name: "John".to_string()}
+async fn get_user() -> Json<User> {
+  Json(User {name: "John".to_string()})
 }
 ``
 

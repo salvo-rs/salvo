@@ -61,6 +61,14 @@ impl DerefMut for Servers {
         &mut self.0
     }
 }
+impl IntoIterator for Servers {
+    type Item = Server;
+    type IntoIter = <BTreeSet<Server> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 impl Servers {
     pub fn new() -> Self {
         Default::default()

@@ -80,7 +80,7 @@ impl<'a> Operation<'a> {
             match response {
                 Response::AsResponses(path) => {
                     modifiers.push(quote! {
-                        components.responses.extend(<#path as #oapi::oapi::AsResponses>::responses());
+                        components.responses.append(&mut <#path as #oapi::oapi::AsResponses>::responses());
                     });
                 }
                 Response::Tuple(tuple) => {

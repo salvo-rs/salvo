@@ -283,6 +283,15 @@ pub enum Deprecated {
     True,
     False,
 }
+impl From<bool> for Deprecated {
+    fn from(b: bool) -> Self {
+        if b {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
 
 impl Serialize for Deprecated {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

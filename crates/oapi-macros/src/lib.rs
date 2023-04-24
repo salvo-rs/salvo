@@ -9,9 +9,6 @@
 
 use std::ops::Deref;
 
-use component::schema::Schema;
-
-use component::parameters::AsParameters;
 use proc_macro::TokenStream;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
@@ -34,6 +31,9 @@ mod parse_utils;
 mod schema_type;
 mod security_requirement;
 mod shared;
+
+use component::schema::AsSchema;
+use component::parameters::AsParameters;
 
 pub(crate) use self::{
     component::{
@@ -58,9 +58,9 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let stream = Schema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into();
-    // println!("{}", stream);
-    stream
+    let stream = AsSchema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into();
+     println!("{}", stream);
+     stream
 }
 
 #[proc_macro_error]

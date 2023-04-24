@@ -668,7 +668,7 @@ impl ToTokens for Responses<'_> {
                         Response::AsResponses(path) => {
                             let span = path.span();
                             acc.extend(quote_spanned! {span =>
-                                .extend(<#path as #oapi::oapi::AsResponses>::responses())
+                                .append(&mut <#path as #oapi::oapi::AsResponses>::responses())
                             })
                         }
                         Response::Tuple(response) => {
