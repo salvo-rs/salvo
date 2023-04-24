@@ -390,7 +390,7 @@ _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated Ope
 )]
 #[deprecated]
 async fn get_pet_by_id(id: Path<i32>, res: &mut Response) {
-    let json = json!({ "pet": format!("{:?}", &id.into_inner())});
+    let json = json!({ "pet": format!("{:?}", id.value())});
     res.render(Json(json))
 }
 ```

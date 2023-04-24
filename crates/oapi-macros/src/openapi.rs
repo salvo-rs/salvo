@@ -186,7 +186,7 @@ impl ToTokens for Server {
                 });
 
                 quote! {
-                    .parameter(#name, #oapi::oapi::server::ServerVariableBuilder::new()
+                    .add_variable(#name, #oapi::oapi::server::ServerVariable::new()
                         .default_value(#default_value)
                         #description
                         #enum_values
@@ -209,7 +209,7 @@ impl ToTokens for Server {
 #[derive(Default, Debug)]
 struct ServerVariable {
     name: String,
-    default: String,
+    default_value: String,
     description: Option<String>,
     enum_values: Option<Punctuated<LitStr, Comma>>,
 }
@@ -233,7 +233,7 @@ impl Parse for ServerVariable {
 
             match attribute_name {
                 "default" => {
-                    server_variable.default = parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
+                    server_variable.default_value = parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
                 }
                 "description" => {
                     server_variable.description =

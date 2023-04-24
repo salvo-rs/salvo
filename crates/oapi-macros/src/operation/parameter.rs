@@ -47,7 +47,6 @@ impl Parse for Parameter<'_> {
         if input.fork().parse::<ExprPath>().is_ok() {
             Ok(Self::Struct(StructParameter {
                 path: input.parse()?,
-                parameter_in_fn: None,
             }))
         } else {
             Ok(Self::Value(input.parse()?))
@@ -60,14 +59,12 @@ impl ToTokens for Parameter<'_> {
         let oapi = crate::oapi_crate();
         match self {
             Parameter::Value(parameter) => tokens.extend(quote! { .add_parameter(#parameter) }),
-            Parameter::Struct(StructParameter { path, parameter_in_fn }) => {
+            Parameter::Struct(StructParameter { path,  }) => {
                 let last_ident = &path.path.segments.last().unwrap().ident;
 
-                let default_parameter_in_provider = &quote! { || None };
-                let parameter_in_provider = parameter_in_fn.as_ref().unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
-                    .parameters(
-                        Some(<#path as #oapi::oapi::AsParameters>::as_parameters(#parameter_in_provider))
+                    .extend(
+                        &mut <#path as #oapi::oapi::AsParameters>::as_parameters()
                     )
                 })
             }
@@ -275,8 +272,6 @@ impl ToTokens for ValueParameter<'_> {
 #[derive(Debug)]
 pub struct StructParameter {
     pub path: ExprPath,
-    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`salvo_oapi::AsParameters::into_param`]
-    parameter_in_fn: Option<TokenStream>,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

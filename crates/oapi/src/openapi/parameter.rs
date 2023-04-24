@@ -200,8 +200,8 @@ impl Parameter {
     }
 
     /// Add or change serialization style of [`Parameter`].
-    pub fn style(mut self, style: Option<ParameterStyle>) -> Self {
-        set_value!(self style style)
+    pub fn style(mut self, style: ParameterStyle) -> Self {
+        set_value!(self style Some(style))
     }
 
     /// Define whether [`Parameter`]s are exploded or not.

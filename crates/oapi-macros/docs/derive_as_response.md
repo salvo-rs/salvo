@@ -134,6 +134,13 @@ use salvo_oapi::{AsSchema, AsResponse, endpoint};
 struct PersonResponse {
    value: String
 }
+impl Piece for String {
+    fn render(self, res: &mut Response) {
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.write_body(self.value).ok();
+    }
+}
 
 #[endpoint(
     responses(

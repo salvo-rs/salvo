@@ -692,7 +692,7 @@ impl From<Rename> for Feature {
 name!(Rename = "rename");
 
 #[derive(Clone, Debug)]
-pub struct RenameAll(RenameRule);
+pub struct RenameAll(pub RenameRule);
 
 impl RenameAll {
     pub fn as_rename_rule(&self) -> &RenameRule {
@@ -796,7 +796,7 @@ impl From<Explode> for Feature {
 name!(Explode = "explode");
 
 #[derive(Clone, Debug)]
-pub struct ParameterIn(parameter::ParameterIn);
+pub struct ParameterIn(pub parameter::ParameterIn);
 
 impl Parse for ParameterIn {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {

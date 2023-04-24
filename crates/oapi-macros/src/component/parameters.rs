@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident};
+use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident, GenericParam, Lifetime, LifetimeParam};
 
 use crate::{
     component::{
@@ -11,10 +11,12 @@ use crate::{
         features::{
             self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
             Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
-            ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr,
+            ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr, 
         },
+        serde::RenameRule,
         FieldRename,
     },
+    operation::ParameterIn,
     doc_comment::CommentAttributes,
     Array, Required, ResultExt,
 };
@@ -61,7 +63,15 @@ pub struct AsParameters {
 impl ToTokens for AsParameters {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = &self.ident;
+        let salvo = crate::salvo_crate();
+        let oapi = crate::oapi_crate();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        
+        let de_life = &Lifetime::new("'de", Span::call_site());
+        let de_lifetime: GenericParam = LifetimeParam::new(de_life.clone()).into();
+        let mut de_generics = self.generics.clone();
+        de_generics.params.insert(0, de_lifetime);
+        let de_impl_generics = de_generics.split_for_impl().0;
 
         let mut as_parameters_features = self
             .attrs
@@ -97,7 +107,29 @@ impl ToTokens for AsParameters {
         let style = pop_feature!(as_parameters_features => Feature::Style(_));
         let parameter_in = pop_feature!(as_parameters_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
-
+        let source_from = if let Some( Feature::ParameterIn(features::ParameterIn(parameter_in))) = parameter_in {
+            match parameter_in {
+                ParameterIn::Query => quote!{  #salvo::extract::SourceFrom::Query },
+                ParameterIn::Header => quote!{  #salvo::extract::SourceFrom::Header },
+                ParameterIn::Path => quote!{ #salvo::extract::SourceFrom::Path },
+                ParameterIn::Cookie => quote!{  #salvo::extract::SourceFrom::Cookie },
+            }
+        } else {
+            quote!{ #salvo::extract::SourceFrom::Query }
+        };
+        let default_source = quote!{ #salvo::extract::Source::new(#salvo::extract::SourceFrom::#source_from, #salvo::extract::SourceFormat::MultiMap) };
+        let fields = self
+        .get_struct_fields(&names.as_ref())
+        .enumerate()
+        .map(|(_, field)| {
+            quote!{ #salvo::extract::Field{
+                name: #field,
+                sources: vec![],
+                aliases: vec![],
+                metadata: None,
+            }}
+        })
+        .collect::<Vec<_>>();
         let params = self
             .get_struct_fields(&names.as_ref())
             .enumerate()
@@ -125,8 +157,21 @@ impl ToTokens for AsParameters {
             })
             .collect::<Array<Parameter>>();
 
-        let salvo = crate::salvo_crate();
-        let oapi = crate::oapi_crate();
+
+            let rename_all = rename_all.as_ref().and_then(|feature| match feature {
+                Feature::RenameAll(RenameAll(rename_rule)) => match rename_rule {
+                    RenameRule::Lower => Some(quote!{ #salvo::extract::RenameRule::LowerCase }),
+                    RenameRule::Upper => Some(quote!{ #salvo::extract::RenameRule::UpperCase }),
+                    RenameRule::Camel => Some(quote!{ #salvo::extract::RenameRule::CamelCase }),
+                    RenameRule::Snake => Some(quote!{ #salvo::extract::RenameRule::SnakeCase }),
+                    RenameRule::ScreamingSnake => Some(quote!{ #salvo::extract::RenameRule::ScreamingSnakeCase }),
+                    RenameRule::Pascal => Some(quote!{ #salvo::extract::RenameRule::LowerCase }),
+                    RenameRule::Kebab => Some(quote!{ #salvo::extract::RenameRule::KebabCase }),
+                    RenameRule::ScreamingKebab => Some(quote!{ #salvo::extract::RenameRule::ScreamingKebabCase }),
+                },
+                _ => None,
+            });
+            let name = ident.to_string();
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
                 fn parameters() -> #oapi::oapi::Parameters {
@@ -137,9 +182,29 @@ impl ToTokens for AsParameters {
             #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
                 fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, arg: Option<&str>) {
-                    for parameter in Self::parameter(arg) {
+                    for parameter in Self::parameters(arg) {
                         operation.parameters.insert(parameter);
                     }
+                }
+            }
+            #[#salvo::async_trait]
+            impl #de_impl_generics #salvo::Extractible<'de> for #ident #ty_generics #where_clause
+            where
+                T: serde::Deserialize<'de>,
+            {
+                fn metadata() -> &'de Metadata {
+                    Metadata {
+                        name: #name,
+                        default_sources: #default_source,
+                        fields: vec![#(#fields),*],
+                        rename_all: #rename_all,
+                    }
+                }
+                async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+                    #salvo::serde::from_request(req, Self::metadata()).await
+                }
+                async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Path<T>, ParseError> {
+                    Self::extract(req)
                 }
             }
         });

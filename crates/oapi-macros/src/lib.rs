@@ -58,7 +58,9 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    Schema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into()
+    let stream = Schema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into();
+    // println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
@@ -85,12 +87,14 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    AsParameters {
+    let stream = AsParameters {
         attrs,
         generics,
         data,
         ident,
-    }.to_token_stream().into()
+    }.to_token_stream().into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
@@ -104,7 +108,7 @@ pub fn derive_as_response(input: TokenStream) -> TokenStream {
         data,
         ..
     } = syn::parse_macro_input!(input);
-    
+
     AsResponse::new(attrs, &data, generics, ident).to_token_stream().into()
 }
 
@@ -120,14 +124,12 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);   
 
-    let stream = AsResponses {
+    AsResponses {
         attributes: attrs,
         ident,
         generics,
         data,
-    }.to_token_stream().into();
-    println!("{}", stream);
-    stream
+    }.to_token_stream().into()
 }
 
 #[proc_macro]

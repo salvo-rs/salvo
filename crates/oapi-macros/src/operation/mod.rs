@@ -19,7 +19,7 @@ pub(crate) mod parameter;
 pub(crate) mod request_body;
 pub(crate) mod response;
 pub(crate) use self::{
-    parameter::Parameter,
+    parameter::{Parameter, ParameterIn},
     request_body::RequestBodyAttr,
     response::{Response, Responses},
 };
