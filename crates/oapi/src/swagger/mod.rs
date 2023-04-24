@@ -54,23 +54,13 @@ impl SwaggerUi {
     /// Calling this again will add another url to the Swagger UI.
     ///
     /// # Examples
-    ///
-    /// Expose manually created OpenAPI doc.
+    /// 
     /// ```rust
     /// # use salvo_oapi::swagger::SwaggerUi;
-    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-docs/openapi.json", salvo_oapi::OpenApi::new(
-    ///        salvo_oapi::Info::new("my application", "0.1.0")
-    ///     ).path(salvo_oapi::Paths::new()));
-    /// ```
+    /// # use salvo_oapi::{Info, OpenApi};
     ///
-    /// Expose derived OpenAPI doc.
-    /// ```rust
-    /// # use salvo_oapi::swagger::SwaggerUi;
-    /// # use salvo_oapi::OpenApi;
-    ///
-    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-docs/openapi.json", ApiDoc::openapi());
+    /// let swagger = SwaggerUi::new("/api-doc/openapi.json")
+    ///     .url("/api-docs/openapi2.json", OpenApi::new(Info::new("example api", "0.0.1")));
     /// ```
     pub fn url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
         self.urls.push((url.into(), openapi));
@@ -90,13 +80,13 @@ impl SwaggerUi {
     /// Expose multiple api docs via Swagger UI.
     /// ```rust
     /// # use salvo_oapi::swagger::{SwaggerUi, Url};
-    /// # use salvo_oapi::OpenApi;
+    /// # use salvo_oapi::{Info, OpenApi};
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
     ///       vec![
-    ///          (Url::with_primary("api doc 1", "/api-docs/openapi.json", true), ApiDoc::openapi()),
-    ///          (Url::new("api doc 2", "/api-docs/openapi2.json"), ApiDoc2::openapi())
+    ///          (Url::with_primary("api doc 1", "/api-docs/openapi.json", true), OpenApi::new(Info::new("example api", "0.0.1"))),
+    ///          (Url::new("api doc 2", "/api-docs/openapi2.json"), OpenApi::new(Info::new("example api2", "0.0.1")))
     ///     ]
     /// );
     /// ```
@@ -178,10 +168,10 @@ impl SwaggerUi {
     /// Enable pkce with default client_id.
     /// ```rust
     /// # use salvo_oapi::swagger::{SwaggerUi, oauth};
-    /// # use salvo_oapi::OpenApi;
+    /// # use salvo_oapi::{Info, OpenApi};
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-docs/openapi.json", ApiDoc::openapi())
+    ///     .url("/api-docs/openapi.json", OpenApi::new(Info::new("example api", "0.0.1")))
     ///     .oauth(oauth::Config::new()
     ///         .client_id("client-id")
     ///         .scopes(vec![String::from("openid")])

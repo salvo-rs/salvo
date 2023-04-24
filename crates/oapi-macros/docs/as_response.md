@@ -1,7 +1,7 @@
 Generate reusable OpenAPI response what can be used
 in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
 
-This is `#[derive]` implementation for [`AsResponse`][to_response] trait.
+This is `#[derive]` implementation for [`AsResponse`][as_response] trait.
 
 
 _`#[response]`_ attribute can be used to alter and add [response attributes](#toresponse-response-attributes).
@@ -38,7 +38,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    field's type schema if it implements [`AsSchema`] derive macro.
 
    ```rust
-    # #[derive(salvo_oapi_macros::AsSchema)]
+    # #[derive(salvo_oapi::AsSchema)]
     # struct Person {
     #     name: String,
     # }
@@ -64,11 +64,11 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    if it implements [`AsSchema`] derive macro.
 
    ```rust
-    #[derive(salvo_oapi_macros::AsSchema)]
+    #[derive(salvo_oapi::AsSchema)]
     struct Admin {
         name: String,
     }
-    #[derive(salvo_oapi_macros::AsSchema)]
+    #[derive(salvo_oapi::AsSchema)]
     struct Admin2 {
         name: String,
         id: i32,
@@ -127,16 +127,15 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
 
 _**Use reusable response in operation handler.**_
 ```
+use salvo_core::prelude::*;
+use salvo_oapi::{AsSchema, AsResponse, endpoint};
+
 #[derive(salvo_oapi::AsResponse)]
 struct PersonResponse {
    value: String
 }
 
-#[derive(salvo_oapi::OpenApi)]
-#[openapi(components(responses(PersonResponse)))]
-struct Doc;
-
-#[salvo_oapi::endpoint(
+#[endpoint(
     responses(
         (status = 200, response = PersonResponse)
     )
@@ -151,7 +150,7 @@ _**Create a response from named struct.**_
  /// This is description
  ///
  /// It will also be used in `AsSchema` if present
- #[derive(salvo_oapi::AsSchema, salvo_oapi::AsResponse)]
+ #[derive(AsSchema, AsResponse)]
  #[response(
      description = "Override description for response",
      content_type = "text/xml"
@@ -170,7 +169,7 @@ _**Create a response from named struct.**_
 
 _**Create inlined person list response.**_
 ```
- # #[derive(salvo_oapi_macros::AsSchema)]
+ # #[derive(salvo_oapi::AsSchema)]
  # struct Person {
  #     name: String,
  # }
@@ -188,7 +187,7 @@ _**Create enum response from variants.**_
  }
 ```
 
-[to_response]: trait.AsResponse.html
+[as_response]: trait.AsResponse.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [path]: attr.path.html
 [openapi]: derive.OpenApi.html

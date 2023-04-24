@@ -9,7 +9,7 @@ used to create a map of responses containing single response. Decorating _`enum`
 
 Named field _`struct`_ decorated with [`derive@AsResponses`] will create a response with inlined schema
 generated from the body of the struct. This is a conveniency which allows users to directly
-create responses with schemas without first creating a separate [response][to_response] type.
+create responses with schemas without first creating a separate [response][as_response] type.
 
 Unit _`struct`_ behaves similarly to then named field struct. Only difference is that it will create
 a response without content since there is no inner fields.
@@ -18,9 +18,9 @@ Unnamed field _`struct`_ decorated with [`derive@AsResponses`] will by default c
 referenced [schema][to_schema] if field is object or schema if type is [primitive
 type][primitive]. _`#[to_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
 the schema if type of the field implements [`AsSchema`][to_schema] trait. Alternatively
-_`#[to_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
-[response][to_response] or inline a reusable [response][to_response]. In both cases the field
-type is expected to implement [`AsResponse`][to_response] trait.
+_`#[as_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
+[response][as_response] or inline a reusable [response][as_response]. In both cases the field
+type is expected to implement [`AsResponse`][as_response] trait.
 
 
 Enum decorated with [`derive@AsResponses`] will create a response for each variant of the _`enum`_.
@@ -79,7 +79,7 @@ It can also be overridden with _`description = "..."`_ attribute.
 
 _**Use `AsResponses` to define [`salvo_oapi::endpoint`][path] responses.**_
 ```
-#[derive(salvo_oapi_macros::AsSchema)]
+#[derive(salvo_oapi::AsSchema)]
 struct BadRequest {
     message: String,
 }
@@ -102,7 +102,7 @@ enum UserResponses {
         UserResponses
     )
 )]
-fn get_user() -> UserResponses {
+async fn get_user() -> UserResponses {
    UserResponses::NotFound
 }
 ```
@@ -125,7 +125,7 @@ struct NotFound;
 
 _**Unnamed struct response with inlined response schema.**_
 ```
-# #[derive(salvo_oapi_macros::AsSchema)]
+# #[derive(salvo_oapi::AsSchema)]
 # struct Foo;
 #[derive(salvo_oapi::AsResponses)]
 #[response(status = 201)]
@@ -138,7 +138,7 @@ _**Enum with multiple responses.**_
 # struct Response {
 #     message: String,
 # }
-# #[derive(salvo_oapi_macros::AsSchema)]
+# #[derive(salvo_oapi::AsSchema)]
 # struct BadRequest {}
 #[derive(salvo_oapi::AsResponses)]
 enum UserResponses {
@@ -156,13 +156,13 @@ enum UserResponses {
     ServerError(#[ref_response] Response),
 
     #[response(status = 418)]
-    TeaPot(#[to_response] Response),
+    TeaPot(#[as_response] Response),
 }
 ```
 
 [as_responses]: trait.AsResponses.html
 [to_schema]: trait.AsSchema.html
-[to_response]: trait.AsResponse.html
+[as_response]: trait.AsResponse.html
 [path_as_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [path]: macro@crate::path

@@ -47,14 +47,6 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
 * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
 * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
-* **openapi_extensions** Adds convenience functions for documenting common scenarios, such as JSON request bodies and responses.
-  See the [`request_body`](https://docs.rs/salvo_oapi/latest/salvo_oapi/openapi/request_body/index.html) and
-  [`response`](https://docs.rs/salvo_oapi/latest/salvo_oapi/openapi/response/index.html) docs for examples.
-* **repr** Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
-  C-like enum representation. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.AsSchema.html) for more details.
-* **preserve_order** Preserve order of properties when serializing the schema for a component.
-  When enabled, the properties are listed in order of fields in the corresponding struct definition.
-  When disabled, the properties are listed in alphabetical order.
 * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
 
@@ -96,6 +88,7 @@ struct Pet {
 Create an handler that would handle your business logic and add `endpoint` proc attribute macro over it.
 ```rust
 mod pet_api {
+#     use salvo_core::prelude::*;
 #     use salvo_oapi::OpenApi;
 #     use salvo_oapi::AsSchema;
 #

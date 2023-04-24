@@ -92,7 +92,7 @@ mod tests {
                         req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
-                        ctrl: &mut salvo::routing::FlowCtrl
+                        ctrl: &mut salvo::FlowCtrl
                     ) {
                         Self::hello(req, depot, res, ctrl).await
                     }
@@ -138,7 +138,7 @@ mod tests {
                         req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
-                        ctrl: &mut salvo::routing::FlowCtrl
+                        ctrl: &mut salvo::FlowCtrl
                     ) {
                         salvo::Writer::write(Self::hello(req, depot, res, ctrl).await, req, depot, res).await;
                     }
@@ -176,7 +176,7 @@ mod tests {
                         req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
-                        ctrl: &mut salvo::routing::FlowCtrl
+                        ctrl: &mut salvo::FlowCtrl
                     ) {
                         Self::handle(req, depot, res)
                     }

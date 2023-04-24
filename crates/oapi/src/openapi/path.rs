@@ -1,8 +1,9 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
+use std::collections::BTreeMap;
+use std::iter;
 use std::ops::{Deref, DerefMut};
-use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +29,29 @@ impl Paths {
         Default::default()
     }
     pub fn path<K: Into<String>, V: Into<PathItem>>(mut self, key: K, value: V) -> Self {
-        self.0.insert(key.into(), value.into());
+        self.insert(key, value);
         self
+    }
+    pub fn insert<K: Into<String>, V: Into<PathItem>>(&mut self, key: K, value: V) {
+        let key = key.into();
+        if !self.0.contains_key(&key) {
+            self.0.insert(key, value.into());
+        }
+    }
+    pub fn append(&mut self, other: &mut Paths) {
+        other.0.append(&mut self.0);
+        std::mem::swap(&mut self.0, &mut other.0);
+    }
+
+    pub fn extend<I, K, V>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<PathItem>,
+    {
+        for (k, v) in iter.into_iter() {
+            self.insert(k, v);
+        }
     }
 }
 

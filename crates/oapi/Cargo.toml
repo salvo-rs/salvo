@@ -10,7 +10,7 @@ homepage = "https://github.com/salvo-rs/salvo"
 repository = "https://github.com/salvo-rs/salvo"
 keywords = ["http", "async", "salvo", "openapi", "swagger-ui"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrislearn@hotmail.com>"]
 
 [features]
 default = []

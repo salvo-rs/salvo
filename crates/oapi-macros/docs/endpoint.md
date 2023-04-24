@@ -41,7 +41,7 @@ fn operation() {}
 
 * `responses(...)` Slice of responses the endpoint is going to possibly return to the caller.
 
-* `params(...)` Slice of params that the endpoint accepts.
+* `paramters(...)` Slice of paramters that the endpoint accepts.
 
 * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 
@@ -119,7 +119,7 @@ _**Example request body definitions.**_
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
-* `response = ...` Type what implements [`AsResponse`][to_response_trait] trait. This can alternatively be used to
+* `response = ...` Type what implements [`AsResponse`][as_response_trait] trait. This can alternatively be used to
    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 
 * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
@@ -186,14 +186,14 @@ responses(
 
 ### Using `AsResponse` for reusable responses
 
-_**`ReusableResponse` must be a type that implements [`AsResponse`][to_response_trait].**_
+_**`ReusableResponse` must be a type that implements [`AsResponse`][as_response_trait].**_
 ```text
 responses(
     (status = 200, response = ReusableResponse)
 )
 ```
 
-_**[`AsResponse`][to_response_trait] can also be inlined to the responses map.**_
+_**[`AsResponse`][as_response_trait] can also be inlined to the responses map.**_
 ```text
 responses(
     (status = 200, response = inline(ReusableResponse))
@@ -229,7 +229,7 @@ responses(MyResponse)
 
 # Params Attributes
 
-The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
+The list of attributes inside the `paramters(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
 Type](#intoparams-type).
 
 ## Tuples
@@ -308,7 +308,7 @@ enabled.
 **For example:**
 
 ```text
-params(
+paramters(
     ("id" = String, Path, deprecated, description = "Pet database id"),
     ("name", Path, deprecated, description = "Pet name"),
     (
@@ -333,13 +333,13 @@ that implements [`AsParameters`][as_parameters]. See [`AsParameters`][as_paramet
 example.
 
 ```text
-params(MyParameters)
+paramters(MyParameters)
 ```
 
 **Note!** that `MyParameters` can also be used in combination with the [tuples
 representation](#tuples) or other structs.
 ```text
-params(
+paramters(
     MyParameters1,
     MyParameters2,
     ("id" = String, Path, deprecated, description = "Pet database id"),
@@ -363,7 +363,7 @@ _**More minimal example with the defaults.**_
             )
         ),
    ),
-   params(
+   paramters(
      ("x-csrf-token", Header, description = "Current csrf token of user"),
    )
 )]
@@ -378,32 +378,20 @@ fn post_pet(pet: Pet) -> Pet {
 _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated OpenAPI spec and mark this operation as deprecated.**_
 ```
 # use serde_json::json;
-#[salvo_oapi::endpoint(
+# use salvo_core::prelude::*;
+# use salvo_oapi::{endpoint, extract::Path};
+#[endpoint(
     responses(
         (status = 200, description = "Pet found from database")
     ),
-    params(
+    parameters(
         ("id", description = "Pet id"),
     )
 )]
-#[get("/pet/{id}")]
 #[deprecated]
-async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-    HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
-}
-```
-
-_**Define context path for endpoint. The resolved **path** shown in OpenAPI doc will be `/api/pet/{id}`.**_
-```
-# use serde_json::json;
-#[salvo_oapi::endpoint(
-    responses(
-        (status = 200, description = "Pet found from database")
-    )
-)]
-#[get("/pet/{id}")]
-async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-    HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
+async fn get_pet_by_id(id: Path<i32>, res: &mut Response) {
+    let json = json!({ "pet": format!("{:?}", &id.into_inner())});
+    res.render(Json(json))
 }
 ```
 
@@ -461,7 +449,7 @@ fn get_user() -> User {
 [style]: openapi/path/enum.ParameterStyle.html
 [as_responses_trait]: trait.AsResponses.html
 [as_parameters_derive]: derive.AsParameters.html
-[to_response_trait]: trait.AsResponse.html
+[as_response_trait]: trait.AsResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
 [to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

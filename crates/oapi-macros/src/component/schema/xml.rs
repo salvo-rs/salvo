@@ -84,37 +84,37 @@ impl ToTokens for XmlAttr {
 
         if let Some(ref name) = self.name {
             tokens.extend(quote! {
-                .name(Some(#name))
+                .name(#name)
             })
         }
 
         if let Some(ref namespace) = self.namespace {
             tokens.extend(quote! {
-                .namespace(Some(#namespace))
+                .namespace(#namespace)
             })
         }
 
         if let Some(ref prefix) = self.prefix {
             tokens.extend(quote! {
-                .prefix(Some(#prefix))
+                .prefix(#prefix)
             })
         }
 
         if self.is_attribute {
             tokens.extend(quote! {
-                .attribute(Some(true))
+                .attribute(true)
             })
         }
 
         if self.is_wrapped.is_some() {
             tokens.extend(quote! {
-                .wrapped(Some(true))
+                .wrapped(true)
             });
 
             // if is wrapped and wrap name is defined use wrap name instead
             if let Some(ref wrap_name) = self.wrap_name {
                 tokens.extend(quote! {
-                    .name(Some(#wrap_name))
+                    .name(#wrap_name)
                 })
             }
         }

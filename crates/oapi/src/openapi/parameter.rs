@@ -7,7 +7,7 @@ use serde_json::Value;
 use super::{set_value, Deprecated, RefOr, Required, Schema};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
-pub struct Parameters(Vec<Parameter>);
+pub struct Parameters(pub Vec<Parameter>);
 impl Parameters {
     pub fn new() -> Self {
         Default::default()
@@ -15,7 +15,12 @@ impl Parameters {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    pub fn parameter(&mut self, parameter: Parameter) {
+    pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
+        self.insert(parameter);
+        self
+    }
+    pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
+        let parameter = parameter.into();
         let exist_item = self
             .0
             .iter_mut()
@@ -27,9 +32,14 @@ impl Parameters {
             self.0.push(parameter);
         }
     }
-    pub fn extend(&mut self, parameters: impl IntoIterator<Item = Parameter>) {
-        for parameter in parameters {
-            self.parameter(parameter);
+    pub fn append(&mut self, other: &mut Parameters) {
+        for item in other.0.drain(..) {
+            self.insert(item);
+        }
+    }
+    pub fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = Parameter> {
+        for item in iter {
+            self.insert(item);
         }
     }
 }
@@ -195,18 +205,18 @@ impl Parameter {
     }
 
     /// Define whether [`Parameter`]s are exploded or not.
-    pub fn explode(mut self, explode: Option<bool>) -> Self {
-        set_value!(self explode explode)
+    pub fn explode(mut self, explode: bool) -> Self {
+        set_value!(self explode Some(explode))
     }
 
     /// Add or change whether [`Parameter`] should allow reserved characters.
-    pub fn allow_reserved(mut self, allow_reserved: Option<bool>) -> Self {
-        set_value!(self allow_reserved allow_reserved)
+    pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
+        set_value!(self allow_reserved Some(allow_reserved))
     }
 
     /// Add or change example of [`Parameter`]'s potential value.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 }
 

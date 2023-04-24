@@ -34,7 +34,7 @@ async fn main() {
         ),
     );
 
-    let doc = OpenApi::new(Info::new("abc", "0.0.1"))
+    let doc = OpenApi::new(Info::new("todos api", "0.0.1"))
         .components(Components::new().add_security_scheme(
             "api_key",
             SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
@@ -106,9 +106,6 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
         (status = 200, description = "Todo modified successfully"),
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
-    parameters(
-        ("id", Path, description = "Id of todo item to modify")
-    )
 )]
 pub async fn update_todo(id: Path<u64>, req: &mut Request, res: &mut Response) {
     let updated_todo = req.parse_body::<Todo>().await.unwrap();

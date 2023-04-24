@@ -457,7 +457,7 @@ impl ToTokens for NamedStructSchema<'_> {
         }
 
         if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         if let Some(struct_features) = self.features.as_ref() {
@@ -546,7 +546,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
             });
 
             if let Some(deprecated) = deprecated {
-                tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+                tokens.extend(quote! { .deprecated(#deprecated) });
             }
 
             if let Some(ref attrs) = self.features {
@@ -703,7 +703,7 @@ impl ToTokens for EnumSchemaType<'_> {
         };
 
         if let Some(deprecated) = super::get_deprecated(attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
@@ -1325,7 +1325,8 @@ impl ToTokens for ComplexEnum<'_> {
             | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
         };
 
-        self.variants
+        let ts = self
+            .variants
             .iter()
             .filter_map(|variant: &Variant| {
                 let variant_serde_rules = serde::parse_value(&variant.attrs);
@@ -1369,9 +1370,12 @@ impl ToTokens for ComplexEnum<'_> {
                     }
                 }
             })
-            .collect::<CustomEnum<'_, TokenStream>>()
-            .with_discriminator(tag.map(|t| Cow::Borrowed(t.as_str())))
-            .to_tokens(tokens);
+            .collect::<CustomEnum<'_, TokenStream>>();
+        if let Some(tag) = tag {
+            ts.with_discriminator(Cow::Borrowed(tag.as_str())).to_tokens(tokens);
+        } else {
+            ts.to_tokens(tokens);
+        }
 
         tokens.extend(self.enum_features.to_token_stream());
     }

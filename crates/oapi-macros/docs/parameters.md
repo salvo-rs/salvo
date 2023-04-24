@@ -3,10 +3,10 @@ fields.
 
 This is `#[derive]` implementation for [`AsParameters`][as_parameters] trait.
 
-Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...params(...))]`][path_params] section
+Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...paramters(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
 Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
-within `params(...)` section if description or other than default configuration need to be given.
+within `paramters(...)` section if description or other than default configuration need to be given.
 
 You can use the Rust's own `#[deprecated]` attribute on field to mark it as
 deprecated and it will reflect to the generated OpenAPI spec.
@@ -18,7 +18,7 @@ While it is totally okay to declare deprecated with reason
 
 Doc comment on struct fields will be used as description for the generated parameters.
 ```
-#[derive(salvo_oapi::AsParameter)]
+#[derive(salvo_oapi::AsParameters)]
 struct Query {
     /// Query todo items by name.
     name: String
@@ -58,9 +58,9 @@ Use `names` to define names for multiple unnamed arguments.
 struct IdAndName(u64, String);
 ```
 
-# AsParameters Field Attributes for `#[param(...)]`
+# AsParameters Field Attributes for `#[parameter(...)]`
 
-The following attributes are available for use in the `#[param(...)]` on struct fields:
+The following attributes are available for use in the `#[parameter(...)]` on struct fields:
 
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 
@@ -152,41 +152,6 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 # Examples
 
-_**Demonstrate [`AsParameters`][as_parameters] usage with resolving `Path` and `Query` parameters
-with _`salvo`_**_.
-```
-use serde::Deserialize;
-use serde_json::json;
-use salvo_oapi::AsParameters;
-
-#[derive(Deserialize, AsParameters)]
-struct PetPathArgs {
-    /// Id of pet
-    id: i64,
-    /// Name of pet
-    name: String,
-}
-
-#[derive(Deserialize, AsParameters)]
-struct Filter {
-    /// Age filter for pets
-    #[deprecated]
-    #[param(style = Form, explode, allow_reserved, example = json!([10]))]
-    age: Option<Vec<i32>>,
-}
-
-#[salvo_oapi::endpoint(
-    parameters(PetPathArgs, Filter),
-    responses(
-        (status = 200, description = "success response")
-    )
-)]
-#[get("/pet/{id}/{name}")]
-async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
-    HttpResponse::Ok().json(json!({ "id": pet.id }))
-}
-```
-
 _**Demonstrate [`AsParameters`][as_parameters] usage with the `#[as_parameters(...)]` container attribute to
 be used as a path query, and inlining a schema query field:**_
 ```
@@ -208,12 +173,12 @@ struct PetQuery {
     /// Age of pet
     age: Option<i32>,
     /// Kind of pet
-    #[param(inline)]
+    #[parameter(inline)]
     kind: PetKind
 }
 
 #[salvo_oapi::endpoint(
-    params(PetQuery),
+    parameters(PetQuery),
     responses(
         (status = 200, description = "success response")
     )
@@ -230,7 +195,7 @@ _**Override `String` with `i64` using `value_type` attribute.**_
 #[derive(AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
-    #[param(value_type = i64)]
+    #[parameter(value_type = i64)]
     id: String,
 }
 ```
@@ -242,7 +207,7 @@ _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will
 #[derive(AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
-    #[param(value_type = Object)]
+    #[parameter(value_type = Object)]
     id: String,
 }
 ```
@@ -254,7 +219,7 @@ _**You can use a generic type to override the default type of the field.**_
 #[derive(AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
-    #[param(value_type = Option<String>)]
+    #[parameter(value_type = Option<String>)]
     id: String
 }
 ```
@@ -266,7 +231,7 @@ _**You can even override a [`Vec`] with another one.**_
 #[derive(AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
-    #[param(value_type = Vec<i32>)]
+    #[parameter(value_type = Vec<i32>)]
     id: Vec<String>
 }
 ```
@@ -283,20 +248,20 @@ struct Id {
 #[derive(AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
-    #[param(value_type = Id)]
+    #[parameter(value_type = Id)]
     id: String
 }
 ```
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsParameter)]
+#[derive(salvo_oapi::AsParameters)]
 struct Item {
-    #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
+    #[parameter(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
-    #[param(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+    #[parameter(max_length = 10, min_length = 5, pattern = "[a-z]*")]
     value: String,
-    #[param(max_items = 5, min_items = 1)]
+    #[parameter(max_items = 5, min_items = 1)]
     items: Vec<String>,
 }
 ````
@@ -316,7 +281,7 @@ fn custom_type() -> Object {
 #[derive(salvo_oapi::AsParameters)]
 #[as_parameters(parameter_in = Query)]
 struct Query {
-    #[param(schema_with = custom_type)]
+    #[parameter(schema_with = custom_type)]
     email: String,
 }
 ```

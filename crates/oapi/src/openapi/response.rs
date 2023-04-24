@@ -41,19 +41,27 @@ impl Responses {
     }
     /// Add a [`Response`].
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
-        self.0.insert(code.into(), response.into());
-
+        self.insert(code, response);
         self
     }
 
+    pub fn insert<S: Into<String>, R: Into<RefOr<Response>>>(&mut self, code: S, response: R) {
+        self.0.insert(code.into(), response.into());
+    }
+    pub fn append(&mut self, other: &mut Responses) {
+        other.0.append(&mut self.0);
+        std::mem::swap(&mut self.0, &mut other.0);
+    }
+
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
-    pub fn extend<I: IntoIterator<Item = (C, R)>, C: Into<String>, R: Into<RefOr<Response>>>(
-        mut self,
-        iter: I,
-    ) -> Self {
+    pub fn extend<I, C, R>(mut self, iter: I)
+    where
+        I: IntoIterator<Item = (C, R)>,
+        C: Into<String>,
+        R: Into<RefOr<Response>>,
+    {
         self.0
             .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
-        self
     }
 
     /// Add responses from a type that implements [`AsResponses`].
@@ -141,63 +149,6 @@ impl From<Ref> for RefOr<Response> {
     }
 }
 
-/// Trait with convenience functions for documenting response bodies.
-///
-/// With a single method call we can add [`Content`] to our [`Response`] and [`Response`]
-/// that references a [schema][schema] using content-type `"application/json"`.
-///
-/// _**Add json response from schema ref.**_
-/// ```
-/// use salvo_oapi::response::{Response, ResponseExt};
-///
-/// let request = Response::new()
-///     .description("A sample response")
-///     .json_schema_ref("MyResponsePayload");
-/// ```
-///
-/// If serialized to JSON, the above will result in a response schema like this.
-/// ```json
-/// {
-///   "description": "A sample response",
-///   "content": {
-///     "application/json": {
-///       "schema": {
-///         "$ref": "#/components/schemas/MyResponsePayload"
-///       }
-///     }
-///   }
-/// }
-/// ```
-///
-/// [response]: crate::AsResponse
-/// [schema]: crate::AsSchema
-///
-#[cfg(feature = "openapi_extensions")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
-pub trait ResponseExt {
-    /// Add [`Content`] to [`Response`] referring to a _`schema`_
-    /// with Content-Type `application/json`.
-    fn json_schema_ref(self, ref_name: &str) -> Self;
-}
-
-#[cfg(feature = "openapi_extensions")]
-impl ResponseExt for Response {
-    fn json_schema_ref(mut self, ref_name: &str) -> Response {
-        self.content.insert(
-            "application/json".to_string(),
-            Content::new(crate::Ref::from_schema_name(ref_name)),
-        );
-        self
-    }
-}
-
-#[cfg(feature = "openapi_extensions")]
-impl ResponseExt for Response {
-    fn json_schema_ref(self, ref_name: &str) -> Response {
-        self.content("application/json", Content::new(crate::Ref::from_schema_name(ref_name)))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{Content, Response, Responses};
@@ -232,52 +183,5 @@ mod tests {
             })
         );
         Ok(())
-    }
-}
-
-#[cfg(all(test, feature = "openapi_extensions"))]
-mod openapi_extensions_tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
-    use crate::Response;
-
-    use super::ResponseExt;
-
-    #[test]
-    fn response_ext() {
-        let request_body = Response::new("A sample response").json_schema_ref("MySchemaPayload");
-
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample response",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/MySchemaPayload"
-                  }
-                }
-              }
-            })
-        );
-    }
-
-    #[test]
-    fn response_builder_ext() {
-        let request_body = Response::new("A sample response").json_schema_ref("MySchemaPayload");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample response",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/MySchemaPayload"
-                  }
-                }
-              }
-            })
-        );
     }
 }

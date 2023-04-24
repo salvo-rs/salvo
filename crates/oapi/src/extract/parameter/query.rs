@@ -43,7 +43,8 @@ impl<T> DerefMut for Query<T> {
 
 impl<T> AsParameter for Query<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
-        Parameter::new(arg.unwrap()).parameter_in(ParameterIn::Query)
+        let arg = arg.expect("query parameter must have a name");
+        Parameter::new(arg).parameter_in(ParameterIn::Query).description(format!("Get parameter `{arg}` from request url query"))
     }
 }
 
@@ -99,6 +100,6 @@ where
 #[async_trait]
 impl<T> EndpointModifier for Query<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.parameter(Self::parameter(arg));
+        operation.parameters.insert(Self::parameter(arg));
     }
 }

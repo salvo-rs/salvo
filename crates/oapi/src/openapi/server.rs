@@ -22,7 +22,7 @@
 //! Create server with custom url using a builder.
 //! ```rust
 //! # use salvo_oapi::server::Server;
-//! Server::new("https://alternative.api.url.test/api").build();
+//! Server::new("https://alternative.api.url.test/api");
 //! ```
 //!
 //! Create server with builder and variable substitution.
@@ -30,10 +30,10 @@
 //! # use salvo_oapi::server::{Server, ServerVariable};
 //! Server::new("/api/{version}/{username}")
 //!     .parameter("version", ServerVariable::new()
-//!         .enum_values(Some(["v1", "v2"]))
+//!         .enum_values(["v1", "v2"])
 //!         .default_value("v1"))
 //!     .parameter("username", ServerVariable::new()
-//!         .default_value("the_user")).build();
+//!         .default_value("the_user"));
 //! ```
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object

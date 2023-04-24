@@ -1,5 +1,5 @@
 //! Rust implementation of Openapi Spec V3.
-use std::collections::BTreeSet;
+use std::collections::{btree_map, BTreeSet};
 
 use salvo_core::Router;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
@@ -200,7 +200,7 @@ impl OpenApi {
                 };
                 let path_item = self.paths.entry(path.clone()).or_default();
                 for method in methods {
-                    if let std::collections::btree_map::Entry::Vacant(e) = path_item.operations.entry(method) {
+                    if let btree_map::Entry::Vacant(e) = path_item.operations.entry(method) {
                         e.insert(operation.clone());
                     } else {
                         tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
@@ -401,11 +401,11 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json");
+        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
                 .description("My api description")
-                .license(License::new("MIT").url(Some("http://mit.licence"))),
+                .license(License::new("MIT").url("http://mit.licence")),
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
 
@@ -444,7 +444,7 @@ mod tests {
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("../../testdata/expected_openapi_with_paths.json");
+        let expected = include_str!("../../testdata/expected_openapi_with_paths.json").replace("\r\n", "\n");
 
         assert_eq!(
             serialized, expected,

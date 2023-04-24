@@ -43,7 +43,8 @@ impl<T> DerefMut for Header<T> {
 
 impl<T> AsParameter for Header<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
-        Parameter::new(arg.unwrap()).parameter_in(ParameterIn::Header)
+        let arg = arg.expect("header parameter must have a name");
+        Parameter::new(arg).parameter_in(ParameterIn::Header).description(format!("Get parameter `{arg}` from request headers"))
     }
 }
 
@@ -99,6 +100,6 @@ where
 #[async_trait]
 impl<T> EndpointModifier for Header<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.parameter(Self::parameter(arg));
+        operation.parameters.insert(Self::parameter(arg));
     }
 }

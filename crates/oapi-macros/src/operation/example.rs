@@ -83,7 +83,7 @@ impl ToTokens for Example {
             .description
             .as_ref()
             .map(|description| quote!(.description(#description)));
-        let value = self.value.as_ref().map(|value| quote!(.value(Some(#value))));
+        let value = self.value.as_ref().map(|value| quote!(.value(#value)));
         let external_value = self
             .external_value
             .as_ref()

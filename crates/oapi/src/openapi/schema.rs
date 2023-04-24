@@ -783,23 +783,23 @@ impl Array {
     }
 
     /// Add or change deprecated status for [`Array`].
-    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        set_value!(self deprecated deprecated)
+    pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
+        set_value!(self deprecated Some(deprecated))
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 
     /// Set maximum allowed length for [`Array`].
-    pub fn max_items(mut self, max_items: Option<usize>) -> Self {
-        set_value!(self max_items max_items)
+    pub fn max_items(mut self, max_items: usize) -> Self {
+        set_value!(self max_items Some(max_items))
     }
 
     /// Set minimum allowed length for [`Array`].
-    pub fn min_items(mut self, min_items: Option<usize>) -> Self {
-        set_value!(self min_items min_items)
+    pub fn min_items(mut self, min_items: usize) -> Self {
+        set_value!(self min_items Some(min_items))
     }
 
     /// Set or change whether [`Array`] should enforce all items to be unique.

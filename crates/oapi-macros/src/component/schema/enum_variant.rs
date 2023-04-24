@@ -125,7 +125,7 @@ where
                 #title
                 #example
                 .schema_type(#schema_type)
-                .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
+                .enum_values::<[#enum_type; #len], #enum_type>(#items)
         })
     }
 }
@@ -208,7 +208,7 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
                                 #tag,
                                 #oapi::oapi::schema::Object::new()
                                     .schema_type(#schema_type)
-                                    .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
+                                    .enum_values::<[#enum_type; 1], #enum_type>([#item])
                             )
                             .required(#tag)
                     )
@@ -300,14 +300,14 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
                                 #tag,
                                 #oapi::oapi::schema::Object::new()
                                     .schema_type(#oapi::oapi::schema::SchemaType::String)
-                                    .enum_values::<[#enum_type; 1], #enum_type>(Some([#content]))
+                                    .enum_values::<[#enum_type; 1], #enum_type>([#content])
                             )
                             .required(#tag)
                             .property(
                                 #content,
                                 #oapi::oapi::schema::Object::new()
                                     .schema_type(#schema_type)
-                                    .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
+                                    .enum_values::<[#enum_type; 1], #enum_type>([#item])
                             )
                             .required(#content)
                     )
@@ -333,9 +333,8 @@ pub struct CustomEnum<'c, T: ToTokens> {
 }
 
 impl<'c, T: ToTokens> CustomEnum<'c, T> {
-    pub fn with_discriminator(mut self, discriminator: Option<Cow<'c, str>>) -> Self {
-        self.tag = discriminator;
-
+    pub fn with_discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
+        self.tag = Some(discriminator);
         self
     }
 }
@@ -352,7 +351,7 @@ where
         // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
             quote! {
-                .discriminator(Some(#oapi::oapi::schema::Discriminator::new(#tag)))
+                .discriminator(#oapi::oapi::schema::Discriminator::new(#tag))
             }
         });
 

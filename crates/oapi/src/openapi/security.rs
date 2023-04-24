@@ -209,15 +209,6 @@ impl Http {
         }
     }
     /// Add or change http authentication scheme used.
-    ///
-    /// # Examples
-    ///
-    /// Create new [`Http`] [`SecurityScheme`].
-    ///
-    /// ```
-    /// use salvo_oapi::security::{Http, HttpAuthScheme};
-    /// let http = Http::new(HttpAuthScheme::Basic());
-    /// ```
     pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
         self.scheme = scheme;
 

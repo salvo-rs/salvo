@@ -52,8 +52,8 @@ impl Content {
     }
 
     /// Add example of schema.
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
+    pub fn example(mut self, example: Value) -> Self {
+        set_value!(self example Some(example))
     }
 
     /// Add iterator of _`(N, V)`_ where `N` is name of example and `V` is [`Example`][example] to

@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, HashMap};
 ///
 /// Use `#[derive]` to implement `AsSchema` trait.
 /// ```
-/// # use salvo_oapi::AsSchema;
+/// use salvo_oapi::AsSchema;
 /// #[derive(AsSchema)]
 /// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
@@ -36,38 +36,39 @@ use std::collections::{BTreeMap, HashMap};
 ///
 /// Following manual implementation is equal to above derive one.
 /// ```
+/// use salvo_oapi::{AsSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
 /// # struct Pet {
 /// #     id: u64,
 /// #     name: String,
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> salvo_oapi::AsSchema<'__s> for Pet {
-///     fn schema() -> (&'__s str, salvo_oapi::RefOr<salvo_oapi::schema::Schema>) {
+/// impl<'__s> AsSchema<'__s> for Pet {
+///     fn schema() -> (&'__s str, RefOr<Schema>) {
 ///          (
 ///             "Pet",
-///             salvo_oapi::Object::new()
+///             Object::new()
 ///                 .property(
 ///                     "id",
-///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::SchemaType::Integer)
-///                         .format(salvo_oapi::SchemaFormat::KnownFormat(
-///                             salvo_oapi::KnownFormat::Int64,
+///                     Object::new()
+///                         .schema_type(SchemaType::Integer)
+///                         .format(SchemaFormat::KnownFormat(
+///                             KnownFormat::Int64,
 ///                         )),
 ///                 )
 ///                 .required("id")
 ///                 .property(
 ///                     "name",
-///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::SchemaType::String),
+///                     Object::new()
+///                         .schema_type(SchemaType::String),
 ///                 )
 ///                 .required("name")
 ///                 .property(
 ///                     "age",
-///                     salvo_oapi::Object::new()
-///                         .schema_type(salvo_oapi::SchemaType::Integer)
-///                         .format(salvo_oapi::SchemaFormat::KnownFormat(
-///                             salvo_oapi::KnownFormat::Int32,
+///                     Object::new()
+///                         .schema_type(SchemaType::Integer)
+///                         .format(SchemaFormat::KnownFormat(
+///                             KnownFormat::Int32,
 ///                         )),
 ///                 )
 ///                 .example(serde_json::json!({
@@ -133,7 +134,7 @@ macro_rules! impl_partial_schema_primitive {
 // Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
 // from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
 #[doc(hidden)]
-mod oapi {
+pub mod oapi {
     pub use super::*;
 }
 // Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
@@ -158,16 +159,14 @@ pub trait Modifier<T> {
 /// The trait can be implemented manually easily on any type. This trait comes especially handy
 /// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
 /// ```rust
-/// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
-/// # use salvo_oapi::RefOr;
+/// # use salvo_oapi::{Object, PartialSchema, RefOr, Schema};
 /// #
 /// struct MyType;
 ///
 /// impl PartialSchema for MyType {
 ///     fn schema() -> RefOr<Schema> {
 ///         // ... impl schema generation here
-///         RefOr::T(Schema::Object(ObjectBuilder::new().build()))
+///         RefOr::T(Schema::Object(Object::new()))
 ///     }
 /// }
 /// ```
@@ -176,20 +175,17 @@ pub trait Modifier<T> {
 ///
 /// _**Create number schema from u64.**_
 /// ```rust
-/// # use salvo::oapi::PartialSchema;
-/// # use salvo::oapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
-/// # use salvo::oapi::RefOr;
+/// # use salvo_oapi::{RefOr, PartialSchema};
+/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
 /// #
 /// let number: RefOr<Schema> = u64::schema().into();
-///
 /// // would be equal to manual implementation
 /// let number2 = RefOr::T(
 ///     Schema::Object(
-///         ObjectBuilder::new()
+///         Object::new()
 ///             .schema_type(SchemaType::Integer)
-///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
-///             .minimum(Some(0.0))
-///             .build()
+///             .format(SchemaFormat::KnownFormat(KnownFormat::Int64))
+///             .minimum(0.0)
 ///         )
 ///     );
 /// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
@@ -204,11 +200,10 @@ pub trait Modifier<T> {
 ///     name: String,
 /// }
 ///
-/// let pet_schema = ObjectBuilder::new()
+/// let pet_schema = Object::new()
 ///     .property("id", i32::schema())
 ///     .property("name", String::schema())
-///     .required("id").required("name")
-///     .build();
+///     .required("id").required("name");
 /// ```
 ///
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
@@ -347,7 +342,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
-/// use salvo_oapi::{AsParameters};
+/// use salvo_oapi::AsParameters;
 ///
 /// #[derive(AsParameters)]
 /// struct PetParams {
@@ -371,17 +366,17 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 ///         salvo_oapi::Parameters::new().parameter(
 ///             salvo_oapi::Parameter::new("id")
 ///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in()
+///                 .parameter_in(salvo_oapi::ParameterIn::Path)
 ///                 .description("Id of pet")
-///                 .schema(Some(
+///                 .schema(
 ///                     salvo_oapi::Object::new()
 ///                         .schema_type(salvo_oapi::SchemaType::Integer)
-///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::KnownFormat::Int64)),
-///                 )),
+///                         .format(salvo_oapi::SchemaFormat::KnownFormat(salvo_oapi::schema::KnownFormat::Int64)),
+///                 ),
 ///         ).parameter(
 ///             salvo_oapi::Parameter::new("name")
 ///                 .required(salvo_oapi::Required::True)
-///                 .parameter_in()
+///                 .parameter_in(salvo_oapi::ParameterIn::Query)
 ///                 .description("Name of pet")
 ///                 .schema(
 ///                     salvo_oapi::Object::new()
@@ -437,13 +432,9 @@ pub trait AsResponses {
 /// # Examples
 ///
 /// ```
-/// use salvo_oapi::{
-///     openapi::{RefOr, Response, Response},
-///     AsResponse,
-/// };
+/// use salvo_oapi::{RefOr, Response, AsResponse};
 ///
 /// struct MyResponse;
-///
 /// impl<'__r> AsResponse<'__r> for MyResponse {
 ///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (

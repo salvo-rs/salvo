@@ -15,11 +15,10 @@ use super::set_value;
 /// Create [`Info`]].
 /// ```
 /// # use salvo_oapi::{Info, Contact};
-/// let info = Info::new("My api", "1.0.0")
-///      .contact(Contact::new()
-///           .name("Admin Admin")
-///           .email("amdin@petapi.com")
-///       ));
+/// let info = Info::new("My api", "1.0.0").contact(Contact::new()
+///     .name("Admin Admin")
+///     .email("amdin@petapi.com")
+/// );
 /// ```
 /// OpenAPI [Info][info] object represents metadata of the API.
 ///
@@ -137,18 +136,18 @@ impl Contact {
         Default::default()
     }
     /// Add name contact person or organization of the API.
-    pub fn name<S: Into<String>>(mut self, name: Option<S>) -> Self {
-        set_value!(self name name.map(|name| name.into()))
+    pub fn name<S: Into<String>>(mut self, name: S) -> Self {
+        set_value!(self name Some(name.into()))
     }
 
     /// Add url pointing to the contact information of the API.
-    pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
-        set_value!(self url url.map(|url| url.into()))
+    pub fn url<S: Into<String>>(mut self, url: S) -> Self {
+        set_value!(self url Some(url.into()))
     }
 
     /// Add email of the contact person or organization of the API.
-    pub fn email<S: Into<String>>(mut self, email: Option<S>) -> Self {
-        set_value!(self email email.map(|email| email.into()))
+    pub fn email<S: Into<String>>(mut self, email: S) -> Self {
+        set_value!(self email Some(email.into()))
     }
 }
 
@@ -183,8 +182,8 @@ impl License {
     }
 
     /// Add url pointing to the license used in API.
-    pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
-        set_value!(self url url.map(|url| url.into()))
+    pub fn url<S: Into<String>>(mut self, url: S) -> Self {
+        set_value!(self url Some(url.into()))
     }
 }
 

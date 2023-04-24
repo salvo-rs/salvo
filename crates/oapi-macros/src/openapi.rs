@@ -111,7 +111,7 @@ impl ToTokens for Tag {
 
         if let Some(ref external_docs) = self.external_docs {
             tokens.extend(quote! {
-                .external_docs(Some(#external_docs))
+                .external_docs(#external_docs)
             });
         }
     }

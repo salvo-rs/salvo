@@ -69,10 +69,10 @@ impl ToTokens for AsResponse<'_> {
         to_reponse_generics
             .params
             .push(syn::GenericParam::Lifetime(LifetimeParam::new(lifetime.clone())));
-        let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
+        let (as_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #to_response_impl_generics #oapi::oapi::AsResponse <#lifetime> for #ident #ty_generics #where_clause {
+            impl #as_response_impl_generics #oapi::oapi::AsResponse <#lifetime> for #ident #ty_generics #where_clause {
                 fn response() -> (& #lifetime str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
                     (#name, #response.into())
                 }
@@ -172,7 +172,7 @@ trait Response {
             "to_schema" => (false, ERROR),
             "ref_response" => (false, ERROR),
             "content" => (false, ERROR),
-            "to_response" => (false, ERROR),
+            "as_response" => (false, ERROR),
             _ => (true, ERROR),
         }
     }
@@ -202,14 +202,14 @@ impl<'u> UnnamedStructResponse<'u> {
         let ref_response = inner_attributes
             .iter()
             .any(|attribute| attribute.path().get_ident().unwrap() == "ref_response");
-        let to_response = inner_attributes
+        let as_response = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_response");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "as_response");
 
-        if is_inline && (ref_response || to_response) {
+        if is_inline && (ref_response || as_response) {
             abort!(
                 ty.span(),
-                "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"
+                "Attribute `to_schema` cannot be used with `ref_response` and `as_response` attribute"
             )
         }
         let mut derive_value = DeriveAsResponsesValue::from_attributes(attributes)
@@ -217,16 +217,16 @@ impl<'u> UnnamedStructResponse<'u> {
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let status_code = mem::take(&mut derive_value.status);
 
-        match (ref_response, to_response) {
+        match (ref_response, as_response) {
             (false, false) => Self(
                 (
                     status_code,
-                    ResponseValue::from_derive_as_responses_value(derive_value, description).response_type(Some(
+                    ResponseValue::from_derive_as_responses_value(derive_value, description).response_type(
                         PathType::MediaType(InlineType {
                             ty: Cow::Borrowed(ty),
                             is_inline,
                         }),
-                    )),
+                    ),
                 )
                     .into(),
             ),
@@ -247,7 +247,7 @@ impl<'u> UnnamedStructResponse<'u> {
             (true, true) => {
                 abort!(
                     ty.span(),
-                    "Cannot define `ref_response` and `to_response` attribute simultaneously"
+                    "Cannot define `ref_response` and `as_response` attribute simultaneously"
                 );
             }
         }
@@ -288,7 +288,7 @@ impl NamedStructResponse<'_> {
             (
                 status_code,
                 ResponseValue::from_derive_as_responses_value(derive_value, description)
-                    .response_type(Some(PathType::InlineSchema(inline_schema.to_token_stream(), ty))),
+                    .response_type(PathType::InlineSchema(inline_schema.to_token_stream(), ty)),
             )
                 .into(),
         )

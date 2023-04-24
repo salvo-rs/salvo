@@ -169,7 +169,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let idv = id.to_token_stream().to_string();
 
                     extract_ts.push(quote! {
-                        let #id: #ty = match <#ty as #oapi::Extractible>::extract_with_arg(req, #idv).await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
                             Ok(data) => {
                                 data
                             },

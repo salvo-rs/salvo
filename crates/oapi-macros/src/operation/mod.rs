@@ -86,7 +86,7 @@ impl<'a> Operation<'a> {
                 Response::Tuple(tuple) => {
                     let code = &tuple.status_code;
                     modifiers.push(quote! {
-                        operation.responses.insert(#code.into(), #tuple.into());
+                        operation.responses.insert(#code, #tuple);
                     });
                 }
             }

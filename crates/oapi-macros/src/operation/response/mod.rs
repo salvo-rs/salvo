@@ -174,7 +174,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveAsResponseValue>>> for Resp
         }: DeriveResponsesAttributes<Option<DeriveAsResponseValue>>,
     ) -> Self {
         if let Some(derive_value) = derive_value {
-            ResponseValue::from_derive_to_response_value(derive_value, description)
+            ResponseValue::from_derive_as_response_value(derive_value, description)
         } else {
             ResponseValue {
                 description,
@@ -196,7 +196,7 @@ pub struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(derive_value: DeriveAsResponseValue, description: String) -> Self {
+    fn from_derive_as_response_value(derive_value: DeriveAsResponseValue, description: String) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -226,9 +226,8 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn response_type(mut self, response_type: Option<PathType<'r>>) -> Self {
-        self.response_type = response_type;
-
+    fn response_type(mut self, response_type: PathType<'r>) -> Self {
+        self.response_type = Some(response_type);
         self
     }
 }
@@ -283,7 +282,7 @@ impl ToTokens for ResponseTuple<'_> {
 
                     if let Some(example) = &example {
                         content.extend(quote! {
-                            .example(Some(#example))
+                            .example(#example)
                         })
                     }
                     if let Some(examples) = &examples {

@@ -128,8 +128,8 @@ impl ToTokens for AsParameters {
         let oapi = crate::oapi_crate();
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
-                fn as_parameters(parameter_in_provider: impl Fn() -> Option<#oapi::oapi::parameter::ParameterIn>) -> Vec<#oapi::oapi::parameter::Parameter> {
-                    #params.to_vec()
+                fn as_parameters() -> #oapi::oapi::Parameters {
+                    #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
         });
@@ -358,17 +358,17 @@ impl ToTokens for Parameter<'_> {
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new()
             .name(#name)
         });
-        tokens.extend(if let Some(ref parameter_in) = self.container_attributes.parameter_in {
-            parameter_in.into_token_stream()
-        };
+        if let Some(ref parameter_in) = self.container_attributes.parameter_in {
+            tokens.extend(parameter_in.into_token_stream());
+        }
 
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
-            tokens.extend(quote! { .schema(Some(#schema_with)) });
+            tokens.extend(quote! { .schema(#schema_with) });
         } else {
             let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
             if !description.is_empty() {
@@ -403,7 +403,7 @@ impl ToTokens for Parameter<'_> {
                 object_name: "",
             });
 
-            tokens.extend(quote! { .schema(Some(#schema)) });
+            tokens.extend(quote! { .schema(#schema) });
         }
     }
 }

@@ -149,7 +149,7 @@ impl ToTokens for RequestBodyAttr<'_> {
 
             if let Some(ref example) = self.example {
                 content.extend(quote! {
-                    .example(Some(#example))
+                    .example(#example)
                 })
             }
             if let Some(ref examples) = self.examples {

@@ -44,7 +44,8 @@ impl<T> DerefMut for Cookie<T> {
 
 impl<T> AsParameter for Cookie<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
-        Parameter::new(arg.unwrap()).parameter_in(ParameterIn::Cookie)
+        let arg = arg.expect("cookie parameter must have a name");
+        Parameter::new(arg).parameter_in(ParameterIn::Cookie).description(format!("Get parameter `{arg}` from request cookie"))
     }
 }
 
@@ -104,6 +105,6 @@ where
 #[async_trait]
 impl<T> EndpointModifier for Cookie<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.parameter(Self::parameter(arg));
+        operation.parameters.insert(Self::parameter(arg));
     }
 }

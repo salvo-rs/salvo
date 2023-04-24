@@ -103,8 +103,7 @@ impl Components {
     ///
     /// # Examples
     /// ```
-    /// # use salvo_oapi::schema::{Components, Object,
-    /// #    SchemaType, Schema};
+    /// # use salvo_oapi::{Components, Object, SchemaType, Schema};
     /// Components::new().schemas_from_iter([(
     ///     "Pet",
     ///     Schema::from(

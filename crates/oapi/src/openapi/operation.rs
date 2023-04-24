@@ -133,7 +133,7 @@ impl Operation {
 
     /// Append parameter to [`Operation`] parameters.
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
-        self.parameters.parameter(parameter.into());
+        self.parameters.insert(parameter);
         self
     }
 
@@ -152,7 +152,7 @@ impl Operation {
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
     pub fn add_response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
-        self.responses.insert(code.into(), response.into());
+        self.responses.insert(code, response);
         self
     }
 

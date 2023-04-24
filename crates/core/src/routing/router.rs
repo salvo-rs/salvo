@@ -190,9 +190,8 @@ impl Router {
     }
     /// Append all routers in a Vec as children of current router.
     #[inline]
-    pub fn append(mut self, others: Vec<Router>) -> Self {
-        let mut others = others;
-        self.routers.append(&mut others);
+    pub fn append(mut self, others: &mut Vec<Router>) -> Self {
+        self.routers.append(others);
         self
     }
 

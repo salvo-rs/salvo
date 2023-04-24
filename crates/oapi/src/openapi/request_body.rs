@@ -49,63 +49,6 @@ impl RequestBody {
     }
 }
 
-/// Trait with convenience functions for documenting request bodies.
-///
-/// With a single method call we can add [`Content`] to our [`RequestBody`] and
-/// [`RequestBody`] that references a [schema][schema] using
-/// content-type `"application/json"`.
-///
-/// _**Add json request body from schema ref.**_
-/// ```
-/// use salvo_oapi::request_body::{RequestBody, RequestBodyExt};
-///
-/// let request = RequestBody::new().json_schema_ref("EmailPayload");
-/// ```
-///
-/// If serialized to JSON, the above will result in a requestBody schema like this.
-/// ```json
-/// {
-///   "content": {
-///     "application/json": {
-///       "schema": {
-///         "$ref": "#/components/schemas/EmailPayload"
-///       }
-///     }
-///   }
-/// }
-/// ```
-///
-/// [schema]: crate::AsSchema
-///
-#[cfg(feature = "openapi_extensions")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
-pub trait RequestBodyExt {
-    /// Add [`Content`] to [`RequestBody`] referring to a _`schema`_
-    /// with Content-Type `application/json`.
-    fn json_schema_ref(self, ref_name: &str) -> Self;
-}
-
-#[cfg(feature = "openapi_extensions")]
-impl RequestBodyExt for RequestBody {
-    fn json_schema_ref(mut self, ref_name: &str) -> RequestBody {
-        self.content.insert(
-            "application/json".to_string(),
-            crate::Content::new(crate::Ref::from_schema_name(ref_name)),
-        );
-        self
-    }
-}
-
-#[cfg(feature = "openapi_extensions")]
-impl RequestBodyExt for RequestBody {
-    fn json_schema_ref(self, ref_name: &str) -> RequestBody {
-        self.content(
-            "application/json",
-            crate::Content::new(crate::Ref::from_schema_name(ref_name)),
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
@@ -148,52 +91,5 @@ mod tests {
             })
         );
         Ok(())
-    }
-}
-
-#[cfg(all(test, feature = "openapi_extensions"))]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
-mod openapi_extensions_tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
-    use crate::request_body::RequestBody;
-
-    use super::RequestBodyExt;
-
-    #[test]
-    fn request_body_ext() {
-        let request_body = RequestBody::new()
-            // build a RequestBody first to test the method
-            .json_schema_ref("EmailPayload");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EmailPayload"
-                  }
-                }
-              }
-            })
-        );
-    }
-
-    #[test]
-    fn request_body_builder_ext() {
-        let request_body = RequestBody::new().json_schema_ref("EmailPayload");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EmailPayload"
-                  }
-                }
-              }
-            })
-        );
     }
 }

@@ -10,7 +10,7 @@ However when used with _`#[inline]`_ the non [`primitive`][primitive] type schem
 be inlined to the schema output.
 
 ```
-# #[derive(salvo_oapi_macros::AsSchema)]
+# #[derive(salvo_oapi::AsSchema)]
 # struct Pet {id: i32};
 let schema = salvo_oapi::schema!(Vec<Pet>);
 
@@ -22,10 +22,10 @@ let schema = salvo_oapi::schema!(#[inline] Vec<Pet>);
 
 _**Create vec of pets schema.**_
 ```
-# use salvo_oapi::schema::{Schema, Array, Object, SchemaFormat,
-# KnownFormat, SchemaType};
+# use salvo_core::prelude::*;
+# use salvo_oapi::schema::{Schema, Array, Object, SchemaFormat, KnownFormat, SchemaType};
 # use salvo_oapi::RefOr;
-#[derive(salvo_oapi_macros::AsSchema)]
+#[derive(salvo_oapi::AsSchema)]
 struct Pet {
     id: i32,
     name: String,
