@@ -46,7 +46,9 @@ impl<T> AsParameter for PathParam<T> {
         panic!("path parameter must have a argument");
     }
     fn parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg).parameter_in(ParameterIn::Path).description(format!("Get parameter `{arg}` from request url path"))
+        Parameter::new(arg)
+            .parameter_in(ParameterIn::Path)
+            .description(format!("Get parameter `{arg}` from request url path"))
     }
 }
 

@@ -997,33 +997,22 @@ mod tests {
             "could not find path: components.schemas.Credential.properties.history"
         );
         assert_json_eq!(
-            credential
-                .get("id")
-                .unwrap_or(&serde_json::value::Value::Null),
+            credential.get("id").unwrap_or(&serde_json::value::Value::Null),
             json!({"type":"integer","format":"int32","description":"Id of credential","default":1})
         );
         assert_json_eq!(
-            credential
-                .get("name")
-                .unwrap_or(&serde_json::value::Value::Null),
+            credential.get("name").unwrap_or(&serde_json::value::Value::Null),
             json!({"type":"string","description":"Name of credential"})
         );
         assert_json_eq!(
-            credential
-                .get("status")
-                .unwrap_or(&serde_json::value::Value::Null),
+            credential.get("status").unwrap_or(&serde_json::value::Value::Null),
             json!({"default":"Active","description":"Credential status","enum":["Active","NotActive","Locked","Expired"],"type":"string"})
         );
         assert_json_eq!(
-            credential
-                .get("history")
-                .unwrap_or(&serde_json::value::Value::Null),
+            credential.get("history").unwrap_or(&serde_json::value::Value::Null),
             json!({"items":{"$ref":"#/components/schemas/UpdateHistory"},"type":"array"})
         );
-        assert_eq!(
-            person,
-            &json!({"$ref":"#/components/PersonModel"})
-        );
+        assert_eq!(person, &json!({"$ref":"#/components/PersonModel"}));
 
         Ok(())
     }

@@ -2,24 +2,26 @@ use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{quote, format_ident, ToTokens};
-use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident, GenericParam, Lifetime, LifetimeParam};
+use quote::{format_ident, quote, ToTokens};
+use syn::{
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, GenericParam, Generics, Ident,
+    Lifetime, LifetimeParam,
+};
 
 use crate::{
     component::{
         self,
         features::{
-            self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
-            Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
-            ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr, 
-            impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt,
-            IntoInner, Merge, ToTokensExt,
+            self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
+            AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
+            IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
+            Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
         },
-        serde::{self, RenameRule,SerdeContainer},
-        FieldRename, ComponentSchema, TypeTree,
+        serde::{self, RenameRule, SerdeContainer},
+        ComponentSchema, FieldRename, TypeTree,
     },
-    operation::ParameterIn,
     doc_comment::CommentAttributes,
+    operation::ParameterIn,
     Array, Required, ResultExt,
 };
 
@@ -59,7 +61,7 @@ impl ToTokens for AsParameters {
         let salvo = crate::salvo_crate();
         let oapi = crate::oapi_crate();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
-        
+
         let de_life = &Lifetime::new("'__de", Span::call_site());
         let de_lifetime: GenericParam = LifetimeParam::new(de_life.clone()).into();
         let mut de_generics = self.generics.clone();
@@ -100,17 +102,17 @@ impl ToTokens for AsParameters {
         let style = pop_feature!(as_parameters_features => Feature::Style(_));
         let parameter_in = pop_feature!(as_parameters_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
-        let source_from = if let Some( Feature::ParameterIn(features::ParameterIn(parameter_in))) = parameter_in {
+        let source_from = if let Some(Feature::ParameterIn(features::ParameterIn(parameter_in))) = parameter_in {
             match parameter_in {
-                ParameterIn::Query => quote!{  #salvo::extract::metadata::SourceFrom::Query },
-                ParameterIn::Header => quote!{  #salvo::extract::metadata::SourceFrom::Header },
-                ParameterIn::Path => quote!{ #salvo::extract::metadata::SourceFrom::Param },
-                ParameterIn::Cookie => quote!{  #salvo::extract::metadata::SourceFrom::Cookie },
+                ParameterIn::Query => quote! {  #salvo::extract::metadata::SourceFrom::Query },
+                ParameterIn::Header => quote! {  #salvo::extract::metadata::SourceFrom::Header },
+                ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
+                ParameterIn::Cookie => quote! {  #salvo::extract::metadata::SourceFrom::Cookie },
             }
         } else {
-            quote!{ #salvo::extract::metadata::SourceFrom::Query }
+            quote! { #salvo::extract::metadata::SourceFrom::Query }
         };
-        let default_source = quote!{ #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceFormat::MultiMap) };
+        let default_source = quote! { #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceFormat::MultiMap) };
         let fields = self
         .get_struct_fields(&names.as_ref())
         .enumerate()
@@ -162,29 +164,35 @@ impl ToTokens for AsParameters {
             })
             .collect::<Array<Parameter>>();
 
-
-            let rename_all = rename_all.as_ref().map(|feature| match feature {
+        let rename_all = rename_all
+            .as_ref()
+            .map(|feature| match feature {
                 Feature::RenameAll(RenameAll(rename_rule)) => match rename_rule {
-                    RenameRule::Lower => quote!{ Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::Upper => quote!{ Some(#salvo::extract::metadata::RenameRule::UpperCase) },
-                    RenameRule::Camel => quote!{ Some(#salvo::extract::metadata::RenameRule::CamelCase) },
-                    RenameRule::Snake => quote!{ Some(#salvo::extract::metadata::RenameRule::SnakeCase) },
-                    RenameRule::ScreamingSnake => quote!{ Some(#salvo::extract::metadata::RenameRule::ScreamingSnakeCase) },
-                    RenameRule::Pascal => quote!{ Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::Kebab => quote!{ Some(#salvo::extract::metadata::RenameRule::KebabCase) },
-                    RenameRule::ScreamingKebab => quote!{ Some(#salvo::extract::metadata::RenameRule::ScreamingKebabCase) },
+                    RenameRule::Lower => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
+                    RenameRule::Upper => quote! { Some(#salvo::extract::metadata::RenameRule::UpperCase) },
+                    RenameRule::Camel => quote! { Some(#salvo::extract::metadata::RenameRule::CamelCase) },
+                    RenameRule::Snake => quote! { Some(#salvo::extract::metadata::RenameRule::SnakeCase) },
+                    RenameRule::ScreamingSnake => {
+                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingSnakeCase) }
+                    }
+                    RenameRule::Pascal => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
+                    RenameRule::Kebab => quote! { Some(#salvo::extract::metadata::RenameRule::KebabCase) },
+                    RenameRule::ScreamingKebab => {
+                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingKebabCase) }
+                    }
                 },
-                _ => quote!{None},
-            }).unwrap_or_else(|| quote!{None});
-            let name = ident.to_string();
-            let metadata: Ident = format_ident!("__salvo_extract_{}", name);
+                _ => quote! {None},
+            })
+            .unwrap_or_else(|| quote! {None});
+        let name = ident.to_string();
+        let metadata: Ident = format_ident!("__salvo_extract_{}", name);
         tokens.extend(quote! {
             impl #de_impl_generics #oapi::oapi::AsParameters<'__de> for #ident #ty_generics #where_clause {
                 fn parameters() -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
-            
+
             #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
                 fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {

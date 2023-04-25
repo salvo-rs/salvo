@@ -47,9 +47,7 @@ pub enum Parameter<'a> {
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::Struct(StructParameter {
-                path: input.parse()?,
-            }))
+            Ok(Self::Struct(StructParameter { path: input.parse()? }))
         } else {
             Ok(Self::Value(input.parse()?))
         }
@@ -61,7 +59,7 @@ impl ToTokens for Parameter<'_> {
         let oapi = crate::oapi_crate();
         match self {
             Parameter::Value(parameter) => tokens.extend(quote! { .add_parameter(#parameter) }),
-            Parameter::Struct(StructParameter { path,  }) => {
+            Parameter::Struct(StructParameter { path }) => {
                 let last_ident = &path.path.segments.last().unwrap().ident;
 
                 tokens.extend(quote_spanned! {last_ident.span()=>

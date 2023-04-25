@@ -46,7 +46,9 @@ impl<T> AsParameter for QueryParam<T> {
         panic!("query parameter must have a argument");
     }
     fn parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg).parameter_in(ParameterIn::Query).description(format!("Get parameter `{arg}` from request url query"))
+        Parameter::new(arg)
+            .parameter_in(ParameterIn::Query)
+            .description(format!("Get parameter `{arg}` from request url query"))
     }
 }
 

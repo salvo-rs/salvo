@@ -54,7 +54,7 @@ impl SwaggerUi {
     /// Calling this again will add another url to the Swagger UI.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```rust
     /// # use salvo_oapi::swagger::SwaggerUi;
     /// # use salvo_oapi::{Info, OpenApi};

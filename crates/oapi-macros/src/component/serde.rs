@@ -252,7 +252,7 @@ pub enum RenameRule {
     Upper,
     Camel,
     Snake,
-    ScreamingSnake, 
+    ScreamingSnake,
     Pascal,
     Kebab,
     ScreamingKebab,

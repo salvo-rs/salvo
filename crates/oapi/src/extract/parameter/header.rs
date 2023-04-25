@@ -46,7 +46,9 @@ impl<T> AsParameter for HeaderParam<T> {
         panic!("header parameter must have a argument");
     }
     fn parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg).parameter_in(ParameterIn::Header).description(format!("Get parameter `{arg}` from request headers"))
+        Parameter::new(arg)
+            .parameter_in(ParameterIn::Header)
+            .description(format!("Get parameter `{arg}` from request headers"))
     }
 }
 

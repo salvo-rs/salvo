@@ -32,8 +32,8 @@ mod schema_type;
 mod security_requirement;
 mod shared;
 
-use operation::parameter::derive::AsParameters;
 use component::schema::AsSchema;
+use operation::parameter::derive::AsParameters;
 
 pub(crate) use self::{
     component::{
@@ -87,7 +87,7 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-   AsParameters {
+    AsParameters {
         attrs,
         generics,
         data,

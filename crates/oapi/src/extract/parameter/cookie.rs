@@ -47,7 +47,9 @@ impl<T> AsParameter for CookieParam<T> {
         panic!("cookie parameter must have a argument");
     }
     fn parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg).parameter_in(ParameterIn::Cookie).description(format!("Get parameter `{arg}` from request cookie"))
+        Parameter::new(arg)
+            .parameter_in(ParameterIn::Cookie)
+            .description(format!("Get parameter `{arg}` from request cookie"))
     }
 }
 

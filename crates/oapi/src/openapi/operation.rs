@@ -2,7 +2,7 @@
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
 use std::collections::BTreeMap;
-use std::ops::{DerefMut, Deref};
+use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ use super::{
     response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
-use crate::{Parameter, Parameters, Servers, PathItemType};
+use crate::{Parameter, Parameters, PathItemType, Servers};
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 pub struct Operations(pub BTreeMap<PathItemType, Operation>);

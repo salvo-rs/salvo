@@ -93,7 +93,8 @@ pub struct PathItem {
     /// List of [`Parameter`]s common to all [`Operation`]s in this [`PathItem`]. Parameters cannot
     /// contain duplicate parameters. They can be overridden in [`Operation`] level but cannot be
     /// removed there.
-    #[serde(skip_serializing_if = "Parameters::is_empty")]#[serde(flatten)]
+    #[serde(skip_serializing_if = "Parameters::is_empty")]
+    #[serde(flatten)]
     pub parameters: Parameters,
 
     /// Map of operations in this [`PathItem`]. Operations can hold only one operation

@@ -47,7 +47,10 @@ impl Parameters {
             self.insert(item);
         }
     }
-    pub fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = Parameter> {
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = Parameter>,
+    {
         for item in iter {
             self.insert(item);
         }

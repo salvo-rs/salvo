@@ -116,7 +116,8 @@ impl Parse for ResponseTuple<'_> {
                     response.as_value(input.span())?.examples = Some(parse::examples(input)?);
                 }
                 "content" => {
-                    response.as_value(input.span())?.contents = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    response.as_value(input.span())?.contents =
+                        parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "response" => {
                     response.set_ref_type(input.span(), parse_utils::parse_next(input, || input.parse())?)?;
@@ -342,7 +343,9 @@ impl ToTokens for ResponseTuple<'_> {
                         let content = create_content(body, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
-                    .for_each(|(content_type, content)| tokens.extend(quote! { .add_content(#content_type, #content) }));
+                    .for_each(|(content_type, content)| {
+                        tokens.extend(quote! { .add_content(#content_type, #content) })
+                    });
 
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;

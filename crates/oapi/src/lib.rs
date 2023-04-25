@@ -396,7 +396,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 ///         )
 ///     }
 /// }
-/// 
+///
 /// #[async_trait]
 /// impl<'de> Extractible<'de> for PetParams {
 ///    fn metadata() -> &'de Metadata {
@@ -410,7 +410,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 ///        Self::extract(req).await
 ///    }
 /// }
-/// 
+///
 /// #[async_trait]
 /// impl EndpointModifier for PetParams {
 ///     fn modify(_components: &mut Components, operation: &mut Operation) {

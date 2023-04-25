@@ -7,6 +7,7 @@ use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 pub use self::{
     components::Components,
     content::Content,
+    example::Example,
     external_docs::ExternalDocs,
     header::Header,
     info::{Contact, Info, License},
@@ -20,7 +21,6 @@ pub use self::{
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
     xml::Xml,
-    example::Example,
 };
 
 mod components;

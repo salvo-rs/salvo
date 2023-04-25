@@ -145,7 +145,7 @@ impl ToTokens for AsResponses {
         } else {
             quote!( #oapi::oapi::Responses::new())
         };
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsResponses for #ident #ty_generics #where_clause {
                 fn responses() -> #oapi::oapi::response::Responses {
                     #responses
