@@ -12,22 +12,15 @@ use crate::{
             self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
             Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
             ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr, 
+            impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt,
+            IntoInner, Merge, ToTokensExt,
         },
-        serde::RenameRule,
-        FieldRename,
+        serde::{self, RenameRule,SerdeContainer},
+        FieldRename, ComponentSchema, TypeTree,
     },
     operation::ParameterIn,
     doc_comment::CommentAttributes,
     Array, Required, ResultExt,
-};
-
-use super::{
-    features::{
-        impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt,
-        IntoInner, Merge, ToTokensExt,
-    },
-    serde::{self, SerdeContainer},
-    ComponentSchema, TypeTree,
 };
 
 impl_merge!(AsParametersFeatures, FieldFeatures);
@@ -194,7 +187,7 @@ impl ToTokens for AsParameters {
             
             #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
-                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, arg: Option<&str>) {
+                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                     for parameter in <Self as #oapi::oapi::AsParameters>::parameters() {
                         operation.parameters.insert(parameter);
                     }
@@ -440,7 +433,7 @@ impl ToTokens for Parameter<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name = super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
+        let name = crate::component::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
@@ -448,7 +441,7 @@ impl ToTokens for Parameter<'_> {
             tokens.extend(parameter_in.into_token_stream());
         }
 
-        if let Some(deprecated) = super::get_deprecated(&field.attrs) {
+        if let Some(deprecated) = crate::component::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
@@ -469,7 +462,7 @@ impl ToTokens for Parameter<'_> {
 
             let required = pop_feature_as_inner!(param_features => Feature::Required(_v))
                 .as_ref()
-                .map(super::features::Required::is_true)
+                .map(crate::component::features::Required::is_true)
                 .unwrap_or(false);
 
             let non_required = (component.is_option() && !required)

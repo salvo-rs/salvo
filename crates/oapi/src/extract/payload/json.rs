@@ -78,7 +78,7 @@ impl<'de, T> EndpointModifier for JsonBody<T>
 where
     T: Deserialize<'de>,
 {
-    fn modify(_components: &mut Components, operation: &mut Operation, _arg: Option<&str>) {
+    fn modify(_components: &mut Components, operation: &mut Operation) {
         operation.request_body = Some(Self::request_body());
     }
 }

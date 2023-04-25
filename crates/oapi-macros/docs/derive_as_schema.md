@@ -2,7 +2,7 @@
 Generate reusable OpenAPI schema to be used
 together with [`OpenApi`][openapi_derive].
 
-This is `#[derive]` implementation for [`AsSchema`][to_schema] trait. The macro accepts one
+This is `#[derive]` implementation for [`AsSchema`][as_schema] trait. The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
@@ -92,8 +92,6 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   according OpenApi spec.
 * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
-* `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-   See configuration options at xml attributes of [`AsSchema`][to_schema_xml]
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
   any third-party types are used which are not [`AsSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -551,4 +549,3 @@ More examples for _`value_type`_ in [`AsParameters` derive docs][parameters].
 [discriminator]: openapi/schema/struct.Discriminator.html
 [enum_schema]: derive.AsSchema.html#enum-optional-configuration-options-for-schema
 [openapi_derive]: derive.OpenApi.html
-[to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

@@ -42,8 +42,10 @@ impl<T> DerefMut for HeaderParam<T> {
 }
 
 impl<T> AsParameter for HeaderParam<T> {
-    fn parameter(arg: Option<&str>) -> Parameter {
-        let arg = arg.expect("header parameter must have a name");
+    fn parameter() -> Parameter {
+        panic!("header parameter must have a argument");
+    }
+    fn parameter_with_arg(arg: &str) -> Parameter {
         Parameter::new(arg).parameter_in(ParameterIn::Header).description(format!("Get parameter `{arg}` from request headers"))
     }
 }
@@ -100,7 +102,10 @@ where
 
 #[async_trait]
 impl<T> EndpointModifier for HeaderParam<T> {
-    fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.insert(Self::parameter(arg));
+    fn modify(_components: &mut Components, _operation: &mut Operation) {
+        panic!("header parameter can not modiify operation without argument");
+    }
+    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
+        operation.parameters.insert(Self::parameter_with_arg(arg));
     }
 }

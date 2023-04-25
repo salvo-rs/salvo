@@ -9,7 +9,7 @@ _`#[response]`_ attribute can be used to alter and add [response attributes](#to
 _`#[content]`_ attributes is used to make enum variant a content of a specific type for the
 response.
 
-_`#[to_schema]`_ attribute is used to inline a schema for a response in unnamed structs or
+_`#[as_schema]`_ attribute is used to inline a schema for a response in unnamed structs or
 enum variants with `#[content]` attribute. **Note!** [`AsSchema`] need to be implemented for
 the field or variant type.
 
@@ -34,7 +34,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
 2. By decorating unnamed field `struct` with [`derive@AsResponse`] derive macro. Unnamed field struct
    allows users to use new type pattern to define one inner field which is used as a schema for
    the generated response. This allows users to define `Vec` and `Option` response types.
-   Additionally these types can also be used with `#[to_schema]` attribute to inline the
+   Additionally these types can also be used with `#[as_schema]` attribute to inline the
    field's type schema if it implements [`AsSchema`] derive macro.
 
    ```rust
@@ -60,7 +60,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    define multiple response content schemas to single response according to OpenAPI spec.
    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
-   these variants can also be used with `#[to_schema]` attribute to inline the variant's type schema
+   these variants can also be used with `#[as_schema]` attribute to inline the variant's type schema
    if it implements [`AsSchema`] derive macro.
 
    ```rust

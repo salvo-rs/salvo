@@ -15,9 +15,9 @@ Unit _`struct`_ behaves similarly to then named field struct. Only difference is
 a response without content since there is no inner fields.
 
 Unnamed field _`struct`_ decorated with [`derive@AsResponses`] will by default create a response with
-referenced [schema][to_schema] if field is object or schema if type is [primitive
-type][primitive]. _`#[to_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
-the schema if type of the field implements [`AsSchema`][to_schema] trait. Alternatively
+referenced [schema][as_schema] if field is object or schema if type is [primitive
+type][primitive]. _`#[as_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
+the schema if type of the field implements [`AsSchema`][as_schema] trait. Alternatively
 _`#[as_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
 [response][as_response] or inline a reusable [response][as_response]. In both cases the field
 type is expected to implement [`AsResponse`][as_response] trait.
@@ -139,7 +139,7 @@ _**Unnamed struct response with inlined response schema.**_
 # struct Foo;
 #[derive(salvo_oapi::AsResponses)]
 #[response(status = 201)]
-struct CreatedResponse(#[to_schema] Foo);
+struct CreatedResponse(#[as_schema] Foo);
 ```
 
 _**Enum with multiple responses.**_

@@ -9,6 +9,8 @@ use syn::{
     Error, ExprPath, LitStr, Token,
 };
 
+pub mod derive;
+
 use crate::{
     component::{
         self,

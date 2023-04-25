@@ -366,7 +366,7 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// #    /// Name of pet
 /// #    name: String,
 /// # }
-/// impl salvo_oapi::AsParameters for PetParams {
+/// impl<'de> salvo_oapi::AsParameters<'de> for PetParams {
 ///     fn parameters() -> salvo_oapi::Parameters {
 ///         salvo_oapi::Parameters::new().parameter(
 ///             salvo_oapi::Parameter::new("id")
@@ -398,7 +398,10 @@ pub trait AsParameters<'de>: Extractible<'de> + EndpointModifier {
     fn parameters() -> Parameters;
 }
 pub trait AsParameter: EndpointModifier {
-    fn parameter(arg: Option<&str>) -> Parameter;
+    fn parameter() -> Parameter;
+    fn parameter_with_arg(_arg: &str) -> Parameter {
+        Self::parameter()
+    }
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent
@@ -408,9 +411,10 @@ pub trait AsParameter: EndpointModifier {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Responses, RefOr, AsResponses };
+/// use serde::Deserialize;
+/// use salvo_oapi::{AsRequestBody, AsSchema, Components, Content, EndpointModifier, Operation, RequestBody };
 ///
-/// #[derive(Deserialize, Debug)]
+/// #[derive(AsSchema, Deserialize, Debug)]
 /// struct MyPayload {
 ///     name: String,
 /// }
@@ -418,7 +422,12 @@ pub trait AsParameter: EndpointModifier {
 /// impl AsRequestBody for MyPayload {
 ///     fn request_body() -> RequestBody {
 ///         RequestBody::new()
-///             .add_content("application/json", Content::new(""))
+///             .add_content("application/json", Content::new(MyPayload::schema().1))
+///     }
+/// }
+/// impl EndpointModifier for MyPayload {
+///     fn modify(_components: &mut Components, operation: &mut Operation) {
+///         operation.request_body = Some(Self::request_body());
 ///     }
 /// }
 /// ```

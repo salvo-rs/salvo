@@ -183,7 +183,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                         };
                     });
                     modifiers.push(quote! {
-                         <#ty as #oapi::oapi::EndpointModifier>::modify(&mut components, &mut operation, Some(#idv));
+                         <#ty as #oapi::oapi::EndpointModifier>::modify_with_arg(&mut components, &mut operation, #idv);
                     });
                 } else {
                     return Err(syn::Error::new_spanned(pat, "invalid param definition"));

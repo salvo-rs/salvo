@@ -73,11 +73,11 @@ The following attributes are available for use in the `#[parameter(...)]` on str
 
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`AsSchema`][to_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`AsSchema`][as_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object.
 
-* `inline` If set, the schema for this field's type needs to be a [`AsSchema`][to_schema], and
+* `inline` If set, the schema for this field's type needs to be a [`AsSchema`][as_schema], and
   the schema definition will be inlined.
 
 * `default = ...` Can be method reference or _`json!(...)`_.
@@ -91,7 +91,7 @@ The following attributes are available for use in the `#[parameter(...)]` on str
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-   See configuration options at xml attributes of [`AsSchema`][to_schema_xml]
+   See configuration options at xml attributes of [`AsSchema`][as_schema_xml]
 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
@@ -237,7 +237,7 @@ struct Filter {
 }
 ```
 
-_**We can override value with another [`AsSchema`][to_schema].**_
+_**We can override value with another [`AsSchema`][as_schema].**_
 ```
 # use salvo_oapi::{AsParameters, AsSchema};
 #
@@ -287,7 +287,7 @@ struct Query {
 }
 ```
 
-[to_schema]: trait.AsSchema.html
+[as_schema]: trait.AsSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
 [as_parameters]: trait.AsParameters.html
@@ -297,4 +297,3 @@ struct Query {
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [serde attributes]: https://serde.rs/attributes.html
-[to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

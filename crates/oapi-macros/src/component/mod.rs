@@ -14,8 +14,6 @@ use self::features::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nulla
 use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
-pub mod parameters;
-
 pub mod features;
 pub mod schema;
 pub mod serde;
@@ -29,7 +27,7 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
-fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
+pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     attributes.iter().find_map(|attribute| {
         if attribute
             .path()
@@ -325,7 +323,7 @@ pub enum GenericType {
     RefCell,
 }
 
-trait Rename {
+pub(crate) trait Rename {
     fn rename(rule: &RenameRule, value: &str) -> String;
 }
 
@@ -336,7 +334,7 @@ trait Rename {
 /// * `value` to rename.
 /// * `to` Optional rename to value for fields with _`rename`_ property.
 /// * `container_rule` which is used to rename containers with _`rename_all`_ property.
-fn rename<'r, R: Rename>(
+pub(crate) fn rename<'r, R: Rename>(
     value: &'r str,
     to: Option<Cow<'r, str>>,
     container_rule: Option<&'r RenameRule>,
@@ -360,7 +358,7 @@ impl Rename for VariantRename {
 }
 
 /// Can be used to perform rename on field level of a container e.g `struct`.
-struct FieldRename;
+pub(crate) struct FieldRename;
 
 impl Rename for FieldRename {
     fn rename(rule: &RenameRule, value: &str) -> String {

@@ -45,7 +45,7 @@ fn endpoint() {}
 * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
+  [`AsSchema`][as_schema] types. _`ref("./external.json")`_ can be used to reference external
   json file for body schema. **Note!** Sapid does **not** guarantee that free form _`ref`_ is accessbile via
   OpenAPI doc or Swagger UI, users are eligible to make these guarantees.
 
@@ -53,7 +53,7 @@ fn endpoint() {}
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-  which is the default for [`AsSchema`][to_schema] types. _`ref("./external.json")`_
+  which is the default for [`AsSchema`][as_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
   to make these guarantees.
@@ -93,7 +93,7 @@ _**Example request body definitions.**_
   response body. Can be _`body = Type`_, _`body = inline(Type)`_, or _`body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][to_schema] types. _`ref("./external.json")`_
+  [`AsSchema`][as_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
   to make these guarantees.
@@ -209,7 +209,7 @@ responses(MyResponse)
 * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
+  [`AsSchema`][as_schema] types. **Reminder!** It's up to the user to use valid type for the
   response header.
 
 * `description = "..."` Can be used to define optional description for the response header as str.
@@ -236,7 +236,7 @@ tuples separated by commas:
 * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][to_schema] types. Parameter type is placed after `name` with
+  [`AsSchema`][as_schema] types. Parameter type is placed after `name` with
   equals sign E.g. _`"id" = String`_
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -270,9 +270,6 @@ enabled.
 * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
-
-* `xml(...)` Can be used to define [`Xml`][xml] object properties for the parameter type.
-   See configuration options at xml attributes of [`AsSchema`][to_schema_xml]
 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
@@ -345,7 +342,7 @@ _**More minimal example with the defaults.**_
 ```
 # use salvo_core::prelude::*;
 # use salvo_oapi::AsSchema;
-# #[derive(AsSchema, serde::Deserialize, serde::Serialize, Debug)]
+# #[derive(AsSchema, Extractible, serde::Deserialize, serde::Serialize, Debug)]
 # #[extract(default_source(from = "body"))]
 # struct Pet {
 #    id: u64,
@@ -440,7 +437,7 @@ async fn get_user() -> Json<User> {
 
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [path]: trait.Path.html
-[to_schema]: trait.AsSchema.html
+[as_schema]: trait.AsSchema.html
 [openapi]: derive.OpenApi.html
 [security]: openapi/security/struct.SecurityRequirement.html
 [security_schema]: openapi/security/struct.SecuritySchema.html
@@ -452,4 +449,3 @@ async fn get_user() -> Json<User> {
 [as_response_trait]: trait.AsResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
-[to_schema_xml]: macro@AsSchema#xml-attribute-configuration-options

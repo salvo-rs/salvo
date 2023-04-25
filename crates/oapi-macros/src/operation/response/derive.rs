@@ -167,7 +167,7 @@ trait Response {
 
         let ident = attribute.path().get_ident().unwrap();
         match &*ident.to_string() {
-            "to_schema" => (false, ERROR),
+            "as_schema" => (false, ERROR),
             "ref_response" => (false, ERROR),
             "content" => (false, ERROR),
             "as_response" => (false, ERROR),
@@ -196,7 +196,7 @@ impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema");
         let ref_response = inner_attributes
             .iter()
             .any(|attribute| attribute.path().get_ident().unwrap() == "ref_response");
@@ -207,7 +207,7 @@ impl<'u> UnnamedStructResponse<'u> {
         if is_inline && (ref_response || as_response) {
             abort!(
                 ty.span(),
-                "Attribute `to_schema` cannot be used with `ref_response` and `as_response` attribute"
+                "Attribute `as_schema` cannot be used with `ref_response` and `as_response` attribute"
             )
         }
         let mut derive_value = DeriveAsResponsesValue::from_attributes(attributes)
@@ -374,7 +374,7 @@ impl<'u> AsResponseUnnamedStructResponse<'u> {
 
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema");
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             description,
             derive_value,
@@ -481,7 +481,7 @@ impl<'r> EnumResponse<'r> {
                 field
                     .attrs
                     .iter()
-                    .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema")
+                    .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema")
             })
             .unwrap_or(false);
 

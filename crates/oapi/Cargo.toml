@@ -23,7 +23,7 @@ smallvec = ["salvo-oapi-macros/smallvec"]
 indexmap = ["salvo-oapi-macros/indexmap"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false }
+salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 serde_urlencoded.workspace = true
 base64.workspace = true

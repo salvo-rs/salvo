@@ -42,8 +42,10 @@ impl<T> DerefMut for PathParam<T> {
 }
 
 impl<T> AsParameter for PathParam<T> {
-    fn parameter(arg: Option<&str>) -> Parameter {
-        let arg = arg.expect("path parameter must have a name");
+    fn parameter() -> Parameter {
+        panic!("path parameter must have a argument");
+    }
+    fn parameter_with_arg(arg: &str) -> Parameter {
         Parameter::new(arg).parameter_in(ParameterIn::Path).description(format!("Get parameter `{arg}` from request url path"))
     }
 }
@@ -100,7 +102,10 @@ where
 
 #[async_trait]
 impl<T> EndpointModifier for PathParam<T> {
-    fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
-        operation.parameters.insert(Self::parameter(arg));
+    fn modify(_components: &mut Components, _operation: &mut Operation) {
+        panic!("path parameter can not modiify operation without argument");
+    }
+    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
+        operation.parameters.insert(Self::parameter_with_arg(arg));
     }
 }

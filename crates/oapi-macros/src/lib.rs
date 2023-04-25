@@ -32,7 +32,7 @@ mod schema_type;
 mod security_requirement;
 mod shared;
 
-use component::parameters::AsParameters;
+use operation::parameter::derive::AsParameters;
 use component::schema::AsSchema;
 
 pub(crate) use self::{
@@ -98,7 +98,7 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(AsResponse, attributes(response, content, to_schema))]
+#[proc_macro_derive(AsResponse, attributes(response, content, as_schema))]
 #[doc = include_str!("../docs/derive_as_response.md")]
 pub fn derive_as_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -113,7 +113,7 @@ pub fn derive_as_response(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(AsResponses, attributes(response, to_schema, ref_response, as_response))]
+#[proc_macro_derive(AsResponses, attributes(response, as_schema, ref_response, as_response))]
 #[doc = include_str!("../docs/derive_as_responses.md")]
 pub fn as_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {

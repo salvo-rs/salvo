@@ -43,7 +43,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
   to override the type. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.AsSchema.html) for more details.
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
-  See the `value_type` in [`AsSchema` derive docs][to_schema_derive].
+  See the `value_type` in [`AsSchema` derive docs][as_schema_derive].
 * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
 * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
@@ -178,4 +178,4 @@ println!("{}", doc.to_pretty_json().unwrap());
 [serde]: derive.AsSchema.html#partial-serde-attributes-support
 
 [security]: openapi/security/index.html
-[to_schema_derive]: derive.AsSchema.html
+[as_schema_derive]: derive.AsSchema.html

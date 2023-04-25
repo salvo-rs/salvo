@@ -349,10 +349,10 @@ pub struct Object {
     /// Map of fields with their [`Schema`] types.
     ///
     /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
-    /// properties map backing implementation to retain property order of [`AsSchema`][to_schema].
+    /// properties map backing implementation to retain property order of [`AsSchema`][as_schema].
     /// By default [`BTreeMap`] will be used.
     ///
-    /// [to_schema]: crate::AsSchema
+    /// [as_schema]: crate::AsSchema
     #[serde(
         skip_serializing_if = "ObjectPropertiesMap::is_empty",
         default = "ObjectPropertiesMap::new"

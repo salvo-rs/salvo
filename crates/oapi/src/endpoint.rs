@@ -8,7 +8,10 @@ pub struct Endpoint {
 }
 
 pub trait EndpointModifier {
-    fn modify(compontents: &mut Components, operation: &mut Operation, arg: Option<&str>);
+    fn modify(compontents: &mut Components, operation: &mut Operation);
+    fn modify_with_arg(compontents: &mut Components, operation: &mut Operation, _arg: &str) {
+        Self::modify(compontents, operation);
+    }
 }
 
 pub struct EndpointRegistry {
