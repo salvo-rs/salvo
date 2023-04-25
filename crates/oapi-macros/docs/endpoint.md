@@ -343,7 +343,6 @@ _**More minimal example with the defaults.**_
 # use salvo_core::prelude::*;
 # use salvo_oapi::AsSchema;
 # #[derive(AsSchema, Extractible, serde::Deserialize, serde::Serialize, Debug)]
-# #[extract(default_source(from = "body"))]
 # struct Pet {
 #    id: u64,
 #    name: String,
@@ -362,7 +361,7 @@ _**More minimal example with the defaults.**_
      ("x-csrf-token", Header, description = "Current csrf token of user"),
    )
 )]
-fn post_pet(pet: Pet, res: &mut Response) {
+fn post_pet(res: &mut Response) {
     res.render(Json(Pet {
         id: 4,
         name: "bob the cat".to_string(),
@@ -374,7 +373,7 @@ _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated Ope
 ```
 # use serde_json::json;
 # use salvo_core::prelude::*;
-# use salvo_oapi::{endpoint, extract::Path};
+# use salvo_oapi::{endpoint, extract::PathParam};
 #[endpoint(
     responses(
         (status = 200, description = "Pet found from database")
@@ -384,7 +383,7 @@ _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated Ope
     )
 )]
 #[deprecated]
-async fn get_pet_by_id(id: Path<i32>, res: &mut Response) {
+async fn get_pet_by_id(id: PathParam<i32>, res: &mut Response) {
     let json = json!({ "pet": format!("{:?}", id.value())});
     res.render(Json(json))
 }

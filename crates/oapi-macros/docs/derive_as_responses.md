@@ -171,7 +171,7 @@ enum UserResponses {
 ```
 
 [as_responses]: trait.AsResponses.html
-[to_schema]: trait.AsSchema.html
+[as_schema]: trait.AsSchema.html
 [as_response]: trait.AsResponse.html
 [path_as_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html

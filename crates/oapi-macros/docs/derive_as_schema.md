@@ -74,7 +74,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   according OpenApi spec.
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`AsSchema`][to_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`AsSchema`][as_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -94,10 +94,10 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`AsSchema`][to_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`AsSchema`][as_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-* `inline` If the type of this field implements [`AsSchema`][to_schema], then the schema definition
+* `inline` If the type of this field implements [`AsSchema`][as_schema], then the schema definition
   will be inlined. **warning:** Don't use this for recursive data types!
 * `required = ...` Can be used to enforce required status for the field. [See
   rules][derive@AsSchema#field-nullability-and-required-rules]
@@ -286,7 +286,7 @@ where super type declares common code for type aliases.
 
 In this example we have common `Status` type which accepts one generic type. It is then defined
 with `#[aliases(...)]` that it is going to be used with [`String`](std::string::String) and [`i32`] values.
-The generic argument could also be another [`AsSchema`][to_schema] as well.
+The generic argument could also be another [`AsSchema`][as_schema] as well.
 ```
 # use salvo_oapi::{AsSchema, OpenApi};
 #[derive(AsSchema)]
@@ -539,7 +539,7 @@ spec.**_
 
 More examples for _`value_type`_ in [`AsParameters` derive docs][parameters].
 
-[to_schema]: trait.AsSchema.html
+[as_schema]: trait.AsSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [binary]: openapi/schema/enum.KnownFormat.html#variant.Binary
 [xml]: openapi/xml/struct.Xml.html

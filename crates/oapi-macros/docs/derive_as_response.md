@@ -83,7 +83,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
         Admin(#[content("application/vnd-custom-v1+json")] Admin),
 
         #[response(example = json!({"name": "name3", "id": 1}))]
-        Admin2(#[content("application/vnd-custom-v2+json")] #[to_schema] Admin2),
+        Admin2(#[content("application/vnd-custom-v2+json")] #[as_schema] Admin2),
     }
    ```
 
@@ -185,7 +185,7 @@ _**Create inlined person list response.**_
  # }
  /// Person list response
  #[derive(salvo_oapi::AsResponse)]
- struct PersonList(#[to_schema] Vec<Person>);
+ struct PersonList(#[as_schema] Vec<Person>);
 ```
 
 _**Create enum response from variants.**_
