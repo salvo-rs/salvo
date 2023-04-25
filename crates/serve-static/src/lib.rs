@@ -86,7 +86,6 @@ pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
 
 #[cfg(test)]
 mod tests {
-    use rust_embed::RustEmbed;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
 
@@ -174,7 +173,7 @@ mod tests {
     #[cfg(feature = "embed")]
     #[tokio::test]
     async fn test_serve_embed_files() {
-        #[derive(RustEmbed)]
+        #[derive(rust_embed::RustEmbed)]
         #[folder = "test/static"]
         struct Assets;
 

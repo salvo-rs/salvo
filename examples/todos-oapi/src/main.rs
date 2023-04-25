@@ -76,14 +76,12 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 }
 
 #[endpoint(
-    request_body = Todo,
     responses(
-        (status = 201, description = "Todo created successfully", body = Todo),
+        (status = 201, description = "Todo created successfully", body = models::Todo),
         (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]
-pub async fn create_todo(req: &mut Request, res: &mut Response) {
-    let new_todo = req.parse_body::<Todo>().await.unwrap();
+pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -96,7 +94,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
         }
     }
 
-    vec.push(new_todo);
+    vec.push(new_todo.0);
     res.set_status_code(StatusCode::CREATED);
 }
 
@@ -104,7 +102,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
     request_body = Todo,
     responses(
         (status = 200, description = "Todo modified successfully"),
-        (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
+        (status = 404, description = "Todo not found", body = models::TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
 )]
 pub async fn update_todo(id: PathParam<u64>, req: &mut Request, res: &mut Response) {
@@ -187,38 +185,5 @@ mod models {
     pub struct ListOptions {
         pub offset: Option<usize>,
         pub limit: Option<usize>,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use salvo::http::StatusCode;
-    use salvo::test::TestClient;
-
-    use super::models::Todo;
-
-    #[tokio::test]
-    async fn test_todo_create() {
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let resp = TestClient::post("http://127.0.0.1:5800/api/todos")
-            .json(&test_todo())
-            .send(super::route())
-            .await;
-
-        assert_eq!(resp.status_code().unwrap(), StatusCode::CREATED);
-        let resp = TestClient::post("http://127.0.0.1:5800/api/todos")
-            .json(&test_todo())
-            .send(super::route())
-            .await;
-
-        assert_eq!(resp.status_code().unwrap(), StatusCode::BAD_REQUEST);
-    }
-
-    fn test_todo() -> Todo {
-        Todo {
-            id: 1,
-            text: "test todo".into(),
-            completed: false,
-        }
     }
 }

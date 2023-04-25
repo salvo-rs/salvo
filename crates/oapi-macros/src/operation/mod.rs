@@ -21,7 +21,7 @@ pub(crate) mod response;
 pub(crate) use self::{
     parameter::{Parameter, ParameterIn},
     request_body::RequestBodyAttr,
-    response::Response,
+    response::{ResponseTupleInner, Response},
 };
 mod status;
 
@@ -54,26 +54,7 @@ impl<'a> Operation<'a> {
         let oapi = crate::oapi_crate();
         if let Some(request_body) = &self.request_body {
             if let Some(content) = &request_body.content {
-                match &content {
-                    PathType::Ref(path) => {
-                        modifiers.push(quote! {
-                            {
-                                let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
-                                components.schemas.insert(path, schema);
-                            }
-                        });
-                    }
-                    PathType::MediaType(inline) => {
-                        let ty = &inline.ty;
-                        modifiers.push(quote! {
-                            {
-                                let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
-                                components.schemas.insert(path.into(), schema);
-                            }
-                        });
-                    }
-                    _ => {}
-                }
+                modifiers.append(&mut generate_register_schemas(&oapi, content));
             }
         }
         for response in self.responses {
@@ -85,6 +66,24 @@ impl<'a> Operation<'a> {
                 }
                 Response::Tuple(tuple) => {
                     let code = &tuple.status_code;
+                    if let Some(inner) = &tuple.inner {
+                        match inner {
+                            ResponseTupleInner::Ref(inline) => {
+                                let ty = &inline.ty;
+                                modifiers.push(quote! {
+                                    {
+                                        let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
+                                        components.schemas.insert(path, schema);
+                                    }
+                                });
+                            }
+                            ResponseTupleInner::Value(value) => {
+                                if let Some(content) = &value.response_type {
+                                    modifiers.append(&mut generate_register_schemas(&oapi, content));
+                                }
+                            }
+                        }
+                    }
                     modifiers.push(quote! {
                         operation.responses.insert(#code, #tuple);
                     });
@@ -93,6 +92,32 @@ impl<'a> Operation<'a> {
         }
         modifiers
     }
+}
+
+fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream2> {
+    let mut modifiers = vec![];
+    println!("+=========bb {:?}", content);
+    match content {
+        PathType::Ref(path) => {
+            modifiers.push(quote! {
+                {
+                    let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
+                    components.schemas.insert(path, schema);
+                }
+            });
+        }
+        PathType::MediaType(inline) => {
+            let ty = &inline.ty;
+            modifiers.push(quote! {
+                {
+                    let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
+                    components.schemas.insert(path.into(), schema);
+                }
+            });
+        }
+        _ => {}
+    }
+    modifiers
 }
 
 impl ToTokens for Operation<'_> {

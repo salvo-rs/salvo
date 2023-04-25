@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsRequestBody, Components, Operation, RequestBody};
+use crate::{AsRequestBody, AsSchema, Components, Content, Operation, RequestBody};
 
 /// Represents the parameters passed by the URI path.
 pub struct FormBody<T>(pub T);
@@ -26,12 +26,14 @@ impl<T> DerefMut for FormBody<T> {
     }
 }
 
-impl<'de, T> AsRequestBody for FormBody<T>
+impl<'de, 's, T> AsRequestBody for FormBody<T>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'de> + AsSchema<'s>,
 {
     fn request_body() -> RequestBody {
-        RequestBody::new().description("Get json format request data.")
+        RequestBody::new() .description("Get form format data from request.")
+        .add_content("application/x-www-form-urlencoded", Content::new(T::schema().1))
+        .add_content("multipart/*", Content::new(T::schema().1))
     }
 }
 
@@ -74,9 +76,9 @@ where
 }
 
 #[async_trait]
-impl<'de, T> EndpointModifier for FormBody<T>
+impl<'de, 's, T> EndpointModifier for FormBody<T>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'de> + AsSchema<'s>,
 {
     fn modify(_components: &mut Components, operation: &mut Operation) {
         operation.request_body = Some(Self::request_body());

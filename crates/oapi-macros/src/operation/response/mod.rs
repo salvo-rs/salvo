@@ -21,7 +21,7 @@ use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTy
 pub mod derive;
 
 #[derive(Debug)]
-pub enum Response<'r> {
+pub(crate) enum Response<'r> {
     /// A type that implements `salvo_oapi::AsResponses`.
     AsResponses(ExprPath),
     /// The tuple definition of a response.
@@ -42,9 +42,9 @@ impl Parse for Response<'_> {
 
 /// Parsed representation of response attributes from `#[salvo_oapi::endpoint]` attribute.
 #[derive(Default, Debug)]
-pub struct ResponseTuple<'r> {
+pub(crate) struct ResponseTuple<'r> {
     pub status_code: ResponseStatus,
-    inner: Option<ResponseTupleInner<'r>>,
+    pub inner: Option<ResponseTupleInner<'r>>,
 }
 
 const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
@@ -75,7 +75,7 @@ impl<'r> ResponseTuple<'r> {
 }
 
 #[derive(Debug)]
-enum ResponseTupleInner<'r> {
+pub(crate) enum ResponseTupleInner<'r> {
     Value(ResponseValue<'r>),
     Ref(InlineType<'r>),
 }
@@ -187,12 +187,12 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveAsResponseValue>>> for Resp
 
 #[derive(Default, Debug)]
 pub struct ResponseValue<'r> {
-    description: String,
-    response_type: Option<PathType<'r>>,
-    content_type: Option<Vec<String>>,
+    pub(crate) description: String,
+    pub(crate) response_type: Option<PathType<'r>>,
+    pub(crate) content_type: Option<Vec<String>>,
     headers: Vec<Header>,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
+    pub(crate) example: Option<AnyValue>,
+    pub(crate) examples: Option<Punctuated<Example, Comma>>,
     contents: Punctuated<Content<'r>, Comma>,
 }
 
@@ -658,7 +658,7 @@ impl Parse for Content<'_> {
     }
 }
 
-pub struct Responses<'a>(pub &'a [Response<'a>]);
+pub struct Responses<'a>(pub(crate) &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
