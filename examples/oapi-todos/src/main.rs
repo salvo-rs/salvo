@@ -1,19 +1,15 @@
 use once_cell::sync::Lazy;
-use once_cell::sync::OnceCell;
 
 use salvo::prelude::*;
 use salvo::size_limiter;
 
 use self::models::*;
 
-// use utoipa::OpenApi;
 use salvo::oapi::extract::*;
-use salvo::oapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use salvo::oapi::swagger::SwaggerUi;
-use salvo::oapi::{Components, Info, OpenApi, Tag};
+use salvo::oapi::{Info, OpenApi};
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
-static API_DOC: OnceCell<OpenApi> = OnceCell::new();
 
 #[handler]
 async fn hello(res: &mut Response) {
@@ -34,30 +30,15 @@ async fn main() {
         ),
     );
 
-    let doc = OpenApi::new(Info::new("todos api", "0.0.1"))
-        .components(Components::new().add_security_scheme(
-            "api_key",
-            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
-        ))
-        .tags(vec![Tag::default()
-            .name("todo")
-            .description("Todo items management endpoints.")])
-        .merge_router(&router);
-    API_DOC.set(doc).unwrap();
+    let doc = OpenApi::new(Info::new("todos api", "0.0.1")).merge_router(&router);
 
     let router = router
-        .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
+        .push(doc.into_router("/api-doc/openapi.json"))
         .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }
-
-#[handler]
-pub async fn openapi_json(res: &mut Response) {
-    res.render(Json(API_DOC.get()))
-}
-
 #[endpoint(
     responses(
         (status = 200, description = "List all todos successfully", body = [Todo])
@@ -77,7 +58,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 
 #[endpoint(
     responses(
-        (status = 201, description = "Todo created successfully", body = models::Todo),
+        (status = 201, description = "Todo created successfully", body = Todo),
         (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]
@@ -99,20 +80,18 @@ pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
 }
 
 #[endpoint(
-    request_body = Todo,
     responses(
         (status = 200, description = "Todo modified successfully"),
-        (status = 404, description = "Todo not found", body = models::TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
+        (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
 )]
-pub async fn update_todo(id: PathParam<u64>, req: &mut Request, res: &mut Response) {
-    let updated_todo = req.parse_body::<Todo>().await.unwrap();
+pub async fn update_todo(id: PathParam<u64>, updated_todo: JsonBody<Todo>, res: &mut Response) {
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter_mut() {
         if todo.id == *id {
-            *todo = updated_todo;
+            *todo = (*updated_todo).clone();
             res.set_status_code(StatusCode::OK);
             return;
         }
@@ -128,21 +107,14 @@ pub async fn update_todo(id: PathParam<u64>, req: &mut Request, res: &mut Respon
         (status = 401, description = "Unauthorized to delete Todo"),
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
-    parameters(
-        ("id" = i32, Path, description = "Id of todo item to delete")
-    ),
-    security(
-        ("api_key" = [])
-    )
 )]
-pub async fn delete_todo(req: &mut Request, res: &mut Response) {
-    let id = req.param::<u64>("id").unwrap();
+pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
     tracing::debug!(id = ?id, "delete todo");
 
     let mut vec = STORE.lock().await;
 
     let len = vec.len();
-    vec.retain(|todo| todo.id != id);
+    vec.retain(|todo| todo.id != *id);
 
     let deleted = vec.len() != len;
     if deleted {
