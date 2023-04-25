@@ -432,8 +432,8 @@ mod tests {
             ("f32", f32::schema(), json!({"type": "number", "format": "float"})),
             ("f64", f64::schema(), json!({"type": "number", "format": "double"})),
         ] {
-            println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
-            let schema = serde_json::to_value(schema).unwrap();
+            println!("{name}: {json}", json = serde_json::to_string(&schema.1).unwrap());
+            let schema = serde_json::to_value(schema.1).unwrap();
             assert_json_eq!(schema, value);
         }
     }
