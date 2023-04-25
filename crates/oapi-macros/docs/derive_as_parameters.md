@@ -154,6 +154,7 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 _**Demonstrate [`AsParameters`][as_parameters] usage with the `#[as_parameters(...)]` container attribute to
 be used as a path query, and inlining a schema query field:**_
+
 ```
 use serde::Deserialize;
 use salvo_core::prelude::*;
@@ -167,7 +168,6 @@ enum PetKind {
 }
 
 #[derive(Deserialize, AsParameters)]
-#[as_parameters(style = Form, parameter_in = Query)]
 struct PetQuery {
     /// Name of pet
     name: Option<String>,

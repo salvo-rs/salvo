@@ -60,7 +60,7 @@ impl ToTokens for AsParameters {
         let oapi = crate::oapi_crate();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         
-        let de_life = &Lifetime::new("'de", Span::call_site());
+        let de_life = &Lifetime::new("'__de", Span::call_site());
         let de_lifetime: GenericParam = LifetimeParam::new(de_life.clone()).into();
         let mut de_generics = self.generics.clone();
         de_generics.params.insert(0, de_lifetime);
@@ -179,7 +179,7 @@ impl ToTokens for AsParameters {
             let name = ident.to_string();
             let metadata: Ident = format_ident!("__salvo_extract_{}", name);
         tokens.extend(quote! {
-            impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
+            impl #de_impl_generics #oapi::oapi::AsParameters<'__de> for #ident #ty_generics #where_clause {
                 fn parameters() -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
@@ -202,14 +202,14 @@ impl ToTokens for AsParameters {
                     rename_all: #rename_all,
                 });
             #[#salvo::async_trait]
-            impl #de_impl_generics #salvo::Extractible<'de> for #ident #ty_generics #where_clause {
-                fn metadata() -> &'de #salvo::extract::Metadata {
+            impl #de_impl_generics #salvo::Extractible<'__de> for #ident #ty_generics #where_clause {
+                fn metadata() -> &'__de #salvo::extract::Metadata {
                     &*#metadata
                 }
-                async fn extract(req: &'de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
+                async fn extract(req: &'__de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'de mut #salvo::Request, _arg: &str) -> Result<Self, #salvo::http::ParseError> {
+                async fn extract_with_arg(req: &'__de mut #salvo::Request, _arg: &str) -> Result<Self, #salvo::http::ParseError> {
                     Self::extract(req).await
                 }
             }

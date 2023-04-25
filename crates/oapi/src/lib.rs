@@ -347,7 +347,8 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// [derive documentation][derive] for more details.
 /// ```
 /// use serde::Deserialize;
-/// use salvo_oapi::AsParameters;
+/// use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// use salvo_core::prelude::*;
 ///
 /// #[derive(Deserialize, AsParameters)]
 /// struct PetParams {
@@ -360,6 +361,11 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// Roughly equal manual implementation of [`AsParameters`] trait.
 /// ```
+/// # use serde::Deserialize;
+/// # use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// # use salvo_core::prelude::*;
+/// # use salvo_core::extract::{Metadata, Extractible};
+/// #[derive(Deserialize)]
 /// # struct PetParams {
 /// #    /// Id of pet
 /// #    id: i64,
@@ -388,6 +394,27 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 ///                         .schema_type(salvo_oapi::SchemaType::String),
 ///                 ),
 ///         )
+///     }
+/// }
+/// 
+/// #[async_trait]
+/// impl<'de> Extractible<'de> for PetParams {
+///    fn metadata() -> &'de Metadata {
+///      static METADATA: Metadata = Metadata::new("");
+///      &METADATA
+///    }
+///    async fn extract(req: &'de mut Request) -> Result<Self, salvo_core::http::ParseError> {
+///        salvo_core::serde::from_request(req, Self::metadata()).await
+///    }
+///    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, salvo_core::http::ParseError> {
+///        Self::extract(req).await
+///    }
+/// }
+/// 
+/// #[async_trait]
+/// impl EndpointModifier for PetParams {
+///     fn modify(_components: &mut Components, operation: &mut Operation) {
+///         operation.parameters.append(&mut PetParams::parameters());
 ///     }
 /// }
 /// ```
