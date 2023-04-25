@@ -28,11 +28,11 @@ impl<T> DerefMut for JsonBody<T> {
 
 impl<'de, 's, T> AsRequestBody for JsonBody<T>
 where
-    T: Deserialize<'de> + AsSchema<'s>,
+    T: Deserialize<'de> + AsSchema,
 {
     fn request_body() -> RequestBody {
         RequestBody::new()
-            .description("Get json format data from request.")
+            .description("Extract json format data from request.")
             .add_content("application/json", Content::new(T::schema().1))
     }
 }
@@ -76,9 +76,9 @@ where
 }
 
 #[async_trait]
-impl<'de, 's, T> EndpointModifier for JsonBody<T>
+impl<'de, T> EndpointModifier for JsonBody<T>
 where
-    T: Deserialize<'de> + AsSchema<'s>,
+    T: Deserialize<'de> + AsSchema,
 {
     fn modify(_components: &mut Components, operation: &mut Operation) {
         operation.request_body = Some(Self::request_body());

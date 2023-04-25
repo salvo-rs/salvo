@@ -26,13 +26,13 @@ impl<T> DerefMut for FormBody<T> {
     }
 }
 
-impl<'de, 's, T> AsRequestBody for FormBody<T>
+impl<'de, T> AsRequestBody for FormBody<T>
 where
-    T: Deserialize<'de> + AsSchema<'s>,
+    T: Deserialize<'de> + AsSchema,
 {
     fn request_body() -> RequestBody {
         RequestBody::new()
-            .description("Get form format data from request.")
+            .description("Extract form format data from request.")
             .add_content("application/x-www-form-urlencoded", Content::new(T::schema().1))
             .add_content("multipart/*", Content::new(T::schema().1))
     }
@@ -79,7 +79,7 @@ where
 #[async_trait]
 impl<'de, 's, T> EndpointModifier for FormBody<T>
 where
-    T: Deserialize<'de> + AsSchema<'s>,
+    T: Deserialize<'de> + AsSchema,
 {
     fn modify(_components: &mut Components, operation: &mut Operation) {
         operation.request_body = Some(Self::request_body());

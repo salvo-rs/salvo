@@ -84,7 +84,7 @@ impl Components {
         self
     }
 
-    pub fn schema_from<'s, I: AsSchema<'s>>(mut self) -> Self {
+    pub fn schema_from<I: AsSchema>(mut self) -> Self {
         let aliases = I::aliases();
 
         // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
@@ -93,7 +93,9 @@ impl Components {
         // spec in its generic form.
         if aliases.is_empty() {
             let (name, schema) = I::schema();
-            self.schemas.insert(name.to_string(), schema);
+            if let Some(name) = name {
+                self.schemas.insert(name.to_string(), schema);
+            }
         }
 
         self.schemas_from_iter(aliases)

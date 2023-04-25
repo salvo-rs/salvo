@@ -47,8 +47,8 @@ extern crate self as salvo_oapi;
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> AsSchema<'__s> for Pet {
-///     fn schema() -> (&'__s str, RefOr<Schema>) {
+/// impl AsSchema for Pet {
+///     fn schema() -> (Option<&'static str>, RefOr<Schema>) {
 ///          (
 ///             "Pet",
 ///             Object::new()
@@ -82,21 +82,21 @@ extern crate self as salvo_oapi;
 ///         ) }
 /// }
 /// ```
-pub trait AsSchema<'__s> {
+pub trait AsSchema {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> (&'__s str, RefOr<schema::Schema>);
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>);
 
     /// Optional set of alias schemas for the [`AsSchema::schema`].
     ///
     /// Typically there is no need to manually implement this method but it is instead implemented
     /// by derive [`macro@AsSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'__s str, schema::Schema)> {
+    fn aliases() -> Vec<(&'static str, schema::Schema)> {
         Vec::new()
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> From<T> for RefOr<schema::Schema> {
+impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
         T::schema().1
     }
@@ -107,9 +107,9 @@ impl<'__s, T: AsSchema<'__s>> From<T> for RefOr<schema::Schema> {
 /// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl<'__s> AsSchema<'__s> for TupleUnit {
-    fn schema() -> (&'__s str, RefOr<schema::Schema>) {
-        ("TupleUnit", schema::empty().into())
+impl AsSchema for TupleUnit {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (Some("TupleUnit"), schema::empty().into())
     }
 }
 
@@ -121,9 +121,9 @@ macro_rules! impl_partial_schema {
         impl_partial_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
-        impl PartialSchema for $($tt)* {
-            fn schema() -> crate::RefOr<crate::schema::Schema> {
-                schema!( $($tt)* ).into()
+        impl AsSchema for $($tt)* {
+            fn schema() -> (Option<&'static str>, crate::RefOr<crate::schema::Schema>) {
+                (None, schema!( $($tt)* ).into())
             }
         }
     };
@@ -148,190 +148,50 @@ pub mod __private {
     pub use inventory;
 }
 
-pub trait Modifier<T> {
-    fn modify(target: &mut T);
-}
-
-/// Trait used to implement only _`Schema`_ part of the OpenAPI doc.
-///
-/// This trait is by default implemented for Rust [`primitive`][primitive] types and some well known types like
-/// [`Vec`], [`Option`], [`HashMap`] and [`BTreeMap`]. The default implementation adds `schema()`
-/// method to the implementing type allowing simple conversion of the type to the OpenAPI Schema
-/// object. Moreover this allows handy way of constructing schema objects manually if ever so
-/// wished.
-///
-/// The trait can be implemented manually easily on any type. This trait comes especially handy
-/// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
-/// ```rust
-/// # use salvo_oapi::{Object, PartialSchema, RefOr, Schema};
-/// #
-/// struct MyType;
-///
-/// impl PartialSchema for MyType {
-///     fn schema() -> RefOr<Schema> {
-///         // ... impl schema generation here
-///         RefOr::T(Schema::Object(Object::new()))
-///     }
-/// }
-/// ```
-///
-/// # Examples
-///
-/// _**Create number schema from u64.**_
-/// ```rust
-/// # use salvo_oapi::{RefOr, PartialSchema};
-/// # use salvo_oapi::schema::{SchemaType, KnownFormat, SchemaFormat, Object, Schema};
-/// #
-/// let number: RefOr<Schema> = u64::schema().into();
-/// // would be equal to manual implementation
-/// let number2 = RefOr::T(
-///     Schema::Object(
-///         Object::new()
-///             .schema_type(SchemaType::Integer)
-///             .format(SchemaFormat::KnownFormat(KnownFormat::Int64))
-///             .minimum(0.0)
-///         )
-///     );
-/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
-/// ```
-///
-/// _**Construct a Pet object schema manually.**_
-/// ```rust
-/// # use salvo_oapi::PartialSchema;
-/// # use salvo_oapi::schema::Object;
-/// struct Pet {
-///     id: i32,
-///     name: String,
-/// }
-///
-/// let pet_schema = Object::new()
-///     .property("id", i32::schema())
-///     .property("name", String::schema())
-///     .required("id").required("name");
-/// ```
-///
-/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-pub trait PartialSchema {
-    /// Return ref or schema of implementing type that can then be used to
-    /// construct combined schemas.
-    fn schema() -> crate::RefOr<crate::schema::Schema>;
-}
-
 #[rustfmt::skip]
 impl_partial_schema_primitive!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
-    Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>, 
-    Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
-    Option<String>, Option<&str>, Option<char>
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
 
 impl_partial_schema!(&str);
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for Vec<T> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline] Vec<T>).into()
+impl<T: AsSchema> AsSchema for Vec<T> {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline] Vec<T>).into())
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<Vec<T>> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline] Option<Vec<T>>).into()
+impl<T: AsSchema> AsSchema for [T] {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline][T]).into())
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for [T] {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            [T]
-        )
-        .into()
-    }
-}
-
-impl<'__s, T: AsSchema<'__s>> PartialSchema for &[T] {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
+impl<T: AsSchema> AsSchema for &[T] {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(
             #[inline]
             &[T]
         )
-        .into()
+        .into())
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for &mut [T] {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            &mut [T]
-        )
-        .into()
+impl<T: AsSchema> AsSchema for Option<T> {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline] Option<T>).into())
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<&[T]> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&[T]>
-        )
-        .into()
+impl<K: AsSchema, V: AsSchema> AsSchema for BTreeMap<K, V> {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline]BTreeMap<K, V>).into())
     }
 }
 
-impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<&mut [T]> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&mut [T]>
-        )
-        .into()
-    }
-}
-
-impl<'__s, T: AsSchema<'__s>> PartialSchema for Option<T> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline] Option<T>).into()
-    }
-}
-
-impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for BTreeMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            BTreeMap<K, V>
-        )
-        .into()
-    }
-}
-
-impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            Option<BTreeMap<K, V>>
-        )
-        .into()
-    }
-}
-
-impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for HashMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            HashMap<K, V>
-        )
-        .into()
-    }
-}
-
-impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            Option<HashMap<K, V>>
-        )
-        .into()
+impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
+    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline]HashMap<K, V>).into())
     }
 }
 

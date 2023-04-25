@@ -47,7 +47,6 @@ pub struct AsSchema<'a> {
 }
 
 impl<'a> AsSchema<'a> {
-    const TO_SCHEMA_LIFETIME: &'static str = "'__s";
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
@@ -86,8 +85,6 @@ impl ToTokens for AsSchema<'_> {
 
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let life = &Lifetime::new(AsSchema::TO_SCHEMA_LIFETIME, Span::call_site());
-
         let schema_ty: Type = parse_quote!(#ident #ty_generics);
         let schema_children = &*TypeTree::from_type(&schema_ty).children.unwrap_or_default();
 
@@ -112,7 +109,7 @@ impl ToTokens for AsSchema<'_> {
                 .collect::<Array<TokenStream>>();
 
             quote! {
-                fn aliases() -> Vec<(& #life str, #oapi::oapi::schema::Schema)> {
+                fn aliases() -> Vec<(&'static str, #oapi::oapi::schema::Schema)> {
                     #alias_schemas.to_vec()
                 }
             }
@@ -146,20 +143,12 @@ impl ToTokens for AsSchema<'_> {
             ident.to_string()
         };
 
-        let schema_lifetime: GenericParam = LifetimeParam::new(life.clone()).into();
-        let schema_generics = Generics {
-            params: [schema_lifetime.clone()].into_iter().collect(),
-            ..Default::default()
-        };
-
-        let mut impl_generics = self.generics.clone();
-        impl_generics.params.push(schema_lifetime);
-        let (impl_generics, _, _) = impl_generics.split_for_impl();
+        let (impl_generics, _, _) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #impl_generics #oapi::oapi::AsSchema #schema_generics for #ident #ty_generics #where_clause {
-                fn schema() -> (& #life str, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>) {
-                    (#name, #variant.into())
+            impl #impl_generics #oapi::oapi::AsSchema for #ident #ty_generics #where_clause {
+                fn schema() -> (Option<&'static str>, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>) {
+                    (Some(#name), #variant.into())
                 }
 
                 #aliases

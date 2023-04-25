@@ -31,31 +31,6 @@ impl Parse for Response {
     }
 }
 
-#[derive(Debug)]
-struct Modifier {
-    and: And,
-    ident: Ident,
-}
-
-impl ToTokens for Modifier {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let and = &self.and;
-        let ident = &self.ident;
-        tokens.extend(quote! {
-            #and #ident
-        })
-    }
-}
-
-impl Parse for Modifier {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            and: input.parse()?,
-            ident: input.parse()?,
-        })
-    }
-}
-
 #[derive(Default, Debug)]
 struct Tag {
     name: String,
