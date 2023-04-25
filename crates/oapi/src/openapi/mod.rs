@@ -1,7 +1,7 @@
 //! Rust implementation of Openapi Spec V3.
 use std::collections::{btree_map, BTreeSet};
 
-use salvo_core::Router;
+use salvo_core::{async_trait, writer, Depot, FlowCtrl, Handler, Router};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
@@ -164,6 +164,54 @@ impl OpenApi {
         self
     }
 
+    /// Add [`Info`] metadata of the API.
+    pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
+        set_value!(self info info.into())
+    }
+
+    /// Add iterator of [`Server`]s to configure target servers.
+    pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
+        set_value!(self servers servers.into_iter().collect())
+    }
+
+    /// Set paths to configure operations and endpoints of the API.
+    pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
+        set_value!(self paths paths.into())
+    }
+    /// Add [`PathItem`] to configure operations and endpoints of the API.
+    pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
+    where
+        P: Into<String>,
+        I: Into<PathItem>,
+    {
+        self.paths.insert(path.into(), item.into());
+        self
+    }
+
+    /// Add [`Components`] to configure reusable schemas.
+    pub fn components(mut self, components: impl Into<Components>) -> Self {
+        set_value!(self components components.into())
+    }
+
+    /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
+    pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
+        set_value!(self security security.into_iter().collect())
+    }
+
+    /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
+    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
+        set_value!(self tags tags.into_iter().collect())
+    }
+
+    /// Add [`ExternalDocs`] for referring additional documentation.
+    pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
+        set_value!(self external_docs Some(external_docs))
+    }
+
+    pub fn into_router(self, path: impl Into<String>) -> Router {
+        Router::with_path(path.into()).handle(self)
+    }
+
     pub fn merge_router(mut self, router: &Router) -> Self {
         let mut node = NormNode::new(router);
         self.merge_norm_node(&mut node, "");
@@ -213,52 +261,30 @@ impl OpenApi {
             self.merge_norm_node(child, &path);
         }
     }
-
-    /// Add [`Info`] metadata of the API.
-    pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
-        set_value!(self info info.into())
-    }
-
-    /// Add iterator of [`Server`]s to configure target servers.
-    pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
-        set_value!(self servers servers.into_iter().collect())
-    }
-
-    /// Set paths to configure operations and endpoints of the API.
-    pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
-        set_value!(self paths paths.into())
-    }
-    /// Add [`PathItem`] to configure operations and endpoints of the API.
-    pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
-    where
-        P: Into<String>,
-        I: Into<PathItem>,
-    {
-        self.paths.insert(path.into(), item.into());
-        self
-    }
-
-    /// Add [`Components`] to configure reusable schemas.
-    pub fn components(mut self, components: impl Into<Components>) -> Self {
-        set_value!(self components components.into())
-    }
-
-    /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
-    pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
-        set_value!(self security security.into_iter().collect())
-    }
-
-    /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
-    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
-        set_value!(self tags tags.into_iter().collect())
-    }
-
-    /// Add [`ExternalDocs`] for referring additional documentation.
-    pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
-        set_value!(self external_docs Some(external_docs))
-    }
 }
 
+#[async_trait]
+impl Handler for OpenApi {
+    async fn handle(
+        &self,
+        req: &mut salvo_core::Request,
+        _depot: &mut Depot,
+        res: &mut salvo_core::Response,
+        _ctrl: &mut FlowCtrl,
+    ) {
+        let pretty = req
+            .queries()
+            .get("pretty")
+            .map(|v| &**v != "false")
+            .unwrap_or(false);
+        let content = if pretty {
+            self.to_pretty_json().unwrap()
+        } else {
+            self.to_json().unwrap()
+        };
+        res.render(writer::Text::Json(&content));
+    }
+}
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
