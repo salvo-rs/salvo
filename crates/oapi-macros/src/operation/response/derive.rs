@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 use std::{iter, mem};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type, TypePath, Variant};
+use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Path, Type, TypePath, Variant};
 
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
@@ -22,14 +22,11 @@ use super::{
 
 pub struct AsResponse<'r> {
     ident: Ident,
-    lifetime: Lifetime,
     generics: Generics,
     response: ResponseTuple<'r>,
 }
 
 impl<'r> AsResponse<'r> {
-    const LIFETIME: &'static str = "'__r";
-
     pub fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> AsResponse<'r> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
@@ -44,11 +41,8 @@ impl<'r> AsResponse<'r> {
             Data::Union(_) => abort!(ident, "`AsResponse` does not support `Union` type"),
         };
 
-        let lifetime = Lifetime::new(AsResponse::LIFETIME, Span::call_site());
-
         Self {
             ident,
-            lifetime,
             generics,
             response,
         }
@@ -60,20 +54,15 @@ impl ToTokens for AsResponse<'_> {
         let oapi = crate::oapi_crate();
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let lifetime = &self.lifetime;
         let ident = &self.ident;
         let name = ident.to_string();
         let response = &self.response;
 
-        let mut to_reponse_generics = self.generics.clone();
-        to_reponse_generics
-            .params
-            .push(syn::GenericParam::Lifetime(LifetimeParam::new(lifetime.clone())));
-        let (as_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
+        let (as_response_impl_generics, _, _) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #as_response_impl_generics #oapi::oapi::AsResponse <#lifetime> for #ident #ty_generics #where_clause {
-                fn response() -> (& #lifetime str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
+            impl #as_response_impl_generics #oapi::oapi::AsResponse for #ident #ty_generics #where_clause {
+                fn response() -> (&'static str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
                     (#name, #response.into())
                 }
             }

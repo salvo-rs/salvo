@@ -50,7 +50,7 @@ extern crate self as salvo_oapi;
 /// impl AsSchema for Pet {
 ///     fn schema() -> (Option<&'static str>, RefOr<Schema>) {
 ///          (
-///             "Pet",
+///             Some("Pet"),
 ///             Object::new()
 ///                 .property(
 ///                     "id",
@@ -371,8 +371,8 @@ pub trait AsResponses {
 /// use salvo_oapi::{RefOr, Response, AsResponse};
 ///
 /// struct MyResponse;
-/// impl<'a> AsResponse<'a> for MyResponse {
-///     fn response() -> (&'a str, RefOr<Response>) {
+/// impl AsResponse for MyResponse {
+///     fn response() -> (&'static str, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
 ///             Response::new("My Response").into(),
@@ -382,9 +382,9 @@ pub trait AsResponses {
 /// ```
 ///
 /// [derive]: derive.AsResponse.html
-pub trait AsResponse<'__r> {
+pub trait AsResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn response() -> (&'__r str, RefOr<crate::Response>);
+    fn response() -> (&'static str, RefOr<crate::Response>);
 }
 
 #[cfg(test)]

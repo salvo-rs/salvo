@@ -80,7 +80,6 @@ impl Components {
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
-
         self
     }
 
@@ -94,7 +93,7 @@ impl Components {
         if aliases.is_empty() {
             let (name, schema) = I::schema();
             if let Some(name) = name {
-                self.schemas.insert(name.to_string(), schema);
+                self.schemas.insert(name.into(), schema);
             }
         }
 
@@ -133,7 +132,7 @@ impl Components {
         self
     }
 
-    pub fn response_from<'r, I: AsResponse<'r>>(self) -> Self {
+    pub fn response_from<I: AsResponse>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }

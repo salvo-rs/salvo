@@ -74,7 +74,7 @@ impl<'a> Operation<'a> {
                                     {
                                         let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
                                         if let Some(path) = path {
-                                            components.schemas.insert(path, schema);
+                                            components.schemas.insert(path.into(), schema);
                                         }
                                     }
                                 });
@@ -104,7 +104,7 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
                 {
                     let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
                     if let Some(path) = path {
-                        components.schemas.insert(path, schema);
+                        components.schemas.insert(path.into(), schema);
                     }
                 }
             });

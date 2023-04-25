@@ -131,7 +131,7 @@ use salvo_core::http::{header::CONTENT_TYPE, HeaderValue};
 use salvo_core::prelude::*;
 use salvo_oapi::{AsSchema, AsResponse, endpoint};
 
-#[derive(salvo_oapi::AsResponse)]
+#[derive(AsResponse, AsSchema)]
 struct PersonResponse {
    value: String
 }
