@@ -163,17 +163,27 @@ impl<T: AsSchema> AsSchema for Vec<T> {
 
 impl<T: AsSchema> AsSchema for [T] {
     fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline][T]).into())
+        (
+            None,
+            schema!(
+                #[inline]
+                [T]
+            )
+            .into(),
+        )
     }
 }
 
 impl<T: AsSchema> AsSchema for &[T] {
     fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(
-            #[inline]
-            &[T]
+        (
+            None,
+            schema!(
+                #[inline]
+                &[T]
+            )
+            .into(),
         )
-        .into())
     }
 }
 
