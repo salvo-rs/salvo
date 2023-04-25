@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 futures-util = { version = "0.3", default-features = false }
-salvo = { path = "../../crates/salvo", features = ["ws"] }
+salvo = { workspace = true, features = ["ws"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

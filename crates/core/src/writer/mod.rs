@@ -99,7 +99,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_str() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> &'static str {
             "hello"
         }
@@ -113,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_string() {
-        #[handler(internal)]
+        #[handler]
         async fn test() -> String {
             "hello".to_owned()
         }

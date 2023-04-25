@@ -1,0 +1,49 @@
+[package]
+name = "salvo-oapi-macros"
+version.workspace = true
+edition = "2021"
+description = "Macros for salvo-oapi"
+license = "MIT/Apache-2.0"
+documentation = "https://docs.rs/salvo-oapi-macros/"
+homepage = "https://github.com/salvo-rs/salvo"
+repository = "https://github.com/salvo-rs/salvo"
+keywords = ["http", "async", "openapi", "swagger"]
+categories = ["network-programming", "asynchronous"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislearn@hotmail.com>"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+syn = { workspace = true, features = ["full", "extra-traits"] }
+quote.workspace = true
+proc-macro-crate.workspace = true
+proc-macro-error.workspace = true
+regex.workspace = true
+uuid = { workspace = true, optional = true }
+inventory.workspace = true
+
+[dev-dependencies]
+assert-json-diff.workspace = true
+salvo_core.workspace = true
+salvo-oapi.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+paste.workspace = true
+smallvec = { workspace = true, features = ["serde"] }
+rust_decimal.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+time = { workspace = true, features = ["serde-human-readable"] }
+serde_with.workspace = true
+
+[features]
+default = []
+chrono = []
+yaml = []
+decimal = []
+uuid = ["dep:uuid"]
+time = []
+smallvec = []
+repr = []
+indexmap = []

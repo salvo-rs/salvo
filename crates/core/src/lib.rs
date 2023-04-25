@@ -13,6 +13,8 @@ pub use hyper;
 pub use salvo_macros::handler;
 
 pub use salvo_macros as macros;
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo_core;
 
 #[macro_use]
 mod cfg;
@@ -27,7 +29,8 @@ pub mod handler;
 pub mod http;
 pub mod routing;
 pub mod runtimes;
-pub(crate) mod serde;
+#[doc(hidden)]
+pub mod serde;
 mod server;
 mod service;
 pub mod writer;
@@ -81,7 +84,6 @@ pub mod prelude {
         pub use crate::conn::UnixListener;
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
-    pub use crate::extract::LazyExtract;
     pub use crate::handler::{self, Handler};
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;

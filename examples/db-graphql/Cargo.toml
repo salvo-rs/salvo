@@ -1,12 +1,12 @@
 [package]
-name = "example-graphql"
+name = "example-db-graphql"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
 parking_lot = "0.12"
-salvo = { path = "../../crates/salvo" }
+salvo = { workspace = true }
 tokio = { version = "^1.22", features = ["macros"] }
 tracing = "^0.1"
 tracing-subscriber = "^0.3"

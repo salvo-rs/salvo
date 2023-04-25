@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 anyhow = "1"
 jsonwebtoken = "8.0"
-salvo = { path = "../../crates/salvo", features = ["anyhow", "jwt-auth"] }
+salvo = { workspace = true, features = ["anyhow", "jwt-auth"] }
 serde = "1"
 time = "0.3"
 tokio = { version = "1", features = ["macros"] }

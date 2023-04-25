@@ -14,6 +14,8 @@ mod cfg;
 pub use salvo_core as core;
 #[doc(no_inline)]
 pub use salvo_core::*;
+// https://github.com/bkchr/proc-macro-crate/issues/10
+extern crate self as salvo;
 
 cfg_feature! {
     #![feature ="affix"]
@@ -125,6 +127,11 @@ cfg_feature! {
     #[doc(no_inline)]
     pub use salvo_otel as otel;
 }
+cfg_feature! {
+    #![feature ="oapi"]
+    #[doc(no_inline)]
+    pub use salvo_oapi as oapi;
+}
 
 /// A list of things that automatically imports into application use salvo.
 pub mod prelude {
@@ -192,5 +199,9 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="serve-static"]
         pub use salvo_serve_static::{StaticFile, StaticDir};
+    }
+    cfg_feature! {
+        #![feature ="oapi"]
+        pub use salvo_oapi::endpoint;
     }
 }

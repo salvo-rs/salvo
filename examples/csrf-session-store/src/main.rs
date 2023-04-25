@@ -51,8 +51,8 @@ async fn main() {
     let aes_gcm_session_csrf = aes_gcm_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
     let ccp_session_csrf = ccp_session_csrf(*b"01234567012345670123456701234567", form_finder.clone());
 
-    let session_handler = salvo_session::SessionHandler::builder(
-        salvo_session::MemoryStore::new(),
+    let session_handler = salvo::session::SessionHandler::builder(
+        salvo::session::MemoryStore::new(),
         b"secretabsecretabsecretabsecretabsecretabsecretabsecretabsecretab",
     )
     .build()

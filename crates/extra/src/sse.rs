@@ -151,13 +151,13 @@ impl SseEvent {
 
 impl Display for SseEvent {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(ref comment) = &self.comment {
+        if let Some(comment) = &self.comment {
             ":".fmt(f)?;
             comment.fmt(f)?;
             f.write_char('\n')?;
         }
 
-        if let Some(ref name) = &self.name {
+        if let Some(name) = &self.name {
             "event:".fmt(f)?;
             name.fmt(f)?;
             f.write_char('\n')?;

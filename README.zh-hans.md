@@ -50,6 +50,7 @@ Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需�
   - 每一个路由都可以拥有一个或者多个中间件;
   - 集成 Multipart 表单处理;
   - 支持 WebSocket;
+  - 支持 OpenAPI;
   - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
 
 ## ⚡️ 快速开始
@@ -271,6 +272,7 @@ struct Nested<'a> {
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
 ```
+cd examples
 cargo run --bin example-basic-auth
 ```
 

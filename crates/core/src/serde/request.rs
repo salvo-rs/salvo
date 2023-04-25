@@ -17,7 +17,7 @@ use crate::Request;
 
 use super::{CowValue, VecValue};
 
-pub(crate) async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
+pub async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
 where
     T: Deserialize<'de>,
 {
@@ -411,7 +411,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_from_query() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "query"))]
+        #[extract(default_source(from = "query"))]
         struct RequestData {
             q1: String,
             q2: i64,
@@ -433,7 +433,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "query"))]
+        #[extract(default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"), source(from = "query"))]
             #[extract(source(from = "body"))]
@@ -454,7 +454,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_rename() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "query"))]
+        #[extract(default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"), source(from = "query"), rename = "abc")]
             q1: &'a str,
@@ -470,7 +470,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "query"), rename_all = "PascalCase")]
+        #[extract(default_source(from = "query"), rename_all = "PascalCase")]
         struct RequestData<'a> {
             first_name: &'a str,
             #[extract(rename = "lastName")]
@@ -494,7 +494,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_multi_sources() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "query"))]
+        #[extract(default_source(from = "query"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"))]
             #[extract(alias = "param1")]
@@ -534,7 +534,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_vec() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "body", format = "json"))]
+        #[extract(default_source(from = "body", format = "json"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"))]
             p2: &'a str,
@@ -581,7 +581,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_bool() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "body", format = "json"))]
+        #[extract(default_source(from = "body", format = "json"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"))]
             p2: &'a str,
@@ -598,7 +598,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_str() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(internal, default_source(from = "body", format = "json"))]
+        #[extract(default_source(from = "body", format = "json"))]
         struct RequestData<'a> {
             #[extract(source(from = "param"))]
             p2: &'a str,

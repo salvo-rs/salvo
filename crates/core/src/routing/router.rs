@@ -84,10 +84,14 @@ use crate::{Depot, Request};
 ///
 /// This form of definition can make the definition of router clear and simple for complex projects.
 pub struct Router {
-    pub(crate) routers: Vec<Router>,
-    pub(crate) filters: Vec<Box<dyn Filter>>,
-    pub(crate) hoops: Vec<Arc<dyn Handler>>,
-    pub(crate) handler: Option<Arc<dyn Handler>>,
+    /// routers is the children of current router.
+    pub routers: Vec<Router>,
+    /// filters is the filters of current router.
+    pub filters: Vec<Box<dyn Filter>>,
+    /// hoops is the middlewares of current router.
+    pub hoops: Vec<Arc<dyn Handler>>,
+    /// handler is the handler of current router.
+    pub handler: Option<Arc<dyn Handler>>,
 }
 #[doc(hidden)]
 pub struct DetectMatched {
@@ -186,9 +190,8 @@ impl Router {
     }
     /// Append all routers in a Vec as children of current router.
     #[inline]
-    pub fn append(mut self, others: Vec<Router>) -> Self {
-        let mut others = others;
-        self.routers.append(&mut others);
+    pub fn append(mut self, others: &mut Vec<Router>) -> Self {
+        self.routers.append(others);
         self
     }
 
@@ -440,7 +443,7 @@ mod tests {
     use crate::test::TestClient;
     use crate::Response;
 
-    #[handler(internal)]
+    #[handler]
     async fn fake_handler(_res: &mut Response) {}
     #[test]
     fn test_router_debug() {

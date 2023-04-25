@@ -43,7 +43,7 @@ mod tests {
         struct User {
             name: String,
         }
-        #[handler(internal)]
+        #[handler]
         async fn test() -> Json<User> {
             Json(User { name: "jobs".into() })
         }

@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 hyper = { workspace = true, features = ["server"] }
-salvo = { path = "../../crates/salvo" }
+salvo = { workspace = true }
 tokio = { version = "1", features = ["macros"] }
 tower = { version = "0.4", features = ["limit"] }
 tracing = "0.1"

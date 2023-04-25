@@ -62,53 +62,28 @@
 //!
 //! View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
-use std::marker::PhantomData;
-
-use serde::Deserialize;
-
 /// Metadata types.
 pub mod metadata;
-use crate::http::ParseError;
-use crate::Request;
 pub use metadata::Metadata;
 
+use async_trait::async_trait;
+use serde::Deserialize;
+
+use crate::http::{ParseError, Request};
+use crate::serde::from_request;
+
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
+#[async_trait]
 pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
-}
 
-/// Wrapper for Extractible type. `Handler`'s parameters does not allow two extractible types has lifetime, wrap these types with `LazyExtract`.
-#[derive(Deserialize)]
-pub struct LazyExtract<T> {
-    #[serde(skip)]
-    _inner: PhantomData<T>,
-}
-
-impl<'de, T: Extractible<'de> + Send> Default for LazyExtract<T> {
-    fn default() -> Self {
-        Self::new()
+    /// Extract data from request.
+    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+        from_request(req, Self::metadata()).await
     }
-}
-
-impl<'de, T: Extractible<'de> + Send> LazyExtract<T> {
-    /// Create a new `LazyExtract` instance.
-    pub fn new() -> Self {
-        LazyExtract {
-            _inner: PhantomData::<T>,
-        }
-    }
-
-    /// Get the inner type.
-    pub async fn extract(self, req: &'de mut Request) -> Result<T, ParseError> {
-        req.extract().await
-    }
-}
-impl<'de, T> Extractible<'de> for LazyExtract<T>
-where
-    T: Extractible<'de> + Send,
-{
-    fn metadata() -> &'de Metadata {
-        T::metadata()
+    /// Extract data from request with a argument. This function used in macros internal.
+    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
+        Self::extract(req).await
     }
 }

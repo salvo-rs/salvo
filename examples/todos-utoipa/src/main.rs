@@ -9,11 +9,8 @@ use salvo::size_limiter;
 
 use self::models::*;
 
-// use utoipa::OpenApi;
-use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
-};
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::Config;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);

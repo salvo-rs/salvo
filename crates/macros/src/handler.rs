@@ -1,11 +1,11 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::shared::*;
 
-pub(crate) fn generate(internal: bool, input: Item) -> syn::Result<TokenStream> {
-    let salvo = salvo_crate(internal);
+pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
+    let salvo = salvo_crate();
     match input {
         Item::Fn(mut item_fn) => {
             let attrs = &item_fn.attrs;
@@ -104,35 +104,22 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     // Maybe extractible type.
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
+                    let idv = id.to_token_stream().to_string();
 
                     extract_ts.push(quote! {
-                        let #id: #ty = match req.extract().await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
                                 res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
-                                    "Extract data failed."
+                                    "extract data failed"
                                 ));
                                 return;
                             }
                         };
                     });
                 } else {
-                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
-                }
-            }
-            InputType::LazyExtract(pat) => {
-                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
-                    call_args.push(ident.ident.clone());
-                    // Maybe extractible type.
-                    let id = &pat.pat;
-                    let ty = omit_type_path_lifetimes(ty);
-
-                    extract_ts.push(quote! {
-                        let #id: #ty = #salvo::extract::LazyExtract::new();
-                    });
-                } else {
-                    return Err(syn::Error::new_spanned(pat, "Invalid param definition."));
+                    return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
             }
             InputType::Receiver(_) => {
@@ -146,7 +133,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             if sig.asyncness.is_none() {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
@@ -154,7 +141,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             } else {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -165,7 +152,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             if sig.asyncness.is_none() {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
                     }
@@ -173,7 +160,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             } else {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::routing::FlowCtrl) {
+                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, req, depot, res).await;
                     }

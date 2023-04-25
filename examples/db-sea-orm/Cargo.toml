@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 tokio = { version = "1.21.1", features = ["macros", "rt-multi-thread"] }
-salvo = { path = "../../crates/salvo", features = ["affix", "serve-static"] }
+salvo = { workspace = true, features = ["affix", "serve-static"] }
 tracing = "0.1.36"
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 serde = { version = "1.0.144", features = ["derive"] }

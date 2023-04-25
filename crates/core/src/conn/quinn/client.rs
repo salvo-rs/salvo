@@ -625,7 +625,7 @@ where
 
         let qpack::Decoded { fields, .. } = decoded;
 
-        let (status, headers) = Header::try_from(fields)?.into_response_parts()?;
+        let (status, headers) = Header::try_from(fields)?.as_response_parts()?;
         let mut resp = Response::new(());
         *resp.status_mut() = status;
         *resp.headers_mut() = headers;
