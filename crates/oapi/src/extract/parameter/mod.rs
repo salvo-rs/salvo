@@ -1,10 +1,10 @@
-//! Parameter extractors for the API operation.
-mod cookie;
-mod header;
-mod path;
-mod query;
+//! Request parameter extractors for the API operation.
 
-pub use cookie::Cookie;
-pub use header::Header;
-pub use path::Path;
-pub use query::Query;
+mod cookie;
+pub use cookie::CookieParam;
+mod header;
+pub use header::HeaderParam;
+mod path;
+pub use path::PathParam;
+mod query;
+pub use query::QueryParam;

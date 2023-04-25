@@ -107,7 +107,7 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
         (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
     ),
 )]
-pub async fn update_todo(id: Path<u64>, req: &mut Request, res: &mut Response) {
+pub async fn update_todo(id: PathParam<u64>, req: &mut Request, res: &mut Response) {
     let updated_todo = req.parse_body::<Todo>().await.unwrap();
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;

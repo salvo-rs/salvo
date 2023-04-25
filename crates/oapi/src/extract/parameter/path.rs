@@ -11,11 +11,11 @@ use crate::endpoint::EndpointModifier;
 use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by the URI path.
-pub struct Path<T> {
+pub struct PathParam<T> {
     name: String,
     value: T,
 }
-impl<T> Path<T> {
+impl<T> PathParam<T> {
     pub fn new(name: &str, value: T) -> Self {
         Self {
             name: name.into(),
@@ -27,7 +27,7 @@ impl<T> Path<T> {
     }
 }
 
-impl<T> Deref for Path<T> {
+impl<T> Deref for PathParam<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -35,20 +35,20 @@ impl<T> Deref for Path<T> {
     }
 }
 
-impl<T> DerefMut for Path<T> {
+impl<T> DerefMut for PathParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
     }
 }
 
-impl<T> AsParameter for Path<T> {
+impl<T> AsParameter for PathParam<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
         let arg = arg.expect("path parameter must have a name");
         Parameter::new(arg).parameter_in(ParameterIn::Path).description(format!("Get parameter `{arg}` from request url path"))
     }
 }
 
-impl<'de, T> Deserialize<'de> for Path<T>
+impl<'de, T> Deserialize<'de> for PathParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -56,19 +56,19 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| Path {
+        T::deserialize(deserializer).map(|value| PathParam {
             name: "unknown".into(),
             value,
         })
     }
 }
 
-impl<T> fmt::Debug for Path<T>
+impl<T> fmt::Debug for PathParam<T>
 where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Path")
+        f.debug_struct("PathParam")
             .field("name", &self.name)
             .field("value", &self.value)
             .finish()
@@ -76,7 +76,7 @@ where
 }
 
 #[async_trait]
-impl<'de, T> Extractible<'de> for Path<T>
+impl<'de, T> Extractible<'de> for PathParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -87,11 +87,11 @@ where
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("path parameter can not be extracted from request")
     }
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Path<T>, ParseError> {
+    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .param(arg)
             .ok_or_else(|| ParseError::other(format!("path parameter {} not found or convert to type failed", arg)))?;
-        Ok(Path {
+        Ok(Self {
             name: arg.to_string(),
             value,
         })
@@ -99,7 +99,7 @@ where
 }
 
 #[async_trait]
-impl<T> EndpointModifier for Path<T> {
+impl<T> EndpointModifier for PathParam<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.insert(Self::parameter(arg));
     }

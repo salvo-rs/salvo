@@ -8,6 +8,7 @@ pub mod extract;
 mod router;
 pub mod swagger;
 
+use salvo_core::Extractible;
 pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -391,13 +392,39 @@ impl<'__s, K: PartialSchema, V: AsSchema<'__s>> PartialSchema for Option<HashMap
 /// }
 /// ```
 /// [derive]: derive.AsParameters.html
-pub trait AsParameters {
+pub trait AsParameters<'de>: Extractible<'de> + EndpointModifier {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn parameters() -> Parameters;
 }
-pub trait AsParameter {
+pub trait AsParameter: EndpointModifier {
     fn parameter(arg: Option<&str>) -> Parameter;
+}
+
+/// This trait is implemented to document a type (like an enum) which can represent
+/// request body, to be used in operation.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::BTreeMap;
+/// use salvo_oapi::{Response, Responses, RefOr, AsResponses };
+///
+/// #[derive(Deserialize, Debug)]
+/// struct MyPayload {
+///     name: String,
+/// }
+///
+/// impl AsRequestBody for MyPayload {
+///     fn request_body() -> RequestBody {
+///         RequestBody::new()
+///             .add_content("application/json", Content::new(""))
+///     }
+/// }
+/// ```
+pub trait AsRequestBody: EndpointModifier {
+    /// Returns `RequestBody`.
+    fn request_body() -> RequestBody;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple

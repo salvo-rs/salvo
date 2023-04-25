@@ -116,7 +116,7 @@ impl Parse for ResponseTuple<'_> {
                     response.as_value(input.span())?.examples = Some(parse::examples(input)?);
                 }
                 "content" => {
-                    response.as_value(input.span())?.content = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    response.as_value(input.span())?.contents = parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "response" => {
                     response.set_ref_type(input.span(), parse_utils::parse_next(input, || input.parse())?)?;
@@ -192,7 +192,7 @@ pub struct ResponseValue<'r> {
     headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
-    content: Punctuated<Content<'r>, Comma>,
+    contents: Punctuated<Content<'r>, Comma>,
 }
 
 impl<'r> ResponseValue<'r> {
@@ -308,41 +308,41 @@ impl ToTokens for ResponseTuple<'_> {
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
                             tokens.extend(quote! {
-                                .content(#content_type, #content)
+                                .add_content(#content_type, #content)
                             })
                         })
                     } else {
                         match response_type {
                             PathType::Ref(_) => {
                                 tokens.extend(quote! {
-                                    .content("application/json", #content)
+                                    .add_content("application/json", #content)
                                 });
                             }
                             PathType::MediaType(path_type) => {
                                 let type_tree = path_type.as_type_tree();
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
-                                    .content(#default_type, #content)
+                                    .add_content(#default_type, #content)
                                 })
                             }
                             PathType::InlineSchema(_, ty) => {
                                 let type_tree = TypeTree::from_type(ty);
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
-                                    .content(#default_type, #content)
+                                    .add_content(#default_type, #content)
                                 })
                             }
                         }
                     }
                 }
 
-                val.content
+                val.contents
                     .iter()
                     .map(|Content(content_type, body, example, examples)| {
                         let content = create_content(body, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
-                    .for_each(|(content_type, content)| tokens.extend(quote! { .content(#content_type, #content) }));
+                    .for_each(|(content_type, content)| tokens.extend(quote! { .add_content(#content_type, #content) }));
 
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;

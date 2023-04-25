@@ -1,8 +1,7 @@
 //! Implements [OpenAPI Request Body][request_body] types.
 //!
 //! [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
-use std::collections::BTreeMap;
-
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{set_value, Content, Required};
@@ -19,7 +18,8 @@ pub struct RequestBody {
     pub description: Option<String>,
 
     /// Map of request body contents mapped by content type e.g. `application/json`.
-    pub content: BTreeMap<String, Content>,
+    #[serde(rename = "content")]
+    pub contents: IndexMap<String, Content>,
 
     /// Determines whether request body is required in the request or not.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -42,9 +42,8 @@ impl RequestBody {
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
-    pub fn content<S: Into<String>>(mut self, content_type: S, content: Content) -> Self {
-        self.content.insert(content_type.into(), content);
-
+    pub fn add_content<S: Into<String>>(mut self, kind: S, content: Content) -> Self {
+        self.contents.insert(kind.into(), content);
         self
     }
 }
@@ -60,7 +59,7 @@ mod tests {
     fn request_body_new() {
         let request_body = RequestBody::new();
 
-        assert!(request_body.content.is_empty());
+        assert!(request_body.contents.is_empty());
         assert_eq!(request_body.description, None);
         assert!(request_body.required.is_none());
     }
@@ -70,7 +69,7 @@ mod tests {
         let request_body = RequestBody::new()
             .description("A sample requestBody")
             .required(Required::True)
-            .content(
+            .add_content(
                 "application/json",
                 Content::new(crate::Ref::from_schema_name("EmailPayload")),
             );

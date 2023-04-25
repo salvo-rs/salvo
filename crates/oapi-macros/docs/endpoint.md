@@ -346,6 +346,7 @@ _**More minimal example with the defaults.**_
 # use salvo_core::prelude::*;
 # use salvo_oapi::AsSchema;
 # #[derive(AsSchema, serde::Deserialize, serde::Serialize, Debug)]
+# #[extract(default_source(from = "body"))]
 # struct Pet {
 #    id: u64,
 #    name: String,

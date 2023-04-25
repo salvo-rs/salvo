@@ -141,7 +141,8 @@ pub struct Response {
     /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
     /// will create and show default example according to the first entry in `content` map.
     #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
-    pub content: IndexMap<String, Content>,
+    #[serde(rename = "content")]
+    pub contents: IndexMap<String, Content>,
 }
 
 impl Response {
@@ -160,8 +161,8 @@ impl Response {
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.
-    pub fn content<S: Into<String>>(mut self, content_type: S, content: Content) -> Self {
-        self.content.insert(content_type.into(), content);
+    pub fn add_content<S: Into<String>>(mut self, kind: S, content: Content) -> Self {
+        self.contents.insert(kind.into(), content);
 
         self
     }
@@ -194,7 +195,7 @@ mod tests {
 
     #[test]
     fn response_builder() -> Result<(), serde_json::Error> {
-        let request_body = Response::new("A sample response").content(
+        let request_body = Response::new("A sample response").add_content(
             "application/json",
             Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
         );

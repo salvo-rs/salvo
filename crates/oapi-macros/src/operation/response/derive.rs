@@ -414,12 +414,12 @@ impl<'r> EnumResponse<'r> {
             .into_iter()
             .map(Self::parse_variant_attributes)
             .filter_map(Self::to_content);
-        let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
+        let contents: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
 
         let derive_value = DeriveAsResponseValue::from_attributes(attributes);
         if let Some(derive_value) = &derive_value {
-            if (!content.is_empty() && derive_value.example.is_some())
-                || (!content.is_empty() && derive_value.examples.is_some())
+            if (!contents.is_empty() && derive_value.example.is_some())
+                || (!contents.is_empty() && derive_value.examples.is_some())
             {
                 let ident = derive_value
                     .example
@@ -439,14 +439,14 @@ impl<'r> EnumResponse<'r> {
             derive_value,
             description,
         });
-        response_value.response_type = if content.is_empty() {
+        response_value.response_type = if contents.is_empty() {
             let inline_schema = EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes);
 
             Some(PathType::InlineSchema(inline_schema.into_token_stream(), ty))
         } else {
             None
         };
-        response_value.content = content;
+        response_value.contents = contents;
 
         Self(response_value.into())
     }

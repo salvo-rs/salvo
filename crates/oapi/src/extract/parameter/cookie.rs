@@ -12,11 +12,11 @@ use crate::endpoint::EndpointModifier;
 use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by Cookie.
-pub struct Cookie<T> {
+pub struct CookieParam<T> {
     name: String,
     value: T,
 }
-impl<T> Cookie<T> {
+impl<T> CookieParam<T> {
     pub fn new(name: &str, value: T) -> Self {
         Self {
             name: name.into(),
@@ -28,7 +28,7 @@ impl<T> Cookie<T> {
     }
 }
 
-impl<T> Deref for Cookie<T> {
+impl<T> Deref for CookieParam<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -36,20 +36,20 @@ impl<T> Deref for Cookie<T> {
     }
 }
 
-impl<T> DerefMut for Cookie<T> {
+impl<T> DerefMut for CookieParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
     }
 }
 
-impl<T> AsParameter for Cookie<T> {
+impl<T> AsParameter for CookieParam<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
         let arg = arg.expect("cookie parameter must have a name");
         Parameter::new(arg).parameter_in(ParameterIn::Cookie).description(format!("Get parameter `{arg}` from request cookie"))
     }
 }
 
-impl<'de, T> Deserialize<'de> for Cookie<T>
+impl<'de, T> Deserialize<'de> for CookieParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -57,19 +57,19 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| Cookie {
+        T::deserialize(deserializer).map(|value| CookieParam {
             name: "unknown".into(),
             value,
         })
     }
 }
 
-impl<T> fmt::Debug for Cookie<T>
+impl<T> fmt::Debug for CookieParam<T>
 where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Cookie")
+        f.debug_struct("CookieParam")
             .field("name", &self.name)
             .field("value", &self.value)
             .finish()
@@ -77,7 +77,7 @@ where
 }
 
 #[async_trait]
-impl<'de, T> Extractible<'de> for Cookie<T>
+impl<'de, T> Extractible<'de> for CookieParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -88,7 +88,7 @@ where
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")
     }
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Cookie<T>, ParseError> {
+    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .cookies()
             .get(arg)
@@ -96,7 +96,7 @@ where
             .ok_or_else(|| {
                 ParseError::other(format!("cookie parameter {} not found or convert to type failed", arg))
             })?;
-        Ok(Cookie {
+        Ok(Self {
             name: arg.to_string(),
             value,
         })
@@ -104,7 +104,7 @@ where
 }
 
 #[async_trait]
-impl<T> EndpointModifier for Cookie<T> {
+impl<T> EndpointModifier for CookieParam<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.insert(Self::parameter(arg));
     }

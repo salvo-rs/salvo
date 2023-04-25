@@ -169,7 +169,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::Ref(_) => {
                     tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
-                            .content("application/json", #content)
+                            .add_content("application/json", #content)
                     });
                 }
                 PathType::MediaType(body_type) => {
@@ -181,7 +181,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                         .unwrap_or_else(|| type_tree.get_default_content_type());
                     tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
-                            .content(#content_type, #content)
+                            .add_content(#content_type, #content)
                             .required(#required)
                     });
                 }

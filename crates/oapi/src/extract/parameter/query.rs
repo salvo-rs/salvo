@@ -11,11 +11,11 @@ use crate::endpoint::EndpointModifier;
 use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by the URI path.
-pub struct Query<T> {
+pub struct QueryParam<T> {
     name: String,
     value: T,
 }
-impl<T> Query<T> {
+impl<T> QueryParam<T> {
     pub fn new(name: &str, value: T) -> Self {
         Self {
             name: name.into(),
@@ -27,7 +27,7 @@ impl<T> Query<T> {
     }
 }
 
-impl<T> Deref for Query<T> {
+impl<T> Deref for QueryParam<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -35,20 +35,20 @@ impl<T> Deref for Query<T> {
     }
 }
 
-impl<T> DerefMut for Query<T> {
+impl<T> DerefMut for QueryParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
     }
 }
 
-impl<T> AsParameter for Query<T> {
+impl<T> AsParameter for QueryParam<T> {
     fn parameter(arg: Option<&str>) -> Parameter {
         let arg = arg.expect("query parameter must have a name");
         Parameter::new(arg).parameter_in(ParameterIn::Query).description(format!("Get parameter `{arg}` from request url query"))
     }
 }
 
-impl<'de, T> Deserialize<'de> for Query<T>
+impl<'de, T> Deserialize<'de> for QueryParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -56,19 +56,19 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| Query {
+        T::deserialize(deserializer).map(|value| QueryParam {
             name: "unknown".into(),
             value,
         })
     }
 }
 
-impl<T> fmt::Debug for Query<T>
+impl<T> fmt::Debug for QueryParam<T>
 where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Query")
+        f.debug_struct("QueryParam")
             .field("name", &self.name)
             .field("value", &self.value)
             .finish()
@@ -76,7 +76,7 @@ where
 }
 
 #[async_trait]
-impl<'de, T> Extractible<'de> for Query<T>
+impl<'de, T> Extractible<'de> for QueryParam<T>
 where
     T: Deserialize<'de>,
 {
@@ -87,11 +87,11 @@ where
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Query<T>, ParseError> {
+    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .query(arg)
             .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
-        Ok(Query {
+        Ok(Self {
             name: arg.to_string(),
             value,
         })
@@ -99,7 +99,7 @@ where
 }
 
 #[async_trait]
-impl<T> EndpointModifier for Query<T> {
+impl<T> EndpointModifier for QueryParam<T> {
     fn modify(_components: &mut Components, operation: &mut Operation, arg: Option<&str>) {
         operation.parameters.insert(Self::parameter(arg));
     }
