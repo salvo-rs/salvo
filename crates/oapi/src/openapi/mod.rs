@@ -272,11 +272,7 @@ impl Handler for OpenApi {
         res: &mut salvo_core::Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        let pretty = req
-            .queries()
-            .get("pretty")
-            .map(|v| &**v != "false")
-            .unwrap_or(false);
+        let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
         let content = if pretty {
             self.to_pretty_json().unwrap()
         } else {
