@@ -87,14 +87,12 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let stream = AsParameters {
+    AsParameters {
         attrs,
         generics,
         data,
         ident,
-    }.to_token_stream().into();
-    println!("{}", stream);
-    stream
+    }.to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -124,12 +122,14 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);   
 
-    AsResponses {
+    let stream = AsResponses {
         attributes: attrs,
         ident,
         generics,
         data,
-    }.to_token_stream().into()
+    }.to_token_stream().into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro]

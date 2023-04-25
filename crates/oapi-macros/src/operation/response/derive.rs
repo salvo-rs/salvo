@@ -141,16 +141,14 @@ impl ToTokens for AsResponses {
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let responses = if responses.len() > 0 {
-            Some(quote!( .extend(#responses)))
+            quote!( #responses.into())
         } else {
-            None
+            quote!( #oapi::oapi::Responses::new())
         };
         tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::AsResponses for #ident #ty_generics #where_clause {
-                fn responses() -> std::collections::BTreeMap<String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>> {
-                    #oapi::oapi::response::Responses::new()
-                        #responses
-                        .into()
+                fn responses() -> #oapi::oapi::response::Responses {
+                    #responses
                 }
             }
         })

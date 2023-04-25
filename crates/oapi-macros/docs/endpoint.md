@@ -1,7 +1,6 @@
-Path attribute macro implements OpenAPI path for the decorated function.
+Endpoint attribute macro implements OpenAPI path for the decorated function.
 
-This is a `#[derive]` implementation for [`Path`][path] trait. Macro accepts set of attributes that can
-be used to configure and override default values what are resolved automatically.
+Macro accepts set of attributes that can be used to configure and override default values what are resolved automatically.
 
 You can use the Rust's own `#[deprecated]` attribute on functions to mark it as deprecated and it will
 reflect to the generated OpenAPI spec. Only **parameters** has a special **deprecated** attribute to define them as deprecated.
@@ -21,12 +20,7 @@ used as _`description`_.
 fn endpoint() {}
 ```
 
-# Path Attributes
-
-* `operation` _**Must be first parameter!**_ Accepted values are known http operations such as
-  _`get, post, put, delete, head, options, connect, patch, trace`_.
-
-* `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
+# Endpoint Attributes
 
 * `operation_id = ...` Unique operation id for the endpoint. By default this is mapped to function name.
   The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long

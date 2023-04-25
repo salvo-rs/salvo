@@ -499,7 +499,7 @@ enum UserType {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi::AsSchema, serde::Deserialize)]
 struct Item {
     #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,

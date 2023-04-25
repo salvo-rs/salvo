@@ -81,7 +81,8 @@ where
     T: Deserialize<'de>,
 {
     fn metadata() -> &'de Metadata {
-        unimplemented!("metadata can not be extracted from `Path`")
+        static METADATA: Metadata = Metadata::new("");
+        &METADATA
     }
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("path parameter can not be extracted from request")

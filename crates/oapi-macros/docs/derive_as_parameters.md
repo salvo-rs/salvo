@@ -18,7 +18,7 @@ While it is totally okay to declare deprecated with reason
 
 Doc comment on struct fields will be used as description for the generated parameters.
 ```
-#[derive(salvo_oapi::AsParameters)]
+#[derive(salvo_oapi::AsParameters, serde::Deserialize)]
 struct Query {
     /// Query todo items by name.
     name: String
@@ -44,7 +44,7 @@ Use `names` to define name for single unnamed argument.
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(names("id"))]
 struct Id(u64);
 ```
@@ -53,7 +53,7 @@ Use `names` to define names for multiple unnamed arguments.
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(names("id", "name"))]
 struct IdAndName(u64, String);
 ```
@@ -193,7 +193,7 @@ _**Override `String` with `i64` using `value_type` attribute.**_
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
     #[parameter(value_type = i64)]
@@ -205,7 +205,7 @@ _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
     #[parameter(value_type = Object)]
@@ -217,7 +217,7 @@ _**You can use a generic type to override the default type of the field.**_
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
     #[parameter(value_type = Option<String>)]
@@ -229,7 +229,7 @@ _**You can even override a [`Vec`] with another one.**_
 ```
 # use salvo_oapi::AsParameters;
 #
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
     #[parameter(value_type = Vec<i32>)]
@@ -246,7 +246,7 @@ struct Id {
     value: i64,
 }
 
-#[derive(AsParameters)]
+#[derive(AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Filter {
     #[parameter(value_type = Id)]
@@ -256,7 +256,7 @@ struct Filter {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsParameters)]
+#[derive(salvo_oapi::AsParameters, serde::Deserialize)]
 struct Item {
     #[parameter(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
@@ -279,7 +279,7 @@ fn custom_type() -> Object {
         .description("this is the description")
 }
 
-#[derive(salvo_oapi::AsParameters)]
+#[derive(salvo_oapi::AsParameters, serde::Deserialize)]
 #[as_parameters(parameter_in = Query)]
 struct Query {
     #[parameter(schema_with = custom_type)]

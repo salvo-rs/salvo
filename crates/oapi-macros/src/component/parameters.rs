@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{quote, ToTokens};
+use quote::{quote, format_ident, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident, GenericParam, Lifetime, LifetimeParam};
 
 use crate::{
@@ -184,6 +184,7 @@ impl ToTokens for AsParameters {
                 _ => quote!{None},
             }).unwrap_or_else(|| quote!{None});
             let name = ident.to_string();
+            let metadata: Ident = format_ident!("__salvo_extract_{}", name);
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsParameters for #ident #ty_generics #where_clause {
                 fn parameters() -> #oapi::oapi::Parameters {
@@ -199,15 +200,18 @@ impl ToTokens for AsParameters {
                     }
                 }
             }
+            #[allow(non_upper_case_globals)]
+            static #metadata: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||
+                #salvo::extract::Metadata {
+                    name: #name,
+                    default_sources: vec![#default_source],
+                    fields: vec![#(#fields),*],
+                    rename_all: #rename_all,
+                });
             #[#salvo::async_trait]
             impl #de_impl_generics #salvo::Extractible<'de> for #ident #ty_generics #where_clause {
                 fn metadata() -> &'de #salvo::extract::Metadata {
-                    &#salvo::extract::Metadata {
-                        name: #name,
-                        default_sources: vec![#default_source],
-                        fields: vec![#(#fields),*],
-                        rename_all: #rename_all,
-                    }
+                    &*#metadata
                 }
                 async fn extract(req: &'de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
                     #salvo::serde::from_request(req, Self::metadata()).await

@@ -20,6 +20,7 @@ pub use self::{
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
     xml::Xml,
+    example::Example,
 };
 
 mod components;

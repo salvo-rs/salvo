@@ -61,8 +61,8 @@ impl Example {
 
     /// Add or change embedded literal example value. [`Example::value`] and [`Example::external_value`]
     /// are mutually exclusive.
-    pub fn value(mut self, value: Option<serde_json::Value>) -> Self {
-        set_value!(self value value)
+    pub fn value(mut self, value: serde_json::Value) -> Self {
+        set_value!(self value Some(value))
     }
 
     /// Add or change an URI that points to a literal example value. [`Example::external_value`]

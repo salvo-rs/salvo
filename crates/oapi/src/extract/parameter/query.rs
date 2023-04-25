@@ -81,7 +81,8 @@ where
     T: Deserialize<'de>,
 {
     fn metadata() -> &'de Metadata {
-        panic!("metadata can not be extracted from `Query`")
+        static METADATA: Metadata = Metadata::new("");
+        &METADATA
     }
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")

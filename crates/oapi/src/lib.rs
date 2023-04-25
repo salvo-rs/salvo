@@ -438,8 +438,8 @@ pub trait AsResponses {
 /// use salvo_oapi::{RefOr, Response, AsResponse};
 ///
 /// struct MyResponse;
-/// impl<'__r> AsResponse<'__r> for MyResponse {
-///     fn response() -> (&'__r str, RefOr<Response>) {
+/// impl<'a> AsResponse<'a> for MyResponse {
+///     fn response() -> (&'a str, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
 ///             Response::new("My Response").into(),

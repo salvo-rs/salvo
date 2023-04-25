@@ -806,12 +806,12 @@ impl ToTokens for Header {
             .to_token_stream();
 
             tokens.extend(quote! {
-                #oapi::oapi::HeaderBuilder::new().schema(#media_type_schema)
+                #oapi::oapi::Header::new(#media_type_schema)
             })
         } else {
             // default header (string type)
             tokens.extend(quote! {
-                Into::<#oapi::oapi::HeaderBuilder>::into(#oapi::oapi::Header::default())
+                Into::<#oapi::oapi::Header>::into(#oapi::oapi::Header::default())
             })
         };
 

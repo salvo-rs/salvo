@@ -133,7 +133,7 @@ impl FromStr for SourceFormat {
 }
 
 /// Struct's metadata information.
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Metadata {
     /// The name of this type.
     pub name: &'static str,
@@ -143,6 +143,48 @@ pub struct Metadata {
     pub fields: Vec<Field>,
     /// Rename rule for all fields of this type.
     pub rename_all: Option<RenameRule>,
+}
+
+impl Metadata {
+    /// Create a new metadata object.
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            default_sources: vec![],
+            fields: vec![],
+            rename_all: None,
+        }
+    }
+
+    /// Sets the default sources list to a new value.
+    pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
+        self.default_sources = default_sources;
+        self
+    }
+
+    /// set all fields list to a new value.
+    pub fn set_fields(mut self, fields: Vec<Field>) -> Self {
+        self.fields = fields;
+        self
+    }
+
+    /// Add a default source to default sources list.
+    pub fn add_default_source(mut self, source: Source) -> Self {
+        self.default_sources.push(source);
+        self
+    }
+
+    /// Add a field to the fields list.
+    pub fn add_field(mut self, field: Field) -> Self {
+        self.fields.push(field);
+        self
+    }
+
+    /// Rule for rename all fields of type.
+    pub fn rename_all(mut self, rename_all: RenameRule) -> Self {
+        self.rename_all = Some(rename_all);
+        self
+    }
 }
 
 /// Information about struct field.
@@ -219,48 +261,6 @@ impl Source {
     /// Create a new source from a string.
     pub fn new(from: SourceFrom, format: SourceFormat) -> Self {
         Self { from, format }
-    }
-}
-
-impl Metadata {
-    /// Create a new metadata object.
-    pub fn new(name: &'static str) -> Self {
-        Self {
-            name,
-            default_sources: vec![],
-            fields: Vec::with_capacity(8),
-            rename_all: None,
-        }
-    }
-
-    /// Sets the default sources list to a new value.
-    pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
-        self.default_sources = default_sources;
-        self
-    }
-
-    /// set all fields list to a new value.
-    pub fn set_fields(mut self, fields: Vec<Field>) -> Self {
-        self.fields = fields;
-        self
-    }
-
-    /// Add a default source to default sources list.
-    pub fn add_default_source(mut self, source: Source) -> Self {
-        self.default_sources.push(source);
-        self
-    }
-
-    /// Add a field to the fields list.
-    pub fn add_field(mut self, field: Field) -> Self {
-        self.fields.push(field);
-        self
-    }
-
-    /// Rule for rename all fields of type.
-    pub fn rename_all(mut self, rename_all: RenameRule) -> Self {
-        self.rename_all = Some(rename_all);
-        self
     }
 }
 

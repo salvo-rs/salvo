@@ -82,7 +82,8 @@ where
     T: Deserialize<'de>,
 {
     fn metadata() -> &'de Metadata {
-        unimplemented!("metadata can not be extracted from `Cookie`")
+        static METADATA: Metadata = Metadata::new("");
+        &METADATA
     }
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")

@@ -79,6 +79,7 @@ It can also be overridden with _`description = "..."`_ attribute.
 
 _**Use `AsResponses` to define [`salvo_oapi::endpoint`][path] responses.**_
 ```
+# use salvo_core::http::{header::CONTENT_TYPE, HeaderValue};
 # use salvo_core::prelude::*;
 #[derive(salvo_oapi::AsSchema)]
 struct BadRequest {
@@ -96,6 +97,14 @@ enum UserResponses {
 
     #[response(status = 400)]
     BadRequest(BadRequest),
+}
+
+impl Piece for UserResponses {
+    fn render(self, res: &mut Response) {
+        res.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        res.write_body(format!("{self:#?}")).ok();
+    }
 }
 
 #[salvo_oapi::endpoint(

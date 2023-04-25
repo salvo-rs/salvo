@@ -20,6 +20,11 @@ use super::{header::Header, set_value, Content};
 #[serde(rename_all = "camelCase")]
 pub struct Responses(BTreeMap<String, RefOr<Response>>);
 
+impl From<BTreeMap<String, RefOr<Response>>> for Responses {
+    fn from(inner: BTreeMap<String, RefOr<Response>>) -> Self {
+        Self(inner)
+    }
+}
 impl Deref for Responses {
     type Target = BTreeMap<String, RefOr<Response>>;
 
