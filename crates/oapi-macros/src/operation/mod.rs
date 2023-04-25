@@ -98,7 +98,6 @@ impl<'a> Operation<'a> {
 
 fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream2> {
     let mut modifiers = vec![];
-    println!("+=========bb {:?}", content);
     match content {
         PathType::Ref(path) => {
             modifiers.push(quote! {

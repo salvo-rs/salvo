@@ -1,12 +1,11 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam, Generics, Lifetime, LifetimeParam, Path, PathArguments,
-    Token, Type, Variant, Visibility,
+    FieldsNamed, FieldsUnnamed, GenericArgument, Generics, Path, PathArguments, Token, Type, Variant, Visibility,
 };
 
 use crate::{

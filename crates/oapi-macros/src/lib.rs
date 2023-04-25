@@ -58,11 +58,9 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let stream = AsSchema::new(&data, &attrs, &ident, &generics, &vis)
+    AsSchema::new(&data, &attrs, &ident, &generics, &vis)
         .to_token_stream()
-        .into();
-    println!("{}", stream);
-    stream
+        .into()
 }
 
 #[proc_macro_error]

@@ -90,7 +90,7 @@ impl Servers {
                 ..
             } = server;
             exist_server.variables.append(&mut variables);
-            if !description.is_none() {
+            if description.is_some() {
                 exist_server.description = description;
             }
             self.0.insert(exist_server);
@@ -99,7 +99,7 @@ impl Servers {
         }
     }
     pub fn append(&mut self, other: &mut Servers) {
-        let servers = std::mem::replace(&mut other.0, Default::default());
+        let servers = std::mem::take(&mut other.0);
         for server in servers {
             self.insert(server);
         }
@@ -231,9 +231,9 @@ impl ServerVariables {
         let key = key.into();
         let mut variable = variable.into();
         self.0
-            .entry(key.clone())
+            .entry(key)
             .and_modify(|item| {
-                if !variable.description.is_none() {
+                if variable.description.is_some() {
                     item.description = variable.description.take();
                 }
                 item.default_value = variable.default_value.clone();
@@ -242,7 +242,7 @@ impl ServerVariables {
             .or_insert(variable);
     }
     pub fn append(&mut self, other: &mut ServerVariables) {
-        let variables = std::mem::replace(&mut other.0, Default::default());
+        let variables = std::mem::take(&mut other.0);
         for (key, variable) in variables {
             self.insert(key, variable);
         }

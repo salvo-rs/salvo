@@ -36,12 +36,12 @@ impl Paths {
         let key = key.into();
         let mut value = value.into();
         self.0
-            .entry(key.clone())
+            .entry(key)
             .and_modify(|item| {
-                if !value.summary.is_none() {
+                if value.summary.is_some() {
                     item.summary = value.summary.take();
                 }
-                if !value.description.is_none() {
+                if value.description.is_some() {
                     item.description = value.description.take();
                 }
                 item.servers.append(&mut value.servers);
@@ -51,7 +51,7 @@ impl Paths {
             .or_insert(value);
     }
     pub fn append(&mut self, other: &mut Paths) {
-        let items = std::mem::replace(&mut other.0, Default::default());
+        let items = std::mem::take(&mut other.0);
         for item in items {
             self.insert(item.0, item.1);
         }
@@ -121,7 +121,7 @@ impl PathItem {
         if other.description.is_none() {
             self.description = other.description.take();
         }
-        if !other.summary.is_none() {
+        if other.summary.is_some() {
             self.summary = other.summary.take();
         }
     }

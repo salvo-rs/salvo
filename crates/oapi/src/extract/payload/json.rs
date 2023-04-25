@@ -26,7 +26,7 @@ impl<T> DerefMut for JsonBody<T> {
     }
 }
 
-impl<'de, 's, T> AsRequestBody for JsonBody<T>
+impl<'de, T> AsRequestBody for JsonBody<T>
 where
     T: Deserialize<'de> + AsSchema,
 {

@@ -77,7 +77,7 @@ where
 }
 
 #[async_trait]
-impl<'de, 's, T> EndpointModifier for FormBody<T>
+impl<'de, T> EndpointModifier for FormBody<T>
 where
     T: Deserialize<'de> + AsSchema,
 {
