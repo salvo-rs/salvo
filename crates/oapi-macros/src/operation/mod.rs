@@ -21,7 +21,7 @@ pub(crate) mod response;
 pub(crate) use self::{
     parameter::{Parameter, ParameterIn},
     request_body::RequestBodyAttr,
-    response::{ResponseTupleInner, Response},
+    response::{Response, ResponseTupleInner},
 };
 mod status;
 

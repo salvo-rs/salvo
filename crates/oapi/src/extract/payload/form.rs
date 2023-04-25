@@ -31,9 +31,10 @@ where
     T: Deserialize<'de> + AsSchema<'s>,
 {
     fn request_body() -> RequestBody {
-        RequestBody::new() .description("Get form format data from request.")
-        .add_content("application/x-www-form-urlencoded", Content::new(T::schema().1))
-        .add_content("multipart/*", Content::new(T::schema().1))
+        RequestBody::new()
+            .description("Get form format data from request.")
+            .add_content("application/x-www-form-urlencoded", Content::new(T::schema().1))
+            .add_content("multipart/*", Content::new(T::schema().1))
     }
 }
 
