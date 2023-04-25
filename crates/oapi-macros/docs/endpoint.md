@@ -35,7 +35,7 @@ fn endpoint() {}
 
 * `responses(...)` Slice of responses the endpoint is going to possibly return to the caller.
 
-* `paramters(...)` Slice of paramters that the endpoint accepts.
+* `parameters(...)` Slice of parameters that the endpoint accepts.
 
 * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 
@@ -223,7 +223,7 @@ responses(MyResponse)
 
 # Params Attributes
 
-The list of attributes inside the `paramters(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
+The list of attributes inside the `parameters(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
 Type](#intoparams-type).
 
 ## Tuples
@@ -302,7 +302,7 @@ enabled.
 **For example:**
 
 ```text
-paramters(
+parameters(
     ("id" = String, Path, deprecated, description = "Pet database id"),
     ("name", Path, deprecated, description = "Pet name"),
     (
@@ -327,13 +327,13 @@ that implements [`AsParameters`][as_parameters]. See [`AsParameters`][as_paramet
 example.
 
 ```text
-paramters(MyParameters)
+parameters(MyParameters)
 ```
 
 **Note!** that `MyParameters` can also be used in combination with the [tuples
 representation](#tuples) or other structs.
 ```text
-paramters(
+parameters(
     MyParameters1,
     MyParameters2,
     ("id" = String, Path, deprecated, description = "Pet database id"),
@@ -343,6 +343,9 @@ paramters(
 
 _**More minimal example with the defaults.**_
 ```
+# use salvo_core::prelude::*;
+# use salvo_oapi::AsSchema;
+# #[derive(AsSchema, serde::Deserialize, serde::Serialize, Debug)]
 # struct Pet {
 #    id: u64,
 #    name: String,
@@ -357,15 +360,15 @@ _**More minimal example with the defaults.**_
             )
         ),
    ),
-   paramters(
+   parameters(
      ("x-csrf-token", Header, description = "Current csrf token of user"),
    )
 )]
-fn post_pet(pet: Pet) -> Pet {
-    Pet {
+fn post_pet(pet: Pet, res: &mut Response) {
+    res.render(Json(Pet {
         id: 4,
         name: "bob the cat".to_string(),
-    }
+    }));
 }
 ```
 

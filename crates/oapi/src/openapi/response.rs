@@ -20,11 +20,30 @@ use super::{header::Header, set_value, Content};
 #[serde(rename_all = "camelCase")]
 pub struct Responses(BTreeMap<String, RefOr<Response>>);
 
-impl From<BTreeMap<String, RefOr<Response>>> for Responses {
-    fn from(inner: BTreeMap<String, RefOr<Response>>) -> Self {
-        Self(inner)
+impl<K, R> From<BTreeMap<K, R>> for Responses
+where
+    K: Into<String>,
+    R: Into<RefOr<Response>>,
+{
+    fn from(inner: BTreeMap<K, R>) -> Self {
+        Self(inner.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
     }
 }
+impl<K, R, const N: usize> From<[(K, R); N]> for Responses
+where
+    K: Into<String>,
+    R: Into<RefOr<Response>>,
+{
+    fn from(inner: [(K, R); N]) -> Self {
+        Self(
+            <[(K, R)]>::into_vec(Box::new(inner))
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
+    }
+}
+
 impl Deref for Responses {
     type Target = BTreeMap<String, RefOr<Response>>;
 

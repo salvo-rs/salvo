@@ -3,10 +3,10 @@ fields.
 
 This is `#[derive]` implementation for [`AsParameters`][as_parameters] trait.
 
-Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...paramters(...))]`][path_params] section
+Typically path parameters need to be defined within [`#[salvo_oapi::endpoint(...parameters(...))]`][path_params] section
 for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
 Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
-within `paramters(...)` section if description or other than default configuration need to be given.
+within `parameters(...)` section if description or other than default configuration need to be given.
 
 You can use the Rust's own `#[deprecated]` attribute on field to mark it as
 deprecated and it will reflect to the generated OpenAPI spec.

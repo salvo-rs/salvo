@@ -63,8 +63,8 @@ impl ToTokens for Parameter<'_> {
                 let last_ident = &path.path.segments.last().unwrap().ident;
 
                 tokens.extend(quote_spanned! {last_ident.span()=>
-                    .extend(
-                        &mut <#path as #oapi::oapi::AsParameters>::parameters()
+                    .parameters(
+                        <#path as #oapi::oapi::AsParameters>::parameters().into_iter()
                     )
                 })
             }

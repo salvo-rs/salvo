@@ -195,7 +195,7 @@ impl ToTokens for AsParameters {
             #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
                 fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, arg: Option<&str>) {
-                    for parameter in Self::parameters() {
+                    for parameter in <Self as #oapi::oapi::AsParameters>::parameters() {
                         operation.parameters.insert(parameter);
                     }
                 }

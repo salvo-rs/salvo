@@ -996,42 +996,33 @@ mod tests {
             credential.get("history").is_some(),
             "could not find path: components.schemas.Credential.properties.history"
         );
-        assert_eq!(
+        assert_json_eq!(
             credential
                 .get("id")
-                .unwrap_or(&serde_json::value::Value::Null)
-                .to_string(),
-            r#"{"default":1,"description":"Id of credential","format":"int32","type":"integer"}"#,
-            "components.schemas.Credential.properties.id did not match"
+                .unwrap_or(&serde_json::value::Value::Null),
+            json!({"type":"integer","format":"int32","description":"Id of credential","default":1})
         );
-        assert_eq!(
+        assert_json_eq!(
             credential
                 .get("name")
-                .unwrap_or(&serde_json::value::Value::Null)
-                .to_string(),
-            r#"{"description":"Name of credential","type":"string"}"#,
-            "components.schemas.Credential.properties.name did not match"
+                .unwrap_or(&serde_json::value::Value::Null),
+            json!({"type":"string","description":"Name of credential"})
         );
-        assert_eq!(
+        assert_json_eq!(
             credential
                 .get("status")
-                .unwrap_or(&serde_json::value::Value::Null)
-                .to_string(),
-            r#"{"default":"Active","description":"Credential status","enum":["Active","NotActive","Locked","Expired"],"type":"string"}"#,
-            "components.schemas.Credential.properties.status did not match"
+                .unwrap_or(&serde_json::value::Value::Null),
+            json!({"default":"Active","description":"Credential status","enum":["Active","NotActive","Locked","Expired"],"type":"string"})
         );
-        assert_eq!(
+        assert_json_eq!(
             credential
                 .get("history")
-                .unwrap_or(&serde_json::value::Value::Null)
-                .to_string(),
-            r###"{"items":{"$ref":"#/components/schemas/UpdateHistory"},"type":"array"}"###,
-            "components.schemas.Credential.properties.history did not match"
+                .unwrap_or(&serde_json::value::Value::Null),
+            json!({"items":{"$ref":"#/components/schemas/UpdateHistory"},"type":"array"})
         );
         assert_eq!(
-            person.to_string(),
-            r###"{"$ref":"#/components/PersonModel"}"###,
-            "components.schemas.Person.ref did not match"
+            person,
+            &json!({"$ref":"#/components/PersonModel"})
         );
 
         Ok(())

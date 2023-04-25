@@ -149,11 +149,10 @@ impl OpenApi {
     ///
     /// This function performs a shallow comparison for `paths`, `schemas`, `responses` and
     /// `security schemes` which means that only _`name`_ and _`path`_ is used for comparison. When
-    /// match occurs the whole item will be ignored from merged results. Only items not
-    /// found will be appended to `self`.
+    /// match occurs the exists item will be overwrite.
     ///
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
-    /// comparison. Items not found from `self` will be appended to `self`.
+    /// comparison.
     ///
     /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
     pub fn merge(mut self, mut other: OpenApi) -> Self {
@@ -469,7 +468,7 @@ mod tests {
             "/api/v1/user",
             PathItem::new(
                 PathItemType::Get,
-                Operation::new().add_response("200", Response::new("Get user success")),
+                Operation::new().add_response("200", Response::new("This will not get added")),
             ),
         ));
 
@@ -480,7 +479,7 @@ mod tests {
                         "/api/v1/user",
                         PathItem::new(
                             PathItemType::Get,
-                            Operation::new().add_response("200", Response::new("This will not get added")),
+                            Operation::new().add_response("200", Response::new("Get user success")),
                         ),
                     )
                     .path(

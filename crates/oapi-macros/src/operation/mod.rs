@@ -21,7 +21,7 @@ pub(crate) mod response;
 pub(crate) use self::{
     parameter::{Parameter, ParameterIn},
     request_body::RequestBodyAttr,
-    response::{Response, Responses},
+    response::Response,
 };
 mod status;
 
@@ -105,10 +105,10 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        let responses = Responses(self.responses);
-        tokens.extend(quote! {
-            .responses(#responses)
-        });
+        // let responses = Responses(self.responses);
+        // tokens.extend(quote! {
+        //     .responses(#responses)
+        // });
         if let Some(security_requirements) = self.security {
             tokens.extend(quote! {
                 .securities(#security_requirements)

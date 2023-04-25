@@ -32,8 +32,8 @@ mod schema_type;
 mod security_requirement;
 mod shared;
 
-use component::schema::AsSchema;
 use component::parameters::AsParameters;
+use component::schema::AsSchema;
 
 pub(crate) use self::{
     component::{
@@ -58,9 +58,9 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let stream = AsSchema::new(&data, &attrs, &ident, &generics, &vis).to_token_stream().into();
-     println!("{}", stream);
-     stream
+    AsSchema::new(&data, &attrs, &ident, &generics, &vis)
+        .to_token_stream()
+        .into()
 }
 
 #[proc_macro_error]
@@ -92,7 +92,9 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
         generics,
         data,
         ident,
-    }.to_token_stream().into()
+    }
+    .to_token_stream()
+    .into()
 }
 
 #[proc_macro_error]
@@ -120,16 +122,16 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
         generics,
         data,
         ..
-    } = syn::parse_macro_input!(input);   
+    } = syn::parse_macro_input!(input);
 
-    let stream = AsResponses {
+    AsResponses {
         attributes: attrs,
         ident,
         generics,
         data,
-    }.to_token_stream().into();
-    println!("{}", stream);
-    stream
+    }
+    .to_token_stream()
+    .into()
 }
 
 #[proc_macro]

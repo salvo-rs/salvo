@@ -81,12 +81,12 @@ _**Use `AsResponses` to define [`salvo_oapi::endpoint`][path] responses.**_
 ```
 # use salvo_core::http::{header::CONTENT_TYPE, HeaderValue};
 # use salvo_core::prelude::*;
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi::AsSchema, Debug)]
 struct BadRequest {
     message: String,
 }
 
-#[derive(salvo_oapi::AsResponses)]
+#[derive(salvo_oapi::AsResponses, Debug)]
 enum UserResponses {
     /// Success response
     #[response(status = 200)]
@@ -148,7 +148,7 @@ _**Enum with multiple responses.**_
 # struct Response {
 #     message: String,
 # }
-# #[derive(salvo_oapi::AsSchema)]
+# #[derive(salvo_oapi::AsSchema, Debug)]
 # struct BadRequest {}
 #[derive(salvo_oapi::AsResponses)]
 enum UserResponses {

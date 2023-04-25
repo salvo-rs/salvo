@@ -275,7 +275,6 @@ mod tests {
         let server1 = Server::new("/api");
         let server2 = Server::new("/admin");
         let operation = Operation::new().add_server(server1).add_server(server2);
-
-        assert!(operation.servers.is_empty());
+        assert!(!operation.servers.is_empty());
     }
 }
