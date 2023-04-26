@@ -14,17 +14,16 @@ pub mod derive;
 use crate::{
     component::{
         self,
-        features::{
-            impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
-            Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable,
-            Pattern, ReadOnly, Style, ToTokensExt, WriteOnly, XmlAttr,
-        },
         ComponentSchema,
     },
+    feature::{
+        impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
+        Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable,
+        Pattern, ReadOnly, Style, ToTokensExt, WriteOnly, XmlAttr,
+    },
+    operation::InlineType,
     parse_utils, Required,
 };
-
-use super::InlineType;
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -178,7 +177,7 @@ impl Parse for ParameterFeatures {
             Explode,
             AllowReserved,
             Example,
-            crate::component::features::Deprecated,
+            crate::feature::Deprecated,
             Description,
             // param schema features
             Format,

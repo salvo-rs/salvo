@@ -7,6 +7,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::borrow::Cow;
 use std::ops::Deref;
 
 use proc_macro::TokenStream;
@@ -15,6 +16,7 @@ use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
+    Attribute,
     bracketed,
     parse::{Parse, ParseStream},
     parse_macro_input,
@@ -26,24 +28,32 @@ use syn::{
 mod component;
 mod doc_comment;
 mod endpoint;
+mod feature;
 mod operation;
+mod parameter;
 mod parse_utils;
+mod response;
+mod schema;
 mod schema_type;
 mod security_requirement;
+mod serde;
 mod shared;
-
-use component::schema::AsSchema;
-use operation::parameter::derive::AsParameters;
+mod type_tree;
 
 pub(crate) use self::{
-    component::{
-        features::{self, Feature},
-        ComponentSchema, ComponentSchemaProps, TypeTree,
-    },
+    component::{ComponentSchema, ComponentSchemaProps},
     endpoint::EndpointAttr,
-    operation::response::derive::{AsResponse, AsResponses},
+    feature::Feature,
     operation::Operation,
+    parameter::derive::AsParameters,
+    parameter::{Parameter, ParameterIn},
+    response::derive::{AsResponse, AsResponses},
+    response::Response,
+    schema::AsSchema,
+    serde::RenameRule,
     shared::*,
+    type_tree::TypeTree,
+    serde::{SerdeValue, SerdeContainer},
 };
 
 #[proc_macro_error]
@@ -69,10 +79,12 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
+    let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
@@ -170,6 +182,42 @@ pub fn schema(input: TokenStream) -> TokenStream {
         object_name: "",
     });
     schema.to_token_stream().into()
+}
+
+
+/// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
+#[inline]
+fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&SerdeValue>) -> bool {
+    container_rules.as_ref().map(|rule| rule.is_default).unwrap_or(false)
+        || field_rule.as_ref().map(|rule| rule.is_default).unwrap_or(false)
+}
+
+/// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
+/// or field attributes of struct.
+pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
+    attributes.iter().find_map(|attribute| {
+        if attribute
+            .path()
+            .get_ident()
+            .map(|ident| *ident == "deprecated")
+            .unwrap_or(false)
+        {
+            Some(crate::Deprecated::True)
+        } else {
+            None
+        }
+    })
+}
+
+/// Check whether field is required based on following rules.
+///
+/// * If field has not serde's `skip_serializing_if`
+/// * Field has not `serde_with` double option
+/// * Field is not default
+fn is_required(field_rule: Option<&SerdeValue>, container_rules: Option<&SerdeContainer>) -> bool {
+    !field_rule.map(|rule| rule.skip_serializing_if).unwrap_or(false)
+        && !field_rule.map(|rule| rule.double_option).unwrap_or(false)
+        && !is_default(&container_rules, &field_rule)
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -275,9 +323,9 @@ impl From<bool> for Required {
     }
 }
 
-impl From<features::Required> for Required {
-    fn from(value: features::Required) -> Self {
-        let features::Required(required) = value;
+impl From<feature::Required> for Required {
+    fn from(value: feature::Required) -> Self {
+        let feature::Required(required) = value;
         crate::Required::from(required)
     }
 }
@@ -455,5 +503,48 @@ trait OptionExt<T> {
 impl<T> OptionExt<T> for Option<T> {
     fn expect_or_abort(self, message: &str) -> T {
         self.unwrap_or_else(|| abort!(Span::call_site(), message))
+    }
+}
+
+pub(crate) trait Rename {
+    fn rename(rule: &RenameRule, value: &str) -> String;
+}
+
+/// Performs a rename for given `value` based on given rules. If no rules were
+/// provided returns [`None`]
+///
+/// Method accepts 3 arguments.
+/// * `value` to rename.
+/// * `to` Optional rename to value for fields with _`rename`_ property.
+/// * `container_rule` which is used to rename containers with _`rename_all`_ property.
+pub(crate) fn rename<'r, R: Rename>(
+    value: &'r str,
+    to: Option<Cow<'r, str>>,
+    container_rule: Option<&'r RenameRule>,
+) -> Option<Cow<'r, str>> {
+    let rename = to.and_then(|to| if !to.is_empty() { Some(to) } else { None });
+
+    rename.or_else(|| {
+        container_rule
+            .as_ref()
+            .map(|container_rule| Cow::Owned(R::rename(container_rule, value)))
+    })
+}
+
+/// Can be used to perform rename on container level e.g `struct`, `enum` or `enum` `variant` level.
+struct VariantRename;
+
+impl Rename for VariantRename {
+    fn rename(rule: &RenameRule, value: &str) -> String {
+        rule.rename_variant(value)
+    }
+}
+
+/// Can be used to perform rename on field level of a container e.g `struct`.
+pub(crate) struct FieldRename;
+
+impl Rename for FieldRename {
+    fn rename(rule: &RenameRule, value: &str) -> String {
+        rule.rename(value)
     }
 }

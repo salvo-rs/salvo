@@ -1,12 +1,20 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+#[macro_use]
+mod cfg;
+
 mod openapi;
 pub use openapi::*;
 mod endpoint;
 pub use endpoint::{Endpoint, EndpointModifier, EndpointRegistry};
 pub mod extract;
 mod router;
-pub mod swagger;
+
+cfg_feature! {
+    #![feature ="swagger"]
+    #[doc(no_inline)]
+    pub mod swagger;
+}
 
 use salvo_core::Extractible;
 pub use salvo_oapi_macros::*;
@@ -83,9 +91,12 @@ extern crate self as salvo_oapi;
 /// }
 /// ```
 pub trait AsSchema {
+    fn symbol() -> Option<&'static str> {
+        None
+    }
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>);
+    fn schema() -> RefOr<schema::Schema>;
 
     /// Optional set of alias schemas for the [`AsSchema::schema`].
     ///
@@ -98,7 +109,7 @@ pub trait AsSchema {
 
 impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
-        T::schema().1
+        T::schema()
     }
 }
 
@@ -108,8 +119,11 @@ impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
 pub type TupleUnit = ();
 
 impl AsSchema for TupleUnit {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (Some("TupleUnit"), schema::empty().into())
+    fn symbol() -> Option<&'static str> {
+        Some("TupleUnit")
+    }
+    fn schema() -> RefOr<schema::Schema> {
+        schema::empty().into()
     }
 }
 
@@ -122,8 +136,8 @@ macro_rules! impl_partial_schema {
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl AsSchema for $($tt)* {
-            fn schema() -> (Option<&'static str>, crate::RefOr<crate::schema::Schema>) {
-                (None, schema!( $($tt)* ).into())
+            fn schema() -> crate::RefOr<crate::schema::Schema> {
+                schema!( $($tt)* ).into()
             }
         }
     };
@@ -152,56 +166,49 @@ pub mod __private {
 impl_partial_schema_primitive!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
-
 impl_partial_schema!(&str);
 
 impl<T: AsSchema> AsSchema for Vec<T> {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline] Vec<T>).into())
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(#[inline] Vec<T>).into()
     }
 }
 
 impl<T: AsSchema> AsSchema for [T] {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (
-            None,
-            schema!(
-                #[inline]
-                [T]
-            )
-            .into(),
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(
+            #[inline]
+            [T]
         )
+        .into()
     }
 }
 
 impl<T: AsSchema> AsSchema for &[T] {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (
-            None,
-            schema!(
-                #[inline]
-                &[T]
-            )
-            .into(),
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(
+            #[inline]
+            &[T]
         )
+        .into()
     }
 }
 
 impl<T: AsSchema> AsSchema for Option<T> {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline] Option<T>).into())
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(#[inline] Option<T>).into()
     }
 }
 
 impl<K: AsSchema, V: AsSchema> AsSchema for BTreeMap<K, V> {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline]BTreeMap<K, V>).into())
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
 impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
-    fn schema() -> (Option<&'static str>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline]HashMap<K, V>).into())
+    fn schema() -> RefOr<schema::Schema> {
+        schema!(#[inline]HashMap<K, V>).into()
     }
 }
 
@@ -319,7 +326,7 @@ pub trait AsParameter: EndpointModifier {
 /// impl AsRequestBody for MyPayload {
 ///     fn request_body() -> RequestBody {
 ///         RequestBody::new()
-///             .add_content("application/json", Content::new(MyPayload::schema().1))
+///             .add_content("application/json", Content::new(MyPayload::schema()))
 ///     }
 /// }
 /// impl EndpointModifier for MyPayload {
@@ -432,8 +439,8 @@ mod tests {
             ("f32", f32::schema(), json!({"type": "number", "format": "float"})),
             ("f64", f64::schema(), json!({"type": "number", "format": "double"})),
         ] {
-            println!("{name}: {json}", json = serde_json::to_string(&schema.1).unwrap());
-            let schema = serde_json::to_value(schema.1).unwrap();
+            println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
+            let schema = serde_json::to_value(schema).unwrap();
             assert_json_eq!(schema, value);
         }
     }

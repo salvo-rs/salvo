@@ -1905,6 +1905,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-oapi-todos"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "salvo",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "example-otel-jaeger"
 version = "0.1.0"
 dependencies = [
@@ -2163,19 +2176,6 @@ dependencies = [
  "once_cell",
  "salvo",
  "serde",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "example-todos-oapi"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "salvo",
- "serde",
- "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -4999,7 +4999,6 @@ dependencies = [
  "num-traits",
  "once_cell",
  "regex",
- "rust-embed",
  "salvo-oapi-macros",
  "salvo_core",
  "serde",

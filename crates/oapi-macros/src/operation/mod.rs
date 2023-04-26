@@ -8,22 +8,18 @@ use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprPath, Path, Type};
 
-use crate::component::{GenericType, TypeTree};
 use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
 use crate::security_requirement::SecurityRequirementAttr;
+use crate::type_tree::{GenericType, TypeTree};
 use crate::Array;
 
 pub(crate) mod example;
-pub(crate) mod parameter;
 pub(crate) mod request_body;
-pub(crate) mod response;
-pub(crate) use self::{
-    parameter::{Parameter, ParameterIn},
-    request_body::RequestBodyAttr,
-    response::{Response, ResponseTupleInner},
-};
-mod status;
+pub(crate) use self::request_body::RequestBodyAttr;
+use crate::parameter::{Parameter, ParameterIn};
+use crate::response::{Response, ResponseTupleInner};
+pub(crate) mod status;
 
 pub struct Operation<'a> {
     operation_id: Option<&'a Expr>,
@@ -72,9 +68,8 @@ impl<'a> Operation<'a> {
                                 let ty = &inline.ty;
                                 modifiers.push(quote! {
                                     {
-                                        let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
-                                        if let Some(path) = path {
-                                            components.schemas.insert(path.into(), schema);
+                                        if let Some(symbol) = <#ty as #oapi::oapi::AsSchema>::symbol() {
+                                            components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::AsSchema>::schema());
                                         }
                                     }
                                 });
@@ -102,9 +97,8 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
         PathType::Ref(path) => {
             modifiers.push(quote! {
                 {
-                    let (path, schema) = <#path as #oapi::oapi::AsSchema>::schema();
-                    if let Some(path) = path {
-                        components.schemas.insert(path.into(), schema);
+                    if let Some(symbol) = <#path as #oapi::oapi::AsSchema>::symbol() {
+                        components.schemas.insert(symbol.into(), <#path as #oapi::oapi::AsSchema>::schema());
                     }
                 }
             });
@@ -113,9 +107,8 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
             let ty = &inline.ty;
             modifiers.push(quote! {
                 {
-                    let (path, schema) = <#ty as #oapi::oapi::AsSchema>::schema();
-                    if let Some(path) = path {
-                        components.schemas.insert(path.into(), schema);
+                    if let Some(symbol) = <#ty as #oapi::oapi::AsSchema>::symbol() {
+                        components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::AsSchema>::schema());
                     }
                 }
             });
@@ -211,7 +204,7 @@ pub(crate) struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn as_type_tree(&self) -> TypeTree {
+    pub fn as_type_tree(&self) -> TypeTree {
         TypeTree::from_type(&self.ty)
     }
 }

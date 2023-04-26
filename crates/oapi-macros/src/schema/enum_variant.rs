@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_quote, TypePath};
 
-use crate::component::features::Feature;
+use crate::feature::Feature;
 use crate::schema_type::SchemaType;
 use crate::Array;
 

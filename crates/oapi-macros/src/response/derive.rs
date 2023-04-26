@@ -10,9 +10,9 @@ use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Path, Type, TypePath, Variant};
 
-use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
+use crate::schema::{EnumSchema, NamedStructSchema};
 use crate::{Array, ResultExt};
 
 use super::{
@@ -156,7 +156,7 @@ trait Response {
 
         let ident = attribute.path().get_ident().unwrap();
         match &*ident.to_string() {
-            "as_schema" => (false, ERROR),
+            "symbol" => (false, ERROR),
             "ref_response" => (false, ERROR),
             "content" => (false, ERROR),
             "as_response" => (false, ERROR),
@@ -266,7 +266,7 @@ impl NamedStructResponse<'_> {
             generics: None,
             rename_all: None,
             struct_name: Cow::Owned(ident.to_string()),
-            schema_as: None,
+            symbol: None,
         };
 
         let ty = Self::to_type(ident);
@@ -329,7 +329,7 @@ impl<'p> AsResponseNamedStructResponse<'p> {
             attributes,
             struct_name: Cow::Owned(ident.to_string()),
             rename_all: None,
-            schema_as: None,
+            symbol: None,
         };
         let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 

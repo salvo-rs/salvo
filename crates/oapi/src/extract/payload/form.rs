@@ -33,8 +33,8 @@ where
     fn request_body() -> RequestBody {
         RequestBody::new()
             .description("Extract form format data from request.")
-            .add_content("application/x-www-form-urlencoded", Content::new(T::schema().1))
-            .add_content("multipart/*", Content::new(T::schema().1))
+            .add_content("application/x-www-form-urlencoded", Content::new(T::schema()))
+            .add_content("multipart/*", Content::new(T::schema()))
     }
 }
 

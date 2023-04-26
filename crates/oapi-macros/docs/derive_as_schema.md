@@ -37,8 +37,8 @@ struct Pet {
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
   __serde__ will take precedence.
-* `as = ...` Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 * `default` Can be used to populate default values on all fields using the struct's
   [`Default`](std::default::Default) implementation.
@@ -52,8 +52,8 @@ struct Pet {
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
   are defined __serde__ will take precedence.
-* `as = ...` Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
 # Enum Variant Optional Configuration Options for `#[schema(...)]`
@@ -80,8 +80,8 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
   document. Some OpenAPI code generation libraries also use this field as a name for the
   struct.
-* `as = ...` Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
 # Named Fields Optional Configuration Options for `#[schema(...)]`
@@ -245,8 +245,8 @@ their numeric value.
 * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
   document. Some OpenAPI code generation libraries also use this field as a name for the
   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
-* `as = ...` Can be used to define alternative path and name for the schema what will be used in
-  the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+  the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
 _**Create enum with numeric values.**_
@@ -531,7 +531,7 @@ _**Use `as` attribute to change the name and the path of the schema in the gener
 spec.**_
 ```
  #[derive(salvo_oapi::AsSchema)]
- #[schema(as = api::models::person::Person)]
+ #[schema(symbol = "api::models::person::Person")]
  struct Person {
      name: String,
  }

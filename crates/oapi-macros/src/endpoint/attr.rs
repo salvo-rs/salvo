@@ -3,8 +3,8 @@ use syn::punctuated::Punctuated;
 use syn::Expr;
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::operation::{parameter::Parameter, request_body::RequestBodyAttr, Response};
-use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array};
+use crate::operation::request_body::RequestBodyAttr;
+use crate::{parse_utils, Parameter, Response, security_requirement::SecurityRequirementAttr, Array};
 
 #[derive(Default, Debug)]
 pub(crate) struct EndpointAttr<'p> {

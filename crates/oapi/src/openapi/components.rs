@@ -91,9 +91,8 @@ impl Components {
         // are created when the main schema is a generic type which should be included in OpenAPI
         // spec in its generic form.
         if aliases.is_empty() {
-            let (name, schema) = I::schema();
-            if let Some(name) = name {
-                self.schemas.insert(name.into(), schema);
+            if let Some(symbol) = I::symbol() {
+                self.schemas.insert(symbol.into(), I::schema());
             }
         }
 
@@ -117,13 +116,12 @@ impl Components {
     ///     ),
     /// )]);
     /// ```
-    pub fn schemas_from_iter<I: IntoIterator<Item = (S, C)>, C: Into<RefOr<Schema>>, S: Into<String>>(
+    pub fn schemas_from_iter<I, C, S >(
         mut self,
         schemas: I,
-    ) -> Self {
+    ) -> Self where I: IntoIterator<Item = (S, C)>, C:Into<RefOr<Schema>>, S: Into<String> {
         self.schemas
             .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
-
         self
     }
 

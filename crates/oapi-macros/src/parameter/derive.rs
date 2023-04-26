@@ -9,20 +9,18 @@ use syn::{
 };
 
 use crate::{
-    component::{
-        self,
-        features::{
-            self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
-            AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
-            IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
-            Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
-        },
-        serde::{self, RenameRule, SerdeContainer},
-        ComponentSchema, FieldRename, TypeTree,
-    },
+    component::{self, ComponentSchema},
     doc_comment::CommentAttributes,
-    operation::ParameterIn,
-    Array, Required, ResultExt,
+    type_tree::TypeTree,
+    feature::{
+        self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
+        AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
+        IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
+        Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
+    },
+    parameter::ParameterIn,
+    serde::{self, RenameRule, SerdeContainer},
+    Array, FieldRename, Required, ResultExt,
 };
 
 impl_merge!(AsParametersFeatures, FieldFeatures);
@@ -34,7 +32,7 @@ impl Parse for AsParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             input as Style,
-            features::ParameterIn,
+            feature::ParameterIn,
             Names,
             RenameAll
         )))
@@ -102,7 +100,7 @@ impl ToTokens for AsParameters {
         let style = pop_feature!(as_parameters_features => Feature::Style(_));
         let parameter_in = pop_feature!(as_parameters_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
-        let source_from = if let Some(Feature::ParameterIn(features::ParameterIn(parameter_in))) = parameter_in {
+        let source_from = if let Some(Feature::ParameterIn(feature::ParameterIn(parameter_in))) = parameter_in {
             match parameter_in {
                 ParameterIn::Query => quote! {  #salvo::extract::metadata::SourceFrom::Query },
                 ParameterIn::Header => quote! {  #salvo::extract::metadata::SourceFrom::Header },
@@ -305,18 +303,18 @@ impl Parse for FieldFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             // param features
-            input as component::features::ValueType,
+            input as feature::ValueType,
             Rename,
             Style,
             AllowReserved,
             Example,
             Explode,
             SchemaWith,
-            component::features::Required,
+            feature::Required,
             // param schema features
             Inline,
             Format,
-            component::features::Default,
+            feature::Default,
             WriteOnly,
             ReadOnly,
             Nullable,
@@ -347,8 +345,8 @@ struct Parameter<'a> {
 }
 
 impl Parameter<'_> {
-    /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by
-    /// whether they should be rendered in [`Param`] itself or in [`Param`]s schema.
+    /// Resolve [`Parameter`] features and split features into two [`Vec`]s. Features are split by
+    /// whether they should be rendered in [`Parameter`] itself or in [`Parameter`]s schema.
     ///
     /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
     fn resolve_field_features(&self) -> (Vec<Feature>, Vec<Feature>) {
@@ -441,7 +439,7 @@ impl ToTokens for Parameter<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name = crate::component::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
+        let name = crate::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
@@ -449,7 +447,7 @@ impl ToTokens for Parameter<'_> {
             tokens.extend(parameter_in.into_token_stream());
         }
 
-        if let Some(deprecated) = crate::component::get_deprecated(&field.attrs) {
+        if let Some(deprecated) = crate::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
@@ -470,11 +468,11 @@ impl ToTokens for Parameter<'_> {
 
             let required = pop_feature_as_inner!(param_features => Feature::Required(_v))
                 .as_ref()
-                .map(crate::component::features::Required::is_true)
+                .map(crate::feature::Required::is_true)
                 .unwrap_or(false);
 
             let non_required = (component.is_option() && !required)
-                || !component::is_required(field_param_serde.as_ref(), self.serde_container);
+                || !crate::is_required(field_param_serde.as_ref(), self.serde_container);
             let required: Required = (!non_required).into();
 
             tokens.extend(quote! {

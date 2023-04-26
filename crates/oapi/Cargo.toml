@@ -14,6 +14,8 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
+all = ["swagger", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "indexmap"]
+swagger = ["dep:rust-embed"]
 chrono = ["salvo-oapi-macros/chrono"]
 decimal = ["salvo-oapi-macros/decimal"]
 yaml = ["serde_yaml", "salvo-oapi-macros/yaml"]
@@ -47,7 +49,7 @@ once_cell.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 tokio.workspace = true
 tracing.workspace = true
-rust-embed = { workspace = true, features = ["interpolate-folder-path"] }
+rust-embed = { workspace = true, features = ["interpolate-folder-path"], optional = true }
 mime_guess.workspace = true
 serde_json.workspace = true
 serde_yaml = { workspace = true, optional = true }

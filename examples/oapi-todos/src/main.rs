@@ -58,7 +58,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
 
 #[endpoint(
     responses(
-        (status = 201, description = "Todo created successfully", body = Todo),
+        (status = 201, description = "Todo created successfully", body = models::Todo),
         (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]

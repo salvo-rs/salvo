@@ -33,7 +33,7 @@ where
     fn request_body() -> RequestBody {
         RequestBody::new()
             .description("Extract json format data from request.")
-            .add_content("application/json", Content::new(T::schema().1))
+            .add_content("application/json", Content::new(T::schema()))
     }
 }
 

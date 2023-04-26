@@ -12,11 +12,13 @@ use syn::{
 };
 
 use crate::{
-    component::{features::Inline, ComponentSchema, TypeTree},
-    parse_utils, AnyValue, Array, ResultExt,
+    component::ComponentSchema,
+    feature::Inline,
+    operation::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree},
+    parse_utils,
+    type_tree::TypeTree,
+    AnyValue, Array, ResultExt,
 };
-
-use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
 
 pub mod derive;
 
