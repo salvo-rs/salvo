@@ -17,7 +17,7 @@ use crate::Array;
 pub(crate) mod example;
 pub(crate) mod request_body;
 pub(crate) use self::request_body::RequestBodyAttr;
-use crate::parameter::{Parameter, ParameterIn};
+use crate::parameter::Parameter;
 use crate::response::{Response, ResponseTupleInner};
 pub(crate) mod status;
 

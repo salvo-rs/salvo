@@ -12,7 +12,6 @@ mod router;
 
 cfg_feature! {
     #![feature ="swagger"]
-    #[doc(no_inline)]
     pub mod swagger;
 }
 

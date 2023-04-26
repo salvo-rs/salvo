@@ -1,16 +1,13 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro2::{TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
-use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
 use crate::schema::format_path_ref;
 use crate::schema_type::{SchemaFormat, SchemaType};
-use crate::serde::{RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
 

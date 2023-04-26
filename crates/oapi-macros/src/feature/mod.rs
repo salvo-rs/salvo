@@ -1,9 +1,9 @@
-use std::{fmt::Display, mem, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
+use syn::{parse::ParseStream, LitFloat, LitInt};
 
 mod ext;
 pub(crate) use ext::*;
@@ -13,12 +13,9 @@ mod items;
 pub(crate) use items::*;
 
 use crate::{
+    parse_utils,
+    schema_type::SchemaType,
     type_tree::{GenericType, TypeTree},
-    parameter::{self, ParameterStyle},
-    parse_utils, schema,
-    schema_type::{SchemaFormat, SchemaType},
-    serde::{SerdeValue, RenameRule,SerdeContainer},
-    AnyValue,
 };
 
 /// Parse `LitInt` from parse stream
@@ -326,7 +323,6 @@ impl Validatable for Feature {
         }
     }
 }
-
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;

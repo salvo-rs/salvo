@@ -16,13 +16,12 @@ use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
-    Attribute,
     bracketed,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
+    Attribute, DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -46,14 +45,14 @@ pub(crate) use self::{
     feature::Feature,
     operation::Operation,
     parameter::derive::AsParameters,
-    parameter::{Parameter, ParameterIn},
+    parameter::Parameter,
     response::derive::{AsResponse, AsResponses},
     response::Response,
     schema::AsSchema,
     serde::RenameRule,
+    serde::{SerdeContainer, SerdeValue},
     shared::*,
     type_tree::TypeTree,
-    serde::{SerdeValue, SerdeContainer},
 };
 
 #[proc_macro_error]
@@ -79,12 +78,10 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    let stream = match endpoint::generate(attr, item) {
+    match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    };
-    println!("{}", stream);
-    stream
+    }
 }
 
 #[proc_macro_error]
@@ -183,7 +180,6 @@ pub fn schema(input: TokenStream) -> TokenStream {
     });
     schema.to_token_stream().into()
 }
-
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
 #[inline]

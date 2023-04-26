@@ -1,19 +1,4 @@
-use std::{fmt::Display, mem, str::FromStr};
-
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
-use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
-
-use crate::{
-    feature::{items::*, Feature, Name, Nullable, ParameterIn, Style, Validatable, ValueType},
-    parameter::{self, ParameterStyle},
-    parse_utils, schema,
-    schema_type::{SchemaFormat, SchemaType},
-    serde::RenameRule,
-    type_tree::{GenericType, TypeTree},
-    AnyValue,
-};
+use crate::feature::{items::*, Feature, Nullable, ParameterIn, Style, Validatable, ValueType};
 
 macro_rules! impl_name {
     ( $ident:ident = $name:literal ) => {

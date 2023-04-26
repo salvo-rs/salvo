@@ -1,15 +1,15 @@
-use std::{fmt::Display, mem, str::FromStr};
+use std::{fmt::Display, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
+use syn::{parenthesized, parse::ParseStream, LitStr, TypePath};
 
 use super::{impl_name, parse_number, parse_integer, Feature, Parse, Validate, Validator};
 use crate::{
     parameter::{self, ParameterStyle},
     parse_utils, schema,
-    schema_type::{SchemaFormat, SchemaType},
+    schema_type::{SchemaFormat},
     serde::RenameRule,
     type_tree::{GenericType, TypeTree},
     AnyValue,

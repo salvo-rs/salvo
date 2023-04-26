@@ -1,20 +1,9 @@
-use std::{fmt::Display, mem, str::FromStr};
-
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
-use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
+use proc_macro2::TokenStream;
+use quote::ToTokens;
 
 use crate::{
-    feature::{
-        Example, Explode, Feature, Format, Inline, MultipleOf, Name, Nullable, ParameterIn, Rename, RenameRule, Style,
-        Title, Validatable, ValueType, WriteOnly, XmlAttr, RenameAll
-    },
-    parameter::{self, ParameterStyle},
-    parse_utils, schema,
-    schema_type::{SchemaFormat, SchemaType},
-    type_tree::{GenericType, TypeTree},
-    AnyValue,
+    feature::{Feature, Rename, RenameAll, ValueType},
+    type_tree::TypeTree,
 };
 
 pub trait ToTokensExt {
@@ -81,7 +70,7 @@ impl FeaturesExt for Vec<Feature> {
 
                 // replace the original xml attribute with splitted value xml
                 if let Some(mut xml) = value_xml {
-                    mem::swap(xml_feature, &mut xml)
+                    std::mem::swap(xml_feature, &mut xml)
                 }
 
                 vec_xml.map(Feature::XmlAttr)
