@@ -1,12 +1,9 @@
-use std::borrow::Cow;
-
 use proc_macro2::{TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
-use crate::schema::format_path_ref;
 use crate::schema_type::{SchemaFormat, SchemaType};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
@@ -300,21 +297,17 @@ impl<'c> ComponentSchema {
                             })
                             .to_tokens(tokens);
                     } else {
-                        let mut name = Cow::Owned(format_path_ref(type_path));
-                        if name == "Self" && !object_name.is_empty() {
-                            name = Cow::Borrowed(object_name);
-                        }
                         nullable
                             .map(|nullable| {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(#oapi::oapi::Ref::from_schema_name(#name))
+                                        .item(#oapi::oapi::Ref::from_schema_name(<#type_path as #oapi::oapi::AsSchema>::symbol().unwrap()))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    #oapi::oapi::Ref::from_schema_name(#name)
+                                    #oapi::oapi::Ref::from_schema_name(<#type_path as #oapi::oapi::AsSchema>::symbol().unwrap())
                                 }
                             })
                             .to_tokens(tokens);

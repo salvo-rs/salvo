@@ -4,8 +4,8 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::feature::Inline;
 use crate::component::ComponentSchema;
+use crate::feature::Inline;
 use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
@@ -127,8 +127,8 @@ impl ToTokens for RequestBodyAttr<'_> {
         let oapi = crate::oapi_crate();
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
-                PathType::Ref(ref_type) => quote! {
-                    #oapi::oapi::schema::Ref::new(#ref_type)
+                PathType::RefPath(ref_type) => quote! {
+                    #oapi::oapi::schema::Ref::new(<#ref_type as #oapi::oapi::schema::Schema>::symbol().unwrap())
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
@@ -166,7 +166,7 @@ impl ToTokens for RequestBodyAttr<'_> {
             }
 
             match body_type {
-                PathType::Ref(_) => {
+                PathType::RefPath(_) => {
                     tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
                             .add_content("application/json", #content)

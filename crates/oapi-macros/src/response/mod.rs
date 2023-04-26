@@ -262,8 +262,8 @@ impl ToTokens for ResponseTuple<'_> {
                                       examples: &Option<Punctuated<Example, Comma>>|
                  -> TokenStream2 {
                     let content_schema = match path_type {
-                        PathType::Ref(ref_type) => quote! {
-                            #oapi::oapi::schema::Ref::new(#ref_type)
+                        PathType::RefPath(ref_type) => quote! {
+                            #oapi::oapi::schema::Ref::new(<#ref_type as #oapi::oapi::AsSchema>::symbol().unwrap())
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
@@ -316,7 +316,7 @@ impl ToTokens for ResponseTuple<'_> {
                         })
                     } else {
                         match response_type {
-                            PathType::Ref(_) => {
+                            PathType::RefPath(_) => {
                                 tokens.extend(quote! {
                                     .add_content("application/json", #content)
                                 });

@@ -3,10 +3,7 @@ use std::ops::Deref;
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
-use syn::spanned::Spanned;
-use syn::token::Paren;
-use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprPath, Path, Type};
+use syn::{parenthesized, parse::Parse, spanned::Spanned, token::Paren, Expr, ExprPath, Path, Token, Type};
 
 use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
@@ -94,7 +91,7 @@ impl<'a> Operation<'a> {
 fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStream2> {
     let mut modifiers = vec![];
     match content {
-        PathType::Ref(path) => {
+        PathType::RefPath(path) => {
             modifiers.push(quote! {
                 {
                     if let Some(symbol) = <#path as #oapi::oapi::AsSchema>::symbol() {
@@ -170,7 +167,7 @@ impl ToTokens for Operation<'_> {
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
 #[derive(Debug)]
 pub(crate) enum PathType<'p> {
-    Ref(Path),
+    RefPath(Path),
     MediaType(InlineType<'p>),
     InlineSchema(TokenStream2, Type),
 }
@@ -188,7 +185,7 @@ impl Parse for PathType<'_> {
             input.parse::<Token![ref]>()?;
             let ref_stream;
             parenthesized!(ref_stream in input);
-            Ok(Self::Ref(ref_stream.parse::<ExprPath>()?.path))
+            Ok(Self::RefPath(ref_stream.parse::<ExprPath>()?.path))
         } else {
             Ok(Self::MediaType(input.parse()?))
         }

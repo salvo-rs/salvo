@@ -5,7 +5,7 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, GenericArgument, Generics, Path, PathArguments, Token, Type, Variant, Visibility,
+    FieldsNamed, FieldsUnnamed, GenericArgument, Generics, PathArguments, Token, Type, Variant, Visibility,
 };
 
 use crate::{
@@ -138,10 +138,10 @@ impl ToTokens for AsSchema<'_> {
                 .collect::<TokenStream>()
         });
 
-        let symbol = if let Some(symbol) = variant.get_symbol() {
-            format_path_ref(&symbol.0.path)
+        let symbol = if let Some(Symbol(symbol)) = variant.get_symbol() {
+            quote! { #symbol }
         } else {
-            ident.to_string()
+            quote! { std::any::type_name::<#ident>().into() }
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
@@ -1402,20 +1402,6 @@ impl SchemaFeatureExt for Vec<Feature> {
         self.into_iter()
             .partition(|feature| matches!(feature, Feature::Title(_)))
     }
-}
-
-/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact schema reference,
-/// by removing spaces between colon punctuation and `::` and the path segments.
-pub(crate) fn format_path_ref(path: &Path) -> String {
-    let mut path = path.clone();
-
-    // Generics and path arguments are unsupported
-    if let Some(last_segment) = path.segments.last_mut() {
-        last_segment.arguments = PathArguments::None;
-    }
-    // :: are not officially supported in the spec
-    // See: https://github.com/juhaku/salvo_oapi/pull/187#issuecomment-1173101405
-    path.to_token_stream().to_string().replace(" :: ", ".")
 }
 
 #[inline]

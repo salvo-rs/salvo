@@ -840,13 +840,13 @@ impl From<Deprecated> for Feature {
 
 impl_name!(Deprecated = "deprecated");
 #[derive(Clone, Debug)]
-pub struct Symbol(pub TypePath);
+pub struct Symbol(pub String);
 impl Parse for Symbol {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next(input, || input.parse()).map(Self)
+        parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
 impl From<Symbol> for Feature {
