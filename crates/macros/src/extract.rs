@@ -33,13 +33,6 @@ impl TryFrom<&Field> for FieldInfo {
                     rename = info.rename;
                 }
             }
-            if attr.path().is_ident("serde") {
-                let info: SerdeFieldInfo = attr.parse_args()?;
-                aliases.extend(info.aliases);
-                if info.rename.is_some() {
-                    rename = info.rename;
-                }
-            }
         }
         sources.dedup();
         aliases.dedup();
@@ -112,32 +105,6 @@ impl Parse for ExtractFieldInfo {
     }
 }
 
-#[derive(Default, Debug)]
-struct SerdeFieldInfo {
-    aliases: Vec<String>,
-    rename: Option<String>,
-}
-impl Parse for SerdeFieldInfo {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut extract = Self::default();
-        while !input.is_empty() {
-            let id = input.parse::<syn::Ident>()?;
-            if id == "rename" {
-                input.parse::<Token![=]>()?;
-                let expr = input.parse::<Expr>()?;
-                extract.rename = Some(expr_lit_value(&expr)?);
-            } else if id == "alias" {
-                input.parse::<Token![=]>()?;
-                let expr = input.parse::<Expr>()?;
-                extract.aliases.push(expr_lit_value(&expr)?);
-            } else {
-                return Err(input.error("unexpected attribute"));
-            }
-            input.parse::<Token![,]>().ok();
-        }
-        Ok(extract)
-    }
-}
 
 #[derive(Eq, PartialEq, Debug)]
 struct SourceInfo {
