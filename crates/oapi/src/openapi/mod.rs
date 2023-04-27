@@ -212,7 +212,7 @@ impl OpenApi {
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).handle(self)
     }
-    
+
     /// Consusmes the [`OpenApi`] and informations from a [`Router`].
     pub fn merge_router(self, router: &Router) -> Self {
         self.merge_router_with_base(router, "")

@@ -11,7 +11,6 @@ use syn::{
 use crate::{
     component::{self, ComponentSchema},
     doc_comment::CommentAttributes,
-    type_tree::TypeTree,
     feature::{
         self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
         AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
@@ -20,6 +19,7 @@ use crate::{
     },
     parameter::ParameterIn,
     serde::{self, RenameRule, SerdeContainer},
+    type_tree::TypeTree,
     Array, FieldRename, Required, ResultExt,
 };
 

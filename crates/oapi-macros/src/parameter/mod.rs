@@ -12,10 +12,7 @@ use syn::{
 pub(crate) mod derive;
 
 use crate::{
-    component::{
-        self,
-        ComponentSchema,
-    },
+    component::{self, ComponentSchema},
     feature::{
         impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum, ExclusiveMinimum,
         Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Nullable,

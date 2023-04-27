@@ -4,7 +4,7 @@ use syn::Expr;
 use syn::{parenthesized, parse::Parse, Token};
 
 use crate::operation::request_body::RequestBodyAttr;
-use crate::{parse_utils, Parameter, Response, security_requirement::SecurityRequirementAttr, Array};
+use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array, Parameter, Response};
 
 #[derive(Default, Debug)]
 pub(crate) struct EndpointAttr<'p> {

@@ -89,22 +89,21 @@ impl Parse for ExtractFieldInfo {
                 syn::parenthesized!(item in input);
                 extract.sources.push(item.parse::<SourceInfo>()?);
             } else if id == "rename" {
-                    input.parse::<Token![=]>()?;
-                    let expr = input.parse::<Expr>()?;
-                    extract.rename = Some(expr_lit_value(&expr)?);
-                } else if id == "alias" {
-                    input.parse::<Token![=]>()?;
-                    let expr = input.parse::<Expr>()?;
-                    extract.aliases.push(expr_lit_value(&expr)?);
-                } else {
-                    return Err(input.error("unexpected attribute"));
-                }
-                input.parse::<Token![,]>().ok();
+                input.parse::<Token![=]>()?;
+                let expr = input.parse::<Expr>()?;
+                extract.rename = Some(expr_lit_value(&expr)?);
+            } else if id == "alias" {
+                input.parse::<Token![=]>()?;
+                let expr = input.parse::<Expr>()?;
+                extract.aliases.push(expr_lit_value(&expr)?);
+            } else {
+                return Err(input.error("unexpected attribute"));
+            }
+            input.parse::<Token![,]>().ok();
         }
         Ok(extract)
     }
 }
-
 
 #[derive(Eq, PartialEq, Debug)]
 struct SourceInfo {

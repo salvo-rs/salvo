@@ -103,7 +103,7 @@ impl Servers {
             self.0.insert(server);
         }
     }
-    
+
     /// Moves all elements from `other` into `self`, leaving `other` empty.
     ///
     /// If a key from `other` is already present in `self`, the respective

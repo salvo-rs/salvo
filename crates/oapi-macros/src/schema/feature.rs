@@ -5,10 +5,10 @@ use syn::{
 
 use crate::{
     feature::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, Symbol, Default, Example, ExclusiveMaximum,
+        impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Example, ExclusiveMaximum,
         ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge,
         MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-        Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+        Required, SchemaWith, Symbol, Title, ValueType, WriteOnly, XmlAttr,
     },
     ResultExt,
 };
@@ -197,7 +197,10 @@ pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[A
         .reduce(|acc, item| acc.merge(item))
 }
 
-pub(crate) fn parse_schema_features_with<T: Merge<T>, P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy>(
+pub(crate) fn parse_schema_features_with<
+    T: Merge<T>,
+    P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy,
+>(
     attributes: &[Attribute],
     parser: P,
 ) -> Option<T> {

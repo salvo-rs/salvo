@@ -82,7 +82,7 @@ impl Responses {
     pub fn insert<S: Into<String>, R: Into<RefOr<Response>>>(&mut self, code: S, response: R) {
         self.0.insert(code.into(), response.into());
     }
-    
+
     /// Moves all elements from `other` into `self`, leaving `other` empty.
     ///
     /// If a key from `other` is already present in `self`, the respective

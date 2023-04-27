@@ -63,7 +63,7 @@ impl Paths {
             self.insert(item.0, item.1);
         }
     }
-/// Extends a collection with the contents of an iterator.
+    /// Extends a collection with the contents of an iterator.
     pub fn extend<I, K, V>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (K, V)>,

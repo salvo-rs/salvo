@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::{TokenStream};
+use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, token::Comma, Attribute, Fields, Variant};

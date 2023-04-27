@@ -13,7 +13,6 @@ use super::{
 };
 use crate::{Parameter, Parameters, PathItemType, Servers};
 
-
 /// Collection for save [`Operation`]s.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 pub struct Operations(pub BTreeMap<PathItemType, Operation>);

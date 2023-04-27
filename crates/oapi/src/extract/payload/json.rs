@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsRequestBody, RefOr, Ref, AsSchema, Components, Content, Operation, RequestBody};
+use crate::{AsRequestBody, AsSchema, Components, Content, Operation, Ref, RefOr, RequestBody};
 
 /// Represents the parameters passed by the URI path.
 pub struct JsonBody<T>(pub T);
