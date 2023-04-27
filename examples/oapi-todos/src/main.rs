@@ -1,15 +1,8 @@
-use once_cell::sync::Lazy;
-
 use salvo::prelude::*;
-use salvo::size_limiter;
-
 use self::models::*;
-
 use salvo::oapi::extract::*;
 use salvo::oapi::swagger::SwaggerUi;
 use salvo::oapi::{Info, OpenApi};
-
-static STORE: Lazy<Db> = Lazy::new(new_store);
 
 #[handler]
 async fn hello(res: &mut Response) {
@@ -23,7 +16,6 @@ async fn main() {
     let router = Router::new().get(hello).push(
         Router::with_path("api").push(
             Router::with_path("todos")
-                .hoop(size_limiter::max_size(1024 * 16))
                 .get(list_todos)
                 .post(create_todo)
                 .push(Router::with_path("<id>").patch(update_todo).delete(delete_todo)),

@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsRequestBody, AsSchema, Components, Content, Operation, RequestBody};
+use crate::{AsRequestBody, AsSchema, Components, Content, Ref, Operation, RefOr, RequestBody};
 
 /// Represents the parameters passed by the URI path.
 pub struct FormBody<T>(pub T);
@@ -31,10 +31,15 @@ where
     T: Deserialize<'de> + AsSchema,
 {
     fn request_body() -> RequestBody {
+        let refor = if let Some(symbol) = <T as AsSchema>::symbol() {
+            RefOr::Ref(Ref::new(format!("#/components/schemas/{symbol}")))
+        } else {
+            T::schema()
+        };
         RequestBody::new()
             .description("Extract form format data from request.")
             .add_content("application/x-www-form-urlencoded", Content::new(T::schema()))
-            .add_content("multipart/*", Content::new(T::schema()))
+            .add_content("multipart/*", Content::new(refor))
     }
 }
 
@@ -81,7 +86,11 @@ impl<'de, T> EndpointModifier for FormBody<T>
 where
     T: Deserialize<'de> + AsSchema,
 {
-    fn modify(_components: &mut Components, operation: &mut Operation) {
-        operation.request_body = Some(Self::request_body());
+    fn modify(components: &mut Components, operation: &mut Operation) {
+        let request_body = Self::request_body();
+        if let Some(symbol) = <T as AsSchema>::symbol() {
+            components.schemas.insert(symbol.into(), <T as AsSchema>::schema());
+        }
+        operation.request_body = Some(request_body);
     }
 }

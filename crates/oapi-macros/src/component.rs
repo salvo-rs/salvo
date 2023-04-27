@@ -302,12 +302,20 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(#oapi::oapi::Ref::from_schema_name(<#type_path as #oapi::oapi::AsSchema>::symbol().unwrap()))
+                                        .item(if let Some(symbol) = <#type_path as #oapi::oapi::AsSchema>::symbol() {
+                                            #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
+                                        } else {
+                                            <#type_path as #oapi::oapi::AsSchema>::schema().into()
+                                        })
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    #oapi::oapi::Ref::from_schema_name(<#type_path as #oapi::oapi::AsSchema>::symbol().unwrap())
+                                    if let Some(symbol) = <#type_path as #oapi::oapi::AsSchema>::symbol() {
+                                        #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
+                                    } else {
+                                        <#type_path as #oapi::oapi::AsSchema>::schema().into()
+                                    }
                                 }
                             })
                             .to_tokens(tokens);

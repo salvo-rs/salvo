@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{
+use syn::{GenericParam,
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Fields,
     FieldsNamed, FieldsUnnamed, GenericArgument, Generics, PathArguments, Token, Type, Visibility,
 };
@@ -137,9 +137,9 @@ impl ToTokens for AsSchema<'_> {
         });
 
         let symbol = if let Some(Symbol(symbol)) = variant.get_symbol() {
-            quote! { #symbol }
+            quote! { Some(#symbol) }
         } else {
-            quote! { std::any::type_name::<#ident>().into() }
+            quote! { Some(std::any::type_name::<#ident #ty_generics>().into()) }
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
@@ -147,7 +147,7 @@ impl ToTokens for AsSchema<'_> {
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::AsSchema for #ident #ty_generics #where_clause {
                 fn symbol() -> Option<&'static str> {
-                    Some(#symbol)
+                    #symbol
                 }
                 fn schema() -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
                     #variant.into()

@@ -134,12 +134,12 @@ impl AsSchema for TupleUnit {
     }
 }
 
-macro_rules! impl_partial_schema {
+macro_rules! impl_as_schema {
     ( $ty:path ) => {
-        impl_partial_schema!( @impl_schema $ty );
+        impl_as_schema!( @impl_schema $ty );
     };
     ( & $ty:path ) => {
-        impl_partial_schema!( @impl_schema &$ty );
+        impl_as_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl AsSchema for $($tt)* {
@@ -150,9 +150,9 @@ macro_rules! impl_partial_schema {
     };
 }
 
-macro_rules! impl_partial_schema_primitive {
+macro_rules! impl_as_schema_primitive {
     ( $( $tt:path  ),* ) => {
-        $( impl_partial_schema!( $tt ); )*
+        $( impl_as_schema!( $tt ); )*
     };
 }
 
@@ -170,10 +170,10 @@ pub mod __private {
 }
 
 #[rustfmt::skip]
-impl_partial_schema_primitive!(
+impl_as_schema_primitive!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
-impl_partial_schema!(&str);
+impl_as_schema!(&str);
 
 impl<T: AsSchema> AsSchema for Vec<T> {
     fn schema() -> RefOr<schema::Schema> {

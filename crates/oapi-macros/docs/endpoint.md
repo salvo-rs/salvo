@@ -392,8 +392,14 @@ async fn get_pet_by_id(id: PathParam<i32>, res: &mut Response) {
 _**Example with multiple return types**_
 ```
 # use salvo_core::prelude::*;
+# use salvo_oapi::AsSchema;
 # trait User {}
+# #[derive(AsSchema)]
 # struct User1 {
+#   id: String
+# }
+# #[derive(AsSchema)]
+# struct User2 {
 #   id: String
 # }
 # impl User for User1 {}
