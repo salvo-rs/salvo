@@ -25,13 +25,16 @@ impl DerefMut for Paths {
     }
 }
 impl Paths {
+    /// Construct a new empty [`Paths`]. This is effectively same as calling [`Paths::default`].
     pub fn new() -> Self {
         Default::default()
     }
+    /// Inserts a key-value pair into the instance and returns `self`.
     pub fn path<K: Into<String>, V: Into<PathItem>>(mut self, key: K, value: V) -> Self {
         self.insert(key, value);
         self
     }
+    /// Inserts a key-value pair into the instance.
     pub fn insert<K: Into<String>, V: Into<PathItem>>(&mut self, key: K, value: V) {
         let key = key.into();
         let mut value = value.into();
@@ -50,13 +53,17 @@ impl Paths {
             })
             .or_insert(value);
     }
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Paths) {
         let items = std::mem::take(&mut other.0);
         for item in items {
             self.insert(item.0, item.1);
         }
     }
-
+/// Extends a collection with the contents of an iterator.
     pub fn extend<I, K, V>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (K, V)>,
@@ -113,7 +120,10 @@ impl PathItem {
             ..Default::default()
         }
     }
-
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Self) {
         self.operations.append(&mut other.operations);
         self.servers.append(&mut other.servers);

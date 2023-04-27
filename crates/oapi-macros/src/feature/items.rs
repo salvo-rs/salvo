@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct Example(AnyValue);
+pub(crate) struct Example(AnyValue);
 
 impl Parse for Example {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -38,9 +38,9 @@ impl From<Example> for Feature {
 impl_name!(Example = "example");
 
 #[derive(Clone, Debug)]
-pub struct Default(pub(crate) Option<AnyValue>);
+pub(crate) struct Default(pub(crate) Option<AnyValue>);
 impl Default {
-    pub fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
+    pub(crate) fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
         Self(Some(AnyValue::new_default_trait(struct_ident, field_ident)))
     }
 }
@@ -69,7 +69,7 @@ impl From<self::Default> for Feature {
 impl_name!(Default = "default");
 
 #[derive(Clone, Debug)]
-pub struct Inline(pub bool);
+pub(crate) struct Inline(pub(crate) bool);
 impl Parse for Inline {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
@@ -88,14 +88,14 @@ impl From<Inline> for Feature {
 impl_name!(Inline = "inline");
 
 #[derive(Default, Clone, Debug)]
-pub struct XmlAttr(pub schema::xml::XmlAttr);
+pub(crate) struct XmlAttr(pub(crate) schema::XmlAttr);
 impl XmlAttr {
     /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
     /// one is for a vec and second one is for object field.
-    pub fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
+    pub(crate) fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
             let mut value_xml = mem::take(self);
-            let vec_xml = schema::xml::XmlAttr::with_wrapped(
+            let vec_xml = schema::XmlAttr::with_wrapped(
                 mem::take(&mut value_xml.0.is_wrapped),
                 mem::take(&mut value_xml.0.wrap_name),
             );
@@ -109,7 +109,7 @@ impl XmlAttr {
     }
 
     #[inline]
-    fn validate_xml(&self, xml: &schema::xml::XmlAttr) {
+    fn validate_xml(&self, xml: &schema::XmlAttr) {
         if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
             abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
                 help = "Try removing `wrapped` attribute or make your field `Vec`"
@@ -121,7 +121,7 @@ impl Parse for XmlAttr {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let xml;
         parenthesized!(xml in input);
-        xml.parse::<schema::xml::XmlAttr>().map(Self)
+        xml.parse::<schema::XmlAttr>().map(Self)
     }
 }
 impl ToTokens for XmlAttr {
@@ -137,7 +137,7 @@ impl From<XmlAttr> for Feature {
 impl_name!(XmlAttr = "xml");
 
 #[derive(Clone, Debug)]
-pub struct Format(pub SchemaFormat<'static>);
+pub(crate) struct Format(pub(crate) SchemaFormat<'static>);
 impl Parse for Format {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
@@ -156,10 +156,10 @@ impl From<Format> for Feature {
 impl_name!(Format = "format");
 
 #[derive(Clone, Debug)]
-pub struct ValueType(pub syn::Type);
+pub(crate) struct ValueType(pub(crate) syn::Type);
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub fn as_type_tree(&self) -> TypeTree {
+    pub(crate) fn as_type_tree(&self) -> TypeTree {
         TypeTree::from_type(&self.0)
     }
 }
@@ -176,7 +176,7 @@ impl From<ValueType> for Feature {
 impl_name!(ValueType = "value_type");
 
 #[derive(Clone, Copy, Debug)]
-pub struct WriteOnly(pub bool);
+pub(crate) struct WriteOnly(pub(crate) bool);
 impl Parse for WriteOnly {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
@@ -195,7 +195,7 @@ impl From<WriteOnly> for Feature {
 impl_name!(WriteOnly = "write_only");
 
 #[derive(Clone, Copy, Debug)]
-pub struct ReadOnly(pub bool);
+pub(crate) struct ReadOnly(pub(crate) bool);
 impl Parse for ReadOnly {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
@@ -214,7 +214,7 @@ impl From<ReadOnly> for Feature {
 impl_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
-pub struct Title(pub String);
+pub(crate) struct Title(pub(crate) String);
 impl Parse for Title {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
@@ -233,9 +233,9 @@ impl From<Title> for Feature {
 impl_name!(Title = "title");
 
 #[derive(Clone, Copy, Debug)]
-pub struct Nullable(pub bool);
+pub(crate) struct Nullable(pub(crate) bool);
 impl Nullable {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self(true)
     }
 }
@@ -257,9 +257,9 @@ impl From<Nullable> for Feature {
 impl_name!(Nullable = "nullable");
 
 #[derive(Clone, Debug)]
-pub struct Rename(pub String);
+pub(crate) struct Rename(pub(crate) String);
 impl Rename {
-    pub fn into_value(self) -> String {
+    pub(crate) fn into_value(self) -> String {
         self.0
     }
 }
@@ -282,9 +282,9 @@ impl From<Rename> for Feature {
 impl_name!(Rename = "rename");
 
 #[derive(Clone, Debug)]
-pub struct RenameAll(pub RenameRule);
+pub(crate) struct RenameAll(pub(crate) RenameRule);
 impl RenameAll {
-    pub fn as_rename_rule(&self) -> &RenameRule {
+    pub(crate) fn as_rename_rule(&self) -> &RenameRule {
         &self.0
     }
 }
@@ -307,7 +307,7 @@ impl From<RenameAll> for Feature {
 impl_name!(RenameAll = "rename_all");
 
 #[derive(Clone, Debug)]
-pub struct Style(pub ParameterStyle);
+pub(crate) struct Style(pub(crate) ParameterStyle);
 impl From<ParameterStyle> for Style {
     fn from(style: ParameterStyle) -> Self {
         Self(style)
@@ -331,7 +331,7 @@ impl From<Style> for Feature {
 impl_name!(Style = "style");
 
 #[derive(Clone, Debug)]
-pub struct AllowReserved(pub bool);
+pub(crate) struct AllowReserved(pub(crate) bool);
 impl Parse for AllowReserved {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
@@ -350,7 +350,7 @@ impl From<AllowReserved> for Feature {
 impl_name!(AllowReserved = "allow_reserved");
 
 #[derive(Clone, Debug)]
-pub struct Explode(pub bool);
+pub(crate) struct Explode(pub(crate) bool);
 impl Parse for Explode {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
@@ -369,7 +369,7 @@ impl From<Explode> for Feature {
 impl_name!(Explode = "explode");
 
 #[derive(Clone, Debug)]
-pub struct ParameterIn(pub parameter::ParameterIn);
+pub(crate) struct ParameterIn(pub(crate) parameter::ParameterIn);
 impl Parse for ParameterIn {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
@@ -389,9 +389,9 @@ impl_name!(ParameterIn = "parameter_in");
 
 /// Specify names of unnamed fields with `names(...) attribute for `AsParameters` derive.
 #[derive(Clone, Debug)]
-pub struct Names(pub Vec<String>);
+pub(crate) struct Names(pub(crate) Vec<String>);
 impl Names {
-    pub fn into_values(self) -> Vec<String> {
+    pub(crate) fn into_values(self) -> Vec<String> {
         self.0
     }
 }
@@ -413,7 +413,7 @@ impl From<Names> for Feature {
 impl_name!(Names = "names");
 
 #[derive(Clone, Debug)]
-pub struct MultipleOf(pub f64, pub Ident);
+pub(crate) struct MultipleOf(pub(crate) f64, pub(crate) Ident);
 impl Validate for MultipleOf {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -441,7 +441,7 @@ impl From<MultipleOf> for Feature {
 impl_name!(MultipleOf = "multiple_of");
 
 #[derive(Clone, Debug)]
-pub struct Maximum(pub f64, pub Ident);
+pub(crate) struct Maximum(pub(crate) f64, pub(crate) Ident);
 impl Validate for Maximum {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -472,9 +472,9 @@ impl From<Maximum> for Feature {
 impl_name!(Maximum = "maximum");
 
 #[derive(Clone, Debug)]
-pub struct Minimum(pub f64, pub Ident);
+pub(crate) struct Minimum(pub(crate) f64, pub(crate) Ident);
 impl Minimum {
-    pub fn new(value: f64, span: Span) -> Self {
+    pub(crate) fn new(value: f64, span: Span) -> Self {
         Self(value, Ident::new("empty", span))
     }
 }
@@ -508,7 +508,7 @@ impl From<Minimum> for Feature {
 impl_name!(Minimum = "minimum");
 
 #[derive(Clone, Debug)]
-pub struct ExclusiveMaximum(pub f64, pub Ident);
+pub(crate) struct ExclusiveMaximum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -539,7 +539,7 @@ impl From<ExclusiveMaximum> for Feature {
 impl_name!(ExclusiveMaximum = "exclusive_maximum");
 
 #[derive(Clone, Debug)]
-pub struct ExclusiveMinimum(pub f64, pub Ident);
+pub(crate) struct ExclusiveMinimum(pub(crate) f64, pub(crate) Ident);
 impl Validate for ExclusiveMinimum {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -570,7 +570,7 @@ impl From<ExclusiveMinimum> for Feature {
 impl_name!(ExclusiveMinimum = "exclusive_minimum");
 
 #[derive(Clone, Debug)]
-pub struct MaxLength(pub usize, pub Ident);
+pub(crate) struct MaxLength(pub(crate) usize, pub(crate) Ident);
 impl Validate for MaxLength {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -601,7 +601,7 @@ impl From<MaxLength> for Feature {
 impl_name!(MaxLength = "max_length");
 
 #[derive(Clone, Debug)]
-pub struct MinLength(pub usize, pub Ident);
+pub(crate) struct MinLength(pub(crate) usize, pub(crate) Ident);
 impl Validate for MinLength {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -632,7 +632,7 @@ impl From<MinLength> for Feature {
 impl_name!(MinLength = "min_length");
 
 #[derive(Clone, Debug)]
-pub struct Pattern(pub String, pub Ident);
+pub(crate) struct Pattern(pub(crate) String, pub(crate) Ident);
 impl Validate for Pattern {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -663,7 +663,7 @@ impl From<Pattern> for Feature {
 impl_name!(Pattern = "pattern");
 
 #[derive(Clone, Debug)]
-pub struct MaxItems(pub usize, pub Ident);
+pub(crate) struct MaxItems(pub(crate) usize, pub(crate) Ident);
 impl Validate for MaxItems {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -694,7 +694,7 @@ impl From<MaxItems> for Feature {
 impl_name!(MaxItems = "max_items");
 
 #[derive(Clone, Debug)]
-pub struct MinItems(pub usize, pub Ident);
+pub(crate) struct MinItems(pub(crate) usize, pub(crate) Ident);
 impl Validate for MinItems {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
@@ -725,7 +725,7 @@ impl From<MinItems> for Feature {
 impl_name!(MinItems = "min_items");
 
 #[derive(Clone, Debug)]
-pub struct MaxProperties(pub usize, pub Ident);
+pub(crate) struct MaxProperties(pub(crate) usize, pub(crate) Ident);
 impl Parse for MaxProperties {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
@@ -747,7 +747,7 @@ impl From<MaxProperties> for Feature {
 impl_name!(MaxProperties = "max_properties");
 
 #[derive(Clone, Debug)]
-pub struct MinProperties(pub usize, pub Ident);
+pub(crate) struct MinProperties(pub(crate) usize, pub(crate) Ident);
 impl Parse for MinProperties {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
@@ -769,7 +769,7 @@ impl From<MinProperties> for Feature {
 impl_name!(MinProperties = "min_properties");
 
 #[derive(Clone, Debug)]
-pub struct SchemaWith(pub TypePath);
+pub(crate) struct SchemaWith(pub(crate) TypePath);
 impl Parse for SchemaWith {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
@@ -791,7 +791,7 @@ impl From<SchemaWith> for Feature {
 
 impl_name!(SchemaWith = "schema_with");
 #[derive(Clone, Debug)]
-pub struct Description(pub String);
+pub(crate) struct Description(pub(crate) String);
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
@@ -817,7 +817,7 @@ impl_name!(Description = "description");
 /// This feature supports only syntax parsed from salvo_oapi specific macro attributes, it does not
 /// support Rust `#[deprecated]` attribute.
 #[derive(Clone, Debug)]
-pub struct Deprecated(pub bool);
+pub(crate) struct Deprecated(pub(crate) bool);
 impl Parse for Deprecated {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
@@ -840,7 +840,7 @@ impl From<Deprecated> for Feature {
 
 impl_name!(Deprecated = "deprecated");
 #[derive(Clone, Debug)]
-pub struct Symbol(pub String);
+pub(crate) struct Symbol(pub(crate) String);
 impl Parse for Symbol {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
@@ -857,7 +857,7 @@ impl From<Symbol> for Feature {
 impl_name!(Symbol = "symbol");
 
 #[derive(Clone, Debug)]
-pub struct AdditionalProperties(pub bool);
+pub(crate) struct AdditionalProperties(pub(crate) bool);
 impl Parse for AdditionalProperties {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
@@ -885,9 +885,9 @@ impl From<AdditionalProperties> for Feature {
     }
 }
 #[derive(Clone, Debug)]
-pub struct Required(pub bool);
+pub(crate) struct Required(pub(crate) bool);
 impl Required {
-    pub fn is_true(&self) -> bool {
+    pub(crate) fn is_true(&self) -> bool {
         self.0
     }
 }

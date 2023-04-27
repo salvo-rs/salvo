@@ -39,8 +39,7 @@ pub struct Example {
 }
 
 impl Example {
-    /// Construct a new empty [`Example`]. This is effectively same as calling
-    /// [`Example::default`].
+    /// Construct a new empty [`Example`]. This is effectively same as calling [`Example::default`].
     pub fn new() -> Self {
         Self::default()
     }

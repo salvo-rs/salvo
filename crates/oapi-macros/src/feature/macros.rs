@@ -141,7 +141,7 @@ macro_rules! pop_feature_as_inner {
 
 pub(crate) use pop_feature_as_inner;
 
-pub trait IntoInner<T> {
+pub(crate) trait IntoInner<T> {
     fn into_inner(self) -> T;
 }
 
@@ -163,7 +163,7 @@ macro_rules! impl_into_inner {
 
 pub(crate) use impl_into_inner;
 
-pub trait Merge<T>: IntoInner<Vec<Feature>> {
+pub(crate) trait Merge<T>: IntoInner<Vec<Feature>> {
     fn merge(self, from: T) -> Self;
 }
 

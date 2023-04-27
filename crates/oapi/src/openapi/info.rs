@@ -131,7 +131,7 @@ pub struct Contact {
 }
 
 impl Contact {
-    /// Construct a new [`Contact`].
+    /// Construct a new empty [`Contact`]. This is effectively same as calling [`Contact::default`].
     pub fn new() -> Self {
         Default::default()
     }

@@ -9,7 +9,7 @@ use crate::feature::Feature;
 use crate::schema_type::SchemaType;
 use crate::Array;
 
-pub trait Variant {
+pub(crate) trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]
     fn to_tokens(&self) -> TokenStream;
 
@@ -19,8 +19,8 @@ pub trait Variant {
     }
 }
 
-pub struct SimpleEnumVariant<T: ToTokens> {
-    pub value: T,
+pub(crate) struct SimpleEnumVariant<T: ToTokens> {
+    pub(crate) value: T,
 }
 
 impl<T> Variant for SimpleEnumVariant<T>
@@ -32,9 +32,9 @@ where
     }
 }
 
-pub struct ReprVariant<'r, T: ToTokens> {
-    pub value: T,
-    pub type_path: &'r TypePath,
+pub(crate) struct ReprVariant<'r, T: ToTokens> {
+    pub(crate) value: T,
+    pub(crate) type_path: &'r TypePath,
 }
 
 impl<'r, T> Variant for ReprVariant<'r, T>
@@ -53,11 +53,11 @@ where
     }
 }
 
-pub struct ObjectVariant<'o, T: ToTokens> {
-    pub item: T,
-    pub title: Option<TokenStream>,
-    pub example: Option<TokenStream>,
-    pub name: Cow<'o, str>,
+pub(crate) struct ObjectVariant<'o, T: ToTokens> {
+    pub(crate) item: T,
+    pub(crate) title: Option<TokenStream>,
+    pub(crate) example: Option<TokenStream>,
+    pub(crate) name: Cow<'o, str>,
 }
 
 impl<T> Variant for ObjectVariant<'_, T>
@@ -81,7 +81,7 @@ where
     }
 }
 
-pub struct Enum<'e, V: Variant> {
+pub(crate) struct Enum<'e, V: Variant> {
     title: Option<TokenStream>,
     example: Option<TokenStream>,
     len: usize,
@@ -92,16 +92,16 @@ pub struct Enum<'e, V: Variant> {
 }
 
 impl<V: Variant> Enum<'_, V> {
-    pub fn new<I: IntoIterator<Item = V>>(items: I) -> Self {
+    pub(crate) fn new<I: IntoIterator<Item = V>>(items: I) -> Self {
         items.into_iter().collect()
     }
 
-    pub fn with_title<I: Into<TokenStream>>(mut self, title: I) -> Self {
+    pub(crate) fn with_title<I: Into<TokenStream>>(mut self, title: I) -> Self {
         self.title = Some(title.into());
         self
     }
 
-    pub fn with_example<I: Into<TokenStream>>(mut self, example: I) -> Self {
+    pub(crate) fn with_example<I: Into<TokenStream>>(mut self, example: I) -> Self {
         self.example = Some(example.into());
         self
     }
@@ -160,14 +160,14 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
     }
 }
 
-pub struct TaggedEnum<T: Variant> {
+pub(crate) struct TaggedEnum<T: Variant> {
     items: TokenStream,
     len: usize,
     _p: PhantomData<T>,
 }
 
 impl<V: Variant> TaggedEnum<V> {
-    pub fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, V)>>(items: I) -> Self {
+    pub(crate) fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, V)>>(items: I) -> Self {
         items.into_iter().collect()
     }
 }
@@ -224,16 +224,16 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
     }
 }
 
-pub struct UntaggedEnum {
+pub(crate) struct UntaggedEnum {
     title: Option<Feature>,
 }
 
 impl UntaggedEnum {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { title: None }
     }
 
-    pub fn with_title(title: Option<Feature>) -> Self {
+    pub(crate) fn with_title(title: Option<Feature>) -> Self {
         Self { title }
     }
 }
@@ -252,14 +252,14 @@ impl ToTokens for UntaggedEnum {
     }
 }
 
-pub struct AdjacentlyTaggedEnum<T: Variant> {
+pub(crate) struct AdjacentlyTaggedEnum<T: Variant> {
     items: TokenStream,
     len: usize,
     _p: PhantomData<T>,
 }
 
 impl<V: Variant> AdjacentlyTaggedEnum<V> {
-    pub fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(items: I) -> Self {
+    pub(crate) fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(items: I) -> Self {
         items.into_iter().collect()
     }
 }
@@ -326,14 +326,14 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
 /// Used to create complex enums with varying Object types.
 ///
 /// Will create `oneOf` object with discriminator field for referenced schemas.
-pub struct CustomEnum<'c, T: ToTokens> {
-    // pub items: Cow<'c, >,
+pub(crate) struct CustomEnum<'c, T: ToTokens> {
+    // pub(crate) items: Cow<'c, >,
     items: T,
     tag: Option<Cow<'c, str>>,
 }
 
 impl<'c, T: ToTokens> CustomEnum<'c, T> {
-    pub fn with_discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
+    pub(crate) fn with_discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
         self.tag = Some(discriminator);
         self
     }

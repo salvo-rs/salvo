@@ -9,21 +9,21 @@ use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
 
 #[derive(Debug)]
-pub struct ComponentSchemaProps<'c> {
-    pub type_tree: &'c TypeTree<'c>,
-    pub features: Option<Vec<Feature>>,
+pub(crate) struct ComponentSchemaProps<'c> {
+    pub(crate) type_tree: &'c TypeTree<'c>,
+    pub(crate) features: Option<Vec<Feature>>,
     pub(crate) description: Option<&'c CommentAttributes>,
     pub(crate) deprecated: Option<&'c Deprecated>,
-    pub object_name: &'c str,
+    pub(crate) object_name: &'c str,
 }
 
 #[derive(Debug)]
-pub struct ComponentSchema {
+pub(crate) struct ComponentSchema {
     tokens: TokenStream,
 }
 
 impl<'c> ComponentSchema {
-    pub fn new(
+    pub(crate) fn new(
         ComponentSchemaProps {
             type_tree,
             features,

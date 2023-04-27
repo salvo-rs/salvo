@@ -30,15 +30,15 @@ impl PartialEq for TypeTreeValue<'_> {
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[derive(Clone, Debug, PartialEq)]
-pub struct TypeTree<'t> {
-    pub path: Option<Cow<'t, Path>>,
-    pub value_type: ValueType,
-    pub generic_type: Option<GenericType>,
-    pub children: Option<Vec<TypeTree<'t>>>,
+pub(crate) struct TypeTree<'t> {
+    pub(crate) path: Option<Cow<'t, Path>>,
+    pub(crate) value_type: ValueType,
+    pub(crate) generic_type: Option<GenericType>,
+    pub(crate) children: Option<Vec<TypeTree<'t>>>,
 }
 
 impl<'t> TypeTree<'t> {
-    pub fn from_type(ty: &'t Type) -> TypeTree<'t> {
+    pub(crate) fn from_type(ty: &'t Type) -> TypeTree<'t> {
         Self::from_type_paths(Self::get_type_paths(ty))
     }
 
@@ -211,7 +211,7 @@ impl<'t> TypeTree<'t> {
 
     /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s [`syn::TypePath`]
     /// is a given type as [`str`].
-    pub fn is(&self, s: &str) -> bool {
+    pub(crate) fn is(&self, s: &str) -> bool {
         let mut is = self
             .path
             .as_ref()
@@ -249,25 +249,25 @@ impl<'t> TypeTree<'t> {
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
-    pub fn is_object(&self) -> bool {
+    pub(crate) fn is_object(&self) -> bool {
         self.is("Object")
     }
 
     /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Option`]
-    pub fn is_option(&self) -> bool {
+    pub(crate) fn is_option(&self) -> bool {
         matches!(self.generic_type, Some(GenericType::Option))
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ValueType {
+pub(crate) enum ValueType {
     Primitive,
     Object,
     Tuple,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum GenericType {
+pub(crate) enum GenericType {
     Vec,
     Map,
     Option,

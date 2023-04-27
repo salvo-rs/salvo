@@ -27,7 +27,7 @@ pub struct RequestBody {
 }
 
 impl RequestBody {
-    /// Construct a new [`RequestBody`].
+    /// Construct a new empty [`RequestBody`]. This is effectively same as calling [`RequestBody::default`].
     pub fn new() -> Self {
         Default::default()
     }

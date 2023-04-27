@@ -107,6 +107,7 @@ pub enum SecurityScheme {
     /// OpenApi 3.1 type
     #[serde(rename = "mutualTLS")]
     MutualTls {
+        /// Description information.
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
     },
@@ -247,17 +248,27 @@ impl Http {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpAuthScheme {
+    /// Basic authentication scheme.
     Basic,
+    /// Bearer authentication scheme.
     Bearer,
+    /// Digest authentication scheme.
     Digest,
+    /// HOBA authentication scheme.
     Hoba,
+    /// Mutual authentication scheme.
     Mutual,
+    /// Negotiate authentication scheme.
     Negotiate,
+    /// OAuth authentication scheme.
     OAuth,
+    /// ScramSha1 authentication scheme.
     #[serde(rename = "scram-sha-1")]
     ScramSha1,
+    /// ScramSha256 authentication scheme.
     #[serde(rename = "scram-sha-256")]
     ScramSha256,
+    /// Vapid authentication scheme.
     Vapid,
 }
 
@@ -814,7 +825,7 @@ impl Scopes {
     /// let scopes = Scopes::new();
     /// ```
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Default::default()
     }
 
     /// Construct new [`Scopes`] with holding one scope.

@@ -26,7 +26,7 @@ use crate::{
 impl_merge!(AsParametersFeatures, FieldFeatures);
 
 /// Container attribute `#[as_parameters(...)]`.
-pub struct AsParametersFeatures(Vec<Feature>);
+pub(crate) struct AsParametersFeatures(Vec<Feature>);
 
 impl Parse for AsParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -42,15 +42,15 @@ impl Parse for AsParametersFeatures {
 impl_into_inner!(AsParametersFeatures);
 
 #[derive(Debug)]
-pub struct AsParameters {
+pub(crate) struct AsParameters {
     /// Attributes tagged on the whole struct or enum.
-    pub attrs: Vec<Attribute>,
+    pub(crate) attrs: Vec<Attribute>,
     /// Generics required to complete the definition.
-    pub generics: Generics,
+    pub(crate) generics: Generics,
     /// Data within the struct or enum.
-    pub data: Data,
+    pub(crate) data: Data,
     /// Name of the struct or enum.
-    pub ident: Ident,
+    pub(crate) ident: Ident,
 }
 
 impl ToTokens for AsParameters {
@@ -284,7 +284,7 @@ impl AsParameters {
 }
 
 #[derive(Debug)]
-pub struct FieldParameterContainerAttributes<'a> {
+pub(crate) struct FieldParameterContainerAttributes<'a> {
     /// See [`AsParametersAttr::style`].
     style: &'a Option<Feature>,
     /// See [`AsParametersAttr::names`]. The name that applies to this field.

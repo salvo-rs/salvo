@@ -18,7 +18,7 @@ use crate::parameter::Parameter;
 use crate::response::{Response, ResponseTupleInner};
 pub(crate) mod status;
 
-pub struct Operation<'a> {
+pub(crate) struct Operation<'a> {
     operation_id: Option<&'a Expr>,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
@@ -201,7 +201,7 @@ pub(crate) struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    pub fn as_type_tree(&self) -> TypeTree {
+    pub(crate) fn as_type_tree(&self) -> TypeTree {
         TypeTree::from_type(&self.ty)
     }
 }
@@ -232,7 +232,7 @@ impl Parse for InlineType<'_> {
     }
 }
 
-pub trait PathTypeTree {
+pub(crate) trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &str;
 

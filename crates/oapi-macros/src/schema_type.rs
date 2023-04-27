@@ -4,7 +4,7 @@ use quote::{quote, ToTokens};
 use syn::{parse::Parse, Error, Ident, LitStr, Path};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct SchemaType<'a>(pub &'a syn::Path);
+pub(crate) struct SchemaType<'a>(pub(crate) &'a syn::Path);
 
 impl SchemaType<'_> {
     fn last_segment_to_string(&self) -> String {
@@ -17,7 +17,7 @@ impl SchemaType<'_> {
     }
 
     /// Check whether type is known to be primitive in which case returns true.
-    pub fn is_primitive(&self) -> bool {
+    pub(crate) fn is_primitive(&self) -> bool {
         let SchemaType(path) = self;
         let last_segment = match path.segments.last() {
             Some(segment) => segment,
@@ -58,21 +58,21 @@ impl SchemaType<'_> {
         }
     }
 
-    pub fn is_integer(&self) -> bool {
+    pub(crate) fn is_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
         )
     }
 
-    pub fn is_unsigned_integer(&self) -> bool {
+    pub(crate) fn is_unsigned_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
         )
     }
 
-    pub fn is_number(&self) -> bool {
+    pub(crate) fn is_number(&self) -> bool {
         match &*self.last_segment_to_string() {
             "f32" | "f64" => true,
             _ if self.is_integer() => true,
@@ -80,11 +80,11 @@ impl SchemaType<'_> {
         }
     }
 
-    pub fn is_string(&self) -> bool {
+    pub(crate) fn is_string(&self) -> bool {
         matches!(&*self.last_segment_to_string(), "str" | "String")
     }
 
-    pub fn is_byte(&self) -> bool {
+    pub(crate) fn is_byte(&self) -> bool {
         matches!(&*self.last_segment_to_string(), "u8")
     }
 }
@@ -164,7 +164,7 @@ impl ToTokens for SchemaType<'_> {
 
 /// Either Rust type component variant or enum variant schema variant.
 #[derive(Clone, Debug)]
-pub enum SchemaFormat<'c> {
+pub(crate) enum SchemaFormat<'c> {
     /// [`salvo_oapi::schema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
     /// Rust type schema format.
@@ -172,7 +172,7 @@ pub enum SchemaFormat<'c> {
 }
 
 impl SchemaFormat<'_> {
-    pub fn is_known_format(&self) -> bool {
+    pub(crate) fn is_known_format(&self) -> bool {
         match self {
             Self::Type(ty) => ty.is_known_format(),
             Self::Variant(_) => true,
@@ -203,11 +203,11 @@ impl ToTokens for SchemaFormat<'_> {
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
 #[derive(Clone, Debug)]
-pub struct Type<'a>(&'a syn::Path);
+pub(crate) struct Type<'a>(&'a syn::Path);
 
 impl Type<'_> {
     /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
-    pub fn is_known_format(&self) -> bool {
+    pub(crate) fn is_known_format(&self) -> bool {
         let last_segment = match self.0.segments.last() {
             Some(segment) => segment,
             None => return false,
@@ -297,7 +297,7 @@ impl ToTokens for Type<'_> {
 
 /// [`Parse`] and [`ToTokens`] implementation for [`salvo_oapi::schema::SchemaFormat`].
 #[derive(Clone, Debug)]
-pub enum Variant {
+pub(crate) enum Variant {
     Int32,
     Int64,
     Float,

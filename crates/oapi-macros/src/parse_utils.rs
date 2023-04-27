@@ -9,18 +9,18 @@ use syn::{
 
 use crate::ResultExt;
 
-pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
+pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
     input
         .parse::<Token![=]>()
         .expect_or_abort("expected equals token before value assignment");
     next()
 }
 
-pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
+pub(crate) fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
     Ok(parse_next(input, || input.parse::<LitStr>())?.value())
 }
 
-pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
+pub(crate) fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
 where
     T: Sized,
     T: Parse,
@@ -34,7 +34,7 @@ where
     })
 }
 
-pub fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Comma>>
+pub(crate) fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Comma>>
 where
     T: Parse,
 {
@@ -43,7 +43,7 @@ where
     Punctuated::<T, Comma>::parse_terminated(&content)
 }
 
-pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
+pub(crate) fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
     if input.peek(Token![=]) && input.peek2(LitBool) {
         input.parse::<Token![=]>()?;
 
@@ -54,7 +54,7 @@ pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
 }
 
 /// Parse `json!(...)` as a [`TokenStream`].
-pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
+pub(crate) fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
     if input.peek(syn::Ident) && input.peek2(Token![!]) {
         input.parse::<Ident>().and_then(|ident| {
             if ident != "json" {

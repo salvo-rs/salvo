@@ -44,32 +44,32 @@ where
     })
 }
 
-pub trait Name {
+pub(crate) trait Name {
     fn get_name() -> &'static str
     where
         Self: Sized;
 }
 
 /// Define whether [`Feature`] variant is validatable or not
-pub trait Validatable {
+pub(crate) trait Validatable {
     fn is_validatable(&self) -> bool {
         false
     }
 }
 
-pub trait Validate: Validatable {
+pub(crate) trait Validate: Validatable {
     /// Perform validation check against schema type.
     fn validate(&self, validator: impl Validator);
 }
 
-pub trait Parse {
+pub(crate) trait Parse {
     fn parse(input: ParseStream, attribute: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized;
 }
 
 #[derive(Clone, Debug)]
-pub enum Feature {
+pub(crate) enum Feature {
     Example(Example),
     Default(Default),
     Inline(Inline),
@@ -108,7 +108,7 @@ pub enum Feature {
 }
 
 impl Feature {
-    pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
+    pub(crate) fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
         match self {
             Feature::MultipleOf(multiple_of) => {
                 multiple_of.validate(ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)))
@@ -324,11 +324,11 @@ impl Validatable for Feature {
     }
 }
 
-pub trait Validator {
+pub(crate) trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
 }
 
-pub struct IsNumber<'a>(pub &'a SchemaType<'a>);
+pub(crate) struct IsNumber<'a>(pub(crate) &'a SchemaType<'a>);
 
 impl Validator for IsNumber<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -340,7 +340,7 @@ impl Validator for IsNumber<'_> {
     }
 }
 
-pub struct IsString<'a>(&'a SchemaType<'a>);
+pub(crate) struct IsString<'a>(&'a SchemaType<'a>);
 
 impl Validator for IsString<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -352,7 +352,7 @@ impl Validator for IsString<'_> {
     }
 }
 
-pub struct IsInteger<'a>(&'a SchemaType<'a>);
+pub(crate) struct IsInteger<'a>(&'a SchemaType<'a>);
 
 impl Validator for IsInteger<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -364,7 +364,7 @@ impl Validator for IsInteger<'_> {
     }
 }
 
-pub struct IsVec<'a>(&'a TypeTree<'a>);
+pub(crate) struct IsVec<'a>(&'a TypeTree<'a>);
 
 impl Validator for IsVec<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -376,7 +376,7 @@ impl Validator for IsVec<'_> {
     }
 }
 
-pub struct AboveZeroUsize(pub usize);
+pub(crate) struct AboveZeroUsize(pub(crate) usize);
 
 impl Validator for AboveZeroUsize {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -388,7 +388,7 @@ impl Validator for AboveZeroUsize {
     }
 }
 
-pub struct AboveZeroF64(pub f64);
+pub(crate) struct AboveZeroF64(pub(crate) f64);
 
 impl Validator for AboveZeroF64 {
     fn is_valid(&self) -> Result<(), &'static str> {
@@ -400,7 +400,7 @@ impl Validator for AboveZeroF64 {
     }
 }
 
-pub struct ValidatorChain<'c> {
+pub(crate) struct ValidatorChain<'c> {
     inner: &'c dyn Validator,
     next: Option<&'c dyn Validator>,
 }
@@ -419,21 +419,21 @@ impl Validator for ValidatorChain<'_> {
 }
 
 impl<'c> ValidatorChain<'c> {
-    pub fn new(validator: &'c dyn Validator) -> Self {
+    pub(crate) fn new(validator: &'c dyn Validator) -> Self {
         Self {
             inner: validator,
             next: None,
         }
     }
 
-    pub fn next(mut self, validator: &'c dyn Validator) -> Self {
+    pub(crate) fn next(mut self, validator: &'c dyn Validator) -> Self {
         self.next = Some(validator);
 
         self
     }
 }
 
-pub trait IsInline {
+pub(crate) trait IsInline {
     fn is_inline(&self) -> bool;
 }
 
@@ -447,11 +447,11 @@ impl IsInline for Vec<Feature> {
             .is_some()
     }
 }
-pub trait IntoInner<T> {
+pub(crate) trait IntoInner<T> {
     fn into_inner(self) -> T;
 }
 
-pub trait Merge<T>: IntoInner<Vec<Feature>> {
+pub(crate) trait Merge<T>: IntoInner<Vec<Feature>> {
     fn merge(self, from: T) -> Self;
 }
 

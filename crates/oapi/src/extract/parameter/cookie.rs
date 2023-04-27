@@ -17,12 +17,18 @@ pub struct CookieParam<T> {
     value: T,
 }
 impl<T> CookieParam<T> {
+    /// Construct a new [`CookieParam`] with given `name` and `value`.
     pub fn new(name: &str, value: T) -> Self {
         Self {
             name: name.into(),
             value,
         }
     }
+    /// Returns the name of the parameter.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    /// Returns the value of the parameter.
     pub fn value(&self) -> &T {
         &self.value
     }

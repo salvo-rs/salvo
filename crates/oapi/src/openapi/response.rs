@@ -68,18 +68,25 @@ impl IntoIterator for Responses {
 }
 
 impl Responses {
+    /// Construct a new empty [`Responses`]. This is effectively same as calling [`Responses::default`].
     pub fn new() -> Self {
         Default::default()
     }
-    /// Add a [`Response`].
+    /// Inserts a key-value pair into the instance and retuns `self`.
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
         self.insert(code, response);
         self
     }
 
+    /// Inserts a key-value pair into the instance.
     pub fn insert<S: Into<String>, R: Into<RefOr<Response>>>(&mut self, code: S, response: R) {
         self.0.insert(code.into(), response.into());
     }
+    
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Responses) {
         self.0.append(&mut other.0);
     }
@@ -94,12 +101,6 @@ impl Responses {
         self.0
             .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
     }
-
-    // Add responses from a type that implements [`AsResponses`].
-    // pub fn responses_from_as_responses<I: AsResponses>(mut self) -> Self {
-    //     self.0.extend(I::responses());
-    //     self
-    // }
 }
 
 impl From<Responses> for BTreeMap<String, RefOr<Response>> {

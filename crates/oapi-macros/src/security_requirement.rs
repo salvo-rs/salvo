@@ -11,7 +11,7 @@ use syn::{
 use crate::Array;
 
 #[derive(Default, Debug)]
-pub struct SecurityRequirementAttr {
+pub(crate) struct SecurityRequirementAttr {
     name: Option<String>,
     scopes: Option<Vec<String>>,
 }

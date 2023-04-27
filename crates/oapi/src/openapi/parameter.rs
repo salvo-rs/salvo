@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::{set_value, Deprecated, RefOr, Required, Schema};
 
+/// Collection for OpenAPI Parameter Objects.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
 pub struct Parameters(pub Vec<Parameter>);
 
@@ -19,16 +20,20 @@ impl IntoIterator for Parameters {
 }
 
 impl Parameters {
+    /// Construct a new empty [`Parameters`]. This is effectively same as calling [`Parameters::default`].
     pub fn new() -> Self {
         Default::default()
     }
+    /// Returns `true` if instance contains no elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+    /// Add a new paramater and returns `self`.
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.insert(parameter);
         self
     }
+    /// Inserts a parameter into the instance.
     pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
         let parameter = parameter.into();
         let exist_item = self
@@ -42,11 +47,16 @@ impl Parameters {
             self.0.push(parameter);
         }
     }
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Parameters) {
         for item in other.0.drain(..) {
             self.insert(item);
         }
     }
+    /// Extends a collection with the contents of an iterator.
     pub fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = Parameter>,
@@ -142,6 +152,7 @@ impl Parameter {
         set_value!(self parameter_in parameter_in)
     }
 
+    /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
     pub fn fill_with(&mut self, other: Parameter) -> bool {
         let Parameter {
             name,

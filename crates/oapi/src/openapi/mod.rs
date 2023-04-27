@@ -208,13 +208,20 @@ impl OpenApi {
         set_value!(self external_docs Some(external_docs))
     }
 
+    /// Consusmes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).handle(self)
     }
+    
+    /// Consusmes the [`OpenApi`] and informations from a [`Router`].
+    pub fn merge_router(self, router: &Router) -> Self {
+        self.merge_router_with_base(router, "")
+    }
 
-    pub fn merge_router(mut self, router: &Router) -> Self {
+    /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
+    pub fn merge_router_with_base(mut self, router: &Router, base: impl AsRef<str>) -> Self {
         let mut node = NormNode::new(router);
-        self.merge_norm_node(&mut node, "");
+        self.merge_norm_node(&mut node, base.as_ref());
         self
     }
 
@@ -302,7 +309,9 @@ impl Default for OpenApiVersion {
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Deprecated {
+    /// Is deprecated.
     True,
+    /// Is not deprecated.
     False,
 }
 impl From<bool> for Deprecated {
@@ -356,7 +365,9 @@ impl<'de> Deserialize<'de> for Deprecated {
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Default, Clone, Debug)]
 pub enum Required {
+    /// Is required.
     True,
+    /// Is not required.
     #[default]
     False,
 }
@@ -404,7 +415,9 @@ impl<'de> Deserialize<'de> for Required {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(untagged)]
 pub enum RefOr<T> {
+    /// A [`Ref`] to a reusable component.
     Ref(schema::Ref),
+    /// Some other type `T`.
     T(T),
 }
 

@@ -39,6 +39,7 @@ pub struct Content {
 }
 
 impl Content {
+    /// Construct a new [`Content`].
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
         Self {
             schema: schema.into(),

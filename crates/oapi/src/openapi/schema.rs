@@ -124,9 +124,9 @@ pub struct OneOf {
 }
 
 impl OneOf {
-    /// Construct a new [`OneOf`] component.
+    /// Construct a new empty [`OneOf`]. This is effectively same as calling [`OneOf::default`].
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Default::default()
     }
 
     /// Construct a new [`OneOf`] component with given capacity.
@@ -229,9 +229,9 @@ pub struct AllOf {
 }
 
 impl AllOf {
-    /// Construct a new [`AllOf`] component.
+    /// Construct a new empty [`AllOf`]. This is effectively same as calling [`AllOf::default`].
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Default::default()
     }
 
     /// Construct a new [`AllOf`] component with given capacity.
@@ -446,7 +446,7 @@ impl Object {
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Default::default()
     }
 
     /// Initialize new [`Object`] with given [`SchemaType`].
@@ -481,6 +481,7 @@ impl Object {
         self
     }
 
+    /// Add additional properties to the [`Object`].
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(mut self, additional_properties: I) -> Self {
         set_value!(self additional_properties Some(Box::new(additional_properties.into())))
     }
@@ -832,11 +833,13 @@ impl From<Array> for RefOr<Schema> {
 
 impl ToArray for Array {}
 
+/// Trait for converting a type to [`Array`].
 pub trait ToArray
 where
     RefOr<Schema>: From<Self>,
     Self: Sized,
 {
+    /// Convert a type to [`Array`].
     fn to_array(self) -> Array {
         Array::new(self)
     }

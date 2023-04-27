@@ -20,14 +20,14 @@ use super::{
     ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 
-pub struct AsResponse<'r> {
+pub(crate) struct AsResponse<'r> {
     ident: Ident,
     generics: Generics,
     response: ResponseTuple<'r>,
 }
 
 impl<'r> AsResponse<'r> {
-    pub fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> AsResponse<'r> {
+    pub(crate) fn new(attributes: Vec<Attribute>, data: &'r Data, generics: Generics, ident: Ident) -> AsResponse<'r> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => AsResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0,
@@ -70,11 +70,11 @@ impl ToTokens for AsResponse<'_> {
     }
 }
 
-pub struct AsResponses {
-    pub attributes: Vec<Attribute>,
-    pub data: Data,
-    pub generics: Generics,
-    pub ident: Ident,
+pub(crate) struct AsResponses {
+    pub(crate) attributes: Vec<Attribute>,
+    pub(crate) data: Data,
+    pub(crate) generics: Generics,
+    pub(crate) ident: Ident,
 }
 
 impl ToTokens for AsResponses {

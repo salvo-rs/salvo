@@ -1,4 +1,13 @@
-#![cfg_attr(doc_cfg, feature(doc_cfg))]
+//! OpenApi support for salvo.
+
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
+#![warn(rustdoc::broken_intra_doc_links)]
 
 #[macro_use]
 mod cfg;
@@ -55,45 +64,44 @@ extern crate self as salvo_oapi;
 /// # }
 /// #
 /// impl AsSchema for Pet {
-///     fn schema() -> (Option<&'static str>, RefOr<Schema>) {
-///          (
-///             Some("Pet"),
-///             Object::new()
-///                 .property(
-///                     "id",
-///                     Object::new()
-///                         .schema_type(SchemaType::Integer)
-///                         .format(SchemaFormat::KnownFormat(
-///                             KnownFormat::Int64,
-///                         )),
-///                 )
-///                 .required("id")
-///                 .property(
-///                     "name",
-///                     Object::new()
-///                         .schema_type(SchemaType::String),
-///                 )
-///                 .required("name")
-///                 .property(
-///                     "age",
-///                     Object::new()
-///                         .schema_type(SchemaType::Integer)
-///                         .format(SchemaFormat::KnownFormat(
-///                             KnownFormat::Int32,
-///                         )),
-///                 )
-///                 .example(serde_json::json!({
-///                   "name":"bob the cat","id":1
-///                 }))
-///                 .into(),
-///         ) }
+///     fn schema() -> RefOr<Schema> {
+///         Object::new()
+///             .property(
+///                 "id",
+///                 Object::new()
+///                     .schema_type(SchemaType::Integer)
+///                     .format(SchemaFormat::KnownFormat(
+///                         KnownFormat::Int64,
+///                     )),
+///             )
+///             .required("id")
+///             .property(
+///                 "name",
+///                 Object::new()
+///                     .schema_type(SchemaType::String),
+///             )
+///             .required("name")
+///             .property(
+///                 "age",
+///                 Object::new()
+///                     .schema_type(SchemaType::Integer)
+///                     .format(SchemaFormat::KnownFormat(
+///                         KnownFormat::Int32,
+///                     )),
+///             )
+///             .example(serde_json::json!({
+///               "name":"bob the cat","id":1
+///             }))
+///             .into()
+///     }
 /// }
 /// ```
 pub trait AsSchema {
+    /// Returns a name of the schema.
     fn symbol() -> Option<&'static str> {
         None
     }
-    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
+    /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn schema() -> RefOr<schema::Schema>;
 
@@ -300,8 +308,12 @@ pub trait AsParameters<'de>: Extractible<'de> + EndpointModifier {
     /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn parameters() -> Parameters;
 }
+
+/// Trait used to give [`Parameter`] information for OpenAPI.
 pub trait AsParameter: EndpointModifier {
+    /// Returns a `Parameter`.
     fn parameter() -> Parameter;
+    /// Returns a `Parameter`, this is used internal.
     fn parameter_with_arg(_arg: &str) -> Parameter {
         Self::parameter()
     }

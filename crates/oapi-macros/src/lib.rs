@@ -4,7 +4,13 @@
 //! of the library documentation is available through **salvo_oapi** library itself.
 //! Consider browsing via the **salvo_oapi** crate so all links will work correctly.
 
+#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
+#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(private_in_public, unreachable_pub)]
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::future_not_send)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::borrow::Cow;
@@ -67,9 +73,11 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    AsSchema::new(&data, &attrs, &ident, &generics, &vis)
+    let stream = AsSchema::new(&data, &attrs, &ident, &generics, &vis)
         .to_token_stream()
-        .into()
+        .into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
@@ -190,7 +198,7 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
-pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
+fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
     attributes.iter().find_map(|attribute| {
         if attribute
             .path()

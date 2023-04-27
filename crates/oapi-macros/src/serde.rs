@@ -21,13 +21,13 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 }
 
 #[derive(Default, Debug)]
-pub struct SerdeValue {
-    pub skip: bool,
-    pub rename: Option<String>,
-    pub is_default: bool,
-    pub flatten: bool,
-    pub skip_serializing_if: bool,
-    pub double_option: bool,
+pub(crate) struct SerdeValue {
+    pub(crate) skip: bool,
+    pub(crate) rename: Option<String>,
+    pub(crate) is_default: bool,
+    pub(crate) flatten: bool,
+    pub(crate) skip_serializing_if: bool,
+    pub(crate) double_option: bool,
 }
 
 impl SerdeValue {
@@ -77,7 +77,7 @@ impl SerdeValue {
 /// The [Serde Enum representation](https://serde.rs/enum-representations.html) being used
 /// The default case (when no serde attributes are present) is `ExternallyTagged`.
 #[derive(Default, Clone, Debug)]
-pub enum SerdeEnumRepr {
+pub(crate) enum SerdeEnumRepr {
     #[default]
     ExternallyTagged,
     InternallyTagged {
@@ -98,10 +98,10 @@ pub enum SerdeEnumRepr {
 
 /// Attributes defined within a `#[serde(...)]` container attribute.
 #[derive(Default, Debug)]
-pub struct SerdeContainer {
-    pub rename_all: Option<RenameRule>,
-    pub enum_repr: SerdeEnumRepr,
-    pub is_default: bool,
+pub(crate) struct SerdeContainer {
+    pub(crate) rename_all: Option<RenameRule>,
+    pub(crate) enum_repr: SerdeEnumRepr,
+    pub(crate) is_default: bool,
 }
 
 impl SerdeContainer {
@@ -187,7 +187,7 @@ impl SerdeContainer {
     }
 }
 
-pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
+pub(crate) fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
@@ -218,7 +218,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         })
 }
 
-pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
+pub(crate) fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
@@ -247,7 +247,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 }
 
 #[derive(Clone, Debug)]
-pub enum RenameRule {
+pub(crate) enum RenameRule {
     Lower,
     Upper,
     Camel,
@@ -259,7 +259,7 @@ pub enum RenameRule {
 }
 
 impl RenameRule {
-    pub fn rename(&self, value: &str) -> String {
+    pub(crate) fn rename(&self, value: &str) -> String {
         match self {
             RenameRule::Lower => value.to_ascii_lowercase(),
             RenameRule::Upper => value.to_ascii_uppercase(),
@@ -296,7 +296,7 @@ impl RenameRule {
         }
     }
 
-    pub fn rename_variant(&self, variant: &str) -> String {
+    pub(crate) fn rename_variant(&self, variant: &str) -> String {
         match self {
             RenameRule::Lower => variant.to_ascii_lowercase(),
             RenameRule::Upper => variant.to_ascii_uppercase(),

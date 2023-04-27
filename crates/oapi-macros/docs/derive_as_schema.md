@@ -291,7 +291,7 @@ The generic argument could also be another [`AsSchema`][as_schema] as well.
 # use salvo_oapi::{AsSchema, OpenApi};
 #[derive(AsSchema)]
 #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
-struct Status<T> {
+struct Status<T> where T: AsSchema {
     value: T
 }
 
@@ -441,8 +441,9 @@ struct Value(i64);
 _**Override the `Bar` reference with a `custom::NewBar` reference.**_
 ```
 # use salvo_oapi::AsSchema;
-#  mod custom {
-#      struct NewBar;
+#  pub mod custom {
+#      [derive(AsSchema)]
+#      pub struct NewBar;
 #  }
 #
 # struct Bar;

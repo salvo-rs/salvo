@@ -7,14 +7,14 @@ use crate::path::PathItemType;
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
-    pub type_id: Option<TypeId>,
-    pub method: Option<PathItemType>,
-    pub path: Option<String>,
-    pub children: Vec<NormNode>,
+    pub(crate) type_id: Option<TypeId>,
+    pub(crate) method: Option<PathItemType>,
+    pub(crate) path: Option<String>,
+    pub(crate) children: Vec<NormNode>,
 }
 
 impl NormNode {
-    pub fn new(router: &Router) -> Self {
+    pub(crate) fn new(router: &Router) -> Self {
         let mut node = NormNode::default();
         let regex = Regex::new(r#"<([^/:>]+)(:[^>]*)?>"#).unwrap();
         for filter in router.filters() {

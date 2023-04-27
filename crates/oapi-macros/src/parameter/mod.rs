@@ -9,7 +9,7 @@ use syn::{
     Error, ExprPath, LitStr, Token,
 };
 
-pub mod derive;
+pub(crate) mod derive;
 
 use crate::{
     component::{
@@ -37,7 +37,7 @@ use crate::{
 ///
 /// The `= String` type statement is optional if automatic resolution is supported.
 #[derive(Debug)]
-pub enum Parameter<'a> {
+pub(crate) enum Parameter<'a> {
     Value(ValueParameter<'a>),
     /// Identifier for a struct that implements `AsParameters` trait.
     Struct(StructParameter),
@@ -112,8 +112,8 @@ enum ParameterType<'p> {
 }
 
 #[derive(Default, Debug)]
-pub struct ValueParameter<'a> {
-    pub name: Cow<'a, str>,
+pub(crate) struct ValueParameter<'a> {
+    pub(crate) name: Cow<'a, str>,
     parameter_in: ParameterIn,
     parameter_schema: Option<ParameterSchema<'a>>,
     features: (Vec<Feature>, Vec<Feature>),
@@ -269,12 +269,12 @@ impl ToTokens for ValueParameter<'_> {
 }
 
 #[derive(Debug)]
-pub struct StructParameter {
-    pub path: ExprPath,
+pub(crate) struct StructParameter {
+    pub(crate) path: ExprPath,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum ParameterIn {
+pub(crate) enum ParameterIn {
     Query,
     Path,
     Header,
@@ -282,7 +282,7 @@ pub enum ParameterIn {
 }
 
 impl ParameterIn {
-    pub const VARIANTS: &'static [Self] = &[Self::Query, Self::Path, Self::Header, Self::Cookie];
+    pub(crate) const VARIANTS: &'static [Self] = &[Self::Query, Self::Path, Self::Header, Self::Cookie];
 }
 
 impl Display for ParameterIn {
@@ -338,7 +338,7 @@ impl ToTokens for ParameterIn {
 
 /// See definitions from `salvo_oapi` crate path.rs
 #[derive(Copy, Clone, Debug)]
-pub enum ParameterStyle {
+pub(crate) enum ParameterStyle {
     Matrix,
     Label,
     Form,

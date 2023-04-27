@@ -19,7 +19,8 @@ use serde::Serialize;
 #[folder = "$SALVO_SWAGGER_DIR/$SALVO_SWAGGER_UI_VERSION/dist/"]
 struct SwaggerUiDist;
 
-#[non_exhaustive]
+
+/// Implements [`Handler`] for serving Swagger UI.
 #[derive(Clone, Debug)]
 pub struct SwaggerUi {
     urls: Vec<(Url<'static>, OpenApi)>,
@@ -183,6 +184,7 @@ impl SwaggerUi {
         self
     }
 
+    /// Consusmes the [`SwaggerUi`] and returns [`Router`] with the [`SwaggerUi`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(format!("{}/<**>", path.into())).handle(self)
     }

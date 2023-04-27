@@ -13,6 +13,8 @@ use super::{
 };
 use crate::{Parameter, Parameters, PathItemType, Servers};
 
+
+/// Collection for save [`Operation`]s.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 pub struct Operations(pub BTreeMap<PathItemType, Operation>);
 impl Deref for Operations {
@@ -36,22 +38,34 @@ impl IntoIterator for Operations {
     }
 }
 impl Operations {
+    /// Construct a new empty [`Operations`]. This is effectively same as calling [`Operations::default`].
     pub fn new() -> Self {
         Default::default()
     }
+
+    /// Returns `true` if instance contains no elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+    /// Add a new operation and returns `self`.
     pub fn operation<K: Into<PathItemType>, O: Into<Operation>>(mut self, item_type: K, operation: O) -> Self {
         self.insert(item_type, operation);
         self
     }
+
+    /// Inserts a key-value pair into the instance.
     pub fn insert<K: Into<PathItemType>, O: Into<Operation>>(&mut self, item_type: K, operation: O) {
         self.0.insert(item_type.into(), operation.into());
     }
+
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Operations) {
         self.0.append(&mut other.0);
     }
+    /// Extends a collection with the contents of an iterator.
     pub fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (PathItemType, Operation)>,
@@ -122,7 +136,7 @@ pub struct Operation {
     /// List of possible responses returned by the [`Operation`].
     pub responses: Responses,
 
-    // TODO
+    /// Callback information.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub callbacks: Option<String>,
 

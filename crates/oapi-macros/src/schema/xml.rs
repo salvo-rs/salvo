@@ -5,17 +5,17 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, LitStr, Token};
 use crate::parse_utils;
 
 #[derive(Default, Clone, Debug)]
-pub struct XmlAttr {
-    pub name: Option<String>,
-    pub namespace: Option<String>,
-    pub prefix: Option<String>,
-    pub is_attribute: bool,
-    pub is_wrapped: Option<Ident>,
-    pub wrap_name: Option<String>,
+pub(crate) struct XmlAttr {
+    pub(crate) name: Option<String>,
+    pub(crate) namespace: Option<String>,
+    pub(crate) prefix: Option<String>,
+    pub(crate) is_attribute: bool,
+    pub(crate) is_wrapped: Option<Ident>,
+    pub(crate) wrap_name: Option<String>,
 }
 
 impl XmlAttr {
-    pub fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
+    pub(crate) fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
         Self {
             is_wrapped,
             wrap_name,

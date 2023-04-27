@@ -48,6 +48,7 @@ use super::set_value;
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 
+/// Collection for [`Server`] objects.
 pub struct Servers(pub BTreeSet<Server>);
 impl Deref for Servers {
     type Target = BTreeSet<Server>;
@@ -70,16 +71,20 @@ impl IntoIterator for Servers {
     }
 }
 impl Servers {
+    /// Construct a new empty [`Servers`]. This is effectively same as calling [`Servers::default`].
     pub fn new() -> Self {
         Default::default()
     }
+    /// Returns `true` if instance contains no elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+    /// Inserts a server into the instance and returns `self`.
     pub fn server<S: Into<Server>>(mut self, server: S) -> Self {
         self.insert(server);
         self
     }
+    /// Inserts a server into the instance.
     pub fn insert<S: Into<Server>>(&mut self, server: S) {
         let server = server.into();
         let exist_server = self.0.iter().find(|s| s.url == server.url).cloned();
@@ -98,12 +103,18 @@ impl Servers {
             self.0.insert(server);
         }
     }
+    
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut Servers) {
         let servers = std::mem::take(&mut other.0);
         for server in servers {
             self.insert(server);
         }
     }
+    /// Extends a collection with the contents of an iterator.
     pub fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = Server>,
@@ -202,6 +213,7 @@ impl Server {
     }
 }
 
+/// Server Variables information for OpenApi.
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq, Debug)]
 pub struct ServerVariables(pub BTreeMap<String, ServerVariable>);
 impl Deref for ServerVariables {
@@ -217,16 +229,20 @@ impl DerefMut for ServerVariables {
     }
 }
 impl ServerVariables {
+    /// Construct a new empty [`ServerVariables`]. This is effectively same as calling [`ServerVariables::default`].
     pub fn new() -> Self {
         Default::default()
     }
+    /// Returns `true` if instance contains no elements.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+    /// Inserts a key-value pair into the instance and returns `self`.
     pub fn server_varible<K: Into<String>, V: Into<ServerVariable>>(mut self, key: K, variable: V) -> Self {
         self.insert(key, variable);
         self
     }
+    /// Inserts a key-value pair into the instance.
     pub fn insert<K: Into<String>, V: Into<ServerVariable>>(&mut self, key: K, variable: V) {
         let key = key.into();
         let mut variable = variable.into();
@@ -241,12 +257,17 @@ impl ServerVariables {
             })
             .or_insert(variable);
     }
+    /// Moves all elements from `other` into `self`, leaving `other` empty.
+    ///
+    /// If a key from `other` is already present in `self`, the respective
+    /// value from `self` will be overwritten with the respective value from `other`.
     pub fn append(&mut self, other: &mut ServerVariables) {
         let variables = std::mem::take(&mut other.0);
         for (key, variable) in variables {
             self.insert(key, variable);
         }
     }
+    /// Extends a collection with the contents of an iterator.
     pub fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (String, ServerVariable)>,
@@ -278,7 +299,7 @@ pub struct ServerVariable {
 }
 
 impl ServerVariable {
-    /// Creawte new `ServerVariable` with default value.
+    /// Construct a new empty [`ServerVariable`]. This is effectively same as calling [`ServerVariable::default`].
     pub fn new() -> Self {
         Default::default()
     }

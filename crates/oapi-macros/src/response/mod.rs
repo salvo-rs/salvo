@@ -20,7 +20,7 @@ use crate::{
     AnyValue, Array, ResultExt,
 };
 
-pub mod derive;
+pub(crate) mod derive;
 
 #[derive(Debug)]
 pub(crate) enum Response<'r> {
@@ -45,8 +45,8 @@ impl Parse for Response<'_> {
 /// Parsed representation of response attributes from `#[salvo_oapi::endpoint]` attribute.
 #[derive(Default, Debug)]
 pub(crate) struct ResponseTuple<'r> {
-    pub status_code: ResponseStatus,
-    pub inner: Option<ResponseTupleInner<'r>>,
+    pub(crate) status_code: ResponseStatus,
+    pub(crate) inner: Option<ResponseTupleInner<'r>>,
 }
 
 const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
@@ -158,7 +158,7 @@ impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
     }
 }
 
-pub struct DeriveResponsesAttributes<T> {
+pub(crate) struct DeriveResponsesAttributes<T> {
     derive_value: T,
     description: String,
 }
@@ -188,7 +188,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveAsResponseValue>>> for Resp
 }
 
 #[derive(Default, Debug)]
-pub struct ResponseValue<'r> {
+pub(crate) struct ResponseValue<'r> {
     pub(crate) description: String,
     pub(crate) response_type: Option<PathType<'r>>,
     pub(crate) content_type: Option<Vec<String>>,
@@ -536,7 +536,7 @@ impl Parse for DeriveAsResponsesValue {
 }
 
 #[derive(Default, Debug)]
-pub struct ResponseStatus(TokenStream2);
+pub(crate) struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -660,7 +660,7 @@ impl Parse for Content<'_> {
     }
 }
 
-pub struct Responses<'a>(pub(crate) &'a [Response<'a>]);
+pub(crate) struct Responses<'a>(pub(crate) &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

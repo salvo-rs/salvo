@@ -6,7 +6,7 @@ use crate::{
     type_tree::TypeTree,
 };
 
-pub trait ToTokensExt {
+pub(crate) trait ToTokensExt {
     fn to_token_stream(&self) -> TokenStream;
 }
 
@@ -19,7 +19,7 @@ impl ToTokensExt for Vec<Feature> {
     }
 }
 
-pub trait FeaturesExt {
+pub(crate) trait FeaturesExt {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
 
     fn pop_value_type_feature(&mut self) -> Option<ValueType>;
