@@ -278,7 +278,6 @@ enum ExitCode {
     Ok = 1,
  }
 ```
-
 # Generic schemas with aliases
 
 Schemas can also be generic which allows reusing types. This enables certain behaviour patters
@@ -436,22 +435,6 @@ _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` optio
 #[derive(AsSchema)]
 #[schema(value_type = String)]
 struct Value(i64);
-```
-
-_**Override the `Bar` reference with a `custom::NewBar` reference.**_
-```
-# use salvo_oapi::AsSchema;
-#  pub mod custom {
-#      [derive(AsSchema)]
-#      pub struct NewBar;
-#  }
-#
-# struct Bar;
-#[derive(AsSchema)]
-struct Value {
-    #[schema(value_type = custom::NewBar)]
-    field: Bar,
-};
 ```
 
 _**Use a virtual `Object` type to render generic `object` _(`type: object`)_ in OpenAPI spec.**_

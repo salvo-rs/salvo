@@ -25,6 +25,7 @@ pub(crate) struct NamedStructSchema<'a> {
     pub(crate) attributes: &'a [Attribute],
     pub(crate) features: Option<Vec<Feature>>,
     pub(crate) rename_all: Option<RenameAll>,
+    #[allow(dead_code)]
     pub(crate) generics: Option<&'a Generics>,
     pub(crate) aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub(crate) symbol: Option<Symbol>,

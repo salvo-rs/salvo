@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{GenericParam,
+use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Fields,
     FieldsNamed, FieldsUnnamed, GenericArgument, Generics, PathArguments, Token, Type, Visibility,
 };

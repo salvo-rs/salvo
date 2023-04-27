@@ -10,21 +10,21 @@ struct MyObject<T: AsSchema + std::fmt::Debug> {
 }
 
 #[endpoint]
-async fn string(body: JsonBody<MyObject<String>>, res: &mut Response) {
+async fn use_string(body: JsonBody<MyObject<String>>, res: &mut Response) {
     res.render(format!("{:?}", body))
 }
-// #[endpoint]
-// async fn i32(body: JsonBody<MyObject<i32>>, res: &mut Response) {
-//     res.render(format!("{:?}", body))
-// }
+#[endpoint]
+async fn use_i32(body: JsonBody<MyObject<i32>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new()
-        // .push(Router::with_path("i32").get(i32))
-        .push(Router::with_path("string").post(string));
+        .push(Router::with_path("i32").post(use_i32))
+        .push(Router::with_path("string").post(use_string));
 
     let doc = OpenApi::new(Info::new("test api", "0.0.1")).merge_router(&router);
 
