@@ -11,14 +11,15 @@ pub mod oauth;
 use crate::OpenApi;
 pub use config::Config;
 use rust_embed::RustEmbed;
+use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
+use salvo_core::writer::Redirect;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 use serde::Serialize;
 
 #[derive(RustEmbed)]
 #[folder = "$SALVO_SWAGGER_DIR/$SALVO_SWAGGER_UI_VERSION/dist/"]
 struct SwaggerUiDist;
-
 
 /// Implements [`Handler`] for serving Swagger UI.
 #[derive(Clone, Debug)]
@@ -190,10 +191,41 @@ impl SwaggerUi {
     }
 }
 
+#[inline]
+pub(crate) fn redirect_to_dir_url(req_uri: &Uri, res: &mut Response) {
+    let UriParts {
+        scheme,
+        authority,
+        path_and_query,
+        ..
+    } = req_uri.clone().into_parts();
+    let mut builder = Uri::builder();
+    if let Some(scheme) = scheme {
+        builder = builder.scheme(scheme);
+    }
+    if let Some(authority) = authority {
+        builder = builder.authority(authority);
+    }
+    if let Some(path_and_query) = path_and_query {
+        if let Some(query) = path_and_query.query() {
+            builder = builder.path_and_query(format!("{}/?{}", path_and_query.path(), query));
+        } else {
+            builder = builder.path_and_query(format!("{}/", path_and_query.path()));
+        }
+    }
+    let redirect_uri = builder.build().unwrap();
+    res.render(Redirect::found(redirect_uri));
+}
+
 #[async_trait]
 impl Handler for SwaggerUi {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let path = req.params().get("**").map(|s| &**s).unwrap_or_default();
+        // Redirect to dir url if path is empty and not end with '/'
+        if path.is_empty() && !req.uri().path().ends_with('/') {
+            redirect_to_dir_url(req.uri(), res);
+            return;
+        }
         match serve(path, &self.config) {
             Ok(Some(file)) => {
                 res.headers_mut()
@@ -201,10 +233,11 @@ impl Handler for SwaggerUi {
                 res.set_body(ResBody::Once(file.bytes.to_vec().into()));
             }
             Ok(None) => {
+                tracing::warn!(path = path, "swagger ui file not found");
                 res.set_status_error(StatusError::not_found());
             }
             Err(e) => {
-                tracing::error!(error = ?e, path =  "failed to fetch swagger ui file");
+                tracing::error!(error = ?e, path = path, "failed to fetch swagger ui file");
                 res.set_status_error(StatusError::internal_server_error());
             }
         }
