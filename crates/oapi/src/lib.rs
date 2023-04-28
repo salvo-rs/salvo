@@ -1,6 +1,4 @@
-
 #![doc = include_str!("../docs/lib.md")]
-
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -26,19 +24,18 @@ cfg_feature! {
     pub mod swagger_ui;
 }
 
-
 #[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
 #[doc = include_str!("../docs/schema.md")]
 pub use salvo_oapi_macros::schema;
-#[doc = include_str!("../docs/derive_as_schema.md")]
-pub use salvo_oapi_macros::AsSchema;
 #[doc = include_str!("../docs/derive_as_parameters.md")]
 pub use salvo_oapi_macros::AsParameters;
 #[doc = include_str!("../docs/derive_as_response.md")]
 pub use salvo_oapi_macros::AsResponse;
 #[doc = include_str!("../docs/derive_as_responses.md")]
 pub use salvo_oapi_macros::AsResponses;
+#[doc = include_str!("../docs/derive_as_schema.md")]
+pub use salvo_oapi_macros::AsSchema;
 
 use salvo_core::Extractible;
 use std::collections::{BTreeMap, HashMap};
