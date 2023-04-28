@@ -1,12 +1,12 @@
 [package]
 name = "example-cache-simple"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 [dependencies]
 salvo = { workspace = true, features = ["cache"] }
-tokio = { version = "1", features = ["macros"] }
-time = "0.3"
-tracing = "0.1"
-tracing-subscriber = "0.3"
+tokio = { workspace = true, features = ["macros"] }
+time.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

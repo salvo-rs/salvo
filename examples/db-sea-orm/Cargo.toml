@@ -1,22 +1,22 @@
 [package]
 name = "example-db-sea-orm"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 [dependencies]
-tokio = { version = "1.21.1", features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 salvo = { workspace = true, features = ["affix", "serve-static"] }
-tracing = "0.1.36"
-tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
-serde = { version = "1.0.144", features = ["derive"] }
-tera = "1.17.1"
-sea-orm = { version = "0.9.2", features = [
+tracing .workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+serde = { workspace = true, features = ["derive"] }
+tera .workspace = true
+sea-orm = { workspace = true, features = [
   "debug-print",
   "runtime-tokio-native-tls",
   "sqlx-sqlite",
   # "sqlx-postgres",
   # "sqlx-mysql",
 ] }
-async-std = { version = "^1", features = ["attributes", "tokio1"] }
-sea-orm-migration = "0.9.2"
+async-std = { workspace = true, features = ["attributes", "tokio1"] }
+sea-orm-migration .workspace = true

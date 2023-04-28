@@ -2,7 +2,7 @@
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.39.0"
+version = "0.39.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 rust-version = "1.64"
@@ -44,13 +44,11 @@ h3 = { version = "0.0.2", default-features = false }
 h3-quinn = { version = "0.0.2", default-features = false }
 headers = "0.3"
 http = "0.2"
-http-body-util = "0.1.0-rc.2"                                                                #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
+http-body-util = "0.1.0-rc.2"                                                                       #{ git = "https://github.com/hyperium/http-body", rev = "0e20ca9" }
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
 hyper = "=1.0.0-rc.3"
-salvo-rustls = "0.0.2"
-salvo-utils = "0.0.2"
 indexmap = "1"
 inventory = "0.3"
 jsonwebtoken = "8"
@@ -82,20 +80,22 @@ ring = "0.16"
 rustls = "0.20"
 rustls-pemfile = "1.0"
 rust-embed = "6"
-salvo_macros = { path = "./crates/macros", default-features = false }
-salvo_core = { path = "./crates/core", default-features = false }
-salvo_extra = { path = "./crates/extra", default-features = false }
-salvo-cache = { path = "./crates/cache", default-features = false }
-salvo-cors = { path = "./crates/cors", default-features = false }
-salvo-csrf = { path = "./crates/csrf", default-features = false }
-salvo-flash = { path = "./crates/flash", default-features = false }
-salvo-oapi = { path = "./crates/oapi", default-features = false }
-salvo-oapi-macros = { path = "./crates/oapi-macros", default-features = false }
-salvo-otel = { path = "./crates/otel", default-features = false }
-salvo-proxy = { path = "./crates/proxy", default-features = false }
-salvo-rate-limiter = { path = "./crates/rate-limiter", default-features = false }
-salvo-serve-static = { path = "./crates/serve-static", default-features = false }
-salvo-session = { path = "./crates/session", default-features = false }
+salvo-rustls = "0.0.2"
+salvo-utils = "0.0.2"
+salvo_macros = { version = "0.39.1", path = "crates/macros", default-features = false }
+salvo_core = { version = "0.39.1", path = "crates/core", default-features = false }
+salvo_extra = { version = "0.39.1", path = "crates/extra", default-features = false }
+salvo-cache = { version = "0.39.1", path = "crates/cache", default-features = false }
+salvo-cors = { version = "0.39.1", path = "crates/cors", default-features = false }
+salvo-csrf = { version = "0.39.1", path = "crates/csrf", default-features = false }
+salvo-flash = { version = "0.39.1", path = "crates/flash", default-features = false }
+salvo-oapi = { version = "0.39.1", path = "./crates/oapi", default-features = false }
+salvo-oapi-macros = { version = "0.39.1", path = "crates/oapi-macros", default-features = false }
+salvo-otel = { version = "0.39.1", path = "crates/otel", default-features = false }
+salvo-proxy = { version = "0.39.1", path = "crates/proxy", default-features = false }
+salvo-rate-limiter = { version = "0.39.1", path = "crates/rate-limiter", default-features = false }
+salvo-serve-static = { version = "0.39.1", path = "crates/serve-static", default-features = false }
+salvo-session = { version = "0.39.1", path = "crates/session", default-features = false }
 serde = "1"
 serde_json = "1"
 serde_urlencoded = "0.7"

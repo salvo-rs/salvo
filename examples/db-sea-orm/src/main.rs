@@ -49,7 +49,7 @@ async fn list(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
         .obtain::<AppState>()
         .ok_or_else(StatusError::internal_server_error)?;
     let page = req.query("page").unwrap_or(1);
-    let posts_per_page = req.query("posts_per_page").unwrap_or(DEFAULT_POSTS_PER_PAGE) as usize;
+    let posts_per_page = req.query("posts_per_page").unwrap_or(DEFAULT_POSTS_PER_PAGE);
     let paginator = post::Entity::find()
         .order_by_asc(post::Column::Id)
         .paginate(&state.conn, posts_per_page);

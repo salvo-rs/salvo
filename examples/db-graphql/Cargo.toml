@@ -1,13 +1,13 @@
 [package]
 name = "example-db-graphql"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 [dependencies]
 parking_lot = "0.12"
 salvo = { workspace = true }
-tokio = { version = "^1.22", features = ["macros"] }
+tokio = { workspace = true, features = ["macros"] }
 tracing = "^0.1"
 tracing-subscriber = "^0.3"
 juniper  = "^0.15.10"

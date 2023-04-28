@@ -1,16 +1,16 @@
 [package]
 name = "example-jwt-auth"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 
 [dependencies]
 anyhow = "1"
-jsonwebtoken = "8.0"
+jsonwebtoken.workspace = true
 salvo = { workspace = true, features = ["anyhow", "jwt-auth"] }
 serde = "1"
-time = "0.3"
-tokio = { version = "1", features = ["macros"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
+time.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -1,13 +1,13 @@
 [package]
 name = "example-extract-nested"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 
 [dependencies]
 salvo = { workspace = true }
-serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["macros"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

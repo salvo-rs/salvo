@@ -1,15 +1,15 @@
 [package]
 name = "example-ws"
-version = "0.1.0"
-edition = "2021"
-publish = false
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
 
 
 [dependencies]
-futures-util = { version = "0.3", default-features = false }
+futures-util.workspace = true
 salvo = { workspace = true, features = ["ws"] }
-tokio = { version = "1", features = ["macros"] }
-tracing = "0.1"
-tracing-subscriber = "0.3"
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 serde = "1"
 serde_json = "1"

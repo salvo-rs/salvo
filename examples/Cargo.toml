@@ -3,9 +3,10 @@ members = ["*"]
 exclude = ["work-with-tower", "db-prisma-orm", "with-listenfd", "ws-chat-with-salvo-websocket"]
 
 [workspace.package]
-version = "0.38.0"
+version = "0.1.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
+publish = false
 rust-version = "1.64"
 description = """
 Salvo is a powerful and simple Rust web server framework.
@@ -20,9 +21,27 @@ categories = ["web-programming::http-server", "web-programming::websocket", "net
 
 [workspace.dependencies]
 anyhow = "1"
+rbatis = "4.3"
+rbdc = "4.3"
+rbdc-mysql = "4.3"
+rbs = "4.3"
+async-std = "1.12"
 async-trait = "0.1"
+sea-orm = "0.11"
+sea-orm-migration = "0.11"
 eyre = "0.6"
-futures-util = "0.3"
+tera = "1.3"
+futures = "0.3"
+opentelemetry = "0.19"
+opentelemetry-http = "0.8.0"
+opentelemetry-jaeger = "0.18.0"
+opentelemetry-prometheus = "0.12.0"
+utoipa = "3.3.0"
+utoipa-swagger-ui = "*"
+tokio-stream = "0.1.14"
+async-stream = "0.3.5"
+futures-util = {version = "0.3", default-features = true }
+jsonwebtoken = "8"
 once_cell = "1"
 parking_lot = "0.12"
 salvo = { path = "../crates/salvo", default-features = true }
@@ -36,3 +55,5 @@ tracing-test = "0.2.1"
 url = "2"
 chrono = "0.4"
 sqlx = "0.6"
+rust-embed = "6"
+time = "0.3"
