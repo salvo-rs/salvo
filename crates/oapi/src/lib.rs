@@ -1,4 +1,5 @@
-//! OpenApi support for salvo.
+
+#![doc = include_str!("../docs/lib.md")]
 
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -14,6 +15,7 @@ mod cfg;
 
 mod openapi;
 pub use openapi::*;
+
 mod endpoint;
 pub use endpoint::{Endpoint, EndpointModifier, EndpointRegistry};
 pub mod extract;
@@ -24,8 +26,21 @@ cfg_feature! {
     pub mod swagger_ui;
 }
 
+
+#[doc = include_str!("../docs/endpoint.md")]
+pub use salvo_oapi_macros::endpoint;
+#[doc = include_str!("../docs/schema.md")]
+pub use salvo_oapi_macros::schema;
+#[doc = include_str!("../docs/derive_as_schema.md")]
+pub use salvo_oapi_macros::AsSchema;
+#[doc = include_str!("../docs/derive_as_parameters.md")]
+pub use salvo_oapi_macros::AsParameters;
+#[doc = include_str!("../docs/derive_as_response.md")]
+pub use salvo_oapi_macros::AsResponse;
+#[doc = include_str!("../docs/derive_as_responses.md")]
+pub use salvo_oapi_macros::AsResponses;
+
 use salvo_core::Extractible;
-pub use salvo_oapi_macros::*;
 use std::collections::{BTreeMap, HashMap};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10

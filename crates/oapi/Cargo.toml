@@ -58,9 +58,18 @@ serde_yaml = { workspace = true, optional = true }
 zip.workspace = true
 regex.workspace = true
 
-[dev-dependencies]
-assert-json-diff.workspace = true
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+assert-json-diff.workspace = true
+salvo_core.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+paste.workspace = true
+smallvec = { workspace = true, features = ["serde"] }
+rust_decimal.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+time = { workspace = true, features = ["serde-human-readable"] }
+serde_with.workspace = true

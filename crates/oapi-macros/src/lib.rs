@@ -9,7 +9,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(private_in_public, unreachable_pub)]
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
 #![warn(clippy::future_not_send)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
@@ -62,8 +61,18 @@ pub(crate) use self::{
 };
 
 #[proc_macro_error]
+#[proc_macro_attribute]
+pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let attr = syn::parse_macro_input!(attr as EndpointAttr);
+    let item = parse_macro_input!(input as Item);
+    match endpoint::generate(attr, item) {
+        Ok(stream) => stream.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[proc_macro_error]
 #[proc_macro_derive(AsSchema, attributes(schema))]
-#[doc = include_str!("../docs/derive_as_schema.md")]
 pub fn derive_as_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -77,20 +86,7 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_attribute]
-#[doc = include_str!("../docs/endpoint.md")]
-pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let attr = syn::parse_macro_input!(attr as EndpointAttr);
-    let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
-        Ok(stream) => stream.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
-}
-
-#[proc_macro_error]
 #[proc_macro_derive(AsParameters, attributes(parameter, as_parameters))]
-#[doc = include_str!("../docs/derive_as_parameters.md")]
 pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -112,7 +108,6 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(AsResponse, attributes(response, content, as_schema))]
-#[doc = include_str!("../docs/derive_as_response.md")]
 pub fn derive_as_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -127,7 +122,6 @@ pub fn derive_as_response(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(AsResponses, attributes(response, as_schema, ref_response, as_response))]
-#[doc = include_str!("../docs/derive_as_responses.md")]
 pub fn as_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -148,7 +142,6 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-#[doc = include_str!("../docs/schema.md")]
 pub fn schema(input: TokenStream) -> TokenStream {
     struct Schema {
         inline: bool,

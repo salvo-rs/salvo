@@ -46,17 +46,14 @@ fn endpoint() {}
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
   [`AsSchema`][as_schema] types. _`ref("./external.json")`_ can be used to reference external
-  json file for body schema. **Note!** Sapid does **not** guarantee that free form _`ref`_ is accessbile via
-  OpenAPI doc or Swagger UI, users are eligible to make these guarantees.
+  json file for body schema.
 
 **Advanced format definition by `request_body(...)`**
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
   which is the default for [`AsSchema`][as_schema] types. _`ref("./external.json")`_
-  can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
-  that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
-  to make these guarantees.
+  can be used to reference external json file for body schema.
 
 * `description = "..."` Define the description for the request body object as str.
 
@@ -94,9 +91,7 @@ _**Example request body definitions.**_
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
   [`AsSchema`][as_schema] types. _`ref("./external.json")`_
-  can be used to reference external json file for body schema. **Note!** Sapid does **not** guarantee
-  that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
-  to make these guarantees.
+  can be used to reference external json file for body schema.
 
 * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
   from the `body` attribute. If defined the value should be valid content type such as
