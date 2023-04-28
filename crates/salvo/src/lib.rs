@@ -177,6 +177,10 @@ pub mod prelude {
         pub use salvo_proxy::Proxy;
     }
     cfg_feature! {
+        #![feature ="session"]
+        pub use salvo_session::{SessionDepotExt, SessionHandler, SessionStore};
+    }
+    cfg_feature! {
         #![feature ="size-limiter"]
         pub use salvo_extra::size_limiter::max_size;
     }
