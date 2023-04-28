@@ -28,7 +28,7 @@ native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
 test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:hyper-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:salvo-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 cruet.workspace = true
@@ -47,8 +47,8 @@ futures-util = { workspace = true, features = ["io"] }
 headers.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "client", "server"] }
-hyper-util = { workspace = true, features = ["runtime", "http1", "http2", "tcp", "client"] }
-hyper-rustls = { workspace = true, optional = true }
+salvo-utils = { workspace = true, features = ["runtime", "http1", "http2", "tcp", "client"] }
+salvo-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true
 multer.workspace = true

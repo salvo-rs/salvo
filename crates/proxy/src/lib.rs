@@ -12,9 +12,9 @@ use std::convert::{Infallible, TryFrom};
 
 use hyper::body::Incoming as HyperBody;
 use hyper::upgrade::OnUpgrade;
-use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::{connect::HttpConnector, legacy::Client};
-use hyper_util::rt::TokioExecutor;
+use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use salvo_utils::client::{connect::HttpConnector, legacy::Client};
+use salvo_utils::rt::TokioExecutor;
 use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};

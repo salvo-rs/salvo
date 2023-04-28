@@ -4,9 +4,9 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use http::{Method, Uri};
 use http_body_util::BodyExt;
-use hyper_rustls::HttpsConnector;
-use hyper_util::client::connect::HttpConnector;
-use hyper_util::client::legacy::Client;
+use salvo_rustls::HttpsConnector;
+use salvo_utils::client::connect::HttpConnector;
+use salvo_utils::client::legacy::Client;
 use ring::digest::{digest, Digest, SHA256};
 use serde::{de::DeserializeOwned, Serialize};
 

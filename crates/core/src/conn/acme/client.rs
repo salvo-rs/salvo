@@ -7,10 +7,10 @@ use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
 use http::header;
 use http_body_util::BodyExt;
-use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use hyper_util::client::connect::HttpConnector;
-use hyper_util::client::legacy::Client;
-use hyper_util::rt::TokioExecutor;
+use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use salvo_utils::client::connect::HttpConnector;
+use salvo_utils::client::legacy::Client;
+use salvo_utils::rt::TokioExecutor;
 use serde::{Deserialize, Serialize};
 
 use super::{Challenge, Problem};

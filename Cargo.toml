@@ -2,7 +2,7 @@
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.38.0"
+version = "0.39.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 rust-version = "1.64"
@@ -49,8 +49,8 @@ hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
 hyper = "=1.0.0-rc.3"
-hyper-rustls = { git = "https://github.com/chrislearn/hyper-rustls.git", branch = "salvo2" }
-hyper-util = { git = "https://github.com/hyperium/hyper-util.git", rev = "3c37c5b" }
+salvo-rustls = "0.0.1"
+salvo-utils = "0.0.1"
 indexmap = "1"
 inventory = "0.3"
 jsonwebtoken = "8"
