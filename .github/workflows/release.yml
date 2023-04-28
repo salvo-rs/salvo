@@ -50,6 +50,8 @@ jobs:
             path: crates/core
           - crate: salvo_extra
             path: crates/extra
+          - crate: salvo-proxy
+            path: crates/proxy
           - crate: salvo-session
             path: crates/session
           - crate: salvo-flash
