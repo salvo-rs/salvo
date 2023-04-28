@@ -4,7 +4,7 @@
 //!
 //! [salvo]: <https://docs.rs/salvo/>
 //!
-use std::{borrow::Cow, error::Error};
+use std::borrow::Cow;
 
 mod config;
 pub mod oauth;
@@ -14,12 +14,65 @@ use rust_embed::RustEmbed;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
 use salvo_core::writer::Redirect;
-use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
+use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router};
 use serde::Serialize;
 
 #[derive(RustEmbed)]
-#[folder = "$SALVO_SWAGGER_DIR/$SALVO_SWAGGER_UI_VERSION/dist/"]
+#[folder = "src/swagger_ui/v4.18.2"]
 struct SwaggerUiDist;
+
+const INDEX_TMPL: &str = r#"
+<!DOCTYPE html>
+<html charset="UTF-8">
+  <head>
+    <meta charset="UTF-8">
+    <title>Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+    <style>
+    html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+    }
+    *,
+    *:before,
+    *:after {
+        box-sizing: inherit;
+    }
+    body {
+        margin: 0;
+        background: #fafafa;
+    }
+    </style>
+  </head>
+
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
+    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
+    <script>
+    window.onload = function() {
+        let config = {
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [
+              SwaggerUIBundle.presets.apis,
+              SwaggerUIStandalonePreset
+            ],
+            plugins: [
+              SwaggerUIBundle.plugins.DownloadUrl
+            ],
+            layout: "StandaloneLayout"
+          };
+        window.ui = SwaggerUIBundle(Object.assign(config, {{config}}));
+        //{{oauth}}
+    };
+    </script>
+  </body>
+</html>
+"#;
 
 /// Implements [`Handler`] for serving Swagger UI.
 #[derive(Clone, Debug)]
@@ -352,49 +405,31 @@ pub struct SwaggerFile<'a> {
 /// _There are also implementations in [examples of salvo repository][examples]._
 ///
 /// [examples]: https://github.com/juhaku/salvo/tree/master/examples
-pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
+pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Error> {
     let path = if path.is_empty() || path == "/" {
         "index.html"
     } else {
         path
     };
 
-    if let Some(file) = SwaggerUiDist::get(path) {
-        let mut bytes = file.data;
+    let bytes = if path == "index.html" {
+        let config_json = serde_json::to_string(&config)?;
 
-        if path == "swagger-initializer.js" {
-            let mut file = match String::from_utf8(bytes.to_vec()) {
-                Ok(file) => file,
-                Err(error) => return Err(Box::new(error)),
-            };
+        // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
+        let mut index = INDEX_TMPL.replace("{{config}}", &config_json);
 
-            file = format_config(config, file)?;
-
-            if let Some(oauth) = &config.oauth {
-                match oauth::format_swagger_config(oauth, file) {
-                    Ok(oauth_file) => file = oauth_file,
-                    Err(error) => return Err(Box::new(error)),
-                }
-            }
-
-            bytes = Cow::Owned(file.as_bytes().to_vec())
-        };
-
-        Ok(Some(SwaggerFile {
-            bytes,
-            content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
-        }))
+        if let Some(oauth) = &config.oauth {
+            let oauth_json = serde_json::to_string(oauth)?;
+            index = index.replace("//{{oauth}}", &format!("window.ui.initOAuth({});", &oauth_json));
+        }
+        Some(Cow::Owned(index.as_bytes().to_vec()))
     } else {
-        Ok(None)
-    }
-}
-#[inline]
-fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>> {
-    let config_json = match serde_json::to_string_pretty(&config) {
-        Ok(config) => config,
-        Err(error) => return Err(Box::new(error)),
+        SwaggerUiDist::get(path).map(|f|f.data)
     };
+    let file = bytes.map(|bytes| SwaggerFile {
+        bytes,
+        content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
+    });
 
-    // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
-    Ok(file.replace("{{config}}", &config_json[2..&config_json.len() - 2]))
+    Ok(file)
 }

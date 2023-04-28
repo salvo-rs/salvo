@@ -4,8 +4,6 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-const END_MARKER: &str = "//</editor-fold>";
-
 /// Object used to alter Swagger UI oauth settings.
 ///
 /// # Examples
@@ -252,15 +250,6 @@ impl Config {
 
         self
     }
-}
-
-pub(crate) fn format_swagger_config(config: &Config, file: String) -> serde_json::Result<String> {
-    let init_string = format!(
-        "{}\nui.initOAuth({});",
-        END_MARKER,
-        serde_json::to_string_pretty(config)?
-    );
-    Ok(file.replace(END_MARKER, &init_string))
 }
 
 #[cfg(test)]
