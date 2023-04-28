@@ -12,9 +12,6 @@ use std::convert::{Infallible, TryFrom};
 
 use hyper::body::Incoming as HyperBody;
 use hyper::upgrade::OnUpgrade;
-use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use salvo_utils::client::{connect::HttpConnector, legacy::Client};
-use salvo_utils::rt::TokioExecutor;
 use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
@@ -22,6 +19,9 @@ use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::ReqBody;
 use salvo_core::http::StatusCode;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use salvo_utils::client::{connect::HttpConnector, legacy::Client};
+use salvo_utils::rt::TokioExecutor;
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<ReqBody>;

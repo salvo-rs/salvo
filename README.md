@@ -35,10 +35,6 @@
 
 Salvo is an extremely simple and powerful Rust web backend framework. Only basic Rust knowledge is required to develop backend services.
 
-> **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
-> currently preparing breaking changes. For the most recently *released* code,
-> look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
-> 
 > 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🎯 Features
@@ -65,7 +61,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-salvo = { git = "https://github.com/salvo-rs/salvo.git" }
+salvo = { version= "0.39" }
 tokio = { version = "1", features = ["macros"] }
 ```
 
@@ -276,6 +272,49 @@ struct Nested<'a> {
 ```
 
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
+### OpenAPI Supported
+
+Perfect support for OpenAPI can be achieved without making significant changes to the project.
+
+```rust
+#[derive(Serialize, Deserialize, AsSchema, Debug)]
+struct MyObject<T: AsSchema + std::fmt::Debug> {
+    value: T,
+}
+
+#[endpoint]
+async fn use_string(body: JsonBody<MyObject<String>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+#[endpoint]
+async fn use_i32(body: JsonBody<MyObject<i32>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+#[endpoint]
+async fn use_u64(body: JsonBody<MyObject<u64>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt().init();
+
+    let router = Router::new()
+        .push(Router::with_path("i32").post(use_i32))
+        .push(Router::with_path("u64").post(use_u64))
+        .push(Router::with_path("string").post(use_string));
+
+    let doc = OpenApi::new(Info::new("test api", "0.0.1")).merge_router(&router);
+
+    let router = router
+        .push(doc.into_router("/api-doc/openapi.json"))
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
 
 ### More Examples
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:

@@ -35,10 +35,6 @@
 
 Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需要基础 Rust 知识即可开发后端服务.
 
-> **Note**: salvo's [main](https://github.com/salvo-rs/salvo) branch is
-> currently preparing breaking changes. For the most recently *released* code,
-> look to the [0.37.x branch](https://github.com/salvo-rs/salvo/tree/v0.37.x).
-> 
 > 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🎯 功能特色
@@ -68,7 +64,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { git = "https://github.com/salvo-rs/salvo.git" }
+salvo = { version= "0.39" }
 tokio = { version = "1", features = ["macros"] }
 ```
 在 `main.rs` 中创建一个简单的函数句柄, 命名为`hello`, 这个函数只是简单地打印文本 `"Hello World"`.
@@ -266,6 +262,50 @@ struct Nested<'a> {
 ```
 
 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
+
+
+### OpenAPI 支持
+
+无需对项目做大的改动，即可实现对 OpenAPI 的完美支持。
+
+```rust
+#[derive(Serialize, Deserialize, AsSchema, Debug)]
+struct MyObject<T: AsSchema + std::fmt::Debug> {
+    value: T,
+}
+
+#[endpoint]
+async fn use_string(body: JsonBody<MyObject<String>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+#[endpoint]
+async fn use_i32(body: JsonBody<MyObject<i32>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+#[endpoint]
+async fn use_u64(body: JsonBody<MyObject<u64>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt().init();
+
+    let router = Router::new()
+        .push(Router::with_path("i32").post(use_i32))
+        .push(Router::with_path("u64").post(use_u64))
+        .push(Router::with_path("string").post(use_string));
+
+    let doc = OpenApi::new(Info::new("test api", "0.0.1")).merge_router(&router);
+
+    let router = router
+        .push(doc.into_router("/api-doc/openapi.json"))
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    Server::new(acceptor).serve(router).await;
+}
+```
 
 ### 更多示例
 
