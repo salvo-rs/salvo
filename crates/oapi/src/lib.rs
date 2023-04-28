@@ -20,8 +20,8 @@ pub mod extract;
 mod router;
 
 cfg_feature! {
-    #![feature ="swagger"]
-    pub mod swagger;
+    #![feature ="swagger-ui"]
+    pub mod swagger_ui;
 }
 
 use salvo_core::Extractible;

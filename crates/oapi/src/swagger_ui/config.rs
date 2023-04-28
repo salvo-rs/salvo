@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use serde::Serialize;
 
 use super::oauth;
-use crate::swagger::Url;
+use crate::swagger_ui::Url;
 
 const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
 const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
