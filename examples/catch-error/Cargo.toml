@@ -9,6 +9,6 @@ publish.workspace = true
 anyhow.workspace = true
 eyre.workspace = true
 salvo = { workspace = true, features = ["anyhow", "eyre"] }
-tokio = { version = "1", features = ["macros"] }
+tokio = { workspace = true, features = ["macros"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
