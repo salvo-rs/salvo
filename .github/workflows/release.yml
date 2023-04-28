@@ -66,6 +66,10 @@ jobs:
             path: crates/serve-static
           - crate: salvo-otel
             path: crates/otel
+          - crate: salvo-oapi
+            path: crates/oapi
+          - crate: salvo-oapi-macros
+            path: crates/oapi-macros
           - crate: salvo
             path: crates/salvo
     steps:
