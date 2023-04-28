@@ -62,8 +62,8 @@ impl ToTokens for AsResponse<'_> {
 
         tokens.extend(quote! {
             impl #as_response_impl_generics #oapi::oapi::AsResponse for #ident #ty_generics #where_clause {
-                fn response() -> (&'static str, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
-                    (#name, #response.into())
+                fn response() -> (String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
+                    (#name.into(), #response.into())
                 }
             }
         });
@@ -261,7 +261,6 @@ impl NamedStructResponse<'_> {
         let inline_schema = NamedStructSchema {
             attributes,
             fields,
-            aliases: None,
             features: None,
             generics: None,
             rename_all: None,
@@ -322,7 +321,6 @@ impl<'p> AsResponseNamedStructResponse<'p> {
         let ty = Self::to_type(ident);
 
         let inline_schema = NamedStructSchema {
-            aliases: None,
             fields,
             features: None,
             generics: None,

@@ -1921,6 +1921,7 @@ dependencies = [
 name = "example-oapi-todos"
 version = "0.1.0"
 dependencies = [
+ "once_cell",
  "salvo",
  "serde",
  "serde_json",

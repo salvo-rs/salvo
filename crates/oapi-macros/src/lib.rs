@@ -62,7 +62,7 @@ pub(crate) use self::{
 };
 
 #[proc_macro_error]
-#[proc_macro_derive(AsSchema, attributes(schema, aliases))]
+#[proc_macro_derive(AsSchema, attributes(schema))]
 #[doc = include_str!("../docs/derive_as_schema.md")]
 pub fn derive_as_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -70,10 +70,10 @@ pub fn derive_as_schema(input: TokenStream) -> TokenStream {
         ident,
         data,
         generics,
-        vis,
+        ..
     } = syn::parse_macro_input!(input);
 
-    AsSchema::new(&data, &attrs, &ident, &generics, &vis)
+    AsSchema::new(&data, &attrs, &ident, &generics)
         .to_token_stream()
         .into()
 }
@@ -102,14 +102,16 @@ pub fn derive_as_parameters(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    AsParameters {
+    let stream = AsParameters {
         attrs,
         generics,
         data,
         ident,
     }
     .to_token_stream()
-    .into()
+    .into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AsResponse, AsSchema, RefOr, Response, Responses, Schema, SecurityScheme};
+use crate::{AsResponse, RefOr, Response, Responses, Schema, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.
@@ -82,24 +82,6 @@ impl Components {
         self.schemas.insert(name.into(), schema.into());
         self
     }
-
-    /// Get [`Schema`] information form type implements `AsSchema`] and add it to [`Components`].
-    pub fn schema_from<I: AsSchema>(mut self) -> Self {
-        let aliases = I::aliases();
-
-        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
-        // Eventually aliases functionality should be extracted out from the `AsSchema`. Aliases
-        // are created when the main schema is a generic type which should be included in OpenAPI
-        // spec in its generic form.
-        if aliases.is_empty() {
-            if let Some(symbol) = I::symbol() {
-                self.schemas.insert(symbol.into(), I::schema());
-            }
-        }
-
-        self.schemas_from_iter(aliases)
-    }
-
     /// Add [`Schema`]s from iterator.
     ///
     /// # Examples

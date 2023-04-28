@@ -374,7 +374,6 @@ impl ComplexEnum<'_> {
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
-                        aliases: None,
                         symbol: None,
                     },
                 })
@@ -463,7 +462,6 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    aliases: None,
                     symbol: None,
                 }
                 .to_token_stream()
@@ -531,7 +529,6 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    aliases: None,
                     symbol: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
@@ -677,7 +674,6 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    aliases: None,
                     symbol: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);

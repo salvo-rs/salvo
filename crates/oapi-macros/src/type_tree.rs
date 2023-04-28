@@ -231,21 +231,21 @@ impl<'t> TypeTree<'t> {
         is
     }
 
-    pub(crate) fn find_mut(&mut self, type_tree: &TypeTree) -> Option<&mut Self> {
-        let is = self
-            .path
-            .as_mut()
-            .map(|p| matches!(&type_tree.path, Some(path) if path.as_ref() == p.as_ref()))
-            .unwrap_or(false);
+    // pub(crate) fn find_mut(&mut self, type_tree: &TypeTree) -> Option<&mut Self> {
+    //     let is = self
+    //         .path
+    //         .as_mut()
+    //         .map(|p| matches!(&type_tree.path, Some(path) if path.as_ref() == p.as_ref()))
+    //         .unwrap_or(false);
 
-        if is {
-            Some(self)
-        } else {
-            self.children
-                .as_mut()
-                .and_then(|children| children.iter_mut().find_map(|child| Self::find_mut(child, type_tree)))
-        }
-    }
+    //     if is {
+    //         Some(self)
+    //     } else {
+    //         self.children
+    //             .as_mut()
+    //             .and_then(|children| children.iter_mut().find_map(|child| Self::find_mut(child, type_tree)))
+    //     }
+    // }
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.

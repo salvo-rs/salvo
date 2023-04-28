@@ -98,20 +98,12 @@ extern crate self as salvo_oapi;
 /// ```
 pub trait AsSchema {
     /// Returns a name of the schema.
-    fn symbol() -> Option<&'static str> {
+    fn symbol() -> Option<String> {
         None
     }
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn schema() -> RefOr<schema::Schema>;
-
-    /// Optional set of alias schemas for the [`AsSchema::schema`].
-    ///
-    /// Typically there is no need to manually implement this method but it is instead implemented
-    /// by derive [`macro@AsSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'static str, schema::Schema)> {
-        Vec::new()
-    }
 }
 
 impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
@@ -126,8 +118,8 @@ impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
 pub type TupleUnit = ();
 
 impl AsSchema for TupleUnit {
-    fn symbol() -> Option<&'static str> {
-        Some("TupleUnit")
+    fn symbol() -> Option<String> {
+        Some("TupleUnit".into())
     }
     fn schema() -> RefOr<schema::Schema> {
         schema::empty().into()
@@ -390,7 +382,7 @@ pub trait AsResponses {
 ///
 /// struct MyResponse;
 /// impl AsResponse for MyResponse {
-///     fn response() -> (&'static str, RefOr<Response>) {
+///     fn response() -> (String, RefOr<Response>) {
 ///         (
 ///             "MyResponse",
 ///             Response::new("My Response").into(),
@@ -402,7 +394,7 @@ pub trait AsResponses {
 /// [derive]: derive.AsResponse.html
 pub trait AsResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn response() -> (&'static str, RefOr<crate::Response>);
+    fn response() -> (String, RefOr<crate::Response>);
 }
 
 #[cfg(test)]

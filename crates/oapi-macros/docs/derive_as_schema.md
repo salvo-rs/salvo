@@ -278,29 +278,6 @@ enum ExitCode {
     Ok = 1,
  }
 ```
-# Generic schemas with aliases
-
-Schemas can also be generic which allows reusing types. This enables certain behaviour patters
-where super type declares common code for type aliases.
-
-In this example we have common `Status` type which accepts one generic type. It is then defined
-with `#[aliases(...)]` that it is going to be used with [`String`](std::string::String) and [`i32`] values.
-The generic argument could also be another [`AsSchema`][as_schema] as well.
-```
-# use salvo_oapi::{AsSchema, OpenApi};
-#[derive(AsSchema)]
-#[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
-struct Status<T> where T: AsSchema {
-    value: T
-}
-
-```
-
-The `#[aliases(...)]` is just syntactic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
-behind the scenes which then can be later referenced anywhere in code.
-
-**Note!** You should never register generic type itself in `components(...)` so according above example `Status<...>` should not be registered
-because it will not render the type correctly and will cause an error in generated OpenAPI spec.
 
 # Examples
 

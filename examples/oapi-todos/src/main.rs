@@ -1,8 +1,12 @@
-use salvo::prelude::*;
-use self::models::*;
+use once_cell::sync::Lazy;
 use salvo::oapi::extract::*;
 use salvo::oapi::swagger::SwaggerUi;
 use salvo::oapi::{Info, OpenApi};
+use salvo::prelude::*;
+
+use self::models::*;
+
+static STORE: Lazy<Db> = Lazy::new(new_store);
 
 #[handler]
 async fn hello(res: &mut Response) {
