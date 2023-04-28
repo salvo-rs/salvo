@@ -89,7 +89,7 @@ where
     fn modify(components: &mut Components, operation: &mut Operation) {
         let request_body = Self::request_body();
         if let Some(symbol) = <T as AsSchema>::symbol() {
-            components.schemas.insert(symbol.into(), <T as AsSchema>::schema());
+            components.schemas.insert(symbol, <T as AsSchema>::schema());
         }
         operation.request_body = Some(request_body);
     }
