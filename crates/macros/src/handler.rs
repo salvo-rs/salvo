@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, ReturnType, Signature, Type};
 
 use crate::shared::*;
 
