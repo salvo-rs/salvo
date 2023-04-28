@@ -9,7 +9,7 @@ use serde::Serialize;
 /// # Examples
 ///
 /// ```
-/// # use salvo_oapi::swagger::oauth;
+/// # use salvo_oapi::swagger_ui::oauth;
 /// let config = oauth::Config::new()
 ///     .client_id("client-id")
 ///     .use_pkce_with_authorization_code_grant(true);
@@ -73,7 +73,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new();
     /// ```
     pub fn new() -> Self {
@@ -87,7 +87,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .client_id("client-id");
     /// ```
@@ -106,7 +106,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .client_secret("client-secret");
     /// ```
@@ -124,7 +124,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .realm("realm");
     /// ```
@@ -142,7 +142,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .app_name("app-name");
     /// ```
@@ -160,7 +160,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .scope_separator(",");
     /// ```
@@ -178,7 +178,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .scopes(vec![String::from("openid")]);
     /// ```
@@ -196,7 +196,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// # use std::collections::HashMap;
     /// let config = oauth::Config::new()
     ///     .additional_query_string_params(HashMap::from([(String::from("a"), String::from("1"))]));
@@ -218,7 +218,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .use_basic_authentication_with_access_code_grant(true);
     /// ```
@@ -241,7 +241,7 @@ impl Config {
     /// # Examples
     ///
     /// ```
-    /// # use salvo_oapi::swagger::oauth;
+    /// # use salvo_oapi::swagger_ui::oauth;
     /// let config = oauth::Config::new()
     ///     .use_pkce_with_authorization_code_grant(true);
     /// ```

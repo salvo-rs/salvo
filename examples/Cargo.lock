@@ -320,7 +320,7 @@ dependencies = [
  "polling",
  "rustix",
  "slab",
- "socket2",
+ "socket2 0.4.9",
  "waker-fn",
 ]
 
@@ -2879,7 +2879,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -2909,24 +2909,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyper-rustls"
-version = "0.24.0"
-source = "git+https://github.com/chrislearn/hyper-rustls.git?branch=salvo2#b05b8f4edc58d6881b170574ffe95f22f2aa9d38"
-dependencies = [
- "http",
- "http-body-util",
- "hyper 1.0.0-rc.3",
- "hyper-util",
- "log",
- "rustls 0.21.0",
- "rustls-native-certs",
- "tokio",
- "tokio-rustls 0.24.0",
- "tower-service",
- "webpki-roots 0.23.0",
-]
-
-[[package]]
 name = "hyper-tls"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2937,24 +2919,6 @@ dependencies = [
  "native-tls",
  "tokio",
  "tokio-native-tls",
-]
-
-[[package]]
-name = "hyper-util"
-version = "0.0.0"
-source = "git+https://github.com/hyperium/hyper-util.git?rev=3c37c5b#3c37c5ba62780cf593f53ce2fcb3e7c312eb95d6"
-dependencies = [
- "futures-channel",
- "futures-util",
- "http",
- "hyper 1.0.0-rc.3",
- "once_cell",
- "pin-project-lite",
- "socket2",
- "tokio",
- "tower",
- "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -3093,7 +3057,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd302af1b90f2463a98fa5ad469fc212c8e3175a41c3068601bfa2727591c5be"
 dependencies = [
- "socket2",
+ "socket2 0.4.9",
  "widestring",
  "winapi",
  "winreg",
@@ -3429,7 +3393,7 @@ dependencies = [
  "serde_with",
  "sha-1",
  "sha2 0.10.6",
- "socket2",
+ "socket2 0.4.9",
  "stringprep",
  "strsim",
  "take_mut",
@@ -4315,7 +4279,7 @@ checksum = "641538578b21f5e5c8ea733b736895576d0fe329bb883b937db6f4d163dbaaf4"
 dependencies = [
  "libc",
  "quinn-proto",
- "socket2",
+ "socket2 0.4.9",
  "tracing",
  "windows-sys 0.42.0",
 ]
@@ -4920,7 +4884,7 @@ checksum = "f91339c0467de62360649f8d3e185ca8de4224ff281f66000de5eb2a77a79041"
 
 [[package]]
 name = "salvo"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "salvo-cache",
  "salvo-cors",
@@ -4938,7 +4902,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-cache"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "bytes",
  "moka",
@@ -4948,7 +4912,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-cors"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "bytes",
  "salvo_core",
@@ -4957,7 +4921,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-csrf"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -4976,7 +4940,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-flash"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "salvo-session",
  "salvo_core",
@@ -4988,7 +4952,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-oapi"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "base64 0.21.0",
  "bytes",
@@ -5014,7 +4978,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-oapi-macros"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "inventory",
  "proc-macro-crate 1.3.1",
@@ -5028,7 +4992,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-otel"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "opentelemetry",
  "opentelemetry-http",
@@ -5039,14 +5003,14 @@ dependencies = [
 
 [[package]]
 name = "salvo-proxy"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "fastrand",
  "hyper 1.0.0-rc.3",
- "hyper-rustls",
- "hyper-util",
  "once_cell",
  "percent-encoding",
+ "salvo-rustls",
+ "salvo-utils",
  "salvo_core",
  "tokio",
  "tracing",
@@ -5054,7 +5018,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-rate-limiter"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "moka",
  "salvo_core",
@@ -5062,6 +5026,25 @@ dependencies = [
  "time 0.3.20",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "salvo-rustls"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81d4c2c267b6684b0af8c1e88a8510b53dab5ae2c6310d6ed7f75792f8e84168"
+dependencies = [
+ "http",
+ "http-body-util",
+ "hyper 1.0.0-rc.3",
+ "log",
+ "rustls 0.21.0",
+ "rustls-native-certs",
+ "salvo-utils",
+ "tokio",
+ "tokio-rustls 0.24.0",
+ "tower-service",
+ "webpki-roots 0.23.0",
 ]
 
 [[package]]
@@ -5084,7 +5067,7 @@ dependencies = [
 
 [[package]]
 name = "salvo-session"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "async-session",
  "cookie",
@@ -5093,8 +5076,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "salvo-utils"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "653203a5eab1dd54213d08ee78ffb80160c2a530f7258401adfa29872ee578fa"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "http",
+ "hyper 1.0.0-rc.3",
+ "once_cell",
+ "pin-project-lite",
+ "socket2 0.5.2",
+ "tokio",
+ "tower",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "salvo_core"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -5114,8 +5116,6 @@ dependencies = [
  "http",
  "http-body-util",
  "hyper 1.0.0-rc.3",
- "hyper-rustls",
- "hyper-util",
  "mime",
  "mime_guess",
  "multer",
@@ -5131,6 +5131,8 @@ dependencies = [
  "regex",
  "ring",
  "rustls-pemfile",
+ "salvo-rustls",
+ "salvo-utils",
  "salvo_macros",
  "serde",
  "serde_json",
@@ -5150,7 +5152,7 @@ dependencies = [
 
 [[package]]
 name = "salvo_extra"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "async-compression",
  "base64 0.21.0",
@@ -5173,7 +5175,7 @@ dependencies = [
 
 [[package]]
 name = "salvo_macros"
-version = "0.38.0"
+version = "0.39.0"
 dependencies = [
  "cruet",
  "proc-macro-crate 1.3.1",
@@ -5699,6 +5701,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "socket2"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d283f86695ae989d1e18440a943880967156325ba025f05049946bff47bcc2b"
+dependencies = [
+ "libc",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6098,7 +6110,7 @@ dependencies = [
  "num_cpus",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2",
+ "socket2 0.4.9",
  "tokio-macros",
  "windows-sys 0.45.0",
 ]

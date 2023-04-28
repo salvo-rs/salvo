@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 use salvo::oapi::extract::*;
-use salvo::oapi::swagger_ui::SwaggerUi;
+use salvo::oapi::swagger_ui_ui::SwaggerUi;
 use salvo::oapi::{Info, OpenApi};
 use salvo::prelude::*;
 

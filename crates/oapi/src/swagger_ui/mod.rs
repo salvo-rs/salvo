@@ -90,7 +90,7 @@ impl SwaggerUi {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swagger::SwaggerUi;
+    /// # use salvo_oapi::swagger_ui::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}");
     /// ```
     pub fn new(config: impl Into<Config<'static>>) -> Self {
@@ -111,7 +111,7 @@ impl SwaggerUi {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swagger::SwaggerUi;
+    /// # use salvo_oapi::swagger_ui::SwaggerUi;
     /// # use salvo_oapi::{Info, OpenApi};
     ///
     /// let swagger = SwaggerUi::new("/api-doc/openapi.json")
@@ -134,7 +134,7 @@ impl SwaggerUi {
     ///
     /// Expose multiple api docs via Swagger UI.
     /// ```rust
-    /// # use salvo_oapi::swagger::{SwaggerUi, Url};
+    /// # use salvo_oapi::swagger_ui::{SwaggerUi, Url};
     /// # use salvo_oapi::{Info, OpenApi};
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
@@ -164,7 +164,7 @@ impl SwaggerUi {
     ///
     /// Add external API doc to the [`SwaggerUi`].
     ///```rust
-    /// # use salvo_oapi::swagger::{SwaggerUi, Url};
+    /// # use salvo_oapi::swagger_ui::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
     /// # use serde_json::json;
     /// let external_openapi = json!({"openapi": "3.0.0"});
@@ -192,7 +192,7 @@ impl SwaggerUi {
     ///
     /// Add external API docs to the [`SwaggerUi`].
     ///```rust
-    /// # use salvo_oapi::swagger::{SwaggerUi, Url};
+    /// # use salvo_oapi::swagger_ui::{SwaggerUi, Url};
     /// # use salvo_oapi::OpenApi;
     /// # use serde_json::json;
     /// let external_openapi = json!({"openapi": "3.0.0"});
@@ -222,7 +222,7 @@ impl SwaggerUi {
     ///
     /// Enable pkce with default client_id.
     /// ```rust
-    /// # use salvo_oapi::swagger::{SwaggerUi, oauth};
+    /// # use salvo_oapi::swagger_ui::{SwaggerUi, oauth};
     /// # use salvo_oapi::{Info, OpenApi};
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
@@ -317,7 +317,7 @@ impl<'a> Url<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::swagger::Url;
+    /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
     pub fn new(name: &'a str, url: &'a str) -> Self {
@@ -342,7 +342,7 @@ impl<'a> Url<'a> {
     ///
     /// Set "My Api" as primary.
     /// ```rust
-    /// # use salvo_oapi::swagger::Url;
+    /// # use salvo_oapi::swagger_ui::Url;
     /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {

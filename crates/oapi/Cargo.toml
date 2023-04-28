@@ -2,7 +2,7 @@
 name = "salvo-oapi"
 version.workspace = true
 edition = "2021"
-description = "OpenApi support for salvo."
+description = "OpenApi support for Salvo web framework"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 documentation = "https://docs.rs/salvo-oapi/"
