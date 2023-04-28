@@ -384,7 +384,7 @@ pub trait AsResponses {
 /// impl AsResponse for MyResponse {
 ///     fn response() -> (String, RefOr<Response>) {
 ///         (
-///             "MyResponse",
+///             "MyResponse".into(),
 ///             Response::new("My Response").into(),
 ///         )
 ///     }
