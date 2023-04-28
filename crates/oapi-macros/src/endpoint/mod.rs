@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
 use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
@@ -140,6 +140,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut modifiers = Vec::new();
+    let mut count = 0;
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
@@ -161,10 +162,8 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                 ))
             }
             InputType::NoReference(pat) => {
-                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
-                    call_args.push(ident.ident.clone());
-                    // Maybe extractible type.
-                    let id = &pat.pat;
+                if let (_, Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    let id = Ident::new(&format!("s{count}"), Span::call_site());
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = id.to_token_stream().to_string();
 
@@ -185,6 +184,8 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     modifiers.push(quote! {
                          <#ty as #oapi::oapi::EndpointModifier>::modify_with_arg(&mut components, &mut operation, #idv);
                     });
+                    call_args.push(id);
+                    count += 1;
                 } else {
                     return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
