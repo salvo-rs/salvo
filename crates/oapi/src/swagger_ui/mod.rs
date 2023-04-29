@@ -404,7 +404,7 @@ pub struct SwaggerFile<'a> {
 ///
 /// _There are also implementations in [examples of salvo repository][examples]._
 ///
-/// [examples]: https://github.com/juhaku/salvo/tree/master/examples
+/// [examples]: https://github.com/salvo-rs/salvo/tree/master/examples
 pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Error> {
     let path = if path.is_empty() || path == "/" {
         "index.html"
