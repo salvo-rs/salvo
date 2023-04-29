@@ -1,5 +1,5 @@
 
-This is `#[derive]` implementation for [`ToSchema`][as_schema] trait. The macro accepts one
+This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
@@ -71,7 +71,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   according OpenApi spec.
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`ToSchema`][as_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -91,10 +91,10 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`ToSchema`][as_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-* `inline` If the type of this field implements [`ToSchema`][as_schema], then the schema definition
+* `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
   will be inlined. **warning:** Don't use this for recursive data types!
 * `required = ...` Can be used to enforce required status for the field. [See
   rules][derive@ToSchema#field-nullability-and-required-rules]
@@ -497,7 +497,7 @@ spec.**_
 
 More examples for _`value_type`_ in [`ToParameters` derive docs][parameters].
 
-[as_schema]: trait.ToSchema.html
+[to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [binary]: openapi/schema/enum.KnownFormat.html#variant.Binary
 [xml]: openapi/xml/struct.Xml.html

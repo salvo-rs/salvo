@@ -45,14 +45,14 @@ fn endpoint() {}
 * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][as_schema] types. _`ref("./external.json")`_ can be used to reference external
+  [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
   json file for body schema.
 
 **Advanced format definition by `request_body(...)`**
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-  which is the default for [`ToSchema`][as_schema] types. _`ref("./external.json")`_
+  which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema.
 
 * `description = "..."` Define the description for the request body object as str.
@@ -90,7 +90,7 @@ _**Example request body definitions.**_
   response body. Can be _`body = Type`_, _`body = inline(Type)`_, or _`body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][as_schema] types. _`ref("./external.json")`_
+  [`ToSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema.
 
 * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
@@ -108,7 +108,7 @@ _**Example request body definitions.**_
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
-* `response = ...` Type what implements [`ToResponse`][as_response_trait] trait. This can alternatively be used to
+* `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 
 * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
@@ -175,14 +175,14 @@ responses(
 
 ### Using `ToResponse` for reusable responses
 
-_**`ReusableResponse` must be a type that implements [`ToResponse`][as_response_trait].**_
+_**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 ```text
 responses(
     (status = 200, response = ReusableResponse)
 )
 ```
 
-_**[`ToResponse`][as_response_trait] can also be inlined to the responses map.**_
+_**[`ToResponse`][to_response_trait] can also be inlined to the responses map.**_
 ```text
 responses(
     (status = 200, response = inline(ReusableResponse))
@@ -192,7 +192,7 @@ responses(
 ## Responses from `ToResponses`
 
 _**Responses for a path can be specified with one or more types that implement
-[`ToResponses`][as_responses_trait].**_
+[`ToResponses`][to_responses_trait].**_
 ```text
 responses(MyResponse)
 ```
@@ -204,7 +204,7 @@ responses(MyResponse)
 * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][as_schema] types. **Reminder!** It's up to the user to use valid type for the
+  [`ToSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
   response header.
 
 * `description = "..."` Can be used to define optional description for the response header as str.
@@ -231,7 +231,7 @@ tuples separated by commas:
 * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`ToSchema`][as_schema] types. Parameter type is placed after `name` with
+  [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
   equals sign E.g. _`"id" = String`_
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.

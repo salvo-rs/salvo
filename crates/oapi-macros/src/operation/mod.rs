@@ -65,8 +65,8 @@ impl<'a> Operation<'a> {
                                 let ty = &inline.ty;
                                 modifiers.push(quote! {
                                     {
-                                        if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::symbol() {
-                                            components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::ToSchema>::schema());
+                                        if let (Some(symbol), schema) = <#ty as #oapi::oapi::ToSchema>::to_schema() {
+                                            components.schemas.insert(symbol, schema);
                                         }
                                     }
                                 });
@@ -94,8 +94,8 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
         PathType::RefPath(path) => {
             modifiers.push(quote! {
                 {
-                    if let Some(symbol) = <#path as #oapi::oapi::ToSchema>::symbol() {
-                        components.schemas.insert(symbol.into(), <#path as #oapi::oapi::ToSchema>::schema());
+                    if let (Some(symbol), schema) = <#path as #oapi::oapi::ToSchema>::to_schema() {
+                        components.schemas.insert(symbol, schema);
                     }
                 }
             });
@@ -104,8 +104,8 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
             let ty = &inline.ty;
             modifiers.push(quote! {
                 {
-                    if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::symbol() {
-                        components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::ToSchema>::schema());
+                    if let (Some(symbol), schema) = <#ty as #oapi::oapi::ToSchema>::to_schema() {
+                        components.schemas.insert(symbol, schema);
                     }
                 }
             });

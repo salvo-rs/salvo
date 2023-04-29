@@ -287,12 +287,12 @@ impl<'c> ComponentSchema {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::schema())
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema().1)
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::schema()
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema().1
                                 }
                             })
                             .to_tokens(tokens);
@@ -302,19 +302,25 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(if let Some(symbol) = <#type_path as #oapi::oapi::ToSchema>::symbol() {
-                                            #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                        } else {
-                                            <#type_path as #oapi::oapi::ToSchema>::schema().into()
+                                        .item({
+                                            let (symbol, schema) = <#type_path as #oapi::oapi::ToSchema>::to_schema();
+                                            if let Some(symbol) = symbol{
+                                                #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
+                                            } else {
+                                                schema.into()
+                                            }
                                         })
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    if let Some(symbol) = <#type_path as #oapi::oapi::ToSchema>::symbol() {
-                                        #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                    } else {
-                                        <#type_path as #oapi::oapi::ToSchema>::schema().into()
+                                    {
+                                        let (symbol, schema) = <#type_path as #oapi::oapi::ToSchema>::to_schema();
+                                        if let Some(symbol) = symbol {
+                                            #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
+                                        } else {
+                                            schema.into()
+                                        }
                                     }
                                 }
                             })

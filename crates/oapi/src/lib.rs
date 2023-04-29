@@ -37,8 +37,9 @@ pub use salvo_oapi_macros::ToResponses;
 #[doc = include_str!("../docs/derive_to_schema.md")]
 pub use salvo_oapi_macros::ToSchema;
 
-use salvo_core::{Extractible, writer};
 use std::collections::{BTreeMap, HashMap};
+
+use salvo_core::extract::Extractible;
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_oapi;
@@ -76,8 +77,8 @@ extern crate self as salvo_oapi;
 /// # }
 /// #
 /// impl ToSchema for Pet {
-///     fn schema() -> RefOr<Schema> {
-///         Object::new()
+///     fn to_schema() -> (Option<String>, RefOr<Schema>) {
+///         (None, Object::new()
 ///             .property(
 ///                 "id",
 ///                 Object::new()
@@ -105,22 +106,19 @@ extern crate self as salvo_oapi;
 ///               "name":"bob the cat","id":1
 ///             }))
 ///             .into()
+///         )
 ///     }
 /// }
 /// ```
 pub trait ToSchema {
-    /// Returns a name of the schema.
-    fn symbol() -> Option<String> {
-        None
-    }
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> RefOr<schema::Schema>;
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>);
 }
 
 impl<T: ToSchema> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
-        T::schema()
+        T::to_schema().1
     }
 }
 
@@ -130,33 +128,30 @@ impl<T: ToSchema> From<T> for RefOr<schema::Schema> {
 pub type TupleUnit = ();
 
 impl ToSchema for TupleUnit {
-    fn symbol() -> Option<String> {
-        Some("TupleUnit".into())
-    }
-    fn schema() -> RefOr<schema::Schema> {
-        schema::empty().into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (Some("TupleUnit".into()), schema::empty().into())
     }
 }
 
-macro_rules! impl_as_schema {
+macro_rules! impl_to_schema {
     ( $ty:path ) => {
-        impl_as_schema!( @impl_schema $ty );
+        impl_to_schema!( @impl_schema $ty );
     };
     ( & $ty:path ) => {
-        impl_as_schema!( @impl_schema &$ty );
+        impl_to_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl ToSchema for $($tt)* {
-            fn schema() -> crate::RefOr<crate::schema::Schema> {
-                schema!( $($tt)* ).into()
+            fn to_schema() -> (Option<String>, crate::RefOr<crate::schema::Schema>) {
+                (None, schema!( $($tt)* ).into())
             }
         }
     };
 }
 
-macro_rules! impl_as_schema_primitive {
+macro_rules! impl_to_schema_primitive {
     ( $( $tt:path  ),* ) => {
-        $( impl_as_schema!( $tt ); )*
+        $( impl_to_schema!( $tt ); )*
     };
 }
 
@@ -174,52 +169,51 @@ pub mod __private {
 }
 
 #[rustfmt::skip]
-impl_as_schema_primitive!(
+impl_to_schema_primitive!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
-impl_as_schema!(&str);
+impl_to_schema!(&str);
 
 impl<T: ToSchema> ToSchema for Vec<T> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline] Vec<T>).into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline] Vec<T>).into())
     }
 }
 
 impl<T: ToSchema> ToSchema for [T] {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            [T]
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (
+            None,
+            schema!(
+                #[inline]
+                [T]
+            )
+            .into(),
         )
-        .into()
     }
 }
 
 impl<T: ToSchema> ToSchema for &[T] {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(
-            #[inline]
-            &[T]
-        )
-        .into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline]&[T]).into())
     }
 }
 
 impl<T: ToSchema> ToSchema for Option<T> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline] Option<T>).into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline] Option<T>).into())
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline]BTreeMap<K, V>).into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline]BTreeMap<K, V>).into())
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
-        schema!(#[inline]HashMap<K, V>).into()
+    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
+        (None, schema!(#[inline]HashMap<K, V>).into())
     }
 }
 
@@ -341,7 +335,7 @@ pub trait ToParameter: EndpointModifier {
 /// impl ToRequestBody for MyPayload {
 ///     fn to_request_body() -> RequestBody {
 ///         RequestBody::new()
-///             .add_content("application/json", Content::new(MyPayload::schema()))
+///             .add_content("application/json", Content::new(MyPayload::to_schema().1))
 ///     }
 /// }
 /// impl EndpointModifier for MyPayload {
@@ -399,14 +393,21 @@ pub trait ToResponses {
 ///             "MyResponse".into(),
 ///             Response::new("My Response").into(),
 ///         )
-///     }
 /// }
+///     }
 /// ```
 ///
 /// [derive]: derive.ToResponse.html
 pub trait ToResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
     fn to_response() -> (String, RefOr<crate::Response>);
+}
+
+impl<T> ToResponses for T where T: ToResponse {
+    fn to_responses() -> Responses {
+        let (key, response) = T::to_response();
+        Responses::new().response(key, response)
+    }
 }
 
 #[cfg(test)]
@@ -417,42 +418,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_partial_schema() {
+    fn test_primitive_schema() {
         for (name, schema, value) in [
-            ("i8", i8::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i16", i16::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i32", i32::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i64", i64::schema(), json!({"type": "integer", "format": "int64"})),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
+            ("i8", i8::to_schema().1, json!({"type": "integer", "format": "int32"})),
+            ("i16", i16::to_schema().1, json!({"type": "integer", "format": "int32"})),
+            ("i32", i32::to_schema().1, json!({"type": "integer", "format": "int32"})),
+            ("i64", i64::to_schema().1, json!({"type": "integer", "format": "int64"})),
+            ("i128", i128::to_schema().1, json!({"type": "integer"})),
+            ("isize", isize::to_schema().1, json!({"type": "integer"})),
             (
                 "u8",
-                u8::schema(),
+                u8::to_schema().1,
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u16",
-                u16::schema(),
+                u16::to_schema().1,
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u32",
-                u32::schema(),
+                u32::to_schema().1,
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u64",
-                u64::schema(),
+                u64::to_schema().1,
                 json!({"type": "integer", "format": "int64", "minimum": 0.0}),
             ),
-            ("u128", u128::schema(), json!({"type": "integer", "minimum": 0.0})),
-            ("usize", usize::schema(), json!({"type": "integer", "minimum": 0.0 })),
-            ("bool", bool::schema(), json!({"type": "boolean"})),
-            ("str", str::schema(), json!({"type": "string"})),
-            ("String", String::schema(), json!({"type": "string"})),
-            ("char", char::schema(), json!({"type": "string"})),
-            ("f32", f32::schema(), json!({"type": "number", "format": "float"})),
-            ("f64", f64::schema(), json!({"type": "number", "format": "double"})),
+            ("u128", u128::to_schema().1, json!({"type": "integer", "minimum": 0.0})),
+            (
+                "usize",
+                usize::to_schema().1,
+                json!({"type": "integer", "minimum": 0.0 }),
+            ),
+            ("bool", bool::to_schema().1, json!({"type": "boolean"})),
+            ("str", str::to_schema().1, json!({"type": "string"})),
+            ("String", String::to_schema().1, json!({"type": "string"})),
+            ("char", char::to_schema().1, json!({"type": "string"})),
+            ("f32", f32::to_schema().1, json!({"type": "number", "format": "float"})),
+            ("f64", f64::to_schema().1, json!({"type": "number", "format": "double"})),
         ] {
             println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
             let schema = serde_json::to_value(schema).unwrap();

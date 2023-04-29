@@ -73,7 +73,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema))]
-pub fn derive_as_schema(input: TokenStream) -> TokenStream {
+pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -107,8 +107,8 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content, as_schema))]
-pub fn derive_as_response(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ToResponse, attributes(response, content, schema))]
+pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -121,8 +121,8 @@ pub fn derive_as_response(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponses, attributes(response, as_schema, ref_response, as_response))]
-pub fn as_responses(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ToResponses, attributes(response, schema, ref_response, response))]
+pub fn to_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -131,14 +131,16 @@ pub fn as_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToResponses {
+    let stream = ToResponses {
         attributes: attrs,
         ident,
         generics,
         data,
     }
     .to_token_stream()
-    .into()
+    .into();
+println!("{}", stream);
+stream
 }
 
 #[proc_macro]

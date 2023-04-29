@@ -16,7 +16,7 @@ you can use to annotate your code to have items documented.
   to override the type. See [docs](https://docs.rs/salvo_oapi/latest/salvo_oapi/derive.ToSchema.html) for more details.
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
-  See the `value_type` in [`ToSchema` derive docs][as_schema_derive].
+  See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
 * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
 * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
@@ -33,4 +33,4 @@ you can use to annotate your code to have items documented.
 [serde]: derive.ToSchema.html#partial-serde-attributes-support
 
 [security]: openapi/security/index.html
-[as_schema_derive]: derive.ToSchema.html
+[to_schema_derive]: derive.ToSchema.html

@@ -165,7 +165,7 @@ pub(crate) struct DeriveResponsesAttributes<T> {
 
 impl<'r> From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'r> {
     fn from(value: DeriveResponsesAttributes<DeriveToResponsesValue>) -> Self {
-        Self::from_derive_as_responses_value(value.derive_value, value.description)
+        Self::from_derive_to_responses_value(value.derive_value, value.description)
     }
 }
 
@@ -177,7 +177,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
         }: DeriveResponsesAttributes<Option<DeriveToResponseValue>>,
     ) -> Self {
         if let Some(derive_value) = derive_value {
-            ResponseValue::from_derive_as_response_value(derive_value, description)
+            ResponseValue::from_derive_to_response_value(derive_value, description)
         } else {
             ResponseValue {
                 description,
@@ -199,7 +199,7 @@ pub(crate) struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_as_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
+    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -214,7 +214,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_as_responses_value(response_value: DeriveToResponsesValue, description: String) -> Self {
+    fn from_derive_to_responses_value(response_value: DeriveToResponsesValue, description: String) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -263,7 +263,7 @@ impl ToTokens for ResponseTuple<'_> {
                  -> TokenStream2 {
                     let content_schema = match path_type {
                         PathType::RefPath(ref_type) => quote! {
-                            #oapi::oapi::schema::Ref::new(<#ref_type as #oapi::oapi::ToSchema>::symbol().unwrap())
+                            #oapi::oapi::schema::Ref::new(<#ref_type as #oapi::oapi::ToSchema>::to_schema().0.unwrap())
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {

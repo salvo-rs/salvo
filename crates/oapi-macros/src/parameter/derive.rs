@@ -80,7 +80,7 @@ impl ToTokens for ToParameters {
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
-        if self.attrs.iter().any(|attr| attr.path().is_ident("param")) {
+        if self.attrs.iter().any(|attr| attr.path().is_ident("parameter")) {
             abort! {
                 ident,
                 "found `parameter` attribute in unsupported context";
@@ -189,8 +189,6 @@ impl ToTokens for ToParameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
-
-            #[#salvo::async_trait]
             impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
                 fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                     for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters() {
@@ -351,7 +349,7 @@ impl Parameter<'_> {
             .field
             .attrs
             .iter()
-            .filter(|attribute| attribute.path().is_ident("param"))
+            .filter(|attribute| attribute.path().is_ident("parameter"))
             .map(|attribute| attribute.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
@@ -419,7 +417,6 @@ impl ToTokens for Parameter<'_> {
         }
 
         let field_param_serde = serde::parse_value(&field.attrs);
-
         let (schema_features, mut param_features) = self.resolve_field_features();
 
         let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());

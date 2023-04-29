@@ -1,26 +1,26 @@
 Generate responses with status codes what
-can be attached to the [`salvo_oapi::endpoint`][path_as_responses].
+can be attached to the [`salvo_oapi::endpoint`][path_to_responses].
 
-This is `#[derive]` implementation of [`ToResponses`][as_responses] trait. [`derive@ToResponses`]
+This is `#[derive]` implementation of [`ToResponses`][to_responses] trait. [`derive@ToResponses`]
 can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
-[`salvo_oapi::endpoint`][path_as_responses]. If _`struct`_ is decorated with [`derive@ToResponses`] it will be
+[`salvo_oapi::endpoint`][path_to_responses]. If _`struct`_ is decorated with [`derive@ToResponses`] it will be
 used to create a map of responses containing single response. Decorating _`enum`_ with
 [`derive@ToResponses`] will create a map of responses with a response for each variant of the _`enum`_.
 
 Named field _`struct`_ decorated with [`derive@ToResponses`] will create a response with inlined schema
 generated from the body of the struct. This is a conveniency which allows users to directly
-create responses with schemas without first creating a separate [response][as_response] type.
+create responses with schemas without first creating a separate [response][to_response] type.
 
 Unit _`struct`_ behaves similarly to then named field struct. Only difference is that it will create
 a response without content since there is no inner fields.
 
 Unnamed field _`struct`_ decorated with [`derive@ToResponses`] will by default create a response with
-referenced [schema][as_schema] if field is object or schema if type is [primitive
-type][primitive]. _`#[as_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
-the schema if type of the field implements [`ToSchema`][as_schema] trait. Alternatively
-_`#[as_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
-[response][as_response] or inline a reusable [response][as_response]. In both cases the field
-type is expected to implement [`ToResponse`][as_response] trait.
+referenced [schema][to_schema] if field is object or schema if type is [primitive
+type][primitive]. _`#[schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
+the schema if type of the field implements [`ToSchema`][to_schema] trait. Alternatively
+_`#[to_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
+[response][to_response] or inline a reusable [response][to_response]. In both cases the field
+type is expected to implement [`ToResponse`][to_response] trait.
 
 
 Enum decorated with [`derive@ToResponses`] will create a response for each variant of the _`enum`_.
@@ -139,12 +139,12 @@ _**Unnamed struct response with inlined response schema.**_
 # struct Foo;
 #[derive(salvo_oapi::ToResponses)]
 #[response(status = 201)]
-struct CreatedResponse(#[as_schema] Foo);
+struct CreatedResponse(#[schema] Foo);
 ```
 
 _**Enum with multiple responses.**_
 ```
-# #[derive(salvo_oapi_macros::ToResponse)]
+# #[derive(salvo_oapi::ToResponse)]
 # struct Response {
 #     message: String,
 # }
@@ -166,13 +166,13 @@ enum UserResponses {
     ServerError(#[ref_response] Response),
 
     #[response(status = 418)]
-    TeaPot(#[as_response] Response),
+    TeaPot(#[response] Response),
 }
 ```
 
-[as_responses]: trait.ToResponses.html
-[as_schema]: trait.ToSchema.html
-[as_response]: trait.ToResponse.html
-[path_as_responses]: attr.path.html#responses-from-intoresponses
+[to_responses]: trait.ToResponses.html
+[to_schema]: trait.ToSchema.html
+[to_response]: trait.ToResponse.html
+[path_to_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [path]: macro@crate::path

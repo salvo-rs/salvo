@@ -31,14 +31,14 @@ where
     T: Deserialize<'de> + ToSchema,
 {
     fn to_request_body() -> RequestBody {
-        let refor = if let Some(symbol) = <T as ToSchema>::symbol() {
+        let refor = if let Some(symbol) = <T as ToSchema>::to_schema().0 {
             RefOr::Ref(Ref::new(format!("#/components/schemas/{symbol}")))
         } else {
-            T::schema()
+            T::to_schema().1
         };
         RequestBody::new()
             .description("Extract form format data from request.")
-            .add_content("application/x-www-form-urlencoded", Content::new(T::schema()))
+            .add_content("application/x-www-form-urlencoded", Content::new(T::to_schema().1))
             .add_content("multipart/*", Content::new(refor))
     }
 }
@@ -88,8 +88,8 @@ where
 {
     fn modify(components: &mut Components, operation: &mut Operation) {
         let request_body = Self::to_request_body();
-        if let Some(symbol) = <T as ToSchema>::symbol() {
-            components.schemas.insert(symbol, <T as ToSchema>::schema());
+        if let (Some(symbol), schema) = <T as ToSchema>::to_schema() {
+            components.schemas.insert(symbol, schema);
         }
         operation.request_body = Some(request_body);
     }

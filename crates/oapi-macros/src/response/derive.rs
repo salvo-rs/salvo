@@ -58,12 +58,18 @@ impl ToTokens for ToResponse<'_> {
         let name = ident.to_string();
         let response = &self.response;
 
-        let (as_response_impl_generics, _, _) = self.generics.split_for_impl();
+        let (impl_generics, _, _) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #as_response_impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
+            impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
                 fn to_response() -> (String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
                     (#name.into(), #response.into())
+                }
+            }
+            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
+                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    let (key, response) = <Self as #oapi::oapi::ToResponse>::to_response();
+                    operation.responses.insert(key, response);
                 }
             }
         });
@@ -140,6 +146,11 @@ impl ToTokens for ToResponses {
                     #responses
                 }
             }
+            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
+                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    operation.responses = <Self as #oapi::oapi::ToResponses>::to_responses();
+                }
+            }
         })
     }
 }
@@ -159,7 +170,7 @@ trait Response {
             "symbol" => (false, ERROR),
             "ref_response" => (false, ERROR),
             "content" => (false, ERROR),
-            "as_response" => (false, ERROR),
+            "to_response" => (false, ERROR),
             _ => (true, ERROR),
         }
     }
@@ -185,18 +196,18 @@ impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
         let ref_response = inner_attributes
             .iter()
             .any(|attribute| attribute.path().get_ident().unwrap() == "ref_response");
-        let as_response = inner_attributes
+        let to_response = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "as_response");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_response");
 
-        if is_inline && (ref_response || as_response) {
+        if is_inline && (ref_response || to_response) {
             abort!(
                 ty.span(),
-                "Attribute `as_schema` cannot be used with `ref_response` and `as_response` attribute"
+                "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"
             )
         }
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
@@ -204,11 +215,11 @@ impl<'u> UnnamedStructResponse<'u> {
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let status_code = mem::take(&mut derive_value.status);
 
-        match (ref_response, as_response) {
+        match (ref_response, to_response) {
             (false, false) => Self(
                 (
                     status_code,
-                    ResponseValue::from_derive_as_responses_value(derive_value, description).response_type(
+                    ResponseValue::from_derive_to_responses_value(derive_value, description).response_type(
                         PathType::MediaType(InlineType {
                             ty: Cow::Borrowed(ty),
                             is_inline,
@@ -234,7 +245,7 @@ impl<'u> UnnamedStructResponse<'u> {
             (true, true) => {
                 abort!(
                     ty.span(),
-                    "Cannot define `ref_response` and `as_response` attribute simultaneously"
+                    "Cannot define `ref_response` and `to_response` attribute simultaneously"
                 );
             }
         }
@@ -273,7 +284,7 @@ impl NamedStructResponse<'_> {
         Self(
             (
                 status_code,
-                ResponseValue::from_derive_as_responses_value(derive_value, description)
+                ResponseValue::from_derive_to_responses_value(derive_value, description)
                     .response_type(PathType::InlineSchema(inline_schema.to_token_stream(), ty)),
             )
                 .into(),
@@ -297,7 +308,7 @@ impl UnitStructResponse<'_> {
         Self(
             (
                 status_code,
-                ResponseValue::from_derive_as_responses_value(derive_value, description),
+                ResponseValue::from_derive_to_responses_value(derive_value, description),
             )
                 .into(),
         )
@@ -361,7 +372,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             description,
             derive_value,
@@ -468,7 +479,7 @@ impl<'r> EnumResponse<'r> {
                 field
                     .attrs
                     .iter()
-                    .any(|attribute| attribute.path().get_ident().unwrap() == "as_schema")
+                    .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema")
             })
             .unwrap_or(false);
 

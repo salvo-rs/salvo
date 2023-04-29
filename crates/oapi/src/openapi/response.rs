@@ -73,14 +73,14 @@ impl Responses {
         Default::default()
     }
     /// Inserts a key-value pair into the instance and retuns `self`.
-    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, code: S, response: R) -> Self {
-        self.insert(code, response);
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, key: S, response: R) -> Self {
+        self.insert(key, response);
         self
     }
 
     /// Inserts a key-value pair into the instance.
-    pub fn insert<S: Into<String>, R: Into<RefOr<Response>>>(&mut self, code: S, response: R) {
-        self.0.insert(code.into(), response.into());
+    pub fn insert<S: Into<String>, R: Into<RefOr<Response>>>(&mut self, key: S, response: R) {
+        self.0.insert(key.into(), response.into());
     }
 
     /// Moves all elements from `other` into `self`, leaving `other` empty.
@@ -99,7 +99,7 @@ impl Responses {
         R: Into<RefOr<Response>>,
     {
         self.0
-            .extend(iter.into_iter().map(|(code, response)| (code.into(), response.into())));
+            .extend(iter.into_iter().map(|(key, response)| (key.into(), response.into())));
     }
 }
 
@@ -116,7 +116,7 @@ where
 {
     fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
         Self(BTreeMap::from_iter(
-            iter.into_iter().map(|(code, response)| (code.into(), response.into())),
+            iter.into_iter().map(|(key, response)| (key.into(), response.into())),
         ))
     }
 }

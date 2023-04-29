@@ -196,7 +196,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
         }
     }
 
-    let hfn = match sig.output {
+    let hfn = match &sig.output {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
                 quote! {
@@ -216,7 +216,10 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                 }
             }
         }
-        ReturnType::Type(_, _) => {
+        ReturnType::Type(_, ty) => {
+            modifiers.push(quote! {
+                 <#ty as #oapi::oapi::EndpointModifier>::modify(&mut components, &mut operation);
+            });
             if sig.asyncness.is_none() {
                 quote! {
                     #[inline]

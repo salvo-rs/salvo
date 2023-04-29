@@ -73,11 +73,11 @@ The following attributes are available for use in the `#[parameter(...)]` on str
 
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`ToSchema`][as_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object.
 
-* `inline` If set, the schema for this field's type needs to be a [`ToSchema`][as_schema], and
+* `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
   the schema definition will be inlined.
 
 * `default = ...` Can be method reference or _`json!(...)`_.
@@ -91,7 +91,7 @@ The following attributes are available for use in the `#[parameter(...)]` on str
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-   See configuration options at xml attributes of [`ToSchema`][as_schema_xml]
+   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 
 * `nullable` Defines property is nullable (note this is different to non-required).
 
@@ -237,7 +237,7 @@ struct Filter {
 }
 ```
 
-_**We can override value with another [`ToSchema`][as_schema].**_
+_**We can override value with another [`ToSchema`][to_schema].**_
 ```
 # use salvo_oapi::{ToParameters, ToSchema};
 #
@@ -287,7 +287,7 @@ struct Query {
 }
 ```
 
-[as_schema]: trait.ToSchema.html
+[to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html
 [to_parameters]: trait.ToParameters.html
