@@ -4,7 +4,6 @@ you can use to annotate your code to have items documented.
 # Crate Features
 
 * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
-* **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
   `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according

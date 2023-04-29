@@ -1,7 +1,4 @@
 
-Generate reusable OpenAPI schema to be used
-together with [`OpenApi`][openapi_derive].
-
 This is `#[derive]` implementation for [`AsSchema`][as_schema] trait. The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
@@ -509,4 +506,3 @@ More examples for _`value_type`_ in [`AsParameters` derive docs][parameters].
 [serde attributes]: https://serde.rs/attributes.html
 [discriminator]: openapi/schema/struct.Discriminator.html
 [enum_schema]: derive.AsSchema.html#enum-optional-configuration-options-for-schema
-[openapi_derive]: derive.OpenApi.html

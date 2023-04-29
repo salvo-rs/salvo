@@ -412,7 +412,7 @@ async fn get_user() {
 ````
 
 _**Example with multiple examples on single response.**_
-``rust
+```rust
 # use salvo_core::prelude::*;
 
 # #[derive(serde::Serialize, serde::Deserialize)]
@@ -433,7 +433,7 @@ _**Example with multiple examples on single response.**_
 async fn get_user() -> Json<User> {
   Json(User {name: "John".to_string()})
 }
-``
+```
 
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [path]: trait.Path.html
