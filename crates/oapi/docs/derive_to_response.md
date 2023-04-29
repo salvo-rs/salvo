@@ -1,7 +1,7 @@
 Generate reusable OpenAPI response what can be used
 in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
 
-This is `#[derive]` implementation for [`AsResponse`][as_response] trait.
+This is `#[derive]` implementation for [`ToResponse`][as_response] trait.
 
 
 _`#[response]`_ attribute can be used to alter and add [response attributes](#toresponse-response-attributes).
@@ -10,49 +10,49 @@ _`#[content]`_ attributes is used to make enum variant a content of a specific t
 response.
 
 _`#[as_schema]`_ attribute is used to inline a schema for a response in unnamed structs or
-enum variants with `#[content]` attribute. **Note!** [`AsSchema`] need to be implemented for
+enum variants with `#[content]` attribute. **Note!** [`ToSchema`] need to be implemented for
 the field or variant type.
 
-Type derived with _`AsResponse`_ uses provided doc comment as a description for the response. It
+Type derived with _`ToResponse`_ uses provided doc comment as a description for the response. It
 can alternatively be overridden with _`description = ...`_ attribute.
 
-_`AsResponse`_ can be used in four different ways to generate OpenAPI response component.
+_`ToResponse`_ can be used in four different ways to generate OpenAPI response component.
 
-1. By decorating `struct` or `enum` with [`derive@AsResponse`] derive macro. This will create a
+1. By decorating `struct` or `enum` with [`derive@ToResponse`] derive macro. This will create a
    response with inlined schema resolved from the fields of the `struct` or `variants` of the
    enum.
 
    ```rust
-    # use salvo_oapi::AsResponse;
-    #[derive(AsResponse)]
+    # use salvo_oapi::ToResponse;
+    #[derive(ToResponse)]
     #[response(description = "Person response returns single Person entity")]
     struct Person {
         name: String,
     }
    ```
 
-2. By decorating unnamed field `struct` with [`derive@AsResponse`] derive macro. Unnamed field struct
+2. By decorating unnamed field `struct` with [`derive@ToResponse`] derive macro. Unnamed field struct
    allows users to use new type pattern to define one inner field which is used as a schema for
    the generated response. This allows users to define `Vec` and `Option` response types.
    Additionally these types can also be used with `#[as_schema]` attribute to inline the
-   field's type schema if it implements [`AsSchema`] derive macro.
+   field's type schema if it implements [`ToSchema`] derive macro.
 
    ```rust
-    # #[derive(salvo_oapi::AsSchema)]
+    # #[derive(salvo_oapi::ToSchema)]
     # struct Person {
     #     name: String,
     # }
     /// Person list response
-    #[derive(salvo_oapi::AsResponse)]
+    #[derive(salvo_oapi::ToResponse)]
     struct PersonList(Vec<Person>);
    ```
 
-3. By decorating unit struct with [`derive@AsResponse`] derive macro. Unit structs will produce a
+3. By decorating unit struct with [`derive@ToResponse`] derive macro. Unit structs will produce a
    response without body.
 
    ```rust
     /// Success response which does not have body.
-    #[derive(salvo_oapi::AsResponse)]
+    #[derive(salvo_oapi::ToResponse)]
     struct SuccessResponse;
    ```
 
@@ -61,20 +61,20 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
    these variants can also be used with `#[as_schema]` attribute to inline the variant's type schema
-   if it implements [`AsSchema`] derive macro.
+   if it implements [`ToSchema`] derive macro.
 
    ```rust
-    #[derive(salvo_oapi::AsSchema)]
+    #[derive(salvo_oapi::ToSchema)]
     struct Admin {
         name: String,
     }
-    #[derive(salvo_oapi::AsSchema)]
+    #[derive(salvo_oapi::ToSchema)]
     struct Admin2 {
         name: String,
         id: i32,
     }
 
-    #[derive(salvo_oapi::AsResponse)]
+    #[derive(salvo_oapi::ToResponse)]
     enum Person {
         #[response(examples(
             ("Person1" = (value = json!({"name": "name1"}))),
@@ -87,7 +87,7 @@ _`AsResponse`_ can be used in four different ways to generate OpenAPI response c
     }
    ```
 
-# AsResponse `#[response(...)]` attributes
+# ToResponse `#[response(...)]` attributes
 
 * `description = "..."` Define description for the response as str. This can be used to
   override the default description resolved from doc comments if present.
@@ -129,9 +129,9 @@ _**Use reusable response in operation handler.**_
 ```
 use salvo_core::http::{header::CONTENT_TYPE, HeaderValue};
 use salvo_core::prelude::*;
-use salvo_oapi::{AsSchema, AsResponse, endpoint};
+use salvo_oapi::{ToSchema, ToResponse, endpoint};
 
-#[derive(AsResponse, AsSchema)]
+#[derive(ToResponse, ToSchema)]
 struct PersonResponse {
    value: String
 }
@@ -155,12 +155,12 @@ fn get_person() -> PersonResponse {
 
 _**Create a response from named struct.**_
 ```
-use salvo_oapi::{AsSchema, AsResponse};
+use salvo_oapi::{ToSchema, ToResponse};
 
  /// This is description
  ///
- /// It will also be used in `AsSchema` if present
- #[derive(AsSchema, AsResponse)]
+ /// It will also be used in `ToSchema` if present
+ #[derive(ToSchema, ToResponse)]
  #[response(
      description = "Override description for response",
      content_type = "text/xml"
@@ -179,25 +179,25 @@ use salvo_oapi::{AsSchema, AsResponse};
 
 _**Create inlined person list response.**_
 ```
- # #[derive(salvo_oapi::AsSchema)]
+ # #[derive(salvo_oapi::ToSchema)]
  # struct Person {
  #     name: String,
  # }
  /// Person list response
- #[derive(salvo_oapi::AsResponse)]
+ #[derive(salvo_oapi::ToResponse)]
  struct PersonList(#[as_schema] Vec<Person>);
 ```
 
 _**Create enum response from variants.**_
 ```
- #[derive(salvo_oapi::AsResponse)]
+ #[derive(salvo_oapi::ToResponse)]
  enum PersonType {
      Value(String),
      Foobar,
  }
 ```
 
-[as_response]: trait.AsResponse.html
+[as_response]: trait.ToResponse.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [path]: attr.path.html
 [openapi]: derive.OpenApi.html

@@ -28,16 +28,16 @@ cfg_feature! {
 pub use salvo_oapi_macros::endpoint;
 #[doc = include_str!("../docs/schema.md")]
 pub use salvo_oapi_macros::schema;
-#[doc = include_str!("../docs/derive_as_parameters.md")]
-pub use salvo_oapi_macros::AsParameters;
-#[doc = include_str!("../docs/derive_as_response.md")]
-pub use salvo_oapi_macros::AsResponse;
-#[doc = include_str!("../docs/derive_as_responses.md")]
-pub use salvo_oapi_macros::AsResponses;
-#[doc = include_str!("../docs/derive_as_schema.md")]
-pub use salvo_oapi_macros::AsSchema;
+#[doc = include_str!("../docs/derive_to_parameters.md")]
+pub use salvo_oapi_macros::ToParameters;
+#[doc = include_str!("../docs/derive_to_response.md")]
+pub use salvo_oapi_macros::ToResponse;
+#[doc = include_str!("../docs/derive_to_responses.md")]
+pub use salvo_oapi_macros::ToResponses;
+#[doc = include_str!("../docs/derive_to_schema.md")]
+pub use salvo_oapi_macros::ToSchema;
 
-use salvo_core::Extractible;
+use salvo_core::{Extractible, writer};
 use std::collections::{BTreeMap, HashMap};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
@@ -48,16 +48,16 @@ extern crate self as salvo_oapi;
 /// Generated schemas can be referenced or reused in path operations.
 ///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
-/// `#[derive(AsSchema)]` refer to [derive documentation][derive].
+/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
-/// [derive]: derive.AsSchema.html
+/// [derive]: derive.ToSchema.html
 ///
 /// # Examples
 ///
-/// Use `#[derive]` to implement `AsSchema` trait.
+/// Use `#[derive]` to implement `ToSchema` trait.
 /// ```
-/// use salvo_oapi::AsSchema;
-/// #[derive(AsSchema)]
+/// use salvo_oapi::ToSchema;
+/// #[derive(ToSchema)]
 /// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
 ///     id: u64,
@@ -68,14 +68,14 @@ extern crate self as salvo_oapi;
 ///
 /// Following manual implementation is equal to above derive one.
 /// ```
-/// use salvo_oapi::{AsSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
+/// use salvo_oapi::{ToSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
 /// # struct Pet {
 /// #     id: u64,
 /// #     name: String,
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl AsSchema for Pet {
+/// impl ToSchema for Pet {
 ///     fn schema() -> RefOr<Schema> {
 ///         Object::new()
 ///             .property(
@@ -108,7 +108,7 @@ extern crate self as salvo_oapi;
 ///     }
 /// }
 /// ```
-pub trait AsSchema {
+pub trait ToSchema {
     /// Returns a name of the schema.
     fn symbol() -> Option<String> {
         None
@@ -118,7 +118,7 @@ pub trait AsSchema {
     fn schema() -> RefOr<schema::Schema>;
 }
 
-impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
+impl<T: ToSchema> From<T> for RefOr<schema::Schema> {
     fn from(_: T) -> Self {
         T::schema()
     }
@@ -129,7 +129,7 @@ impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
 /// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl AsSchema for TupleUnit {
+impl ToSchema for TupleUnit {
     fn symbol() -> Option<String> {
         Some("TupleUnit".into())
     }
@@ -146,7 +146,7 @@ macro_rules! impl_as_schema {
         impl_as_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
-        impl AsSchema for $($tt)* {
+        impl ToSchema for $($tt)* {
             fn schema() -> crate::RefOr<crate::schema::Schema> {
                 schema!( $($tt)* ).into()
             }
@@ -179,13 +179,13 @@ impl_as_schema_primitive!(
 );
 impl_as_schema!(&str);
 
-impl<T: AsSchema> AsSchema for Vec<T> {
+impl<T: ToSchema> ToSchema for Vec<T> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
-impl<T: AsSchema> AsSchema for [T] {
+impl<T: ToSchema> ToSchema for [T] {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -195,7 +195,7 @@ impl<T: AsSchema> AsSchema for [T] {
     }
 }
 
-impl<T: AsSchema> AsSchema for &[T] {
+impl<T: ToSchema> ToSchema for &[T] {
     fn schema() -> RefOr<schema::Schema> {
         schema!(
             #[inline]
@@ -205,19 +205,19 @@ impl<T: AsSchema> AsSchema for &[T] {
     }
 }
 
-impl<T: AsSchema> AsSchema for Option<T> {
+impl<T: ToSchema> ToSchema for Option<T> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
-impl<K: AsSchema, V: AsSchema> AsSchema for BTreeMap<K, V> {
+impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
-impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
+impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
     fn schema() -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }
@@ -226,19 +226,19 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
-/// For more details of `#[derive(AsParameters)]` refer to [derive documentation][derive].
+/// For more details of `#[derive(ToParameters)]` refer to [derive documentation][derive].
 ///
 /// # Examples
 ///
-/// Derive [`AsParameters`] implementation. This example will fail to compile because [`AsParameters`] cannot
+/// Derive [`ToParameters`] implementation. This example will fail to compile because [`ToParameters`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
 /// use serde::Deserialize;
-/// use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// use salvo_oapi::{ToParameters, EndpointModifier, Components, Operation};
 /// use salvo_core::prelude::*;
 ///
-/// #[derive(Deserialize, AsParameters)]
+/// #[derive(Deserialize, ToParameters)]
 /// struct PetParams {
 ///     /// Id of pet
 ///     id: i64,
@@ -247,10 +247,10 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// }
 /// ```
 ///
-/// Roughly equal manual implementation of [`AsParameters`] trait.
+/// Roughly equal manual implementation of [`ToParameters`] trait.
 /// ```
 /// # use serde::Deserialize;
-/// # use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// # use salvo_oapi::{ToParameters, EndpointModifier, Components, Operation};
 /// # use salvo_core::prelude::*;
 /// # use salvo_core::extract::{Metadata, Extractible};
 /// #[derive(Deserialize)]
@@ -260,8 +260,8 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// #    /// Name of pet
 /// #    name: String,
 /// # }
-/// impl<'de> salvo_oapi::AsParameters<'de> for PetParams {
-///     fn parameters() -> salvo_oapi::Parameters {
+/// impl<'de> salvo_oapi::ToParameters<'de> for PetParams {
+///     fn to_parameters() -> salvo_oapi::Parameters {
 ///         salvo_oapi::Parameters::new().parameter(
 ///             salvo_oapi::Parameter::new("id")
 ///                 .required(salvo_oapi::Required::True)
@@ -302,24 +302,24 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// #[async_trait]
 /// impl EndpointModifier for PetParams {
 ///     fn modify(_components: &mut Components, operation: &mut Operation) {
-///         operation.parameters.append(&mut PetParams::parameters());
+///         operation.parameters.append(&mut PetParams::to_parameters());
 ///     }
 /// }
 /// ```
-/// [derive]: derive.AsParameters.html
-pub trait AsParameters<'de>: Extractible<'de> + EndpointModifier {
+/// [derive]: derive.ToParameters.html
+pub trait ToParameters<'de>: Extractible<'de> + EndpointModifier {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn parameters() -> Parameters;
+    fn to_parameters() -> Parameters;
 }
 
 /// Trait used to give [`Parameter`] information for OpenAPI.
-pub trait AsParameter: EndpointModifier {
+pub trait ToParameter: EndpointModifier {
     /// Returns a `Parameter`.
-    fn parameter() -> Parameter;
+    fn to_parameter() -> Parameter;
     /// Returns a `Parameter`, this is used internal.
-    fn parameter_with_arg(_arg: &str) -> Parameter {
-        Self::parameter()
+    fn to_parameter_with_arg(_arg: &str) -> Parameter {
+        Self::to_parameter()
     }
 }
 
@@ -331,28 +331,28 @@ pub trait AsParameter: EndpointModifier {
 /// ```
 /// use std::collections::BTreeMap;
 /// use serde::Deserialize;
-/// use salvo_oapi::{AsRequestBody, AsSchema, Components, Content, EndpointModifier, Operation, RequestBody };
+/// use salvo_oapi::{ToRequestBody, ToSchema, Components, Content, EndpointModifier, Operation, RequestBody };
 ///
-/// #[derive(AsSchema, Deserialize, Debug)]
+/// #[derive(ToSchema, Deserialize, Debug)]
 /// struct MyPayload {
 ///     name: String,
 /// }
 ///
-/// impl AsRequestBody for MyPayload {
-///     fn request_body() -> RequestBody {
+/// impl ToRequestBody for MyPayload {
+///     fn to_request_body() -> RequestBody {
 ///         RequestBody::new()
 ///             .add_content("application/json", Content::new(MyPayload::schema()))
 ///     }
 /// }
 /// impl EndpointModifier for MyPayload {
 ///     fn modify(_components: &mut Components, operation: &mut Operation) {
-///         operation.request_body = Some(Self::request_body());
+///         operation.request_body = Some(Self::to_request_body());
 ///     }
 /// }
 /// ```
-pub trait AsRequestBody: EndpointModifier {
+pub trait ToRequestBody: EndpointModifier {
     /// Returns `RequestBody`.
-    fn request_body() -> RequestBody;
+    fn to_request_body() -> RequestBody;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
@@ -362,39 +362,39 @@ pub trait AsRequestBody: EndpointModifier {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Responses, RefOr, AsResponses };
+/// use salvo_oapi::{Response, Responses, RefOr, ToResponses };
 ///
 /// enum MyResponse {
 ///     Ok,
 ///     NotFound,
 /// }
 ///
-/// impl AsResponses for MyResponse {
-///     fn responses() -> Responses {
+/// impl ToResponses for MyResponse {
+///     fn to_responses() -> Responses {
 ///         Responses::new()
 ///             .response("200", Response::new("Ok"))
 ///             .response("404", Response::new("Not Found"))
 ///     }
 /// }
 /// ```
-pub trait AsResponses {
+pub trait ToResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> Responses;
+    fn to_responses() -> Responses;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
-/// _`AsResponse`_ trait can also be derived with [`#[derive(AsResponse)]`][derive].
+/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
 ///
 /// # Examples
 ///
 /// ```
-/// use salvo_oapi::{RefOr, Response, AsResponse};
+/// use salvo_oapi::{RefOr, Response, ToResponse};
 ///
 /// struct MyResponse;
-/// impl AsResponse for MyResponse {
-///     fn response() -> (String, RefOr<Response>) {
+/// impl ToResponse for MyResponse {
+///     fn to_response() -> (String, RefOr<Response>) {
 ///         (
 ///             "MyResponse".into(),
 ///             Response::new("My Response").into(),
@@ -403,10 +403,10 @@ pub trait AsResponses {
 /// }
 /// ```
 ///
-/// [derive]: derive.AsResponse.html
-pub trait AsResponse {
+/// [derive]: derive.ToResponse.html
+pub trait ToResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn response() -> (String, RefOr<crate::Response>);
+    fn to_response() -> (String, RefOr<crate::Response>);
 }
 
 #[cfg(test)]

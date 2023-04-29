@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
+use crate::{ToParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by header.
 pub struct HeaderParam<T> {
@@ -47,11 +47,11 @@ impl<T> DerefMut for HeaderParam<T> {
     }
 }
 
-impl<T> AsParameter for HeaderParam<T> {
-    fn parameter() -> Parameter {
+impl<T> ToParameter for HeaderParam<T> {
+    fn to_parameter() -> Parameter {
         panic!("header parameter must have a argument");
     }
-    fn parameter_with_arg(arg: &str) -> Parameter {
+    fn to_parameter_with_arg(arg: &str) -> Parameter {
         Parameter::new(arg)
             .parameter_in(ParameterIn::Header)
             .description(format!("Get parameter `{arg}` from request headers"))
@@ -114,6 +114,6 @@ impl<T> EndpointModifier for HeaderParam<T> {
         panic!("header parameter can not modiify operation without argument");
     }
     fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::parameter_with_arg(arg));
+        operation.parameters.insert(Self::to_parameter_with_arg(arg));
     }
 }

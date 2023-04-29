@@ -122,7 +122,7 @@ pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
 }
 
 mod models {
-    use salvo::oapi::AsSchema;
+    use salvo::oapi::ToSchema;
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
 
@@ -132,7 +132,7 @@ mod models {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Serialize, Deserialize, AsSchema)]
+    #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
         /// Happens when Todo item already exists
         Config(String),
@@ -140,7 +140,7 @@ mod models {
         NotFound(String),
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug, AsSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
     pub struct Todo {
         #[schema(example = 1)]
         pub id: u64,

@@ -387,7 +387,7 @@ impl From<ParameterIn> for Feature {
 }
 impl_name!(ParameterIn = "parameter_in");
 
-/// Specify names of unnamed fields with `names(...) attribute for `AsParameters` derive.
+/// Specify names of unnamed fields with `names(...) attribute for `ToParameters` derive.
 #[derive(Clone, Debug)]
 pub(crate) struct Names(pub(crate) Vec<String>);
 impl Names {
@@ -407,7 +407,7 @@ impl Parse for Names {
 }
 impl From<Names> for Feature {
     fn from(value: Names) -> Self {
-        Feature::AsParametersNames(value)
+        Feature::ToParametersNames(value)
     }
 }
 impl_name!(Names = "names");

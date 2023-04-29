@@ -1,11 +1,11 @@
 use salvo::oapi::extract::*;
 use salvo::oapi::swagger_ui::SwaggerUi;
-use salvo::oapi::{AsSchema, Info, OpenApi};
+use salvo::oapi::{ToSchema, Info, OpenApi};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, AsSchema, Debug)]
-struct MyObject<T: AsSchema + std::fmt::Debug> {
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
+struct MyObject<T: ToSchema + std::fmt::Debug> {
     value: T,
 }
 

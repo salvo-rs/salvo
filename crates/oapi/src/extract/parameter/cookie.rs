@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
+use crate::{ToParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by Cookie.
 pub struct CookieParam<T> {
@@ -48,11 +48,11 @@ impl<T> DerefMut for CookieParam<T> {
     }
 }
 
-impl<T> AsParameter for CookieParam<T> {
-    fn parameter() -> Parameter {
+impl<T> ToParameter for CookieParam<T> {
+    fn to_parameter() -> Parameter {
         panic!("cookie parameter must have a argument");
     }
-    fn parameter_with_arg(arg: &str) -> Parameter {
+    fn to_parameter_with_arg(arg: &str) -> Parameter {
         Parameter::new(arg)
             .parameter_in(ParameterIn::Cookie)
             .description(format!("Get parameter `{arg}` from request cookie"))
@@ -119,6 +119,6 @@ impl<T> EndpointModifier for CookieParam<T> {
         panic!("cookie parameter can not modiify operation without argument");
     }
     fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::parameter_with_arg(arg));
+        operation.parameters.insert(Self::to_parameter_with_arg(arg));
     }
 }

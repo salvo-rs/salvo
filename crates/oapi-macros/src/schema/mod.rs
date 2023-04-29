@@ -24,7 +24,7 @@ mod feature;
 mod struct_schemas;
 mod xml;
 
-pub(crate) struct AsSchema<'a> {
+pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
     attributes: &'a [Attribute],
     generics: &'a Generics,
@@ -32,7 +32,7 @@ pub(crate) struct AsSchema<'a> {
     // vis: &'a Visibility,
 }
 
-impl<'a> AsSchema<'a> {
+impl<'a> ToSchema<'a> {
     pub(crate) fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
@@ -50,7 +50,7 @@ impl<'a> AsSchema<'a> {
     }
 }
 
-impl ToTokens for AsSchema<'_> {
+impl ToTokens for ToSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let ident = self.ident;
@@ -63,7 +63,7 @@ impl ToTokens for AsSchema<'_> {
             let ty_params = ty_params
                 .map(|ty_param| {
                     let ty = &ty_param.ident;
-                    quote! {if let Some(symbol) = <#ty as #oapi::oapi::AsSchema>::symbol() {
+                    quote! {if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::symbol() {
                             symbol
                         } else {
                             std::any::type_name::<#ty>().into()
@@ -83,7 +83,7 @@ impl ToTokens for AsSchema<'_> {
         let (impl_generics, _, _) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl #impl_generics #oapi::oapi::AsSchema for #ident #ty_generics #where_clause {
+            impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn symbol() -> Option<String> {
                     #symbol
                 }

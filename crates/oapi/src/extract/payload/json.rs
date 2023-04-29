@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointModifier;
-use crate::{AsRequestBody, AsSchema, Components, Content, Operation, Ref, RefOr, RequestBody};
+use crate::{ToRequestBody, ToSchema, Components, Content, Operation, Ref, RefOr, RequestBody};
 
 /// Represents the parameters passed by the URI path.
 pub struct JsonBody<T>(pub T);
@@ -26,12 +26,12 @@ impl<T> DerefMut for JsonBody<T> {
     }
 }
 
-impl<'de, T> AsRequestBody for JsonBody<T>
+impl<'de, T> ToRequestBody for JsonBody<T>
 where
-    T: Deserialize<'de> + AsSchema,
+    T: Deserialize<'de> + ToSchema,
 {
-    fn request_body() -> RequestBody {
-        let refor = if let Some(symbol) = <T as AsSchema>::symbol() {
+    fn to_request_body() -> RequestBody {
+        let refor = if let Some(symbol) = <T as ToSchema>::symbol() {
             RefOr::Ref(Ref::new(format!("#/components/schemas/{symbol}")))
         } else {
             T::schema()
@@ -83,12 +83,12 @@ where
 #[async_trait]
 impl<'de, T> EndpointModifier for JsonBody<T>
 where
-    T: Deserialize<'de> + AsSchema,
+    T: Deserialize<'de> + ToSchema,
 {
     fn modify(components: &mut Components, operation: &mut Operation) {
-        let request_body = Self::request_body();
-        if let Some(symbol) = <T as AsSchema>::symbol() {
-            components.schemas.insert(symbol, <T as AsSchema>::schema());
+        let request_body = Self::to_request_body();
+        if let Some(symbol) = <T as ToSchema>::symbol() {
+            components.schemas.insert(symbol, <T as ToSchema>::schema());
         }
         operation.request_body = Some(request_body);
     }

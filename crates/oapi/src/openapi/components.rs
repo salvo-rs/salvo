@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AsResponse, RefOr, Response, Responses, Schema, SecurityScheme};
+use crate::{ToResponse, RefOr, Response, Responses, Schema, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.
@@ -116,9 +116,9 @@ impl Components {
         self
     }
 
-    /// Get [`Response`] information form type implements `AsResponse`] and add it to [`Components`].
-    pub fn response_from<I: AsResponse>(self) -> Self {
-        let (name, response) = I::response();
+    /// Get [`Response`] information form type implements `ToResponse`] and add it to [`Components`].
+    pub fn response_from<I: ToResponse>(self) -> Self {
+        let (name, response) = I::to_response();
         self.response(name, response)
     }
     /// Extends responses with the contents of an iterator.
