@@ -45,14 +45,14 @@ fn endpoint() {}
 * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][as_schema] types. _`ref("./external.json")`_ can be used to reference external
+  [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
   json file for body schema.
 
 **Advanced format definition by `request_body(...)`**
 * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-  which is the default for [`AsSchema`][as_schema] types. _`ref("./external.json")`_
+  which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema.
 
 * `description = "..."` Define the description for the request body object as str.
@@ -90,7 +90,7 @@ _**Example request body definitions.**_
   response body. Can be _`body = Type`_, _`body = inline(Type)`_, or _`body = ref("...")`_.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][as_schema] types. _`ref("./external.json")`_
+  [`ToSchema`][to_schema] types. _`ref("./external.json")`_
   can be used to reference external json file for body schema.
 
 * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
@@ -108,7 +108,7 @@ _**Example request body definitions.**_
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
-* `response = ...` Type what implements [`AsResponse`][as_response_trait] trait. This can alternatively be used to
+* `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 
 * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
@@ -173,26 +173,26 @@ responses(
 )
 ```
 
-### Using `AsResponse` for reusable responses
+### Using `ToResponse` for reusable responses
 
-_**`ReusableResponse` must be a type that implements [`AsResponse`][as_response_trait].**_
+_**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 ```text
 responses(
     (status = 200, response = ReusableResponse)
 )
 ```
 
-_**[`AsResponse`][as_response_trait] can also be inlined to the responses map.**_
+_**[`ToResponse`][to_response_trait] can also be inlined to the responses map.**_
 ```text
 responses(
     (status = 200, response = inline(ReusableResponse))
 )
 ```
 
-## Responses from `AsResponses`
+## Responses from `ToResponses`
 
 _**Responses for a path can be specified with one or more types that implement
-[`AsResponses`][as_responses_trait].**_
+[`ToResponses`][to_responses_trait].**_
 ```text
 responses(MyResponse)
 ```
@@ -204,7 +204,7 @@ responses(MyResponse)
 * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][as_schema] types. **Reminder!** It's up to the user to use valid type for the
+  [`ToSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
   response header.
 
 * `description = "..."` Can be used to define optional description for the response header as str.
@@ -218,7 +218,7 @@ responses(MyResponse)
 
 # Params Attributes
 
-The list of attributes inside the `parameters(...)` attribute can take two forms: [Tuples](#tuples) or [AsParameters
+The list of attributes inside the `parameters(...)` attribute can take two forms: [Tuples](#tuples) or [ToParameters
 Type](#intoparams-type).
 
 ## Tuples
@@ -231,7 +231,7 @@ tuples separated by commas:
 * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
-  [`AsSchema`][as_schema] types. Parameter type is placed after `name` with
+  [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
   equals sign E.g. _`"id" = String`_
 
 * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -312,10 +312,10 @@ parameters(
 )
 ```
 
-## AsParameters Type
+## ToParameters Type
 
-In the AsParameters parameters format, the parameters are specified using an identifier for a type
-that implements [`AsParameters`][as_parameters]. See [`AsParameters`][as_parameters] for an
+In the ToParameters parameters format, the parameters are specified using an identifier for a type
+that implements [`ToParameters`][to_parameters]. See [`ToParameters`][to_parameters] for an
 example.
 
 ```text
@@ -336,8 +336,8 @@ parameters(
 _**More minimal example with the defaults.**_
 ```
 # use salvo_core::prelude::*;
-# use salvo_oapi::AsSchema;
-# #[derive(AsSchema, Extractible, serde::Deserialize, serde::Serialize, Debug)]
+# use salvo_oapi::ToSchema;
+# #[derive(ToSchema, Extractible, serde::Deserialize, serde::Serialize, Debug)]
 # struct Pet {
 #    id: u64,
 #    name: String,
@@ -379,7 +379,7 @@ _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated Ope
 )]
 #[deprecated]
 async fn get_pet_by_id(id: PathParam<i32>, res: &mut Response) {
-    let json = json!({ "pet": format!("{:?}", id.value())});
+    let json = json!({ "pet": format!("{:?}", id.into_inner())});
     res.render(Json(json))
 }
 ```
@@ -387,13 +387,13 @@ async fn get_pet_by_id(id: PathParam<i32>, res: &mut Response) {
 _**Example with multiple return types**_
 ```
 # use salvo_core::prelude::*;
-# use salvo_oapi::AsSchema;
+# use salvo_oapi::ToSchema;
 # trait User {}
-# #[derive(AsSchema)]
+# #[derive(ToSchema)]
 # struct User1 {
 #   id: String
 # }
-# #[derive(AsSchema)]
+# #[derive(ToSchema)]
 # struct User2 {
 #   id: String
 # }
@@ -412,10 +412,11 @@ async fn get_user() {
 ````
 
 _**Example with multiple examples on single response.**_
-``rust
+```rust
 # use salvo_core::prelude::*;
+# use salvo_oapi::ToSchema;
 
-# #[derive(serde::Serialize, serde::Deserialize)]
+# #[derive(serde::Serialize, serde::Deserialize, ToSchema)]
 # struct User {
 #   name: String
 # }
@@ -433,19 +434,19 @@ _**Example with multiple examples on single response.**_
 async fn get_user() -> Json<User> {
   Json(User {name: "John".to_string()})
 }
-``
+```
 
 [in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
 [path]: trait.Path.html
-[as_schema]: trait.AsSchema.html
+[to_schema]: trait.ToSchema.html
 [openapi]: derive.OpenApi.html
 [security]: openapi/security/struct.SecurityRequirement.html
 [security_schema]: openapi/security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[as_parameters]: trait.AsParameters.html
+[to_parameters]: trait.ToParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
-[as_responses_trait]: trait.AsResponses.html
-[as_parameters_derive]: derive.AsParameters.html
-[as_response_trait]: trait.AsResponse.html
+[to_responses_trait]: trait.ToResponses.html
+[to_parameters_derive]: derive.ToParameters.html
+[to_response_trait]: trait.ToResponse.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [xml]: openapi/xml/struct.Xml.html

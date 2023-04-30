@@ -6,11 +6,17 @@ use salvo_core::http::ParseError;
 use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
-use crate::endpoint::EndpointModifier;
-use crate::{AsRequestBody, AsSchema, Components, Content, Operation, Ref, RefOr, RequestBody};
+use crate::endpoint::EndpointArgRegister;
+use crate::{Components, Content, Operation, RequestBody, ToRequestBody, ToSchema};
 
 /// Represents the parameters passed by the URI path.
 pub struct FormBody<T>(pub T);
+impl<T> FormBody<T> {
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 impl<T> Deref for FormBody<T> {
     type Target = T;
@@ -26,20 +32,18 @@ impl<T> DerefMut for FormBody<T> {
     }
 }
 
-impl<'de, T> AsRequestBody for FormBody<T>
+impl<'de, T> ToRequestBody for FormBody<T>
 where
-    T: Deserialize<'de> + AsSchema,
+    T: Deserialize<'de> + ToSchema,
 {
-    fn request_body() -> RequestBody {
-        let refor = if let Some(symbol) = <T as AsSchema>::symbol() {
-            RefOr::Ref(Ref::new(format!("#/components/schemas/{symbol}")))
-        } else {
-            T::schema()
-        };
+    fn to_request_body(components: &mut Components) -> RequestBody {
         RequestBody::new()
             .description("Extract form format data from request.")
-            .add_content("application/x-www-form-urlencoded", Content::new(T::schema()))
-            .add_content("multipart/*", Content::new(refor))
+            .add_content(
+                "application/x-www-form-urlencoded",
+                Content::new(T::to_schema(components)),
+            )
+            .add_content("multipart/*", Content::new(T::to_schema(components)))
     }
 }
 
@@ -82,15 +86,13 @@ where
 }
 
 #[async_trait]
-impl<'de, T> EndpointModifier for FormBody<T>
+impl<'de, T> EndpointArgRegister for FormBody<T>
 where
-    T: Deserialize<'de> + AsSchema,
+    T: Deserialize<'de> + ToSchema,
 {
-    fn modify(components: &mut Components, operation: &mut Operation) {
-        let request_body = Self::request_body();
-        if let Some(symbol) = <T as AsSchema>::symbol() {
-            components.schemas.insert(symbol, <T as AsSchema>::schema());
-        }
+    fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+        let request_body = Self::to_request_body(components);
+        let _ = <T as ToSchema>::to_schema(components);
         operation.request_body = Some(request_body);
     }
 }

@@ -349,10 +349,10 @@ pub struct Object {
     /// Map of fields with their [`Schema`] types.
     ///
     /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
-    /// properties map backing implementation to retain property order of [`AsSchema`][as_schema].
+    /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
     /// By default [`BTreeMap`] will be used.
     ///
-    /// [as_schema]: crate::AsSchema
+    /// [to_schema]: crate::ToSchema
     #[serde(
         skip_serializing_if = "ObjectPropertiesMap::is_empty",
         default = "ObjectPropertiesMap::new"
@@ -943,8 +943,8 @@ mod tests {
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0")).components(
             Components::new()
-                .schema("Person", Ref::new("#/components/PersonModel"))
-                .schema(
+                .add_schema("Person", Ref::new("#/components/PersonModel"))
+                .add_schema(
                     "Credential",
                     Schema::from(
                         Object::new()

@@ -1,8 +1,5 @@
 
-Generate reusable OpenAPI schema to be used
-together with [`OpenApi`][openapi_derive].
-
-This is `#[derive]` implementation for [`AsSchema`][as_schema] trait. The macro accepts one
+This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
 `schema`
 attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
@@ -20,7 +17,7 @@ level doc comments will resolve to object descriptions.
 
 ```
 /// This is a pet
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi::ToSchema)]
 struct Pet {
     /// Name for your pet
     name: String,
@@ -74,7 +71,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   according OpenApi spec.
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`AsSchema`][as_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -94,13 +91,13 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
   This is useful in cases where the default type does not correspond to the actual type e.g. when
-  any third-party types are used which are not [`AsSchema`][as_schema]s nor [`primitive` types][primitive].
+  any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-* `inline` If the type of this field implements [`AsSchema`][as_schema], then the schema definition
+* `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
   will be inlined. **warning:** Don't use this for recursive data types!
 * `required = ...` Can be used to enforce required status for the field. [See
-  rules][derive@AsSchema#field-nullability-and-required-rules]
+  rules][derive@ToSchema#field-nullability-and-required-rules]
 * `nullable` Defines property is nullable (note this is different to non-required).
 * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename field
   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
@@ -150,7 +147,7 @@ See [`Xml`][xml] for more details.
 
 # Partial `#[serde(...)]` attributes support
 
-`AsSchema` derive has partial support for [serde attributes]. These supported attributes will reflect to the
+`ToSchema` derive has partial support for [serde attributes]. These supported attributes will reflect to the
 generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
 be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 
@@ -181,11 +178,11 @@ _`double_option`_ is **only** supported attribute from _`serde_with`_ crate.
 
 ```
 # use serde::Serialize;
-# use salvo_oapi::AsSchema;
-#[derive(Serialize, AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(Serialize, ToSchema)]
 struct Foo(String);
 
-#[derive(Serialize, AsSchema)]
+#[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 enum Bar {
     UnitValue,
@@ -204,11 +201,11 @@ enum Bar {
 _**Add custom `tag` to change JSON representation to be internally tagged.**_
 ```
 # use serde::Serialize;
-# use salvo_oapi::AsSchema;
-#[derive(Serialize, AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(Serialize, ToSchema)]
 struct Foo(String);
 
-#[derive(Serialize, AsSchema)]
+#[derive(Serialize, ToSchema)]
 #[serde(tag = "tag")]
 enum Bar {
     UnitValue,
@@ -223,7 +220,7 @@ _**Add serde `default` attribute for MyValue struct. Similarly `default` could b
 individual fields as well. If `default` is given the field's affected will be treated
 as optional.**_
 ```
- #[derive(salvo_oapi::AsSchema, serde::Deserialize, Default)]
+ #[derive(salvo_oapi::ToSchema, serde::Deserialize, Default)]
  #[serde(default)]
  struct MyValue {
      field: String
@@ -251,8 +248,8 @@ their numeric value.
 
 _**Create enum with numeric values.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 #[repr(u8)]
 #[schema(default = default_value, example = 2)]
 enum Mode {
@@ -267,8 +264,8 @@ fn default_value() -> u8 {
 
 _**You can use `skip` and `tag` attributes from serde.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema, serde::Serialize)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema, serde::Serialize)]
 #[repr(i8)]
 #[serde(tag = "code")]
 enum ExitCode {
@@ -283,9 +280,9 @@ enum ExitCode {
 
 _**Simple example of a Pet with descriptions and object level example.**_
 ```
-# use salvo_oapi::AsSchema;
+# use salvo_oapi::ToSchema;
 /// This is a pet.
-#[derive(AsSchema)]
+#[derive(ToSchema)]
 #[schema(example = json!({"name": "bob the cat", "id": 0}))]
 struct Pet {
     /// Unique id of a pet.
@@ -299,8 +296,8 @@ struct Pet {
 
 _**The `schema` attribute can also be placed at field level as follows.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 struct Pet {
     #[schema(example = 1, default = 0)]
     id: u64,
@@ -311,8 +308,8 @@ struct Pet {
 
 _**You can also use method reference for attribute values.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 struct Pet {
     #[schema(example = u64::default, default = u64::default)]
     id: u64,
@@ -328,8 +325,8 @@ fn default_name() -> String {
 
 _**For enums and unnamed field structs you can define `schema` at type level.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 #[schema(example = "Bus")]
 enum VehicleType {
     Rocket, Car, Bus, Submarine
@@ -338,8 +335,8 @@ enum VehicleType {
 
 _**Also you write complex enum combining all above types.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 enum ErrorResponse {
     InvalidCredentials,
     #[schema(default = String::default, example = "Pet not found")]
@@ -353,8 +350,8 @@ enum ErrorResponse {
 
 _**It is possible to specify the title of each variant to help generators create named structures.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 enum ErrorResponse {
     #[schema(title = "InvalidCredentials")]
     InvalidCredentials,
@@ -365,8 +362,8 @@ enum ErrorResponse {
 
 _**Use `xml` attribute to manipulate xml output.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 #[schema(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test"))]
 struct User {
     #[schema(xml(attribute, prefix = "u"))]
@@ -382,8 +379,8 @@ struct User {
 
 _**Use of Rust's own `#[deprecated]` attribute will reflect to generated OpenAPI spec.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 #[deprecated]
 struct User {
     id: i64,
@@ -397,8 +394,8 @@ struct User {
 _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
 with [`SchemaFormat::KnownFormat(KnownFormat::Binary)`][binary].**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 struct Post {
     id: i32,
     #[schema(value_type = String, format = Binary)]
@@ -408,21 +405,21 @@ struct Post {
 
 _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` option.**_
 ```
-# use salvo_oapi::AsSchema;
-#[derive(AsSchema)]
+# use salvo_oapi::ToSchema;
+#[derive(ToSchema)]
 #[schema(value_type = String)]
 struct Value(i64);
 ```
 
 _**Use a virtual `Object` type to render generic `object` _(`type: object`)_ in OpenAPI spec.**_
 ```
-# use salvo_oapi::AsSchema;
+# use salvo_oapi::ToSchema;
 # mod custom {
 #    struct NewBar;
 # }
 #
 # struct Bar;
-#[derive(AsSchema)]
+#[derive(ToSchema)]
 struct Value {
     #[schema(value_type = Object)]
     field: Bar,
@@ -431,7 +428,7 @@ struct Value {
 
 _**Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.**_
 ```
-#[derive(salvo_oapi::AsSchema, serde::Deserialize)]
+#[derive(salvo_oapi::ToSchema, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[schema(rename_all = "UPPERCASE")]
 enum Random {
@@ -447,7 +444,7 @@ enum Random {
 
 _**Add `title` to the enum.**_
 ```
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi::ToSchema)]
 #[schema(title = "UserType")]
 enum UserType {
     Admin,
@@ -458,7 +455,7 @@ enum UserType {
 
 _**Example with validation attributes.**_
 ```
-#[derive(salvo_oapi::AsSchema, serde::Deserialize)]
+#[derive(salvo_oapi::ToSchema, serde::Deserialize)]
 struct Item {
     #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
     id: i32,
@@ -481,7 +478,7 @@ fn custom_type() -> Object {
         .description("this is the description")
 }
 
-#[derive(salvo_oapi::AsSchema)]
+#[derive(salvo_oapi::ToSchema)]
 struct Value {
     #[schema(schema_with = custom_type)]
     id: String,
@@ -491,22 +488,21 @@ struct Value {
 _**Use `as` attribute to change the name and the path of the schema in the generated OpenAPI
 spec.**_
 ```
- #[derive(salvo_oapi::AsSchema)]
+ #[derive(salvo_oapi::ToSchema)]
  #[schema(symbol = "api::models::person::Person")]
  struct Person {
      name: String,
  }
 ```
 
-More examples for _`value_type`_ in [`AsParameters` derive docs][parameters].
+More examples for _`value_type`_ in [`ToParameters` derive docs][parameters].
 
-[as_schema]: trait.AsSchema.html
+[to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html
 [binary]: openapi/schema/enum.KnownFormat.html#variant.Binary
 [xml]: openapi/xml/struct.Xml.html
-[as_parameters]: derive.AsParameters.html
+[to_parameters]: derive.ToParameters.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [serde attributes]: https://serde.rs/attributes.html
 [discriminator]: openapi/schema/struct.Discriminator.html
-[enum_schema]: derive.AsSchema.html#enum-optional-configuration-options-for-schema
-[openapi_derive]: derive.OpenApi.html
+[enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema

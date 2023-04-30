@@ -24,8 +24,8 @@ pub(crate) mod derive;
 
 #[derive(Debug)]
 pub(crate) enum Response<'r> {
-    /// A type that implements `salvo_oapi::AsResponses`.
-    AsResponses(ExprPath),
+    /// A type that implements `salvo_oapi::ToResponses`.
+    ToResponses(ExprPath),
     /// The tuple definition of a response.
     Tuple(ResponseTuple<'r>),
 }
@@ -33,7 +33,7 @@ pub(crate) enum Response<'r> {
 impl Parse for Response<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::AsResponses(input.parse()?))
+            Ok(Self::ToResponses(input.parse()?))
         } else {
             let response;
             parenthesized!(response in input);
@@ -163,21 +163,21 @@ pub(crate) struct DeriveResponsesAttributes<T> {
     description: String,
 }
 
-impl<'r> From<DeriveResponsesAttributes<DeriveAsResponsesValue>> for ResponseValue<'r> {
-    fn from(value: DeriveResponsesAttributes<DeriveAsResponsesValue>) -> Self {
-        Self::from_derive_as_responses_value(value.derive_value, value.description)
+impl<'r> From<DeriveResponsesAttributes<DeriveToResponsesValue>> for ResponseValue<'r> {
+    fn from(value: DeriveResponsesAttributes<DeriveToResponsesValue>) -> Self {
+        Self::from_derive_to_responses_value(value.derive_value, value.description)
     }
 }
 
-impl<'r> From<DeriveResponsesAttributes<Option<DeriveAsResponseValue>>> for ResponseValue<'r> {
+impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'r> {
     fn from(
-        DeriveResponsesAttributes::<Option<DeriveAsResponseValue>> {
+        DeriveResponsesAttributes::<Option<DeriveToResponseValue>> {
             derive_value,
             description,
-        }: DeriveResponsesAttributes<Option<DeriveAsResponseValue>>,
+        }: DeriveResponsesAttributes<Option<DeriveToResponseValue>>,
     ) -> Self {
         if let Some(derive_value) = derive_value {
-            ResponseValue::from_derive_as_response_value(derive_value, description)
+            ResponseValue::from_derive_to_response_value(derive_value, description)
         } else {
             ResponseValue {
                 description,
@@ -199,7 +199,7 @@ pub(crate) struct ResponseValue<'r> {
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_as_response_value(derive_value: DeriveAsResponseValue, description: String) -> Self {
+    fn from_derive_to_response_value(derive_value: DeriveToResponseValue, description: String) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
                 description
@@ -214,7 +214,7 @@ impl<'r> ResponseValue<'r> {
         }
     }
 
-    fn from_derive_as_responses_value(response_value: DeriveAsResponsesValue, description: String) -> Self {
+    fn from_derive_to_responses_value(response_value: DeriveToResponsesValue, description: String) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
                 description
@@ -241,15 +241,9 @@ impl ToTokens for ResponseTuple<'_> {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
-                if res.is_inline {
-                    tokens.extend(quote_spanned! {path.span()=>
-                        <#path as #oapi::oapi::AsResponse>::response().1
-                    });
-                } else {
-                    tokens.extend(quote! {
-                        #oapi::oapi::Ref::from_response_name(<#path as #oapi::oapi::AsResponse>::response().0)
-                    });
-                }
+                tokens.extend(quote_spanned! {path.span()=>
+                    <#path as #oapi::oapi::ToResponse>::to_response(components)
+                });
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
@@ -263,7 +257,7 @@ impl ToTokens for ResponseTuple<'_> {
                  -> TokenStream2 {
                     let content_schema = match path_type {
                         PathType::RefPath(ref_type) => quote! {
-                            #oapi::oapi::schema::Ref::new(<#ref_type as #oapi::oapi::AsSchema>::symbol().unwrap())
+                            <#ref_type as #oapi::oapi::ToSchema>::to_schema(components)
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
@@ -352,7 +346,7 @@ impl ToTokens for ResponseTuple<'_> {
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;
                     tokens.extend(quote! {
-                        .header(#name, #header)
+                        .add_header(#name, #header)
                     })
                 });
             }
@@ -373,7 +367,7 @@ trait DeriveResponseValue: Parse {
 }
 
 #[derive(Default, Debug)]
-struct DeriveAsResponseValue {
+struct DeriveToResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     description: String,
@@ -381,7 +375,7 @@ struct DeriveAsResponseValue {
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
-impl DeriveResponseValue for DeriveAsResponseValue {
+impl DeriveResponseValue for DeriveToResponseValue {
     fn merge_from(mut self, other: Self) -> Self {
         if other.content_type.is_some() {
             self.content_type = other.content_type;
@@ -403,9 +397,9 @@ impl DeriveResponseValue for DeriveAsResponseValue {
     }
 }
 
-impl Parse for DeriveAsResponseValue {
+impl Parse for DeriveToResponseValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveAsResponseValue::default();
+        let mut response = DeriveToResponseValue::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
@@ -445,7 +439,7 @@ impl Parse for DeriveAsResponseValue {
 }
 
 #[derive(Default)]
-struct DeriveAsResponsesValue {
+struct DeriveToResponsesValue {
     status: ResponseStatus,
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
@@ -454,7 +448,7 @@ struct DeriveAsResponsesValue {
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
-impl DeriveResponseValue for DeriveAsResponsesValue {
+impl DeriveResponseValue for DeriveToResponsesValue {
     fn merge_from(mut self, other: Self) -> Self {
         self.status = other.status;
 
@@ -478,9 +472,9 @@ impl DeriveResponseValue for DeriveAsResponsesValue {
     }
 }
 
-impl Parse for DeriveAsResponsesValue {
+impl Parse for DeriveToResponsesValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveAsResponsesValue::default();
+        let mut response = DeriveToResponsesValue::default();
         const MISSING_STATUS_ERROR: &str = "missing expected `status` attribute";
         let first_span = input.span();
 
@@ -670,10 +664,10 @@ impl ToTokens for Responses<'_> {
                 .iter()
                 .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
                     match response {
-                        Response::AsResponses(path) => {
+                        Response::ToResponses(path) => {
                             let span = path.span();
                             acc.extend(quote_spanned! {span =>
-                                .append(&mut <#path as #oapi::oapi::AsResponses>::responses())
+                                .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components))
                             })
                         }
                         Response::Tuple(response) => {

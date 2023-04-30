@@ -287,12 +287,12 @@ impl<'c> ComponentSchema {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::AsSchema>::schema())
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::AsSchema>::schema()
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                                 }
                             })
                             .to_tokens(tokens);
@@ -302,20 +302,12 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(if let Some(symbol) = <#type_path as #oapi::oapi::AsSchema>::symbol() {
-                                            #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                        } else {
-                                            <#type_path as #oapi::oapi::AsSchema>::schema().into()
-                                        })
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    if let Some(symbol) = <#type_path as #oapi::oapi::AsSchema>::symbol() {
-                                        #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                    } else {
-                                        <#type_path as #oapi::oapi::AsSchema>::schema().into()
-                                    }
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                                 }
                             })
                             .to_tokens(tokens);

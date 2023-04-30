@@ -1,6 +1,10 @@
+//! endpoint module
+
 use std::any::TypeId;
 
-use crate::{Components, Operation};
+use salvo_core::writer;
+
+use crate::{Components, Operation, ToResponse, ToSchema};
 
 /// Represents an endpoint.
 pub struct Endpoint {
@@ -10,18 +14,27 @@ pub struct Endpoint {
     pub components: Components,
 }
 
-/// A trait for endpoint modifier.
-pub trait EndpointModifier {
-    /// Modify the OpenApi compontents section or current operation information.
-    fn modify(compontents: &mut Components, operation: &mut Operation);
+/// A trait for endpoint argument register.
+pub trait EndpointArgRegister {
     /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
-    #[doc(hidden)]
-    fn modify_with_arg(compontents: &mut Components, operation: &mut Operation, _arg: &str) {
-        Self::modify(compontents, operation);
+    fn register(compontents: &mut Components, operation: &mut Operation, arg: &str);
+}
+/// A trait for endpoint return type register.
+pub trait EndpointOutRegister {
+    /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
+    fn register(compontents: &mut Components, operation: &mut Operation);
+}
+
+impl<C> EndpointOutRegister for writer::Json<C>
+where
+    C: ToSchema,
+{
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.insert("200", Self::to_response(components))
     }
 }
 
-/// A registry for all endpoints.
+/// A components for all endpoints.
 pub struct EndpointRegistry {
     /// The type id of the endpoint.
     pub type_id: fn() -> TypeId,
@@ -30,11 +43,11 @@ pub struct EndpointRegistry {
 }
 
 impl EndpointRegistry {
-    /// Save the endpoint information to the registry.
+    /// Save the endpoint information to the components.
     pub const fn save(type_id: fn() -> TypeId, creator: fn() -> Endpoint) -> Self {
         Self { type_id, creator }
     }
-    /// Find the endpoint information from the registry.
+    /// Find the endpoint information from the components.
     pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
         for record in inventory::iter::<EndpointRegistry> {
             if (record.type_id)() == *type_id {

@@ -330,7 +330,7 @@ impl PathParser {
     fn new(raw_value: &str) -> PathParser {
         PathParser {
             offset: 0,
-            path: raw_value.chars().collect(),
+            path: raw_value.trim_start_matches('/').chars().collect(),
         }
     }
     #[inline]

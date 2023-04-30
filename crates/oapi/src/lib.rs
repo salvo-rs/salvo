@@ -14,8 +14,8 @@ mod cfg;
 mod openapi;
 pub use openapi::*;
 
-mod endpoint;
-pub use endpoint::{Endpoint, EndpointModifier, EndpointRegistry};
+pub mod endpoint;
+pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
 mod router;
 
@@ -26,19 +26,19 @@ cfg_feature! {
 
 #[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
-#[doc = include_str!("../docs/schema.md")]
-pub use salvo_oapi_macros::schema;
-#[doc = include_str!("../docs/derive_as_parameters.md")]
-pub use salvo_oapi_macros::AsParameters;
-#[doc = include_str!("../docs/derive_as_response.md")]
-pub use salvo_oapi_macros::AsResponse;
-#[doc = include_str!("../docs/derive_as_responses.md")]
-pub use salvo_oapi_macros::AsResponses;
-#[doc = include_str!("../docs/derive_as_schema.md")]
-pub use salvo_oapi_macros::AsSchema;
+pub(crate) use salvo_oapi_macros::schema;
+#[doc = include_str!("../docs/derive_to_parameters.md")]
+pub use salvo_oapi_macros::ToParameters;
+#[doc = include_str!("../docs/derive_to_response.md")]
+pub use salvo_oapi_macros::ToResponse;
+#[doc = include_str!("../docs/derive_to_responses.md")]
+pub use salvo_oapi_macros::ToResponses;
+#[doc = include_str!("../docs/derive_to_schema.md")]
+pub use salvo_oapi_macros::ToSchema;
 
-use salvo_core::Extractible;
 use std::collections::{BTreeMap, HashMap};
+
+use salvo_core::{extract::Extractible, writer};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_oapi;
@@ -48,16 +48,16 @@ extern crate self as salvo_oapi;
 /// Generated schemas can be referenced or reused in path operations.
 ///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
-/// `#[derive(AsSchema)]` refer to [derive documentation][derive].
+/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
-/// [derive]: derive.AsSchema.html
+/// [derive]: derive.ToSchema.html
 ///
 /// # Examples
 ///
-/// Use `#[derive]` to implement `AsSchema` trait.
+/// Use `#[derive]` to implement `ToSchema` trait.
 /// ```
-/// use salvo_oapi::AsSchema;
-/// #[derive(AsSchema)]
+/// use salvo_oapi::ToSchema;
+/// #[derive(ToSchema)]
 /// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
 ///     id: u64,
@@ -68,15 +68,15 @@ extern crate self as salvo_oapi;
 ///
 /// Following manual implementation is equal to above derive one.
 /// ```
-/// use salvo_oapi::{AsSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
+/// use salvo_oapi::{Components, ToSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
 /// # struct Pet {
 /// #     id: u64,
 /// #     name: String,
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl AsSchema for Pet {
-///     fn schema() -> RefOr<Schema> {
+/// impl ToSchema for Pet {
+///     fn to_schema(components: &mut Components) -> RefOr<Schema> {
 ///         Object::new()
 ///             .property(
 ///                 "id",
@@ -108,20 +108,10 @@ extern crate self as salvo_oapi;
 ///     }
 /// }
 /// ```
-pub trait AsSchema {
-    /// Returns a name of the schema.
-    fn symbol() -> Option<String> {
-        None
-    }
+pub trait ToSchema {
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> RefOr<schema::Schema>;
-}
-
-impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
-    fn from(_: T) -> Self {
-        T::schema()
-    }
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema>;
 }
 
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
@@ -129,34 +119,31 @@ impl<T: AsSchema> From<T> for RefOr<schema::Schema> {
 /// [`schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl AsSchema for TupleUnit {
-    fn symbol() -> Option<String> {
-        Some("TupleUnit".into())
-    }
-    fn schema() -> RefOr<schema::Schema> {
+impl ToSchema for TupleUnit {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema::empty().into()
     }
 }
 
-macro_rules! impl_as_schema {
+macro_rules! impl_to_schema {
     ( $ty:path ) => {
-        impl_as_schema!( @impl_schema $ty );
+        impl_to_schema!( @impl_schema $ty );
     };
     ( & $ty:path ) => {
-        impl_as_schema!( @impl_schema &$ty );
+        impl_to_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
-        impl AsSchema for $($tt)* {
-            fn schema() -> crate::RefOr<crate::schema::Schema> {
-                schema!( $($tt)* ).into()
+        impl ToSchema for $($tt)* {
+            fn to_schema(_components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
+                 schema!( $($tt)* ).into()
             }
         }
     };
 }
 
-macro_rules! impl_as_schema_primitive {
+macro_rules! impl_to_schema_primitive {
     ( $( $tt:path  ),* ) => {
-        $( impl_as_schema!( $tt ); )*
+        $( impl_to_schema!( $tt ); )*
     };
 }
 
@@ -174,19 +161,19 @@ pub mod __private {
 }
 
 #[rustfmt::skip]
-impl_as_schema_primitive!(
+impl_to_schema_primitive!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
-impl_as_schema!(&str);
+impl_to_schema!(&str);
 
-impl<T: AsSchema> AsSchema for Vec<T> {
-    fn schema() -> RefOr<schema::Schema> {
+impl<T: ToSchema> ToSchema for Vec<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
-impl<T: AsSchema> AsSchema for [T] {
-    fn schema() -> RefOr<schema::Schema> {
+impl<T: ToSchema> ToSchema for [T] {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             [T]
@@ -195,8 +182,8 @@ impl<T: AsSchema> AsSchema for [T] {
     }
 }
 
-impl<T: AsSchema> AsSchema for &[T] {
-    fn schema() -> RefOr<schema::Schema> {
+impl<T: ToSchema> ToSchema for &[T] {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
             &[T]
@@ -205,20 +192,20 @@ impl<T: AsSchema> AsSchema for &[T] {
     }
 }
 
-impl<T: AsSchema> AsSchema for Option<T> {
-    fn schema() -> RefOr<schema::Schema> {
+impl<T: ToSchema> ToSchema for Option<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
-impl<K: AsSchema, V: AsSchema> AsSchema for BTreeMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
+impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
-impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
-    fn schema() -> RefOr<schema::Schema> {
+impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
     }
 }
@@ -226,19 +213,19 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
-/// For more details of `#[derive(AsParameters)]` refer to [derive documentation][derive].
+/// For more details of `#[derive(ToParameters)]` refer to [derive documentation][derive].
 ///
 /// # Examples
 ///
-/// Derive [`AsParameters`] implementation. This example will fail to compile because [`AsParameters`] cannot
+/// Derive [`ToParameters`] implementation. This example will fail to compile because [`ToParameters`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
 /// ```
 /// use serde::Deserialize;
-/// use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// use salvo_oapi::{ToParameters, EndpointArgRegister, Components, Operation};
 /// use salvo_core::prelude::*;
 ///
-/// #[derive(Deserialize, AsParameters)]
+/// #[derive(Deserialize, ToParameters)]
 /// struct PetParams {
 ///     /// Id of pet
 ///     id: i64,
@@ -247,10 +234,10 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// }
 /// ```
 ///
-/// Roughly equal manual implementation of [`AsParameters`] trait.
+/// Roughly equal manual implementation of [`ToParameters`] trait.
 /// ```
 /// # use serde::Deserialize;
-/// # use salvo_oapi::{AsParameters, EndpointModifier, Components, Operation};
+/// # use salvo_oapi::{ToParameters, EndpointArgRegister, Components, Operation};
 /// # use salvo_core::prelude::*;
 /// # use salvo_core::extract::{Metadata, Extractible};
 /// #[derive(Deserialize)]
@@ -260,8 +247,8 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 /// #    /// Name of pet
 /// #    name: String,
 /// # }
-/// impl<'de> salvo_oapi::AsParameters<'de> for PetParams {
-///     fn parameters() -> salvo_oapi::Parameters {
+/// impl<'de> salvo_oapi::ToParameters<'de> for PetParams {
+///     fn to_parameters(_components: &mut Components) -> salvo_oapi::Parameters {
 ///         salvo_oapi::Parameters::new().parameter(
 ///             salvo_oapi::Parameter::new("id")
 ///                 .required(salvo_oapi::Required::True)
@@ -299,28 +286,23 @@ impl<K: AsSchema, V: AsSchema> AsSchema for HashMap<K, V> {
 ///    }
 /// }
 ///
-/// #[async_trait]
-/// impl EndpointModifier for PetParams {
-///     fn modify(_components: &mut Components, operation: &mut Operation) {
-///         operation.parameters.append(&mut PetParams::parameters());
+/// impl EndpointArgRegister for PetParams {
+///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+///         operation.parameters.append(&mut PetParams::to_parameters(components));
 ///     }
 /// }
 /// ```
-/// [derive]: derive.AsParameters.html
-pub trait AsParameters<'de>: Extractible<'de> + EndpointModifier {
+/// [derive]: derive.ToParameters.html
+pub trait ToParameters<'de>: Extractible<'de> {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn parameters() -> Parameters;
+    fn to_parameters(components: &mut Components) -> Parameters;
 }
 
 /// Trait used to give [`Parameter`] information for OpenAPI.
-pub trait AsParameter: EndpointModifier {
+pub trait ToParameter {
     /// Returns a `Parameter`.
-    fn parameter() -> Parameter;
-    /// Returns a `Parameter`, this is used internal.
-    fn parameter_with_arg(_arg: &str) -> Parameter {
-        Self::parameter()
-    }
+    fn to_parameter(components: &mut Components) -> Parameter;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent
@@ -331,28 +313,28 @@ pub trait AsParameter: EndpointModifier {
 /// ```
 /// use std::collections::BTreeMap;
 /// use serde::Deserialize;
-/// use salvo_oapi::{AsRequestBody, AsSchema, Components, Content, EndpointModifier, Operation, RequestBody };
+/// use salvo_oapi::{ToRequestBody, ToSchema, Components, Content, EndpointArgRegister, Operation, RequestBody };
 ///
-/// #[derive(AsSchema, Deserialize, Debug)]
+/// #[derive(ToSchema, Deserialize, Debug)]
 /// struct MyPayload {
 ///     name: String,
 /// }
 ///
-/// impl AsRequestBody for MyPayload {
-///     fn request_body() -> RequestBody {
+/// impl ToRequestBody for MyPayload {
+///     fn to_request_body(components: &mut Components) -> RequestBody {
 ///         RequestBody::new()
-///             .add_content("application/json", Content::new(MyPayload::schema()))
+///             .add_content("application/json", Content::new(MyPayload::to_schema(components)))
 ///     }
 /// }
-/// impl EndpointModifier for MyPayload {
-///     fn modify(_components: &mut Components, operation: &mut Operation) {
-///         operation.request_body = Some(Self::request_body());
+/// impl EndpointArgRegister for MyPayload {
+///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+///         operation.request_body = Some(Self::to_request_body(components));
 ///     }
 /// }
 /// ```
-pub trait AsRequestBody: EndpointModifier {
+pub trait ToRequestBody {
     /// Returns `RequestBody`.
-    fn request_body() -> RequestBody;
+    fn to_request_body(components: &mut Components) -> RequestBody;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
@@ -362,51 +344,73 @@ pub trait AsRequestBody: EndpointModifier {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Responses, RefOr, AsResponses };
+/// use salvo_oapi::{Components, Response, Responses, RefOr, ToResponses };
 ///
 /// enum MyResponse {
 ///     Ok,
 ///     NotFound,
 /// }
 ///
-/// impl AsResponses for MyResponse {
-///     fn responses() -> Responses {
+/// impl ToResponses for MyResponse {
+///     fn to_responses(_components: &mut Components) -> Responses {
 ///         Responses::new()
 ///             .response("200", Response::new("Ok"))
 ///             .response("404", Response::new("Not Found"))
 ///     }
 /// }
 /// ```
-pub trait AsResponses {
+pub trait ToResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> Responses;
+    fn to_responses(components: &mut Components) -> Responses;
+}
+
+impl<C> ToResponses for writer::Json<C>
+where
+    C: ToSchema,
+{
+    fn to_responses(components: &mut Components) -> Responses {
+        Responses::new().response(
+            "200",
+            Response::new("Response json format data")
+                .add_content("application/json", Content::new(C::to_schema(components))),
+        )
+    }
 }
 
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
-/// _`AsResponse`_ trait can also be derived with [`#[derive(AsResponse)]`][derive].
+/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
 ///
 /// # Examples
 ///
 /// ```
-/// use salvo_oapi::{RefOr, Response, AsResponse};
+/// use salvo_oapi::{RefOr, Response, Components, ToResponse};
 ///
 /// struct MyResponse;
-/// impl AsResponse for MyResponse {
-///     fn response() -> (String, RefOr<Response>) {
-///         (
-///             "MyResponse".into(),
-///             Response::new("My Response").into(),
-///         )
+/// impl ToResponse for MyResponse {
+///     fn to_response(_components: &mut Components) -> RefOr<Response> {
+///         Response::new("My Response").into()
 ///     }
 /// }
 /// ```
 ///
-/// [derive]: derive.AsResponse.html
-pub trait AsResponse {
+/// [derive]: derive.ToResponse.html
+pub trait ToResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn response() -> (String, RefOr<crate::Response>);
+    fn to_response(components: &mut Components) -> RefOr<crate::Response>;
+}
+
+impl<C> ToResponse for writer::Json<C>
+where
+    C: ToSchema,
+{
+    fn to_response(components: &mut Components) -> RefOr<Response> {
+        let schema = <C as ToSchema>::to_schema(components);
+        Response::new("Response with json format data")
+            .add_content("application/json", Content::new(schema))
+            .into()
+    }
 }
 
 #[cfg(test)]
@@ -417,42 +421,75 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_partial_schema() {
+    fn test_primitive_schema() {
+        let mut components = Components::new();
         for (name, schema, value) in [
-            ("i8", i8::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i16", i16::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i32", i32::schema(), json!({"type": "integer", "format": "int32"})),
-            ("i64", i64::schema(), json!({"type": "integer", "format": "int64"})),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
+            (
+                "i8",
+                i8::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i16",
+                i16::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i32",
+                i32::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i64",
+                i64::to_schema(&mut components),
+                json!({"type": "integer", "format": "int64"}),
+            ),
+            ("i128", i128::to_schema(&mut components), json!({"type": "integer"})),
+            ("isize", isize::to_schema(&mut components), json!({"type": "integer"})),
             (
                 "u8",
-                u8::schema(),
+                u8::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u16",
-                u16::schema(),
+                u16::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u32",
-                u32::schema(),
+                u32::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u64",
-                u64::schema(),
+                u64::to_schema(&mut components),
                 json!({"type": "integer", "format": "int64", "minimum": 0.0}),
             ),
-            ("u128", u128::schema(), json!({"type": "integer", "minimum": 0.0})),
-            ("usize", usize::schema(), json!({"type": "integer", "minimum": 0.0 })),
-            ("bool", bool::schema(), json!({"type": "boolean"})),
-            ("str", str::schema(), json!({"type": "string"})),
-            ("String", String::schema(), json!({"type": "string"})),
-            ("char", char::schema(), json!({"type": "string"})),
-            ("f32", f32::schema(), json!({"type": "number", "format": "float"})),
-            ("f64", f64::schema(), json!({"type": "number", "format": "double"})),
+            (
+                "u128",
+                u128::to_schema(&mut components),
+                json!({"type": "integer", "minimum": 0.0}),
+            ),
+            (
+                "usize",
+                usize::to_schema(&mut components),
+                json!({"type": "integer", "minimum": 0.0 }),
+            ),
+            ("bool", bool::to_schema(&mut components), json!({"type": "boolean"})),
+            ("str", str::to_schema(&mut components), json!({"type": "string"})),
+            ("String", String::to_schema(&mut components), json!({"type": "string"})),
+            ("char", char::to_schema(&mut components), json!({"type": "string"})),
+            (
+                "f32",
+                f32::to_schema(&mut components),
+                json!({"type": "number", "format": "float"}),
+            ),
+            (
+                "f64",
+                f64::to_schema(&mut components),
+                json!({"type": "number", "format": "double"}),
+            ),
         ] {
             println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
             let schema = serde_json::to_value(schema).unwrap();

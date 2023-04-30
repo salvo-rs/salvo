@@ -38,7 +38,7 @@ struct NamedStructFieldOptions<'a> {
 }
 
 impl NamedStructSchema<'_> {
-    fn field_as_schema_property<R>(
+    fn field_to_schema_property<R>(
         &self,
         field: &Field,
         container_rules: &Option<SerdeContainer>,
@@ -127,7 +127,7 @@ impl ToTokens for NamedStructSchema<'_> {
                         field_name = &field_name[2..];
                     }
 
-                    self.field_as_schema_property(
+                    self.field_to_schema_property(
                         field,
                         &container_rules,
                         |NamedStructFieldOptions {
@@ -186,7 +186,7 @@ impl ToTokens for NamedStructSchema<'_> {
             });
 
             for field in flatten_fields {
-                self.field_as_schema_property(
+                self.field_to_schema_property(
                     field,
                     &container_rules,
                     |NamedStructFieldOptions { property, .. }| {
