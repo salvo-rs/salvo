@@ -62,8 +62,15 @@ impl ToTokens for ToResponse<'_> {
 
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
-                fn to_response() -> (String, #oapi::oapi::RefOr<#oapi::oapi::response::Response>) {
-                    (#name.into(), #response.into())
+                fn to_response(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::Response> {
+                    let response = #response;
+                    components.responses.insert(#name, response);
+                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/responses/{}", #name)))
+                }
+            }
+            impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    operation.responses.insert("200", <Self as #oapi::oapi::ToResponse>::to_response(components))
                 }
             }
         });
@@ -136,8 +143,13 @@ impl ToTokens for ToResponses {
         };
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToResponses for #ident #ty_generics #where_clause {
-                fn to_responses() -> #oapi::oapi::response::Responses {
+                fn to_responses(components: &mut #oapi::oapi::Components) -> #oapi::oapi::response::Responses {
                     #responses
+                }
+            }
+            impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    operation.responses = <Self as #oapi::oapi::ToResponses>::to_responses(components)
                 }
             }
         })

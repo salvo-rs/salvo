@@ -943,8 +943,8 @@ mod tests {
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0")).components(
             Components::new()
-                .schema("Person", Ref::new("#/components/PersonModel"))
-                .schema(
+                .add_schema("Person", Ref::new("#/components/PersonModel"))
+                .add_schema(
                     "Credential",
                     Schema::from(
                         Object::new()

@@ -241,15 +241,9 @@ impl ToTokens for ResponseTuple<'_> {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
-                if res.is_inline {
-                    tokens.extend(quote_spanned! {path.span()=>
-                        <#path as #oapi::oapi::ToResponse>::to_response().1
-                    });
-                } else {
-                    tokens.extend(quote! {
-                        #oapi::oapi::Ref::from_response_name(<#path as #oapi::oapi::ToResponse>::to_response().0)
-                    });
-                }
+                tokens.extend(quote_spanned! {path.span()=>
+                    <#path as #oapi::oapi::ToResponse>::to_response(components)
+                });
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
@@ -352,7 +346,7 @@ impl ToTokens for ResponseTuple<'_> {
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;
                     tokens.extend(quote! {
-                        .header(#name, #header)
+                        .add_header(#name, #header)
                     })
                 });
             }
@@ -673,7 +667,7 @@ impl ToTokens for Responses<'_> {
                         Response::ToResponses(path) => {
                             let span = path.span();
                             acc.extend(quote_spanned! {span =>
-                                .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses())
+                                .append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components))
                             })
                         }
                         Response::Tuple(response) => {

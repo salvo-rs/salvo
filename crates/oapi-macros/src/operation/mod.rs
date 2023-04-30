@@ -54,7 +54,7 @@ impl<'a> Operation<'a> {
             match response {
                 Response::ToResponses(path) => {
                     modifiers.push(quote! {
-                        operation.responses.append(&mut <#path as #oapi::oapi::ToResponses>::to_responses());
+                        operation.responses.append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components));
                     });
                 }
                 Response::Tuple(tuple) => {

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Operation, Parameter, ParameterIn, ToParameter, ToSchema};
+use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by header.
 pub struct HeaderParam<T>(pub T);

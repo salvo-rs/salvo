@@ -156,6 +156,7 @@ impl Response {
             ..Default::default()
         }
     }
+
     /// Add description. Description supports markdown syntax.
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
         set_value!(self description description.into())

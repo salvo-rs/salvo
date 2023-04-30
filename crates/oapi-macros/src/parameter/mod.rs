@@ -60,7 +60,7 @@ impl ToTokens for Parameter<'_> {
 
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        <#path as #oapi::oapi::ToParameters>::to_parameters().into_iter()
+                        <#path as #oapi::oapi::ToParameters>::to_parameters(components).into_iter()
                     )
                 })
             }

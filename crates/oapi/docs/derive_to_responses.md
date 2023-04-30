@@ -144,7 +144,7 @@ struct CreatedResponse(#[schema] Foo);
 
 _**Enum with multiple responses.**_
 ```
-# #[derive(salvo_oapi::ToResponse)]
+# #[derive(salvo_oapi::ToResponse, salvo_oapi::ToSchema)]
 # struct Response {
 #     message: String,
 # }

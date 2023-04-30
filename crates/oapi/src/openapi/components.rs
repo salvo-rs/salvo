@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ToResponse, RefOr, Response, Responses, Schema, SecurityScheme};
+use crate::{RefOr, Response, Responses, Schema, SecurityScheme};
 
 /// Implements [OpenAPI Components Object][components] which holds supported
 /// reusable objects.

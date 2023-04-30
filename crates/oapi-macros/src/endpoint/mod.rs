@@ -23,11 +23,14 @@ fn metadata(
             ::std::any::TypeId::of::<#name>()
         }
         fn #cfn() -> #oapi::oapi::Endpoint {
-            let mut operation = #opt;
             let mut components = #oapi::oapi::Components::new();
+            fn get_operation(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Operation {
+                #opt
+            }
             fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                 #(#modifiers)*
             }
+            let mut operation = get_operation(&mut components);
             modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
@@ -218,7 +221,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             }
         }
         ReturnType::Type(_, ty) => {
-            modifiers.push(quote! {                
+            modifiers.push(quote! {
                 <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
             });
             if sig.asyncness.is_none() {

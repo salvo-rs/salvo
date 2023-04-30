@@ -26,8 +26,7 @@ cfg_feature! {
 
 #[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
-#[doc = include_str!("../docs/schema.md")]
-pub use salvo_oapi_macros::schema;
+pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
 pub use salvo_oapi_macros::ToParameters;
 #[doc = include_str!("../docs/derive_to_response.md")]
@@ -69,7 +68,7 @@ extern crate self as salvo_oapi;
 ///
 /// Following manual implementation is equal to above derive one.
 /// ```
-/// use salvo_oapi::{ToSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
+/// use salvo_oapi::{Components, ToSchema, RefOr, Schema, SchemaFormat, SchemaType, KnownFormat, Object};
 /// # struct Pet {
 /// #     id: u64,
 /// #     name: String,
@@ -77,8 +76,8 @@ extern crate self as salvo_oapi;
 /// # }
 /// #
 /// impl ToSchema for Pet {
-///     fn to_schema(components: &mut Components) -> (Option<String>, RefOr<Schema>) {
-///         (None, Object::new()
+///     fn to_schema(components: &mut Components) -> RefOr<Schema> {
+///         Object::new()
 ///             .property(
 ///                 "id",
 ///                 Object::new()
@@ -106,7 +105,6 @@ extern crate self as salvo_oapi;
 ///               "name":"bob the cat","id":1
 ///             }))
 ///             .into()
-///         )
 ///     }
 /// }
 /// ```
@@ -122,7 +120,7 @@ pub trait ToSchema {
 pub type TupleUnit = ();
 
 impl ToSchema for TupleUnit {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema::empty().into()
     }
 }
@@ -136,7 +134,7 @@ macro_rules! impl_to_schema {
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl ToSchema for $($tt)* {
-            fn to_schema(components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
+            fn to_schema(_components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
                  schema!( $($tt)* ).into()
             }
         }
@@ -250,7 +248,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 /// #    name: String,
 /// # }
 /// impl<'de> salvo_oapi::ToParameters<'de> for PetParams {
-///     fn to_parameters() -> salvo_oapi::Parameters {
+///     fn to_parameters(_components: &mut Components) -> salvo_oapi::Parameters {
 ///         salvo_oapi::Parameters::new().parameter(
 ///             salvo_oapi::Parameter::new("id")
 ///                 .required(salvo_oapi::Required::True)
@@ -289,8 +287,8 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 /// }
 ///
 /// impl EndpointArgRegister for PetParams {
-///     fn register(_components: &mut Components, operation: &mut Operation) {
-///         operation.parameters.append(&mut PetParams::to_parameters());
+///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+///         operation.parameters.append(&mut PetParams::to_parameters(components));
 ///     }
 /// }
 /// ```
@@ -298,13 +296,13 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 pub trait ToParameters<'de>: Extractible<'de> {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn to_parameters() -> Parameters;
+    fn to_parameters(components: &mut Components) -> Parameters;
 }
 
 /// Trait used to give [`Parameter`] information for OpenAPI.
 pub trait ToParameter {
     /// Returns a `Parameter`.
-    fn to_parameter() -> Parameter;
+    fn to_parameter(components: &mut Components) -> Parameter;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent
@@ -323,14 +321,14 @@ pub trait ToParameter {
 /// }
 ///
 /// impl ToRequestBody for MyPayload {
-///     fn to_request_body(components: &mut Compontents) -> RequestBody {
+///     fn to_request_body(components: &mut Components) -> RequestBody {
 ///         RequestBody::new()
 ///             .add_content("application/json", Content::new(MyPayload::to_schema(components)))
 ///     }
 /// }
 /// impl EndpointArgRegister for MyPayload {
-///     fn modify(_components: &mut Components, operation: &mut Operation) {
-///         operation.request_body = Some(Self::to_request_body());
+///     fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
+///         operation.request_body = Some(Self::to_request_body(components));
 ///     }
 /// }
 /// ```
@@ -346,7 +344,7 @@ pub trait ToRequestBody {
 ///
 /// ```
 /// use std::collections::BTreeMap;
-/// use salvo_oapi::{Response, Responses, RefOr, ToResponses };
+/// use salvo_oapi::{Components, Response, Responses, RefOr, ToResponses };
 ///
 /// enum MyResponse {
 ///     Ok,
@@ -387,29 +385,35 @@ where
 /// # Examples
 ///
 /// ```
-/// use salvo_oapi::{RefOr, Response, ToResponse};
+/// use salvo_oapi::{RefOr, Response, Components, ToResponse};
 ///
 /// struct MyResponse;
 /// impl ToResponse for MyResponse {
-///     fn to_response() -> (String, RefOr<Response>) {
-///         (
-///             "MyResponse".into(),
-///             Response::new("My Response").into(),
-///         )
-/// }
+///     fn to_response(_components: &mut Components) -> RefOr<Response> {
+///         Response::new("My Response").into()
 ///     }
+/// }
 /// ```
 ///
 /// [derive]: derive.ToResponse.html
 pub trait ToResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn to_response() -> RefOr<crate::Response>;
+    fn to_response(components: &mut Components) -> RefOr<crate::Response>;
+}
+
+impl<C> ToResponse for writer::Json<C>
+where
+    C: ToSchema,
+{
+    fn to_response(components: &mut Components) -> RefOr<Response> {
+        let schema = <C as ToSchema>::to_schema(components);
+        Response::new("Response with json format data").add_content("application/json", Content::new(schema)).into()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use salvo_core::http::cookie::time::format_description::Component;
     use serde_json::json;
 
     use super::*;
@@ -462,7 +466,7 @@ mod tests {
             ),
             (
                 "u128",
-                u128::to_schema(&mut components).1,
+                u128::to_schema(&mut components),
                 json!({"type": "integer", "minimum": 0.0}),
             ),
             (

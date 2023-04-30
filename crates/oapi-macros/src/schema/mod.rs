@@ -66,18 +66,18 @@ impl ToTokens for ToSchema<'_> {
                     quote! {if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
                             symbol
                         } else {
-                            std::any::type_name::<#ty>().into()
+                            std::any::type_name::<#ty>().to_string()
                         }
                     }
                 })
                 .collect::<Punctuated<TokenStream, Token![,]>>();
             if ty_params.is_empty() {
-                quote! { Some(#symbol.into()) }
+                quote! { #symbol.to_string() }
             } else {
-                quote! {Some(format!("{}<{}>", #symbol, [#ty_params].join(",")))}
+                quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")) }
             }
         } else {
-            quote! { std::any::type_name::<#ident #ty_generics>() }
+            quote! { std::any::type_name::<#ident #ty_generics>().to_string() }
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
@@ -85,7 +85,8 @@ impl ToTokens for ToSchema<'_> {
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
-                    components.schemas.insert(#symbol.into(), #variant.into());
+                    let schema = #variant;
+                    components.schemas.insert(#symbol, schema.into());
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #symbol)))
                 }
             }

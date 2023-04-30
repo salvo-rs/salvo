@@ -185,13 +185,13 @@ impl ToTokens for ToParameters {
         let name = ident.to_string();
         tokens.extend(quote! {
             impl #de_impl_generics #oapi::oapi::ToParameters<'__de> for #ident #ty_generics #where_clause {
-                fn to_parameters() -> #oapi::oapi::Parameters {
+                fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {
-                fn register(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                    for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters() {
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, _arg: &str) {
+                    for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters(components) {
                         operation.parameters.insert(parameter);
                     }
                 }

@@ -1,7 +1,10 @@
+//! endpoint module
+
 use std::any::TypeId;
 
-use crate::{Components, Content, Response, Operation, ToSchema};
 use salvo_core::writer;
+
+use crate::{Components, Operation, ToResponse, ToSchema};
 
 /// Represents an endpoint.
 pub struct Endpoint {
@@ -27,10 +30,7 @@ where
     C: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation) {
-        let schema = <C as ToSchema>::to_schema(components);
-        operation
-            .responses
-            .insert("200", Response::new("Response with json format data").add_content("application/json", Content::new(schema)))
+        operation.responses.insert("200", Self::to_response(components))
     }
 }
 
