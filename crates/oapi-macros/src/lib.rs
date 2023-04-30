@@ -65,7 +65,7 @@ pub(crate) use self::{
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-   let stream = match endpoint::generate(attr, item) {
+    let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
     };
@@ -177,10 +177,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         description: None,
         object_name: "",
     });
-    let stream = schema.to_token_stream().into();
-    println!("{}", stream);
-    println!("=======================");
-    stream
+    schema.to_token_stream().into()
 }
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.

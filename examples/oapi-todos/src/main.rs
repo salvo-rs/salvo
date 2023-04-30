@@ -54,7 +54,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) -> Json<Vec<Todo>
         (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]
-pub async fn create_todo(JsonBody(new_todo): JsonBody<Todo>, res: &mut Response) {
+pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -67,7 +67,7 @@ pub async fn create_todo(JsonBody(new_todo): JsonBody<Todo>, res: &mut Response)
         }
     }
 
-    vec.push(new_todo);
+    vec.push(new_todo.into_inner());
     res.set_status_code(StatusCode::CREATED);
 }
 

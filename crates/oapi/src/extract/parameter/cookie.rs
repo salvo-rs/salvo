@@ -32,6 +32,11 @@ impl<T> CookieParam<T> {
     pub fn value(&self) -> &T {
         &self.value
     }
+
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_value(self) -> T {
+        self.value
+    }
 }
 
 impl<T> Deref for CookieParam<T> {

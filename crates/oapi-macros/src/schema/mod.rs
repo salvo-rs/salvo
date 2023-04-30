@@ -77,7 +77,7 @@ impl ToTokens for ToSchema<'_> {
                 quote! {Some(format!("{}<{}>", #symbol, [#ty_params].join(",")))}
             }
         } else {
-            quote! { Some(std::any::type_name::<#ident #ty_generics>().into()) }
+            quote! { std::any::type_name::<#ident #ty_generics>() }
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
@@ -85,7 +85,7 @@ impl ToTokens for ToSchema<'_> {
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
-                    components.add_schema(#symbol, #variant.into());
+                    components.add_schema(#symbol, #variant);
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(#symbol))
                 }
             }

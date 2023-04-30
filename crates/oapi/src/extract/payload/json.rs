@@ -11,6 +11,12 @@ use crate::{ToRequestBody, ToSchema, Components, Content, Operation, Ref, RefOr,
 
 /// Represents the parameters passed by the URI path.
 pub struct JsonBody<T>(pub T);
+impl<T> JsonBody<T> {
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 impl<T> Deref for JsonBody<T> {
     type Target = T;

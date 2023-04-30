@@ -287,12 +287,12 @@ impl<'c> ComponentSchema {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components))
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components)
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                                 }
                             })
                             .to_tokens(tokens);
@@ -302,12 +302,12 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components).into())
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components).into()
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                                 }
                             })
                             .to_tokens(tokens);

@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
 use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
@@ -25,13 +25,16 @@ fn metadata(
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut operation = #opt;
             let mut components = #oapi::oapi::Components::new();
-            #(#modifiers)*
+            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                #(#modifiers)*
+            }
+            modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
             }
             #oapi::oapi::Endpoint{
                 operation,
-                components: components,
+                components,
             }
         }
         #oapi::oapi::__private::inventory::submit! {
@@ -140,7 +143,6 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
     let mut modifiers = Vec::new();
-    let mut count = 0;
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
@@ -162,8 +164,9 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                 ))
             }
             InputType::NoReference(pat) => {
-                if let (_, Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
-                    let id = Ident::new(&format!("s{count}"), Span::call_site());
+                if let (Pat::Ident(ident), Type::Path(ty)) = (&*pat.pat, &*pat.ty) {
+                    call_args.push(ident.ident.clone());
+                    let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = id.to_token_stream().to_string();
 
@@ -182,10 +185,8 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                         };
                     });
                     modifiers.push(quote! {
-                         <#ty as #oapi::oapi::EndpointArgRegister>::register(&mut components, &mut operation, #idv);
+                         <#ty as #oapi::oapi::EndpointArgRegister>::register(components, operation, #idv);
                     });
-                    call_args.push(id);
-                    count += 1;
                 } else {
                     return Err(syn::Error::new_spanned(pat, "invalid param definition"));
                 }
@@ -218,7 +219,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
         }
         ReturnType::Type(_, ty) => {
             modifiers.push(quote! {                
-                <#ty as #oapi::oapi::EndpointOutRegister>::register(&mut components, &mut operation);
+                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
             });
             if sig.asyncness.is_none() {
                 quote! {

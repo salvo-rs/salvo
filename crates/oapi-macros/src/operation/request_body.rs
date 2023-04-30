@@ -128,7 +128,7 @@ impl ToTokens for RequestBodyAttr<'_> {
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
                 PathType::RefPath(ref_type) => quote! {
-                    <#ref_type as #oapi::oapi::schema::Schema>::to_schema(&mut components)
+                    <#ref_type as #oapi::oapi::schema::Schema>::to_schema(components)
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();

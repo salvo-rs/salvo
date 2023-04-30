@@ -78,7 +78,7 @@ impl Components {
     /// Add [`Schema`] to [`Components`].
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
         self
     }
