@@ -9,33 +9,14 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 use crate::endpoint::EndpointArgRegister;
-use crate::{Components, Operation, Parameter, ParameterIn, ToParameter};
+use crate::{Components, Operation, Parameter, ParameterIn, ToParameter, ToSchema};
 
 /// Represents the parameters passed by Cookie.
-pub struct CookieParam<T> {
-    name: String,
-    value: T,
-}
+pub struct CookieParam<T>(pub T);
 impl<T> CookieParam<T> {
-    /// Construct a new [`CookieParam`] with given `name` and `value`.
-    pub fn new(name: &str, value: T) -> Self {
-        Self {
-            name: name.into(),
-            value,
-        }
-    }
-    /// Returns the name of the parameter.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    /// Returns the value of the parameter.
-    pub fn value(&self) -> &T {
-        &self.value
-    }
-
     /// Consumes self and returns the value of the parameter.
-    pub fn into_value(self) -> T {
-        self.value
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
@@ -43,13 +24,13 @@ impl<T> Deref for CookieParam<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &self.0
     }
 }
 
 impl<T> DerefMut for CookieParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
+        &mut self.0
     }
 }
 
@@ -61,10 +42,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| CookieParam {
-            name: "unknown".into(),
-            value,
-        })
+        T::deserialize(deserializer).map(|value| CookieParam(value))
     }
 }
 
@@ -73,10 +51,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CookieParam")
-            .field("name", &self.name)
-            .field("value", &self.value)
-            .finish()
+        self.0.fmt(f)
     }
 }
 
@@ -100,18 +75,16 @@ where
             .ok_or_else(|| {
                 ParseError::other(format!("cookie parameter {} not found or convert to type failed", arg))
             })?;
-        Ok(Self {
-            name: arg.to_string(),
-            value,
-        })
+        Ok(Self(value))
     }
 }
 
-impl<T> EndpointArgRegister for CookieParam<T> {
-    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
+impl<T> EndpointArgRegister for CookieParam<T> where T: ToSchema {
+    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Cookie)
-            .description(format!("Get parameter `{arg}` from request cookie"));
+            .description(format!("Get parameter `{arg}` from request cookie"))
+            .schema(T::to_schema(components));
         operation.parameters.insert(parameter);
     }
 }

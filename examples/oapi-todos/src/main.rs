@@ -36,14 +36,13 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 #[endpoint]
-pub async fn list_todos(req: &mut Request, res: &mut Response) -> Json<Vec<Todo>> {
-    let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
+pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Option<usize>>) -> Json<Vec<Todo>> {
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
         .into_iter()
-        .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
+        .skip(offset.into_inner().unwrap_or(0))
+        .take(limit.into_inner().unwrap_or(std::usize::MAX))
         .collect();
     Json(todos)
 }
@@ -143,11 +142,5 @@ mod models {
         #[schema(example = "Buy coffee")]
         pub text: String,
         pub completed: bool,
-    }
-
-    #[derive(Deserialize, Debug, Default)]
-    pub struct ListOptions {
-        pub offset: Option<usize>,
-        pub limit: Option<usize>,
     }
 }

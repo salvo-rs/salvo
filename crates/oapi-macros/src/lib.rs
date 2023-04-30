@@ -65,12 +65,10 @@ pub(crate) use self::{
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    let stream = match endpoint::generate(attr, item) {
+    match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    };
-    println!("{}", stream);
-    stream
+    }
 }
 
 #[proc_macro_error]
@@ -84,7 +82,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    ToSchema::new(&data, &attrs, &ident, &generics).to_token_stream().into()
+    let stream = ToSchema::new(&data, &attrs, &ident, &generics).to_token_stream().into();
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]

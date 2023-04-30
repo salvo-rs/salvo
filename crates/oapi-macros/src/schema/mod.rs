@@ -85,8 +85,8 @@ impl ToTokens for ToSchema<'_> {
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
-                    components.add_schema(#symbol, #variant);
-                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(#symbol))
+                    components.schemas.insert(#symbol.into(), #variant.into());
+                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #symbol)))
                 }
             }
         })
