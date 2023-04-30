@@ -52,9 +52,9 @@ impl<'a> Operation<'a> {
         }
         for response in self.responses {
             match response {
-                Response::AsResponses(path) => {
+                Response::ToResponses(path) => {
                     modifiers.push(quote! {
-                        operation.responses.append(&mut <#path as #oapi::oapi::AsResponses>::responses());
+                        operation.responses.append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components));
                     });
                 }
                 Response::Tuple(tuple) => {
@@ -64,11 +64,7 @@ impl<'a> Operation<'a> {
                             ResponseTupleInner::Ref(inline) => {
                                 let ty = &inline.ty;
                                 modifiers.push(quote! {
-                                    {
-                                        if let Some(symbol) = <#ty as #oapi::oapi::AsSchema>::symbol() {
-                                            components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::AsSchema>::schema());
-                                        }
-                                    }
+                                    let _= <#ty as #oapi::oapi::ToSchema>::to_schema(components);
                                 });
                             }
                             ResponseTupleInner::Value(value) => {
@@ -93,21 +89,13 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
     match content {
         PathType::RefPath(path) => {
             modifiers.push(quote! {
-                {
-                    if let Some(symbol) = <#path as #oapi::oapi::AsSchema>::symbol() {
-                        components.schemas.insert(symbol.into(), <#path as #oapi::oapi::AsSchema>::schema());
-                    }
-                }
+                let _ = <#path as #oapi::oapi::ToSchema>::to_schema(components);
             });
         }
         PathType::MediaType(inline) => {
             let ty = &inline.ty;
             modifiers.push(quote! {
-                {
-                    if let Some(symbol) = <#ty as #oapi::oapi::AsSchema>::symbol() {
-                        components.schemas.insert(symbol.into(), <#ty as #oapi::oapi::AsSchema>::schema());
-                    }
-                }
+                let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
             });
         }
         _ => {}

@@ -35,21 +35,17 @@ async fn main() {
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }
-#[endpoint(
-    responses(
-        (status = 200, description = "List all todos successfully", body = [Todo])
-    )
-)]
-pub async fn list_todos(req: &mut Request, res: &mut Response) {
-    let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
+
+#[endpoint]
+pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Option<usize>>) -> Json<Vec<Todo>> {
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
         .into_iter()
-        .skip(opts.offset.unwrap_or(0))
-        .take(opts.limit.unwrap_or(std::usize::MAX))
+        .skip(offset.into_inner().unwrap_or(0))
+        .take(limit.into_inner().unwrap_or(std::usize::MAX))
         .collect();
-    res.render(Json(todos));
+    Json(todos)
 }
 
 #[endpoint(
@@ -58,7 +54,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]
-pub async fn create_todo(JsonBody(new_todo): JsonBody<Todo>, res: &mut Response) {
+pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -71,7 +67,7 @@ pub async fn create_todo(JsonBody(new_todo): JsonBody<Todo>, res: &mut Response)
         }
     }
 
-    vec.push(new_todo);
+    vec.push(new_todo.into_inner());
     res.set_status_code(StatusCode::CREATED);
 }
 
@@ -122,7 +118,7 @@ pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
 }
 
 mod models {
-    use salvo::oapi::AsSchema;
+    use salvo::oapi::ToSchema;
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
 
@@ -132,7 +128,7 @@ mod models {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Serialize, Deserialize, AsSchema)]
+    #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
         /// Happens when Todo item already exists
         Config(String),
@@ -140,18 +136,12 @@ mod models {
         NotFound(String),
     }
 
-    #[derive(Serialize, Deserialize, Clone, Debug, AsSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
     pub struct Todo {
         #[schema(example = 1)]
         pub id: u64,
         #[schema(example = "Buy coffee")]
         pub text: String,
         pub completed: bool,
-    }
-
-    #[derive(Deserialize, Debug, Default)]
-    pub struct ListOptions {
-        pub offset: Option<usize>,
-        pub limit: Option<usize>,
     }
 }

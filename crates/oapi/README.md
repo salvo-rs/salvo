@@ -1,36 +1,37 @@
-<h1 align="center">salvo_oapi OpenApi</h1>
-
-<p align="center">Fast and Type-Safe OpenApi implementation for salvo_oapi.</p>
 <div align="center">
-  <!-- Crates version -->
-  <a href="https://crates.io/crates/salvo_oapi">
-    <img src="https://img.shields.io/crates/v/salvo_oapi.svg?style=flat-square"
-    alt="Crates.io version" />
-  </a>
-  <!-- Downloads -->
-  <a href="https://crates.io/crates/salvo_oapi">
-    <img src="https://img.shields.io/crates/d/salvo_oapi.svg?style=flat-square"
-      alt="Download" />
-  </a>
-  <!-- docs.rs docs -->
-  <a href="https://docs.rs/salvo_oapi">
-    <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
-      alt="docs.rs docs" />
-  </a>
-  <a href="https://github.com/rust-secure-code/safety-dance/">
-    <img src="https://img.shields.io/badge/unsafe-forbidden-success.svg?style=flat-square"
-      alt="Unsafe Rust forbidden" />
-  </a>
-  <a href="https://blog.rust-lang.org/2021/11/01/Rust-1.56.1.html">
-    <img src="https://img.shields.io/badge/rustc-1.56.1+-ab6000.svg"
-      alt="rustc 1.56.1+" />
-  </a>
-  <a href="https://discord.gg/qWWNxwasb7">
-    <img src="https://img.shields.io/discord/932986985604333638.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2" />
-  </a>
+<p><img alt="Savlo" width="132" style="max-width:40%;min-width:60px;" src="https://salvo.rs/images/logo-text.svg" /></p>
+<p>
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.md">English</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hans.md">简体中文</a>&nbsp;&nbsp;
+    <a href="https://github.com/salvo-rs/salvo/blob/main/README.zh-hant.md">繁體中文</a>
+</p>
+<p>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-linux/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-macos/badge.svg?branch=main&event=push" />
+</a>
+<a href="https://github.com/salvo-rs/salvo/actions">
+    <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
+</a>
+<br>
+<a href="https://discord.gg/rUHf3spK">
+    <img src="https://img.shields.io/discord/1041442427006890014.svg?logo=discord">
+</a>
+<a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
+<a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
+<a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
+<a href="https://blog.rust-lang.org/2022/09/22/Rust-1.64.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.64%2B-blue" /></a>
+<br>
+<a href="https://salvo.rs">
+    <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
+</a>
+<a href="https://codecov.io/gh/salvo-rs/salvo"><img alt="codecov" src="https://codecov.io/gh/salvo-rs/salvo/branch/main/graph/badge.svg" /></a>
+<a href="https://crates.io/crates/salvo"><img alt="Download" src="https://img.shields.io/crates/d/salvo.svg" /></a>
+<img alt="License" src="https://img.shields.io/crates/l/salvo.svg" />
+</p>
 </div>
-
-***
 
 `salvo_oapi` allows you to easily implement Apis that comply with the `OpenApiv3` specification.
 It uses procedural macros to generate a lots of boilerplate code, so that you only need to focus on the more 
@@ -54,8 +55,6 @@ To avoid compiling unused dependencies, salvo_oapi gates certain features, some 
 |--------------|----------------------------------------------------------------------------------|
 | chrono       | Integrate with the [`chrono` crate](https://crates.io/crates/chrono).            |
 | swagger-ui   | Add swagger UI support                                                           |
-| rapidoc      | Add RapiDoc UI support                                                           |
-| redoc        | Add Redoc UI support                                                             |
 | email        | Support for email address string                                                 |
 | hostname     | Support for hostname string                                                      |
 | uuid         | Integrate with the [`uuid` crate](https://crates.io/crates/uuid)                 |
@@ -71,60 +70,51 @@ This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in
 ## Example
 
 ```rust
-use salvo_oapi::{listener::TcpListener, Route};
-use salvo_oapi::{param::Query, payload::PlainText, OpenApi, OpenApiService};
+use salvo_core::prelude::*;
+use salvo_oapi::extract::QueryParam;
 
-struct Api;
-
-#[OpenApi]
-impl Api {
-    #[oai(path = "/hello", method = "get")]
-    async fn index(&self, name: Query<Option<String>>) -> PlainText<String> {
-        match name.0 {
-            Some(name) => PlainText(format!("hello, {}!", name)),
-            None => PlainText("hello!".to_string()),
-        }
-    }
+#[endpoint]
+async fn hello(body: QueryParamOption<String>>, res: &mut Response) {
+    res.render(format!("{:?}", body))
 }
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    let api_service =
-        OpenApiService::new(Api, "Hello World", "1.0").server("http://localhost:3000/api");
-    let ui = api_service.swagger_ui();
-    let app = Route::new().nest("/api", api_service).nest("/", ui);
+    let router = Router::new()
+        .push(Router::with_path("hello").get(hello))
 
-    salvo_oapi::Server::new(TcpListener::bind("127.0.0.1:3000"))
-        .run(app)
-        .await
+    let doc = OpenApi::new(Info::new("Hello API", "0.0.1")).merge_router(&router);
+
+    let router = router
+        .push(doc.into_router("/api-doc/openapi.json"))
+        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
+
+    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 ```
 
 This feature needs to be opted-in. It can be done by adding the feature in `Cargo.toml` file
 ```toml filename=Cargo.toml
 [dependencies]
-salvo_oapi = "1.3.29"
-salvo_oapi = { version = "1.3.29", features = ["swagger-ui"]}
+salvo = { version = "0.39", features = ["oapi"]}
 tokio = { version = "1", features = ["full"] }
 ```
 
 ## Run example
 
-Open `http://localhost:3000/` in your browser, you will see the `Swagger UI` that contains these Api definitions.
+Open `http://localhost:5800/` in your browser, you will see the `Swagger UI` that contains these Api definitions.
 
 ```shell
 > cargo run --example hello_world
 
-> curl http://localhost:3000
+> curl http://localhost:5800
 hello!
 
-> curl http://localhost:3000\?name\=chris
+> curl http://localhost:5800\?name\=chris
 hello, chris!        
 ```
 
-## MSRV
-
-The minimum supported Rust version for this crate is `1.56.1`.
 
 ## Contributing
 

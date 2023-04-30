@@ -2,8 +2,6 @@
 
 It is based on examples of **salvo_oapi** and salvo **todos**
 
-https://github.com/juhaku/salvo_oapi
-
 ```
 cargo run
 ```

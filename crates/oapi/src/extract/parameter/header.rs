@@ -7,29 +7,15 @@ use salvo_core::{async_trait, Request};
 use serde::Deserialize;
 use serde::Deserializer;
 
-use crate::endpoint::EndpointModifier;
-use crate::{AsParameter, Components, Operation, Parameter, ParameterIn};
+use crate::endpoint::EndpointArgRegister;
+use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by header.
-pub struct HeaderParam<T> {
-    name: String,
-    value: T,
-}
+pub struct HeaderParam<T>(pub T);
 impl<T> HeaderParam<T> {
-    /// Construct a new [`HeaderParam`] with given `name` and `value`.
-    pub fn new(name: &str, value: T) -> Self {
-        Self {
-            name: name.into(),
-            value,
-        }
-    }
-    /// Returns the name of the parameter.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    /// Returns the value of the parameter.
-    pub fn value(&self) -> &T {
-        &self.value
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
@@ -37,24 +23,13 @@ impl<T> Deref for HeaderParam<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &self.0
     }
 }
 
 impl<T> DerefMut for HeaderParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
-    }
-}
-
-impl<T> AsParameter for HeaderParam<T> {
-    fn parameter() -> Parameter {
-        panic!("header parameter must have a argument");
-    }
-    fn parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg)
-            .parameter_in(ParameterIn::Header)
-            .description(format!("Get parameter `{arg}` from request headers"))
+        &mut self.0
     }
 }
 
@@ -66,10 +41,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| HeaderParam {
-            name: "unknown".into(),
-            value,
-        })
+        T::deserialize(deserializer).map(|value| HeaderParam(value))
     }
 }
 
@@ -78,10 +50,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("HeaderParam")
-            .field("name", &self.name)
-            .field("value", &self.value)
-            .finish()
+        self.0.fmt(f)
     }
 }
 
@@ -101,19 +70,19 @@ where
         let value = req.header(arg).ok_or_else(|| {
             ParseError::other(format!("header parameter {} not found or convert to type failed", arg))
         })?;
-        Ok(Self {
-            name: arg.to_string(),
-            value,
-        })
+        Ok(Self(value))
     }
 }
 
-#[async_trait]
-impl<T> EndpointModifier for HeaderParam<T> {
-    fn modify(_components: &mut Components, _operation: &mut Operation) {
-        panic!("header parameter can not modiify operation without argument");
-    }
-    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::parameter_with_arg(arg));
+impl<T> EndpointArgRegister for HeaderParam<T>
+where
+    T: ToSchema,
+{
+    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
+        let parameter = Parameter::new(arg)
+            .parameter_in(ParameterIn::Header)
+            .description(format!("Get parameter `{arg}` from request headers"))
+            .schema(T::to_schema(components));
+        operation.parameters.insert(parameter);
     }
 }

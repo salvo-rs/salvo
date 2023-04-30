@@ -22,7 +22,7 @@ jobs:
           toolchain: ${{ steps.msrv.outputs.version }}
           components: rustfmt, clippy
 
-      - name: check
+      - name: check crates
         run: cargo check --all --bins --examples --tests
   test:
     strategy:
@@ -42,6 +42,10 @@ jobs:
 
       - name: check build
         run: cargo check --all --bins --examples --tests
+
+      - name: check examples
+        run: cargo check --all --bins --examples --tests
+        working-directory: ./examples
 
       - name: check release build
         run: cargo check --all --bins --examples --tests --release

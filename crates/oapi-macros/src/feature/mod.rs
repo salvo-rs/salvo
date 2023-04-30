@@ -86,7 +86,7 @@ pub(crate) enum Feature {
     AllowReserved(AllowReserved),
     Explode(Explode),
     ParameterIn(ParameterIn),
-    AsParametersNames(Names),
+    ToParametersNames(Names),
     MultipleOf(MultipleOf),
     Maximum(Maximum),
     Minimum(Minimum),
@@ -220,11 +220,11 @@ impl ToTokens for Feature {
                 // inline feature is ignored by `ToTokens`
                 TokenStream::new()
             }
-            Feature::AsParametersNames(_) => {
+            Feature::ToParametersNames(_) => {
                 abort! {
                     Span::call_site(),
                     "Names feature does not support `ToTokens`";
-                    help = "Names is only used with AsParameters to artificially give names for unnamed struct type `AsParameters`."
+                    help = "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
                 }
             }
             Feature::Symbol(_) => {
@@ -259,7 +259,7 @@ impl Display for Feature {
             Feature::RenameAll(rename_all) => rename_all.fmt(f),
             Feature::ValueType(value_type) => value_type.fmt(f),
             Feature::Inline(inline) => inline.fmt(f),
-            Feature::AsParametersNames(names) => names.fmt(f),
+            Feature::ToParametersNames(names) => names.fmt(f),
             Feature::MultipleOf(multiple_of) => multiple_of.fmt(f),
             Feature::Maximum(maximum) => maximum.fmt(f),
             Feature::Minimum(minimum) => minimum.fmt(f),
@@ -301,7 +301,7 @@ impl Validatable for Feature {
             Feature::RenameAll(rename_all) => rename_all.is_validatable(),
             Feature::ValueType(value_type) => value_type.is_validatable(),
             Feature::Inline(inline) => inline.is_validatable(),
-            Feature::AsParametersNames(names) => names.is_validatable(),
+            Feature::ToParametersNames(names) => names.is_validatable(),
             Feature::MultipleOf(multiple_of) => multiple_of.is_validatable(),
             Feature::Maximum(maximum) => maximum.is_validatable(),
             Feature::Minimum(minimum) => minimum.is_validatable(),

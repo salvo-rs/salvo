@@ -330,7 +330,7 @@ impl PathParser {
     fn new(raw_value: &str) -> PathParser {
         PathParser {
             offset: 0,
-            path: raw_value.chars().collect(),
+            path: raw_value.trim_start_matches('/').chars().collect(),
         }
     }
     #[inline]
@@ -582,9 +582,6 @@ impl PathParser {
         }
         loop {
             self.skip_slashes();
-            if self.offset >= self.path.len() - 1 {
-                break;
-            }
             if self.curr().map(|c| c == '/').unwrap_or(false) {
                 return Err(format!("'/' is not allowed after '/' at offset {:?}", self.offset));
             }
@@ -603,8 +600,7 @@ impl PathParser {
                     self.offset
                 ));
             }
-            self.next(true);
-            if self.offset >= self.path.len() - 1 {
+            if self.next(true).is_none() {
                 break;
             }
         }

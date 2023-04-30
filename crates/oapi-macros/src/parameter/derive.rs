@@ -23,12 +23,12 @@ use crate::{
     Array, FieldRename, Required, ResultExt,
 };
 
-impl_merge!(AsParametersFeatures, FieldFeatures);
+impl_merge!(ToParametersFeatures, FieldFeatures);
 
-/// Container attribute `#[as_parameters(...)]`.
-pub(crate) struct AsParametersFeatures(Vec<Feature>);
+/// Container attribute `#[parameters(...)]`.
+pub(crate) struct ToParametersFeatures(Vec<Feature>);
 
-impl Parse for AsParametersFeatures {
+impl Parse for ToParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             input as Style,
@@ -39,10 +39,10 @@ impl Parse for AsParametersFeatures {
     }
 }
 
-impl_into_inner!(AsParametersFeatures);
+impl_into_inner!(ToParametersFeatures);
 
 #[derive(Debug)]
-pub(crate) struct AsParameters {
+pub(crate) struct ToParameters {
     /// Attributes tagged on the whole struct or enum.
     pub(crate) attrs: Vec<Attribute>,
     /// Generics required to complete the definition.
@@ -53,7 +53,7 @@ pub(crate) struct AsParameters {
     pub(crate) ident: Ident,
 }
 
-impl ToTokens for AsParameters {
+impl ToTokens for ToParameters {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = &self.ident;
         let salvo = crate::salvo_crate();
@@ -66,13 +66,13 @@ impl ToTokens for AsParameters {
         de_generics.params.insert(0, de_lifetime);
         let de_impl_generics = de_generics.split_for_impl().0;
 
-        let mut as_parameters_features = self
+        let mut parameters_features = self
             .attrs
             .iter()
-            .filter(|attr| attr.path().is_ident("as_parameters"))
+            .filter(|attr| attr.path().is_ident("parameters"))
             .map(|attribute| {
                 attribute
-                    .parse_args::<AsParametersFeatures>()
+                    .parse_args::<ToParametersFeatures>()
                     .unwrap_or_abort()
                     .into_inner()
             })
@@ -80,26 +80,26 @@ impl ToTokens for AsParameters {
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
-        if self.attrs.iter().any(|attr| attr.path().is_ident("param")) {
+        if self.attrs.iter().any(|attr| attr.path().is_ident("parameter")) {
             abort! {
                 ident,
-                "found `param` attribute in unsupported context";
-                help = "Did you mean `as_parameters`?",
+                "found `parameter` attribute in unsupported context";
+                help = "Did you mean `parameters`?",
             }
         }
 
-        let names = as_parameters_features.as_mut().and_then(|features| {
+        let names = parameters_features.as_mut().and_then(|features| {
             features
-                .pop_by(|feature| matches!(feature, Feature::AsParametersNames(_)))
+                .pop_by(|feature| matches!(feature, Feature::ToParametersNames(_)))
                 .and_then(|feature| match feature {
-                    Feature::AsParametersNames(names) => Some(names.into_values()),
+                    Feature::ToParametersNames(names) => Some(names.into_values()),
                     _ => None,
                 })
         });
 
-        let style = pop_feature!(as_parameters_features => Feature::Style(_));
-        let parameter_in = pop_feature!(as_parameters_features => Feature::ParameterIn(_));
-        let rename_all = pop_feature!(as_parameters_features => Feature::RenameAll(_));
+        let style = pop_feature!(parameters_features => Feature::Style(_));
+        let parameter_in = pop_feature!(parameters_features => Feature::ParameterIn(_));
+        let rename_all = pop_feature!(parameters_features => Feature::RenameAll(_));
         let source_from = if let Some(Feature::ParameterIn(feature::ParameterIn(parameter_in))) = parameter_in {
             match parameter_in {
                 ParameterIn::Query => quote! {  #salvo::extract::metadata::SourceFrom::Query },
@@ -123,7 +123,7 @@ impl ToTokens for AsParameters {
                 abort! {
                     field,
                     "tuple structs are not supported";
-                    help = "consider using a struct with named fields instead, or use `#[as_parameters(names(\"...\"))]` to specify a name for each field",
+                    help = "consider using a struct with named fields instead, or use `#[parameters(names(\"...\"))]` to specify a name for each field",
                 }
             };
             quote!{ #salvo::extract::metadata::Field{
@@ -184,16 +184,14 @@ impl ToTokens for AsParameters {
             .unwrap_or_else(|| quote! {None});
         let name = ident.to_string();
         tokens.extend(quote! {
-            impl #de_impl_generics #oapi::oapi::AsParameters<'__de> for #ident #ty_generics #where_clause {
-                fn parameters() -> #oapi::oapi::Parameters {
+            impl #de_impl_generics #oapi::oapi::ToParameters<'__de> for #ident #ty_generics #where_clause {
+                fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
-
-            #[#salvo::async_trait]
-            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
-                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                    for parameter in <Self as #oapi::oapi::AsParameters>::parameters() {
+            impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, _arg: &str) {
+                    for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters(components) {
                         operation.parameters.insert(parameter);
                     }
                 }
@@ -220,7 +218,7 @@ impl ToTokens for AsParameters {
     }
 }
 
-impl AsParameters {
+impl ToParameters {
     fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> impl Iterator<Item = &Field> {
         let ident = &self.ident;
         let abort = |note: &str| {
@@ -237,7 +235,7 @@ impl AsParameters {
             Data::Struct(data_struct) => match &data_struct.fields {
                 syn::Fields::Named(named_fields) => {
                     if field_names.is_some() {
-                        abort! {ident, "`#[as_parameters(names(...))]` is not supported attribute on a struct with named fields"}
+                        abort! {ident, "`#[parameters(names(...))]` is not supported attribute on a struct with named fields"}
                     }
                     named_fields.named.iter()
                 }
@@ -264,7 +262,7 @@ impl AsParameters {
                         ident,
                         "declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}",
                             names.len(), unnamed_fields.len(), ident;
-                        help = r#"Did you forget to add a field name to `#[as_parameters(names(... , "field_name"))]`"#;
+                        help = r#"Did you forget to add a field name to `#[parameters(names(... , "field_name"))]`"#;
                         help = "Or have you added extra name but haven't defined a type?"
                     }
                 }
@@ -273,7 +271,7 @@ impl AsParameters {
                 abort! {
                     ident,
                     "struct with unnamed fields must have explicit name declarations.";
-                    help = "Try defining `#[as_parameters(names(...))]` over your type: {}", ident,
+                    help = "Try defining `#[parameters(names(...))]` over your type: {}", ident,
                 }
             }
         }
@@ -282,11 +280,11 @@ impl AsParameters {
 
 #[derive(Debug)]
 pub(crate) struct FieldParameterContainerAttributes<'a> {
-    /// See [`AsParametersAttr::style`].
+    /// See [`ToParametersAttr::style`].
     style: &'a Option<Feature>,
-    /// See [`AsParametersAttr::names`]. The name that applies to this field.
+    /// See [`ToParametersAttr::names`]. The name that applies to this field.
     name: Option<&'a String>,
-    /// See [`AsParametersAttr::parameter_in`].
+    /// See [`ToParametersAttr::parameter_in`].
     parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
     rename_all: Option<&'a RenameAll>,
@@ -337,7 +335,7 @@ struct Parameter<'a> {
     field: &'a Field,
     /// Attributes on the container which are relevant for this macro.
     container_attributes: FieldParameterContainerAttributes<'a>,
-    /// Either serde rename all rule or as_parameters rename all rule if provided.
+    /// Either serde rename all rule or to_parameters rename all rule if provided.
     serde_container: Option<&'a SerdeContainer>,
 }
 
@@ -351,7 +349,7 @@ impl Parameter<'_> {
             .field
             .attrs
             .iter()
-            .filter(|attribute| attribute.path().is_ident("param"))
+            .filter(|attribute| attribute.path().is_ident("parameter"))
             .map(|attribute| attribute.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
@@ -409,17 +407,18 @@ impl ToTokens for Parameter<'_> {
             .as_ref()
             .map(|ident| ident.to_string())
             .or_else(|| self.container_attributes.name.cloned())
-            .unwrap_or_else(|| abort!(
-                field, "No name specified for unnamed field.";
-                help = "Try adding #[as_parameters(names(...))] container attribute to specify the name for this field"
-            ));
+            .unwrap_or_else(|| {
+                abort!(
+                    field, "No name specified for unnamed field.";
+                    help = "Try adding #[parameters(names(...))] container attribute to specify the name for this field"
+                )
+            });
 
         if name.starts_with("r#") {
             name = &name[2..];
         }
 
         let field_param_serde = serde::parse_value(&field.attrs);
-
         let (schema_features, mut param_features) = self.resolve_field_features();
 
         let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());

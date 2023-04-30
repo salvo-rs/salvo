@@ -533,7 +533,7 @@ mod tests {
                     ),
             )
             .components(
-                Components::new().schema(
+                Components::new().add_schema(
                     "User2",
                     Object::new()
                         .schema_type(SchemaType::Object)

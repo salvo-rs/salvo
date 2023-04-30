@@ -36,7 +36,7 @@ use crate::{
 #[derive(Debug)]
 pub(crate) enum Parameter<'a> {
     Value(ValueParameter<'a>),
-    /// Identifier for a struct that implements `AsParameters` trait.
+    /// Identifier for a struct that implements `ToParameters` trait.
     Struct(StructParameter),
 }
 
@@ -60,7 +60,7 @@ impl ToTokens for Parameter<'_> {
 
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        <#path as #oapi::oapi::AsParameters>::parameters().into_iter()
+                        <#path as #oapi::oapi::ToParameters>::to_parameters(components).into_iter()
                     )
                 })
             }
