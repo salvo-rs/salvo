@@ -16,7 +16,7 @@ use crate::schema::{EnumSchema, NamedStructSchema};
 use crate::{Array, ResultExt};
 
 use super::{
-    Content, DeriveToResponseValue, DeriveToResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
+    Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue, DeriveToResponsesValue,
     ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 

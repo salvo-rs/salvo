@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
-use crate::{ToRequestBody, ToSchema, Components, Content, Operation, RequestBody};
+use crate::{Components, Content, Operation, RequestBody, ToRequestBody, ToSchema};
 
 /// Represents the parameters passed by the URI path.
 pub struct FormBody<T>(pub T);
@@ -39,7 +39,10 @@ where
     fn to_request_body(components: &mut Components) -> RequestBody {
         RequestBody::new()
             .description("Extract form format data from request.")
-            .add_content("application/x-www-form-urlencoded", Content::new(T::to_schema(components)))
+            .add_content(
+                "application/x-www-form-urlencoded",
+                Content::new(T::to_schema(components)),
+            )
             .add_content("multipart/*", Content::new(T::to_schema(components)))
     }
 }

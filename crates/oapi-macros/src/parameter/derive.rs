@@ -407,10 +407,12 @@ impl ToTokens for Parameter<'_> {
             .as_ref()
             .map(|ident| ident.to_string())
             .or_else(|| self.container_attributes.name.cloned())
-            .unwrap_or_else(|| abort!(
-                field, "No name specified for unnamed field.";
-                help = "Try adding #[parameters(names(...))] container attribute to specify the name for this field"
-            ));
+            .unwrap_or_else(|| {
+                abort!(
+                    field, "No name specified for unnamed field.";
+                    help = "Try adding #[parameters(names(...))] container attribute to specify the name for this field"
+                )
+            });
 
         if name.starts_with("r#") {
             name = &name[2..];

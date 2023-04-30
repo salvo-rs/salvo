@@ -74,7 +74,10 @@ where
     }
 }
 
-impl<T> EndpointArgRegister for QueryParam<T> where T: ToSchema {
+impl<T> EndpointArgRegister for QueryParam<T>
+where
+    T: ToSchema,
+{
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Query)

@@ -407,7 +407,9 @@ where
 {
     fn to_response(components: &mut Components) -> RefOr<Response> {
         let schema = <C as ToSchema>::to_schema(components);
-        Response::new("Response with json format data").add_content("application/json", Content::new(schema)).into()
+        Response::new("Response with json format data")
+            .add_content("application/json", Content::new(schema))
+            .into()
     }
 }
 
