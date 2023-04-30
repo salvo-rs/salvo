@@ -66,12 +66,6 @@ impl ToTokens for ToResponse<'_> {
                     (#name.into(), #response.into())
                 }
             }
-            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
-                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                    let (key, response) = <Self as #oapi::oapi::ToResponse>::to_response();
-                    operation.responses.insert(key, response);
-                }
-            }
         });
     }
 }
@@ -144,11 +138,6 @@ impl ToTokens for ToResponses {
             impl #impl_generics #oapi::oapi::ToResponses for #ident #ty_generics #where_clause {
                 fn to_responses() -> #oapi::oapi::response::Responses {
                     #responses
-                }
-            }
-            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
-                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                    operation.responses = <Self as #oapi::oapi::ToResponses>::to_responses();
                 }
             }
         })

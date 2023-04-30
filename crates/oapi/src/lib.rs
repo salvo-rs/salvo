@@ -15,7 +15,7 @@ mod openapi;
 pub use openapi::*;
 
 mod endpoint;
-pub use endpoint::{Endpoint, EndpointModifier, EndpointRegistry};
+pub use endpoint::{Endpoint, EndpointArgRegister, EndpointRegistry};
 pub mod extract;
 mod router;
 
@@ -39,7 +39,7 @@ pub use salvo_oapi_macros::ToSchema;
 
 use std::collections::{BTreeMap, HashMap};
 
-use salvo_core::extract::Extractible;
+use salvo_core::{extract::Extractible, writer};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_oapi;
@@ -195,7 +195,14 @@ impl<T: ToSchema> ToSchema for [T] {
 
 impl<T: ToSchema> ToSchema for &[T] {
     fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline]&[T]).into())
+        (
+            None,
+            schema!(
+                #[inline]
+                &[T]
+            )
+            .into(),
+        )
     }
 }
 
@@ -229,7 +236,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 /// [derive documentation][derive] for more details.
 /// ```
 /// use serde::Deserialize;
-/// use salvo_oapi::{ToParameters, EndpointModifier, Components, Operation};
+/// use salvo_oapi::{ToParameters, EndpointArgRegister, Components, Operation};
 /// use salvo_core::prelude::*;
 ///
 /// #[derive(Deserialize, ToParameters)]
@@ -244,7 +251,7 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 /// Roughly equal manual implementation of [`ToParameters`] trait.
 /// ```
 /// # use serde::Deserialize;
-/// # use salvo_oapi::{ToParameters, EndpointModifier, Components, Operation};
+/// # use salvo_oapi::{ToParameters, EndpointArgRegister, Components, Operation};
 /// # use salvo_core::prelude::*;
 /// # use salvo_core::extract::{Metadata, Extractible};
 /// #[derive(Deserialize)]
@@ -293,28 +300,23 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 ///    }
 /// }
 ///
-/// #[async_trait]
-/// impl EndpointModifier for PetParams {
-///     fn modify(_components: &mut Components, operation: &mut Operation) {
+/// impl EndpointArgRegister for PetParams {
+///     fn register(_components: &mut Components, operation: &mut Operation) {
 ///         operation.parameters.append(&mut PetParams::to_parameters());
 ///     }
 /// }
 /// ```
 /// [derive]: derive.ToParameters.html
-pub trait ToParameters<'de>: Extractible<'de> + EndpointModifier {
+pub trait ToParameters<'de>: Extractible<'de> {
     /// Provide [`Vec`] of [`Parameter`]s to caller. The result is used in `salvo-oapi-macros` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn to_parameters() -> Parameters;
 }
 
 /// Trait used to give [`Parameter`] information for OpenAPI.
-pub trait ToParameter: EndpointModifier {
+pub trait ToParameter {
     /// Returns a `Parameter`.
     fn to_parameter() -> Parameter;
-    /// Returns a `Parameter`, this is used internal.
-    fn to_parameter_with_arg(_arg: &str) -> Parameter {
-        Self::to_parameter()
-    }
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent
@@ -325,7 +327,7 @@ pub trait ToParameter: EndpointModifier {
 /// ```
 /// use std::collections::BTreeMap;
 /// use serde::Deserialize;
-/// use salvo_oapi::{ToRequestBody, ToSchema, Components, Content, EndpointModifier, Operation, RequestBody };
+/// use salvo_oapi::{ToRequestBody, ToSchema, Components, Content, EndpointArgRegister, Operation, RequestBody };
 ///
 /// #[derive(ToSchema, Deserialize, Debug)]
 /// struct MyPayload {
@@ -338,13 +340,13 @@ pub trait ToParameter: EndpointModifier {
 ///             .add_content("application/json", Content::new(MyPayload::to_schema().1))
 ///     }
 /// }
-/// impl EndpointModifier for MyPayload {
+/// impl EndpointArgRegister for MyPayload {
 ///     fn modify(_components: &mut Components, operation: &mut Operation) {
 ///         operation.request_body = Some(Self::to_request_body());
 ///     }
 /// }
 /// ```
-pub trait ToRequestBody: EndpointModifier {
+pub trait ToRequestBody {
     /// Returns `RequestBody`.
     fn to_request_body() -> RequestBody;
 }
@@ -376,6 +378,18 @@ pub trait ToResponses {
     fn to_responses() -> Responses;
 }
 
+impl<C> ToResponses for writer::Json<C>
+where
+    C: ToSchema,
+{
+    fn to_responses() -> Responses {
+        Responses::new().response(
+            "200",
+            Response::new("Response json format data").add_content("application/json", Content::new(C::to_schema().1)),
+        )
+    }
+}
+
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
@@ -403,7 +417,10 @@ pub trait ToResponse {
     fn to_response() -> (String, RefOr<crate::Response>);
 }
 
-impl<T> ToResponses for T where T: ToResponse {
+impl<T> ToResponses for T
+where
+    T: ToResponse,
+{
     fn to_responses() -> Responses {
         let (key, response) = T::to_response();
         Responses::new().response(key, response)

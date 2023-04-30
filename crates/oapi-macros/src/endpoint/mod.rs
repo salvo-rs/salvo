@@ -182,7 +182,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                         };
                     });
                     modifiers.push(quote! {
-                         <#ty as #oapi::oapi::EndpointModifier>::modify_with_arg(&mut components, &mut operation, #idv);
+                         <#ty as #oapi::oapi::EndpointArgRegister>::register(&mut components, &mut operation, #idv);
                     });
                     call_args.push(id);
                     count += 1;
@@ -217,8 +217,8 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             }
         }
         ReturnType::Type(_, ty) => {
-            modifiers.push(quote! {
-                 <#ty as #oapi::oapi::EndpointModifier>::modify(&mut components, &mut operation);
+            modifiers.push(quote! {                
+                <#ty as #oapi::oapi::EndpointOutRegister>::register(&mut components, &mut operation);
             });
             if sig.asyncness.is_none() {
                 quote! {

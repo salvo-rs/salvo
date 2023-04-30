@@ -8,8 +8,8 @@ use salvo_core::{async_trait, Request};
 use serde::Deserialize;
 use serde::Deserializer;
 
-use crate::endpoint::EndpointModifier;
-use crate::{ToParameter, Components, Operation, Parameter, ParameterIn};
+use crate::endpoint::EndpointArgRegister;
+use crate::{Components, Operation, Parameter, ParameterIn, ToParameter};
 
 /// Represents the parameters passed by Cookie.
 pub struct CookieParam<T> {
@@ -45,17 +45,6 @@ impl<T> Deref for CookieParam<T> {
 impl<T> DerefMut for CookieParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
-    }
-}
-
-impl<T> ToParameter for CookieParam<T> {
-    fn to_parameter() -> Parameter {
-        panic!("cookie parameter must have a argument");
-    }
-    fn to_parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg)
-            .parameter_in(ParameterIn::Cookie)
-            .description(format!("Get parameter `{arg}` from request cookie"))
     }
 }
 
@@ -113,12 +102,11 @@ where
     }
 }
 
-#[async_trait]
-impl<T> EndpointModifier for CookieParam<T> {
-    fn modify(_components: &mut Components, _operation: &mut Operation) {
-        panic!("cookie parameter can not modiify operation without argument");
-    }
-    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::to_parameter_with_arg(arg));
+impl<T> EndpointArgRegister for CookieParam<T> {
+    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
+        let parameter = Parameter::new(arg)
+            .parameter_in(ParameterIn::Cookie)
+            .description(format!("Get parameter `{arg}` from request cookie"));
+        operation.parameters.insert(parameter);
     }
 }

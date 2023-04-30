@@ -7,8 +7,8 @@ use salvo_core::{async_trait, Request};
 use serde::Deserialize;
 use serde::Deserializer;
 
-use crate::endpoint::EndpointModifier;
-use crate::{ToParameter, Components, Operation, Parameter, ParameterIn};
+use crate::endpoint::EndpointArgRegister;
+use crate::{Components, Operation, Parameter, ParameterIn, ToParameter};
 
 /// Represents the parameters passed by header.
 pub struct HeaderParam<T> {
@@ -44,17 +44,6 @@ impl<T> Deref for HeaderParam<T> {
 impl<T> DerefMut for HeaderParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
-    }
-}
-
-impl<T> ToParameter for HeaderParam<T> {
-    fn to_parameter() -> Parameter {
-        panic!("header parameter must have a argument");
-    }
-    fn to_parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg)
-            .parameter_in(ParameterIn::Header)
-            .description(format!("Get parameter `{arg}` from request headers"))
     }
 }
 
@@ -108,12 +97,11 @@ where
     }
 }
 
-#[async_trait]
-impl<T> EndpointModifier for HeaderParam<T> {
-    fn modify(_components: &mut Components, _operation: &mut Operation) {
-        panic!("header parameter can not modiify operation without argument");
-    }
-    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::to_parameter_with_arg(arg));
+impl<T> EndpointArgRegister for HeaderParam<T> {
+    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
+        let parameter = Parameter::new(arg)
+            .parameter_in(ParameterIn::Header)
+            .description(format!("Get parameter `{arg}` from request headers"));
+        operation.parameters.insert(parameter);
     }
 }

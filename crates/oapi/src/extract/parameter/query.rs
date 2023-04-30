@@ -7,7 +7,7 @@ use salvo_core::{async_trait, Request};
 use serde::Deserialize;
 use serde::Deserializer;
 
-use crate::endpoint::EndpointModifier;
+use crate::endpoint::EndpointArgRegister;
 use crate::{ToParameter, Components, Operation, Parameter, ParameterIn};
 
 /// Represents the parameters passed by the URI path.
@@ -44,17 +44,6 @@ impl<T> Deref for QueryParam<T> {
 impl<T> DerefMut for QueryParam<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
-    }
-}
-
-impl<T> ToParameter for QueryParam<T> {
-    fn to_parameter() -> Parameter {
-        panic!("query parameter must have a argument");
-    }
-    fn to_parameter_with_arg(arg: &str) -> Parameter {
-        Parameter::new(arg)
-            .parameter_in(ParameterIn::Query)
-            .description(format!("Get parameter `{arg}` from request url query"))
     }
 }
 
@@ -108,12 +97,11 @@ where
     }
 }
 
-#[async_trait]
-impl<T> EndpointModifier for QueryParam<T> {
-    fn modify(_components: &mut Components, _operation: &mut Operation) {
-        panic!("query parameter can not modiify operation without argument");
-    }
-    fn modify_with_arg(_components: &mut Components, operation: &mut Operation, arg: &str) {
-        operation.parameters.insert(Self::to_parameter_with_arg(arg));
+impl<T> EndpointArgRegister for QueryParam<T> {
+    fn register(_components: &mut Components, operation: &mut Operation, arg: &str) {
+        let parameter = Parameter::new(arg)
+            .parameter_in(ParameterIn::Query)
+            .description(format!("Get parameter `{arg}` from request url query"));
+        operation.parameters.insert(parameter);
     }
 }

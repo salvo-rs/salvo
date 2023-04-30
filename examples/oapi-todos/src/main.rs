@@ -35,12 +35,8 @@ async fn main() {
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }
-#[endpoint(
-    responses(
-        (status = 200, description = "List all todos successfully", body = [Todo])
-    )
-)]
-pub async fn list_todos(req: &mut Request, res: &mut Response) {
+#[endpoint]
+pub async fn list_todos(req: &mut Request, res: &mut Response) -> Json<Vec<Todo>> {
     let opts = req.parse_body::<ListOptions>().await.unwrap_or_default();
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
@@ -49,7 +45,7 @@ pub async fn list_todos(req: &mut Request, res: &mut Response) {
         .skip(opts.offset.unwrap_or(0))
         .take(opts.limit.unwrap_or(std::usize::MAX))
         .collect();
-    res.render(Json(todos));
+    Json(todos)
 }
 
 #[endpoint(

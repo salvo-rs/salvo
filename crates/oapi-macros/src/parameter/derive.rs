@@ -189,8 +189,8 @@ impl ToTokens for ToParameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
             }
-            impl #impl_generics #oapi::oapi::EndpointModifier for #ident #ty_generics #where_clause {
-                fn modify(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+            impl #impl_generics #oapi::oapi::EndpointArgRegister for #ident #ty_generics #where_clause {
+                fn register(_components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                     for parameter in <Self as #oapi::oapi::ToParameters>::to_parameters() {
                         operation.parameters.insert(parameter);
                     }

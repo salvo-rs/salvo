@@ -6,7 +6,7 @@ use salvo_core::http::ParseError;
 use salvo_core::{async_trait, Request};
 use serde::{Deserialize, Deserializer};
 
-use crate::endpoint::EndpointModifier;
+use crate::endpoint::EndpointArgRegister;
 use crate::{ToRequestBody, ToSchema, Components, Content, Operation, Ref, RefOr, RequestBody};
 
 /// Represents the parameters passed by the URI path.
@@ -82,11 +82,11 @@ where
 }
 
 #[async_trait]
-impl<'de, T> EndpointModifier for FormBody<T>
+impl<'de, T> EndpointArgRegister for FormBody<T>
 where
     T: Deserialize<'de> + ToSchema,
 {
-    fn modify(components: &mut Components, operation: &mut Operation) {
+    fn register(components: &mut Components, operation: &mut Operation, _arg: &str) {
         let request_body = Self::to_request_body();
         if let (Some(symbol), schema) = <T as ToSchema>::to_schema() {
             components.schemas.insert(symbol, schema);

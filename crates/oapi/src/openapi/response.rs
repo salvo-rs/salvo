@@ -169,7 +169,7 @@ impl Response {
     }
 
     /// Add response [`Header`].
-    pub fn header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
+    pub fn add_header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
         self.headers.insert(name.into(), header);
 
         self
