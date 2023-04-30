@@ -24,10 +24,6 @@ jobs:
 
       - name: check crates
         run: cargo check --all --bins --examples --tests
-
-      - name: check examples
-        run: cargo check --all --bins --examples --tests
-        working-directory: ./examples
   test:
     strategy:
         fail-fast: false
@@ -46,6 +42,10 @@ jobs:
 
       - name: check build
         run: cargo check --all --bins --examples --tests
+
+      - name: check examples
+        run: cargo check --all --bins --examples --tests
+        working-directory: ./examples
 
       - name: check release build
         run: cargo check --all --bins --examples --tests --release
