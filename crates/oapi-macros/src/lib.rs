@@ -65,10 +65,12 @@ pub(crate) use self::{
 pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = syn::parse_macro_input!(attr as EndpointAttr);
     let item = parse_macro_input!(input as Item);
-    match endpoint::generate(attr, item) {
+   let stream = match endpoint::generate(attr, item) {
         Ok(stream) => stream.into(),
         Err(e) => e.to_compile_error().into(),
-    }
+    };
+    println!("{}", stream);
+    stream
 }
 
 #[proc_macro_error]
@@ -131,16 +133,14 @@ pub fn to_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let stream = ToResponses {
+    ToResponses {
         attributes: attrs,
         ident,
         generics,
         data,
     }
     .to_token_stream()
-    .into();
-println!("{}", stream);
-stream
+    .into()
 }
 
 #[proc_macro]
@@ -177,7 +177,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
         description: None,
         object_name: "",
     });
-    schema.to_token_stream().into()
+    let stream = schema.to_token_stream().into();
+    println!("{}", stream);
+    println!("=======================");
+    stream
 }
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.

@@ -63,7 +63,7 @@ impl ToTokens for ToSchema<'_> {
             let ty_params = ty_params
                 .map(|ty_param| {
                     let ty = &ty_param.ident;
-                    quote! {if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::to_schema().0 {
+                    quote! {if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
                             symbol
                         } else {
                             std::any::type_name::<#ty>().into()
@@ -84,8 +84,9 @@ impl ToTokens for ToSchema<'_> {
 
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
-                fn to_schema() -> (Option<String>, #oapi::oapi::RefOr<#oapi::oapi::schema::Schema>) {
-                    (#symbol, #variant.into())
+                fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
+                    components.add_schema(#symbol, #variant.into());
+                    #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(#symbol))
                 }
             }
         })

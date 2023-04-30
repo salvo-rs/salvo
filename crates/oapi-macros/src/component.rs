@@ -287,12 +287,12 @@ impl<'c> ComponentSchema {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema().1)
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components))
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema().1
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components)
                                 }
                             })
                             .to_tokens(tokens);
@@ -302,26 +302,12 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item({
-                                            let (symbol, schema) = <#type_path as #oapi::oapi::ToSchema>::to_schema();
-                                            if let Some(symbol) = symbol{
-                                                #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                            } else {
-                                                schema.into()
-                                            }
-                                        })
+                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components).into())
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    {
-                                        let (symbol, schema) = <#type_path as #oapi::oapi::ToSchema>::to_schema();
-                                        if let Some(symbol) = symbol {
-                                            #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::from_schema_name(symbol))
-                                        } else {
-                                            schema.into()
-                                        }
-                                    }
+                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(&mut components).into()
                                 }
                             })
                             .to_tokens(tokens);

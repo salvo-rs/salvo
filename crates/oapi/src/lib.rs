@@ -14,8 +14,8 @@ mod cfg;
 mod openapi;
 pub use openapi::*;
 
-mod endpoint;
-pub use endpoint::{Endpoint, EndpointArgRegister, EndpointRegistry};
+pub mod endpoint;
+pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
 mod router;
 
@@ -77,7 +77,7 @@ extern crate self as salvo_oapi;
 /// # }
 /// #
 /// impl ToSchema for Pet {
-///     fn to_schema() -> (Option<String>, RefOr<Schema>) {
+///     fn to_schema(components: &mut Components) -> (Option<String>, RefOr<Schema>) {
 ///         (None, Object::new()
 ///             .property(
 ///                 "id",
@@ -113,13 +113,7 @@ extern crate self as salvo_oapi;
 pub trait ToSchema {
     /// Returns a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>);
-}
-
-impl<T: ToSchema> From<T> for RefOr<schema::Schema> {
-    fn from(_: T) -> Self {
-        T::to_schema().1
-    }
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema>;
 }
 
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
@@ -128,8 +122,8 @@ impl<T: ToSchema> From<T> for RefOr<schema::Schema> {
 pub type TupleUnit = ();
 
 impl ToSchema for TupleUnit {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (Some("TupleUnit".into()), schema::empty().into())
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema::empty().into()
     }
 }
 
@@ -142,8 +136,8 @@ macro_rules! impl_to_schema {
     };
     ( @impl_schema $( $tt:tt )* ) => {
         impl ToSchema for $($tt)* {
-            fn to_schema() -> (Option<String>, crate::RefOr<crate::schema::Schema>) {
-                (None, schema!( $($tt)* ).into())
+            fn to_schema(components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
+                 schema!( $($tt)* ).into()
             }
         }
     };
@@ -175,52 +169,46 @@ impl_to_schema_primitive!(
 impl_to_schema!(&str);
 
 impl<T: ToSchema> ToSchema for Vec<T> {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline] Vec<T>).into())
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] Vec<T>).into()
     }
 }
 
 impl<T: ToSchema> ToSchema for [T] {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (
-            None,
-            schema!(
-                #[inline]
-                [T]
-            )
-            .into(),
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(
+            #[inline]
+            [T]
         )
+        .into()
     }
 }
 
 impl<T: ToSchema> ToSchema for &[T] {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (
-            None,
-            schema!(
-                #[inline]
-                &[T]
-            )
-            .into(),
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(
+            #[inline]
+            &[T]
         )
+        .into()
     }
 }
 
 impl<T: ToSchema> ToSchema for Option<T> {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline] Option<T>).into())
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] Option<T>).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline]BTreeMap<K, V>).into())
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline]BTreeMap<K, V>).into()
     }
 }
 
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
-    fn to_schema() -> (Option<String>, RefOr<schema::Schema>) {
-        (None, schema!(#[inline]HashMap<K, V>).into())
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline]HashMap<K, V>).into()
     }
 }
 
@@ -335,9 +323,9 @@ pub trait ToParameter {
 /// }
 ///
 /// impl ToRequestBody for MyPayload {
-///     fn to_request_body() -> RequestBody {
+///     fn to_request_body(components: &mut Compontents) -> RequestBody {
 ///         RequestBody::new()
-///             .add_content("application/json", Content::new(MyPayload::to_schema().1))
+///             .add_content("application/json", Content::new(MyPayload::to_schema(components)))
 ///     }
 /// }
 /// impl EndpointArgRegister for MyPayload {
@@ -348,7 +336,7 @@ pub trait ToParameter {
 /// ```
 pub trait ToRequestBody {
     /// Returns `RequestBody`.
-    fn to_request_body() -> RequestBody;
+    fn to_request_body(components: &mut Components) -> RequestBody;
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
@@ -366,7 +354,7 @@ pub trait ToRequestBody {
 /// }
 ///
 /// impl ToResponses for MyResponse {
-///     fn to_responses() -> Responses {
+///     fn to_responses(_components: &mut Components) -> Responses {
 ///         Responses::new()
 ///             .response("200", Response::new("Ok"))
 ///             .response("404", Response::new("Not Found"))
@@ -375,17 +363,18 @@ pub trait ToRequestBody {
 /// ```
 pub trait ToResponses {
     /// Returns an ordered map of response codes to responses.
-    fn to_responses() -> Responses;
+    fn to_responses(components: &mut Components) -> Responses;
 }
 
 impl<C> ToResponses for writer::Json<C>
 where
     C: ToSchema,
 {
-    fn to_responses() -> Responses {
+    fn to_responses(components: &mut Components) -> Responses {
         Responses::new().response(
             "200",
-            Response::new("Response json format data").add_content("application/json", Content::new(C::to_schema().1)),
+            Response::new("Response json format data")
+                .add_content("application/json", Content::new(C::to_schema(components))),
         )
     }
 }
@@ -414,67 +403,87 @@ where
 /// [derive]: derive.ToResponse.html
 pub trait ToResponse {
     /// Returns a tuple of response component name (to be referenced) to a response.
-    fn to_response() -> (String, RefOr<crate::Response>);
-}
-
-impl<T> ToResponses for T
-where
-    T: ToResponse,
-{
-    fn to_responses() -> Responses {
-        let (key, response) = T::to_response();
-        Responses::new().response(key, response)
-    }
+    fn to_response() -> RefOr<crate::Response>;
 }
 
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
+    use salvo_core::http::cookie::time::format_description::Component;
     use serde_json::json;
 
     use super::*;
 
     #[test]
     fn test_primitive_schema() {
+        let mut components = Components::new();
         for (name, schema, value) in [
-            ("i8", i8::to_schema().1, json!({"type": "integer", "format": "int32"})),
-            ("i16", i16::to_schema().1, json!({"type": "integer", "format": "int32"})),
-            ("i32", i32::to_schema().1, json!({"type": "integer", "format": "int32"})),
-            ("i64", i64::to_schema().1, json!({"type": "integer", "format": "int64"})),
-            ("i128", i128::to_schema().1, json!({"type": "integer"})),
-            ("isize", isize::to_schema().1, json!({"type": "integer"})),
+            (
+                "i8",
+                i8::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i16",
+                i16::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i32",
+                i32::to_schema(&mut components),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i64",
+                i64::to_schema(&mut components),
+                json!({"type": "integer", "format": "int64"}),
+            ),
+            ("i128", i128::to_schema(&mut components), json!({"type": "integer"})),
+            ("isize", isize::to_schema(&mut components), json!({"type": "integer"})),
             (
                 "u8",
-                u8::to_schema().1,
+                u8::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u16",
-                u16::to_schema().1,
+                u16::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u32",
-                u32::to_schema().1,
+                u32::to_schema(&mut components),
                 json!({"type": "integer", "format": "int32", "minimum": 0.0}),
             ),
             (
                 "u64",
-                u64::to_schema().1,
+                u64::to_schema(&mut components),
                 json!({"type": "integer", "format": "int64", "minimum": 0.0}),
             ),
-            ("u128", u128::to_schema().1, json!({"type": "integer", "minimum": 0.0})),
+            (
+                "u128",
+                u128::to_schema(&mut components).1,
+                json!({"type": "integer", "minimum": 0.0}),
+            ),
             (
                 "usize",
-                usize::to_schema().1,
+                usize::to_schema(&mut components),
                 json!({"type": "integer", "minimum": 0.0 }),
             ),
-            ("bool", bool::to_schema().1, json!({"type": "boolean"})),
-            ("str", str::to_schema().1, json!({"type": "string"})),
-            ("String", String::to_schema().1, json!({"type": "string"})),
-            ("char", char::to_schema().1, json!({"type": "string"})),
-            ("f32", f32::to_schema().1, json!({"type": "number", "format": "float"})),
-            ("f64", f64::to_schema().1, json!({"type": "number", "format": "double"})),
+            ("bool", bool::to_schema(&mut components), json!({"type": "boolean"})),
+            ("str", str::to_schema(&mut components), json!({"type": "string"})),
+            ("String", String::to_schema(&mut components), json!({"type": "string"})),
+            ("char", char::to_schema(&mut components), json!({"type": "string"})),
+            (
+                "f32",
+                f32::to_schema(&mut components),
+                json!({"type": "number", "format": "float"}),
+            ),
+            (
+                "f64",
+                f64::to_schema(&mut components),
+                json!({"type": "number", "format": "double"}),
+            ),
         ] {
             println!("{name}: {json}", json = serde_json::to_string(&schema).unwrap());
             let schema = serde_json::to_value(schema).unwrap();

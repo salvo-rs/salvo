@@ -64,11 +64,7 @@ impl<'a> Operation<'a> {
                             ResponseTupleInner::Ref(inline) => {
                                 let ty = &inline.ty;
                                 modifiers.push(quote! {
-                                    {
-                                        if let (Some(symbol), schema) = <#ty as #oapi::oapi::ToSchema>::to_schema() {
-                                            components.schemas.insert(symbol, schema);
-                                        }
-                                    }
+                                    let _= <#ty as #oapi::oapi::ToSchema>::to_schema(&mut components);
                                 });
                             }
                             ResponseTupleInner::Value(value) => {
@@ -93,21 +89,13 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
     match content {
         PathType::RefPath(path) => {
             modifiers.push(quote! {
-                {
-                    if let (Some(symbol), schema) = <#path as #oapi::oapi::ToSchema>::to_schema() {
-                        components.schemas.insert(symbol, schema);
-                    }
-                }
+                let _ = <#path as #oapi::oapi::ToSchema>::to_schema(&mut components);
             });
         }
         PathType::MediaType(inline) => {
             let ty = &inline.ty;
             modifiers.push(quote! {
-                {
-                    if let (Some(symbol), schema) = <#ty as #oapi::oapi::ToSchema>::to_schema() {
-                        components.schemas.insert(symbol, schema);
-                    }
-                }
+                let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(&mut components);
             });
         }
         _ => {}

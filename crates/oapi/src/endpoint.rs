@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use crate::{Components, Operation};
+use crate::{Components, Content, Response, Operation, ToSchema};
 use salvo_core::writer;
 
 /// Represents an endpoint.
@@ -27,15 +27,14 @@ where
     C: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation) {
-        if let (Some(symbol), schema) = <C as ToSchema>::to_schema() {
-            components.schemas.insert(symbol, schema);
-        }
-        operation.responses = C::to_responses();
+        let schema = <C as ToSchema>::to_schema(components);
+        operation
+            .responses
+            .insert("200", Response::new("Response with json format data").add_content("application/json", Content::new(schema)))
     }
 }
 
-
-/// A registry for all endpoints.
+/// A components for all endpoints.
 pub struct EndpointRegistry {
     /// The type id of the endpoint.
     pub type_id: fn() -> TypeId,
@@ -44,11 +43,11 @@ pub struct EndpointRegistry {
 }
 
 impl EndpointRegistry {
-    /// Save the endpoint information to the registry.
+    /// Save the endpoint information to the components.
     pub const fn save(type_id: fn() -> TypeId, creator: fn() -> Endpoint) -> Self {
         Self { type_id, creator }
     }
-    /// Find the endpoint information from the registry.
+    /// Find the endpoint information from the components.
     pub fn find(type_id: &TypeId) -> Option<fn() -> Endpoint> {
         for record in inventory::iter::<EndpointRegistry> {
             if (record.type_id)() == *type_id {

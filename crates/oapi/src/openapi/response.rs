@@ -162,8 +162,8 @@ impl Response {
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.
-    pub fn add_content<S: Into<String>>(mut self, kind: S, content: Content) -> Self {
-        self.contents.insert(kind.into(), content);
+    pub fn add_content<S: Into<String>>(mut self, key: S, content: Content) -> Self {
+        self.contents.insert(key.into(), content);
 
         self
     }

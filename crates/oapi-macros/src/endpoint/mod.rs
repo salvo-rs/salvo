@@ -31,7 +31,7 @@ fn metadata(
             }
             #oapi::oapi::Endpoint{
                 operation,
-                components,
+                components: components,
             }
         }
         #oapi::oapi::__private::inventory::submit! {
