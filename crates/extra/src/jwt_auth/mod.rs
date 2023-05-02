@@ -112,6 +112,13 @@ where
         self
     }
 
+    /// Sets validation with new value and return Self.
+    #[inline]
+    pub fn with_validation(mut self, validation: Validation) -> Self {
+        self.validation = validation;
+        self
+    }
+
     /// Get secret reference.
     #[inline]
     pub fn secret(&self) -> &String {
