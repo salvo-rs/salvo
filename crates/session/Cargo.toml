@@ -19,6 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 async-session.workspace = true
+base64.workspace = true
+sha2.workspace = true
+hmac.workspace = true
 cookie = { workspace = true, features = ["percent-encode", "signed"] }
 salvo_core = { workspace = true, features = ["cookie"] }
 tracing.workspace = true

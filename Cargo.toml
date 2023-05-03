@@ -22,7 +22,7 @@ aead = "0.5"
 aes-gcm = "0.10"
 anyhow = "1"
 async-compression = "0.3"
-async-session = "3"
+async-session = { git = "https://github.com/http-rs/async-session", branch = "overhaul-session-and-session-store" }
 async-trait = "0.1"
 assert-json-diff = "2"
 base64 = "0.21"
