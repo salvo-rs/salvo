@@ -128,7 +128,6 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 Field is considered _`required`_ if
 * it is not `Option` field
 * and it does not have _`skip_serializing_if`_ property
-* and it does not have _`serde_with`_ _[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_
 * and it does not have default value provided with serde _`default`_
   attribute
 
@@ -172,9 +171,6 @@ Other _`serde`_ attributes works as is but does not have any effect on the gener
 with **unnamed field structs** and **tuple types**.  See more at
 [enum representation docs](https://serde.rs/enum-representations.html).
 
-**Note!** `with` attribute is used in tandem with [serde_with](https://github.com/jonasbb/serde_with) to recognize
-_[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_ from **field value**.
-_`double_option`_ is **only** supported attribute from _`serde_with`_ crate.
 
 ```
 # use serde::Serialize;

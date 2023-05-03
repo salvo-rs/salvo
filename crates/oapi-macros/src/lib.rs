@@ -206,7 +206,6 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
 /// Check whether field is required based on following rules.
 ///
 /// * If field has not serde's `skip_serializing_if`
-/// * Field has not `serde_with` double option
 /// * Field is not default
 fn is_required(field_rule: Option<&SerdeValue>, container_rules: Option<&SerdeContainer>) -> bool {
     !field_rule.map(|rule| rule.skip_serializing_if).unwrap_or(false)
