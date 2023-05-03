@@ -137,13 +137,11 @@ where
             }
             config
         };
-        println!("MMMMMMMMMMMMMMMMMM0");
         if let Some(config) = config {
             let identity = config.identity()?;
             let tls_acceptor = tokio_native_tls::native_tls::TlsAcceptor::new(identity);
             match tls_acceptor {
                 Ok(tls_acceptor) => {
-                    println!("MMMMMMMMMMMMMMMMMM011");
                     if self.tls_acceptor.is_some() {
                         tracing::info!("tls config changed.");
                     } else {

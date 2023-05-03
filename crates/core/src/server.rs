@@ -202,25 +202,19 @@ impl<A: Acceptor + Send> Server<A> {
                  accepted = acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
-                            println!("LLLLLLLLLLLLLLLLLLL0");
                             let service = service.clone();
                             let alive_connections = alive_connections.clone();
                             let notify = notify.clone();
                             let timeout_notify = timeout_notify.clone();
                             let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, alt_svc_h3.clone());
-                            println!("LLLLLLLLLLLLLLLLLLL1");
                             let builders = builders.clone();
                             tokio::spawn(async move {
                                 alive_connections.fetch_add(1, Ordering::SeqCst);
-                                println!("LLLLLLLLLLLLLLLLLLL2");
                                 let conn = conn.serve(handler, builders);
-                                println!("LLLLLLLLLLLLLLLLLLL3");
                                 if timeout.is_some() {
                                     tokio::select! {
                                         result = conn => {
-                                            println!("LLLLLLLLLLLLLLLLLLL4");
                                             if let Err(e) = result {
-                                                println!("LLLLLLLLLLLLLLLLLLL5");
                                                 tracing::error!(error = ?e, "http serve connection failed");
                                             }
                                         },
