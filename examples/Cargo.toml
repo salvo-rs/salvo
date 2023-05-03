@@ -57,6 +57,3 @@ chrono = "0.4"
 sqlx = "0.6"
 rust-embed = "6"
 time = "0.3"
-
-[patch.crates-io]
-hyper = { path = "D:/Repositories/rust/hyperium/hyper" }
