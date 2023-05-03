@@ -16,7 +16,7 @@ use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -120,7 +120,7 @@ where
     C: Stream<Item = OpensslConfig> + Send + Unpin + 'static,
     T: Acceptor + Send + 'static,
 {
-    type Conn = TlsConnStream<SslStream<T::Conn>>;
+    type Conn = SslStream<T::Conn>;
 
     /// Get the local address bound to this listener.
     fn holdings(&self) -> &[Holding] {
@@ -156,21 +156,28 @@ where
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "openssl: invalid tls config.")),
         };
-        let accepted = self.inner.accept().await?.map_conn(|stream| {
-            let fut = async move {
-                let ssl =
-                    Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-                let mut tls_stream =
-                    SslStream::new(ssl, stream).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-                use std::pin::Pin;
-                Pin::new(&mut tls_stream)
-                    .accept()
-                    .await
-                    .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-                Ok(tls_stream)
-            };
-            TlsConnStream::new(fut)
-        });
-        Ok(accepted)
+
+        let Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        } = self.inner.accept().await?;
+        let ssl = Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+        let mut tls_stream =
+            SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+        use std::pin::Pin;
+        Pin::new(&mut tls_stream)
+            .accept()
+            .await
+            .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+        Ok(Accepted {
+            conn: tls_stream,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        })
     }
 }
