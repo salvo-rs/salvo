@@ -31,10 +31,6 @@ pub(crate) struct SerdeValue {
 }
 
 impl SerdeValue {
-    const SERDE_WITH_DOUBLE_OPTION: &'static str = "::serde_with::rust::double_option";
-}
-
-impl SerdeValue {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut value = Self::default();
 
@@ -44,17 +40,6 @@ impl SerdeValue {
                 match tt {
                     TokenTree::Ident(ident) if ident == "skip" || ident == "skip_serializing" => value.skip = true,
                     TokenTree::Ident(ident) if ident == "skip_serializing_if" => value.skip_serializing_if = true,
-                    TokenTree::Ident(ident) if ident == "with" => {
-                        value.double_option = parse_next_lit_str(next)
-                            .and_then(|(literal, _)| {
-                                if literal == SerdeValue::SERDE_WITH_DOUBLE_OPTION {
-                                    Some(true)
-                                } else {
-                                    None
-                                }
-                            })
-                            .unwrap_or(false);
-                    }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {

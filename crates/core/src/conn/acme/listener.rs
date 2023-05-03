@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -10,7 +10,7 @@ use tokio_rustls::rustls::PrivateKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::conn::{Accepted, Acceptor, Holding, Listener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, Holding, Listener};
 
 use crate::http::uri::Scheme;
 use crate::http::Version;
@@ -262,7 +262,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    type Conn = TlsConnStream<TlsStream<T::Conn>>;
+    type Conn = TlsStream<T::Conn>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -271,12 +271,21 @@ where
 
     #[inline]
     async fn accept(&mut self) -> Result<Accepted<Self::Conn>, IoError> {
-        let accepted = self
-            .inner
-            .accept()
-            .await?
-            .map_conn(|s| TlsConnStream::new(self.tls_acceptor.accept(s)));
-
-        Ok(accepted)
+        
+        let Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        } = self.inner.accept().await?;
+        let conn = self.tls_acceptor.accept(conn).await.map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        Ok(Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        })
     }
 }

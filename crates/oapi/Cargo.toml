@@ -72,4 +72,3 @@ smallvec = { workspace = true, features = ["serde"] }
 rust_decimal.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 time = { workspace = true, features = ["serde-human-readable"] }
-serde_with.workspace = true

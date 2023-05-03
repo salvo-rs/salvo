@@ -63,12 +63,6 @@ cfg_feature! {
 }
 
 cfg_feature! {
-    #![any(feature = "native-tls", feature = "rustls", feature = "openssl", feature = "acme")]
-    mod tls_conn_stream;
-    pub use tls_conn_stream::TlsConnStream;
-}
-
-cfg_feature! {
     #![any(feature = "rustls", feature = "acme")]
     mod sealed {
         use std::io::{Error as IoError, ErrorKind, Result as IoResult};

@@ -12,7 +12,7 @@ use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener, TlsConnStream};
+use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -118,7 +118,7 @@ where
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Unpin + Send,
 {
-    type Conn = TlsConnStream<TlsStream<T::Conn>>;
+    type Conn = TlsStream<T::Conn>;
 
     #[inline]
     fn holdings(&self) -> &[Holding] {
@@ -157,15 +157,20 @@ where
             Some(tls_acceptor) => tls_acceptor.clone(),
             None => return Err(IoError::new(ErrorKind::Other, "native_tls: invalid tls config")),
         };
-        let accepted = self.inner.accept().await?.map_conn(|conn| {
-            let fut = async move {
-                tls_acceptor
-                    .accept(conn)
-                    .await
-                    .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
-            };
-            TlsConnStream::new(fut)
-        });
-        Ok(accepted)
+        let Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        } = self.inner.accept().await?;
+        let conn = tls_acceptor.accept(conn).await.map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        Ok(Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        })
     }
 }
