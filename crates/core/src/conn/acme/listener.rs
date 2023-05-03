@@ -1,4 +1,4 @@
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -279,8 +279,9 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
+        let conn = self.tls_acceptor.accept(conn).await.map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
         Ok(Accepted {
-            conn: self.tls_acceptor.accept(conn),
+            conn,
             local_addr,
             remote_addr,
             http_version,
