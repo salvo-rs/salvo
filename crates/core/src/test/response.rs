@@ -1,17 +1,46 @@
 use std::borrow::Cow;
+use std::io::{self, Write};
 
-use async_compression::tokio::bufread::{BrotliDecoder, DeflateDecoder, GzipDecoder};
+use zstd::stream::write::Decoder as ZstdDecoder;
+use flate2::write::{GzDecoder, ZlibDecoder};
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
 use futures_util::stream::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
-use tokio::io::{AsyncReadExt, BufReader, Error as IoError, ErrorKind};
+use tokio::io::{Error as IoError, ErrorKind};
 
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{ResBody, Response};
 use crate::{async_trait, Error};
+
+struct Writer {
+    buf: BytesMut,
+}
+
+impl Writer {
+    fn new() -> Writer {
+        Writer {
+            buf: BytesMut::with_capacity(8192),
+        }
+    }
+
+    fn take(&mut self) -> Bytes {
+        self.buf.split().freeze()
+    }
+}
+
+impl io::Write for Writer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.buf.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 /// More utils functions for response.
 #[async_trait]
@@ -55,22 +84,32 @@ impl ResponseExt for Response {
         if let Some(algo) = compress {
             match algo {
                 "gzip" => {
-                    let mut reader = GzipDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
+                    let mut decoder = GzDecoder::new(
+                        Writer::new(),
+                    );
+                    decoder.write_all(full.as_ref())?;
+                    decoder.flush()?;
+                    full = decoder.get_mut().take();
                 }
                 "deflate" => {
-                    let mut reader = DeflateDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
+                    let mut decoder = ZlibDecoder::new(Writer::new());
+                    decoder.write_all(full.as_ref())?;
+                    decoder.flush()?;
+                    full = decoder.get_mut().take();
                 }
                 "br" => {
-                    let mut reader = BrotliDecoder::new(BufReader::new(full.as_ref()));
-                    let mut buf = vec![];
-                    reader.read_to_end(&mut buf).await?;
-                    full = Bytes::from(buf);
+                    let mut decoder = brotli::DecompressorWriter::new(Writer::new(), 8_096);
+                    decoder.write_all(full.as_ref())?;
+                    decoder.flush()?;
+                    full = decoder.get_mut().take();
+                }
+                "zstd" => {
+                    let mut decoder = ZstdDecoder::new(Writer::new()).expect(
+                        "failed to create zstd decoder"
+                    );
+                    decoder.write_all(full.as_ref())?;
+                    decoder.flush()?;
+                    full = decoder.get_mut().take();
                 }
                 _ => {
                     tracing::error!(compress = %algo, "unknown compress format");

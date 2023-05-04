@@ -7,3 +7,4 @@ pub use req::h3::H3ReqBody;
 pub use req::ReqBody;
 mod res;
 pub use res::ResBody;
+pub use hyper::body::Incoming as HyperBody;

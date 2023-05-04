@@ -1,16 +1,46 @@
 //! Compress the body of a response.
-use std::io::{Cursor, Error as IoError, ErrorKind};
+use std::io::{self, Error as IoError, ErrorKind, Write};
+use std::pin::Pin;
 use std::str::FromStr;
+use std::task::{Context, Poll};
 
-use async_compression::tokio::bufread::{BrotliEncoder, DeflateEncoder, GzipEncoder};
-use bytes::BytesMut;
-use tokio::io::AsyncReadExt;
-use tokio_stream::{self, StreamExt};
+use bytes::{Bytes, BytesMut};
+use flate2::write::{GzEncoder, ZlibEncoder};
+use futures_util::stream::{BoxStream, Stream};
+use tokio_stream::{self};
 use tokio_util::io::{ReaderStream, StreamReader};
+use zstd::stream::write::Encoder as ZstdEncoder;
 
+use salvo_core::http::body::{Body, HyperBody, ResBody};
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::ResBody;
-use salvo_core::{async_trait, Depot, Handler, Request, Response, FlowCtrl};
+use salvo_core::{async_trait, BoxedError, Depot, FlowCtrl, Handler, Request, Response};
+
+struct Writer {
+    buf: BytesMut,
+}
+
+impl Writer {
+    fn new() -> Writer {
+        Writer {
+            buf: BytesMut::with_capacity(8192),
+        }
+    }
+
+    // fn take(&mut self) -> Bytes {
+    //     self.buf.split().freeze()
+    // }
+}
+
+impl io::Write for Writer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.buf.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -22,6 +52,8 @@ pub enum CompressionAlgo {
     Deflate,
     /// Brotli
     Brotli,
+    /// Zstd
+    Zstd,
 }
 
 impl FromStr for CompressionAlgo {
@@ -32,6 +64,7 @@ impl FromStr for CompressionAlgo {
             "br" => Ok(CompressionAlgo::Brotli),
             "gzip" => Ok(CompressionAlgo::Gzip),
             "deflate" => Ok(CompressionAlgo::Deflate),
+            "zstd" => Ok(CompressionAlgo::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
     }
@@ -44,6 +77,7 @@ impl From<CompressionAlgo> for HeaderValue {
             CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
             CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
             CompressionAlgo::Brotli => HeaderValue::from_static("br"),
+            CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
         }
     }
 }
@@ -173,17 +207,34 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
     vec
 }
 
-async fn compress_bytes(algo: CompressionAlgo, bytes: &[u8]) -> Result<Vec<u8>, IoError> {
-    let mut data = vec![];
-    match algo {
+fn compress_bytes(algo: CompressionAlgo, data: &[u8]) -> Result<Bytes, IoError> {
+    let data = match algo {
         CompressionAlgo::Gzip => {
-            GzipEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+            let mut encoder = ZlibEncoder::new(Writer::new(), flate2::Compression::fast());
+            encoder.write_all(data)?;
+            encoder.finish()?.buf.freeze()
         }
         CompressionAlgo::Deflate => {
-            DeflateEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+            let mut encoder = GzEncoder::new(Writer::new(), flate2::Compression::fast());
+            encoder.write_all(data)?;
+            encoder.finish()?.buf.freeze()
         }
         CompressionAlgo::Brotli => {
-            BrotliEncoder::new(Cursor::new(bytes)).read_to_end(&mut data).await?;
+            let mut encoder = brotli::CompressorWriter::new(
+                Writer::new(),
+                32 * 1024, // 32 KiB buffer
+                3,         // BROTLI_PARAM_QUALITY
+                22,        // BROTLI_PARAM_LGWIN
+            );
+
+            encoder.write_all(data)?;
+            encoder.flush()?;
+            encoder.into_inner().buf.freeze()
+        }
+        CompressionAlgo::Zstd => {
+            let mut encoder = ZstdEncoder::new(Writer::new(), 3)?;
+            encoder.write_all(data)?;
+            encoder.finish()?.buf.freeze()
         }
     };
     Ok(data)
@@ -228,7 +279,7 @@ impl Handler for Compression {
                     res.set_body(ResBody::Once(bytes));
                     return;
                 }
-                match compress_bytes(algo, &bytes).await {
+                match compress_bytes(algo, &bytes) {
                     Ok(data) => {
                         res.set_body(ResBody::Once(data.into()));
                     }
@@ -249,7 +300,7 @@ impl Handler for Compression {
                 for chunk in &chunks {
                     bytes.extend_from_slice(chunk);
                 }
-                match compress_bytes(algo, &bytes).await {
+                match compress_bytes(algo, &bytes) {
                     Ok(data) => {
                         res.set_body(ResBody::Once(data.into()));
                     }
@@ -260,34 +311,57 @@ impl Handler for Compression {
                     }
                 }
             }
-            ResBody::Stream(stream) => {
-                let stream = stream.map(|item| item.map_err(|_| ErrorKind::Other));
-                let reader = StreamReader::new(stream);
-                match algo {
-                    CompressionAlgo::Gzip => {
-                        let stream = ReaderStream::new(GzipEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
-                    }
-                    CompressionAlgo::Deflate => {
-                        let stream = ReaderStream::new(DeflateEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
-                    }
-                    CompressionAlgo::Brotli => {
-                        let stream = ReaderStream::new(BrotliEncoder::new(reader));
-                        if let Err(e) = res.streaming(stream) {
-                            tracing::error!(error = ?e, "request streaming error");
-                        }
-                    }
-                }
+            ResBody::Hyper(body) => {
+                res.streaming(HyperStream { algo, body });
+            }
+            ResBody::Stream(body) => {
+                res.streaming(CommonStream { algo, body });
             }
             _ => {}
         }
         res.headers_mut().remove(CONTENT_LENGTH);
         res.headers_mut().append(CONTENT_ENCODING, algo.into());
+    }
+}
+
+struct HyperStream {
+    algo: CompressionAlgo,
+    body: HyperBody,
+}
+
+impl Stream for HyperStream {
+    type Item = Result<Bytes, IoError>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        match Body::poll_frame(Pin::new(&mut this.body), cx) {
+            Poll::Ready(Some(Ok(frame))) => match frame.into_data() {
+                Ok(data) => Poll::Ready(Some(
+                    compress_bytes(this.algo, &data).map_err(|e| IoError::new(ErrorKind::Other, e)),
+                )),
+                Err(_) => Poll::Ready(None),
+            },
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+struct CommonStream {
+    algo: CompressionAlgo,
+    body: BoxStream<'static, Result<Bytes, BoxedError>>,
+}
+
+impl Stream for CommonStream {
+    type Item = Result<Bytes, IoError>;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        match Stream::poll_next(Pin::new(&mut this.body), cx) {
+            Poll::Ready(Some(Ok(data))) => Poll::Ready(Some(compress_bytes(this.algo, &data))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
