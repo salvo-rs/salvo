@@ -255,7 +255,7 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
 }
 
 #[async_trait]
-impl Handler for Compress {
+impl Handler for Compression {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
