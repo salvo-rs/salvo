@@ -153,7 +153,7 @@ pub mod prelude {
         pub use salvo_extra::catch_panic::CatchPanic;
     }
     cfg_feature! {
-        #![feature ="compress"]
+        #![feature ="compression"]
         pub use salvo_extra::compression::{Compression, CompressionAlgo, CompressionLevel};
     }
     cfg_feature! {
