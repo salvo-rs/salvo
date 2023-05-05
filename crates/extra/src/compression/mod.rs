@@ -1,13 +1,14 @@
 //! Compress the body of a response.
 use std::str::FromStr;
 
-use hyper::HeaderMap;
 use indexmap::IndexMap;
 
-use salvo_core::http::body::{ ResBody};
-use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::StatusCode;
-use salvo_core::{async_trait,  Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::http::body::ResBody;
+use salvo_core::http::header::{
+    HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
+};
+use salvo_core::http::{Mime, StatusCode};
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 mod encoder;
 mod stream;
@@ -79,7 +80,7 @@ pub struct Compression {
     /// Compression algorithms to use.
     pub algos: IndexMap<CompressionAlgo, CompressionLevel>,
     /// Content types to compress.
-    pub content_types: Vec<String>,
+    pub content_types: Vec<Mime>,
     /// Sets minimum compression size, if body less than this value, no compression.
     pub min_length: usize,
     /// Ignore request algorithms order in `Accept-Encoding` header and always server's config.
@@ -97,13 +98,13 @@ impl Default for Compression {
         Self {
             algos,
             content_types: vec![
-                "text/".into(),
-                "application/javascript".into(),
-                "application/json".into(),
-                "application/xml".into(),
-                "application/rss+xml".into(),
-                "application/wasm".into(),
-                "image/svg+xml".into(),
+                "text/*".parse().unwrap(),
+                "application/javascript".parse().unwrap(),
+                "application/json".parse().unwrap(),
+                "application/xml".parse().unwrap(),
+                "application/rss+xml".parse().unwrap(),
+                "application/wasm".parse().unwrap(),
+                "image/svg+xml".parse().unwrap(),
             ],
             min_length: 0,
             force_priority: false,
@@ -185,37 +186,51 @@ impl Compression {
 
     /// Sets `Compression` with content types list.
     #[inline]
-    pub fn content_types(mut self, content_types: &[String]) -> Self {
+    pub fn content_types(mut self, content_types: &[Mime]) -> Self {
         self.content_types = content_types.to_vec();
         self
     }
 
-    fn negotiate(&self, headers: &HeaderMap) -> Option<(CompressionAlgo, CompressionLevel)> {
-        if headers.contains_key(&CONTENT_ENCODING) {
+    fn negotiate(&self, req: &Request, res: &Response) -> Option<(CompressionAlgo, CompressionLevel)> {
+        if req.headers().contains_key(&CONTENT_ENCODING) {
             return None;
         }
 
-        let content_type = headers
-            .get(CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default();
-        if content_type.is_empty() || !self.content_types.iter().any(|c| content_type.starts_with(&**c)) {
-            return None;
+        if !self.content_types.is_empty() {
+            let content_type = res.headers()
+                .get(CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default();
+            if content_type.is_empty() {
+                return None;
+            }
+            if let Ok(content_type) = content_type.parse::<Mime>() {
+                if !self.content_types.iter().any(|citem| {
+                    citem.type_() == content_type.type_()
+                        && (citem.subtype() == "*" || citem.subtype() == content_type.subtype())
+                }) {
+                    return None;
+                }
+            } else {
+                return None;
+            }
         }
-
-        let header = headers.get(ACCEPT_ENCODING).and_then(|v| v.to_str().ok())?;
+        let header = req.headers().get(ACCEPT_ENCODING).and_then(|v| v.to_str().ok())?;
 
         let accept_algos = parse_accept_encoding(header);
         if self.force_priority {
-            let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
+            let accept_algos = accept_algos
+                .into_iter()
+                .map(|(algo, _)| algo)
+                .collect::<Vec<_>>();
             self.algos
                 .iter()
                 .find(|(algo, _level)| accept_algos.contains(algo))
                 .map(|(algo, level)| (*algo, *level))
         } else {
-            accept_algos.into_iter().find_map(|(algo, _)| {
-                self.algos.get(&algo).map(|level| (algo, *level)) 
-            })
+            accept_algos
+                .into_iter()
+                .find_map(|(algo, _)| self.algos.get(&algo).map(|level| (algo, *level)))
         }
     }
 }
@@ -248,7 +263,13 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
 
 #[async_trait]
 impl Handler for Compression {
-    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+    async fn handle(
+        &self,
+        req: &mut Request,
+        depot: &mut Depot,
+        res: &mut Response,
+        ctrl: &mut FlowCtrl,
+    ) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
             return;
@@ -258,8 +279,6 @@ impl Handler for Compression {
             if code == StatusCode::SWITCHING_PROTOCOLS || code == StatusCode::NO_CONTENT {
                 return;
             }
-        } else {
-            return;
         }
 
         match res.take_body() {
@@ -267,13 +286,14 @@ impl Handler for Compression {
                 return;
             }
             ResBody::Once(bytes) => {
-                if self.min_length == 0 || bytes.len() < self.min_length {
+                if self.min_length > 0 && bytes.len() < self.min_length {
                     res.set_body(ResBody::Once(bytes));
                     return;
                 }
-                match self.negotiate(req.headers()) {
+                match self.negotiate(req, res) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, Some(bytes))).ok();
+                        res.streaming(EncodeStream::new(algo, level, Some(bytes)))
+                            .ok();
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
@@ -290,7 +310,7 @@ impl Handler for Compression {
                         return;
                     }
                 }
-                match self.negotiate(req.headers()) {
+                match self.negotiate(req, res) {
                     Some((algo, level)) => {
                         res.streaming(EncodeStream::new(algo, level, chunks)).ok();
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
@@ -301,7 +321,7 @@ impl Handler for Compression {
                     }
                 }
             }
-            ResBody::Hyper(body) => match self.negotiate(req.headers()) {
+            ResBody::Hyper(body) => match self.negotiate(req, res) {
                 Some((algo, level)) => {
                     res.streaming(EncodeStream::new(algo, level, body)).ok();
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
@@ -311,7 +331,7 @@ impl Handler for Compression {
                     return;
                 }
             },
-            ResBody::Stream(body) => match self.negotiate(req.headers()) {
+            ResBody::Stream(body) => match self.negotiate(req, res) {
                 Some((algo, level)) => {
                     res.streaming(EncodeStream::new(algo, level, body)).ok();
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
