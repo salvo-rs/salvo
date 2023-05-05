@@ -1,18 +1,9 @@
 //! Compress the body of a response.
-use std::collections::HashMap;
-use std::io::{self, Error as IoError, ErrorKind, Write};
-use std::pin::Pin;
-use std::str::FromStr;
-use std::task::{Context, Poll};
+use std::io::{self, Error as IoError, Write};
 
 use brotli::CompressorWriter as BrotliEncoder;
 use bytes::{Bytes, BytesMut};
 use flate2::write::{GzEncoder, ZlibEncoder};
-use futures_util::stream::{BoxStream, Stream};
-use hyper::HeaderMap;
-use tokio_stream::{self};
-use tokio_util::io::{ReaderStream, StreamReader};
-use zstd::stream::raw::Operation;
 use zstd::stream::write::Encoder as ZstdEncoder;
 
 use super::{CompressionAlgo, CompressionLevel};
@@ -94,7 +85,7 @@ impl CompressionLevel {
 pub(super) enum Encoder {
     Deflate(ZlibEncoder<Writer>),
     Gzip(GzEncoder<Writer>),
-    Brotli(BrotliEncoder<Writer>),
+    Brotli(Box<BrotliEncoder<Writer>>),
     Zstd(ZstdEncoder<'static, Writer>),
 }
 
@@ -103,11 +94,8 @@ impl Encoder {
         match algo {
             CompressionAlgo::Deflate => Self::Deflate(level.into_deflate()),
             CompressionAlgo::Gzip => Self::Gzip(level.into_gzip()),
-            CompressionAlgo::Brotli => Self::Brotli(level.into_brotli()),
+            CompressionAlgo::Brotli => Self::Brotli(Box::new(level.into_brotli())),
             CompressionAlgo::Zstd => Self::Zstd(level.into_zstd()),
-            _ => {
-                panic!("Unsupported compression algorithm: {:?}", algo);
-            }
         }
     }
     #[inline]

@@ -1,25 +1,13 @@
 //! Compress the body of a response.
-use std::collections::HashMap;
-use std::io::{self, Error as IoError, ErrorKind, Write};
-use std::pin::Pin;
 use std::str::FromStr;
-use std::task::{Context, Poll};
 
-use bytes::{Bytes, BytesMut};
-use flate2::write::{GzEncoder, ZlibEncoder};
-use futures_util::stream::{BoxStream, Stream};
 use hyper::HeaderMap;
 use indexmap::IndexMap;
-use jsonwebtoken::Header;
-use tokio_stream::{self};
-use tokio_util::io::{ReaderStream, StreamReader};
-use zstd::stream::raw::Operation;
-use zstd::stream::write::Encoder as ZstdEncoder;
 
-use salvo_core::http::body::{Body, HyperBody, ResBody};
+use salvo_core::http::body::{ ResBody};
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::StatusCode;
-use salvo_core::{async_trait, BoxedError, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::{async_trait,  Depot, FlowCtrl, Handler, Request, Response};
 
 mod encoder;
 mod stream;
@@ -28,25 +16,20 @@ use stream::EncodeStream;
 
 /// Level of compression data should be compressed with.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub enum CompressionLevel {
     /// Fastest quality of compression, usually produces bigger size.
     Fastest,
     /// Best quality of compression, usually produces the smallest size.
     Minsize,
     /// Default quality of compression defined by the selected compression algorithm.
+    #[default]
     Default,
     /// Precise quality based on the underlying compression algorithms'
     /// qualities. The interpretation of this depends on the algorithm chosen
     /// and the specific implementation backing it.
     /// Qualities are implicitly clamped to the algorithm's maximum.
     Precise(u32),
-}
-
-impl Default for CompressionLevel {
-    fn default() -> Self {
-        CompressionLevel::Default
-    }
 }
 
 /// CompressionAlgo
@@ -93,9 +76,13 @@ impl From<CompressionAlgo> for HeaderValue {
 /// Compression
 #[derive(Clone, Debug)]
 pub struct Compression {
+    /// Compression algorithms to use.
     pub algos: IndexMap<CompressionAlgo, CompressionLevel>,
+    /// Content types to compress.
     pub content_types: Vec<String>,
+    /// Sets minimum compression size, if body less than this value, no compression.
     pub min_length: usize,
+    /// Ignore request algorithms order in `Accept-Encoding` header and always server's config.
     pub force_priority: bool,
 }
 
@@ -137,36 +124,45 @@ impl Compression {
         self.algos.insert(CompressionAlgo::Gzip, level);
         self
     }
+    /// Disable gzip compression.
     #[inline]
     pub fn disable_gzip(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Gzip);
         self
     }
+    /// Enable zstd compression.
     #[inline]
     pub fn enable_zstd(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Zstd, level);
         self
     }
+    /// Disable zstd compression.
     #[inline]
     pub fn disable_zstd(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Zstd);
         self
     }
+    /// Enable brotli compression.
     #[inline]
     pub fn enable_brotli(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Brotli, level);
         self
     }
+    /// Disable brotli compression.
     #[inline]
     pub fn disable_brotli(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Brotli);
         self
     }
+
+    /// Enable deflate compression.
     #[inline]
     pub fn enable_deflate(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Deflate, level);
         self
     }
+
+    /// Disable deflate compression.
     #[inline]
     pub fn disable_deflate(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Deflate);
@@ -214,15 +210,11 @@ impl Compression {
             let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
             self.algos
                 .iter()
-                .find(|(algo, level)| accept_algos.contains(algo))
+                .find(|(algo, _level)| accept_algos.contains(algo))
                 .map(|(algo, level)| (*algo, *level))
         } else {
             accept_algos.into_iter().find_map(|(algo, _)| {
-                if let Some(level) = self.algos.get(&algo) {
-                    Some((algo, *level))
-                } else {
-                    None
-                }
+                self.algos.get(&algo).map(|level| (algo, *level)) 
             })
         }
     }
@@ -281,7 +273,7 @@ impl Handler for Compression {
                 }
                 match self.negotiate(req.headers()) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, Some(bytes)));
+                        res.streaming(EncodeStream::new(algo, level, Some(bytes))).ok();
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
@@ -300,7 +292,7 @@ impl Handler for Compression {
                 }
                 match self.negotiate(req.headers()) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, chunks));
+                        res.streaming(EncodeStream::new(algo, level, chunks)).ok();
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
@@ -311,7 +303,7 @@ impl Handler for Compression {
             }
             ResBody::Hyper(body) => match self.negotiate(req.headers()) {
                 Some((algo, level)) => {
-                    res.streaming(EncodeStream::new(algo, level, body));
+                    res.streaming(EncodeStream::new(algo, level, body)).ok();
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
                 }
                 None => {
@@ -321,7 +313,7 @@ impl Handler for Compression {
             },
             ResBody::Stream(body) => match self.negotiate(req.headers()) {
                 Some((algo, level)) => {
-                    res.streaming(EncodeStream::new(algo, level, body));
+                    res.streaming(EncodeStream::new(algo, level, body)).ok();
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
                 }
                 None => {

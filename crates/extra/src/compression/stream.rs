@@ -1,25 +1,17 @@
 //! Compress the body of a response.
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind, Write};
+use std::io::{self, Error as IoError, ErrorKind};
 use std::pin::Pin;
-use std::str::FromStr;
 use std::task::{Context, Poll};
 
-use bytes::{Bytes, BytesMut};
-use flate2::write::{GzEncoder, ZlibEncoder};
+use bytes::Bytes;
 use futures_util::ready;
 use futures_util::stream::{BoxStream, Stream};
-use hyper::HeaderMap;
 use tokio::task::{spawn_blocking, JoinHandle};
-use tokio_stream::{self};
-use tokio_util::io::{ReaderStream, StreamReader};
-use zstd::stream::raw::Operation;
-use zstd::stream::write::Encoder as ZstdEncoder;
 
-use salvo_core::http::body::{Body, HyperBody, ResBody};
-use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::{async_trait, BoxedError, Depot, FlowCtrl, Handler, Request, Response};
+use salvo_core::http::body::{Body, HyperBody};
+use salvo_core::BoxedError;
 
 use super::{CompressionAlgo, CompressionLevel, Encoder};
 
@@ -60,7 +52,7 @@ impl EncodeStream<HyperBody> {
 }
 impl EncodeStream<Option<Bytes>> {
     #[inline]
-    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
         if let Some(body) = Pin::new(&mut self.body).take() {
             Poll::Ready(Some(Ok(body)))
         } else {
@@ -70,7 +62,7 @@ impl EncodeStream<Option<Bytes>> {
 }
 impl EncodeStream<VecDeque<Bytes>> {
     #[inline]
-    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
         if let Some(body) = Pin::new(&mut self.body).pop_front() {
             Poll::Ready(Some(Ok(body)))
         } else {
