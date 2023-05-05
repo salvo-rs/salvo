@@ -29,7 +29,7 @@ use stream::EncodeStream;
 /// Level of compression data should be compressed with.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CompressLevel {
+pub enum CompressionLevel {
     /// Fastest quality of compression, usually produces bigger size.
     Fastest,
     /// Best quality of compression, usually produces the smallest size.
@@ -43,16 +43,16 @@ pub enum CompressLevel {
     Precise(u32),
 }
 
-impl Default for CompressLevel {
+impl Default for CompressionLevel {
     fn default() -> Self {
-        CompressLevel::Default
+        CompressionLevel::Default
     }
 }
 
-/// CompressAlgo
+/// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 #[non_exhaustive]
-pub enum CompressAlgo {
+pub enum CompressionAlgo {
     /// Gzip
     Gzip,
     /// Deflate
@@ -62,30 +62,30 @@ pub enum CompressAlgo {
     /// Zstd
     Zstd,
 }
-impl CompressAlgo {}
+impl CompressionAlgo {}
 
-impl FromStr for CompressAlgo {
+impl FromStr for CompressionAlgo {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "br" => Ok(CompressAlgo::Brotli),
-            "gzip" => Ok(CompressAlgo::Gzip),
-            "deflate" => Ok(CompressAlgo::Deflate),
-            "zstd" => Ok(CompressAlgo::Zstd),
+            "br" => Ok(CompressionAlgo::Brotli),
+            "gzip" => Ok(CompressionAlgo::Gzip),
+            "deflate" => Ok(CompressionAlgo::Deflate),
+            "zstd" => Ok(CompressionAlgo::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
     }
 }
 
-impl From<CompressAlgo> for HeaderValue {
+impl From<CompressionAlgo> for HeaderValue {
     #[inline]
-    fn from(algo: CompressAlgo) -> Self {
+    fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            CompressAlgo::Gzip => HeaderValue::from_static("gzip"),
-            CompressAlgo::Deflate => HeaderValue::from_static("deflate"),
-            CompressAlgo::Brotli => HeaderValue::from_static("br"),
-            CompressAlgo::Zstd => HeaderValue::from_static("zstd"),
+            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
+            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
+            CompressionAlgo::Brotli => HeaderValue::from_static("br"),
+            CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
         }
     }
 }
@@ -93,7 +93,7 @@ impl From<CompressAlgo> for HeaderValue {
 /// Compression
 #[derive(Clone, Debug)]
 pub struct Compression {
-    pub algos: IndexMap<CompressAlgo, CompressLevel>,
+    pub algos: IndexMap<CompressionAlgo, CompressionLevel>,
     pub content_types: Vec<String>,
     pub min_length: usize,
     pub force_priority: bool,
@@ -103,10 +103,10 @@ impl Default for Compression {
     #[inline]
     fn default() -> Self {
         let mut algos = IndexMap::new();
-        algos.insert(CompressAlgo::Zstd, CompressLevel::Default);
-        algos.insert(CompressAlgo::Gzip, CompressLevel::Default);
-        algos.insert(CompressAlgo::Deflate, CompressLevel::Default);
-        algos.insert(CompressAlgo::Brotli, CompressLevel::Default);
+        algos.insert(CompressionAlgo::Zstd, CompressionLevel::Default);
+        algos.insert(CompressionAlgo::Gzip, CompressionLevel::Default);
+        algos.insert(CompressionAlgo::Deflate, CompressionLevel::Default);
+        algos.insert(CompressionAlgo::Brotli, CompressionLevel::Default);
         Self {
             algos,
             content_types: vec![
@@ -133,43 +133,43 @@ impl Compression {
 
     /// Sets `Compression` with algos.
     #[inline]
-    pub fn enable_gzip(mut self, level: CompressLevel) -> Self {
-        self.algos.insert(CompressAlgo::Gzip, level);
+    pub fn enable_gzip(mut self, level: CompressionLevel) -> Self {
+        self.algos.insert(CompressionAlgo::Gzip, level);
         self
     }
     #[inline]
     pub fn disable_gzip(mut self) -> Self {
-        self.algos.remove(&CompressAlgo::Gzip);
+        self.algos.remove(&CompressionAlgo::Gzip);
         self
     }
     #[inline]
-    pub fn enable_zstd(mut self, level: CompressLevel) -> Self {
-        self.algos.insert(CompressAlgo::Zstd, level);
+    pub fn enable_zstd(mut self, level: CompressionLevel) -> Self {
+        self.algos.insert(CompressionAlgo::Zstd, level);
         self
     }
     #[inline]
     pub fn disable_zstd(mut self) -> Self {
-        self.algos.remove(&CompressAlgo::Zstd);
+        self.algos.remove(&CompressionAlgo::Zstd);
         self
     }
     #[inline]
-    pub fn enable_brotli(mut self, level: CompressLevel) -> Self {
-        self.algos.insert(CompressAlgo::Brotli, level);
+    pub fn enable_brotli(mut self, level: CompressionLevel) -> Self {
+        self.algos.insert(CompressionAlgo::Brotli, level);
         self
     }
     #[inline]
     pub fn disable_brotli(mut self) -> Self {
-        self.algos.remove(&CompressAlgo::Brotli);
+        self.algos.remove(&CompressionAlgo::Brotli);
         self
     }
     #[inline]
-    pub fn enable_deflate(mut self, level: CompressLevel) -> Self {
-        self.algos.insert(CompressAlgo::Deflate, level);
+    pub fn enable_deflate(mut self, level: CompressionLevel) -> Self {
+        self.algos.insert(CompressionAlgo::Deflate, level);
         self
     }
     #[inline]
     pub fn disable_deflate(mut self) -> Self {
-        self.algos.remove(&CompressAlgo::Deflate);
+        self.algos.remove(&CompressionAlgo::Deflate);
         self
     }
 
@@ -194,7 +194,7 @@ impl Compression {
         self
     }
 
-    fn negotiate(&self, headers: &HeaderMap) -> Option<(CompressAlgo, CompressLevel)> {
+    fn negotiate(&self, headers: &HeaderMap) -> Option<(CompressionAlgo, CompressionLevel)> {
         if headers.contains_key(&CONTENT_ENCODING) {
             return None;
         }
@@ -228,7 +228,7 @@ impl Compression {
     }
 }
 
-fn parse_accept_encoding(header: &str) -> Vec<(CompressAlgo, u8)> {
+fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
     let mut vec = header
         .split(',')
         .filter_map(|s| {
@@ -244,7 +244,7 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressAlgo, u8)> {
                 .unwrap_or(100u8);
             Some((algo, q))
         })
-        .collect::<Vec<(CompressAlgo, u8)>>();
+        .collect::<Vec<(CompressionAlgo, u8)>>();
 
     vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
         std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
@@ -255,7 +255,7 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressAlgo, u8)> {
 }
 
 #[async_trait]
-impl Handler for Compression {
+impl Handler for Compress {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {

@@ -15,7 +15,7 @@ use tokio_util::io::{ReaderStream, StreamReader};
 use zstd::stream::raw::Operation;
 use zstd::stream::write::Encoder as ZstdEncoder;
 
-use super::{CompressAlgo, CompressLevel};
+use super::{CompressionAlgo, CompressionLevel};
 
 pub(super) struct Writer {
     buf: BytesMut,
@@ -44,7 +44,7 @@ impl io::Write for Writer {
     }
 }
 
-impl CompressLevel {
+impl CompressionLevel {
     fn into_brotli(self) -> BrotliEncoder<Writer> {
         let quality = match self {
             Self::Fastest => 0,
@@ -99,12 +99,12 @@ pub(super) enum Encoder {
 }
 
 impl Encoder {
-    pub(super) fn new(algo: CompressAlgo, level: CompressLevel) -> Self {
+    pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel) -> Self {
         match algo {
-            CompressAlgo::Deflate => Self::Deflate(level.into_deflate()),
-            CompressAlgo::Gzip => Self::Gzip(level.into_gzip()),
-            CompressAlgo::Brotli => Self::Brotli(level.into_brotli()),
-            CompressAlgo::Zstd => Self::Zstd(level.into_zstd()),
+            CompressionAlgo::Deflate => Self::Deflate(level.into_deflate()),
+            CompressionAlgo::Gzip => Self::Gzip(level.into_gzip()),
+            CompressionAlgo::Brotli => Self::Brotli(level.into_brotli()),
+            CompressionAlgo::Zstd => Self::Zstd(level.into_zstd()),
             _ => {
                 panic!("Unsupported compression algorithm: {:?}", algo);
             }

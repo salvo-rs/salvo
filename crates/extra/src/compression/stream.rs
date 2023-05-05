@@ -21,7 +21,7 @@ use salvo_core::http::body::{Body, HyperBody, ResBody};
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::{async_trait, BoxedError, Depot, FlowCtrl, Handler, Request, Response};
 
-use super::{CompressAlgo, CompressLevel, Encoder};
+use super::{CompressionAlgo, CompressionLevel, Encoder};
 
 const MAX_CHUNK_SIZE_ENCODE_IN_PLACE: usize = 1024;
 
@@ -33,7 +33,7 @@ pub(super) struct EncodeStream<B> {
 }
 
 impl<B> EncodeStream<B> {
-    pub(super) fn new(algo: CompressAlgo, level: CompressLevel, body: B) -> Self {
+    pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel, body: B) -> Self {
         Self {
             encoder: Some(Encoder::new(algo, level)),
             body,
