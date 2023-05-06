@@ -9,6 +9,6 @@ publish.workspace = true
 hyper = { workspace = true, features = ["server"] }
 salvo = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-tower = { workspace = true, features = ["limit"] }
+tower = { version = "0.4", features = ["limit"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

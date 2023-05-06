@@ -22,7 +22,7 @@ affix = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
 catch-panic = ["dep:futures-util", "dep:tracing"]
-compression = ["dep:async-compression", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
+compression = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:indexmap", "dep:futures-util", "dep:bytes", "tokio", "dep:tokio-stream", "dep:tokio-util", "dep:tracing"]
 force-https = ["dep:tracing"]
 jwt-auth = ["dep:jsonwebtoken", "dep:once_cell", "dep:serde", "salvo_core/cookie", "dep:tracing"]
 logging = ["dep:tracing"]
@@ -33,7 +33,6 @@ timeout = ["tokio/macros"]
 ws = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
 
 [dependencies]
-async-compression = { workspace = true, features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-session = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
@@ -43,6 +42,7 @@ hyper = { workspace = true, features = ["server", "http1", "http2", "client"], o
 jsonwebtoken = { workspace = true, optional = true }
 once_cell = { workspace = true, optional = true }
 pin-project = { workspace = true, optional = true }
+indexmap = { workspace = true, optional = true }
 salvo_core = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
@@ -51,6 +51,9 @@ tokio-stream = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io"], optional = true }
 tracing = { workspace = true, optional = true }
+brotli = { workspace = true, optional = true, features = ["default"] }
+flate2 = { workspace = true, optional = true, features = ["default"] }
+zstd = { workspace = true, optional = true, features = ["default"] }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }

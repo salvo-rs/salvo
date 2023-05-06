@@ -154,7 +154,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="compression"]
-        pub use salvo_extra::compression::{Compression, CompressionAlgo};
+        pub use salvo_extra::compression::{Compression, CompressionAlgo, CompressionLevel};
     }
     cfg_feature! {
         #![feature ="csrf"]

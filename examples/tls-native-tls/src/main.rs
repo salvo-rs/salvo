@@ -1,8 +1,7 @@
 use salvo::conn::native_tls::NativeTlsConfig;
 use salvo::prelude::*;
 
-use tracing::{span, warn, Instrument as _, Level, Span};
-
+use tracing::Level;
 
 #[handler]
 async fn hello(res: &mut Response) {
@@ -11,8 +10,7 @@ async fn hello(res: &mut Response) {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-    .with_max_level(Level::DEBUG).init();
+    tracing_subscriber::fmt().with_max_level(Level::DEBUG).init();
 
     let router = Router::new().get(hello);
     let config = NativeTlsConfig::new()

@@ -1,13 +1,13 @@
 [workspace]
 members = ["*"]
-exclude = ["work-with-tower", "db-prisma-orm", "with-listenfd", "ws-chat-with-salvo-websocket"]
+exclude = ["work-with-tower", "db-prisma-orm"]
 
 [workspace.package]
 version = "0.1.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 publish = false
-rust-version = "1.64"
+rust-version = "1.65"
 description = """
 Salvo is a powerful and simple Rust web server framework.
 """
@@ -27,6 +27,7 @@ rbdc-mysql = "4.3"
 rbs = "4.3"
 async-std = "1.12"
 async-trait = "0.1"
+hyper = "=1.0.0-rc.3"
 sea-orm = "0.11"
 sea-orm-migration = "0.11"
 eyre = "0.6"
@@ -40,7 +41,7 @@ utoipa = "3.3.0"
 utoipa-swagger-ui = "*"
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
-futures-util = {version = "0.3", default-features = true }
+futures-util = { version = "0.3", default-features = true }
 jsonwebtoken = "8"
 once_cell = "1"
 parking_lot = "0.12"

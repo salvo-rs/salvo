@@ -138,7 +138,6 @@ impl HttpConnection for TcpStream {
             let _ = builders;
             panic!("http1 feature is required");
         }
-        println!("=====================tcp.rs=====================");
         #[cfg(feature = "http1")]
         builders
             .http1

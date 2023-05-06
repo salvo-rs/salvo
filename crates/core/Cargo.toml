@@ -27,13 +27,12 @@ rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
-test = ["dep:async-compression", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
+test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
 acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:salvo-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 cruet.workspace = true
 anyhow = { workspace = true, optional = true }
-async-compression = { workspace = true, features = ["brotli", "deflate", "gzip", "tokio"], optional = true }
 async-trait.workspace = true
 base64 = { workspace = true, optional = true }
 http-body-util.workspace = true
@@ -81,6 +80,9 @@ tokio-stream.workspace = true
 tracing.workspace = true
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }
+brotli = { workspace = true, optional = true, features = ["default"] }
+flate2 = { workspace = true, optional = true, features = ["default"] }
+zstd = { workspace = true, optional = true, features = ["default"] }
 
 [dev-dependencies]
 fastrand.workspace = true

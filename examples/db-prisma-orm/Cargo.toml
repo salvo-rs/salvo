@@ -10,8 +10,8 @@ name = "prisma-cli"
 path = "src/bin/prisma.rs"
 
 [dependencies]
-prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="e12e693", default-features = false, features = ["migrations", "sqlite"]}
-prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="e12e693", default-features = false, features = ["migrations", "sqlite"]}
+prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="113b48d", default-features = false, features = ["migrations", "sqlite"]}
+prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", rev="113b48d", default-features = false, features = ["migrations", "sqlite"]}
 
 serde = { workspace = true, features = ["derive"] }
 salvo = { workspace = true }
