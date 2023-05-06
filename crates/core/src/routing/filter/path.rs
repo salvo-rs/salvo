@@ -536,13 +536,6 @@ impl PathParser {
                     }
                 } else if ch == '>' {
                     wisps.push(Box::new(NamedWisp(name)));
-                    if !self.peek(false).map(|c| c == '/').unwrap_or(true) {
-                        return Err(format!(
-                                "named part must be the last one in current segment, expected '/' or end, but found {:?} at offset: {}",
-                                self.curr(),
-                                self.offset
-                            ));
-                    }
                 }
                 if let Some(c) = self.curr() {
                     if c != '>' {
@@ -744,6 +737,14 @@ mod tests {
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }, ConstWisp("suffix.png")])]"#
+        );
+    }
+    #[test]
+    fn test_parse_dot_after_param() {
+        let segments = PathParser::new(r"/<pid>/show/<table_name>.bu").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[NamedWisp("pid"), ConstWisp("show"), CombWisp([NamedWisp("table_name"), ConstWisp(".bu")])]"#
         );
     }
     #[test]
