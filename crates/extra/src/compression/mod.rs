@@ -369,7 +369,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_gzip() {
-        let comp_handler = Compression::new().with_min_length(1);
+        let comp_handler = Compression::new().min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:5801/hello")
@@ -383,7 +383,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_brotli() {
-        let comp_handler = Compression::new().with_min_length(1);
+        let comp_handler = Compression::new().min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:5801/hello")
@@ -397,7 +397,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_deflate() {
-        let comp_handler = Compression::new().with_min_length(1);
+        let comp_handler = Compression::new().min_length(1);
         let router = Router::with_hoop(comp_handler).push(Router::with_path("hello").get(hello));
 
         let mut res = TestClient::get("http://127.0.0.1:5801/hello")
