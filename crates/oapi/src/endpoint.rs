@@ -29,8 +29,20 @@ impl<C> EndpointOutRegister for writer::Json<C>
 where
     C: ToSchema,
 {
+    #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         operation.responses.insert("200", Self::to_response(components))
+    }
+}
+impl<T, E> EndpointOutRegister for Result<T, E>
+where
+    T: EndpointOutRegister + Send,
+    E: EndpointOutRegister + Send,
+{
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        T::register(components, operation);
+        E::register(components, operation);
     }
 }
 
