@@ -149,7 +149,7 @@ impl ToTokens for ToResponses {
             }
             impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {
                 fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
-                    operation.responses = <Self as #oapi::oapi::ToResponses>::to_responses(components)
+                    operation.responses.append(&mut <Self as #oapi::oapi::ToResponses>::to_responses(components));
                 }
             }
         })
