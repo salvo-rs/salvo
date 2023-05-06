@@ -22,7 +22,7 @@
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
 <a href="https://docs.rs/salvo"><img alt="Documentation" src="https://docs.rs/salvo/badge.svg" /></a>
 <a href="https://github.com/rust-secure-code/safety-dance/"><img alt="unsafe forbidden" src="https://img.shields.io/badge/unsafe-forbidden-success.svg" /></a>
-<a href="https://blog.rust-lang.org/2022/09/22/Rust-1.64.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.64%2B-blue" /></a>
+<a href="https://blog.rust-lang.org/2022/11/03/Rust-1.65.0.html"><img alt="Rust Version" src="https://img.shields.io/badge/rust-1.65%2B-blue" /></a>
 <br>
 <a href="https://salvo.rs">
     <img alt="Website" src="https://img.shields.io/badge/https-salvo.rs-%23f00" />
