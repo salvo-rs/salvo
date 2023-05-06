@@ -118,6 +118,13 @@ impl Compression {
     pub fn new() -> Self {
         Default::default()
     }
+    
+    /// Remove all compression algorithms.
+    #[inline]
+    pub fn disable_all(mut self) -> Self {
+        self.algos.clear();
+        self
+    }
 
     /// Sets `Compression` with algos.
     #[inline]

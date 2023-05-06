@@ -56,7 +56,7 @@ impl CompressionLevel {
             Self::Fastest => flate2::Compression::fast(),
             Self::Minsize => flate2::Compression::best(),
             Self::Precise(quality) => flate2::Compression::new(quality.min(10)),
-            Self::Default => flate2::Compression::default(),
+            Self::Default => flate2::Compression::fast(),
         };
         GzEncoder::new(Writer::new(), compression)
     }
@@ -66,7 +66,7 @@ impl CompressionLevel {
             Self::Fastest => flate2::Compression::fast(),
             Self::Minsize => flate2::Compression::best(),
             Self::Precise(quality) => flate2::Compression::new(quality.min(10)),
-            Self::Default => flate2::Compression::default(),
+            Self::Default => flate2::Compression::fast(),
         };
         ZlibEncoder::new(Writer::new(), compression)
     }
@@ -76,7 +76,7 @@ impl CompressionLevel {
             Self::Fastest => 1,
             Self::Minsize => 21,
             Self::Precise(quality) => quality.min(21) as i32,
-            Self::Default => zstd::DEFAULT_COMPRESSION_LEVEL,
+            Self::Default => 1,
         };
         ZstdEncoder::new(Writer::new(), quality).unwrap()
     }
