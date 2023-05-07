@@ -236,6 +236,7 @@ impl Cors {
         self.ensure_usable_cors_rules();
         CorsHandler(self)
     }
+
     fn ensure_usable_cors_rules(&self) {
         if self.allow_credentials.is_true() {
             assert!(

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::Iterator;
 
+use indexmap::IndexMap;
 use multimap::MultiMap;
 use serde::de::value::Error as ValError;
 use serde::de::{self, Deserialize, Error as DeError, IntoDeserializer};
@@ -36,7 +37,7 @@ pub(crate) enum Payload<'a> {
 
 #[derive(Debug)]
 pub(crate) struct RequestDeserializer<'de> {
-    params: &'de HashMap<String, String>,
+    params: &'de IndexMap<String, String>,
     queries: &'de MultiMap<String, String>,
     #[cfg(feature = "cookie")]
     cookies: &'de cookie::CookieJar,

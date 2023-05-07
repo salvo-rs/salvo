@@ -46,6 +46,7 @@ futures-util = { workspace = true, features = ["io"] }
 headers.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "client", "server"] }
+indexmap.workspace = true
 salvo-utils = { workspace = true, features = ["runtime", "http1", "http2", "tcp", "client"] }
 salvo-rustls = { workspace = true, optional = true }
 mime.workspace = true

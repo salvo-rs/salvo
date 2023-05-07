@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::sync::Arc;
 
+use indexmap::IndexSet;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use regex::Regex;
@@ -19,20 +20,24 @@ pub trait PathWisp: Send + Sync + fmt::Debug + 'static {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
+    /// Validate the wisp. Panic if invalid.
+    fn validate(&self) -> Result<(), String> {
+        Ok(())
+    }
     /// Detect is that path matched.
     fn detect(&self, state: &mut PathState) -> bool;
 }
 /// WispBuilder
 pub trait WispBuilder: Send + Sync {
     /// Build `PathWisp`.
-    fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<Box<dyn PathWisp>, String>;
+    fn build(&self, name: String, sign: String, args: Vec<String>) -> Result<WispKind, String>;
 }
 
 type WispBuilderMap = RwLock<HashMap<String, Arc<Box<dyn WispBuilder>>>>;
 static WISP_BUILDERS: Lazy<WispBuilderMap> = Lazy::new(|| {
     let mut map: HashMap<String, Arc<Box<dyn WispBuilder>>> = HashMap::with_capacity(8);
-    map.insert("num".into(), Arc::new(Box::new(CharWispBuilder::new(is_num))));
-    map.insert("hex".into(), Arc::new(Box::new(CharWispBuilder::new(is_hex))));
+    map.insert("num".into(), Arc::new(Box::new(CharsWispBuilder::new(is_num))));
+    map.insert("hex".into(), Arc::new(Box::new(CharsWispBuilder::new(is_hex))));
     RwLock::new(map)
 });
 
@@ -45,6 +50,83 @@ fn is_hex(ch: char) -> bool {
     ch.is_ascii_hexdigit()
 }
 
+/// Enum of all wisp kinds.
+pub enum WispKind {
+    /// ConstWisp.
+    Const(ConstWisp),
+    /// NamedWisp.
+    Named(NamedWisp),
+    /// CharsWisp.
+    Chars(CharsWisp),
+    /// RegexWisp.
+    Regex(RegexWisp),
+    /// CombWisp.
+    Comb(CombWisp),
+}
+impl PathWisp for WispKind {
+    #[inline]
+    fn validate(&self) -> Result<(), String> {
+        match self {
+            Self::Const(wisp) => wisp.validate(),
+            Self::Named(wisp) => wisp.validate(),
+            Self::Chars(wisp) => wisp.validate(),
+            Self::Regex(wisp) => wisp.validate(),
+            Self::Comb(wisp) => wisp.validate(),
+        }
+    }
+    #[inline]
+    fn detect(&self, state: &mut PathState) -> bool {
+        match self {
+            Self::Const(wisp) => wisp.detect(state),
+            Self::Named(wisp) => wisp.detect(state),
+            Self::Chars(wisp) => wisp.detect(state),
+            Self::Regex(wisp) => wisp.detect(state),
+            Self::Comb(wisp) => wisp.detect(state),
+        }
+    }
+}
+impl fmt::Debug for WispKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Const(wisp) => wisp.fmt(f),
+            Self::Named(wisp) => wisp.fmt(f),
+            Self::Chars(wisp) => wisp.fmt(f),
+            Self::Regex(wisp) => wisp.fmt(f),
+            Self::Comb(wisp) => wisp.fmt(f),
+        }
+    }
+}
+impl From<ConstWisp> for WispKind {
+    #[inline]
+    fn from(wisp: ConstWisp) -> Self {
+        Self::Const(wisp)
+    }
+}
+impl From<NamedWisp> for WispKind {
+    #[inline]
+    fn from(wisp: NamedWisp) -> Self {
+        Self::Named(wisp)
+    }
+}
+impl From<CharsWisp> for WispKind {
+    #[inline]
+    fn from(wisp: CharsWisp) -> Self {
+        Self::Chars(wisp)
+    }
+}
+impl From<RegexWisp> for WispKind {
+    #[inline]
+    fn from(wisp: RegexWisp) -> Self {
+        Self::Regex(wisp)
+    }
+}
+impl From<CombWisp> for WispKind {
+    #[inline]
+    fn from(wisp: CombWisp) -> Self {
+        Self::Comb(wisp)
+    }
+}
+
 /// RegexWispBuilder
 pub struct RegexWispBuilder(Regex);
 impl RegexWispBuilder {
@@ -55,35 +137,37 @@ impl RegexWispBuilder {
     }
 }
 impl WispBuilder for RegexWispBuilder {
-    fn build(&self, name: String, _sign: String, _args: Vec<String>) -> Result<Box<dyn PathWisp>, String> {
-        Ok(Box::new(RegexWisp {
+    fn build(&self, name: String, _sign: String, _args: Vec<String>) -> Result<WispKind, String> {
+        Ok(RegexWisp {
             name,
             regex: self.0.clone(),
-        }))
+        }
+        .into())
     }
 }
 
-/// CharWispBuilder
-pub struct CharWispBuilder<C>(Arc<C>);
-impl<C> CharWispBuilder<C> {
-    /// Create new `CharWispBuilder`.
+/// CharsWispBuilder
+pub struct CharsWispBuilder(Arc<dyn Fn(char) -> bool + Send + Sync + 'static>);
+impl CharsWispBuilder {
+    /// Create new `CharsWispBuilder`.
     #[inline]
-    pub fn new(checker: C) -> Self {
+    pub fn new<C>(checker: C) -> Self
+    where
+        C: Fn(char) -> bool + Send + Sync + 'static,
+    {
         Self(Arc::new(checker))
     }
 }
-impl<C> WispBuilder for CharWispBuilder<C>
-where
-    C: Fn(char) -> bool + Send + Sync + 'static,
-{
-    fn build(&self, name: String, _sign: String, args: Vec<String>) -> Result<Box<dyn PathWisp>, String> {
+impl WispBuilder for CharsWispBuilder {
+    fn build(&self, name: String, _sign: String, args: Vec<String>) -> Result<WispKind, String> {
         if args.is_empty() {
-            return Ok(Box::new(CharWisp {
+            return Ok(CharsWisp {
                 name,
                 checker: self.0.clone(),
                 min_width: 1,
                 max_width: None,
-            }));
+            }
+            .into());
         }
         let ps = args[0].splitn(2, "..").map(|s| s.trim()).collect::<Vec<_>>();
         let (min_width, max_width) = if ps.is_empty() {
@@ -129,35 +213,34 @@ where
                 }
             }
         };
-        Ok(Box::new(CharWisp {
+        Ok(CharsWisp {
             name,
             checker: self.0.clone(),
             min_width,
             max_width,
-        }))
+        }
+        .into())
     }
 }
 
-struct CharWisp<C> {
+/// Chars wisp match chars in url segement.
+pub struct CharsWisp {
     name: String,
-    checker: Arc<C>,
+    checker: Arc<dyn Fn(char) -> bool + Send + Sync + 'static>,
     min_width: usize,
     max_width: Option<usize>,
 }
-impl<C> fmt::Debug for CharWisp<C> {
+impl fmt::Debug for CharsWisp {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "CharWisp {{ name: {:?}, min_width: {:?}, max_width: {:?} }}",
+            "CharsWisp {{ name: {:?}, min_width: {:?}, max_width: {:?} }}",
             self.name, self.min_width, self.max_width
         )
     }
 }
-impl<C> PathWisp for CharWisp<C>
-where
-    C: Fn(char) -> bool + Send + Sync + 'static,
-{
+impl PathWisp for CharsWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         let picked = state.pick();
         if picked.is_none() {
@@ -201,23 +284,100 @@ where
     }
 }
 
+/// Comb wisp is a group of other kind of wisps in the same url segment.
 #[derive(Debug)]
-struct CombWisp(Vec<Box<dyn PathWisp>>);
+pub struct CombWisp(pub Vec<WispKind>);
+impl CombWisp {
+    #[inline]
+    fn find_const_wisp_from(&self, index: usize) -> Option<(usize, &ConstWisp)> {
+        self.0.iter().skip(index).enumerate().find_map(|(i, wisp)| match wisp {
+            WispKind::Const(wisp) => Some((i + index, wisp)),
+            _ => None,
+        })
+    }
+}
 impl PathWisp for CombWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        let original_cursor = state.cursor;
-        for child in &self.0 {
-            if !child.detect(state) {
-                state.cursor = original_cursor;
-                return false;
+        let mut ostate = state.clone();
+        let mut offline = state.parts.get(state.cursor.0).unwrap().clone();
+        ostate.parts.get_mut(state.cursor.0).unwrap().clear();
+        let inner_detect = move |state: &mut PathState| {
+            let row = state.cursor.0;
+            for (index, wisp) in self.0.iter().enumerate() {
+                // Child wisp may changed the state.cursor.0 point to next row if all matched.
+                // The last wisp can change it if it is rest named wisp.
+                if state.cursor.0 > row {
+                    state.cursor = (row, 0);
+                    *(state.parts.get_mut(state.cursor.0).unwrap()) = "".into();
+                }
+                let online_all_matched = if let Some(part) = state.parts.get(state.cursor.0) {
+                    state.cursor.1 >= part.len()
+                } else {
+                    true
+                };
+                if online_all_matched && state.cursor.0 < state.parts.len() {
+                    state.cursor.1 = 0;
+                    if let Some((next_const_index, next_const_wisp)) = self.find_const_wisp_from(index) {
+                        if next_const_index == self.0.len() - 1 {
+                            if offline.ends_with(&next_const_wisp.0) {
+                                *(state.parts.get_mut(state.cursor.0).unwrap()) =
+                                    offline.trim_end_matches(&next_const_wisp.0).into();
+                                offline = next_const_wisp.0.clone();
+                            } else {
+                                return false;
+                            }
+                        } else {
+                            if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
+                                if next_const_index == index {
+                                    *(state.parts.get_mut(state.cursor.0).unwrap()) = next_const_wisp.0.clone();
+                                    offline = new_offline.into();
+                                } else {
+                                    *(state.parts.get_mut(state.cursor.0).unwrap()) = new_online.into();
+                                    offline = format!("{}{}", next_const_wisp.0, new_offline);
+                                }
+                            } else {
+                                return false;
+                            }
+                        }
+                    } else if !offline.is_empty() {
+                        *(state.parts.get_mut(state.cursor.0).unwrap()) = offline;
+                        offline = "".into();
+                    }
+                }
+                if !wisp.detect(state) {
+                    return false;
+                }
             }
+            offline.is_empty()
+        };
+        if !inner_detect(&mut ostate) {
+            false
+        } else {
+            *state = ostate;
+            true
         }
-        true
+    }
+    fn validate(&self) -> Result<(), String> {
+        let mut index = 0;
+        while index < self.0.len() - 2 {
+            let curr = self.0.get(index).unwrap();
+            let next = self.0.get(index + 1).unwrap();
+            if let (WispKind::Named(_), WispKind::Named(_)) = (curr, next) {
+                return Err(format!(
+                    "named wisp: `{:?}` can't be followed by another named wisp: `{:?}`",
+                    curr, next
+                ));
+            }
+            index += 1;
+        }
+        Ok(())
     }
 }
+
+/// Named wisp match part in url segment and give it a name.
 #[derive(Debug, Eq, PartialEq)]
-struct NamedWisp(String);
+pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
@@ -244,10 +404,13 @@ impl PathWisp for NamedWisp {
     }
 }
 
+/// Regex wisp match part in url segment use regex pattern and give it a name.
 #[derive(Debug)]
-struct RegexWisp {
-    name: String,
-    regex: Regex,
+pub struct RegexWisp {
+    /// The name of the wisp.
+    pub name: String,
+    /// The regex pattern.
+    pub regex: Regex,
 }
 impl RegexWisp {
     #[inline]
@@ -302,8 +465,9 @@ impl PathWisp for RegexWisp {
     }
 }
 
+/// Const wisp is used for match the const string in the path.
 #[derive(Eq, PartialEq, Debug)]
-struct ConstWisp(String);
+pub struct ConstWisp(pub String);
 impl PathWisp for ConstWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
@@ -465,11 +629,11 @@ impl PathParser {
             }
         }
     }
-    fn scan_wisps(&mut self) -> Result<Vec<Box<dyn PathWisp>>, String> {
+    fn scan_wisps(&mut self) -> Result<Vec<WispKind>, String> {
         let mut ch = self
             .curr()
             .ok_or_else(|| "current postion is out of index when scan part".to_owned())?;
-        let mut wisps: Vec<Box<dyn PathWisp>> = vec![];
+        let mut wisps: Vec<WispKind> = vec![];
         while ch != '/' {
             if ch == '<' {
                 self.next(true).ok_or_else(|| "char is needed after <".to_owned())?;
@@ -532,10 +696,10 @@ impl PathParser {
                     } else {
                         self.next(false);
                         let regex = Regex::new(&self.scan_regex()?).map_err(|e| e.to_string())?;
-                        wisps.push(Box::new(RegexWisp::new(name, regex)));
+                        wisps.push(RegexWisp::new(name, regex).into());
                     }
                 } else if ch == '>' {
-                    wisps.push(Box::new(NamedWisp(name)));
+                    wisps.push(NamedWisp(name).into());
                 }
                 if let Some(c) = self.curr() {
                     if c != '>' {
@@ -554,7 +718,7 @@ impl PathParser {
                 if part.is_empty() {
                     return Err("const part is empty string".to_owned());
                 }
-                wisps.push(Box::new(ConstWisp(part)));
+                wisps.push(ConstWisp(part).into());
             }
             if let Some(c) = self.curr() {
                 if c == '/' {
@@ -568,19 +732,19 @@ impl PathParser {
         Ok(wisps)
     }
 
-    fn parse(&mut self) -> Result<Vec<Box<dyn PathWisp>>, String> {
-        let mut wisps: Vec<Box<dyn PathWisp>> = vec![];
+    fn parse(&mut self) -> Result<Vec<WispKind>, String> {
+        let mut wisps: Vec<WispKind> = vec![];
         if self.path.is_empty() {
             return Ok(wisps);
         }
         loop {
             self.skip_slashes();
             if self.curr().map(|c| c == '/').unwrap_or(false) {
-                return Err(format!("'/' is not allowed after '/' at offset {:?}", self.offset));
+                return Err(format!("'/' is not allowed after '/' at offset `{}`", self.offset));
             }
             let mut scaned = self.scan_wisps()?;
             if scaned.len() > 1 {
-                wisps.push(Box::new(CombWisp(scaned)));
+                wisps.push(CombWisp(scaned).into());
             } else if !scaned.is_empty() {
                 wisps.push(scaned.pop().unwrap());
             } else {
@@ -588,7 +752,7 @@ impl PathParser {
             }
             if self.curr().map(|c| c != '/').unwrap_or(false) {
                 return Err(format!(
-                    "expect '/', but found {:?} at offset {:?}",
+                    "expect '/', but found {:?} at offset `{}`",
                     self.curr(),
                     self.offset
                 ));
@@ -597,14 +761,80 @@ impl PathParser {
                 break;
             }
         }
+        let mut all_names = IndexSet::new();
+        self.validate(&wisps, &mut all_names)?;
         Ok(wisps)
+    }
+    fn validate(&self, wisps: &[WispKind], all_names: &mut IndexSet<String>) -> Result<(), String> {
+        if !wisps.is_empty() {
+            let wild_name = all_names.iter().find(|v| v.starts_with("*"));
+            if let Some(wild_name) = wild_name {
+                return Err(format!(
+                    "wildcard name `{}` must added at the last in url: `{}`",
+                    wild_name,
+                    self.path.iter().collect::<String>()
+                ));
+            }
+        }
+        for (index, wisp) in wisps.into_iter().enumerate() {
+            let name = match wisp {
+                WispKind::Named(wisp) => Some(&wisp.0),
+                WispKind::Chars(wisp) => Some(&wisp.name),
+                WispKind::Regex(wisp) => Some(&wisp.name),
+                WispKind::Comb(comb) => {
+                    comb.validate()?;
+                    self.validate(&comb.0, all_names)?;
+                    None
+                }
+                _ => None,
+            };
+
+            if let Some(name) = name {
+                if name.starts_with("*") && index != wisps.len() - 1 {
+                    return Err(format!(
+                        "wildcard name `{}` must added at the last in url: `{}`",
+                        name,
+                        self.path.iter().collect::<String>()
+                    ));
+                }
+                if all_names.contains(name) {
+                    return Err(format!(
+                        "name `{}` is duplicated with previous one in url: `{}`",
+                        name,
+                        self.path.iter().collect::<String>()
+                    ));
+                }
+                all_names.insert(name.clone());
+            }
+        }
+        let wild_names = all_names
+            .iter()
+            .filter(|v| v.starts_with("*"))
+            .map(|c| &**c)
+            .collect::<Vec<_>>();
+        if wild_names.len() > 1 {
+            return Err(format!(
+                "many wildcard names: `[{}]` found in url: {}, only one wildcard name is allowed",
+                wild_names.join(", "),
+                self.path.iter().collect::<String>()
+            ));
+        } else if let Some(wild_name) = wild_names.first() {
+            if wild_name != all_names.last().unwrap() {
+                return Err(format!(
+                    "wildcard name: `{}` should be the last one in url: `{}`",
+                    wild_name,
+                    self.path.iter().collect::<String>()
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
 /// Filter request by it's path information.
 pub struct PathFilter {
     raw_value: String,
-    path_wisps: Vec<Box<dyn PathWisp>>,
+    path_wisps: Vec<WispKind>,
 }
 
 impl fmt::Debug for PathFilter {
@@ -792,7 +1022,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 1, max_width: None }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 1, max_width: None }])]"#
         );
     }
     #[test]
@@ -800,7 +1030,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 10, max_width: None }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 10, max_width: None }])]"#
         );
     }
     #[test]
@@ -808,7 +1038,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(..10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 1, max_width: Some(9) }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 1, max_width: Some(9) }])]"#
         );
     }
     #[test]
@@ -816,7 +1046,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(3..10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 3, max_width: Some(9) }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 3, max_width: Some(9) }])]"#
         );
     }
     #[test]
@@ -824,7 +1054,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num[3..]>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 3, max_width: None }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 3, max_width: None }])]"#
         );
     }
     #[test]
@@ -832,17 +1062,36 @@ mod tests {
         let segments = PathParser::new(r"/first<id:num(3..=10)>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), CharWisp { name: "id", min_width: 3, max_width: Some(10) }])]"#
+            r#"[CombWisp([ConstWisp("first"), CharsWisp { name: "id", min_width: 3, max_width: Some(10) }])]"#
         );
     }
     #[test]
-    fn test_parse_named_failed1() {
-        assert!(PathParser::new(r"/first<id>ext2").parse().is_err());
+    fn test_parse_named_follow_another_panic() {
+        assert!(PathParser::new(r"/first<id><id2>ext2").parse().is_err());
+    }
+
+    #[test]
+    fn test_parse_comb_1() {
+        let filter = PathFilter::new("/first<id>world<*rest>");
+        let mut state = PathState::new("first123world.ext");
+        assert!(filter.detect(&mut state));
+    }
+
+    #[test]
+    fn test_parse_comb_2() {
+        let filter = PathFilter::new("/abc/hello<id>world<*rest>");
+        let mut state = PathState::new("abc/hello123world.ext");
+        assert!(filter.detect(&mut state));
+    }
+
+    #[test]
+    fn test_parse_rest2_failed() {
+        assert!(PathParser::new(r"/first<id><*ext>/<**rest>").parse().is_err());
     }
 
     #[test]
     fn test_parse_rest_failed1() {
-        assert!(PathParser::new(r"/first<id>ext2<*rest>").parse().is_err());
+        assert!(PathParser::new(r"/first<id>ext2/<*rest><id>").parse().is_err());
     }
     #[test]
     fn test_parse_rest_failed2() {

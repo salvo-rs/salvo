@@ -7,18 +7,20 @@ pub use filter::*;
 pub use router::{DetectMatched, Router};
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::Arc;
+
+use indexmap::IndexMap;
 
 use crate::http::{Request, Response};
 use crate::{Depot, Handler};
 
 #[doc(hidden)]
-pub type PathParams = HashMap<String, String>;
+pub type PathParams = IndexMap<String, String>;
 #[doc(hidden)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PathState {
     pub(crate) parts: Vec<String>,
+    /// (row, col), row is the index of parts, col is the index of char in the part.
     pub(crate) cursor: (usize, usize),
     pub(crate) params: PathParams,
     pub(crate) end_slash: bool, // For rest match, we want include the last slash.
