@@ -98,10 +98,10 @@ pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Respo
                 res.body(ResBody::Once(file.bytes.to_vec().into()));
             })
             .unwrap_or_else(|| {
-                res.status_code(StatusCode::NOT_FOUND);
+                res.set_status_code(StatusCode::NOT_FOUND);
             }),
         Err(_error) => {
-            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
 }
@@ -145,13 +145,13 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
     for todo in vec.iter() {
         if todo.id == new_todo.id {
             tracing::debug!(id = ?new_todo.id, "todo already exists");
-            res.status_code(StatusCode::BAD_REQUEST);
+            res.set_status_code(StatusCode::BAD_REQUEST);
             return;
         }
     }
 
     vec.push(new_todo);
-    res.status_code(StatusCode::CREATED);
+    res.set_status_code(StatusCode::CREATED);
 }
 
 #[utoipa::path(
@@ -175,13 +175,13 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
     for todo in vec.iter_mut() {
         if todo.id == id {
             *todo = updated_todo;
-            res.status_code(StatusCode::OK);
+            res.set_status_code(StatusCode::OK);
             return;
         }
     }
 
     tracing::debug!(id = ?id, "todo is not found");
-    res.status_code(StatusCode::NOT_FOUND);
+    res.set_status_code(StatusCode::NOT_FOUND);
 }
 
 #[utoipa::path(
@@ -211,10 +211,10 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 
     let deleted = vec.len() != len;
     if deleted {
-        res.status_code(StatusCode::NO_CONTENT);
+        res.set_status_code(StatusCode::NO_CONTENT);
     } else {
         tracing::debug!(id = ?id, "todo is not found");
-        res.status_code(StatusCode::NOT_FOUND);
+        res.set_status_code(StatusCode::NOT_FOUND);
     }
 }
 

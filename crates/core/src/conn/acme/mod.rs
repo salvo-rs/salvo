@@ -165,7 +165,7 @@ impl Handler for Http01Handler {
                 res.render(token);
             }
         } else {
-            res.status_error(StatusError::not_found().summary("token is not provide"));
+            res.set_status_error(StatusError::not_found().summary("token is not provide"));
         }
     }
 }

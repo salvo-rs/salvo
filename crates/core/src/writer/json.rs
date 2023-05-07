@@ -24,7 +24,7 @@ where
             }
             Err(e) => {
                 tracing::error!(error = ?e, "JsonContent write error");
-                res.status_error(StatusError::internal_server_error());
+                res.set_status_error(StatusError::internal_server_error());
             }
         }
     }

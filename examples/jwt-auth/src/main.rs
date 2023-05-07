@@ -65,7 +65,7 @@ async fn index(req: &mut Request, depot: &mut Depot, res: &mut Response) -> anyh
                 res.render(Text::Html(LOGIN_HTML));
             }
             JwtAuthState::Forbidden => {
-                res.status_error(StatusError::forbidden());
+                res.set_status_error(StatusError::forbidden());
             }
         }
     }

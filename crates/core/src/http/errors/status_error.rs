@@ -155,6 +155,6 @@ impl StatusError {
 impl Writer for StatusError {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.status_error(self);
+        res.set_status_error(self);
     }
 }

@@ -63,7 +63,7 @@ fn render_embedded_data(
         .map(|etag| etag.to_str().unwrap_or("000000").eq(&hash))
         .unwrap_or(false)
     {
-        res.status_code(StatusCode::NOT_MODIFIED);
+        res.set_status_code(StatusCode::NOT_MODIFIED);
         return;
     }
 
@@ -156,7 +156,7 @@ where
                 render_embedded_file(file, req, res, Some(mime));
             }
             None => {
-                res.status_code(StatusCode::NOT_FOUND);
+                res.set_status_code(StatusCode::NOT_FOUND);
             }
         }
     }

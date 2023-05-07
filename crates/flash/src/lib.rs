@@ -319,7 +319,7 @@ mod tests {
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
-        assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
@@ -359,7 +359,7 @@ mod tests {
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
-        assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
+        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
 

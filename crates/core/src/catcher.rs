@@ -12,7 +12,7 @@
 //!
 //! #[handler]
 //! async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-//!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
+//!     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
 //!         res.render("Custom 404 Error Page");
 //!         ctrl.skip_rest();
 //!     }
@@ -20,7 +20,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     Service::new(Router::new()).with_catcher(Catcher::default().hoop(handle404));
+//!     Service::new(Router::new()).catcher(Catcher::default().hoop(handle404));
 //! }
 //! ```
 //!
@@ -252,7 +252,7 @@ impl DefaultHandler {
 #[async_trait]
 impl Handler for DefaultHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
             write_error_default(req, res, self.footer.as_deref());
         }
@@ -265,7 +265,7 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
     let (format, data) = if res.status_error.is_some() {
         status_error_bytes(res.status_error.as_ref().unwrap(), &format, footer)
     } else {
-        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
         status_error_bytes(&StatusError::from_code(status).unwrap(), &format, footer)
     };
     res.headers_mut()
@@ -284,14 +284,14 @@ mod tests {
     #[async_trait]
     impl Writer for CustomError {
         async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render("custom error");
         }
     }
 
     #[handler]
     async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(StatusCode::NOT_FOUND) = res.status_code {
+        if let Some(StatusCode::NOT_FOUND) = res.status_code() {
             res.render("Custom 404 Error Page");
             ctrl.skip_rest();
         }

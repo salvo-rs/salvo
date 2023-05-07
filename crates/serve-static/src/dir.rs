@@ -244,7 +244,7 @@ impl Handler for StaticDir {
         let abs_path = match abs_path {
             Some(path) => path,
             None => {
-                res.status_error(StatusError::not_found());
+                res.set_status_error(StatusError::not_found());
                 return;
             }
         };
@@ -261,7 +261,7 @@ impl Handler for StaticDir {
                 let headers = req.headers();
                 named_file.send(headers, res).await;
             } else {
-                res.status_error(StatusError::internal_server_error().summary("read file failed"));
+                res.set_status_error(StatusError::internal_server_error().summary("read file failed"));
             }
         } else if abs_path.is_dir() {
             // list the dir
@@ -294,7 +294,7 @@ impl Handler for StaticDir {
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
             let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
-            res.status_code(StatusCode::OK);
+            res.set_status_code(StatusCode::OK);
             match format.subtype().as_ref() {
                 "plain" => res.render(Text::Plain(list_text(&root))),
                 "json" => res.render(Text::Json(list_json(&root))),

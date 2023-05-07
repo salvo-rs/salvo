@@ -86,7 +86,7 @@ impl ParseError {
 impl Writer for ParseError {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.status_error(
+        res.set_status_error(
             StatusError::internal_server_error()
                 .summary("http read error happened")
                 .detail("there is no more detailed explanation."),

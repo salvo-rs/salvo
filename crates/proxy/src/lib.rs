@@ -260,13 +260,13 @@ where
                             },
                             body,
                         ) = response.into_parts();
-                        res.status_code(status);
+                        res.set_status_code(status);
                         res.set_headers(headers);
                         res.body(body.into());
                     }
                     Err(e) => {
                         tracing::error!(error = ?e, uri = ?req.uri(), "get response data failed");
-                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                        res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
             }
