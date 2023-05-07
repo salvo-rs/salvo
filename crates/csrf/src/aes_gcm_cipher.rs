@@ -22,7 +22,7 @@ impl AesGcmCipher {
 
     /// Sets the length of the token.
     #[inline]
-    pub fn with_token_size(mut self, token_size: usize) -> Self {
+    pub fn token_size(mut self, token_size: usize) -> Self {
         assert!(token_size >= 8, "length must be larger than 8");
         self.token_size = token_size;
         self

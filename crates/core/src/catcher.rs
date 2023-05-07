@@ -12,7 +12,7 @@
 //!
 //! #[handler]
 //! async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-//!     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+//!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
 //!         res.render("Custom 404 Error Page");
 //!         ctrl.skip_rest();
 //!     }
@@ -252,7 +252,7 @@ impl DefaultHandler {
 #[async_trait]
 impl Handler for DefaultHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
         if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
             write_error_default(req, res, self.footer.as_deref());
         }
@@ -265,7 +265,7 @@ pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&st
     let (format, data) = if res.status_error.is_some() {
         status_error_bytes(res.status_error.as_ref().unwrap(), &format, footer)
     } else {
-        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
         status_error_bytes(&StatusError::from_code(status).unwrap(), &format, footer)
     };
     res.headers_mut()
@@ -284,14 +284,14 @@ mod tests {
     #[async_trait]
     impl Writer for CustomError {
         async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render("custom error");
         }
     }
 
     #[handler]
     async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+        if let Some(StatusCode::NOT_FOUND) = res.status_code {
             res.render("Custom 404 Error Page");
             ctrl.skip_rest();
         }
@@ -325,7 +325,7 @@ mod tests {
             "Hello World"
         }
         let router = Router::new().get(hello);
-        let service = Service::new(router).with_catcher(Catcher::default().hoop(handle404));
+        let service = Service::new(router).catcher(Catcher::default().hoop(handle404));
 
         async fn access(service: &Service, name: &str) -> String {
             TestClient::get(format!("http://127.0.0.1:5800/{}", name))

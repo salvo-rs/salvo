@@ -38,12 +38,12 @@ pub struct StatusError {
 }
 impl StatusError {
     /// Sets summary field and returns Self.
-    pub fn with_summary(mut self, summary: impl Into<String>) -> Self {
+    pub fn summary(mut self, summary: impl Into<String>) -> Self {
         self.summary = Some(summary.into());
         self
     }
     /// Sets detail field and returns Self.
-    pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
+    pub fn detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
     }
@@ -155,6 +155,6 @@ impl StatusError {
 impl Writer for StatusError {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_error(self);
+        res.status_error(self);
     }
 }

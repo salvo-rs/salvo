@@ -20,13 +20,19 @@ pub use crate::http::body::ResBody;
 
 /// Represents an HTTP response
 pub struct Response {
-    status_code: Option<StatusCode>,
-    pub(crate) status_error: Option<StatusError>,
-    headers: HeaderMap,
-    version: Version,
+    /// The HTTP status code.
+    pub status_code: Option<StatusCode>,
+    /// The HTTP status error.
+    pub status_error: Option<StatusError>,
+     /// The HTTP headers.
+    pub headers: HeaderMap,
+    /// The HTTP version.
+    pub version: Version,
+    /// The HTTP cookies.
     #[cfg(feature = "cookie")]
-    pub(crate) cookies: CookieJar,
-    pub(crate) body: ResBody,
+    pub cookies: CookieJar,
+    /// The HTTP body.
+    pub body: ResBody,
 }
 impl Default for Response {
     #[inline]
@@ -151,11 +157,6 @@ impl Response {
         &mut self.version
     }
 
-    /// Get body reference.
-    #[inline]
-    pub fn body(&self) -> &ResBody {
-        &self.body
-    }
     /// Get mutable body reference.
     #[inline]
     pub fn body_mut(&mut self) -> &mut ResBody {
@@ -163,13 +164,8 @@ impl Response {
     }
     /// Sets body.
     #[inline]
-    pub fn set_body(&mut self, body: ResBody) {
+    pub fn body(&mut self, body: ResBody) -> &mut Self {
         self.body = body;
-    }
-    /// Sets body.
-    #[inline]
-    pub fn with_body(&mut self, body: ResBody) -> &mut Self {
-        self.set_body(body);
         self
     }
 
@@ -189,7 +185,7 @@ impl Response {
     #[doc(hidden)]
     #[inline]
     pub fn is_stamped(&mut self) -> bool {
-        if let Some(code) = self.status_code() {
+        if let Some(code) = self.status_code {
             if code.is_client_error() || code.is_server_error() || code.is_redirection() {
                 return true;
             }
@@ -276,21 +272,6 @@ impl Response {
         }
     }
 
-    /// Get status code.
-    #[inline]
-    pub fn status_code(&self) -> Option<StatusCode> {
-        self.status_code
-    }
-
-    /// Sets status code.
-    #[inline]
-    pub fn set_status_code(&mut self, code: StatusCode) {
-        self.status_code = Some(code);
-        if !code.is_success() {
-            self.status_error = StatusError::from_code(code);
-        }
-    }
-
     /// Sets status code and returns `&mut Self`.
     ///
     /// # Example
@@ -300,11 +281,14 @@ impl Response {
     /// use salvo_core::http::response::Response;
     ///
     /// let mut res = Response::new();
-    /// res.with_status_code(StatusCode::OK);
+    /// res.status_code(StatusCode::OK);
     /// ```
     #[inline]
-    pub fn with_status_code(&mut self, code: StatusCode) -> &mut Self {
-        self.set_status_code(code);
+    pub fn status_code(&mut self, code: StatusCode) -> &mut Self {
+        self.status_code = Some(code);
+        if !code.is_success() {
+            self.status_error = StatusError::from_code(code);
+        }
         self
     }
 
@@ -328,21 +312,6 @@ impl Response {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get http error if exists, only exists after use `set_status_error` set http error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use salvo_core::http::{Response, StatusCode, StatusError};
-    ///
-    /// let mut res = Response::new();
-    /// res.set_status_error(StatusError::bad_request());
-    /// assert!(res.status_error().is_some());
-    ///
-    #[inline]
-    pub fn status_error(&self) -> Option<&StatusError> {
-        self.status_error.as_ref()
-    }
     /// Sets http error.
     ///
     /// # Example
@@ -352,18 +321,12 @@ impl Response {
     /// use salvo_core::http::response::Response;
     ///
     /// let mut res = Response::new();
-    /// res.set_status_error(StatusError::bad_request());
-    /// assert!(res.status_error().is_some());
-    ///
+    /// res.status_error(StatusError::bad_request());
+    /// assert!(res.status_error.is_some());
     #[inline]
-    pub fn set_status_error(&mut self, e: StatusError) {
+    pub fn status_error(&mut self, e: StatusError) -> &mut Self {
         self.status_code = Some(e.code);
         self.status_error = Some(e);
-    }
-    /// Sets http error and returns `&mut Self`.
-    #[inline]
-    pub fn with_status_error(&mut self, e: StatusError) -> &mut Self {
-        self.set_status_error(e);
         self
     }
 

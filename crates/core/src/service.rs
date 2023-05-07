@@ -17,9 +17,12 @@ use crate::Depot;
 
 /// Service http request.
 pub struct Service {
-    pub(crate) router: Arc<Router>,
-    pub(crate) catcher: Option<Arc<Catcher>>,
-    pub(crate) allowed_media_types: Arc<Vec<Mime>>,
+    /// The router of this service.
+    pub router: Arc<Router>,
+    /// The catcher of this service.
+    pub catcher: Option<Arc<Catcher>>,
+    /// The allowed media types of this service.
+    pub allowed_media_types: Arc<Vec<Mime>>,
 }
 
 impl Service {
@@ -53,7 +56,7 @@ impl Service {
     ///
     /// #[handler]
     /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code {
     ///         res.render("Custom 404 Error Page");
     ///         ctrl.skip_rest();
     ///     }
@@ -61,19 +64,13 @@ impl Service {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     Service::new(Router::new()).with_catcher(Catcher::default().hoop(handle404));
+    ///     Service::new(Router::new()).catcher(Catcher::default().hoop(handle404));
     /// }
     /// ```
     #[inline]
-    pub fn with_catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
+    pub fn catcher(mut self, catcher: impl Into<Arc<Catcher>>) -> Self {
         self.catcher = Some(catcher.into());
         self
-    }
-
-    /// Get catcher.
-    #[inline]
-    pub fn catcher(&self) -> Option<Arc<Catcher>> {
-        self.catcher.clone()
     }
 
     /// Sets allowed media types list and returns `Self` for write code chained.
@@ -85,22 +82,16 @@ impl Service {
     ///
     /// # #[tokio::main]
     /// # async fn main() {
-    /// let service = Service::new(Router::new()).with_allowed_media_types(vec![mime::TEXT_PLAIN]);
+    /// let service = Service::new(Router::new()).allowed_media_types(vec![mime::TEXT_PLAIN]);
     /// # }
     /// ```
     #[inline]
-    pub fn with_allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
+    pub fn allowed_media_types<T>(mut self, allowed_media_types: T) -> Self
     where
         T: Into<Arc<Vec<Mime>>>,
     {
         self.allowed_media_types = allowed_media_types.into();
         self
-    }
-
-    /// Get allowed media types list.
-    #[inline]
-    pub fn allowed_media_types(&self) -> Arc<Vec<Mime>> {
-        self.allowed_media_types.clone()
     }
 
     #[doc(hidden)]
@@ -180,14 +171,14 @@ impl HyperHandler {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                if res.status_code().is_none() {
-                    res.set_status_code(StatusCode::OK);
+                if res.status_code.is_none() {
+                    res.status_code(StatusCode::OK);
                 }
             } else {
-                res.set_status_code(StatusCode::NOT_FOUND);
+                res.status_code(StatusCode::NOT_FOUND);
             }
 
-            let status = res.status_code().unwrap();
+            let status = res.status_code.unwrap();
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
@@ -207,11 +198,11 @@ impl HyperHandler {
                     }
                 }
                 if !is_allowed {
-                    res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else if res.body.is_none()
                 && !has_error
-                && res.status_code() != Some(StatusCode::NO_CONTENT)
+                && res.status_code != Some(StatusCode::NO_CONTENT)
                 && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())
             {
                 // check for avoid warning when errors (404 etc.)

@@ -34,10 +34,10 @@ impl Handler for Logger {
             ctrl.call_next(req, depot, res).await;
             let duration = now.elapsed();
 
-            let status = match res.status_code() {
+            let status = match res.status_code {
                 Some(code) => code,
                 None => {
-                    if res.body().is_none() {
+                    if res.body.is_none() {
                         StatusCode::NOT_FOUND
                     } else {
                         StatusCode::OK

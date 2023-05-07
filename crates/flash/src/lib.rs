@@ -313,13 +313,13 @@ mod tests {
     async fn test_cookie_store() {
         let cookie_name = "my-custom-cookie-name".to_string();
         let router = Router::new()
-            .hoop(CookieStore::new().with_name(&cookie_name).into_handler())
+            .hoop(CookieStore::new().name(&cookie_name).into_handler())
             .push(Router::with_path("get").get(get_flash))
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
-        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
+        assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
         assert!(cookie.to_str().unwrap().contains(&cookie_name));
@@ -353,13 +353,13 @@ mod tests {
         let session_name = "my-custom-session-name".to_string();
         let router = Router::new()
             .hoop(session_handler)
-            .hoop(SessionStore::new().with_name(&session_name).into_handler())
+            .hoop(SessionStore::new().name(&session_name).into_handler())
             .push(Router::with_path("get").get(get_flash))
             .push(Router::with_path("set").get(set_flash));
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:5800/set").send(&service).await;
-        assert_eq!(respone.status_code(), Some(StatusCode::SEE_OTHER));
+        assert_eq!(respone.status_code, Some(StatusCode::SEE_OTHER));
 
         let cookie = respone.headers().get(SET_COOKIE).unwrap();
 

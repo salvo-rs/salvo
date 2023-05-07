@@ -95,9 +95,9 @@ mod tests {
     async fn test_serve_static_dir() {
         let router = Router::with_path("<**path>").get(
             StaticDir::new(vec!["test/static"])
-                .with_dot_files(false)
-                .with_listing(true)
-                .with_defaults("index.html"),
+                .dot_files(false)
+                .listing(true)
+                .defaults("index.html"),
         );
         let service = Service::new(router);
 
@@ -161,13 +161,13 @@ mod tests {
         let service = Service::new(router);
 
         let mut response = TestClient::get("http://127.0.0.1:5801/test1.txt").send(&service).await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let response = TestClient::get("http://127.0.0.1:5801/notexist.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 
     #[cfg(feature = "embed")]
@@ -183,12 +183,12 @@ mod tests {
             .push(
                 Router::with_path("dir/<**path>").get(
                     static_embed::<Assets>()
-                        .with_defaults("index.html")
-                        .with_fallback("fallback.html"),
+                        .defaults("index.html")
+                        .fallback("fallback.html"),
                 ),
             )
             .push(Router::with_path("dir2/<**path>").get(static_embed::<Assets>()))
-            .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().with_fallback("notexist.html")));
+            .push(Router::with_path("dir3/<**path>").get(static_embed::<Assets>().fallback("notexist.html")));
         let service = Service::new(router);
 
         #[handler]
@@ -202,34 +202,34 @@ mod tests {
         let mut response = TestClient::get("http://127.0.0.1:5801/files/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert_eq!(response.take_string().await.unwrap(), "copy1");
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/test1111.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Fallback page"));
 
         let response = TestClient::get("http://127.0.0.1:5801/dir").send(&service).await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
 
         let mut response = TestClient::get("http://127.0.0.1:5801/dir/").send(&service).await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(response.status_code.unwrap(), StatusCode::OK);
         assert!(response.take_string().await.unwrap().contains("Index page"));
 
         let response = TestClient::get("http://127.0.0.1:5801/dir2/").send(&service).await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
 
         let response = TestClient::get("http://127.0.0.1:5801/dir3/abc.txt")
             .send(&service)
             .await;
-        assert_eq!(response.status_code().unwrap(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status_code.unwrap(), StatusCode::NOT_FOUND);
     }
 }

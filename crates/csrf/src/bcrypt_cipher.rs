@@ -20,7 +20,7 @@ impl BcryptCipher {
 
     /// Sets the length of the token.
     #[inline]
-    pub fn with_token_size(mut self, token_size: usize) -> Self {
+    pub fn token_size(mut self, token_size: usize) -> Self {
         assert!((1..=72).contains(&token_size), "length must be between 1 and 72");
         self.token_size = token_size;
         self
@@ -28,7 +28,7 @@ impl BcryptCipher {
 
     /// Sets the cost for bcrypt.
     #[inline]
-    pub fn with_cost(mut self, cost: u32) -> Self {
+    pub fn cost(mut self, cost: u32) -> Self {
         assert!((4..=31).contains(&cost), "cost must be between 4 and 31");
         self.cost = cost;
         self
@@ -59,26 +59,26 @@ mod tests {
 
     #[test]
     fn test_bcrypt_cipher_with_token_size() {
-        let cipher = BcryptCipher::new().with_token_size(16);
+        let cipher = BcryptCipher::new().token_size(16);
         assert_eq!(cipher.token_size, 16);
     }
 
     #[test]
     #[should_panic(expected = "length must be between 1 and 72")]
     fn test_bcrypt_cipher_with_invalid_token_size() {
-        BcryptCipher::new().with_token_size(0);
+        BcryptCipher::new().token_size(0);
     }
 
     #[test]
     fn test_bcrypt_cipher_with_cost() {
-        let cipher = BcryptCipher::new().with_cost(10);
+        let cipher = BcryptCipher::new().cost(10);
         assert_eq!(cipher.cost, 10);
     }
 
     #[test]
     #[should_panic(expected = "cost must be between 4 and 31")]
     fn test_bcrypt_cipher_with_invalid_cost() {
-        BcryptCipher::new().with_cost(32);
+        BcryptCipher::new().cost(32);
     }
 
     #[test]

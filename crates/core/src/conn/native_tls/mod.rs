@@ -22,7 +22,7 @@ mod tests {
         };
 
         let mut acceptor = TcpListener::new("127.0.0.1:0")
-            .native_tls(NativeTlsConfig::new().with_pkcs12(identity).with_password("mypass"))
+            .native_tls(NativeTlsConfig::new().pkcs12(identity).password("mypass"))
             .bind()
             .await;
         let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();

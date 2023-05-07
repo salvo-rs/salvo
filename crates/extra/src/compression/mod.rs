@@ -282,7 +282,7 @@ impl Handler for Compression {
             return;
         }
 
-        if let Some(code) = res.status_code() {
+        if let Some(code) = res.status_code {
             if code == StatusCode::SWITCHING_PROTOCOLS || code == StatusCode::NO_CONTENT {
                 return;
             }
@@ -294,7 +294,7 @@ impl Handler for Compression {
             }
             ResBody::Once(bytes) => {
                 if self.min_length > 0 && bytes.len() < self.min_length {
-                    res.set_body(ResBody::Once(bytes));
+                    res.body(ResBody::Once(bytes));
                     return;
                 }
                 match self.negotiate(req, res) {
@@ -304,7 +304,7 @@ impl Handler for Compression {
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
-                        res.set_body(ResBody::Once(bytes));
+                        res.body(ResBody::Once(bytes));
                         return;
                     }
                 }
@@ -313,7 +313,7 @@ impl Handler for Compression {
                 if self.min_length > 0 {
                     let len: usize = chunks.iter().map(|c| c.len()).sum();
                     if len < self.min_length {
-                        res.set_body(ResBody::Chunks(chunks));
+                        res.body(ResBody::Chunks(chunks));
                         return;
                     }
                 }
@@ -323,7 +323,7 @@ impl Handler for Compression {
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
-                        res.set_body(ResBody::Chunks(chunks));
+                        res.body(ResBody::Chunks(chunks));
                         return;
                     }
                 }
@@ -334,7 +334,7 @@ impl Handler for Compression {
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
                 }
                 None => {
-                    res.set_body(ResBody::Hyper(body));
+                    res.body(ResBody::Hyper(body));
                     return;
                 }
             },
@@ -344,7 +344,7 @@ impl Handler for Compression {
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
                 }
                 None => {
-                    res.set_body(ResBody::Stream(body));
+                    res.body(ResBody::Stream(body));
                     return;
                 }
             },

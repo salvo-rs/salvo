@@ -90,7 +90,8 @@ type BuilderModifier = Box<dyn FnMut(&mut SslAcceptorBuilder) + Send + 'static>;
 /// Builder to set the configuration for the Tls server.
 pub struct OpensslConfig {
     keycert: Keycert,
-    builder_modifier: Option<BuilderModifier>,
+    /// Builder modifier.
+    pub builder_modifier: Option<BuilderModifier>,
 }
 
 impl fmt::Debug for OpensslConfig {
@@ -108,7 +109,7 @@ impl OpensslConfig {
     }
 
     /// Set builder modifier.
-    pub fn with_builder_modifier<F>(mut self, modifier: F) -> Self
+    pub fn builder_modifier<F>(mut self, modifier: F) -> Self
     where
         F: FnMut(&mut SslAcceptorBuilder) + Send + 'static,
     {

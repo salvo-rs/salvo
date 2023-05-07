@@ -69,14 +69,14 @@ impl TrailingSlash {
     }
     /// Sets skipper and returns new `TrailingSlash`.
     #[inline]
-    pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
+    pub fn skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
     }
 
     /// Sets redirect code and returns new `TrailingSlash`.
     #[inline]
-    pub fn with_redirect_code(mut self, redirect_code: StatusCode) -> Self {
+    pub fn redirect_code(mut self, redirect_code: StatusCode) -> Self {
         self.redirect_code = redirect_code;
         self
     }
@@ -102,7 +102,7 @@ impl Handler for TrailingSlash {
             };
             if let Some(new_uri) = new_uri {
                 ctrl.skip_rest();
-                res.set_body(ResBody::None);
+                res.body(ResBody::None);
                 match Redirect::with_status_code(self.redirect_code, new_uri) {
                     Ok(redirect) => {
                         res.render(redirect);
@@ -158,33 +158,33 @@ mod tests {
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:5800/hello").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(res.status_code.unwrap(), StatusCode::MOVED_PERMANENTLY);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
     }
     #[tokio::test]
     async fn test_remove_slash() {
-        let router = Router::with_hoop(remove_slash().with_redirect_code(StatusCode::TEMPORARY_REDIRECT))
+        let router = Router::with_hoop(remove_slash().redirect_code(StatusCode::TEMPORARY_REDIRECT))
             .push(Router::with_path("hello").get(hello))
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world/")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.status_code.unwrap(), StatusCode::TEMPORARY_REDIRECT);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
     }
 }

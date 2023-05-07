@@ -63,7 +63,7 @@ fn render_embedded_data(
         .map(|etag| etag.to_str().unwrap_or("000000").eq(&hash))
         .unwrap_or(false)
     {
-        res.set_status_code(StatusCode::NOT_MODIFIED);
+        res.status_code(StatusCode::NOT_MODIFIED);
         return;
     }
 
@@ -98,14 +98,14 @@ where
 
     /// Create a new `StaticEmbed` with defaults.
     #[inline]
-    pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
+    pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
     /// Create a new `StaticEmbed` with fallback.
     #[inline]
-    pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
+    pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
     }
@@ -156,7 +156,7 @@ where
                 render_embedded_file(file, req, res, Some(mime));
             }
             None => {
-                res.set_status_code(StatusCode::NOT_FOUND);
+                res.status_code(StatusCode::NOT_FOUND);
             }
         }
     }

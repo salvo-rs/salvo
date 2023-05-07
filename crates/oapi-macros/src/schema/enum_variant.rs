@@ -82,8 +82,8 @@ where
 }
 
 pub(crate) struct Enum<'e, V: Variant> {
-    title: Option<TokenStream>,
-    example: Option<TokenStream>,
+    pub(crate) title: Option<TokenStream>,
+    pub(crate) example: Option<TokenStream>,
     len: usize,
     items: Array<'e, TokenStream>,
     schema_type: TokenStream,
@@ -96,12 +96,12 @@ impl<V: Variant> Enum<'_, V> {
         items.into_iter().collect()
     }
 
-    pub(crate) fn with_title<I: Into<TokenStream>>(mut self, title: I) -> Self {
+    pub(crate) fn title<I: Into<TokenStream>>(mut self, title: I) -> Self {
         self.title = Some(title.into());
         self
     }
 
-    pub(crate) fn with_example<I: Into<TokenStream>>(mut self, example: I) -> Self {
+    pub(crate) fn example<I: Into<TokenStream>>(mut self, example: I) -> Self {
         self.example = Some(example.into());
         self
     }
@@ -329,11 +329,11 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
 pub(crate) struct CustomEnum<'c, T: ToTokens> {
     // pub(crate) items: Cow<'c, >,
     items: T,
-    tag: Option<Cow<'c, str>>,
+    pub(crate) tag: Option<Cow<'c, str>>,
 }
 
 impl<'c, T: ToTokens> CustomEnum<'c, T> {
-    pub(crate) fn with_discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
+    pub(crate) fn discriminator(mut self, discriminator: Cow<'c, str>) -> Self {
         self.tag = Some(discriminator);
         self
     }

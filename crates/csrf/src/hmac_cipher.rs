@@ -18,7 +18,7 @@ impl HmacCipher {
 
     /// Sets the length of the token.
     #[inline]
-    pub fn with_token_size(mut self, token_size: usize) -> Self {
+    pub fn token_size(mut self, token_size: usize) -> Self {
         assert!(token_size >= 8, "length must be larger than 8");
         self.token_size = token_size;
         self
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn test_with_token_size() {
         let hmac_key = [0u8; 32];
-        let hmac_cipher = HmacCipher::new(hmac_key).with_token_size(16);
+        let hmac_cipher = HmacCipher::new(hmac_key).token_size(16);
         assert_eq!(hmac_cipher.token_size, 16);
     }
 

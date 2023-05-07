@@ -95,13 +95,13 @@ pub async fn serve_swagger(req: &mut Request, depot: &mut Depot, res: &mut Respo
             .map(|file| {
                 res.headers_mut()
                     .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
-                res.set_body(ResBody::Once(file.bytes.to_vec().into()));
+                res.body(ResBody::Once(file.bytes.to_vec().into()));
             })
             .unwrap_or_else(|| {
-                res.set_status_code(StatusCode::NOT_FOUND);
+                res.status_code(StatusCode::NOT_FOUND);
             }),
         Err(_error) => {
-            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
 }
@@ -145,13 +145,13 @@ pub async fn create_todo(req: &mut Request, res: &mut Response) {
     for todo in vec.iter() {
         if todo.id == new_todo.id {
             tracing::debug!(id = ?new_todo.id, "todo already exists");
-            res.set_status_code(StatusCode::BAD_REQUEST);
+            res.status_code(StatusCode::BAD_REQUEST);
             return;
         }
     }
 
     vec.push(new_todo);
-    res.set_status_code(StatusCode::CREATED);
+    res.status_code(StatusCode::CREATED);
 }
 
 #[utoipa::path(
@@ -175,13 +175,13 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
     for todo in vec.iter_mut() {
         if todo.id == id {
             *todo = updated_todo;
-            res.set_status_code(StatusCode::OK);
+            res.status_code(StatusCode::OK);
             return;
         }
     }
 
     tracing::debug!(id = ?id, "todo is not found");
-    res.set_status_code(StatusCode::NOT_FOUND);
+    res.status_code(StatusCode::NOT_FOUND);
 }
 
 #[utoipa::path(
@@ -211,10 +211,10 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
 
     let deleted = vec.len() != len;
     if deleted {
-        res.set_status_code(StatusCode::NO_CONTENT);
+        res.status_code(StatusCode::NO_CONTENT);
     } else {
         tracing::debug!(id = ?id, "todo is not found");
-        res.set_status_code(StatusCode::NOT_FOUND);
+        res.status_code(StatusCode::NOT_FOUND);
     }
 }
 

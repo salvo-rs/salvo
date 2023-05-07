@@ -6,7 +6,8 @@ use super::{Flash, FlashHandler, FlashStore};
 /// SessionStore is a `FlashStore` implementation that stores the flash messages in a session.
 #[derive(Debug)]
 pub struct SessionStore {
-    name: String,
+    /// The cookie name for the flash messages.
+    pub name: String,
 }
 impl Default for SessionStore {
     fn default() -> Self {
@@ -22,12 +23,8 @@ impl SessionStore {
         }
     }
 
-    /// Get session name.
-    pub fn name(&self) -> &String {
-        &self.name
-    }
     /// Sets cookie name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+    pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
