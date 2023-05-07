@@ -326,7 +326,7 @@ impl PathWisp for CombWisp {
                                     offline = "".into();
                                 } else {
                                     *(state.parts.get_mut(state.cursor.0).unwrap()) =
-                                    offline.trim_end_matches(&next_const_wisp.0).into();
+                                        offline.trim_end_matches(&next_const_wisp.0).into();
                                     offline = next_const_wisp.0.clone();
                                 }
                             } else {

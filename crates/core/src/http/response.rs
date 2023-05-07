@@ -24,7 +24,7 @@ pub struct Response {
     status_code: Option<StatusCode>,
     /// The HTTP status error.
     pub(crate) status_error: Option<StatusError>,
-     /// The HTTP headers.
+    /// The HTTP headers.
     pub headers: HeaderMap,
     /// The HTTP version.
     pub version: Version,

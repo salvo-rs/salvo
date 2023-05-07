@@ -11,12 +11,12 @@ pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
 use http::{self, Extensions};
 use http_body_util::{BodyExt, Limited};
+use indexmap::IndexMap;
 use mime;
 use multimap::MultiMap;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use serde::de::Deserialize;
-use indexmap::IndexMap;
 
 use crate::conn::SocketAddr;
 use crate::extract::{Extractible, Metadata};
