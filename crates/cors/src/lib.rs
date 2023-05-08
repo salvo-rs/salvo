@@ -267,6 +267,7 @@ impl Cors {
 }
 
 /// CorsHandler
+#[derive(Clone, Debug)]
 pub struct CorsHandler(Cors);
 
 #[async_trait]
