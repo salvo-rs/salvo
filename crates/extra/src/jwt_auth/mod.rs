@@ -172,7 +172,7 @@ where
             } else {
                 depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
                 if self.response_error {
-                    res.set_status_error(StatusError::forbidden());
+                    res.render(StatusError::forbidden());
                     ctrl.skip_rest();
                 }
             }
@@ -181,7 +181,7 @@ where
         } else {
             depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Unauthorized);
             if self.response_error {
-                res.set_status_error(StatusError::unauthorized());
+                res.render(StatusError::unauthorized());
                 ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;

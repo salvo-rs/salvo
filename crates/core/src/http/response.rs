@@ -11,7 +11,6 @@ pub use http::response::Parts;
 use http::version::Version;
 use mime::Mime;
 
-use super::errors::*;
 use crate::http::StatusCode;
 use crate::{Error, Piece};
 use bytes::Bytes;
@@ -21,9 +20,7 @@ pub use crate::http::body::ResBody;
 /// Represents an HTTP response
 pub struct Response {
     /// The HTTP status code.
-    status_code: Option<StatusCode>,
-    /// The HTTP status error.
-    pub(crate) status_error: Option<StatusError>,
+    pub status_code: Option<StatusCode>,
     /// The HTTP headers.
     pub headers: HeaderMap,
     /// The HTTP version.
@@ -71,7 +68,6 @@ impl From<hyper::Response<ResBody>> for Response {
 
         Response {
             status_code: Some(status),
-            status_error: None,
             body,
             version,
             headers,
@@ -87,7 +83,6 @@ impl Response {
     pub fn new() -> Response {
         Response {
             status_code: None,
-            status_error: None,
             body: ResBody::None,
             version: Version::default(),
             headers: HeaderMap::new(),
@@ -102,7 +97,6 @@ impl Response {
     pub fn with_cookies(cookies: CookieJar) -> Response {
         Response {
             status_code: None,
-            status_error: None,
             body: ResBody::None,
             version: Version::default(),
             headers: HeaderMap::new(),
@@ -292,21 +286,6 @@ impl Response {
             .and_then(|v| v.parse().ok())
     }
 
-    /// Get status code.
-    #[inline]
-    pub fn status_code(&self) -> Option<StatusCode> {
-        self.status_code
-    }
-
-    /// Sets status code.
-    #[inline]
-    pub fn set_status_code(&mut self, code: StatusCode) {
-        self.status_code = Some(code);
-        if !code.is_success() {
-            self.status_error = StatusError::from_code(code);
-        }
-    }
-
     /// Sets status code and returns `&mut Self`.
     ///
     /// # Example
@@ -316,50 +295,11 @@ impl Response {
     /// use salvo_core::http::response::Response;
     ///
     /// let mut res = Response::new();
-    /// res.with_status_code(StatusCode::OK);
+    /// res.status_code(StatusCode::OK);
     /// ```
     #[inline]
-    pub fn with_status_code(&mut self, code: StatusCode) -> &mut Self {
-        self.set_status_code(code);
-        self
-    }
-
-    /// Get http error if exists, only exists after use `set_status_error` set http error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use salvo_core::http::{Response, StatusCode, StatusError};
-    ///
-    /// let mut res = Response::new();
-    /// res.set_status_error(StatusError::bad_request());
-    /// assert!(res.status_error().is_some());
-    ///
-    #[inline]
-    pub fn status_error(&self) -> Option<&StatusError> {
-        self.status_error.as_ref()
-    }
-    /// Sets http error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use salvo_core::http::{StatusCode, StatusError};
-    /// use salvo_core::http::response::Response;
-    ///
-    /// let mut res = Response::new();
-    /// res.set_status_error(StatusError::bad_request());
-    /// assert!(res.status_error().is_some());
-    ///
-    #[inline]
-    pub fn set_status_error(&mut self, e: StatusError) {
-        self.status_code = Some(e.code);
-        self.status_error = Some(e);
-    }
-    /// Sets http error and returns `&mut Self`.
-    #[inline]
-    pub fn with_status_error(&mut self, e: StatusError) -> &mut Self {
-        self.set_status_error(e);
+    pub fn status_code(&mut self, code: StatusCode) -> &mut Self {
+        self.status_code = Some(code);
         self
     }
 
@@ -445,6 +385,10 @@ impl Response {
                 return Err(Error::other(
                     "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
                 ));
+            },
+            ResBody::Error(_) => {
+                self.status_code = None;
+                self.body = ResBody::Once(data.into());
             }
         }
         Ok(())

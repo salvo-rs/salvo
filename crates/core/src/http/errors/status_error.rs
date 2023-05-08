@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 
 use http::StatusCode;
 
-use crate::{async_trait, Depot, Request, Response, Writer};
+use crate::{Piece, Response};
 
 /// Result type with `StatusError` has it's error type.
 pub type StatusResult<T> = Result<T, StatusError>;
@@ -151,10 +151,10 @@ impl StatusError {
         }
     }
 }
-#[async_trait]
-impl Writer for StatusError {
+
+impl Piece for StatusError {
     #[inline]
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        res.set_status_error(self);
+    fn render(self, res: &mut Response) {
+        res.status_code = Some(self.code);
     }
 }

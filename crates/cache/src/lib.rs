@@ -283,7 +283,7 @@ where
                 if !res.body.is_stream() {
                     let headers = res.headers().clone();
                     let body: CachedBody = (&res.body).try_into().unwrap();
-                    let cached_data = CachedEntry::new(res.status_code(), headers, body);
+                    let cached_data = CachedEntry::new(res.status_code, headers, body);
                     if let Err(e) = self.store.save_entry(key, cached_data).await {
                         tracing::error!(error = ?e, "cache failed");
                     }
@@ -293,7 +293,7 @@ where
         };
         let CachedEntry { status, headers, body } = cache;
         if let Some(status) = status {
-            res.set_status_code(status);
+            res.status_code(status);
         }
         *res.headers_mut() = headers;
         *res.body_mut() = body.into();
@@ -325,12 +325,12 @@ mod tests {
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content0 = res.take_string().await.unwrap();
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content1 = res.take_string().await.unwrap();
         assert_eq!(content0, content1);

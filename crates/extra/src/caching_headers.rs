@@ -118,7 +118,7 @@ impl Handler for ETag {
 
             if eq {
                 res.body(ResBody::None);
-                res.set_status_code(StatusCode::NOT_MODIFIED);
+                res.status_code(StatusCode::NOT_MODIFIED);
             }
         }
     }
@@ -156,7 +156,7 @@ impl Handler for Modified {
         ) {
             if !if_modified_since.is_modified(last_modified.into()) {
                 res.body(ResBody::None);
-                res.set_status_code(StatusCode::NOT_MODIFIED);
+                res.status_code(StatusCode::NOT_MODIFIED);
             }
         }
     }
@@ -179,7 +179,7 @@ impl CachingHeaders {
 impl Handler for CachingHeaders {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         self.0.handle(req, depot, res, ctrl).await;
-        if res.status_code() != Some(StatusCode::NOT_MODIFIED) {
+        if res.status_code != Some(StatusCode::NOT_MODIFIED) {
             self.1.handle(req, depot, res, ctrl).await;
         }
     }
@@ -204,14 +204,14 @@ mod tests {
         let service = Service::new(router);
 
         let respone = TestClient::get("http://127.0.0.1:5800/").send(&service).await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
 
         let etag = respone.headers().get(ETAG).unwrap();
         let respone = TestClient::get("http://127.0.0.1:5800/")
             .add_header(IF_NONE_MATCH, etag, true)
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::NOT_MODIFIED));
+        assert_eq!(respone.status_code, Some(StatusCode::NOT_MODIFIED));
         assert!(respone.body.is_none());
     }
 }

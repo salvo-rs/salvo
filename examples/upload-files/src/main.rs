@@ -16,7 +16,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         for file in files {
             let dest = format!("temp/{}", file.name().unwrap_or("file"));
             if let Err(e) = std::fs::copy(file.path(), Path::new(&dest)) {
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 res.render(Text::Plain(format!("file not found in request: {e}")));
             } else {
                 msgs.push(dest);
@@ -24,7 +24,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
         }
         res.render(Text::Plain(format!("Files uploaded:\n\n{}", msgs.join("\n"))));
     } else {
-        res.set_status_code(StatusCode::BAD_REQUEST);
+        res.status_code(StatusCode::BAD_REQUEST);
         res.render(Text::Plain("file not found in request"));
     }
 }

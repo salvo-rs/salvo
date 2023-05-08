@@ -125,7 +125,7 @@ impl WebSocketUpgrade {
             return Err(StatusError::bad_request().summary("sec_websocket_key is not exist in request headers"));
         };
 
-        res.set_status_code(StatusCode::SWITCHING_PROTOCOLS);
+        res.status_code(StatusCode::SWITCHING_PROTOCOLS);
 
         res.headers_mut().typed_insert(Connection::upgrade());
         res.headers_mut().typed_insert(Upgrade::websocket());

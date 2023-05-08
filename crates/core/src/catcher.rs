@@ -12,7 +12,7 @@
 //!
 //! #[handler]
 //! async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-//!     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+//!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
 //!         res.render("Custom 404 Error Page");
 //!         ctrl.skip_rest();
 //!     }
@@ -39,7 +39,7 @@ use mime::Mime;
 use once_cell::sync::Lazy;
 
 use crate::handler::{Handler, WhenHoop};
-use crate::http::{guess_accept_mime, header, Request, Response, StatusCode, StatusError};
+use crate::http::{guess_accept_mime, ResBody, header, Request, Response, StatusCode, StatusError};
 use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
@@ -252,7 +252,7 @@ impl DefaultHandler {
 #[async_trait]
 impl Handler for DefaultHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
         if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
             write_error_default(req, res, self.footer.as_deref());
         }
@@ -262,10 +262,10 @@ impl Handler for DefaultHandler {
 #[doc(hidden)]
 pub fn write_error_default(req: &Request, res: &mut Response, footer: Option<&str>) {
     let format = guess_accept_mime(req, None);
-    let (format, data) = if res.status_error.is_some() {
-        status_error_bytes(res.status_error.as_ref().unwrap(), &format, footer)
+    let (format, data) = if let ResBody::Error(body) = &res.body {
+        status_error_bytes(body, &format, footer)
     } else {
-        let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+        let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
         status_error_bytes(&StatusError::from_code(status).unwrap(), &format, footer)
     };
     res.headers_mut()
@@ -284,14 +284,14 @@ mod tests {
     #[async_trait]
     impl Writer for CustomError {
         async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-            res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+            res.status_code = Some(StatusCode::INTERNAL_SERVER_ERROR);
             res.render("custom error");
         }
     }
 
     #[handler]
     async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+        if let Some(StatusCode::NOT_FOUND) = res.status_code {
             res.render("Custom 404 Error Page");
             ctrl.skip_rest();
         }

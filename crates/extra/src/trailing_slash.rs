@@ -158,15 +158,15 @@ mod tests {
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:5800/hello").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(res.status_code.unwrap(), StatusCode::MOVED_PERMANENTLY);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
     }
     #[tokio::test]
     async fn test_remove_slash() {
@@ -175,16 +175,16 @@ mod tests {
             .push(Router::with_path("hello.world").get(hello));
         let service = Service::new(router);
         let res = TestClient::get("http://127.0.0.1:5800/hello/").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world/")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.status_code.unwrap(), StatusCode::TEMPORARY_REDIRECT);
 
         let res = TestClient::get("http://127.0.0.1:5800/hello.world")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
     }
 }

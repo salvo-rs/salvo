@@ -1,15 +1,15 @@
 use std::borrow::Cow;
 use std::io::{self, Write};
 
-use zstd::stream::write::Decoder as ZstdDecoder;
-use flate2::write::{GzDecoder, ZlibDecoder};
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
+use flate2::write::{GzDecoder, ZlibDecoder};
 use futures_util::stream::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
 use tokio::io::{Error as IoError, ErrorKind};
+use zstd::stream::write::Decoder as ZstdDecoder;
 
 use crate::http::header::{self, CONTENT_ENCODING};
 use crate::http::response::{ResBody, Response};
@@ -84,9 +84,7 @@ impl ResponseExt for Response {
         if let Some(algo) = compress {
             match algo {
                 "gzip" => {
-                    let mut decoder = GzDecoder::new(
-                        Writer::new(),
-                    );
+                    let mut decoder = GzDecoder::new(Writer::new());
                     decoder.write_all(full.as_ref())?;
                     decoder.flush()?;
                     full = decoder.get_mut().take();
@@ -104,9 +102,7 @@ impl ResponseExt for Response {
                     full = decoder.get_mut().take();
                 }
                 "zstd" => {
-                    let mut decoder = ZstdDecoder::new(Writer::new()).expect(
-                        "failed to create zstd decoder"
-                    );
+                    let mut decoder = ZstdDecoder::new(Writer::new()).expect("failed to create zstd decoder");
                     decoder.write_all(full.as_ref())?;
                     decoder.flush()?;
                     full = decoder.get_mut().take();
@@ -142,6 +138,7 @@ impl ResponseExt for Response {
                 }
                 bytes.freeze()
             }
+            ResBody::Error(_) => Bytes::new(),
         };
         Ok(bytes)
     }

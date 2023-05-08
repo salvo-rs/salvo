@@ -56,7 +56,7 @@ impl Service {
     ///
     /// #[handler]
     /// async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    ///     if let Some(StatusCode::NOT_FOUND) = res.status_code {
     ///         res.render("Custom 404 Error Page");
     ///         ctrl.skip_rest();
     ///     }
@@ -171,14 +171,14 @@ impl HyperHandler {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
-                if res.status_code().is_none() {
-                    res.set_status_code(StatusCode::OK);
+                if res.status_code.is_none() {
+                    res.status_code = Some(StatusCode::OK);
                 }
             } else {
-                res.set_status_code(StatusCode::NOT_FOUND);
+                res.status_code(StatusCode::NOT_FOUND);
             }
 
-            let status = res.status_code().unwrap();
+            let status = res.status_code.unwrap();
             let has_error = status.is_client_error() || status.is_server_error();
             if let Some(value) = res.headers().get(CONTENT_TYPE) {
                 let mut is_allowed = false;
@@ -198,11 +198,11 @@ impl HyperHandler {
                     }
                 }
                 if !is_allowed {
-                    res.set_status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+                    res.status_code(StatusCode::UNSUPPORTED_MEDIA_TYPE);
                 }
             } else if res.body.is_none()
                 && !has_error
-                && res.status_code() != Some(StatusCode::NO_CONTENT)
+                && res.status_code != Some(StatusCode::NO_CONTENT)
                 && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())
             {
                 // check for avoid warning when errors (404 etc.)

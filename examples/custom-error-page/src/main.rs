@@ -7,7 +7,7 @@ async fn hello() -> &'static str {
 }
 #[handler]
 async fn error500(res: &mut Response) {
-    res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::main]
@@ -25,7 +25,7 @@ fn create_service() -> Service {
 
 #[handler]
 async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-    if let Some(StatusCode::NOT_FOUND) = res.status_code() {
+    if let Some(StatusCode::NOT_FOUND) = res.status_code {
         res.render("Custom 404 Error Page");
         ctrl.skip_rest();
     }

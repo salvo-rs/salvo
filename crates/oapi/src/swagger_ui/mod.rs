@@ -287,11 +287,11 @@ impl Handler for SwaggerUi {
             }
             Ok(None) => {
                 tracing::warn!(path = path, "swagger ui file not found");
-                res.set_status_error(StatusError::not_found());
+                res.render(StatusError::not_found());
             }
             Err(e) => {
                 tracing::error!(error = ?e, path = path, "failed to fetch swagger ui file");
-                res.set_status_error(StatusError::internal_server_error());
+                res.render(StatusError::internal_server_error());
             }
         }
     }

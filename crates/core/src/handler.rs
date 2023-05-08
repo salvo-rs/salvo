@@ -58,7 +58,7 @@ pub struct EmptyHandler;
 #[async_trait]
 impl Handler for EmptyHandler {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        res.set_status_code(StatusCode::OK);
+        res.status_code(StatusCode::OK);
     }
 }
 
