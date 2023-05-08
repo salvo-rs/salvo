@@ -18,12 +18,12 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
-        .with_finders(vec![
+        .finders(vec![
             // Box::new(HeaderFinder::new()),
             Box::new(QueryFinder::new("jwt_token")),
             // Box::new(CookieFinder::new("jwt_token")),
         ])
-        .with_response_error(false);
+        .response_error(false);
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor)

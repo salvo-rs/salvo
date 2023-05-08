@@ -13,8 +13,8 @@ async fn main() {
     let router = Router::new().get(hello);
     let config = RustlsConfig::new(
         Keycert::new()
-            .with_cert(include_bytes!("../certs/cert.pem").as_ref())
-            .with_key(include_bytes!("../certs/key.pem").as_ref()),
+            .cert(include_bytes!("../certs/cert.pem").as_ref())
+            .key(include_bytes!("../certs/key.pem").as_ref()),
     );
     let acceptor = TcpListener::new("127.0.0.1:5800").rustls(config).bind().await;
     Server::new(acceptor).serve(router).await;
