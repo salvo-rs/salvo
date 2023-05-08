@@ -133,13 +133,13 @@ mod tests {
             super::start_server().await;
         });
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        let resp = TestClient::post("http://127.0.0.1:5800/todos")
+        let res = TestClient::post("http://127.0.0.1:5800/todos")
             .json(&test_todo())
             .send(super::route())
             .await;
 
         assert_eq!(res.status_code.unwrap(), StatusCode::CREATED);
-        let resp = TestClient::post("http://127.0.0.1:5800/todos")
+        let res = TestClient::post("http://127.0.0.1:5800/todos")
             .json(&test_todo())
             .send(super::route())
             .await;
