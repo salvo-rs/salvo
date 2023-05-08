@@ -19,7 +19,6 @@ impl Default for Metrics {
     }
 }
 
-#[handler]
 impl Metrics {
     /// Create `Metrics` middleware with `meter`.
     pub fn new() -> Self {
@@ -40,6 +39,10 @@ impl Metrics {
                 .init(),
         }
     }
+}
+
+#[async_trait]
+impl Handler for Metrics {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let cx = Context::new();
 
