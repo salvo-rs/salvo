@@ -332,18 +332,16 @@ impl PathWisp for CombWisp {
                             } else {
                                 return false;
                             }
-                        } else {
-                            if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
-                                if next_const_index == index {
-                                    *(state.parts.get_mut(state.cursor.0).unwrap()) = next_const_wisp.0.clone();
-                                    offline = new_offline.into();
-                                } else {
-                                    *(state.parts.get_mut(state.cursor.0).unwrap()) = new_online.into();
-                                    offline = format!("{}{}", next_const_wisp.0, new_offline);
-                                }
+                        } else if let Some((new_online, new_offline)) = offline.split_once(&next_const_wisp.0) {
+                            if next_const_index == index {
+                                *(state.parts.get_mut(state.cursor.0).unwrap()) = next_const_wisp.0.clone();
+                                offline = new_offline.into();
                             } else {
-                                return false;
+                                *(state.parts.get_mut(state.cursor.0).unwrap()) = new_online.into();
+                                offline = format!("{}{}", next_const_wisp.0, new_offline);
                             }
+                        } else {
+                            return false;
                         }
                     } else if !offline.is_empty() {
                         *(state.parts.get_mut(state.cursor.0).unwrap()) = offline;
@@ -772,7 +770,7 @@ impl PathParser {
     }
     fn validate(&self, wisps: &[WispKind], all_names: &mut IndexSet<String>) -> Result<(), String> {
         if !wisps.is_empty() {
-            let wild_name = all_names.iter().find(|v| v.starts_with("*"));
+            let wild_name = all_names.iter().find(|v| v.starts_with('*'));
             if let Some(wild_name) = wild_name {
                 return Err(format!(
                     "wildcard name `{}` must added at the last in url: `{}`",
@@ -781,7 +779,7 @@ impl PathParser {
                 ));
             }
         }
-        for (index, wisp) in wisps.into_iter().enumerate() {
+        for (index, wisp) in wisps.iter().enumerate() {
             let name = match wisp {
                 WispKind::Named(wisp) => Some(&wisp.0),
                 WispKind::Chars(wisp) => Some(&wisp.name),
@@ -795,7 +793,7 @@ impl PathParser {
             };
 
             if let Some(name) = name {
-                if name.starts_with("*") && index != wisps.len() - 1 {
+                if name.starts_with('*') && index != wisps.len() - 1 {
                     return Err(format!(
                         "wildcard name `{}` must added at the last in url: `{}`",
                         name,
@@ -814,7 +812,7 @@ impl PathParser {
         }
         let wild_names = all_names
             .iter()
-            .filter(|v| v.starts_with("*"))
+            .filter(|v| v.starts_with('*'))
             .map(|c| &**c)
             .collect::<Vec<_>>();
         if wild_names.len() > 1 {

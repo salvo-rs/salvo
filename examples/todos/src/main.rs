@@ -138,13 +138,13 @@ mod tests {
             .send(super::route())
             .await;
 
-        assert_eq!(resp.status_code().unwrap(), StatusCode::CREATED);
+        assert_eq!(res.status_code.unwrap(), StatusCode::CREATED);
         let resp = TestClient::post("http://127.0.0.1:5800/todos")
             .json(&test_todo())
             .send(super::route())
             .await;
 
-        assert_eq!(resp.status_code().unwrap(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status_code.unwrap(), StatusCode::BAD_REQUEST);
     }
 
     fn test_todo() -> Todo {

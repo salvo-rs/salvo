@@ -5,7 +5,7 @@ use serde::de::value::Error as DeError;
 use thiserror::Error;
 
 use crate::http::StatusError;
-use crate::{async_trait, BoxedError, Depot, Request, Response, Writer};
+use crate::{Piece, BoxedError, Response};
 
 /// Result type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -82,10 +82,9 @@ impl ParseError {
     }
 }
 
-#[async_trait]
-impl Writer for ParseError {
+impl Piece for ParseError {
     #[inline]
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    fn render(self, res: &mut Response) {
         res.render(
             StatusError::internal_server_error()
                 .summary("http read error happened")

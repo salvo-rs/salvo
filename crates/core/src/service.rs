@@ -212,7 +212,7 @@ impl HyperHandler {
                     "http response content type header not set"
                 );
             }
-            if res.body.is_none() && has_error {
+            if (res.body.is_none() || res.body.is_error()) && has_error {
                 if let Some(catcher) = catcher {
                     catcher.catch(&mut req, &mut depot, &mut res).await;
                 } else {

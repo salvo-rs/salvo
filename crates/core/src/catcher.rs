@@ -37,6 +37,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mime::Mime;
 use once_cell::sync::Lazy;
+use bytes::Bytes;
 
 use crate::handler::{Handler, WhenHoop};
 use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
@@ -127,7 +128,7 @@ fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail:
 }
 /// Create bytes from `StatusError`.
 #[inline]
-pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Vec<u8>) {
+pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Bytes) {
     let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
         "text/html".parse().unwrap()
     } else {
@@ -145,7 +146,7 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
             footer,
         ),
     };
-    (format, content.as_bytes().to_owned())
+    (format, Bytes::from(content))
 }
 
 /// Default implementation of [`Catcher`].

@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use http::StatusCode;
+use crate::http::{StatusCode, ResBody};
 
 use crate::{Piece, Response};
 
@@ -156,5 +156,6 @@ impl Piece for StatusError {
     #[inline]
     fn render(self, res: &mut Response) {
         res.status_code = Some(self.code);
+        res.body = ResBody::Error(self);
     }
 }

@@ -132,7 +132,7 @@ pub fn run<F: Future>(future: F) {
 #[inline]
 pub fn run_with_threads<F: Future>(future: F, threads: usize) {
     let runtime = new_runtime(threads);
-    let _ = runtime.block_on(async { future.await });
+    let _ = runtime.block_on(future);
 }
 
 // Unit tests for TokioExecutor, TokioTimer, and TokioSleep
