@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use crate::http::{StatusCode, ResBody};
+use crate::http::{ResBody, StatusCode};
 
 use crate::{Piece, Response};
 

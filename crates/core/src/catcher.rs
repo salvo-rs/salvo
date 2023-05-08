@@ -35,9 +35,9 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use mime::Mime;
 use once_cell::sync::Lazy;
-use bytes::Bytes;
 
 use crate::handler::{Handler, WhenHoop};
 use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
