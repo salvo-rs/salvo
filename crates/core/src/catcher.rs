@@ -39,7 +39,7 @@ use mime::Mime;
 use once_cell::sync::Lazy;
 
 use crate::handler::{Handler, WhenHoop};
-use crate::http::{guess_accept_mime, ResBody, header, Request, Response, StatusCode, StatusError};
+use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
 use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);

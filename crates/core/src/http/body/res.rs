@@ -105,7 +105,10 @@ impl Body for ResBody {
     type Data = Bytes;
     type Error = IoError;
 
-    fn poll_frame(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Frame<Self::Data>, <ResBody as Body>::Error>>> {
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, <ResBody as Body>::Error>>> {
         match self.poll_next(_cx) {
             Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Some(Ok(Frame::data(bytes)))),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
