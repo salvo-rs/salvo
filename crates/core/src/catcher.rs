@@ -253,7 +253,7 @@ impl DefaultHandler {
 impl Handler for DefaultHandler {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
-        if (status.is_server_error() || status.is_client_error()) && res.body.is_none() {
+        if (status.is_server_error() || status.is_client_error()) && (res.body.is_none() || res.body.is_error()) {
             write_error_default(req, res, self.footer.as_deref());
         }
     }
