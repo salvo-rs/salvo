@@ -56,7 +56,7 @@ flate2 = { workspace = true, optional = true, features = ["default"] }
 zstd = { workspace = true, optional = true, features = ["default"] }
 
 [dev-dependencies]
-salvo_core = { workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["http1", "test"] }
 time.workspace = true
 tracing-test.workspace = true
 http-body-util.workspace = true

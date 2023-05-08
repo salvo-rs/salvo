@@ -16,8 +16,10 @@ pub trait JwtTokenFinder: Send + Sync {
 /// HeaderFinder
 #[derive(Eq, PartialEq, Clone, Default)]
 pub struct HeaderFinder {
-    cared_methods: Vec<Method>,
-    header_names: Vec<HeaderName>,
+    /// Cared methods list.
+    pub cared_methods: Vec<Method>,
+    /// Header names.
+    pub header_names: Vec<HeaderName>,
 }
 impl HeaderFinder {
     /// Create new `HeaderFinder`.
@@ -31,39 +33,24 @@ impl HeaderFinder {
 
     #[doc(hidden)]
     #[inline]
-    pub fn set_header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
-        self.header_names = header_names.into();
-        self
-    }
-    #[doc(hidden)]
-    #[inline]
-    pub fn header_names(&self) -> &Vec<HeaderName> {
-        &self.header_names
-    }
-    #[doc(hidden)]
-    #[inline]
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
         &mut self.header_names
     }
-
-    /// Get cared methods list reference.
+    #[doc(hidden)]
     #[inline]
-    pub fn cared_methods(&self) -> &Vec<Method> {
-        &self.cared_methods
+    pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
+        self.header_names = header_names.into();
+        self
     }
+
     /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list.
-    #[inline]
-    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
-        self.cared_methods = methods;
-    }
     /// Sets cared methods list and returns Self.
     #[inline]
-    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
     }
@@ -88,8 +75,10 @@ impl JwtTokenFinder for HeaderFinder {
 /// FormFinder
 #[derive(Eq, PartialEq, Clone, Default)]
 pub struct FormFinder {
-    cared_methods: Vec<Method>,
-    field_name: Cow<'static, str>,
+    /// Cared methods list.
+    pub cared_methods: Vec<Method>,
+    /// Form field name.
+    pub field_name: Cow<'static, str>,
 }
 impl FormFinder {
     /// Create new `FormFinder`.
@@ -100,24 +89,14 @@ impl FormFinder {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cared methods list reference.
-    #[inline]
-    pub fn cared_methods(&self) -> &Vec<Method> {
-        &self.cared_methods
-    }
     /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list.
-    #[inline]
-    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
-        self.cared_methods = methods;
-    }
     /// Sets cared methods list and return Self.
     #[inline]
-    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
     }
@@ -137,8 +116,10 @@ impl JwtTokenFinder for FormFinder {
 /// QueryFinder
 #[derive(Eq, PartialEq, Clone, Default)]
 pub struct QueryFinder {
-    cared_methods: Vec<Method>,
-    query_name: Cow<'static, str>,
+    /// Cared methods list.
+    pub cared_methods: Vec<Method>,
+    /// Query name.
+    pub query_name: Cow<'static, str>,
 }
 impl QueryFinder {
     /// Create new `QueryFinder`.
@@ -149,24 +130,14 @@ impl QueryFinder {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cared methods list reference.
-    #[inline]
-    pub fn cared_methods(&self) -> &Vec<Method> {
-        &self.cared_methods
-    }
     /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list.
-    #[inline]
-    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
-        self.cared_methods = methods;
-    }
     /// Sets cared methods list and return Self.
     #[inline]
-    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
     }
@@ -187,8 +158,10 @@ impl JwtTokenFinder for QueryFinder {
 /// CookieFinder
 #[derive(Eq, PartialEq, Clone, Default)]
 pub struct CookieFinder {
-    cared_methods: Vec<Method>,
-    cookie_name: Cow<'static, str>,
+    /// Cared methods list.
+    pub cared_methods: Vec<Method>,
+    /// Cookie name.
+    pub cookie_name: Cow<'static, str>,
 }
 impl CookieFinder {
     /// Create new `CookieFinder`.
@@ -199,24 +172,14 @@ impl CookieFinder {
             cared_methods: ALL_METHODS.clone(),
         }
     }
-    /// Get cared methods list reference.
-    #[inline]
-    pub fn cared_methods(&self) -> &Vec<Method> {
-        &self.cared_methods
-    }
     /// Get cared methods list mutable reference.
     #[inline]
     pub fn cared_methods_mut(&mut self) -> &mut Vec<Method> {
         &mut self.cared_methods
     }
-    /// Sets cared methods list.
-    #[inline]
-    pub fn set_cared_methods(&mut self, methods: Vec<Method>) {
-        self.cared_methods = methods;
-    }
     /// Sets cared methods list and return Self.
     #[inline]
-    pub fn with_cared_methods(mut self, methods: Vec<Method>) -> Self {
+    pub fn cared_methods(mut self, methods: Vec<Method>) -> Self {
         self.cared_methods = methods;
         self
     }

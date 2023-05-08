@@ -26,6 +26,6 @@ async fn main() {
 
 fn load_config() -> NativeTlsConfig {
     NativeTlsConfig::new()
-        .with_pkcs12(include_bytes!("../certs/identity.p12").to_vec())
-        .with_password("mypass")
+        .pkcs12(include_bytes!("../certs/identity.p12").to_vec())
+        .password("mypass")
 }

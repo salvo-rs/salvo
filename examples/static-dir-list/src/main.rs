@@ -10,8 +10,8 @@ async fn main() {
             "examples/static-dir-list/static/boy",
             "examples/static-dir-list/static/girl",
         ])
-        .with_defaults("index.html")
-        .with_listing(true),
+        .defaults("index.html")
+        .listing(true),
     );
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;

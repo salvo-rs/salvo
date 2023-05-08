@@ -131,11 +131,11 @@ impl Writer for Error {
         let status_error = match self {
             Error::HttpStatus(e) => e,
             #[cfg(debug_assertions)]
-            _ => StatusError::internal_server_error().with_detail(self.to_string()),
+            _ => StatusError::internal_server_error().detail(self.to_string()),
             #[cfg(not(debug_assertions))]
             _ => StatusError::internal_server_error(),
         };
-        res.set_status_error(status_error);
+        res.render(status_error);
     }
 }
 cfg_feature! {
@@ -146,9 +146,9 @@ cfg_feature! {
         async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
             tracing::error!(error = ?self, "anyhow error occurred");
             #[cfg(debug_assertions)]
-            res.set_status_error(StatusError::internal_server_error().with_detail(self.to_string()));
+            res.render(StatusError::internal_server_error().detail(self.to_string()));
             #[cfg(not(debug_assertions))]
-            res.set_status_error(StatusError::internal_server_error());
+            res.render(StatusError::internal_server_error());
         }
     }
 }
@@ -160,9 +160,9 @@ cfg_feature! {
         async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
             tracing::error!(error = ?self, "eyre error occurred");
             #[cfg(debug_assertions)]
-            res.set_status_error(StatusError::internal_server_error().with_detail(self.to_string()));
+            res.render(StatusError::internal_server_error().detail(self.to_string()));
             #[cfg(not(debug_assertions))]
-            res.set_status_error(StatusError::internal_server_error());
+            res.render(StatusError::internal_server_error());
         }
     }
 }
@@ -181,7 +181,7 @@ mod tests {
         let mut depot = Depot::new();
         let e: anyhow::Error = anyhow::anyhow!("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     #[tokio::test]
@@ -192,7 +192,7 @@ mod tests {
         let mut depot = Depot::new();
         let e: eyre::Report = eyre::Report::msg("detail message");
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 
     #[tokio::test]
@@ -203,6 +203,6 @@ mod tests {
 
         let e = Error::Other("detail message".into());
         e.write(&mut req, &mut depot, &mut res).await;
-        assert_eq!(res.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+        assert_eq!(res.status_code, Some(StatusCode::INTERNAL_SERVER_ERROR));
     }
 }

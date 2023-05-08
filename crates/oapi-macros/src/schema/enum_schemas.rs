@@ -434,10 +434,10 @@ impl ComplexEnum<'_> {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
                 if let Some(title) = title {
-                    sev = sev.with_title(title.to_token_stream());
+                    sev = sev.title(title.to_token_stream());
                 }
                 if let Some(example) = example {
-                    sev = sev.with_example(example.to_token_stream());
+                    sev = sev.example(example.to_token_stream());
                 }
                 sev.to_token_stream()
             }
@@ -835,7 +835,7 @@ impl ToTokens for ComplexEnum<'_> {
             })
             .collect::<CustomEnum<'_, TokenStream>>();
         if let Some(tag) = tag {
-            ts.with_discriminator(Cow::Borrowed(tag.as_str())).to_tokens(tokens);
+            ts.discriminator(Cow::Borrowed(tag.as_str())).to_tokens(tokens);
         } else {
             ts.to_tokens(tokens);
         }

@@ -180,7 +180,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                             },
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
-                                res.set_status_error(#salvo::http::errors::StatusError::bad_request().with_detail(
+                                res.render(#salvo::http::errors::StatusError::bad_request().detail(
                                     "extract data failed"
                                 ));
                                 return;

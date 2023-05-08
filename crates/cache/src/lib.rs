@@ -233,9 +233,12 @@ impl CachedEntry {
 
 /// A constructed via `salvo_cache::Cache::builder()`.
 pub struct Cache<S, I> {
-    store: S,
-    issuer: I,
-    skipper: Box<dyn Skipper>,
+    /// Cache store.
+    pub store: S,
+    /// Cache issuer.
+    pub issuer: I,
+    /// Skipper.
+    pub skipper: Box<dyn Skipper>,
 }
 
 impl<S, I> Cache<S, I> {
@@ -251,7 +254,7 @@ impl<S, I> Cache<S, I> {
     }
     /// Sets skipper and returns new `Cache`.
     #[inline]
-    pub fn with_skipper(mut self, skipper: impl Skipper) -> Self {
+    pub fn skipper(mut self, skipper: impl Skipper) -> Self {
         self.skipper = Box::new(skipper);
         self
     }
@@ -277,10 +280,10 @@ where
             Some(cache) => cache,
             None => {
                 ctrl.call_next(req, depot, res).await;
-                if !res.body().is_stream() {
+                if !res.body.is_stream() {
                     let headers = res.headers().clone();
-                    let body: CachedBody = res.body().try_into().unwrap();
-                    let cached_data = CachedEntry::new(res.status_code(), headers, body);
+                    let body: CachedBody = (&res.body).try_into().unwrap();
+                    let cached_data = CachedEntry::new(res.status_code, headers, body);
                     if let Err(e) = self.store.save_entry(key, cached_data).await {
                         tracing::error!(error = ?e, "cache failed");
                     }
@@ -290,7 +293,7 @@ where
         };
         let CachedEntry { status, headers, body } = cache;
         if let Some(status) = status {
-            res.set_status_code(status);
+            res.status_code(status);
         }
         *res.headers_mut() = headers;
         *res.body_mut() = body.into();
@@ -322,12 +325,12 @@ mod tests {
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content0 = res.take_string().await.unwrap();
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::OK);
+        assert_eq!(res.status_code.unwrap(), StatusCode::OK);
 
         let content1 = res.take_string().await.unwrap();
         assert_eq!(content0, content1);

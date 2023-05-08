@@ -13,13 +13,13 @@ impl Handler for MaxSize {
         let size_hint = req.body().size_hint().upper();
         if let Some(upper) = size_hint {
             if upper > self.0 {
-                res.set_status_error(StatusError::payload_too_large());
+                res.render(StatusError::payload_too_large());
                 ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
             }
         } else {
-            res.set_status_error(StatusError::bad_request().with_detail("body size is unknown"));
+            res.render(StatusError::bad_request().detail("body size is unknown"));
             ctrl.skip_rest();
         }
     }
@@ -63,6 +63,6 @@ mod tests {
             .text("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")
             .send(&service)
             .await;
-        assert_eq!(res.status_code().unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(res.status_code.unwrap(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }

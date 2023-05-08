@@ -59,7 +59,7 @@ impl Handler for ForceHttps {
                 builder = builder.path_and_query(path_and_query);
             }
             if let Ok(uri) = builder.build() {
-                res.set_body(ResBody::None);
+                res.body(ResBody::None);
                 res.render(Redirect::permanent(uri));
                 ctrl.skip_rest();
             }
@@ -103,7 +103,7 @@ mod tests {
             .add_header(HOST, "127.0.0.1:5800", true)
             .send(router)
             .await;
-        assert_eq!(response.status_code(), Some(StatusCode::PERMANENT_REDIRECT));
+        assert_eq!(response.status_code, Some(StatusCode::PERMANENT_REDIRECT));
         assert_eq!(
             response.headers().get(LOCATION),
             Some(&"https://127.0.0.1:1234/".parse().unwrap())

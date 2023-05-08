@@ -159,7 +159,7 @@ where
         let key = match self.issuer.issue(req, depot).await {
             Some(key) => key,
             None => {
-                res.set_status_error(StatusError::bad_request().with_detail("invalid identifier"));
+                res.render(StatusError::bad_request().detail("invalid identifier"));
                 ctrl.skip_rest();
                 return;
             }
@@ -168,7 +168,7 @@ where
             Ok(quota) => quota,
             Err(e) => {
                 tracing::error!(error = ?e, "RateLimiter error");
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
             }
@@ -177,14 +177,14 @@ where
             Ok(guard) => guard,
             Err(e) => {
                 tracing::error!(error = ?e, "RateLimiter error");
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
             }
         };
         let verified = guard.verify(&quota).await;
         if !verified {
-            res.set_status_code(StatusCode::TOO_MANY_REQUESTS);
+            res.status_code(StatusCode::TOO_MANY_REQUESTS);
             ctrl.skip_rest();
         }
         if let Err(e) = self.store.save_guard(key, guard).await {
@@ -256,46 +256,46 @@ mod tests {
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
     }
 
@@ -337,46 +337,46 @@ mod tests {
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user1")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         let respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::TOO_MANY_REQUESTS));
+        assert_eq!(respone.status_code, Some(StatusCode::TOO_MANY_REQUESTS));
 
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
 
         let mut respone = TestClient::get("http://127.0.0.1:5800/limited?user=user2")
             .send(&service)
             .await;
-        assert_eq!(respone.status_code(), Some(StatusCode::OK));
+        assert_eq!(respone.status_code, Some(StatusCode::OK));
         assert_eq!(respone.take_string().await.unwrap(), "Limited page");
     }
 }

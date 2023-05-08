@@ -22,7 +22,7 @@ impl Exporter {
     }
     fn handle(&self, req: &mut Request, res: &mut Response) {
         if req.method() != Method::GET {
-            res.set_status_code(StatusCode::METHOD_NOT_ALLOWED);
+            res.status_code(StatusCode::METHOD_NOT_ALLOWED);
             return;
         }
 
@@ -33,10 +33,10 @@ impl Exporter {
             Ok(()) => {
                 res.add_header(header::CONTENT_TYPE, "text/javascript; charset=utf-8", true)
                     .ok();
-                res.set_body(body.into());
+                res.body(body.into());
             }
             Err(_) => {
-                res.set_status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             }
         }
     }

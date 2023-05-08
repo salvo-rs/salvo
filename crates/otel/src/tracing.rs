@@ -51,7 +51,7 @@ where
             let cx = Context::current();
             let span = cx.span();
 
-            let status = res.status_code().unwrap_or(StatusCode::NOT_FOUND);
+            let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
             let event = if status.is_client_error() || status.is_server_error() {
                 "request.failure"
             } else {

@@ -85,7 +85,7 @@ pub fn ask_credentials(res: &mut Response, realm: impl AsRef<str>) {
         "WWW-Authenticate",
         format!("Basic realm={:?}", realm.as_ref()).parse().unwrap(),
     );
-    res.set_status_code(StatusCode::UNAUTHORIZED);
+    res.status_code(StatusCode::UNAUTHORIZED);
 }
 
 #[doc(hidden)]

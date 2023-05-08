@@ -103,27 +103,27 @@ impl StaticDir {
 
     /// Sets dot_files and returns a new `StaticDirOptions`.
     #[inline]
-    pub fn with_dot_files(mut self, dot_files: bool) -> Self {
+    pub fn dot_files(mut self, dot_files: bool) -> Self {
         self.dot_files = dot_files;
         self
     }
 
     /// Sets listing and returns a new `StaticDirOptions`.
     #[inline]
-    pub fn with_listing(mut self, listing: bool) -> Self {
+    pub fn listing(mut self, listing: bool) -> Self {
         self.listing = listing;
         self
     }
 
     /// Sets defaults and returns a new `StaticDirOptions`.
     #[inline]
-    pub fn with_defaults(mut self, defaults: impl IntoVecString) -> Self {
+    pub fn defaults(mut self, defaults: impl IntoVecString) -> Self {
         self.defaults = defaults.into_vec_string();
         self
     }
 
     /// Sets fallback and returns a new `StaticDirOptions`.
-    pub fn with_fallback(mut self, fallback: impl Into<String>) -> Self {
+    pub fn fallback(mut self, fallback: impl Into<String>) -> Self {
         self.fallback = Some(fallback.into());
         self
     }
@@ -135,7 +135,7 @@ impl StaticDir {
     ///
     /// The default is 1M.
     #[inline]
-    pub fn with_chunk_size(mut self, size: u64) -> Self {
+    pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
     }
@@ -244,7 +244,7 @@ impl Handler for StaticDir {
         let abs_path = match abs_path {
             Some(path) => path,
             None => {
-                res.set_status_error(StatusError::not_found());
+                res.render(StatusError::not_found());
                 return;
             }
         };
@@ -261,7 +261,7 @@ impl Handler for StaticDir {
                 let headers = req.headers();
                 named_file.send(headers, res).await;
             } else {
-                res.set_status_error(StatusError::internal_server_error().with_summary("read file failed"));
+                res.render(StatusError::internal_server_error().summary("read file failed"));
             }
         } else if abs_path.is_dir() {
             // list the dir
@@ -294,7 +294,7 @@ impl Handler for StaticDir {
                 .collect();
             dirs.sort_by(|a, b| a.name.cmp(&b.name));
             let root = CurrentInfo::new(decode_url_path_safely(req_path), files, dirs);
-            res.set_status_code(StatusCode::OK);
+            res.status_code(StatusCode::OK);
             match format.subtype().as_ref() {
                 "plain" => res.render(Text::Plain(list_text(&root))),
                 "json" => res.render(Text::Json(list_json(&root))),

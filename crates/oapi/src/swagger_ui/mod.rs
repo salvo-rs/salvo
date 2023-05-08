@@ -283,15 +283,15 @@ impl Handler for SwaggerUi {
             Ok(Some(file)) => {
                 res.headers_mut()
                     .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
-                res.set_body(ResBody::Once(file.bytes.to_vec().into()));
+                res.body(ResBody::Once(file.bytes.to_vec().into()));
             }
             Ok(None) => {
                 tracing::warn!(path = path, "swagger ui file not found");
-                res.set_status_error(StatusError::not_found());
+                res.render(StatusError::not_found());
             }
             Err(e) => {
                 tracing::error!(error = ?e, path = path, "failed to fetch swagger ui file");
-                res.set_status_error(StatusError::internal_server_error());
+                res.render(StatusError::internal_server_error());
             }
         }
     }

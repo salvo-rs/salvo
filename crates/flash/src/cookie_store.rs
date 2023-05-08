@@ -7,11 +7,16 @@ use super::{Flash, FlashHandler, FlashStore};
 /// CookieStore is a `FlashStore` implementation that stores the flash messages in a cookie.
 #[derive(Debug)]
 pub struct CookieStore {
-    max_age: Duration,
-    same_site: SameSite,
-    http_only: bool,
-    path: String,
-    name: String,
+    /// The cookie max age.
+    pub max_age: Duration,
+    /// The cookie same site.
+    pub same_site: SameSite,
+    /// The cookie http only.
+    pub http_only: bool,
+    /// The cookie path.
+    pub path: String,
+    /// The cookie name.
+    pub name: String,
 }
 impl Default for CookieStore {
     fn default() -> Self {
@@ -30,53 +35,33 @@ impl CookieStore {
             name: "salvo.flash".into(),
         }
     }
-    /// Get cookie name.
-    pub fn name(&self) -> &String {
-        &self.name
-    }
+
     /// Sets cookie name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+    pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
-
-    /// Get cookie max age.
-    pub fn max_age(&self) -> Duration {
-        self.max_age
-    }
     /// Sets cookie max_age.
-    pub fn with_max_age(mut self, max_age: Duration) -> Self {
+    pub fn max_age(mut self, max_age: Duration) -> Self {
         self.max_age = max_age;
         self
     }
 
-    /// Get cookie same site.
-    pub fn same_site(&self) -> &SameSite {
-        &self.same_site
-    }
     /// Sets cookie same site.
-    pub fn with_same_site(mut self, same_site: SameSite) -> Self {
+    pub fn same_site(mut self, same_site: SameSite) -> Self {
         self.same_site = same_site;
         self
     }
 
-    /// Get cookie http only.
-    pub fn http_only(&self) -> bool {
-        self.http_only
-    }
     /// Sets cookie http only.
-    pub fn with_http_only(mut self, http_only: bool) -> Self {
+    pub fn http_only(mut self, http_only: bool) -> Self {
         self.http_only = http_only;
         self
     }
 
-    /// Get cookie path.
-    pub fn path(&self) -> &String {
-        &self.path
-    }
     /// Sets cookie path.
-    pub fn with_path(mut self, path: impl Into<String>) -> Self {
+    pub fn path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
     }

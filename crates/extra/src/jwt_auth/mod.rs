@@ -78,11 +78,15 @@ impl JwtAuthDepotExt for Depot {
 
 /// JwtAuth, used as middleware.
 pub struct JwtAuth<C> {
-    secret: String,
-    response_error: bool,
+    /// The secret key.
+    pub secret: String,
+    /// Response error directly when set to true.
+    pub response_error: bool,
     _claims: PhantomData<C>,
-    validation: Validation,
-    finders: Vec<Box<dyn JwtTokenFinder>>,
+    /// The validation.
+    pub validation: Validation,
+    /// The finders list.
+    pub finders: Vec<Box<dyn JwtTokenFinder>>,
 }
 
 impl<C> JwtAuth<C>
@@ -100,30 +104,20 @@ where
             validation: Validation::default(),
         }
     }
-    /// Get response_error value.
-    #[inline]
-    pub fn response_error(&self) -> bool {
-        self.response_error
-    }
     /// Sets response_error value and return Self.
     #[inline]
-    pub fn with_response_error(mut self, response_error: bool) -> Self {
+    pub fn response_error(mut self, response_error: bool) -> Self {
         self.response_error = response_error;
         self
     }
 
     /// Sets validation with new value and return Self.
     #[inline]
-    pub fn with_validation(mut self, validation: Validation) -> Self {
+    pub fn validation(mut self, validation: Validation) -> Self {
         self.validation = validation;
         self
     }
 
-    /// Get secret reference.
-    #[inline]
-    pub fn secret(&self) -> &String {
-        &self.secret
-    }
     /// Get secret mutable reference.
     #[inline]
     pub fn secret_mut(&mut self) -> &mut String {
@@ -131,16 +125,11 @@ where
     }
     /// Sets secret with new value and return Self.
     #[inline]
-    pub fn with_secret(mut self, secret: String) -> Self {
+    pub fn secret(mut self, secret: String) -> Self {
         self.secret = secret;
         self
     }
 
-    /// Get extractor list reference.
-    #[inline]
-    pub fn finders(&self) -> &Vec<Box<dyn JwtTokenFinder>> {
-        &self.finders
-    }
     /// Get extractor list mutable reference.
     #[inline]
     pub fn finders_mut(&mut self) -> &mut Vec<Box<dyn JwtTokenFinder>> {
@@ -148,7 +137,7 @@ where
     }
     /// Sets extractor list with new value and return Self.
     #[inline]
-    pub fn with_finders(mut self, finders: Vec<Box<dyn JwtTokenFinder>>) -> Self {
+    pub fn finders(mut self, finders: Vec<Box<dyn JwtTokenFinder>>) -> Self {
         self.finders = finders;
         self
     }
@@ -183,7 +172,7 @@ where
             } else {
                 depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
                 if self.response_error {
-                    res.set_status_error(StatusError::forbidden());
+                    res.render(StatusError::forbidden());
                     ctrl.skip_rest();
                 }
             }
@@ -192,7 +181,7 @@ where
         } else {
             depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Unauthorized);
             if self.response_error {
-                res.set_status_error(StatusError::unauthorized());
+                res.render(StatusError::unauthorized());
                 ctrl.skip_rest();
             } else {
                 ctrl.call_next(req, depot, res).await;
@@ -220,8 +209,8 @@ mod tests {
     async fn test_jwt_auth() {
         let auth_handler: JwtAuth<JwtClaims> =
             JwtAuth::new("ABCDEF".into())
-                .with_response_error(true)
-                .with_finders(vec![
+                .response_error(true)
+                .finders(vec![
                     Box::new(HeaderFinder::new()),
                     Box::new(QueryFinder::new("jwt_token")),
                     Box::new(CookieFinder::new("jwt_token")),

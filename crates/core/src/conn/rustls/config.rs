@@ -21,9 +21,12 @@ use super::read_trust_anchor;
 /// Private key and certificate
 #[derive(Clone, Debug)]
 pub struct Keycert {
-    key: Vec<u8>,
-    cert: Vec<u8>,
-    ocsp_resp: Vec<u8>,
+    /// Private key.
+    pub key: Vec<u8>,
+    /// Certificate.
+    pub cert: Vec<u8>,
+    /// OCSP response.
+    pub ocsp_resp: Vec<u8>,
 }
 
 impl Default for Keycert {
@@ -52,7 +55,7 @@ impl Keycert {
 
     /// Sets the Tls private key via bytes slice.
     #[inline]
-    pub fn with_key(mut self, key: impl Into<Vec<u8>>) -> Self {
+    pub fn key(mut self, key: impl Into<Vec<u8>>) -> Self {
         self.key = key.into();
         self
     }
@@ -67,29 +70,9 @@ impl Keycert {
 
     /// Sets the Tls certificate via bytes slice
     #[inline]
-    pub fn with_cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
+    pub fn cert(mut self, cert: impl Into<Vec<u8>>) -> Self {
         self.cert = cert.into();
         self
-    }
-
-    /// Get the private key.
-    #[inline]
-    pub fn key(&mut self) -> io::Result<&[u8]> {
-        if self.key.is_empty() {
-            Err(IoError::new(ErrorKind::Other, "empty key"))
-        } else {
-            Ok(&self.key)
-        }
-    }
-
-    /// Get the cert.
-    #[inline]
-    pub fn cert(&mut self) -> io::Result<&[u8]> {
-        if self.cert.is_empty() {
-            Err(IoError::new(ErrorKind::Other, "empty cert"))
-        } else {
-            Ok(&self.cert)
-        }
     }
 
     /// Get ocsp_resp.
@@ -99,17 +82,17 @@ impl Keycert {
     }
 
     fn build_certified_key(&mut self) -> io::Result<CertifiedKey> {
-        let cert = rustls_pemfile::certs(&mut self.cert()?)
+        let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
             .map(|certs| certs.into_iter().map(Certificate).collect())
             .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
 
         let key = {
-            let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key()?)
+            let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
             if !pkcs8.is_empty() {
                 PrivateKey(pkcs8.remove(0))
             } else {
-                let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key()?)
+                let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
                     .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
 
                 if !rsa.is_empty() {

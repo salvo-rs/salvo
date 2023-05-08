@@ -220,8 +220,10 @@ impl Display for SseEvent {
 pub struct SseKeepAlive<S> {
     #[pin]
     event_stream: S,
-    comment: Cow<'static, str>,
-    max_interval: Duration,
+    /// Comment field.
+    pub comment: Cow<'static, str>,
+    /// Max interval between keep-alive messages.
+    pub max_interval: Duration,
     #[pin]
     alive_timer: Sleep,
 }
@@ -247,7 +249,7 @@ where
     ///
     /// Default is 15 seconds.
     #[inline]
-    pub fn with_interval(mut self, time: Duration) -> Self {
+    pub fn max_interval(mut self, time: Duration) -> Self {
         self.max_interval = time;
         self
     }
@@ -256,7 +258,7 @@ where
     ///
     /// Default is an empty comment.
     #[inline]
-    pub fn with_comment(mut self, comment: impl Into<Cow<'static, str>>) -> Self {
+    pub fn comment(mut self, comment: impl Into<Cow<'static, str>>) -> Self {
         self.comment = comment.into();
         self
     }
@@ -364,8 +366,8 @@ mod tests {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().data("1"))]);
         let mut res = Response::new();
         SseKeepAlive::new(event_stream)
-            .with_comment("love you")
-            .with_interval(Duration::from_secs(1))
+            .comment("love you")
+            .max_interval(Duration::from_secs(1))
             .streaming(&mut res)
             .unwrap();
         let text = res.take_string().await.unwrap();

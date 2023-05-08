@@ -24,9 +24,9 @@ impl Handler for CatchPanic {
         if let Err(e) = AssertUnwindSafe(ctrl.call_next(req, depot, res)).catch_unwind().await {
             tracing::error!(error = ?e, "panic occurred");
             #[cfg(debug_assertions)]
-            res.set_status_error(StatusError::internal_server_error().with_detail("panic occurred"));
+            res.render(StatusError::internal_server_error().detail("panic occurred"));
             #[cfg(not(debug_assertions))]
-            res.set_status_error(StatusError::internal_server_error());
+            res.render(StatusError::internal_server_error());
         }
     }
 }

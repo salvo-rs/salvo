@@ -13,8 +13,10 @@ use crate::conn::IntoConfigStream;
 /// Builder to set the configuration for the TLS server.
 pub struct NativeTlsConfig {
     pkcs12_path: Option<PathBuf>,
-    pkcs12: Vec<u8>,
-    password: String,
+    /// The pkcs12 data.
+    pub pkcs12: Vec<u8>,
+    /// The password for the pkcs12 data.
+    pub password: String,
 }
 
 impl fmt::Debug for NativeTlsConfig {
@@ -43,20 +45,20 @@ impl NativeTlsConfig {
 
     /// Sets the pkcs12 via File Path, returns [`std::io::Error`] if the file cannot be open
     #[inline]
-    pub fn with_pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
+    pub fn pkcs12_path(mut self, path: impl AsRef<Path>) -> Self {
         self.pkcs12_path = Some(path.as_ref().into());
         self
     }
 
     /// Sets the pkcs12 via bytes slice
     #[inline]
-    pub fn with_pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
+    pub fn pkcs12(mut self, pkcs12: impl Into<Vec<u8>>) -> Self {
         self.pkcs12 = pkcs12.into();
         self
     }
     /// Sets the password
     #[inline]
-    pub fn with_password(mut self, password: impl Into<String>) -> Self {
+    pub fn password(mut self, password: impl Into<String>) -> Self {
         self.password = password.into();
         self
     }

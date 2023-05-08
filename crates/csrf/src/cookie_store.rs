@@ -10,13 +10,13 @@ use super::CsrfStore;
 #[derive(Debug)]
 pub struct CookieStore {
     /// CSRF cookie ttl.
-    ttl: Duration,
+    pub ttl: Duration,
     /// CSRF cookie name.
-    name: String,
+    pub name: String,
     /// CSRF cookie path.
-    path: String,
+    pub path: String,
     /// CSRF cookie domain.
-    domain: Option<String>,
+    pub domain: Option<String>,
 }
 impl Default for CookieStore {
     #[inline]
@@ -35,42 +35,26 @@ impl CookieStore {
             domain: None,
         }
     }
-    /// Get cookie name.
-    pub fn name(&self) -> &String {
-        &self.name
-    }
     /// Sets cookie name.
-    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+    pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
     }
 
-    /// Get cookie name.
-    pub fn ttl(&self) -> Duration {
-        self.ttl
-    }
     /// Sets cookie ttl.
-    pub fn with_ttl(mut self, ttl: Duration) -> Self {
+    pub fn ttl(mut self, ttl: Duration) -> Self {
         self.ttl = ttl;
         self
     }
 
-    /// Get cookie path.
-    pub fn path(&self) -> &String {
-        &self.path
-    }
     /// Sets cookie path.
-    pub fn with_path(mut self, path: impl Into<String>) -> Self {
+    pub fn path(mut self, path: impl Into<String>) -> Self {
         self.path = path.into();
         self
     }
 
-    /// Get cookie domain.
-    pub fn domain(&self) -> Option<&String> {
-        self.domain.as_ref()
-    }
     /// Sets cookie domain.
-    pub fn with_domain(mut self, domain: impl Into<String>) -> Self {
+    pub fn domain(mut self, domain: impl Into<String>) -> Self {
         self.domain = Some(domain.into());
         self
     }

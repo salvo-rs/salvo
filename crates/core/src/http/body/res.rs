@@ -12,6 +12,7 @@ use hyper::body::{Body, Frame, Incoming, SizeHint};
 use bytes::Bytes;
 
 use crate::error::BoxedError;
+use crate::prelude::StatusError;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
@@ -27,6 +28,8 @@ pub enum ResBody {
     Hyper(Incoming),
     /// Stream body.
     Stream(BoxStream<'static, Result<Bytes, BoxedError>>),
+    /// Error body will be process in catcher.
+    Error(StatusError),
 }
 impl ResBody {
     /// Check is that body is not set.
@@ -49,6 +52,10 @@ impl ResBody {
     pub fn is_stream(&self) -> bool {
         matches!(*self, ResBody::Stream(_))
     }
+    /// Check is that body is error will be process in catcher.
+    pub fn is_error(&self) -> bool {
+        matches!(*self, ResBody::Error(_))
+    }
     /// Get body's size.
     #[inline]
     pub fn size(&self) -> Option<u64> {
@@ -58,6 +65,7 @@ impl ResBody {
             ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
             ResBody::Hyper(_) => None,
             ResBody::Stream(_) => None,
+            ResBody::Error(_) => None,
         }
     }
 }
@@ -88,6 +96,7 @@ impl Stream for ResBody {
                 .as_mut()
                 .poll_next(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
+            ResBody::Error(_) => Poll::Ready(None),
         }
     }
 }
@@ -96,7 +105,10 @@ impl Body for ResBody {
     type Data = Bytes;
     type Error = IoError;
 
-    fn poll_frame(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, <ResBody as Body>::Error>>> {
         match self.poll_next(_cx) {
             Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Some(Ok(Frame::data(bytes)))),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
@@ -112,6 +124,7 @@ impl Body for ResBody {
             ResBody::Chunks(chunks) => chunks.is_empty(),
             ResBody::Hyper(body) => body.is_end_stream(),
             ResBody::Stream(_) => false,
+            ResBody::Error(_) => true,
         }
     }
 
@@ -125,6 +138,7 @@ impl Body for ResBody {
             }
             ResBody::Hyper(recv) => recv.size_hint(),
             ResBody::Stream(_) => SizeHint::default(),
+            ResBody::Error(_) => SizeHint::with_exact(0),
         }
     }
 }

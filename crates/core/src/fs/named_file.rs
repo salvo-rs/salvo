@@ -140,11 +140,11 @@ impl NamedFileBuilder {
     /// Build a new `NamedFile` and send it.
     pub async fn send(self, req_headers: &HeaderMap, res: &mut Response) {
         if !self.path.exists() {
-            res.set_status_error(StatusError::not_found());
+            res.render(StatusError::not_found());
         } else {
             match self.build().await {
                 Ok(file) => file.send(req_headers, res).await,
-                Err(_) => res.set_status_error(StatusError::internal_server_error()),
+                Err(_) => res.render(StatusError::internal_server_error()),
             }
         }
     }
@@ -280,11 +280,11 @@ impl NamedFile {
     {
         let path = path.into();
         if !path.exists() {
-            res.set_status_error(StatusError::not_found());
+            res.render(StatusError::not_found());
         } else {
             match Self::builder(path).build().await {
                 Ok(file) => file.send(req_headers, res).await,
-                Err(_) => res.set_status_error(StatusError::internal_server_error()),
+                Err(_) => res.render(StatusError::internal_server_error()),
             }
         }
     }
@@ -492,25 +492,25 @@ impl NamedFile {
                     offset = range[0].start;
                 } else {
                     res.headers_mut().typed_insert(ContentRange::unsatisfied_bytes(length));
-                    res.set_status_code(StatusCode::RANGE_NOT_SATISFIABLE);
+                    res.status_code(StatusCode::RANGE_NOT_SATISFIABLE);
                     return;
                 };
             } else {
-                res.set_status_code(StatusCode::BAD_REQUEST);
+                res.status_code(StatusCode::BAD_REQUEST);
                 return;
             };
         }
 
         if precondition_failed {
-            res.set_status_code(StatusCode::PRECONDITION_FAILED);
+            res.status_code(StatusCode::PRECONDITION_FAILED);
             return;
         } else if not_modified {
-            res.set_status_code(StatusCode::NOT_MODIFIED);
+            res.status_code(StatusCode::NOT_MODIFIED);
             return;
         }
 
         if offset != 0 || length != self.metadata.len() || range.is_some() {
-            res.set_status_code(StatusCode::PARTIAL_CONTENT);
+            res.status_code(StatusCode::PARTIAL_CONTENT);
             match ContentRange::bytes(offset..offset + length - 1, self.metadata.len()) {
                 Ok(content_range) => {
                     res.headers_mut().typed_insert(content_range);
@@ -529,7 +529,7 @@ impl NamedFile {
             res.headers_mut().typed_insert(ContentLength(reader.total_size));
             res.streaming(reader).ok();
         } else {
-            res.set_status_code(StatusCode::OK);
+            res.status_code(StatusCode::OK);
             let reader = ChunkedFile {
                 offset,
                 state: ChunkedState::File(Some(self.file.into_std().await)),

@@ -88,7 +88,7 @@ impl Piece for Redirect {
     #[inline]
     fn render(self, res: &mut Response) {
         let Self { status_code, location } = self;
-        res.set_status_code(status_code);
+        res.status_code(status_code);
         res.headers_mut().insert(LOCATION, location);
     }
 }

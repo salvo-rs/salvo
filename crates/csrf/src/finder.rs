@@ -13,7 +13,8 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
 /// Find token from http request url query string.
 #[derive(Clone, Debug)]
 pub struct QueryFinder {
-    query_name: String,
+    /// The query name for the csrf token.
+    pub query_name: String,
 }
 impl Default for QueryFinder {
     fn default() -> Self {
@@ -31,7 +32,7 @@ impl QueryFinder {
 
     /// Sets query name, it's query_name's default value is `csrf-token`.
     #[inline]
-    pub fn with_query_name(mut self, name: impl Into<String>) -> Self {
+    pub fn query_name(mut self, name: impl Into<String>) -> Self {
         self.query_name = name.into();
         self
     }
