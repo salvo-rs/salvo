@@ -278,8 +278,8 @@ View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/ext
 Perfect support for OpenAPI can be achieved without making significant changes to the project.
 
 ```rust
-#[derive(Serialize, Deserialize, AsSchema, Debug)]
-struct MyObject<T: AsSchema + std::fmt::Debug> {
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
+struct MyObject<T: ToSchema + std::fmt::Debug> {
     value: T,
 }
 

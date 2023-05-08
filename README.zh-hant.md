@@ -268,8 +268,8 @@ struct Nested<'a> {
 無需對項目做大的改動，即可實現對 OpenAPI 的完美支持。
 
 ```rust
-#[derive(Serialize, Deserialize, AsSchema, Debug)]
-struct MyObject<T: AsSchema + std::fmt::Debug> {
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
+struct MyObject<T: ToSchema + std::fmt::Debug> {
     value: T,
 }
 
