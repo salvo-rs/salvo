@@ -55,7 +55,6 @@ serde_json.workspace = true
 serde_yaml = { workspace = true, optional = true }
 
 [build-dependencies]
-zip.workspace = true
 regex.workspace = true
 
 [package.metadata.docs.rs]

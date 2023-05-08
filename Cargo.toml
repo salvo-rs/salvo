@@ -123,7 +123,6 @@ chrono = "0.4"
 paste = "1"
 rust_decimal = "1"
 smallvec = "1"
-zip = "0.6"
 
 # Compress
 brotli = { version = "3.3", default-features = false }
