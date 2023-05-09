@@ -1,9 +1,11 @@
+use std::fmt::{self, Formatter};
+
 use crate::http::uri::Scheme;
 use crate::http::{Method, header, Request};
 use crate::routing::{Filter, PathState};
 
 /// Filter by request method
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MethodFilter(pub Method);
 impl MethodFilter {
     /// Create a new `MethodFilter`.
@@ -11,16 +13,21 @@ impl MethodFilter {
         Self(method)
     }
 }
-
 impl Filter for MethodFilter {
     #[inline]
     fn filter(&self, req: &mut Request, _state: &mut PathState) -> bool {
         req.method() == self.0
     }
 }
+impl fmt::Debug for MethodFilter {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "method:{:?}", self.0)
+    }
+}
 
 /// Filter by request uri scheme.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SchemeFilter {
     /// Scheme to filter.
     pub scheme: Scheme,
@@ -44,9 +51,15 @@ impl Filter for SchemeFilter {
         req.uri().scheme().map(|s| s == &self.scheme).unwrap_or(self.lack)
     }
 }
+impl fmt::Debug for SchemeFilter {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "scheme:{:?}", self.scheme)
+    }
+}
 
 /// Filter by request uri host.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct HostFilter {
     /// Host to filter.
     pub host: String,
@@ -86,9 +99,15 @@ impl Filter for HostFilter {
             .unwrap_or(self.lack)
     }
 }
+impl fmt::Debug for HostFilter {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "host:{:?}", self.host)
+    }
+}
 
 /// Filter by request uri host.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PortFilter {
     /// Port to filter.
     pub port: u16,
@@ -127,3 +146,10 @@ impl Filter for PortFilter {
             .unwrap_or(self.lack)
     }
 }
+impl fmt::Debug for PortFilter {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "port:{:?}", self.port)
+    }
+}
+
