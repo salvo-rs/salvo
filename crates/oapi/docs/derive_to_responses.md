@@ -175,4 +175,3 @@ enum UserResponses {
 [to_response]: trait.ToResponse.html
 [path_to_responses]: attr.path.html#responses-from-intoresponses
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-[path]: macro@crate::path

@@ -68,10 +68,7 @@ impl AllowOrigin {
         Self(OriginInner::Judge(Arc::new(f)))
     }
 
-    /// Allow any origin, by mirroring the request origin
-    ///
-    /// This is equivalent to
-    /// [`AllowOrigin::predicate(|_, _| true)`][Self::predicate].
+    /// Allow any origin, by mirroring the request origin.
     ///
     /// See [`Cors::allow_origin`] for more details.
     ///

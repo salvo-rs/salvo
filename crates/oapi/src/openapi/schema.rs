@@ -639,7 +639,7 @@ impl From<Ref> for AdditionalProperties<Schema> {
 }
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
-/// reusable components such as [`Schema`]s or [`Response`]s.
+/// reusable components such as [`Schema`]s or [`Response`](super::Response)s.
 ///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]

@@ -90,9 +90,6 @@ The following attributes are available for use in the `#[parameter(...)]` on str
 
 * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 
-* `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
-
 * `nullable` Defines property is nullable (note this is different to non-required).
 
 * `required = ...` Can be used to enforce required status for the parameter. [See

@@ -491,7 +491,7 @@ spec.**_
  }
 ```
 
-More examples for _`value_type`_ in [`ToParameters` derive docs][parameters].
+More examples for _`value_type`_ in [`ToParameters` derive docs][to_parameters].
 
 [to_schema]: trait.ToSchema.html
 [known_format]: openapi/schema/enum.KnownFormat.html

@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use super::{set_value, Operation, Operations, Parameter, Parameters, Server, Servers};
 
 /// Implements [OpenAPI Path Object][paths] types.
+/// 
+/// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 pub struct Paths(BTreeMap<String, PathItem>);
 impl Deref for Paths {

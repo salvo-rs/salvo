@@ -67,7 +67,7 @@ impl Parameters {
     }
 }
 
-/// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
+/// Implements [OpenAPI Parameter Object][parameter] for [`Operation`](struct.Operation).
 ///
 /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
 #[non_exhaustive]

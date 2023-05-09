@@ -95,8 +95,6 @@ pub struct SseEvent {
 
 impl SseEvent {
     /// Sets Server-sent event data.
-    ///
-    /// Data field(s) ("data:<content>")
     #[inline]
     pub fn data<T: Into<String>>(mut self, data: T) -> SseEvent {
         self.data = Some(DataType::Text(data.into()));
@@ -104,8 +102,6 @@ impl SseEvent {
     }
 
     /// Sets Server-sent event data.
-    ///
-    /// data field(s) ("data:<content>")
     #[inline]
     pub fn json_data<T: Serialize>(mut self, data: T) -> Result<SseEvent, Error> {
         self.data = Some(DataType::Json(serde_json::to_string(&data)?));
@@ -113,8 +109,6 @@ impl SseEvent {
     }
 
     /// Sets Server-sent event comment.`
-    ///
-    /// Comment field (":<comment-text>")
     #[inline]
     pub fn comment<T: Into<String>>(mut self, comment: T) -> SseEvent {
         self.comment = Some(comment.into());
@@ -122,8 +116,6 @@ impl SseEvent {
     }
 
     /// Sets Server-sent event event.
-    ///
-    /// Event name field ("event:<event-name>")
     #[inline]
     pub fn name<T: Into<String>>(mut self, event: T) -> SseEvent {
         self.name = Some(event.into());
@@ -131,8 +123,6 @@ impl SseEvent {
     }
 
     /// Sets Server-sent event retry.
-    ///
-    /// Retry timeout field ("retry:<timeout>")
     #[inline]
     pub fn retry(mut self, duration: Duration) -> SseEvent {
         self.retry = Some(duration);
@@ -140,8 +130,6 @@ impl SseEvent {
     }
 
     /// Sets Server-sent event id.
-    ///
-    /// Identifier field ("id:<identifier>")
     #[inline]
     pub fn id<T: Into<String>>(mut self, id: T) -> SseEvent {
         self.id = Some(id.into());

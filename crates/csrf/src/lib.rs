@@ -3,7 +3,7 @@
 //! CSRF middleware for Salvo that provides CSRF (Cross-Site Request Forgery) protection.
 //!
 //! Data can be saved in Cookies via [`CookieStore`](struct.CookieStore.html) or in session
-//! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`] need to work with `salvo-session` crate.
+//! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need to work with `salvo-session` crate.
 //!
 //!
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]

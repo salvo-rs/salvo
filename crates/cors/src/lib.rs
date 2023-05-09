@@ -79,8 +79,6 @@ where
 
 /// [`Cors`] middleware which adds headers for [CORS][mdn].
 ///
-/// See the [module docs](crate::cors) for an example.
-///
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 #[derive(Clone, Debug)]
 pub struct Cors {

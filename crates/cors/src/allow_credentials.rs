@@ -19,7 +19,7 @@ impl AllowCredentials {
     ///
     /// See [`Cors::allow_credentials`] for more details.
     ///
-    /// [`CorsLayer::allow_credentials`]: super::CorsLayer::allow_credentials
+    /// [`Cors::allow_credentials`]: super::Cors::allow_credentials
     pub fn yes() -> Self {
         Self(AllowCredentialsInner::Yes)
     }
