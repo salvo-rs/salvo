@@ -303,24 +303,24 @@ impl Router {
     ///
     /// [`SchemeFilter`]: super::filter::HostFilter
     #[inline]
-    pub fn scheme(self, scheme: Scheme, default: bool) -> Self {
-        self.filter(filter::scheme(scheme, default))
+    pub fn scheme(self, scheme: Scheme) -> Self {
+        self.filter(filter::scheme(scheme))
     }
 
     /// Add a [`HostFilter`] to current router.
     ///
     /// [`HostFilter`]: super::filter::HostFilter
     #[inline]
-    pub fn host(self, host: impl Into<String>, default: bool) -> Self {
-        self.filter(filter::host(host, default))
+    pub fn host(self, host: impl Into<String>) -> Self {
+        self.filter(filter::host(host))
     }
 
     /// Add a [`PortFilter`] to current router.
     ///
     /// [`PortFilter`]: super::filter::PortFilter
     #[inline]
-    pub fn port(self, port: u16, default: bool) -> Self {
-        self.filter(filter::port(port, default))
+    pub fn port(self, port: u16) -> Self {
+        self.filter(filter::port(port))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
