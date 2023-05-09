@@ -108,20 +108,20 @@ impl<F> fmt::Debug for FnFilter<F> {
 
 /// Filter request by uri scheme.
 #[inline]
-pub fn scheme(scheme: Scheme, default: bool) -> SchemeFilter {
-    SchemeFilter(scheme, default)
+pub fn scheme(scheme: Scheme) -> SchemeFilter {
+    SchemeFilter::new(scheme)
 }
 
 /// Filter request by uri hostname.
 #[inline]
-pub fn host(host: impl Into<String>, default: bool) -> HostFilter {
-    HostFilter(host.into(), default)
+pub fn host(host: impl Into<String>) -> HostFilter {
+    HostFilter::new(host)
 }
 
 /// Filter request by uri port.
 #[inline]
-pub fn port(port: u16, default: bool) -> PortFilter {
-    PortFilter(port, default)
+pub fn port(port: u16) -> PortFilter {
+    PortFilter::new(port)
 }
 
 /// Filter request use `PathFilter`.
