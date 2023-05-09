@@ -24,10 +24,11 @@ name = "salvo"
 path = "src/lib.rs"
 
 [features]
-default = ["test", "http1", "http2", "quinn", "cookie"]
+default = ["cookie", "http1", "fix-http1-request-uri", "http2", "test"]
 full = ["test", "cookie", "rustls", "native-tls", "openssl", "unix", "anyhow", "eyre", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static", "otel", "oapi"]
 cookie = ["salvo_core/cookie"]
 http1 = ["salvo_core/http1"]
+fix-http1-request-uri = ["salvo_core/fix-http1-request-uri"]
 http2 = ["salvo_core/http2"]
 quinn = ["salvo_core/quinn"]
 rustls = ["salvo_core/rustls"]
