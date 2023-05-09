@@ -299,8 +299,12 @@ impl CombWisp {
 impl PathWisp for CombWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
+        let mut offline = if let Some(part) = state.parts.get_mut(state.cursor.0) {
+            part.clone()
+        } else {
+            return false;
+        };
         let mut ostate = state.clone();
-        let mut offline = state.parts.get(state.cursor.0).unwrap().clone();
         ostate.parts.get_mut(state.cursor.0).unwrap().clear();
         let inner_detect = move |state: &mut PathState| {
             let row = state.cursor.0;
