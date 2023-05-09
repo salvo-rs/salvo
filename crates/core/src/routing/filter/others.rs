@@ -1,7 +1,7 @@
 use std::fmt::{self, Formatter};
 
 use crate::http::uri::Scheme;
-use crate::http::{Method, header, Request};
+use crate::http::{header, Method, Request};
 use crate::routing::{Filter, PathState};
 
 /// Filter by request method
@@ -152,4 +152,3 @@ impl fmt::Debug for PortFilter {
         write!(f, "port:{:?}", self.port)
     }
 }
-
