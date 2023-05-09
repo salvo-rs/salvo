@@ -17,8 +17,7 @@ async fn backend_server() {
     }
 
     let cors = Cors::new()
-        .allow_origin("http://127.0.0.1:5800")
-        .allow_origin("http://localhost:5800")
+        .allow_origin(["http://127.0.0.1:5800", "http://localhost:5800"])
         .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
         .into_handler();
 

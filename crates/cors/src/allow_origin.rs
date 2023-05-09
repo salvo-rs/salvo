@@ -155,6 +155,15 @@ impl<'a> From<Vec<&'a str>> for AllowOrigin {
         )
     }
 }
+impl<'a, const N: usize> From<[&'a str; N]> for AllowOrigin {
+    fn from(vals: [&'a str; N]) -> Self {
+        Self::list(
+            vals.iter()
+                .map(|v| HeaderValue::from_str(v).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    }
+}
 impl<'a> From<&'a Vec<String>> for AllowOrigin {
     fn from(vals: &'a Vec<String>) -> Self {
         Self::list(
