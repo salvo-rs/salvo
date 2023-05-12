@@ -89,7 +89,7 @@ macro_rules! impl_stream {
                             )
                         })??;
 
-                        let chunk = encoder.take();
+                        let chunk = encoder.take()?;
                         this.encoder = Some(encoder);
                         this.encoding.take();
 
@@ -97,12 +97,12 @@ macro_rules! impl_stream {
                             return Poll::Ready(Some(Ok(chunk)));
                         }
                     }
-                    match this.poll_chunk(cx) {
-                        Poll::Ready(Some(Ok(chunk))) => {
+                    match ready!(this.poll_chunk(cx)) {
+                        Some(Ok(chunk)) => {
                             if let Some(mut encoder) = this.encoder.take() {
                                 if chunk.len() < MAX_CHUNK_SIZE_ENCODE_IN_PLACE {
                                     encoder.write(&chunk)?;
-                                    let chunk = encoder.take();
+                                    let chunk = encoder.take()?;
                                     this.encoder = Some(encoder);
 
                                     if !chunk.is_empty() {
@@ -118,8 +118,8 @@ macro_rules! impl_stream {
                                 return Poll::Ready(Some(Ok(chunk)));
                             }
                         }
-                        Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
-                        Poll::Ready(None) => {
+                        Some(Err(e)) => return Poll::Ready(Some(Err(e))),
+                        None => {
                             if let Some(encoder) = this.encoder.take() {
                                 let chunk = encoder.finish()?;
                                 if chunk.is_empty() {
@@ -132,7 +132,6 @@ macro_rules! impl_stream {
                                 return Poll::Ready(None);
                             }
                         }
-                        Poll::Pending => return Poll::Pending,
                     }
                 }
             }

@@ -99,12 +99,24 @@ impl Encoder {
         }
     }
     #[inline]
-    pub(super) fn take(&mut self) -> Bytes {
+    pub(super) fn take(&mut self) -> Result<Bytes, IoError> {
         match *self {
-            Self::Brotli(ref mut encoder) => encoder.get_mut().take(),
-            Self::Deflate(ref mut encoder) => encoder.get_mut().take(),
-            Self::Gzip(ref mut encoder) => encoder.get_mut().take(),
-            Self::Zstd(ref mut encoder) => encoder.get_mut().take(),
+            Self::Brotli(ref mut encoder) => {
+                encoder.flush()?;
+                Ok(encoder.get_mut().take())
+            },
+            Self::Deflate(ref mut encoder) => {
+                encoder.flush()?;
+                Ok(encoder.get_mut().take())
+            },
+            Self::Gzip(ref mut encoder) => {
+                encoder.flush()?;
+                Ok(encoder.get_mut().take())
+            },
+            Self::Zstd(ref mut encoder) => {
+                encoder.flush()?;
+                Ok(encoder.get_mut().take())
+            },
         }
     }
 
