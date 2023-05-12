@@ -64,7 +64,7 @@ cargo new hello_salvo --bin
 
 ```toml
 [dependencies]
-salvo = { version= "0.39" }
+salvo = { version= "*" }
 tokio = { version = "1", features = ["macros"] }
 ```
 在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello`, 這個函數隻是簡單地打印文本 `"Hello World"`.
