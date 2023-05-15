@@ -119,7 +119,7 @@ static INDEX_HTML: &str = r#"
         sse.onopen = function() {
             chat.innerHTML = "<p><em>Connected!</em></p>";
         }
-        var userId;
+        let userId;
         sse.addEventListener("user", function(msg) {
             userId = msg.data;
         });
@@ -127,12 +127,12 @@ static INDEX_HTML: &str = r#"
             showMessage(msg.data);
         };
         document.getElementById('submit').onclick = function() {
-            var msg = text.value;
+            var txt = msg.value;
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", `${uri}/${user_id}`, true);
-            xhr.send(msg);
-            text.value = '';
-            showMessage('<You>: ' + msg);
+            xhr.open("POST", `http://${window.location.host}/chat/${userId}`, true);
+            xhr.send(txt);
+            msg.value = '';
+            showMessage('<You>: ' + txt);
         };
         function showMessage(data) {
             const line = document.createElement('p');
