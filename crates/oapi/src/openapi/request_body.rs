@@ -42,8 +42,8 @@ impl RequestBody {
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
-    pub fn add_content<S: Into<String>>(mut self, kind: S, content: Content) -> Self {
-        self.contents.insert(kind.into(), content);
+    pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, kind: S, content: C) -> Self {
+        self.contents.insert(kind.into(), content.into());
         self
     }
 }

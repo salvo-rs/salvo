@@ -4,7 +4,7 @@ use std::any::TypeId;
 
 use salvo_core::writer;
 
-use crate::{Components, Operation, ToResponse, ToSchema};
+use crate::{Components, Operation, ToResponse, ToSchema, Response};
 
 /// Represents an endpoint.
 pub struct Endpoint {
@@ -42,6 +42,16 @@ where
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation) {
         T::register(components, operation);
+        E::register(components, operation);
+    }
+}
+impl<E> EndpointOutRegister for Result<(), E>
+where
+    E: EndpointOutRegister + Send,
+{
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.insert("200", Response::new("Ok"));
         E::register(components, operation);
     }
 }

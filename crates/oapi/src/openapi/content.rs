@@ -90,3 +90,12 @@ impl Content {
         self
     }
 }
+
+impl From<RefOr<Schema>> for Content {
+    fn from(schema: RefOr<Schema>) -> Self {
+        Self {
+            schema,
+            ..Self::default()
+        }
+    }
+}
