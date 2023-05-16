@@ -4,7 +4,7 @@ use std::any::TypeId;
 
 use salvo_core::writer;
 
-use crate::{Components, Operation, ToResponse, ToSchema, Response};
+use crate::{Components, Operation, Response, ToResponse, ToSchema};
 
 /// Represents an endpoint.
 pub struct Endpoint {
