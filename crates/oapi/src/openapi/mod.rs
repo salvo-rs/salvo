@@ -215,7 +215,7 @@ impl OpenApi {
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`].
     pub fn merge_router(self, router: &Router) -> Self {
-        self.merge_router_with_base(router, "")
+        self.merge_router_with_base(router, "/")
     }
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`] with base path.
