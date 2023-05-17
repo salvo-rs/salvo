@@ -13,7 +13,7 @@ use tokio_stream::wrappers::IntervalStream;
 
 // create server-sent event
 fn sse_counter(counter: u64) -> Result<SseEvent, Infallible> {
-    Ok(SseEvent::default().data(counter.to_string()))
+    Ok(SseEvent::default().text(counter.to_string()))
 }
 
 #[handler]

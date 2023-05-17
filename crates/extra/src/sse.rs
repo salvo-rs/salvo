@@ -60,7 +60,6 @@ use futures_util::future;
 use futures_util::stream::{Stream, TryStream, TryStreamExt};
 use pin_project::pin_project;
 use salvo_core::http::header::{HeaderValue, CACHE_CONTROL, CONTENT_TYPE};
-use serde_json::{self, Error};
 use tokio::time::{self, Sleep};
 
 use salvo_core::http::Response;
@@ -96,14 +95,14 @@ pub struct SseEvent {
 impl SseEvent {
     /// Sets Server-sent event data.
     #[inline]
-    pub fn data<T: Into<String>>(mut self, data: T) -> SseEvent {
+    pub fn text<T: Into<String>>(mut self, data: T) -> SseEvent {
         self.data = Some(DataType::Text(data.into()));
         self
     }
 
     /// Sets Server-sent event data.
     #[inline]
-    pub fn json_data<T: Serialize>(mut self, data: T) -> Result<SseEvent, Error> {
+    pub fn json<T: Serialize>(mut self, data: T) -> Result<SseEvent, serde_json::Error> {
         self.data = Some(DataType::Json(serde_json::to_string(&data)?));
         Ok(self)
     }
@@ -254,17 +253,10 @@ where
     /// Send stream.
     #[inline]
     pub fn streaming(self, res: &mut Response) -> salvo_core::Result<()> {
-        write_request_headers(res);
-        let body_stream = self
-            .map_err(|e| {
-                tracing::error!("sse stream error: {}", e);
-                SseError
-            })
-            .into_stream()
-            .and_then(|event| future::ready(Ok(event.to_string())));
-        res.streaming(body_stream)
+        streaming(res, self)
     }
 }
+
 #[inline]
 fn write_request_headers(res: &mut Response) {
     res.headers_mut()
