@@ -15,15 +15,15 @@
 //!
 //! fn sse_events() -> impl Stream<Item = Result<SseEvent, Infallible>> {
 //!     iter(vec![
-//!         Ok(SseEvent::default().data("unnamed event")),
+//!         Ok(SseEvent::default().text("unnamed event")),
 //!         Ok(
 //!             SseEvent::default().name("chat")
-//!             .data("chat message")
+//!             .text("chat message")
 //!         ),
 //!         Ok(
 //!             SseEvent::default().id(13.to_string())
 //!             .name("chat")
-//!             .data("other chat message\nwith next line")
+//!             .text("other chat message\nwith next line")
 //!             .retry(Duration::from_millis(5000))
 //!         )
 //!     ])
@@ -332,8 +332,8 @@ mod tests {
     #[tokio::test]
     async fn test_sse_data() {
         let event_stream = tokio_stream::iter(vec![
-            Ok::<_, Infallible>(SseEvent::default().data("1")),
-            Ok::<_, Infallible>(SseEvent::default().data("2")),
+            Ok::<_, Infallible>(SseEvent::default().text("1")),
+            Ok::<_, Infallible>(SseEvent::default().text("2")),
         ]);
         let mut res = Response::new();
         super::streaming(&mut res, event_stream).unwrap();
@@ -343,7 +343,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sse_keep_alive() {
-        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().data("1"))]);
+        let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().text("1"))]);
         let mut res = Response::new();
         SseKeepAlive::new(event_stream)
             .comment("love you")
@@ -361,7 +361,7 @@ mod tests {
             name: String,
         }
 
-        let event_stream = tokio_stream::iter(vec![SseEvent::default().json_data(User {
+        let event_stream = tokio_stream::iter(vec![SseEvent::default().json(User {
             name: "jobs".to_owned(),
         })]);
         let mut res = Response::new();
