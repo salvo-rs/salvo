@@ -266,7 +266,7 @@ where
         let response = self.handle(request);
         let fut = async move {
             let mut hyper_response = hyper::Response::new(ResBody::None);
-            response.await.write_back(&mut hyper_response).await;
+            response.await.write_back(&mut hyper_response);
             Ok(hyper_response)
         };
         Box::pin(fut)
