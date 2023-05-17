@@ -212,7 +212,7 @@ impl Response {
         *res.headers_mut() = headers;
         // Default to a 404 if no response code was set
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
-        
+
         res
     }
 
