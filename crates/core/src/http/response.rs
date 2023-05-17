@@ -187,13 +187,8 @@ impl Response {
         false
     }
 
-    /// `write_back` is used to put all the data added to `self`
-    /// back onto an `hyper::Response` so that it is sent back to the
-    /// client.
-    ///
-    /// `write_back` consumes the `Response`.
     #[inline]
-    pub(crate) fn write_back(self, res: &mut hyper::Response<ResBody>) {
+    pub(crate) fn into_hyper(self) -> hyper::Response<ResBody> {
         let Self {
             status_code,
             #[cfg(feature = "cookie")]
@@ -213,11 +208,12 @@ impl Response {
             }
         }
 
+        let mut res = hyper::Response::new(body);
         *res.headers_mut() = headers;
-
         // Default to a 404 if no response code was set
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
-        *res.body_mut() = body;
+        
+        res
     }
 
     cfg_feature! {

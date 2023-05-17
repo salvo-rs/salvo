@@ -264,12 +264,7 @@ where
         }
         let request = Request::from_hyper(req, scheme);
         let response = self.handle(request);
-        let fut = async move {
-            let mut hyper_response = hyper::Response::new(ResBody::None);
-            response.await.write_back(&mut hyper_response);
-            Ok(hyper_response)
-        };
-        Box::pin(fut)
+        Box::pin(async move { Ok(response.await.into_hyper()) })
     }
 }
 
