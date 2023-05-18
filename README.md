@@ -38,15 +38,16 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 > 中国用户可以添加我微信(chrislearn), 拉微信讨论群.
 
 ## 🎯 Features
-   - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
-   - Http1, Http2 and **Http3**;
-   - Unified middleware and handle interface;
-   - Limitless routers nesting;
-   - Every router can have one or many middlewares;
-   - Integrated Multipart form processing;
-   - Support WebSocket;
-   - Support OpenAPI;
-   - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+
+- Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+- Http1, Http2 and **Http3**;
+- Unified middleware and handle interface;
+- Limitless routers nesting;
+- Every router can have one or many middlewares;
+- Integrated Multipart form processing;
+- Support WebSocket;
+- Support OpenAPI;
+- Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
 ## ⚡️ Quick start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs).
@@ -94,6 +95,7 @@ async fn main() {
 ```
 
 ### Middleware
+
 There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concepts like associated type, generic type. You can write middleware if you can write function!!!**
 
 ```rust
@@ -182,6 +184,7 @@ Router::with_path("<id:guid>").get(index)
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/routing-guid/src/main.rs)
 
 ### File upload
+
 We can get file async by the function `file` in `Request`:
 
 ```rust
@@ -238,39 +241,6 @@ async fn edit<'a>(good_man: GoodMan<'a>) {
 }
 ```
 
-There is considerable flexibility in the definition of data types, and can even be resolved into nested structures as needed:
-
-```rust
-#[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(default_source(from = "body", format = "json"))]
-struct GoodMan<'a> {
-    #[extract(source(from = "param"))]
-    id: i64,
-    #[extract(source(from = "query"))]
-    username: &'a str,
-    first_name: String,
-    last_name: String,
-    lovers: Vec<String>,
-    /// The nested field is completely reparsed from Request.
-    #[extract(source(from = "request"))]
-    nested: Nested<'a>,
-}
-
-#[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(default_source(from = "body", format = "json"))]
-struct Nested<'a> {
-    #[extract(source(from = "param"))]
-    id: i64,
-    #[extract(source(from = "query"))]
-    username: &'a str,
-    first_name: String,
-    last_name: String,
-    #[extract(rename = "lovers")]
-    #[serde(default)]
-    pets: Vec<String>,
-}
-```
-
 View [full source code](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
 ### OpenAPI Supported
@@ -317,9 +287,10 @@ async fn main() {
 ```
 
 ### More Examples
+
 Your can find more examples in [examples](./examples/) folder. You can run these examples with the following command:
 
-```
+```bash
 cd examples
 cargo run --bin example-basic-auth
 ```
@@ -327,6 +298,7 @@ cargo run --bin example-basic-auth
 You can use any example name you want to run instead of `basic-auth` here.
 
 ## 🚀 Performance
+
 Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
@@ -343,10 +315,10 @@ You can deploy your salvo projects through [shuttle.rs](https://www.shuttle.rs/)
 
 Contributions are absolutely, positively welcome and encouraged! Contributions come in many forms. You could:
 
-  - Submit a feature request or bug report as an issue;
-  - Comment on issues that require feedback;
-  - Contribute code via pull requests;
-  - Publish Salvo-related technical articles on blogs or technical platforms。
+- Submit a feature request or bug report as an issue;
+- Comment on issues that require feedback;
+- Contribute code via pull requests;
+- Publish Salvo-related technical articles on blogs or technical platforms。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
 
@@ -360,5 +332,7 @@ Salvo is an open source project. If you want to support Salvo, you can ☕ [**bu
 ## ⚠️ License
 
 Salvo is licensed under either of
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))

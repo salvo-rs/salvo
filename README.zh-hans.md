@@ -39,15 +39,15 @@ Salvo 是一个极其简单且功能强大的 Rust Web 后端框架. 仅仅需�
 
 ## 🎯 功能特色
 
-  - 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
-  - 支持 Http1, Http2 和 **Http3**;
-  - 统一的中间件和句柄接口;
-  - 路由支持无限层次嵌套;
-  - 每一个路由都可以拥有一个或者多个中间件;
-  - 集成 Multipart 表单处理;
-  - 支持 WebSocket;
-  - 支持 OpenAPI;
-  - 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
+- 基于 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
+- 支持 Http1, Http2 和 **Http3**;
+- 统一的中间件和句柄接口;
+- 路由支持无限层次嵌套;
+- 每一个路由都可以拥有一个或者多个中间件;
+- 集成 Multipart 表单处理;
+- 支持 WebSocket;
+- 支持 OpenAPI;
+- 支持 Acme, 自动从 [let's encrypt](https://letsencrypt.org/) 获取 TLS 证书.
 
 ## ⚡️ 快速开始
 
@@ -228,39 +228,6 @@ async fn edit<'a>(good_man: GoodMan<'a>) {
 }
 ```
 
-数据类型的定义有相当大的灵活性, 甚至可以根据需要解析为嵌套的结构:
-
-```rust
-#[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(default_source(from = "body", format = "json"))]
-struct GoodMan<'a> {
-    #[extract(source(from = "param"))]
-    id: i64,
-    #[extract(source(from = "query"))]
-    username: &'a str,
-    first_name: String,
-    last_name: String,
-    lovers: Vec<String>,
-    /// 这个 nested 字段完全是从 Request 重新解析.
-    #[extract(source(from = "request"))]
-    nested: Nested<'a>,
-}
-
-#[derive(Serialize, Deserialize, Extractible, Debug)]
-#[extract(default_source(from = "body", format = "json"))]
-struct Nested<'a> {
-    #[extract(source(from = "param"))]
-    id: i64,
-    #[extract(source(from = "query"))]
-    username: &'a str,
-    first_name: String,
-    last_name: String,
-    #[extract(rename = "lovers")]
-    #[serde(default)]
-    pets: Vec<String>,
-}
-```
-
 查看[完整源码](https://github.com/salvo-rs/salvo/blob/main/examples/extract-nested/src/main.rs)
 
 
@@ -311,7 +278,7 @@ async fn main() {
 
 您可以从 [examples](./examples/) 文件夹下查看更多示例代码, 您可以通过以下命令运行这些示例：
 
-```
+```bash
 cd examples
 cargo run --bin example-basic-auth
 ```
@@ -335,10 +302,10 @@ Benchmark 测试结果可以从这里查看:
 
 非常欢迎大家为项目贡献力量，可以通过以下方法为项目作出贡献:
 
-  - 在 issue 中提交功能需求和 bug report;
-  - 在 issues 或者 require feedback 下留下自己的意见;
-  - 通过 pull requests 提交代码;
-  - 在博客或者技术平台发表 Salvo 相关的技术文章。
+- 在 issue 中提交功能需求和 bug report;
+- 在 issues 或者 require feedback 下留下自己的意见;
+- 通过 pull requests 提交代码;
+- 在博客或者技术平台发表 Salvo 相关的技术文章。
 
 All pull requests are code reviewed and tested by the CI. Note that unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Salvo by you shall be dual licensed under the MIT License, without any additional terms or conditions.
 
@@ -349,10 +316,11 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>
 
-
 ## ⚠️ 开源协议
 
 Salvo 项目采用以下开源协议:
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
 
