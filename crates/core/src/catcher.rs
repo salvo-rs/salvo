@@ -44,15 +44,15 @@ use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusC
 use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
-const EMPTY_DETAIL_MSG: &str = "there is no more detailed explanation";
+const EMPTY_CAUSE_MSG: &str = "there is no more detailed explanation";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 #[inline]
 fn status_error_html(
     code: StatusCode,
     name: &str,
-    summary: Option<&str>,
-    detail: Option<&str>,
+    brief: &str,
+    cause: Option<&str>,
     footer: Option<&str>,
 ) -> String {
     format!(
@@ -86,44 +86,44 @@ fn status_error_html(
     </style>
 </head>
 <body>
-    <div><h1>{0}: {1}</h1>{2}{3}<hr><footer>{4}</footer></div>
+    <div><h1>{0}: {1}</h1><h3>{2}</h3><p>{3}</p><hr><footer>{4}</footer></div>
 </body>
 </html>"#,
         code.as_u16(),
         name,
-        summary.map(|summary| format!("<h3>{summary}</h3>")).unwrap_or_default(),
-        format_args!("<p>{}</p>", detail.unwrap_or(EMPTY_DETAIL_MSG)),
+        brief,
+        cause.unwrap_or(EMPTY_CAUSE_MSG),
         footer.unwrap_or(SALVO_LINK)
     )
 }
 #[inline]
-fn status_error_json(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
-        r#"{{"error":{{"code":{},"name":"{}","summary":"{}","detail":"{}"}}}}"#,
+        r#"{{"error":{{"code":{},"name":"{}","brief":"{}","detail":"{}"}}}}"#,
         code.as_u16(),
         name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
+        brief,
+        cause.unwrap_or(EMPTY_CAUSE_MSG)
     )
 }
 #[inline]
-fn status_error_plain(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_plain(code: StatusCode, name: &str, brief: &str, detail: Option<&str>) -> String {
     format!(
-        "code:{},\nname:{},\nsummary:{},\ndetail:{}",
+        "code:{},\nname:{},\nbrief:{},\ncause:{}",
         code.as_u16(),
         name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
+        brief,
+        detail.unwrap_or(EMPTY_CAUSE_MSG)
     )
 }
 #[inline]
-fn status_error_xml(code: StatusCode, name: &str, summary: Option<&str>, detail: Option<&str>) -> String {
+fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
-        "<error><code>{}</code><name>{}</name><summary>{}</summary><detail>{}</detail></error>",
+        "<error><code>{}</code><name>{}</name><brief>{}</brief><cause>{}</cause></error>",
         code.as_u16(),
         name,
-        summary.unwrap_or(name),
-        detail.unwrap_or(EMPTY_DETAIL_MSG)
+        brief,
+        cause.unwrap_or(EMPTY_CAUSE_MSG)
     )
 }
 /// Create bytes from `StatusError`.
@@ -135,14 +135,14 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
         prefer_format.clone()
     };
     let content = match format.subtype().as_ref() {
-        "plain" => status_error_plain(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        "json" => status_error_json(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
-        "xml" => status_error_xml(err.code, &err.name, err.summary.as_deref(), err.detail.as_deref()),
+        "plain" => status_error_plain(err.code, &err.name, &err.brief, err.cause.as_deref()),
+        "json" => status_error_json(err.code, &err.name, &err.brief, err.cause.as_deref()),
+        "xml" => status_error_xml(err.code, &err.name, &err.brief, err.cause.as_deref()),
         _ => status_error_html(
             err.code,
             &err.name,
-            err.summary.as_deref(),
-            err.detail.as_deref(),
+            &err.brief,
+            err.cause.as_deref(),
             footer,
         ),
     };

@@ -87,8 +87,8 @@ impl Piece for ParseError {
     fn render(self, res: &mut Response) {
         res.render(
             StatusError::internal_server_error()
-                .summary("http read error happened")
-                .detail("there is no more detailed explanation."),
+                .brief("http read error happened")
+                .cause("there is no more detailed explanation."),
         );
     }
 }
