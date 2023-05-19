@@ -272,7 +272,7 @@ impl OpenApi {
                     .filter(|name| !operation.parameters.0.iter().any(|parameter| parameter.name == **name))
                     .collect::<Vec<_>>();
                 if !not_exist_parameters.is_empty() {
-                    tracing::warn!(parameters = ?not_exist_parameters, "parameters not found in operation");
+                    tracing::warn!(parameters = ?not_exist_parameters, path, "parameters not found in operation");
                 }
                 let path_item = self.paths.entry(path.clone()).or_default();
                 for method in methods {

@@ -72,12 +72,12 @@ impl ToTokens for ToSchema<'_> {
                 })
                 .collect::<Punctuated<TokenStream, Token![,]>>();
             if ty_params.is_empty() {
-                quote! { #symbol.to_string() }
+                quote! { #symbol.replace("::", ".") }
             } else {
-                quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")) }
+                quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") }
             }
         } else {
-            quote! { std::any::type_name::<#ident #ty_generics>().to_string() }
+            quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") }
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
