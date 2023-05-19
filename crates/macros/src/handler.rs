@@ -110,7 +110,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                             Ok(data) => data,
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
-                                res.render(#salvo::http::errors::StatusError::bad_request().detail(
+                                res.render(#salvo::http::errors::StatusError::bad_request().cause(
                                     "extract data failed"
                                 ));
                                 return;

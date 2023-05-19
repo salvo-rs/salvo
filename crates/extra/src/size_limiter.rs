@@ -19,7 +19,7 @@ impl Handler for MaxSize {
                 ctrl.call_next(req, depot, res).await;
             }
         } else {
-            res.render(StatusError::bad_request().detail("body size is unknown"));
+            res.render(StatusError::bad_request().cause("Request body size is unknown."));
             ctrl.skip_rest();
         }
     }

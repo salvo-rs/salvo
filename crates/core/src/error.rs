@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
 use crate::http::{ParseError, StatusError};
-use crate::{async_trait, Depot, Request, Response, Writer};
+use crate::{Piece, Response};
 
 /// BoxedError
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
@@ -124,14 +124,13 @@ impl From<BoxedError> for Error {
     }
 }
 
-#[async_trait]
-impl Writer for Error {
+impl Piece for Error {
     #[inline]
-    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+    fn render(self, res: &mut Response) {
         let status_error = match self {
             Error::HttpStatus(e) => e,
             #[cfg(debug_assertions)]
-            _ => StatusError::internal_server_error().detail(self.to_string()),
+            _ => StatusError::internal_server_error().cause(self.to_string()),
             #[cfg(not(debug_assertions))]
             _ => StatusError::internal_server_error(),
         };
@@ -140,13 +139,12 @@ impl Writer for Error {
 }
 cfg_feature! {
     #![feature = "anyhow"]
-    #[async_trait]
-    impl Writer for anyhow::Error {
+    impl Piece for anyhow::Error {
         #[inline]
-        async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        fn render(self, res: &mut Response) {
             tracing::error!(error = ?self, "anyhow error occurred");
             #[cfg(debug_assertions)]
-            res.render(StatusError::internal_server_error().detail(self.to_string()));
+            res.render(StatusError::internal_server_error().cause(self.to_string()));
             #[cfg(not(debug_assertions))]
             res.render(StatusError::internal_server_error());
         }
@@ -154,13 +152,12 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature = "eyre"]
-    #[async_trait]
-    impl Writer for eyre::Report {
+    impl Piece for eyre::Report {
         #[inline]
-        async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        fn render(self,  res: &mut Response) {
             tracing::error!(error = ?self, "eyre error occurred");
             #[cfg(debug_assertions)]
-            res.render(StatusError::internal_server_error().detail(self.to_string()));
+            res.render(StatusError::internal_server_error().cause(self.to_string()));
             #[cfg(not(debug_assertions))]
             res.render(StatusError::internal_server_error());
         }
@@ -170,6 +167,7 @@ cfg_feature! {
 #[cfg(test)]
 mod tests {
     use crate::http::*;
+    use crate::{Depot, Writer};
 
     use super::*;
 

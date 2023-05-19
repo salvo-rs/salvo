@@ -159,7 +159,7 @@ where
         let key = match self.issuer.issue(req, depot).await {
             Some(key) => key,
             None => {
-                res.render(StatusError::bad_request().detail("invalid identifier"));
+                res.render(StatusError::bad_request().cause("invalid identifier"));
                 ctrl.skip_rest();
                 return;
             }
