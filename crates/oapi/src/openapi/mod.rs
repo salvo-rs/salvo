@@ -1,10 +1,10 @@
 //! Rust implementation of Openapi Spec V3.
 use std::collections::{btree_map, BTreeSet};
 
+use once_cell::sync::Lazy;
+use regex::Regex;
 use salvo_core::{async_trait, writer, Depot, FlowCtrl, Handler, Router};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
-use regex::Regex;
-use once_cell::sync::Lazy;
 
 pub use self::{
     components::Components,
@@ -45,7 +45,7 @@ mod xml;
 
 use crate::{router::NormNode, Endpoint};
 
-static PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(||Regex::new(r#"\{([^]]+)\}"#).unwrap());
+static PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\{([^]]+)\}"#).unwrap());
 
 /// Root object of the OpenAPI document.
 ///
@@ -241,13 +241,16 @@ impl OpenApi {
         }
 
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
-        let parameter_names =  PARAMETER_NAME_REGEX.captures(&path).map(|captures| {
-            captures
-                .iter()
-                .skip(1)
-                .map(|capture| capture.unwrap().as_str().to_owned())
-                .collect::<Vec<_>>()
-        }).unwrap_or_default();
+        let parameter_names = PARAMETER_NAME_REGEX
+            .captures(&path)
+            .map(|captures| {
+                captures
+                    .iter()
+                    .skip(1)
+                    .map(|capture| capture.unwrap().as_str().to_owned())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         if let Some(type_id) = &node.type_id {
             if let Some(creator) = crate::EndpointRegistry::find(type_id) {
                 let Endpoint {
@@ -264,11 +267,10 @@ impl OpenApi {
                         PathItemType::Patch,
                     ]
                 };
-               let not_exist_parameters = parameter_names.iter().filter(|name| {
-                    !operation.parameters.0.iter().any(|parameter| {
-                            parameter.name == **name
-                    })
-                }).collect::<Vec<_>>();
+                let not_exist_parameters = parameter_names
+                    .iter()
+                    .filter(|name| !operation.parameters.0.iter().any(|parameter| parameter.name == **name))
+                    .collect::<Vec<_>>();
                 if !not_exist_parameters.is_empty() {
                     tracing::warn!(parameters = ?not_exist_parameters, "parameters not found in operation");
                 }
