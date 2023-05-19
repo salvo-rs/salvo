@@ -18,7 +18,7 @@ all = ["swagger-ui", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "i
 swagger-ui = ["dep:rust-embed"]
 chrono = ["salvo-oapi-macros/chrono"]
 decimal = ["salvo-oapi-macros/decimal"]
-yaml = ["serde_yaml", "salvo-oapi-macros/yaml"]
+yaml = ["dep:serde_yaml"]
 uuid = ["salvo-oapi-macros/uuid"]
 time = ["salvo-oapi-macros/time"]
 smallvec = ["salvo-oapi-macros/smallvec"]
@@ -27,15 +27,21 @@ indexmap = ["salvo-oapi-macros/indexmap"]
 [dependencies]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
-serde_urlencoded.workspace = true
 base64.workspace = true
-serde.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
 bytes.workspace = true
 futures-util.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 inventory.workspace = true
+mime_guess.workspace = true
+once_cell.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_urlencoded.workspace = true
 regex.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 
 # Non-feature optional dependencies
 email_address = { workspace = true, optional = true }
@@ -45,13 +51,7 @@ hostname-validator = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 bson = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
-once_cell.workspace = true
-indexmap = { workspace = true, features = ["serde"] }
-tokio.workspace = true
-tracing.workspace = true
 rust-embed = { workspace = true, features = ["interpolate-folder-path"], optional = true }
-mime_guess.workspace = true
-serde_json.workspace = true
 serde_yaml = { workspace = true, optional = true }
 
 [build-dependencies]

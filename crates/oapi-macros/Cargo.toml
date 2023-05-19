@@ -27,7 +27,6 @@ inventory.workspace = true
 [features]
 default = []
 chrono = []
-yaml = []
 decimal = []
 uuid = ["dep:uuid"]
 time = []
