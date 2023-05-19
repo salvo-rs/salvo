@@ -99,7 +99,7 @@ fn status_error_html(
 #[inline]
 fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
-        r#"{{"error":{{"code":{},"name":"{}","brief":"{}","detail":"{}"}}}}"#,
+        r#"{{"error":{{"code":{},"name":"{}","brief":"{}","cause":"{}"}}}}"#,
         code.as_u16(),
         name,
         brief,
@@ -107,13 +107,13 @@ fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&s
     )
 }
 #[inline]
-fn status_error_plain(code: StatusCode, name: &str, brief: &str, detail: Option<&str>) -> String {
+fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
         "code:{},\nname:{},\nbrief:{},\ncause:{}",
         code.as_u16(),
         name,
         brief,
-        detail.unwrap_or(EMPTY_CAUSE_MSG)
+        cause.unwrap_or(EMPTY_CAUSE_MSG)
     )
 }
 #[inline]

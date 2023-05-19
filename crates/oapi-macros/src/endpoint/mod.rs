@@ -179,9 +179,9 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                                 data
                             },
                             Err(e) => {
-                                #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
-                                res.render(#salvo::http::errors::StatusError::bad_request().detail(
-                                    "extract data failed"
+                                #salvo::__private::tracing::error!(error = ?e, "failed to extract data in endpoint macro");
+                                res.render(#salvo::http::errors::StatusError::bad_request().cause(
+                                    "Failed to extract data in endpoint macro."
                                 ));
                                 return;
                             }
