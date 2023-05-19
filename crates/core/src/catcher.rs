@@ -48,13 +48,7 @@ const EMPTY_CAUSE_MSG: &str = "there is no more detailed explanation";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 #[inline]
-fn status_error_html(
-    code: StatusCode,
-    name: &str,
-    brief: &str,
-    cause: Option<&str>,
-    footer: Option<&str>,
-) -> String {
+fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&str>, footer: Option<&str>) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -138,13 +132,7 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
         "plain" => status_error_plain(err.code, &err.name, &err.brief, err.cause.as_deref()),
         "json" => status_error_json(err.code, &err.name, &err.brief, err.cause.as_deref()),
         "xml" => status_error_xml(err.code, &err.name, &err.brief, err.cause.as_deref()),
-        _ => status_error_html(
-            err.code,
-            &err.name,
-            &err.brief,
-            err.cause.as_deref(),
-            footer,
-        ),
+        _ => status_error_html(err.code, &err.name, &err.brief, err.cause.as_deref(), footer),
     };
     (format, Bytes::from(content))
 }

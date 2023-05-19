@@ -167,7 +167,7 @@ cfg_feature! {
 #[cfg(test)]
 mod tests {
     use crate::http::*;
-    use crate::{Writer, Depot};
+    use crate::{Depot, Writer};
 
     use super::*;
 
