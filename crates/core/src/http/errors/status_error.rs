@@ -1,5 +1,5 @@
 use std::error::Error as StdError;
-use std::fmt::{self, Display, Formatter, Debug};
+use std::fmt::{self, Debug, Display, Formatter};
 
 use crate::http::{ResBody, StatusCode};
 
@@ -43,7 +43,10 @@ impl StatusError {
         self
     }
     /// Sets cause field and returns Self.
-    pub fn cause<C>(mut self, cause: C) -> Self where C: fmt::Debug + Sync + Send + 'static {
+    pub fn cause<C>(mut self, cause: C) -> Self
+    where
+        C: fmt::Debug + Sync + Send + 'static,
+    {
         self.cause = Some(Box::new(cause));
         self
     }
