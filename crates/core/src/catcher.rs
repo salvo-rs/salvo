@@ -131,7 +131,7 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
     #[cfg(debug_assertions)]
     let cause = err.cause.as_ref().map(|e| format!("{e:#?}"));
     #[cfg(not(debug_assertions))]
-    let cause = None;
+    let cause: Option<String> = None;
     let content = match format.subtype().as_ref() {
         "plain" => status_error_plain(err.code, &err.name, &err.brief, cause.as_deref()),
         "json" => status_error_json(err.code, &err.name, &err.brief, cause.as_deref()),
