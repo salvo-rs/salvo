@@ -1,5 +1,5 @@
 use std::error::Error as StdError;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Debug};
 
 use crate::http::{ResBody, StatusCode};
 
@@ -33,8 +33,8 @@ pub struct StatusError {
     pub name: String,
     /// Brief information about http error.
     pub brief: String,
-    /// Cause information about http error.
-    pub cause: Option<String>,
+    /// Cause about http error. This field is only used for internal debugging and only used in debug mode.
+    pub cause: Option<Box<dyn Debug + Sync + Send + 'static>>,
 }
 impl StatusError {
     /// Sets brief field and returns Self.
@@ -43,8 +43,8 @@ impl StatusError {
         self
     }
     /// Sets cause field and returns Self.
-    pub fn cause(mut self, cause: impl Into<String>) -> Self {
-        self.cause = Some(cause.into());
+    pub fn cause<C>(mut self, cause: C) -> Self where C: fmt::Debug + Sync + Send + 'static {
+        self.cause = Some(Box::new(cause));
         self
     }
 

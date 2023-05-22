@@ -98,7 +98,7 @@ impl WebSocketUpgrade {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing connection upgrade");
-            return Err(StatusError::bad_request().cause("Missing connection upgrade."));
+            return Err(StatusError::bad_request().brief("Missing connection upgrade."));
         }
         let matched = req_headers
             .get(UPGRADE)
@@ -107,7 +107,7 @@ impl WebSocketUpgrade {
             .unwrap_or(false);
         if !matched {
             tracing::debug!("missing upgrade header or it is not equal websocket");
-            return Err(StatusError::bad_request().cause("Missing upgrade header or it is not equal websocket."));
+            return Err(StatusError::bad_request().brief("Missing upgrade header or it is not equal websocket."));
         }
         let matched = !req_headers
             .get(SEC_WEBSOCKET_VERSION)
@@ -116,13 +116,13 @@ impl WebSocketUpgrade {
             .unwrap_or(false);
         if matched {
             tracing::debug!("websocket version is not equal 13");
-            return Err(StatusError::bad_request().cause("Websocket version is not equal 13."));
+            return Err(StatusError::bad_request().brief("Websocket version is not equal 13."));
         }
         let sec_ws_key = if let Some(key) = req_headers.typed_get::<SecWebsocketKey>() {
             key
         } else {
             tracing::debug!("sec_websocket_key is not exist in request headers");
-            return Err(StatusError::bad_request().cause("sec_websocket_key is not exist in request headers."));
+            return Err(StatusError::bad_request().brief("sec_websocket_key is not exist in request headers."));
         };
 
         res.status_code(StatusCode::SWITCHING_PROTOCOLS);
@@ -147,7 +147,7 @@ impl WebSocketUpgrade {
         } else {
             tracing::debug!("websocket couldn't be upgraded since no upgrade state was present");
             Err(StatusError::bad_request()
-                .cause("Websocket couldn't be upgraded since no upgrade state was present"))
+                .brief("Websocket couldn't be upgraded since no upgrade state was present."))
         }
     }
 }

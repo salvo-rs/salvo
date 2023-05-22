@@ -88,7 +88,7 @@ impl Piece for ParseError {
         res.render(
             StatusError::internal_server_error()
                 .brief("http read error happened")
-                .cause("there is no more detailed explanation."),
+                .cause(self),
         );
     }
 }

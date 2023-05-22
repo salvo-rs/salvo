@@ -128,11 +128,15 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
     } else {
         prefer_format.clone()
     };
+    #[cfg(debug_assertions)]
+    let cause = err.cause.as_ref().map(|e| format!("{e:#?}"));
+    #[cfg(not(debug_assertions))]
+    let cause = None;
     let content = match format.subtype().as_ref() {
-        "plain" => status_error_plain(err.code, &err.name, &err.brief, err.cause.as_deref()),
-        "json" => status_error_json(err.code, &err.name, &err.brief, err.cause.as_deref()),
-        "xml" => status_error_xml(err.code, &err.name, &err.brief, err.cause.as_deref()),
-        _ => status_error_html(err.code, &err.name, &err.brief, err.cause.as_deref(), footer),
+        "plain" => status_error_plain(err.code, &err.name, &err.brief, cause.as_deref()),
+        "json" => status_error_json(err.code, &err.name, &err.brief, cause.as_deref()),
+        "xml" => status_error_xml(err.code, &err.name, &err.brief, cause.as_deref()),
+        _ => status_error_html(err.code, &err.name, &err.brief, cause.as_deref(), footer),
     };
     (format, Bytes::from(content))
 }

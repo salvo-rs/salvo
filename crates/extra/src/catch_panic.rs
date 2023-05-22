@@ -23,10 +23,11 @@ impl Handler for CatchPanic {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         if let Err(e) = AssertUnwindSafe(ctrl.call_next(req, depot, res)).catch_unwind().await {
             tracing::error!(error = ?e, "panic occurred");
-            #[cfg(debug_assertions)]
-            res.render(StatusError::internal_server_error().cause("panic occurred on server"));
-            #[cfg(not(debug_assertions))]
-            res.render(StatusError::internal_server_error());
+            res.render(
+                StatusError::internal_server_error()
+                    .brief("panic occurred on server")
+                    .cause(format!("{e:#?}")),
+            );
         }
     }
 }

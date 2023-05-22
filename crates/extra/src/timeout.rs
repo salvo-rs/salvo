@@ -22,7 +22,7 @@ impl Handler for Timeout {
         tokio::select! {
             _ = ctrl.call_next(req, depot, res) => {},
             _ = tokio::time::sleep(self.value) => {
-                res.render(StatusError::internal_server_error().cause("Server process the request timeout."));
+                res.render(StatusError::internal_server_error().brief("Server process the request timeout."));
                 ctrl.skip_rest();
             }
         }
