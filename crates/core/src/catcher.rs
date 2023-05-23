@@ -44,7 +44,7 @@ use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusC
 use crate::{Depot, FlowCtrl};
 
 static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, mime::HTML, mime::XML, mime::PLAIN]);
-const EMPTY_CAUSE_MSG: &str = "there is no more detailed explanation";
+const EMPTY_CAUSE_MSG: &str = "There is no more detailed explanation.";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
 #[inline]
@@ -66,7 +66,7 @@ fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&s
         color: var(--text-color);
         text-align: center;
     }}
-    pre {{ text-align: left; }}
+    pre {{ text-align: left; padding: 0 1rem; }}
     footer{{text-align:center;}}
     @media (prefers-color-scheme: dark) {{
         :root {{
