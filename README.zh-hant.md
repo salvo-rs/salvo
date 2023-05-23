@@ -41,7 +41,7 @@ Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需�
 
 - 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
 - 統一的中間件和句柄接口;
-- 支持 Http1, Http2 和 **Http3**;
+- 支持 HTTP1, HTTP2 和 **HTTP3**;
 - 路由支持無限層次嵌套;
 - 每一個路由都可以擁有一個或者多個中間件;
 - 集成 Multipart 錶單處理;
