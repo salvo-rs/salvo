@@ -28,12 +28,12 @@ use crate::Error;
 
 static SECURE_MAX_SIZE: RwLock<usize> = RwLock::new(64 * 1024);
 
-/// Get default secure max size.
+/// Get global secure max size, default value is 64KB.
 pub fn secure_max_size() -> usize {
     *SECURE_MAX_SIZE.read()
 }
 
-/// Set default secure max size globally.
+/// Set secure max size globally.
 pub fn set_secure_max_size(size: usize) {
     let mut lock = SECURE_MAX_SIZE.write();
     *lock = size;
@@ -545,7 +545,7 @@ impl Request {
             .unwrap_or_default()
     }
 
-    /// Get request payload with default max size limit.
+    /// Get request payload with default max size limit(64KB).
     ///
     /// <https://github.com/hyperium/hyper/issues/3111>
     /// *Notice: This method takes body.
@@ -574,7 +574,7 @@ impl Request {
 
     /// Get `FormData` reference from request.
     ///
-    /// *Notice: This method takes body.
+    /// *Notice: This method takes body and body's size is not limited.
     #[inline]
     pub async fn form_data(&mut self) -> Result<&FormData, ParseError> {
         if let Some(ctype) = self.content_type() {
