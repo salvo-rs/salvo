@@ -314,8 +314,8 @@ impl Handler for OpenApi {
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.0.3` the latest from 3.0 serde.
-    #[serde(rename = "3.0.3")]
+    /// Will serialize to `3.1.0` the latest from 3.0 serde.
+    #[serde(rename = "3.1.0")]
     Version3,
 }
 
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
-        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.0.3");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.1.0");
         Ok(())
     }
 
@@ -569,7 +569,7 @@ mod tests {
             value,
             json!(
                 {
-                  "openapi": "3.0.3",
+                  "openapi": "3.1.0",
                   "info": {
                     "title": "Api",
                     "version": "v1"

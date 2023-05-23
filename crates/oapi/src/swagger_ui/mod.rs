@@ -18,7 +18,7 @@ use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response
 use serde::Serialize;
 
 #[derive(RustEmbed)]
-#[folder = "src/swagger_ui/v4.18.2"]
+#[folder = "src/swagger_ui/v5.0.0"]
 struct SwaggerUiDist;
 
 const INDEX_TMPL: &str = r#"
