@@ -44,8 +44,6 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::set_value;
-
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 
 /// Collection for [`Server`] objects.
@@ -192,12 +190,14 @@ impl Server {
     }
     /// Add url to the target [`Server`].
     pub fn url<U: Into<String>>(mut self, url: U) -> Self {
-        set_value!(self url url.into())
+        self.url = url.into();
+self
     }
 
     /// Add or change description of the [`Server`].
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+self
     }
 
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].
@@ -305,17 +305,20 @@ impl ServerVariable {
     }
     /// Add default value for substitution.
     pub fn default_value<S: Into<String>>(mut self, default_value: S) -> Self {
-        set_value!(self default_value default_value.into())
+        self.default_value = default_value.into();
+self
     }
 
     /// Add or change description of substituted parameter.
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+self
     }
 
     /// Add or change possible values used to substitute parameter.
     pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(mut self, enum_values: I) -> Self {
-        set_value!(self enum_values enum_values.into_iter().map(|value| value.into()).collect())
+        self.enum_values = enum_values.into_iter().map(|value| value.into()).collect();
+self
     }
 }
 

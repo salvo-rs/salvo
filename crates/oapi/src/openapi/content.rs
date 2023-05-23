@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::example::Example;
-use super::{encoding::Encoding, set_value, RefOr, Schema};
+use super::{encoding::Encoding, RefOr, Schema};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
@@ -49,12 +49,14 @@ impl Content {
 
     /// Add schema.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema component.into())
+        self.schema = component.into();
+        self
     }
 
     /// Add example of schema.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 
     /// Add iterator of _`(N, V)`_ where `N` is name of example and `V` is [`Example`][example] to

@@ -5,8 +5,6 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
-use super::set_value;
-
 /// Implements [OpenAPI Xml Object][xml_object].
 ///
 /// Can be used to modify xml output format of specific [OpenAPI Schema Object][schema_object] which are
@@ -54,35 +52,40 @@ impl Xml {
     ///
     /// Builder style chainable consuming add name method.
     pub fn name<S: Into<Cow<'static, str>>>(mut self, name: S) -> Self {
-        set_value!(self name Some(name.into()))
+        self.name = Some(name.into());
+        self
     }
 
     /// Add [`Xml::namespace`] to xml object.
     ///
     /// Builder style chainable consuming add namespace method.
     pub fn namespace<S: Into<Cow<'static, str>>>(mut self, namespace: S) -> Self {
-        set_value!(self namespace Some(namespace.into()))
+        self.namespace = Some(namespace.into());
+        self
     }
 
     /// Add [`Xml::prefix`] to xml object.
     ///
     /// Builder style chainable consuming add prefix method.
     pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: S) -> Self {
-        set_value!(self prefix Some(prefix.into()))
+        self.prefix = Some(prefix.into());
+        self
     }
 
     /// Mark [`Xml`] object as attribute. See [`Xml::attribute`]
     ///
     /// Builder style chainable consuming add attribute method.
     pub fn attribute(mut self, attribute: bool) -> Self {
-        set_value!(self attribute Some(attribute))
+        self.attribute = Some(attribute);
+        self
     }
 
     /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`]
     ///
     /// Builder style chainable consuming add wrapped method.
     pub fn wrapped(mut self, wrapped: bool) -> Self {
-        set_value!(self wrapped Some(wrapped))
+        self.wrapped = Some(wrapped);
+        self
     }
 }
 

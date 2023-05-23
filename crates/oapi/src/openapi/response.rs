@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Ref, RefOr};
 
-use super::{header::Header, set_value, Content};
+use super::{header::Header, Content};
 
 /// Implements [OpenAPI Responses Object][responses].
 ///
@@ -159,7 +159,8 @@ impl Response {
 
     /// Add description. Description supports markdown syntax.
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
-        set_value!(self description description.into())
+        self.description = description.into();
+        self
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.

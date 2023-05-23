@@ -8,8 +8,6 @@
 //! [derive]: ../../derive.OpenApi.html
 use serde::{Deserialize, Serialize};
 
-use super::set_value;
-
 /// # Examples
 ///
 /// Create [`Info`]].
@@ -79,32 +77,38 @@ impl Info {
     }
     /// Add title of the API.
     pub fn title<I: Into<String>>(mut self, title: I) -> Self {
-        set_value!(self title title.into())
+        self.title = title.into();
+        self
     }
 
     /// Add version of the api document typically the API version.
     pub fn version<I: Into<String>>(mut self, version: I) -> Self {
-        set_value!(self version version.into())
+        self.version = version.into();
+        self
     }
 
     /// Add description of the API.
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add url for terms of the API.
     pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: S) -> Self {
-        set_value!(self terms_of_service Some(terms_of_service.into()))
+        self.terms_of_service = Some(terms_of_service.into());
+        self
     }
 
     /// Add contact information of the API.
     pub fn contact(mut self, contact: Contact) -> Self {
-        set_value!(self contact Some(contact))
+        self.contact = Some(contact);
+        self
     }
 
     /// Add license of the API.
     pub fn license(mut self, license: License) -> Self {
-        set_value!(self license Some(license))
+        self.license = Some(license);
+        self
     }
 }
 
@@ -137,17 +141,20 @@ impl Contact {
     }
     /// Add name contact person or organization of the API.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
-        set_value!(self name Some(name.into()))
+        self.name = Some(name.into());
+        self
     }
 
     /// Add url pointing to the contact information of the API.
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
-        set_value!(self url Some(url.into()))
+        self.url = Some(url.into());
+        self
     }
 
     /// Add email of the contact person or organization of the API.
     pub fn email<S: Into<String>>(mut self, email: S) -> Self {
-        set_value!(self email Some(email.into()))
+        self.email = Some(email.into());
+        self
     }
 }
 
@@ -178,12 +185,14 @@ impl License {
     }
     /// Add name of the license used in API.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
-        set_value!(self name name.into())
+        self.name = name.into();
+        self
     }
 
     /// Add url pointing to the license used in API.
     pub fn url<S: Into<String>>(mut self, url: S) -> Self {
-        set_value!(self url Some(url.into()))
+        self.url = Some(url.into());
+        self
     }
 }
 

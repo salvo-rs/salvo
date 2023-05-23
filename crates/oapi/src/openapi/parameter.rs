@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{set_value, Deprecated, RefOr, Required, Schema};
+use super::{Deprecated, RefOr, Required, Schema};
 
 /// Collection for OpenAPI Parameter Objects.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default, Clone)]
@@ -144,12 +144,14 @@ impl Parameter {
     }
     /// Add name of the [`Parameter`].
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
-        set_value!(self name name.into())
+        self.name = name.into();
+        self
     }
 
     /// Add in of the [`Parameter`].
     pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
-        set_value!(self parameter_in parameter_in)
+        self.parameter_in = parameter_in;
+        self
     }
 
     /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
@@ -210,37 +212,44 @@ impl Parameter {
 
     /// Add or change description of the [`Parameter`].
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change [`Parameter`] deprecated declaration.
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
-        set_value!(self deprecated Some(deprecated.into()))
+        self.deprecated = Some(deprecated.into());
+        self
     }
 
     /// Add or change [`Parameter`]s schema.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema Some(component.into()))
+        self.schema = Some(component.into());
+        self
     }
 
     /// Add or change serialization style of [`Parameter`].
     pub fn style(mut self, style: ParameterStyle) -> Self {
-        set_value!(self style Some(style))
+        self.style = Some(style);
+        self
     }
 
     /// Define whether [`Parameter`]s are exploded or not.
     pub fn explode(mut self, explode: bool) -> Self {
-        set_value!(self explode Some(explode))
+        self.explode = Some(explode);
+        self
     }
 
     /// Add or change whether [`Parameter`] should allow reserved characters.
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
-        set_value!(self allow_reserved Some(allow_reserved))
+        self.allow_reserved = Some(allow_reserved);
+        self
     }
 
     /// Add or change example of [`Parameter`]'s potential value.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 }
 

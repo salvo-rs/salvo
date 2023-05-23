@@ -4,7 +4,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{set_value, Content, Required};
+use super::{Content, Required};
 
 /// Implements [OpenAPI Request Body][request_body].
 ///
@@ -33,12 +33,14 @@ impl RequestBody {
     }
     /// Add description for [`RequestBody`].
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Define [`RequestBody`] required.
     pub fn required(mut self, required: Required) -> Self {
-        set_value!(self required Some(required))
+        self.required = Some(required);
+        self
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].

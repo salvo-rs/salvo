@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{set_value, Deprecated, RefOr, Xml};
+use crate::{Deprecated, RefOr, Xml};
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
 ///
@@ -158,27 +158,32 @@ impl OneOf {
 
     /// Add or change optional description for `OneOf` component.
     pub fn description(mut self, description: impl Into<String>) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
     pub fn default_value(mut self, default: Value) -> Self {
-        set_value!(self default Some(default))
+        self.default = Some(default);
+        self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
     pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
-        set_value!(self discriminator Some(discriminator))
+        self.discriminator = Some(discriminator);
+        self
     }
 
     /// Add or change nullable flag for [`Object`].
     pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
+        self.nullable = nullable;
+        self
     }
 }
 
@@ -263,27 +268,32 @@ impl AllOf {
 
     /// Add or change optional description for `AllOf` component.
     pub fn description(mut self, description: impl Into<String>) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
     pub fn default_value(mut self, default: Value) -> Self {
-        set_value!(self default Some(default))
+        self.default = Some(default);
+        self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 
     /// Add or change discriminator field of the composite [`AllOf`] type.
     pub fn discriminator(mut self, discriminator: Discriminator) -> Self {
-        set_value!(self discriminator Some(discriminator))
+        self.discriminator = Some(discriminator);
+        self
     }
 
     /// Add or change nullable flag for [`Object`].
     pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
+        self.nullable = nullable;
+        self
     }
 }
 
@@ -464,12 +474,14 @@ impl Object {
     }
     /// Add or change type of the object e.g [`SchemaType::String`].
     pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
-        set_value!(self schema_type schema_type)
+        self.schema_type = schema_type;
+        self
     }
 
     /// Add or change additional format for detailing the schema type.
     pub fn format(mut self, format: SchemaFormat) -> Self {
-        set_value!(self format Some(format))
+        self.format = Some(format);
+        self
     }
 
     /// Add new property to the [`Object`].
@@ -483,7 +495,8 @@ impl Object {
 
     /// Add additional properties to the [`Object`].
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(mut self, additional_properties: I) -> Self {
-        set_value!(self additional_properties Some(Box::new(additional_properties.into())))
+        self.additional_properties = Some(Box::new(additional_properties.into()));
+        self
     }
 
     /// Add field to the required fields of [`Object`].
@@ -494,103 +507,126 @@ impl Object {
 
     /// Add or change the title of the [`Object`].
     pub fn title(mut self, title: impl Into<String>) -> Self {
-        set_value!(self title Some(title.into()))
+        self.title = Some(title.into());
+        self
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
     pub fn description(mut self, description: impl Into<String>) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
     pub fn default_value(mut self, default: Value) -> Self {
-        set_value!(self default Some(default))
+        self.default = Some(default);
+        self
     }
 
     /// Add or change deprecated status for [`Object`].
     pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
-        set_value!(self deprecated Some(deprecated))
+        self.deprecated = Some(deprecated);
+        self
     }
 
     /// Add or change enum property variants.
-    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<Value>>(mut self, enum_values: I) -> Self {
-        set_value!(self enum_values
-                Some(enum_values.into_iter().map(|enum_value| enum_value.into()).collect()))
+    pub fn enum_values<I, E>(mut self, enum_values: I) -> Self
+    where
+        I: IntoIterator<Item = E>,
+        E: Into<Value>,
+    {
+        self.enum_values = Some(enum_values.into_iter().map(|enum_value| enum_value.into()).collect());
+        self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 
     /// Add or change write only flag for [`Object`].
     pub fn write_only(mut self, write_only: bool) -> Self {
-        set_value!(self write_only Some(write_only))
+        self.write_only = Some(write_only);
+        self
     }
 
     /// Add or change read only flag for [`Object`].
     pub fn read_only(mut self, read_only: bool) -> Self {
-        set_value!(self read_only Some(read_only))
+        self.read_only = Some(read_only);
+        self
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
     pub fn xml(mut self, xml: Xml) -> Self {
-        set_value!(self xml Some(xml))
+        self.xml = Some(xml);
+        self
     }
 
     /// Add or change nullable flag for [`Object`].
     pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
+        self.nullable = nullable;
+        self
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
     pub fn multiple_of(mut self, multiple_of: f64) -> Self {
-        set_value!(self multiple_of Some(multiple_of))
+        self.multiple_of = Some(multiple_of);
+        self
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
     pub fn maximum(mut self, maximum: f64) -> Self {
-        set_value!(self maximum Some(maximum))
+        self.maximum = Some(maximum);
+        self
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
     pub fn minimum(mut self, minimum: f64) -> Self {
-        set_value!(self minimum Some(minimum))
+        self.minimum = Some(minimum);
+        self
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
     pub fn exclusive_maximum(mut self, exclusive_maximum: f64) -> Self {
-        set_value!(self exclusive_maximum Some(exclusive_maximum))
+        self.exclusive_maximum = Some(exclusive_maximum);
+        self
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
     pub fn exclusive_minimum(mut self, exclusive_minimum: f64) -> Self {
-        set_value!(self exclusive_minimum Some(exclusive_minimum))
+        self.exclusive_minimum = Some(exclusive_minimum);
+        self
     }
 
     /// Set or change maximum length for `string` values.
     pub fn max_length(mut self, max_length: usize) -> Self {
-        set_value!(self max_length Some(max_length))
+        self.max_length = Some(max_length);
+        self
     }
 
     /// Set or change minimum length for `string` values.
     pub fn min_length(mut self, min_length: usize) -> Self {
-        set_value!(self min_length Some(min_length))
+        self.min_length = Some(min_length);
+        self
     }
 
     /// Set or change a valid regular expression for `string` value to match.
     pub fn pattern<I: Into<String>>(mut self, pattern: I) -> Self {
-        set_value!(self pattern Some(pattern.into()))
+        self.pattern = Some(pattern.into());
+        self
     }
 
     /// Set or change maximum number of properties the [`Object`] can hold.
     pub fn max_properties(mut self, max_properties: usize) -> Self {
-        set_value!(self max_properties Some(max_properties))
+        self.max_properties = Some(max_properties);
+        self
     }
 
     /// Set or change minimum number of properties the [`Object`] can hold.
     pub fn min_properties(mut self, min_properties: usize) -> Self {
-        set_value!(self min_properties Some(min_properties))
+        self.min_properties = Some(min_properties);
+        self
     }
 }
 
@@ -775,47 +811,56 @@ impl Array {
     }
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self items Box::new(component.into()))
+        self.items = Box::new(component.into());
+        self
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change deprecated status for [`Array`].
     pub fn deprecated(mut self, deprecated: Deprecated) -> Self {
-        set_value!(self deprecated Some(deprecated))
+        self.deprecated = Some(deprecated);
+        self
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Value) -> Self {
-        set_value!(self example Some(example))
+        self.example = Some(example);
+        self
     }
 
     /// Set maximum allowed length for [`Array`].
     pub fn max_items(mut self, max_items: usize) -> Self {
-        set_value!(self max_items Some(max_items))
+        self.max_items = Some(max_items);
+        self
     }
 
     /// Set minimum allowed length for [`Array`].
     pub fn min_items(mut self, min_items: usize) -> Self {
-        set_value!(self min_items Some(min_items))
+        self.min_items = Some(min_items);
+        self
     }
 
     /// Set or change whether [`Array`] should enforce all items to be unique.
     pub fn unique_items(mut self, unique_items: bool) -> Self {
-        set_value!(self unique_items unique_items)
+        self.unique_items = unique_items;
+        self
     }
 
     /// Set [`Xml`] formatting for [`Array`].
     pub fn xml(mut self, xml: Xml) -> Self {
-        set_value!(self xml Some(xml))
+        self.xml = Some(xml);
+        self
     }
 
     /// Add or change nullable flag for [`Object`].
     pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
+        self.nullable = nullable;
+        self
     }
 }
 

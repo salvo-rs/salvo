@@ -170,17 +170,20 @@ impl OpenApi {
 
     /// Add [`Info`] metadata of the API.
     pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
-        set_value!(self info info.into())
+        self.info = info.into();
+        self
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
     pub fn servers<S: IntoIterator<Item = Server>>(mut self, servers: S) -> Self {
-        set_value!(self servers servers.into_iter().collect())
+        self.servers = servers.into_iter().collect();
+        self
     }
 
     /// Set paths to configure operations and endpoints of the API.
     pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
-        set_value!(self paths paths.into())
+        self.paths = paths.into();
+        self
     }
     /// Add [`PathItem`] to configure operations and endpoints of the API.
     pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
@@ -194,22 +197,30 @@ impl OpenApi {
 
     /// Add [`Components`] to configure reusable schemas.
     pub fn components(mut self, components: impl Into<Components>) -> Self {
-        set_value!(self components components.into())
+        self.components = components.into();
+        self
     }
 
     /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
     pub fn security<S: IntoIterator<Item = SecurityRequirement>>(mut self, security: S) -> Self {
-        set_value!(self security security.into_iter().collect())
+        self.security = security.into_iter().collect();
+        self
     }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
-    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
-        set_value!(self tags tags.into_iter().collect())
+    pub fn tags<I, T>(mut self, tags: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<Tag>,
+    {
+        self.tags = tags.into_iter().map(Into::into).collect();
+        self
     }
 
     /// Add [`ExternalDocs`] for referring additional documentation.
     pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
-        set_value!(self external_docs Some(external_docs))
+        self.external_docs = Some(external_docs);
+        self
     }
 
     /// Consusmes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
@@ -441,14 +452,6 @@ pub enum RefOr<T> {
     /// Some other type `T`.
     T(T),
 }
-
-macro_rules! set_value {
-    ( $self:ident $field:ident $value:expr ) => {{
-        $self.$field = $value;
-        $self
-    }};
-}
-pub(crate) use set_value;
 
 #[cfg(test)]
 mod tests {

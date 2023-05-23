@@ -5,7 +5,7 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 
 use serde::{Deserialize, Serialize};
 
-use super::{external_docs::ExternalDocs, set_value};
+use super::external_docs::ExternalDocs;
 
 /// Implements [OpenAPI Tag Object][tag].
 ///
@@ -37,27 +37,45 @@ impl PartialOrd for Tag {
         Some(self.cmp(other))
     }
 }
+impl From<String> for Tag {
+    fn from(name: String) -> Self {
+        Self::new(name)
+    }
+}
+impl From<&String> for Tag {
+    fn from(name: &String) -> Self {
+        Self::new(name)
+    }
+}
+impl<'a> From<&'a str> for Tag {
+    fn from(name: &'a str) -> Self {
+        Self::new(name.to_owned())
+    }
+}
 
 impl Tag {
     /// Construct a new [`Tag`] with given name.
-    pub fn new(name: impl AsRef<str>) -> Self {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
-            name: name.as_ref().to_string(),
+            name: name.into(),
             ..Default::default()
         }
     }
     /// Add name fo the tag.
     pub fn name(mut self, name: impl Into<String>) -> Self {
-        set_value!(self name name.into())
+        self.name = name.into();
+        self
     }
 
     /// Add additional description for the tag.
     pub fn description(mut self, description: impl Into<String>) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add additional external documentation for the tag.
     pub fn external_docs(mut self, external_docs: ExternalDocs) -> Self {
-        set_value!(self external_docs Some(external_docs))
+        self.external_docs = Some(external_docs);
+        self
     }
 }

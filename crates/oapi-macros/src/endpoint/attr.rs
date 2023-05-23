@@ -1,7 +1,8 @@
 use proc_macro2::Ident;
 use syn::punctuated::Punctuated;
-use syn::Expr;
-use syn::{parenthesized, parse::Parse, Token};
+use syn::token::Comma;
+use syn::{parenthesized, parse::Parse};
+use syn::{Expr, LitStr};
 
 use crate::operation::request_body::RequestBodyAttr;
 use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array, Parameter, Response};
@@ -11,7 +12,7 @@ pub(crate) struct EndpointAttr<'p> {
     pub(crate) request_body: Option<RequestBodyAttr<'p>>,
     pub(crate) responses: Vec<Response<'p>>,
     pub(crate) operation_id: Option<Expr>,
-    pub(crate) tags: Option<Vec<Expr>>,
+    pub(crate) tags: Option<Vec<String>>,
     pub(crate) parameters: Vec<Parameter<'p>>,
     pub(crate) security: Option<Array<'p, SecurityRequirementAttr>>,
 
@@ -39,21 +40,21 @@ impl Parse for EndpointAttr<'_> {
                 "responses" => {
                     let responses;
                     parenthesized!(responses in input);
-                    attr.responses = Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                    attr.responses = Punctuated::<Response, Comma>::parse_terminated(&responses)
                         .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
                 }
                 "parameters" => {
                     let parameters;
                     parenthesized!(parameters in input);
-                    attr.parameters = Punctuated::<Parameter, Token![,]>::parse_terminated(&parameters)
+                    attr.parameters = Punctuated::<Parameter, Comma>::parse_terminated(&parameters)
                         .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "tags" => {
                     let tags;
                     parenthesized!(tags in input);
                     attr.tags = Some(
-                        Punctuated::<Expr, Token![,]>::parse_terminated(&tags)
-                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?,
+                        Punctuated::<LitStr, Comma>::parse_terminated(&tags)
+                            .map(|punctuated| punctuated.into_iter().map(|t| t.value()).collect::<Vec<_>>())?,
                     );
                 }
                 "security" => {
@@ -67,7 +68,7 @@ impl Parse for EndpointAttr<'_> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>()?;
+                input.parse::<Comma>()?;
             }
         }
 

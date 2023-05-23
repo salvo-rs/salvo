@@ -19,10 +19,11 @@ use crate::response::{Response, ResponseTupleInner};
 pub(crate) mod status;
 
 pub(crate) struct Operation<'a> {
+    deprecated: &'a Option<bool>,
     operation_id: Option<&'a Expr>,
+    tags: &'a Option<Vec<String>>,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
-    deprecated: &'a Option<bool>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
@@ -34,6 +35,7 @@ impl<'a> Operation<'a> {
         Self {
             deprecated: &attr.deprecated,
             operation_id: attr.operation_id.as_ref(),
+            tags: &attr.tags,
             summary: attr.doc_comments.as_ref().and_then(|comments| comments.iter().next()),
             description: attr.doc_comments.as_ref(),
             parameters: attr.parameters.as_ref(),
@@ -130,6 +132,11 @@ impl ToTokens for Operation<'_> {
 
         if let Some(deprecated) = self.deprecated {
             tokens.extend(quote!( .deprecated(#deprecated)))
+        }
+
+        if let Some(tags) = self.tags {
+            let tags = tags.iter().collect::<Array<_>>();
+            tokens.extend(quote!( .tags(#tags)))
         }
 
         if let Some(summary) = self.summary {

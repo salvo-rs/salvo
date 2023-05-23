@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     request_body::RequestBody,
     response::{Response, Responses},
-    set_value, Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
+    Deprecated, ExternalDocs, RefOr, SecurityRequirement, Server,
 };
 use crate::{Parameter, Parameters, PathItemType, Servers};
 
@@ -164,8 +164,13 @@ impl Operation {
     }
 
     /// Add or change tags of the [`Operation`].
-    pub fn tags<I: IntoIterator<Item = String>>(mut self, tags: I) -> Self {
-        set_value!(self tags tags.into_iter().collect())
+    pub fn tags<I, T>(mut self, tags: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<String>,
+    {
+        self.tags = tags.into_iter().map(|t| t.into()).collect();
+        self
     }
 
     /// Append tag to [`Operation`] tags.
@@ -176,17 +181,20 @@ impl Operation {
 
     /// Add or change short summary of the [`Operation`].
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
-        set_value!(self summary Some(summary.into()))
+        self.summary = Some(summary.into());
+        self
     }
 
     /// Add or change description of the [`Operation`].
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some( description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add or change operation id of the [`Operation`].
     pub fn operation_id<S: Into<String>>(mut self, operation_id: S) -> Self {
-        set_value!(self operation_id Some(operation_id.into()))
+        self.operation_id = Some(operation_id.into());
+        self
     }
 
     /// Add or change parameters of the [`Operation`].
@@ -204,12 +212,14 @@ impl Operation {
 
     /// Add or change request body of the [`Operation`].
     pub fn request_body(mut self, request_body: RequestBody) -> Self {
-        set_value!(self request_body Some(request_body))
+        self.request_body = Some(request_body);
+        self
     }
 
     /// Add or change responses of the [`Operation`].
     pub fn responses<R: Into<Responses>>(mut self, responses: R) -> Self {
-        set_value!(self responses responses.into())
+        self.responses = responses.into();
+        self
     }
 
     /// Append status code and a [`Response`] to the [`Operation`] responses map.
@@ -223,12 +233,14 @@ impl Operation {
 
     /// Add or change deprecated status of the [`Operation`].
     pub fn deprecated<D: Into<Deprecated>>(mut self, deprecated: D) -> Self {
-        set_value!(self deprecated Some(deprecated.into()))
+        self.deprecated = Some(deprecated.into());
+        self
     }
 
     /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
     pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(mut self, securities: I) -> Self {
-        set_value!(self securities securities.into_iter().collect())
+        self.securities = securities.into_iter().collect();
+        self
     }
 
     /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
@@ -239,7 +251,8 @@ impl Operation {
 
     /// Add or change list of [`Server`]s of the [`Operation`].
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        set_value!(self servers Servers(servers.into_iter().collect()))
+        self.servers = Servers(servers.into_iter().collect());
+        self
     }
 
     /// Append a new [`Server`] to the [`Operation`] servers.

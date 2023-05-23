@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{set_value, Object, RefOr, Schema, SchemaType};
+use super::{Object, RefOr, Schema, SchemaType};
 
 /// Implements [OpenAPI Header Object][header] for response headers.
 ///
@@ -45,12 +45,14 @@ impl Header {
     }
     /// Add schema of header.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema component.into())
+        self.schema = component.into();
+        self
     }
 
     /// Add additional description for header.
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 }
 

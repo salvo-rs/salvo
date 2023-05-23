@@ -6,8 +6,6 @@
 //! [request_body]: request_body/struct.RequestBody.html
 use serde::{Deserialize, Serialize};
 
-use super::set_value;
-
 /// Implements [OpenAPI Example Object][example].
 ///
 /// Example is used on path operations to describe possible response bodies.
@@ -46,7 +44,8 @@ impl Example {
     /// Add or change a short description for the [`Example`]. Setting this to empty `String`
     /// will make it not render in the generated OpenAPI document.
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
-        set_value!(self summary summary.into())
+        self.summary = summary.into();
+        self
     }
 
     /// Add or change a long description for the [`Example`]. Markdown syntax is supported for rich
@@ -55,13 +54,15 @@ impl Example {
     /// Setting this to empty `String` will make it not render in the generated
     /// OpenAPI document.
     pub fn description<D: Into<String>>(mut self, description: D) -> Self {
-        set_value!(self description description.into())
+        self.description = description.into();
+        self
     }
 
     /// Add or change embedded literal example value. [`Example::value`] and [`Example::external_value`]
     /// are mutually exclusive.
     pub fn value(mut self, value: serde_json::Value) -> Self {
-        set_value!(self value Some(value))
+        self.value = Some(value);
+        self
     }
 
     /// Add or change an URI that points to a literal example value. [`Example::external_value`]
@@ -71,6 +72,7 @@ impl Example {
     /// Setting this to an empty String will make the field not to render in the generated OpenAPI
     /// document.
     pub fn external_value<E: Into<String>>(mut self, external_value: E) -> Self {
-        set_value!(self external_value external_value.into())
+        self.external_value = external_value.into();
+        self
     }
 }

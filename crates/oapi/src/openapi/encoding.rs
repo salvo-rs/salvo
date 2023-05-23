@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::parameter::ParameterStyle;
-use super::{set_value, Header};
+use super::Header;
 
 /// A single encoding definition applied to a single schema [`Object
 /// property`](crate::openapi::schema::Object::properties).
@@ -53,7 +53,8 @@ pub struct Encoding {
 impl Encoding {
     /// Set the content type. See [`Encoding::content_type`].
     pub fn content_type<S: Into<String>>(mut self, content_type: S) -> Self {
-        set_value!(self content_type Some(content_type.into()))
+        self.content_type = Some(content_type.into());
+        self
     }
 
     /// Add a [`Header`]. See [`Encoding::headers`].
@@ -65,16 +66,19 @@ impl Encoding {
 
     /// Set the style [`ParameterStyle`]. See [`Encoding::style`].
     pub fn style(mut self, style: ParameterStyle) -> Self {
-        set_value!(self style Some(style))
+        self.style = Some(style);
+        self
     }
 
     /// Set the explode. See [`Encoding::explode`].
     pub fn explode(mut self, explode: bool) -> Self {
-        set_value!(self explode Some(explode))
+        self.explode = Some(explode);
+        self
     }
 
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
     pub fn allow_reserved(mut self, allow_reserved: bool) -> Self {
-        set_value!(self allow_reserved Some(allow_reserved))
+        self.allow_reserved = Some(allow_reserved);
+        self
     }
 }

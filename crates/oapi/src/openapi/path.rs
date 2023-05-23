@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-use super::{set_value, Operation, Operations, Parameter, Parameters, Server, Servers};
+use super::{Operation, Operations, Parameter, Parameters, Server, Servers};
 
 /// Implements [OpenAPI Path Object][paths] types.
 ///
@@ -148,24 +148,28 @@ impl PathItem {
 
     /// Add or change summary intended to apply all operations in this [`PathItem`].
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
-        set_value!(self summary Some(summary.into()))
+        self.summary = Some(summary.into());
+        self
     }
 
     /// Add or change optional description intended to apply all operations in this [`PathItem`].
     /// Description supports markdown syntax.
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
-        set_value!(self description Some(description.into()))
+        self.description = Some(description.into());
+        self
     }
 
     /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`] overriding
     /// the global server array.
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        set_value!(self servers Servers(servers.into_iter().collect()))
+        self.servers = Servers(servers.into_iter().collect());
+        self
     }
 
     /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
     pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
-        set_value!(self parameters Parameters(parameters.into_iter().collect()))
+        self.parameters = Parameters(parameters.into_iter().collect());
+        self
     }
 }
 
