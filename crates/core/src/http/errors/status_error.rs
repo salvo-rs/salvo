@@ -34,7 +34,7 @@ pub struct StatusError {
     /// Brief information about http error.
     pub brief: String,
     /// Cause about http error. This field is only used for internal debugging and only used in debug mode.
-    pub cause: Option<Box<dyn Debug + Sync + Send + 'static>>,
+    pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
 }
 impl StatusError {
     /// Sets brief field and returns Self.
@@ -45,9 +45,9 @@ impl StatusError {
     /// Sets cause field and returns Self.
     pub fn cause<C>(mut self, cause: C) -> Self
     where
-        C: fmt::Debug + Sync + Send + 'static,
+        C: Into<Box<dyn StdError + Sync + Send + 'static>>,
     {
-        self.cause = Some(Box::new(cause));
+        self.cause = Some(cause.into());
         self
     }
 

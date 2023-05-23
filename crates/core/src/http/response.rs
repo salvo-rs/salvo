@@ -382,7 +382,9 @@ impl Response {
                     "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
                 ));
             }
-            ResBody::Error(_) => {}
+            ResBody::Error(_) => {
+                self.body = ResBody::Once(data.into());
+            }
         }
         Ok(())
     }

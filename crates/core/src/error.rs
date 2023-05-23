@@ -148,7 +148,7 @@ cfg_feature! {
     #![feature = "eyre"]
     impl Piece for eyre::Report {
         #[inline]
-        fn render(self,  res: &mut Response) {
+        fn render(self, res: &mut Response) {
             tracing::error!(error = ?self, "eyre error occurred");
             res.render(StatusError::internal_server_error().cause(self));
         }

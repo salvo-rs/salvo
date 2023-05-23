@@ -66,6 +66,7 @@ fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&s
         color: var(--text-color);
         text-align: center;
     }}
+    pre {{ text-align: left; }}
     footer{{text-align:center;}}
     @media (prefers-color-scheme: dark) {{
         :root {{
@@ -80,7 +81,7 @@ fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&s
     </style>
 </head>
 <body>
-    <div><h1>{0}: {1}</h1><h3>{2}</h3><p>{3}</p><hr><footer>{4}</footer></div>
+    <div><h1>{0}: {1}</h1><h3>{2}</h3><pre>{3}</pre><hr><footer>{4}</footer></div>
 </body>
 </html>"#,
         code.as_u16(),
@@ -129,7 +130,7 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
         prefer_format.clone()
     };
     #[cfg(debug_assertions)]
-    let cause = err.cause.as_ref().map(|e| format!("{e:#?}"));
+    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e.as_ref()));
     #[cfg(not(debug_assertions))]
     let cause: Option<String> = None;
     let content = match format.subtype().as_ref() {
