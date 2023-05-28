@@ -72,6 +72,10 @@ pub mod prelude {
         pub use crate::conn::NativeTlsListener;
     }
     cfg_feature! {
+        #![feature = "oapi"]
+        pub use crate::oapi::{ToSchema, ToResponse, ToResponses, EndpointArgRegister, EndpointOutRegister};
+    }
+    cfg_feature! {
         #![feature ="openssl"]
         pub use crate::conn::OpensslListener;
     }
