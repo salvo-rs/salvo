@@ -224,7 +224,8 @@ impl ToSchema for StatusError {
                 .required("brief")
                 .property("detail", String::to_schema(components))
                 .property("cause", String::to_schema(components)),
-        ).into()
+        )
+        .into()
     }
 }
 
