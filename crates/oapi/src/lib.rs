@@ -38,6 +38,7 @@ pub use salvo_oapi_macros::ToSchema;
 
 use std::collections::{BTreeMap, HashMap};
 
+use salvo_core::http::StatusError;
 use salvo_core::{extract::Extractible, writer};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
@@ -207,6 +208,23 @@ impl<K: ToSchema, V: ToSchema> ToSchema for BTreeMap<K, V> {
 impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline]HashMap<K, V>).into()
+    }
+}
+
+impl ToSchema for StatusError {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::from(
+            Object::new()
+                .property("code", u16::to_schema(components))
+                .required("code")
+                .required("name")
+                .property("name", String::to_schema(components))
+                .required("brief")
+                .property("brief", String::to_schema(components))
+                .required("brief")
+                .property("detail", String::to_schema(components))
+                .property("cause", String::to_schema(components)),
+        ).into()
     }
 }
 

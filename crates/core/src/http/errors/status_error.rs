@@ -17,6 +17,7 @@ macro_rules! default_errors {
                     code: $code,
                     name: $name.into(),
                     brief: $brief.into(),
+                    detail: None,
                     cause: None,
                 }
             }
@@ -33,6 +34,8 @@ pub struct StatusError {
     pub name: String,
     /// Brief information about http error.
     pub brief: String,
+    /// Detail information about http error.
+    pub detail: Option<String>,
     /// Cause about http error. This field is only used for internal debugging and only used in debug mode.
     pub cause: Option<Box<dyn StdError + Sync + Send + 'static>>,
 }
@@ -40,6 +43,11 @@ impl StatusError {
     /// Sets brief field and returns Self.
     pub fn brief(mut self, brief: impl Into<String>) -> Self {
         self.brief = brief.into();
+        self
+    }
+    /// Sets brief field and returns Self.
+    pub fn detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
         self
     }
     /// Sets cause field and returns Self.
@@ -99,10 +107,11 @@ impl StdError for StatusError {}
 impl Display for StatusError {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "code: {}", &self.code)?;
-        write!(f, "name: {}", &self.name)?;
-        write!(f, "brief: {:?}", &self.brief)?;
-        write!(f, "cause: {:?}", &self.cause)?;
+        write!(f, "code: {}", self.code)?;
+        write!(f, "name: {}", self.name)?;
+        write!(f, "brief: {:?}", self.brief)?;
+        write!(f, "detail: {:?}", self.detail)?;
+        write!(f, "cause: {:?}", self.cause)?;
         Ok(())
     }
 }
