@@ -33,6 +33,8 @@ fn endpoint() {}
 * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
   the performed request.
 
+* `status_codes(...)` Filter responses with these status codes, if status code is not exists in this list, the response will ignored.
+
 * `responses(...)` Slice of responses the endpoint is going to possibly return to the caller.
 
 * `parameters(...)` Slice of parameters that the endpoint accepts.
