@@ -5,7 +5,7 @@ use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
-struct MyObject<T: ToSchema + std::fmt::Debug> {
+struct MyObject<T: ToSchema + std::fmt::Debug + 'static> {
     value: T,
 }
 
