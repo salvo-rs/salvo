@@ -102,7 +102,7 @@ pub async fn update_todo(
         (status = 200, description = "Todo deleted successfully"),
     )
 )]
-pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
+pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) -> Result<(), StatusError> {
     tracing::debug!(id = ?id, "delete todo");
 
     let mut vec = STORE.lock().await;
@@ -113,9 +113,10 @@ pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
     let deleted = vec.len() != len;
     if deleted {
         res.status_code(StatusCode::NO_CONTENT);
+        Ok(())
     } else {
         tracing::debug!(id = ?id, "todo is not found");
-        res.status_code(StatusCode::NOT_FOUND);
+        Err(StatusError::not_found())
     }
 }
 

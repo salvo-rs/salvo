@@ -213,7 +213,8 @@ impl<K: ToSchema, V: ToSchema> ToSchema for HashMap<K, V> {
 
 impl ToSchema for StatusError {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::from(
+        let symbol = std::any::type_name::<StatusError>().replace("::", ".");
+        let schema = Schema::from(
             Object::new()
                 .property("code", u16::to_schema(components))
                 .required("code")
@@ -224,8 +225,9 @@ impl ToSchema for StatusError {
                 .required("brief")
                 .property("detail", String::to_schema(components))
                 .property("cause", String::to_schema(components)),
-        )
-        .into()
+        );
+        components.schemas.insert(symbol.clone(), schema.into());
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
     }
 }
 impl ToSchema for salvo_core::Error {
