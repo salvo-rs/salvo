@@ -228,6 +228,11 @@ impl ToSchema for StatusError {
         .into()
     }
 }
+impl ToSchema for salvo_core::Error {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        StatusError::to_schema(components)
+    }
+}
 
 /// Trait used to convert implementing type to OpenAPI parameters.
 ///
@@ -447,6 +452,11 @@ impl ToResponses for StatusError {
             )
         }
         responses
+    }
+}
+impl ToResponses for salvo_core::Error {
+    fn to_responses(components: &mut Components) -> Responses {
+        StatusError::to_responses(components)
     }
 }
 

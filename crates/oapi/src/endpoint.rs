@@ -62,6 +62,12 @@ impl EndpointOutRegister for StatusError {
         operation.responses.append(&mut Self::to_responses(components));
     }
 }
+impl EndpointOutRegister for salvo_core::Error {
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.append(&mut Self::to_responses(components));
+    }
+}
 
 /// A components for all endpoints.
 pub struct EndpointRegistry {
