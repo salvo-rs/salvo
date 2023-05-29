@@ -2,9 +2,12 @@
 
 use std::any::TypeId;
 
-use salvo_core::{writer, prelude::{StatusCode, StatusError}};
+use salvo_core::{
+    prelude::{StatusCode, StatusError},
+    writer,
+};
 
-use crate::{Components, Operation, Response, ToResponse, ToSchema, ToResponses};
+use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
 /// Represents an endpoint.
 pub struct Endpoint {
@@ -22,7 +25,7 @@ pub trait EndpointArgRegister {
 /// A trait for endpoint return type register.
 pub trait EndpointOutRegister {
     /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
-    fn register(compontents: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]);
+    fn register(compontents: &mut Components, operation: &mut Operation, status_codes: &[StatusCode]);
 }
 
 impl<C> EndpointOutRegister for writer::Json<C>
@@ -30,7 +33,7 @@ where
     C: ToSchema,
 {
     #[inline]
-    fn register(components: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]) {
+    fn register(components: &mut Components, operation: &mut Operation, status_codes: &[StatusCode]) {
         if status_codes.is_empty() || status_codes.contains(&StatusCode::OK) {
             operation.responses.insert("200", Self::to_response(components));
         }
@@ -42,7 +45,7 @@ where
     E: EndpointOutRegister + Send,
 {
     #[inline]
-    fn register(components: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]) {
+    fn register(components: &mut Components, operation: &mut Operation, status_codes: &[StatusCode]) {
         T::register(components, operation, status_codes);
         E::register(components, operation, status_codes);
     }
@@ -60,8 +63,7 @@ where
     }
 }
 
-impl EndpointOutRegister for StatusError
-{
+impl EndpointOutRegister for StatusError {
     #[inline]
     fn register(components: &mut Components, operation: &mut Operation, _status_codes: &[StatusCode]) {
         operation.responses.append(&mut Self::to_responses(components));

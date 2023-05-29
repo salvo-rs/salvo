@@ -440,11 +440,10 @@ impl ToResponses for StatusError {
             StatusError::not_extended(),
             StatusError::network_authentication_required(),
         ];
-        for StatusError {code, brief, ..} in errors {
+        for StatusError { code, brief, .. } in errors {
             responses.insert(
                 code.as_str(),
-                Response::new(brief)
-                    .add_content("application/json", Content::new(StatusError::to_schema(components))),
+                Response::new(brief).add_content("application/json", Content::new(StatusError::to_schema(components))),
             )
         }
         responses

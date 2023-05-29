@@ -11,7 +11,7 @@ use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array, P
 pub(crate) struct EndpointAttr<'p> {
     pub(crate) request_body: Option<RequestBodyAttr<'p>>,
     pub(crate) responses: Vec<Response<'p>>,
-    pub(crate) status_codes:  Vec<Expr>,
+    pub(crate) status_codes: Vec<Expr>,
     pub(crate) operation_id: Option<Expr>,
     pub(crate) tags: Option<Vec<String>>,
     pub(crate) parameters: Vec<Parameter<'p>>,
