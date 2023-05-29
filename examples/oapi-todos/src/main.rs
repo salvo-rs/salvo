@@ -49,12 +49,12 @@ pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Opt
 }
 
 #[endpoint(
+    status_codes(201, 409),
     responses(
         (status = 201, description = "Todo created successfully", body = models::Todo),
-        (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
     )
 )]
-pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
+pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) -> Result<(), StatusError> {
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -62,22 +62,25 @@ pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) {
     for todo in vec.iter() {
         if todo.id == new_todo.id {
             tracing::debug!(id = ?new_todo.id, "todo already exists");
-            res.status_code(StatusCode::BAD_REQUEST);
-            return;
+            return Err(StatusError::bad_request().brief("todo already exists"));
         }
     }
 
     vec.push(new_todo.into_inner());
     res.status_code(StatusCode::CREATED);
+    Ok(())
 }
 
-#[endpoint(
+#[endpoint(status_codes(200, 404),
     responses(
         (status = 200, description = "Todo modified successfully"),
-        (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
-    ),
+    )
 )]
-pub async fn update_todo(id: PathParam<u64>, updated_todo: JsonBody<Todo>, res: &mut Response) {
+pub async fn update_todo(
+    id: PathParam<u64>,
+    updated_todo: JsonBody<Todo>,
+    res: &mut Response,
+) -> Result<(), StatusError> {
     tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
@@ -85,20 +88,19 @@ pub async fn update_todo(id: PathParam<u64>, updated_todo: JsonBody<Todo>, res: 
         if todo.id == *id {
             *todo = (*updated_todo).clone();
             res.status_code(StatusCode::OK);
-            return;
+            return Ok(());
         }
     }
 
     tracing::debug!(id = ?id, "todo is not found");
-    res.status_code(StatusCode::NOT_FOUND);
+    Err(StatusError::not_found())
 }
 
 #[endpoint(
+    status_codes(200, 401, 404),
     responses(
         (status = 200, description = "Todo deleted successfully"),
-        (status = 401, description = "Unauthorized to delete Todo"),
-        (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
-    ),
+    )
 )]
 pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) {
     tracing::debug!(id = ?id, "delete todo");

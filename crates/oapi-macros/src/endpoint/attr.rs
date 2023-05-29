@@ -11,6 +11,7 @@ use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array, P
 pub(crate) struct EndpointAttr<'p> {
     pub(crate) request_body: Option<RequestBodyAttr<'p>>,
     pub(crate) responses: Vec<Response<'p>>,
+    pub(crate) status_codes:  Vec<Expr>,
     pub(crate) operation_id: Option<Expr>,
     pub(crate) tags: Option<Vec<String>>,
     pub(crate) parameters: Vec<Parameter<'p>>,
@@ -42,6 +43,12 @@ impl Parse for EndpointAttr<'_> {
                     parenthesized!(responses in input);
                     attr.responses = Punctuated::<Response, Comma>::parse_terminated(&responses)
                         .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                }
+                "status_codes" => {
+                    let status_codes;
+                    parenthesized!(status_codes in input);
+                    attr.status_codes = Punctuated::<Expr, Comma>::parse_terminated(&status_codes)
+                        .map(|punctuated| punctuated.into_iter().collect::<Vec<Expr>>())?;
                 }
                 "parameters" => {
                     let parameters;

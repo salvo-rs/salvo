@@ -396,6 +396,61 @@ where
     }
 }
 
+impl ToResponses for StatusError {
+    fn to_responses(components: &mut Components) -> Responses {
+        let mut responses = Responses::new();
+        let errors = vec![
+            StatusError::bad_request(),
+            StatusError::unauthorized(),
+            StatusError::payment_required(),
+            StatusError::forbidden(),
+            StatusError::not_found(),
+            StatusError::method_not_allowed(),
+            StatusError::not_acceptable(),
+            StatusError::proxy_authentication_required(),
+            StatusError::request_timeout(),
+            StatusError::conflict(),
+            StatusError::gone(),
+            StatusError::length_required(),
+            StatusError::precondition_failed(),
+            StatusError::payload_too_large(),
+            StatusError::uri_too_long(),
+            StatusError::unsupported_media_type(),
+            StatusError::range_not_satisfiable(),
+            StatusError::expectation_failed(),
+            StatusError::im_a_teapot(),
+            StatusError::misdirected_request(),
+            StatusError::unprocessable_entity(),
+            StatusError::locked(),
+            StatusError::failed_dependency(),
+            StatusError::upgrade_required(),
+            StatusError::precondition_required(),
+            StatusError::too_many_requests(),
+            StatusError::request_header_fields_toolarge(),
+            StatusError::unavailable_for_legalreasons(),
+            StatusError::internal_server_error(),
+            StatusError::not_implemented(),
+            StatusError::bad_gateway(),
+            StatusError::service_unavailable(),
+            StatusError::gateway_timeout(),
+            StatusError::http_version_not_supported(),
+            StatusError::variant_also_negotiates(),
+            StatusError::insufficient_storage(),
+            StatusError::loop_detected(),
+            StatusError::not_extended(),
+            StatusError::network_authentication_required(),
+        ];
+        for StatusError {code, brief, ..} in errors {
+            responses.insert(
+                code.as_str(),
+                Response::new(brief)
+                    .add_content("application/json", Content::new(StatusError::to_schema(components))),
+            )
+        }
+        responses
+    }
+}
+
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///

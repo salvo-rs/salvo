@@ -2,9 +2,9 @@
 
 use std::any::TypeId;
 
-use salvo_core::writer;
+use salvo_core::{writer, prelude::{StatusCode, StatusError}};
 
-use crate::{Components, Operation, Response, ToResponse, ToSchema};
+use crate::{Components, Operation, Response, ToResponse, ToSchema, ToResponses};
 
 /// Represents an endpoint.
 pub struct Endpoint {
@@ -22,7 +22,7 @@ pub trait EndpointArgRegister {
 /// A trait for endpoint return type register.
 pub trait EndpointOutRegister {
     /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
-    fn register(compontents: &mut Components, operation: &mut Operation);
+    fn register(compontents: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]);
 }
 
 impl<C> EndpointOutRegister for writer::Json<C>
@@ -30,8 +30,10 @@ where
     C: ToSchema,
 {
     #[inline]
-    fn register(components: &mut Components, operation: &mut Operation) {
-        operation.responses.insert("200", Self::to_response(components))
+    fn register(components: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]) {
+        if status_codes.is_empty() || status_codes.contains(&StatusCode::OK) {
+            operation.responses.insert("200", Self::to_response(components));
+        }
     }
 }
 impl<T, E> EndpointOutRegister for Result<T, E>
@@ -40,9 +42,9 @@ where
     E: EndpointOutRegister + Send,
 {
     #[inline]
-    fn register(components: &mut Components, operation: &mut Operation) {
-        T::register(components, operation);
-        E::register(components, operation);
+    fn register(components: &mut Components, operation: &mut Operation, status_codes:  &[StatusCode]) {
+        T::register(components, operation, status_codes);
+        E::register(components, operation, status_codes);
     }
 }
 impl<E> EndpointOutRegister for Result<(), E>
@@ -50,9 +52,19 @@ where
     E: EndpointOutRegister + Send,
 {
     #[inline]
-    fn register(components: &mut Components, operation: &mut Operation) {
-        operation.responses.insert("200", Response::new("Ok"));
-        E::register(components, operation);
+    fn register(components: &mut Components, operation: &mut Operation, status_codes: &[StatusCode]) {
+        if status_codes.is_empty() || status_codes.contains(&StatusCode::OK) {
+            operation.responses.insert("200", Response::new("Ok"));
+        }
+        E::register(components, operation, status_codes);
+    }
+}
+
+impl EndpointOutRegister for StatusError
+{
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation, _status_codes: &[StatusCode]) {
+        operation.responses.append(&mut Self::to_responses(components));
     }
 }
 

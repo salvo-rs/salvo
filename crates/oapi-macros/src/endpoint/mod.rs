@@ -1,14 +1,15 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
+use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type, Expr};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation};
+use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation, Array};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;
 
 fn metadata(
+    salvo: &Ident,
     oapi: &Ident,
     attr: EndpointAttr,
     name: &Ident,
@@ -18,22 +19,47 @@ fn metadata(
     let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
     modifiers.append(opt.modifiers().as_mut());
+    let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr|{
+        match expr {
+            Expr::Lit(lit) => {
+                quote! {
+                    #salvo::http::StatusCode::from_u16(#lit).unwrap()
+                }
+            }
+            _ => {
+                quote! {
+                    #expr
+                }
+            }
+        }
+    }));
     Ok(quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
         }
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
+            let status_codes = #status_codes;
             fn get_operation(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Operation {
                 #opt
             }
-            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, status_codes: &[#salvo::http::StatusCode]) {
                 #(#modifiers)*
             }
             let mut operation = get_operation(&mut components);
-            modify(&mut components, &mut operation);
+            modify(&mut components, &mut operation, &status_codes);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
+            }
+            if !status_codes.is_empty() {
+                let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
+                responses.retain(|k,_| {
+                    if let Ok(code) = <#salvo::http::StatusCode as std::str::FromStr>::from_str(k) {
+                        status_codes.contains(&code)
+                    } else {
+                        true
+                    }
+                });
             }
             #oapi::oapi::Endpoint{
                 operation,
@@ -85,7 +111,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             });
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
-            let meta = metadata(&oapi, attr, name, modifiers)?;
+            let meta = metadata(&salvo, &oapi, attr, name, modifiers)?;
             Ok(quote! {
                 #sdef
                 #[#salvo::async_trait]
@@ -123,7 +149,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
             let name = Ident::new(&ty.to_token_stream().to_string(), Span::call_site());
-            let meta = metadata(&oapi, attr, &name, modifiers)?;
+            let meta = metadata(&salvo, &oapi, attr, &name, modifiers)?;
 
             Ok(quote! {
                 #item_impl
@@ -141,7 +167,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
     }
 }
 
-fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature, ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
@@ -222,7 +248,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
         }
         ReturnType::Type(_, ty) => {
             modifiers.push(quote! {
-                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
+                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation, status_codes);
             });
             if sig.asyncness.is_none() {
                 quote! {
