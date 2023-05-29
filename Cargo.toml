@@ -111,7 +111,7 @@ tokio-rustls = "0.24.0"
 tokio-openssl = "0.6"
 tokio-stream = { version = "0.1", default-features = false }
 tokio-util = "0.7"
-tokio-tungstenite = { version = "0.18", default-features = false }
+tokio-tungstenite = { version = "0.19", default-features = false }
 tracing-subscriber = { version = "0.3" }
 tracing = "0.1"
 tracing-test = "0.2.1"
