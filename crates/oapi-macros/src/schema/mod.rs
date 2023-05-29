@@ -63,7 +63,8 @@ impl ToTokens for ToSchema<'_> {
             let ty_params = ty_params
                 .map(|ty_param| {
                     let ty = &ty_param.ident;
-                    quote! {if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
+                    quote! {
+                        if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
                             symbol
                         } else {
                             std::any::type_name::<#ty>().to_string()

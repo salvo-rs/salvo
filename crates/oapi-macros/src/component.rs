@@ -307,7 +307,11 @@ impl<'c> ComponentSchema {
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                                    if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
+                                        #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
+                                    } else {
+                                        #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                                    }
                                 }
                             })
                             .to_tokens(tokens);
