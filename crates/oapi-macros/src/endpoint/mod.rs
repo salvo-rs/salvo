@@ -1,9 +1,9 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Ident, ImplItem, Item, Pat, ReturnType, Signature, Type, Expr};
+use syn::{Expr, Ident, ImplItem, Item, Pat, ReturnType, Signature, Type};
 
 use crate::doc_comment::CommentAttributes;
-use crate::{omit_type_path_lifetimes, parse_input_type, InputType, Operation, Array};
+use crate::{omit_type_path_lifetimes, parse_input_type, Array, InputType, Operation};
 
 mod attr;
 pub(crate) use attr::EndpointAttr;
@@ -19,17 +19,15 @@ fn metadata(
     let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
     modifiers.append(opt.modifiers().as_mut());
-    let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr|{
-        match expr {
-            Expr::Lit(lit) => {
-                quote! {
-                    #salvo::http::StatusCode::from_u16(#lit).unwrap()
-                }
+    let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
+        Expr::Lit(lit) => {
+            quote! {
+                #salvo::http::StatusCode::from_u16(#lit).unwrap()
             }
-            _ => {
-                quote! {
-                    #expr
-                }
+        }
+        _ => {
+            quote! {
+                #expr
             }
         }
     }));
@@ -167,7 +165,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
     }
 }
 
-fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature, ) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());
