@@ -51,7 +51,6 @@ impl<'r> ToResponse<'r> {
 
 impl ToTokens for ToResponse<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let salvo = crate::salvo_crate();
         let oapi = crate::oapi_crate();
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
@@ -70,7 +69,7 @@ impl ToTokens for ToResponse<'_> {
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {
-                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, status_codes: &[#salvo::http::StatusCode]) {
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                     operation.responses.insert("200", <Self as #oapi::oapi::ToResponse>::to_response(components))
                 }
             }
@@ -87,7 +86,6 @@ pub(crate) struct ToResponses {
 
 impl ToTokens for ToResponses {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let salvo = crate::salvo_crate();
         let oapi = crate::oapi_crate();
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
@@ -150,12 +148,8 @@ impl ToTokens for ToResponses {
                 }
             }
             impl #impl_generics #oapi::oapi::EndpointOutRegister for #ident #ty_generics #where_clause {
-                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, status_codes: &[#salvo::http::StatusCode]) {
-                    for (key, response) in <Self as #oapi::oapi::ToResponses>::to_responses(components) {
-                        if status_codes.is_empty() || status_codes.contains(&key) {
-                            operation.responses.insert(key, response);
-                        }
-                    }
+                fn register(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
+                    operation.responses.append(&mut <Self as #oapi::oapi::ToResponses>::to_responses(components));
                 }
             }
         })

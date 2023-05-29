@@ -39,15 +39,15 @@ fn metadata(
         }
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
-            let status_codes = #status_codes;
+            let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
             fn get_operation(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Operation {
                 #opt
             }
-            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation, status_codes: &[#salvo::http::StatusCode]) {
+            fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                 #(#modifiers)*
             }
             let mut operation = get_operation(&mut components);
-            modify(&mut components, &mut operation, &status_codes);
+            modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
             }
@@ -248,7 +248,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature, ) -> syn::Result<(Tok
         }
         ReturnType::Type(_, ty) => {
             modifiers.push(quote! {
-                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation, status_codes);
+                <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
             });
             if sig.asyncness.is_none() {
                 quote! {
