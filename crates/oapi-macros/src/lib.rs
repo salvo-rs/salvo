@@ -175,6 +175,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
+        type_definition: false,
     });
     schema.to_token_stream().into()
 }

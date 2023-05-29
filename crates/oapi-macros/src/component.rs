@@ -15,6 +15,7 @@ pub(crate) struct ComponentSchemaProps<'c> {
     pub(crate) description: Option<&'c CommentAttributes>,
     pub(crate) deprecated: Option<&'c Deprecated>,
     pub(crate) object_name: &'c str,
+    pub(crate) type_definition: bool,
 }
 
 #[derive(Debug)]
@@ -30,6 +31,7 @@ impl<'c> ComponentSchema {
             description,
             deprecated,
             object_name,
+            type_definition,
         }: ComponentSchemaProps,
     ) -> Self {
         let mut tokens = TokenStream::new();
@@ -45,6 +47,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
+                type_definition,
             ),
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -53,6 +56,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
+                type_definition,
             ),
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -72,6 +76,7 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
+                    type_definition,
                 })
                 .to_tokens(&mut tokens);
             }
@@ -88,6 +93,7 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
+                    type_definition,
                 })
                 .to_tokens(&mut tokens);
             }
@@ -98,6 +104,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
+                type_definition,
             ),
         }
 
@@ -111,6 +118,7 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
+        type_definition: bool,
     ) {
         let oapi = crate::oapi_crate();
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
@@ -137,6 +145,7 @@ impl<'c> ComponentSchema {
                     description: None,
                     deprecated: None,
                     object_name,
+                    type_definition,
                 });
 
                 quote! { .additional_properties(#schema_property) }
@@ -160,6 +169,7 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
+        type_definition: bool,
     ) {
         let oapi = crate::oapi_crate();
         let example = pop_feature!(features => Feature::Example(_));
@@ -195,6 +205,7 @@ impl<'c> ComponentSchema {
                 description: None,
                 deprecated: None,
                 object_name,
+                type_definition,
             });
 
             quote! {
@@ -236,6 +247,7 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
+        type_definition: bool,
     ) {
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let oapi = crate::oapi_crate();
@@ -281,18 +293,31 @@ impl<'c> ComponentSchema {
                     })
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
+                    let schema = if type_definition {
+                        quote! {
+                            if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
+                                #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
+                            } else {
+                                #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                            }
+                        }
+                    } else {
+                        quote! {
+                            <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                        }
+                    };
                     if is_inline {
                         nullable
                             .map(|nullable| {
                                 quote_spanned! {type_path.span()=>
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                                        .item(#schema)
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote_spanned! {type_path.span() =>
-                                    <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
+                                    #schema
                                 }
                             })
                             .to_tokens(tokens);
@@ -302,16 +327,12 @@ impl<'c> ComponentSchema {
                                 quote! {
                                     #oapi::oapi::schema::AllOf::new()
                                         #nullable
-                                        .item(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
+                                        .item(#schema)
                                 }
                             })
                             .unwrap_or_else(|| {
                                 quote! {
-                                    if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
-                                        #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
-                                    } else {
-                                        #oapi::oapi::RefOr::from(<#type_path as #oapi::oapi::ToSchema>::to_schema(components))
-                                    }
+                                    #schema
                                 }
                             })
                             .to_tokens(tokens);
@@ -339,6 +360,7 @@ impl<'c> ComponentSchema {
                                         description: None,
                                         deprecated: None,
                                         object_name,
+                                        type_definition,
                                     });
                                     all_of.extend(quote!( .item(#item) ));
 

@@ -269,6 +269,7 @@ impl ToTokens for ResponseTuple<'_> {
                                 description: None,
                                 deprecated: None,
                                 object_name: "",
+                                type_definition: false,
                             })
                             .to_token_stream()
                         }
@@ -801,6 +802,7 @@ impl ToTokens for Header {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                type_definition: false,
             })
             .to_token_stream();
 

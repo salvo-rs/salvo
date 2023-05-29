@@ -92,6 +92,7 @@ impl NamedStructSchema<'_> {
                     description: Some(&comments),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    type_definition: true,
                 }))
             },
             rename_field_value: rename_field,
@@ -279,6 +280,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                     description: None,
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    type_definition: true,
                 })
                 .to_token_stream(),
             );
