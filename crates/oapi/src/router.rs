@@ -21,7 +21,7 @@ impl NormNode {
             let info = format!("{filter:?}");
             if info.starts_with("path:") {
                 let path = info.split_once(':').unwrap().1;
-                node.path = Some(regex.replace(path, "{$1}").to_string());
+                node.path = Some(regex.replace_all(path, "{$1}").to_string());
             } else if info.starts_with("method:") {
                 match info.split_once(':').unwrap().1 {
                     "GET" => node.method = Some(PathItemType::Get),
