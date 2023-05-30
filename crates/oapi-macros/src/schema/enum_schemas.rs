@@ -14,7 +14,7 @@ use crate::{
     feature::{Example, Rename},
     schema::{
         serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-        VariantRename,
+        VariantRename, Inline,
     },
     type_tree::{TypeTree, ValueType},
 };
@@ -34,6 +34,7 @@ use super::{
 pub(crate) struct EnumSchema<'a> {
     pub(super) schema_type: EnumSchemaType<'a>,
     pub(super) symbol: Option<Symbol>,
+    pub(super) inline: Option<Inline>,
 }
 
 impl<'e> EnumSchema<'e> {
@@ -60,12 +61,14 @@ impl<'e> EnumSchema<'e> {
                                 input as crate::feature::Example,
                                 crate::feature::Default,
                                 crate::feature::Title,
+                                crate::feature::Inline,
                                 Symbol
                             ))
                         })
                         .unwrap_or_default();
 
                         let symbol = pop_feature_as_inner!(repr_enum_features => Feature::Symbol(_v));
+                        let inline: Option<Inline> = pop_feature_as_inner!(repr_enum_features => Feature::Inline(_v));
                         Self {
                             schema_type: EnumSchemaType::Repr(ReprEnum {
                                 variants,
@@ -74,6 +77,7 @@ impl<'e> EnumSchema<'e> {
                                 enum_features: repr_enum_features,
                             }),
                             symbol,
+                            inline,
                         }
                     })
                     .unwrap_or_else(|| {
@@ -83,6 +87,7 @@ impl<'e> EnumSchema<'e> {
                             .unwrap_or_default();
                         let symbol = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                         let rename_all = simple_enum_features.pop_rename_all_feature();
+                        let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
                         Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
@@ -92,6 +97,7 @@ impl<'e> EnumSchema<'e> {
                                 rename_all,
                             }),
                             symbol,
+                            inline,
                         }
                     })
             }
@@ -104,6 +110,7 @@ impl<'e> EnumSchema<'e> {
                     .unwrap_or_default();
                 let symbol: Option<Symbol> = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                 let rename_all = simple_enum_features.pop_rename_all_feature();
+                let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
                 Self {
                     schema_type: EnumSchemaType::Simple(SimpleEnum {
@@ -113,6 +120,7 @@ impl<'e> EnumSchema<'e> {
                         rename_all,
                     }),
                     symbol,
+                    inline,
                 }
             }
         } else {
@@ -122,6 +130,7 @@ impl<'e> EnumSchema<'e> {
                 .unwrap_or_default();
             let symbol = pop_feature_as_inner!(enum_features => Feature::Symbol(_v));
             let rename_all = enum_features.pop_rename_all_feature();
+            let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
 
             Self {
                 schema_type: EnumSchemaType::Complex(ComplexEnum {
@@ -132,6 +141,7 @@ impl<'e> EnumSchema<'e> {
                     enum_features,
                 }),
                 symbol,
+                inline,
             }
         }
     }
@@ -375,6 +385,7 @@ impl ComplexEnum<'_> {
                         fields: &named_fields.named,
                         generics: None,
                         symbol: None,
+                        inline: None,
                     },
                 })
             }
@@ -405,6 +416,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         symbol: None,
+                        inline: None,
                     },
                 })
             }
@@ -463,6 +475,7 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     symbol: None,
+                    inline: None,
                 }
                 .to_token_stream()
             }
@@ -479,6 +492,7 @@ impl ComplexEnum<'_> {
                     features: Some(unnamed_struct_features),
                     fields: &unnamed_fields.unnamed,
                     symbol: None,
+                    inline: None,
                 }
                 .to_token_stream()
             }
@@ -530,6 +544,7 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     symbol: None,
+                    inline: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
 
@@ -565,6 +580,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         symbol: None,
+                        inline: None,
                     };
 
                     let title = title_features.first().map(ToTokens::to_token_stream);
@@ -675,6 +691,7 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     generics: None,
                     symbol: None,
+                    inline: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
 
@@ -713,6 +730,7 @@ impl ComplexEnum<'_> {
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         symbol: None,
+                        inline: None,
                     };
 
                     let title = title_features.first().map(ToTokens::to_token_stream);

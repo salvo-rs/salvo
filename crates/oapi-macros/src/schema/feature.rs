@@ -26,6 +26,7 @@ impl Parse for NamedFieldStructFeatures {
             MaxProperties,
             MinProperties,
             Symbol,
+            Inline,
             Default
         )))
     }
@@ -44,7 +45,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Title,
             Format,
             ValueType,
-            Symbol
+            Symbol,
+            Inline
         )))
     }
 }
@@ -60,7 +62,8 @@ impl Parse for EnumFeatures {
             Default,
             Title,
             RenameAll,
-            Symbol
+            Symbol,
+            Inline
         )))
     }
 }
@@ -75,7 +78,8 @@ impl Parse for ComplexEnumFeatures {
             input as Example,
             Default,
             RenameAll,
-            Symbol
+            Symbol,
+            Inline
         )))
     }
 }

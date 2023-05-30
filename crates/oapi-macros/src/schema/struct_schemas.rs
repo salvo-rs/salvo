@@ -8,7 +8,7 @@ use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
     feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
-    type_tree::{TypeTree, ValueType},
+    type_tree::{TypeTree, ValueType},schema::Inline,
 };
 
 use super::{
@@ -28,6 +28,7 @@ pub(crate) struct NamedStructSchema<'a> {
     #[allow(dead_code)]
     pub(crate) generics: Option<&'a Generics>,
     pub(crate) symbol: Option<Symbol>,
+    pub(crate) inline: Option<Inline>,
 }
 
 struct NamedStructFieldOptions<'a> {
@@ -227,6 +228,7 @@ pub(super) struct UnnamedStructSchema<'a> {
     pub(super) attributes: &'a [Attribute],
     pub(super) features: Option<Vec<Feature>>,
     pub(super) symbol: Option<Symbol>,
+    pub(super) inline: Option<Inline>,
 }
 
 impl ToTokens for UnnamedStructSchema<'_> {
