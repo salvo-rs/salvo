@@ -8,7 +8,8 @@ use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
     feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
-    type_tree::{TypeTree, ValueType},schema::Inline,
+    schema::Inline,
+    type_tree::{TypeTree, ValueType},
 };
 
 use super::{

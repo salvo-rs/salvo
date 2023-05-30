@@ -14,7 +14,7 @@ use crate::{
     feature::{Example, Rename},
     schema::{
         serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-        VariantRename, Inline,
+        Inline, VariantRename,
     },
     type_tree::{TypeTree, ValueType},
 };

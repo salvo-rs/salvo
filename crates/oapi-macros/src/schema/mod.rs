@@ -60,7 +60,7 @@ impl ToTokens for ToSchema<'_> {
 
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let inline = variant.inline().as_ref().map(|i|i.0).unwrap_or(false);
+        let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
         let symbol = if inline {
             None
         } else if let Some(Symbol(symbol)) = variant.symbol() {
@@ -93,7 +93,7 @@ impl ToTokens for ToSchema<'_> {
                 quote! {
                     #variant.into()
                 }
-            },
+            }
             Some(symbol) => {
                 quote! {
                     let schema = #variant;
