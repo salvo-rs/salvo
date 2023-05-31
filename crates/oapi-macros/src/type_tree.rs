@@ -147,7 +147,7 @@ impl<'t> TypeTree<'t> {
                 if angle_bracketed_args
                     .args
                     .iter()
-                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
                 {
                     None
                 } else {
@@ -155,7 +155,7 @@ impl<'t> TypeTree<'t> {
                         angle_bracketed_args
                             .args
                             .iter()
-                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_) | GenericArgument::Const(_)))
                             .map(|arg| match arg {
                                 GenericArgument::Type(arg) => arg,
                                 _ => abort!(arg, "expected generic argument type or generic argument lifetime"),
