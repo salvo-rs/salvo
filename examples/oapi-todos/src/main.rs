@@ -36,6 +36,7 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 
+/// List todos.
 #[endpoint]
 pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Option<usize>>) -> Json<Vec<Todo>> {
     let todos = STORE.lock().await;
@@ -48,6 +49,7 @@ pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Opt
     Json(todos)
 }
 
+/// Create new todo.
 #[endpoint(status_codes(201, 409))]
 pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?new_todo, "create todo");
@@ -65,6 +67,7 @@ pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusE
     Ok(StatusCode::CREATED)
 }
 
+/// Update existing todo.
 #[endpoint(status_codes(200, 404))]
 pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?updated, id = ?id, "update todo");
@@ -81,6 +84,7 @@ pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<
     Err(StatusError::not_found())
 }
 
+/// Delete todo.
 #[endpoint(status_codes(200, 401, 404))]
 pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> {
     tracing::debug!(id = ?id, "delete todo");
