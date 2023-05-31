@@ -48,13 +48,8 @@ pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Opt
     Json(todos)
 }
 
-#[endpoint(
-    status_codes(201, 409),
-    responses(
-        (status = 201, description = "Todo created successfully", body = models::Todo),
-    )
-)]
-pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) -> Result<(), StatusError> {
+#[endpoint(status_codes(201, 409))]
+pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?new_todo, "create todo");
 
     let mut vec = STORE.lock().await;
@@ -67,28 +62,18 @@ pub async fn create_todo(new_todo: JsonBody<Todo>, res: &mut Response) -> Result
     }
 
     vec.push(new_todo.into_inner());
-    res.status_code(StatusCode::CREATED);
-    Ok(())
+    Ok(StatusCode::CREATED)
 }
 
-#[endpoint(status_codes(200, 404),
-    responses(
-        (status = 200, description = "Todo modified successfully"),
-    )
-)]
-pub async fn update_todo(
-    id: PathParam<u64>,
-    updated_todo: JsonBody<Todo>,
-    res: &mut Response,
-) -> Result<(), StatusError> {
-    tracing::debug!(todo = ?updated_todo, id = ?id, "update todo");
+#[endpoint(status_codes(200, 404))]
+pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
+    tracing::debug!(todo = ?updated, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter_mut() {
         if todo.id == *id {
-            *todo = (*updated_todo).clone();
-            res.status_code(StatusCode::OK);
-            return Ok(());
+            *todo = (*updated).clone();
+            return Ok(StatusCode::OK);
         }
     }
 
@@ -96,13 +81,8 @@ pub async fn update_todo(
     Err(StatusError::not_found())
 }
 
-#[endpoint(
-    status_codes(200, 401, 404),
-    responses(
-        (status = 200, description = "Todo deleted successfully"),
-    )
-)]
-pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) -> Result<(), StatusError> {
+#[endpoint(status_codes(200, 401, 404))]
+pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> {
     tracing::debug!(id = ?id, "delete todo");
 
     let mut vec = STORE.lock().await;
@@ -112,8 +92,7 @@ pub async fn delete_todo(id: PathParam<u64>, res: &mut Response) -> Result<(), S
 
     let deleted = vec.len() != len;
     if deleted {
-        res.status_code(StatusCode::NO_CONTENT);
-        Ok(())
+        Ok(StatusCode::NO_CONTENT)
     } else {
         tracing::debug!(id = ?id, "todo is not found");
         Err(StatusError::not_found())
