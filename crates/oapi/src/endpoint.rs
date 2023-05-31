@@ -107,6 +107,34 @@ impl EndpointOutRegister for salvo_core::Error {
     }
 }
 
+impl EndpointOutRegister for &'static str {
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.insert(
+            "200",
+            Response::new("Ok").add_content("text/plain", String::to_schema(components)),
+        );
+    }
+}
+impl EndpointOutRegister for String {
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.insert(
+            "200",
+            Response::new("Ok").add_content("text/plain", String::to_schema(components)),
+        );
+    }
+}
+impl<'a> EndpointOutRegister for &'a String {
+    #[inline]
+    fn register(components: &mut Components, operation: &mut Operation) {
+        operation.responses.insert(
+            "200",
+            Response::new("Ok").add_content("text/plain", String::to_schema(components)),
+        );
+    }
+}
+
 /// A components for all endpoints.
 pub struct EndpointRegistry {
     /// The type id of the endpoint.
