@@ -4,6 +4,7 @@ mod json;
 mod redirect;
 mod text;
 
+use http::StatusCode;
 pub use json::Json;
 pub use redirect::Redirect;
 pub use text::Text;
@@ -22,6 +23,24 @@ pub trait Writer {
     /// Write data to [`Response`].
     #[must_use = "write future must be used"]
     async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
+}
+
+/// `Piece` is used to write data to [`Response`].
+///
+/// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
+pub trait Piece {
+    /// Render data to [`Response`].
+    fn render(self, res: &mut Response);
+}
+#[async_trait]
+impl<P> Writer for P
+where
+    P: Piece + Sized + Send,
+{
+    #[inline]
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        self.render(res)
+    }
 }
 
 #[async_trait]
@@ -43,29 +62,19 @@ where
     }
 }
 
-/// `Piece` is used to write data to [`Response`].
-///
-/// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
-pub trait Piece {
-    /// Render data to [`Response`].
-    fn render(self, res: &mut Response);
-}
-#[async_trait]
-impl<P> Writer for P
-where
-    P: Piece + Sized + Send,
-{
-    #[inline]
-    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.render(res)
-    }
-}
-
 #[allow(clippy::unit_arg)]
 impl Piece for () {
     #[inline]
     fn render(self, _res: &mut Response) {}
 }
+
+impl Piece for StatusCode {
+    #[inline]
+    fn render(self, res: &mut Response) {
+        res.status_code(self);
+    }
+}
+
 impl Piece for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
