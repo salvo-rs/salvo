@@ -127,7 +127,8 @@ where
         let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Header)
             .description(format!("Get parameter `{arg}` from request headers."))
-            .schema(T::to_schema(components)).required(R);
+            .schema(T::to_schema(components))
+            .required(R);
         operation.parameters.insert(parameter);
     }
 }

@@ -11,7 +11,7 @@ use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by the URI path.
-pub struct QueryParam<T, const REQUIRED: bool> (Option<T>);
+pub struct QueryParam<T, const REQUIRED: bool>(Option<T>);
 impl<T> QueryParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
@@ -59,7 +59,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| QueryParam (Some(value)))
+        T::deserialize(deserializer).map(|value| QueryParam(Some(value)))
     }
 }
 
@@ -68,7 +68,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-       self.0.fmt(f)
+        self.0.fmt(f)
     }
 }
 

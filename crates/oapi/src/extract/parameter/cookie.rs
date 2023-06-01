@@ -110,10 +110,7 @@ where
         unimplemented!("cookie parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req
-            .cookies()
-            .get(arg)
-            .and_then(|v| from_str_val(v.value()).ok());
+        let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))
     }
 }
