@@ -11,29 +11,47 @@ use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by header.
-pub struct HeaderParam<T>(pub T);
-impl<T> HeaderParam<T> {
+pub struct HeaderParam<T, const REQUIRED: bool>(Option<T>);
+impl<T> HeaderParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
+        self.0.unwrap()
+    }
+}
+impl<T> HeaderParam<T, false> {
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_inner(self) -> Option<T> {
         self.0
     }
 }
 
-impl<T> Deref for HeaderParam<T> {
+impl<T> Deref for HeaderParam<T, true> {
     type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().unwrap()
+    }
+}
+impl<T> Deref for HeaderParam<T, false> {
+    type Target = Option<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T> DerefMut for HeaderParam<T> {
+impl<T> DerefMut for HeaderParam<T, true> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().unwrap()
+    }
+}
+impl<T> DerefMut for HeaderParam<T, false> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'de, T> Deserialize<'de> for HeaderParam<T>
+impl<'de, T, const R: bool> Deserialize<'de> for HeaderParam<T, R>
 where
     T: Deserialize<'de>,
 {
@@ -41,11 +59,22 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| HeaderParam(value))
+        T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
     }
 }
+// impl<'de, T> Deserialize<'de> for HeaderParam<T, false>
+// where
+//     T: Deserialize<'de>,
+// {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         T::deserialize(deserializer).map(|value| HeaderParam(Some(value)))
+//     }
+// }
 
-impl<T> fmt::Debug for HeaderParam<T>
+impl<T, const R: bool> fmt::Debug for HeaderParam<T, R>
 where
     T: fmt::Debug,
 {
@@ -55,7 +84,7 @@ where
 }
 
 #[async_trait]
-impl<'de, T> Extractible<'de> for HeaderParam<T>
+impl<'de, T> Extractible<'de> for HeaderParam<T, true>
 where
     T: Deserialize<'de>,
 {
@@ -73,67 +102,8 @@ where
         Ok(Self(value))
     }
 }
-
-impl<T> EndpointArgRegister for HeaderParam<T>
-where
-    T: ToSchema,
-{
-    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg)
-            .parameter_in(ParameterIn::Header)
-            .description(format!("Get parameter `{arg}` from request headers."))
-            .schema(T::to_schema(components)).required(true);
-        operation.parameters.insert(parameter);
-    }
-}
-
-
-/// Represents the optional parameters passed by header.
-pub struct OptionalHeaderParam<T>(pub Option<T>);
-impl<T> OptionalHeaderParam<T> {
-    /// Consumes self and returns the value of the parameter.
-    pub fn into_inner(self) -> Option<T> {
-        self.0
-    }
-}
-
-impl<T> Deref for OptionalHeaderParam<T> {
-    type Target = Option<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for OptionalHeaderParam<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OptionalHeaderParam<T>
-where
-    T: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        T::deserialize(deserializer).map(|value| OptionalHeaderParam(Some(value)))
-    }
-}
-
-impl<T> fmt::Debug for OptionalHeaderParam<T>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 #[async_trait]
-impl<'de, T> Extractible<'de> for OptionalHeaderParam<T>
+impl<'de, T> Extractible<'de> for HeaderParam<T, false>
 where
     T: Deserialize<'de>,
 {
@@ -149,15 +119,15 @@ where
     }
 }
 
-impl<T> EndpointArgRegister for OptionalHeaderParam<T>
+impl<T, const R: bool> EndpointArgRegister for HeaderParam<T, R>
 where
     T: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Header)
-            .description(format!("Get option parameter `{arg}` from request headers."))
-            .schema(T::to_schema(components)).required(true);
+            .description(format!("Get parameter `{arg}` from request headers."))
+            .schema(T::to_schema(components)).required(R);
         operation.parameters.insert(parameter);
     }
 }

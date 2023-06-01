@@ -11,29 +11,47 @@ use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
 
 /// Represents the parameters passed by the URI path.
-pub struct QueryParam<T>(pub T);
-impl<T> QueryParam<T> {
+pub struct QueryParam<T, const REQUIRED: bool> (Option<T>);
+impl<T> QueryParam<T, true> {
     /// Consumes self and returns the value of the parameter.
     pub fn into_inner(self) -> T {
+        self.0.unwrap()
+    }
+}
+impl<T> QueryParam<T, false> {
+    /// Consumes self and returns the value of the parameter.
+    pub fn into_inner(self) -> Option<T> {
         self.0
     }
 }
 
-impl<T> Deref for QueryParam<T> {
+impl<T> Deref for QueryParam<T, true> {
     type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().unwrap()
+    }
+}
+impl<T> Deref for QueryParam<T, false> {
+    type Target = Option<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T> DerefMut for QueryParam<T> {
+impl<T> DerefMut for QueryParam<T, true> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().unwrap()
+    }
+}
+impl<T> DerefMut for QueryParam<T, false> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'de, T> Deserialize<'de> for QueryParam<T>
+impl<'de, T, const R: bool> Deserialize<'de> for QueryParam<T, R>
 where
     T: Deserialize<'de>,
 {
@@ -41,21 +59,21 @@ where
     where
         D: Deserializer<'de>,
     {
-        T::deserialize(deserializer).map(|value| QueryParam(value))
+        T::deserialize(deserializer).map(|value| QueryParam (Some(value)))
     }
 }
 
-impl<T> fmt::Debug for QueryParam<T>
+impl<T, const R: bool> fmt::Debug for QueryParam<T, R>
 where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+       self.0.fmt(f)
     }
 }
 
 #[async_trait]
-impl<'de, T> Extractible<'de> for QueryParam<T>
+impl<'de, T> Extractible<'de> for QueryParam<T, true>
 where
     T: Deserialize<'de>,
 {
@@ -73,67 +91,8 @@ where
         Ok(Self(value))
     }
 }
-
-impl<T> EndpointArgRegister for QueryParam<T>
-where
-    T: ToSchema,
-{
-    fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg)
-            .parameter_in(ParameterIn::Query)
-            .description(format!("Get parameter `{arg}` from request url query."))
-            .schema(T::to_schema(components))
-            .required(true);
-        operation.parameters.insert(parameter);
-    }
-}
-
-/// Represents the optional parameters passed by the URI path.
-pub struct OptionalQueryParam<T>(pub Option<T>);
-impl<T> OptionalQueryParam<T> {
-    /// Consumes self and returns the value of the parameter.
-    pub fn into_inner(self) -> Option<T> {
-        self.0
-    }
-}
-
-impl<T> Deref for OptionalQueryParam<T> {
-    type Target = Option<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for OptionalQueryParam<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OptionalQueryParam<T>
-where
-    T: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        T::deserialize(deserializer).map(|value| OptionalQueryParam(Some(value)))
-    }
-}
-
-impl<T> fmt::Debug for OptionalQueryParam<Option<T>>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 #[async_trait]
-impl<'de, T> Extractible<'de> for OptionalQueryParam<T>
+impl<'de, T> Extractible<'de> for QueryParam<T, false>
 where
     T: Deserialize<'de>,
 {
@@ -149,16 +108,16 @@ where
     }
 }
 
-impl<T> EndpointArgRegister for OptionalQueryParam<T>
+impl<T, const R: bool> EndpointArgRegister for QueryParam<T, R>
 where
     T: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
         let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Query)
-            .description(format!("Get optional parameter `{arg}` from request url query."))
+            .description(format!("Get parameter `{arg}` from request url query."))
             .schema(T::to_schema(components))
-            .required(false);
+            .required(R);
         operation.parameters.insert(parameter);
     }
 }

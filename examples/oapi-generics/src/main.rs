@@ -29,7 +29,7 @@ async fn main() {
         .push(Router::with_path("u64").post(use_u64))
         .push(Router::with_path("string").post(use_string));
 
-    let doc = OpenApi::new(Info::new("test api", "0.0.1")).merge_router(&router);
+    let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
 
     let router = router
         .push(doc.into_router("/api-doc/openapi.json"))

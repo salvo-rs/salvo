@@ -2,7 +2,7 @@ use salvo::oapi::extract::*;
 use salvo::prelude::*;
 
 #[endpoint]
-async fn hello(name: OptionalQueryParam<String>) -> String {
+async fn hello(name: QueryParam<String, false>) -> String {
     format!("Hello, {}!", name.as_deref().unwrap_or("World"))
 }
 

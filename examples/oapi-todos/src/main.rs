@@ -36,7 +36,7 @@ async fn main() {
 
 /// List todos.
 #[endpoint]
-pub async fn list_todos(offset: QueryParam<Option<usize>>, limit: QueryParam<Option<usize>>) -> Json<Vec<Todo>> {
+pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usize, false>) -> Json<Vec<Todo>> {
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos
         .clone()
