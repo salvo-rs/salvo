@@ -83,7 +83,7 @@ async fn main() -> Result<(), std::io::Error> {
     let router = Router::new()
         .push(Router::with_path("hello").get(hello))
 
-    let doc = OpenApi::new(Info::new("Hello API", "0.0.1")).merge_router(&router);
+    let doc = OpenApi::new("Hello API", "0.0.1").merge_router(&router);
 
     let router = router
         .push(doc.into_router("/api-doc/openapi.json"))

@@ -986,7 +986,7 @@ mod tests {
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new(Info::new("My api", "1.0.0")).components(
+        let openapi = OpenApi::new("My api", "1.0.0").components(
             Components::new()
                 .add_schema("Person", Ref::new("#/components/PersonModel"))
                 .add_schema(

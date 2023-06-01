@@ -134,7 +134,7 @@ impl OpenApi {
     /// ```
     /// # use salvo_oapi::{Info, Paths, OpenApi};
     /// #
-    /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"));
+    /// let openapi = OpenApi::new("pet api", "0.1.0");
     /// ```
     pub fn with_info(info: Info) -> Self {
         Self {
@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new(Info::new("My big api", "1.1.0")).paths(
+        let openapi = OpenApi::new("My big api", "1.1.0").paths(
             Paths::new()
                 .path(
                     "/api/v1/users",
@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn merge_2_openapi_documents() {
-        let mut api_1 = OpenApi::new(Info::new("Api", "v1")).paths(Paths::new().path(
+        let mut api_1 = OpenApi::new("Api", "v1").paths(Paths::new().path(
             "/api/v1/user",
             PathItem::new(
                 PathItemType::Get,
@@ -555,7 +555,7 @@ mod tests {
             ),
         ));
 
-        let api_2 = OpenApi::new(Info::new("Api", "v2"))
+        let api_2 = OpenApi::new("Api", "v2")
             .paths(
                 Paths::new()
                     .path(
