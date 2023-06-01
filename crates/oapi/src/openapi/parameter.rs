@@ -200,8 +200,8 @@ impl Parameter {
 
     /// Add required declaration of the [`Parameter`]. If [`ParameterIn::Path`] is
     /// defined this is always [`Required::True`].
-    pub fn required(mut self, required: Required) -> Self {
-        self.required = required;
+    pub fn required(mut self, required: impl Into<Required>) -> Self {
+        self.required = required.into();
         // required must be true, if parameter_in is Path
         if self.parameter_in == ParameterIn::Path {
             self.required = Required::True;

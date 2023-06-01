@@ -68,7 +68,7 @@ impl Info {
     /// # use salvo_oapi::Info;
     /// let info = Info::new("Pet api", "1.1.0");
     /// ```
-    pub fn new<S: Into<String>>(title: S, version: S) -> Self {
+    pub fn new(title: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             title: title.into(),
             version: version.into(),

@@ -112,8 +112,22 @@ pub struct OpenApi {
 impl OpenApi {
     /// Construct a new [`OpenApi`] object.
     ///
-    /// Function accepts two arguments one which is [`Info`] metadata of the API; two which is [`Paths`]
-    /// containing operations for the API.
+    /// # Examples
+    ///
+    /// ```
+    /// # use salvo_oapi::{Info, Paths, OpenApi};
+    /// #
+    /// let openapi = OpenApi::new("pet api", "0.1.0");
+    /// ```
+    pub fn new(title: impl Into<String>, version: impl Into<String>) -> Self {
+        Self {
+            info: Info::new(title, version),
+            ..Default::default()
+        }
+    }
+    /// Construct a new [`OpenApi`] object.
+    ///
+    /// Function accepts [`Info`] metadata of the API;
     ///
     /// # Examples
     ///
@@ -122,7 +136,7 @@ impl OpenApi {
     /// #
     /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"));
     /// ```
-    pub fn new(info: Info) -> Self {
+    pub fn with_info(info: Info) -> Self {
         Self {
             info,
             ..Default::default()
@@ -402,6 +416,16 @@ pub enum Required {
     /// Is not required.
     #[default]
     False,
+}
+
+impl From<bool> for Required {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
 }
 
 impl Serialize for Required {
