@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
         let raw_json = include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
-        let openapi = OpenApi::new(
+        let openapi = OpenApi::with_info(
             Info::new("My api", "1.0.0")
                 .description("My api description")
                 .license(License::new("MIT").url("http://mit.licence")),
