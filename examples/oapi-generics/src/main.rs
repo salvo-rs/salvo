@@ -1,6 +1,4 @@
 use salvo::oapi::extract::*;
-use salvo::oapi::swagger_ui::SwaggerUi;
-use salvo::oapi::{ToSchema, Info, OpenApi};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 

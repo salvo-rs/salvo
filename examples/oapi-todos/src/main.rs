@@ -1,7 +1,5 @@
 use once_cell::sync::Lazy;
 use salvo::oapi::extract::*;
-use salvo::oapi::swagger_ui::SwaggerUi;
-use salvo::oapi::{Info, OpenApi};
 use salvo::prelude::*;
 
 use self::models::*;
@@ -26,7 +24,7 @@ async fn main() {
         ),
     );
 
-    let doc = OpenApi::new(Info::new("todos api", "0.0.1")).merge_router(&router);
+    let doc = OpenApi::new("todos api", "0.0.1").merge_router(&router);
 
     let router = router
         .push(doc.into_router("/api-doc/openapi.json"))
