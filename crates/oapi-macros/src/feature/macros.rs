@@ -38,7 +38,7 @@ is_validatable! {
     Format => false,
     WriteOnly => false,
     ReadOnly => false,
-    Title => false,
+    Symbol => false,
     Nullable => false,
     Rename => false,
     Style => false,
@@ -64,7 +64,6 @@ is_validatable! {
     SchemaWith => false,
     Description => false,
     Deprecated => false,
-    Symbol => false,
     AdditionalProperties => false,
     Required => false
 }
@@ -78,9 +77,7 @@ macro_rules! parse_features {
                 let attributes = names.join(", ");
 
                 while !input.is_empty() {
-                    let ident = input.parse::<syn::Ident>().or_else(|_| {
-                        input.parse::<syn::Token![as]>().map(|as_| syn::Ident::new("as", as_.span))
-                    }).map_err(|error| {
+                    let ident = input.parse::<syn::Ident>().map_err(|error| {
                         syn::Error::new(
                             error.span(),
                             format!("unexpected attribute, expected any of: {attributes}, {error}"),

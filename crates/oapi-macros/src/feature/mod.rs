@@ -78,7 +78,7 @@ pub(crate) enum Feature {
     ValueType(ValueType),
     WriteOnly(WriteOnly),
     ReadOnly(ReadOnly),
-    Title(Title),
+    Symbol(Symbol),
     Nullable(Nullable),
     Rename(Rename),
     RenameAll(RenameAll),
@@ -102,7 +102,6 @@ pub(crate) enum Feature {
     SchemaWith(SchemaWith),
     Description(Description),
     Deprecated(Deprecated),
-    Symbol(Symbol),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
 }
@@ -168,7 +167,7 @@ impl ToTokens for Feature {
             Feature::Format(format) => quote! { .format(#format) },
             Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
-            Feature::Title(title) => quote! { .title(#title) },
+            Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
             Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
             Feature::Rename(rename) => rename.to_token_stream(),
             Feature::Style(style) => quote! { .style(#style) },
@@ -227,9 +226,6 @@ impl ToTokens for Feature {
                     help = "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
                 }
             }
-            Feature::Symbol(_) => {
-                abort!(Span::call_site(), "Symbol does not support `ToTokens`")
-            }
             Feature::Required(required) => {
                 let name = <Required as Name>::get_name();
                 quote! { .#name(#required) }
@@ -249,7 +245,7 @@ impl Display for Feature {
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
             Feature::ReadOnly(read_only) => read_only.fmt(f),
-            Feature::Title(title) => title.fmt(f),
+            Feature::Symbol(symbol) => symbol.fmt(f),
             Feature::Nullable(nullable) => nullable.fmt(f),
             Feature::Rename(rename) => rename.fmt(f),
             Feature::Style(style) => style.fmt(f),
@@ -275,7 +271,6 @@ impl Display for Feature {
             Feature::SchemaWith(with_schema) => with_schema.fmt(f),
             Feature::Description(description) => description.fmt(f),
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
-            Feature::Symbol(symbol) => symbol.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
         }
@@ -291,7 +286,7 @@ impl Validatable for Feature {
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
             Feature::ReadOnly(read_only) => read_only.is_validatable(),
-            Feature::Title(title) => title.is_validatable(),
+            Feature::Symbol(symbol) => symbol.is_validatable(),
             Feature::Nullable(nullable) => nullable.is_validatable(),
             Feature::Rename(rename) => rename.is_validatable(),
             Feature::Style(style) => style.is_validatable(),
@@ -317,7 +312,6 @@ impl Validatable for Feature {
             Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
-            Feature::Symbol(symbol) => symbol.is_validatable(),
             Feature::AdditionalProperties(additional_properites) => additional_properites.is_validatable(),
             Feature::Required(required) => required.is_validatable(),
         }

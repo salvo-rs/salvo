@@ -214,23 +214,23 @@ impl From<ReadOnly> for Feature {
 impl_name!(ReadOnly = "read_only");
 
 #[derive(Clone, Debug)]
-pub(crate) struct Title(pub(crate) String);
-impl Parse for Title {
+pub(crate) struct Symbol(pub(crate) String);
+impl Parse for Symbol {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
-impl ToTokens for Title {
+impl ToTokens for Symbol {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.to_token_stream())
     }
 }
-impl From<Title> for Feature {
-    fn from(value: Title) -> Self {
-        Feature::Title(value)
+impl From<Symbol> for Feature {
+    fn from(value: Symbol) -> Self {
+        Feature::Symbol(value)
     }
 }
-impl_name!(Title = "title");
+impl_name!(Symbol = "symbol");
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Nullable(pub(crate) bool);
@@ -839,22 +839,6 @@ impl From<Deprecated> for Feature {
 }
 
 impl_name!(Deprecated = "deprecated");
-#[derive(Clone, Debug)]
-pub(crate) struct Symbol(pub(crate) String);
-impl Parse for Symbol {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_next_literal_str(input).map(Self)
-    }
-}
-impl From<Symbol> for Feature {
-    fn from(value: Symbol) -> Self {
-        Self::Symbol(value)
-    }
-}
-impl_name!(Symbol = "symbol");
 
 #[derive(Clone, Debug)]
 pub(crate) struct AdditionalProperties(pub(crate) bool);

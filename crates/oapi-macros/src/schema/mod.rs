@@ -5,7 +5,7 @@ use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Token};
 
-use crate::feature::Inline;
+use crate::feature::{Inline, Symbol};
 
 pub(crate) use self::{
     enum_schemas::*,
@@ -15,7 +15,7 @@ pub(crate) use self::{
 };
 
 use super::{
-    feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner, Symbol},
+    feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
     serde::{self, SerdeValue},
     ComponentSchema, FieldRename, VariantRename,
 };
@@ -63,7 +63,7 @@ impl ToTokens for ToSchema<'_> {
         let inline = variant.inline().as_ref().map(|i| i.0).unwrap_or(false);
         let symbol = if inline {
             None
-        } else if let Some(Symbol(symbol)) = variant.symbol() {
+        } else if let Some(symbol) = variant.symbol() {
             let ty_params = self.generics.type_params();
             let ty_params = ty_params
                 .map(|ty_param| {
@@ -78,7 +78,7 @@ impl ToTokens for ToSchema<'_> {
                 })
                 .collect::<Punctuated<TokenStream, Token![,]>>();
             if ty_params.is_empty() {
-                Some(quote! { #symbol.replace("::", ".") })
+                Some(quote! { #symbol.to_string().replace(" :: ", ".") })
             } else {
                 Some(quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") })
             }
@@ -235,13 +235,13 @@ impl ToTokens for Property {
 }
 
 trait SchemaFeatureExt {
-    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
+    fn split_for_symbol(self) -> (Vec<Feature>, Vec<Feature>);
 }
 
 impl SchemaFeatureExt for Vec<Feature> {
-    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
+    fn split_for_symbol(self) -> (Vec<Feature>, Vec<Feature>) {
         self.into_iter()
-            .partition(|feature| matches!(feature, Feature::Title(_)))
+            .partition(|feature| matches!(feature, Feature::Symbol(_)))
     }
 }
 

@@ -93,7 +93,7 @@ impl ToTokens for Tag {
 }
 
 // (url = "http:://url", description = "description", variables(...))
-#[derive(Default,  Debug)]
+#[derive(Default, Debug)]
 struct Server {
     url: String,
     description: Option<String>,
@@ -208,7 +208,8 @@ impl Parse for ServerVariable {
 
             match attribute_name {
                 "default" => {
-                    server_variable.default_value = parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
+                    server_variable.default_value =
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
                 }
                 "description" => {
                     server_variable.description =
@@ -217,12 +218,14 @@ impl Parse for ServerVariable {
                 "enum_values" => {
                     server_variable.enum_values = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
                 }
-                _ => return Err(Error::new(
-                    ident.span(),
-                    format!(
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!(
                         "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values"
                     ),
-                )),
+                    ))
+                }
             }
 
             if !content.is_empty() {
@@ -285,18 +288,18 @@ impl ToTokens for Components {
             return;
         }
 
-        let builder_tokens = self.schemas.iter().fold(
-            quote! { #oapi::oapi::Components::new() },
-            |mut tokens, schema| {
-                let Schema(path) = schema;
+        let builder_tokens =
+            self.schemas
+                .iter()
+                .fold(quote! { #oapi::oapi::Components::new() }, |mut tokens, schema| {
+                    let Schema(path) = schema;
 
-                tokens.extend(quote_spanned!(path.span()=>
-                     .schema_from::<#path>()
-                ));
+                    tokens.extend(quote_spanned!(path.span()=>
+                         .schema_from::<#path>()
+                    ));
 
-                tokens
-            },
-        );
+                    tokens
+                });
 
         let builder_tokens = self
             .responses

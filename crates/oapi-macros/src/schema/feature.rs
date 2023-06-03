@@ -8,7 +8,7 @@ use crate::{
         impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Example, ExclusiveMaximum,
         ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge,
         MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-        Required, SchemaWith, Symbol, Title, ValueType, WriteOnly, XmlAttr,
+        Required, SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
     },
     ResultExt,
 };
@@ -21,11 +21,10 @@ impl Parse for NamedFieldStructFeatures {
         Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
             XmlAttr,
-            Title,
+            Symbol,
             RenameAll,
             MaxProperties,
             MinProperties,
-            Symbol,
             Inline,
             Default
         )))
@@ -42,10 +41,9 @@ impl Parse for UnnamedFieldStructFeatures {
         Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
             Default,
-            Title,
+            Symbol,
             Format,
             ValueType,
-            Symbol,
             Inline
         )))
     }
@@ -60,9 +58,8 @@ impl Parse for EnumFeatures {
         Ok(EnumFeatures(parse_features!(
             input as Example,
             Default,
-            Title,
-            RenameAll,
             Symbol,
+            RenameAll,
             Inline
         )))
     }
@@ -127,7 +124,7 @@ impl Parse for EnumNamedFieldVariantFeatures {
         Ok(EnumNamedFieldVariantFeatures(parse_features!(
             input as Example,
             XmlAttr,
-            Title,
+            Symbol,
             Rename,
             RenameAll
         )))
@@ -143,7 +140,7 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
         Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
             input as Example,
             Default,
-            Title,
+            Symbol,
             Format,
             ValueType,
             Rename

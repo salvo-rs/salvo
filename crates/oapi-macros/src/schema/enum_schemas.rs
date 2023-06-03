@@ -8,10 +8,9 @@ use syn::{punctuated::Punctuated, token::Comma, Attribute, Fields, Variant};
 use crate::{
     doc_comment::CommentAttributes,
     feature::{
-        parse_features, pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol,
-        ToTokensExt,
+        parse_features, pop_feature, pop_feature_as_inner, Example, Feature, FeaturesExt, IntoInner, Rename, RenameAll,
+        Symbol, ToTokensExt,
     },
-    feature::{Example, Rename},
     schema::{
         serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
         Inline, VariantRename,
@@ -60,9 +59,8 @@ impl<'e> EnumSchema<'e> {
                             Ok(parse_features!(
                                 input as crate::feature::Example,
                                 crate::feature::Default,
-                                crate::feature::Title,
+                                crate::feature::Symbol,
                                 crate::feature::Inline,
-                                Symbol
                             ))
                         })
                         .unwrap_or_default();
@@ -85,7 +83,6 @@ impl<'e> EnumSchema<'e> {
                             .parse_features::<EnumFeatures>()
                             .into_inner()
                             .unwrap_or_default();
-                        let symbol = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                         let rename_all = simple_enum_features.pop_rename_all_feature();
                         let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
@@ -96,7 +93,6 @@ impl<'e> EnumSchema<'e> {
                                 enum_features: simple_enum_features,
                                 rename_all,
                             }),
-                            symbol,
                             inline,
                         }
                     })
@@ -108,8 +104,8 @@ impl<'e> EnumSchema<'e> {
                     .parse_features::<EnumFeatures>()
                     .into_inner()
                     .unwrap_or_default();
-                let symbol: Option<Symbol> = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                 let rename_all = simple_enum_features.pop_rename_all_feature();
+                let symbol: Option<Symbol> = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                 let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
                 Self {
@@ -128,8 +124,8 @@ impl<'e> EnumSchema<'e> {
                 .parse_features::<ComplexEnumFeatures>()
                 .into_inner()
                 .unwrap_or_default();
-            let symbol = pop_feature_as_inner!(enum_features => Feature::Symbol(_v));
             let rename_all = enum_features.pop_rename_all_feature();
+            let symbol: Option<Symbol> = pop_feature_as_inner!(enum_features => Feature::Symbol(_v));
             let inline: Option<Inline> = pop_feature_as_inner!(enum_features => Feature::Inline(_v));
 
             Self {
@@ -357,11 +353,11 @@ impl ComplexEnum<'_> {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_features, mut named_struct_features) = variant
+                let (symbol_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
+                    .map(|features| features.split_for_symbol())
                     .unwrap_or_default();
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -375,7 +371,7 @@ impl ComplexEnum<'_> {
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    title: title_features.first().map(ToTokens::to_token_stream),
+                    symbol: symbol_features.first().map(ToTokens::to_token_stream),
                     example: example.as_ref().map(ToTokens::to_token_stream),
                     item: NamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
@@ -390,11 +386,11 @@ impl ComplexEnum<'_> {
                 })
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (title_features, mut unnamed_struct_features) = variant
+                let (symbol_features, mut unnamed_struct_features) = variant
                     .attrs
                     .parse_features::<EnumUnnamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
+                    .map(|features| features.split_for_symbol())
                     .unwrap_or_default();
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -408,7 +404,7 @@ impl ComplexEnum<'_> {
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    title: title_features.first().map(ToTokens::to_token_stream),
+                    symbol: symbol_features.first().map(ToTokens::to_token_stream),
                     example: example.as_ref().map(ToTokens::to_token_stream),
                     item: UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
@@ -423,14 +419,14 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features = feature::parse_schema_features_with(&variant.attrs, |input| {
                     Ok(parse_features!(
-                        input as crate::feature::Title,
+                        input as crate::feature::Symbol,
                         RenameAll,
                         Rename,
                         Example
                     ))
                 })
                 .unwrap_or_default();
-                let title = pop_feature!(unit_features => Feature::Title(_));
+                let symbol = pop_feature!(unit_features => Feature::Symbol(_));
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
                     &mut unit_features,
@@ -445,8 +441,8 @@ impl ComplexEnum<'_> {
                 let mut sev = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
-                if let Some(title) = title {
-                    sev = sev.title(title.to_token_stream());
+                if let Some(symbol) = symbol {
+                    sev = sev.symbol(symbol.to_token_stream());
                 }
                 if let Some(example) = example {
                     sev = sev.example(example.to_token_stream());
@@ -498,12 +494,12 @@ impl ComplexEnum<'_> {
             }
             Fields::Unit => {
                 let mut unit_features = feature::parse_schema_features_with(&variant.attrs, |input| {
-                    Ok(parse_features!(input as crate::feature::Title))
+                    Ok(parse_features!(input as crate::feature::Symbol))
                 })
                 .unwrap_or_default();
-                let title = pop_feature!(unit_features => Feature::Title(_));
+                let symbol = pop_feature!(unit_features => Feature::Symbol(_));
 
-                UntaggedEnum::with_title(title).to_token_stream()
+                UntaggedEnum::with_symbol(symbol).to_token_stream()
             }
         }
     }
@@ -522,11 +518,11 @@ impl ComplexEnum<'_> {
         let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_features, mut named_struct_features) = variant
+                let (symbol_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
+                    .map(|features| features.split_for_symbol())
                     .unwrap_or_default();
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -546,25 +542,25 @@ impl ComplexEnum<'_> {
                     symbol: None,
                     inline: None,
                 };
-                let title = title_features.first().map(ToTokens::to_token_stream);
+                let symbol = symbol_features.first().map(ToTokens::to_token_stream);
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
                 quote! {
                     #named_enum
-                        #title
+                        #symbol
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                 }
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (title_features, mut unnamed_struct_features) = variant
+                    let (symbol_features, mut unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<EnumUnnamedFieldVariantFeatures>()
                         .into_inner()
-                        .map(|features| features.split_for_title())
+                        .map(|features| features.split_for_symbol())
                         .unwrap_or_default();
                     let variant_name = rename_enum_variant(
                         name.as_ref(),
@@ -583,7 +579,7 @@ impl ComplexEnum<'_> {
                         inline: None,
                     };
 
-                    let title = title_features.first().map(ToTokens::to_token_stream);
+                    let symbol = symbol_features.first().map(ToTokens::to_token_stream);
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                     }]);
@@ -597,7 +593,7 @@ impl ComplexEnum<'_> {
                     if is_reference {
                         quote! {
                             #oapi::oapi::schema::AllOf::new()
-                                #title
+                                #symbol
                                 .item(#unnamed_enum)
                                 .item(#oapi::oapi::schema::Object::new()
                                     .schema_type(#oapi::oapi::schema::SchemaType::Object)
@@ -608,7 +604,7 @@ impl ComplexEnum<'_> {
                     } else {
                         quote! {
                             #unnamed_enum
-                                #title
+                                #symbol
                                 .schema_type(#oapi::oapi::schema::SchemaType::Object)
                                 .property(#tag, #variant_name_tokens)
                                 .required(#tag)
@@ -626,10 +622,10 @@ impl ComplexEnum<'_> {
             }
             Fields::Unit => {
                 let mut unit_features = feature::parse_schema_features_with(&variant.attrs, |input| {
-                    Ok(parse_features!(input as crate::feature::Title, Rename))
+                    Ok(parse_features!(input as crate::feature::Symbol, Rename))
                 })
                 .unwrap_or_default();
-                let title = pop_feature!(unit_features => Feature::Title(_));
+                let symbol = pop_feature!(unit_features => Feature::Symbol(_));
 
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -646,7 +642,7 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     #oapi::oapi::schema::Object::new()
-                        #title
+                        #symbol
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }
@@ -669,11 +665,11 @@ impl ComplexEnum<'_> {
         let oapi = crate::oapi_crate();
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_features, mut named_struct_features) = variant
+                let (symbol_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
+                    .map(|features| features.split_for_symbol())
                     .unwrap_or_default();
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -693,14 +689,14 @@ impl ComplexEnum<'_> {
                     symbol: None,
                     inline: None,
                 };
-                let title = title_features.first().map(ToTokens::to_token_stream);
+                let symbol = symbol_features.first().map(ToTokens::to_token_stream);
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
                 quote! {
                     #oapi::oapi::schema::Object::new()
-                        #title
+                        #symbol
                         .schema_type(#oapi::oapi::schema::SchemaType::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
@@ -710,11 +706,11 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (title_features, mut unnamed_struct_features) = variant
+                    let (symbol_features, mut unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<EnumUnnamedFieldVariantFeatures>()
                         .into_inner()
-                        .map(|features| features.split_for_title())
+                        .map(|features| features.split_for_symbol())
                         .unwrap_or_default();
                     let variant_name = rename_enum_variant(
                         name.as_ref(),
@@ -733,14 +729,14 @@ impl ComplexEnum<'_> {
                         inline: None,
                     };
 
-                    let title = title_features.first().map(ToTokens::to_token_stream);
+                    let symbol = symbol_features.first().map(ToTokens::to_token_stream);
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                     }]);
 
                     quote! {
                         #oapi::oapi::schema::Object::new()
-                            #title
+                            #symbol
                             .schema_type(#oapi::oapi::schema::SchemaType::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
@@ -761,10 +757,10 @@ impl ComplexEnum<'_> {
                 // In this case `content` is simply ignored - there is nothing to put in it.
 
                 let mut unit_features = feature::parse_schema_features_with(&variant.attrs, |input| {
-                    Ok(parse_features!(input as crate::feature::Title, Rename))
+                    Ok(parse_features!(input as crate::feature::Symbol, Rename))
                 })
                 .unwrap_or_default();
-                let title = pop_feature!(unit_features => Feature::Title(_));
+                let symbol = pop_feature!(unit_features => Feature::Symbol(_));
 
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -781,7 +777,7 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     #oapi::oapi::schema::Object::new()
-                        #title
+                        #symbol
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }

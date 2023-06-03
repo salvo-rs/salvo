@@ -28,13 +28,10 @@ struct Pet {
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
-* `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
-  document. Some OpenAPI code generation libraries also use this field as a name for the
-  struct.
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
   __serde__ will take precedence.
-* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 * `default` Can be used to populate default values on all fields using the struct's
@@ -43,13 +40,10 @@ struct Pet {
 # Enum Optional Configuration Options for `#[schema(...)]`
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
-* `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
-  document. Some OpenAPI code generation libraries also use this field as a name for the
-  enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
   are defined __serde__ will take precedence.
-* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
@@ -74,10 +68,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-* `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
-  document. Some OpenAPI code generation libraries also use this field as a name for the
-  struct.
-* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
@@ -235,10 +226,7 @@ their numeric value.
 
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
-* `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
-  document. Some OpenAPI code generation libraries also use this field as a name for the
-  enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
-* `symbol = ...` Can be used to define alternative path and name for the schema what will be used in
+* `symbol = ...` Literal string value. Can be used to define alternative path and name for the schema what will be used in
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
@@ -344,18 +332,6 @@ enum ErrorResponse {
 }
 ```
 
-_**It is possible to specify the title of each variant to help generators create named structures.**_
-```
-# use salvo_oapi::ToSchema;
-#[derive(ToSchema)]
-enum ErrorResponse {
-    #[schema(title = "InvalidCredentials")]
-    InvalidCredentials,
-    #[schema(title = "NotFound")]
-    NotFound(String),
-}
-```
-
 _**Use `xml` attribute to manipulate xml output.**_
 ```
 # use salvo_oapi::ToSchema;
@@ -438,10 +414,10 @@ enum Random {
 }
 ```
 
-_**Add `title` to the enum.**_
+_**Add `symbol` to the enum.**_
 ```
 #[derive(salvo_oapi::ToSchema)]
-#[schema(title = "UserType")]
+#[schema(symbol = "UserType")]
 enum UserType {
     Admin,
     Moderator,

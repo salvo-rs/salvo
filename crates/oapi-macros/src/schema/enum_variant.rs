@@ -55,7 +55,7 @@ where
 
 pub(crate) struct ObjectVariant<'o, T: ToTokens> {
     pub(crate) item: T,
-    pub(crate) title: Option<TokenStream>,
+    pub(crate) symbol: Option<TokenStream>,
     pub(crate) example: Option<TokenStream>,
     pub(crate) name: Cow<'o, str>,
 }
@@ -66,14 +66,14 @@ where
 {
     fn to_tokens(&self) -> TokenStream {
         let oapi = crate::oapi_crate();
-        let title = &self.title;
+        let symbol = &self.symbol;
         let example = &self.example;
         let variant = &self.item;
         let name = &self.name;
 
         quote! {
             #oapi::oapi::schema::Object::new()
-                #title
+                #symbol
                 #example
                 .property(#name, #variant)
                 .required(#name)
@@ -82,7 +82,7 @@ where
 }
 
 pub(crate) struct Enum<'e, V: Variant> {
-    pub(crate) title: Option<TokenStream>,
+    pub(crate) symbol: Option<TokenStream>,
     pub(crate) example: Option<TokenStream>,
     len: usize,
     items: Array<'e, TokenStream>,
@@ -96,8 +96,8 @@ impl<V: Variant> Enum<'_, V> {
         items.into_iter().collect()
     }
 
-    pub(crate) fn title<I: Into<TokenStream>>(mut self, title: I) -> Self {
-        self.title = Some(title.into());
+    pub(crate) fn symbol<I: Into<TokenStream>>(mut self, symbol: I) -> Self {
+        self.symbol = Some(symbol.into());
         self
     }
 
@@ -114,7 +114,7 @@ where
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let len = &self.len;
-        let title = &self.title;
+        let symbol = &self.symbol;
         let example = &self.example;
         let items = &self.items;
         let schema_type = &self.schema_type;
@@ -122,7 +122,7 @@ where
 
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
-                #title
+                #symbol
                 #example
                 .schema_type(#schema_type)
                 .enum_values::<[#enum_type; #len], #enum_type>(#items)
@@ -149,7 +149,7 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
             .collect::<Array<TokenStream>>();
 
         Self {
-            title: None,
+            symbol: None,
             example: None,
             len,
             items,
@@ -225,29 +225,29 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
 }
 
 pub(crate) struct UntaggedEnum {
-    title: Option<Feature>,
+    symbol: Option<Feature>,
 }
 
 impl UntaggedEnum {
     pub(crate) fn new() -> Self {
-        Self { title: None }
+        Self { symbol: None }
     }
 
-    pub(crate) fn with_title(title: Option<Feature>) -> Self {
-        Self { title }
+    pub(crate) fn with_symbol(symbol: Option<Feature>) -> Self {
+        Self { symbol }
     }
 }
 
 impl ToTokens for UntaggedEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        let title = &self.title;
+        let symbol = &self.symbol;
 
         tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
                 .nullable(true)
                 .default(Some(serde_json::Value::Null))
-                #title
+                #symbol
         })
     }
 }

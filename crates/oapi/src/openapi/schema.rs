@@ -332,9 +332,9 @@ pub struct Object {
     #[serde(rename = "type")]
     pub schema_type: SchemaType,
 
-    /// Changes the [`Object`] title.
+    /// Changes the [`Object`] symbol.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    pub symbol: Option<String>,
 
     /// Additional format for detailing the schema type.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -505,9 +505,9 @@ impl Object {
         self
     }
 
-    /// Add or change the title of the [`Object`].
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
+    /// Add or change the symbol of the [`Object`].
+    pub fn symbol(mut self, symbol: impl Into<String>) -> Self {
+        self.symbol = Some(symbol.into());
         self
     }
 
@@ -1128,13 +1128,13 @@ mod tests {
     }
 
     #[test]
-    fn test_object_with_title() {
-        let json_value = Object::new().title("SomeName");
+    fn test_object_with_symbol() {
+        let json_value = Object::new().symbol("SomeName");
         assert_json_eq!(
             json_value,
             json!({
                 "type": "object",
-                "title": "SomeName"
+                "symbol": "SomeName"
             })
         );
     }
