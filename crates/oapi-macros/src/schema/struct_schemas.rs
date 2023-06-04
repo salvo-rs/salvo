@@ -7,7 +7,7 @@ use syn::{punctuated::Punctuated, token::Comma, Attribute, Field, Generics};
 use crate::{
     component::ComponentSchemaProps,
     doc_comment::CommentAttributes,
-    feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, Symbol, RenameAll, ToTokensExt},
+    feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
     schema::Inline,
     type_tree::{TypeTree, ValueType},
 };
