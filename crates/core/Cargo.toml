@@ -21,7 +21,7 @@ full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", 
 cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
-http2 = ["hyper/http2"]
+http2 = ["hyper/http2", "salvo-utils/http2"]
 quinn = ["dep:h3", "dep:h3-quinn", "dep:quinn", "rustls"]
 rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
@@ -47,7 +47,7 @@ headers.workspace = true
 http.workspace = true
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap.workspace = true
-salvo-utils = { workspace = true, features = ["runtime", "http1", "http2", "tcp", "client"] }
+salvo-utils = { workspace = true, features = ["runtime", "http1", "tcp", "client"] }
 salvo-rustls = { workspace = true, optional = true }
 mime.workspace = true
 mime_guess.workspace = true
