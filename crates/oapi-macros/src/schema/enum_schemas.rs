@@ -60,7 +60,7 @@ impl<'e> EnumSchema<'e> {
                                 input as crate::feature::Example,
                                 crate::feature::Default,
                                 crate::feature::Symbol,
-                                crate::feature::Inline,
+                                crate::feature::Inline
                             ))
                         })
                         .unwrap_or_default();
@@ -84,6 +84,7 @@ impl<'e> EnumSchema<'e> {
                             .into_inner()
                             .unwrap_or_default();
                         let rename_all = simple_enum_features.pop_rename_all_feature();
+                        let symbol = pop_feature_as_inner!(simple_enum_features => Feature::Symbol(_v));
                         let inline: Option<Inline> = pop_feature_as_inner!(simple_enum_features => Feature::Inline(_v));
 
                         Self {
@@ -93,6 +94,7 @@ impl<'e> EnumSchema<'e> {
                                 enum_features: simple_enum_features,
                                 rename_all,
                             }),
+                            symbol,
                             inline,
                         }
                     })
