@@ -72,7 +72,7 @@ tempfile.workspace = true
 textnonce.workspace = true
 thiserror.workspace = true
 openssl = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
 native-tls = { workspace = true, optional = true, features = ["alpn"] }
 tokio-rustls = { workspace = true, optional = true }
