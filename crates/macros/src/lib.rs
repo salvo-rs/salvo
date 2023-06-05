@@ -44,7 +44,7 @@ pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// Generate code for extractible type.
-#[proc_macro_derive(Extractible, attributes(extract))]
+#[proc_macro_derive(Extractible, attributes(salvo))]
 pub fn derive_extractible(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as DeriveInput);
     match extract::generate(args) {
@@ -188,9 +188,9 @@ mod tests {
     #[test]
     fn test_extract_simple() {
         let input = quote! {
-            #[extract(default_source(from = "body"))]
+            #[salvo(default_source(from = "body"))]
             struct BadMan<'a> {
-                #[extract(source(from = "query"))]
+                #[salvo(source(from = "query"))]
                 id: i64,
                 username: String,
             }
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_extract_with_lifetime() {
         let input = quote! {
-            #[extract(
+            #[salvo(
                 default_source(from = "query"),
                 default_source(from = "param"),
                 default_source(from = "body")
