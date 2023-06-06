@@ -54,7 +54,8 @@ struct BadMan<'a> {
 #[salvo(
     default_source(from = "query"),
     default_source(from = "param"),
-    default_source(from = "body")
+    default_source(from = "body"),
+    rename_all = "camelCase"
 )]
 struct GoodMan<'a> {
     id: i64,

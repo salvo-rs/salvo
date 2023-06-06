@@ -6,18 +6,17 @@ use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Path, Type, TypePath, Variant};
+use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Type, TypePath, Variant};
 
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
 use crate::schema::{EnumSchema, NamedStructSchema};
-use crate::{Array, ResultExt};
+use crate::{Array, attribute, ResultExt};
 
 use super::{
     Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue, DeriveToResponsesValue,
-    ResponseTuple, ResponseTupleInner, ResponseValue,
+    ResponseTuple, ResponseValue,
 };
 
 pub(crate) struct ToResponse<'r> {
@@ -166,14 +165,17 @@ trait Response {
     fn has_no_field_attributes(attribute: &Attribute) -> (bool, &'static str) {
         const ERROR: &str = "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
-        let ident = attribute.path().get_ident().unwrap();
-        match &*ident.to_string() {
-            "symbol" => (false, ERROR),
-            "ref_response" => (false, ERROR),
-            "content" => (false, ERROR),
-            "to_response" => (false, ERROR),
-            _ => (true, ERROR),
+        if let Some(attr) = attribute::find_nested_list(attribute, "response").ok().flatten() {
+            if let Ok(metas) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+                for meta in metas {
+                    let ident = &*meta.path().get_ident().unwrap().to_string();
+                    if ident != "symbol" && ident != "content" {
+                        return (true, ERROR);
+                    }
+                }
+            }
         }
+        (false, ERROR)
     }
 
     fn validate_attributes<'a, I: IntoIterator<Item = &'a Attribute>>(
@@ -195,61 +197,31 @@ impl Response for UnnamedStructResponse<'_> {}
 
 impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
-        let is_inline = inner_attributes
-            .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
-        let ref_response = inner_attributes
-            .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "ref_response");
-        let to_response = inner_attributes
-            .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_response");
-
-        if is_inline && (ref_response || to_response) {
-            abort!(
-                ty.span(),
-                "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"
-            )
-        }
-        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
-            .expect("`ToResponses` must have `#[response(...)]` attribute");
-        let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
-        let status_code = mem::take(&mut derive_value.status);
-
-        match (ref_response, to_response) {
-            (false, false) => Self(
-                (
-                    status_code,
-                    ResponseValue::from_derive_to_responses_value(derive_value, description).response_type(
-                        PathType::MediaType(InlineType {
-                            ty: Cow::Borrowed(ty),
-                            is_inline,
-                        }),
-                    ),
-                )
-                    .into(),
-            ),
-            (true, false) => Self(ResponseTuple {
-                inner: Some(ResponseTupleInner::Ref(InlineType {
-                    ty: Cow::Borrowed(ty),
-                    is_inline: false,
-                })),
-                status_code,
-            }),
-            (false, true) => Self(ResponseTuple {
-                inner: Some(ResponseTupleInner::Ref(InlineType {
-                    ty: Cow::Borrowed(ty),
-                    is_inline: true,
-                })),
-                status_code,
-            }),
-            (true, true) => {
-                abort!(
-                    ty.span(),
-                    "Cannot define `ref_response` and `to_response` attribute simultaneously"
-                );
+        let mut is_inline = false;
+        for attr in inner_attributes {
+            if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+                if attribute::has_nested_path(attr, "response", "inline").unwrap_or(false) {
+                    is_inline = true;
+                    break;
+                }
             }
         }
+        let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
+            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
+        let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
+        let status_code = mem::take(&mut derive_value.status);
+        Self(
+            (
+                status_code,
+                ResponseValue::from_derive_to_responses_value(derive_value, description).response_type(
+                    PathType::MediaType(InlineType {
+                        ty: Cow::Borrowed(ty),
+                        is_inline,
+                    }),
+                ),
+            )
+                .into(),
+        )
     }
 }
 
@@ -266,7 +238,7 @@ impl NamedStructResponse<'_> {
         );
 
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
-            .expect("`ToResponses` must have `#[response(...)]` attribute");
+            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         let status_code = mem::take(&mut derive_value.status);
 
@@ -303,7 +275,7 @@ impl UnitStructResponse<'_> {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
 
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
-            .expect("`ToResponses` must have `#[response(...)]` attribute");
+            .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let status_code = mem::take(&mut derive_value.status);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
 
@@ -373,9 +345,15 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         let derive_value = DeriveToResponseValue::from_attributes(attributes);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
 
-        let is_inline = inner_attributes
-            .iter()
-            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
+        let mut is_inline = false;
+        for attr in inner_attributes {
+            if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+                if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
+                    is_inline = true;
+                    break;
+                }
+            }
+        }
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             description,
             derive_value,
@@ -477,14 +455,17 @@ impl<'r> EnumResponse<'r> {
                 .map(|content| content.value())
         });
 
-        let is_inline = field
-            .map(|field| {
-                field
-                    .attrs
-                    .iter()
-                    .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema")
-            })
-            .unwrap_or(false);
+        let mut is_inline = false;
+        if let Some(field) = field {
+            for attr in &field.attrs {
+                if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+                    if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
+                        is_inline = true;
+                        break;
+                    }
+                }
+            }
+        }
 
         VariantAttributes {
             type_and_content: field.map(|field| &field.ty).zip(content_type),

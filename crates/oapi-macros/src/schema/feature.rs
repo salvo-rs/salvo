@@ -1,17 +1,13 @@
-use syn::{
-    parse::{Parse, ParseBuffer, ParseStream},
-    Attribute,
-};
+use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::Attribute;
 
-use crate::{
-    feature::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Example, ExclusiveMaximum,
-        ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge,
-        MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-        Required, SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
-    },
-    ResultExt,
+use crate::feature::{
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Example, ExclusiveMaximum,
+    ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems,
+    MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required,
+    SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
 };
+use crate::{attribute, ResultExt};
 
 #[derive(Debug)]
 pub(crate) struct NamedFieldStructFeatures(Vec<Feature>);
@@ -191,10 +187,11 @@ pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[A
             attribute
                 .path()
                 .get_ident()
-                .map(|ident| *ident == "schema")
+                .map(|ident| *ident == "salvo")
                 .unwrap_or(false)
         })
-        .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
+        .filter_map(|attr| attribute::find_nested_list(attr, "schema").ok().flatten())
+        .map(|attr| attr.parse_args::<T>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }
 

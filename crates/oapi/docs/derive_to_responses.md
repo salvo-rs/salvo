@@ -24,7 +24,7 @@ type is expected to implement [`ToResponse`][to_response] trait.
 
 
 Enum decorated with [`derive@ToResponses`] will create a response for each variant of the _`enum`_.
-Each variant must have it's own _`#[response(...)]`_ definition. Unit variant will behave same
+Each variant must have it's own _`#[salvo(response(...))]`_ definition. Unit variant will behave same
 as unit _`struct`_ by creating a response without content. Similarly named field variant and
 unnamed field variant behaves the same as it was named field _`struct`_ and unnamed field
 _`struct`_.
@@ -35,7 +35,7 @@ variants to alter [response attributes](#intoresponses-response-attributes) of r
 Doc comment on a _`struct`_ or _`enum`_ variant will be used as a description for the response.
 It can also be overridden with _`description = "..."`_ attribute.
 
-# ToResponses `#[response(...)]` attributes
+# ToResponses `#[salvo(response(...))]` attributes
 
 * `status = ...` Must be provided. Is either a valid http status code integer. E.g. _`200`_ or a
   string value representing a range such as _`"4XX"`_ or `"default"` or a valid _`http::status::StatusCode`_.
@@ -89,13 +89,13 @@ struct BadRequest {
 #[derive(salvo_oapi::ToResponses, Debug)]
 enum UserResponses {
     /// Success response
-    #[response(status = 200)]
+    #[salvo(response(status = 200))]
     Success { value: String },
 
-    #[response(status = 404)]
+    #[salvo(response(status = 404))]
     NotFound,
 
-    #[response(status = 400)]
+    #[salvo(response(status = 400))]
     BadRequest(BadRequest),
 }
 
@@ -120,7 +120,7 @@ _**Named struct response with inlined schema.**_
 ```
 /// This is success response
 #[derive(salvo_oapi::ToResponses)]
-#[response(status = 200)]
+#[salvo(response(status = 200))]
 struct SuccessResponse {
     value: String,
 }
@@ -129,7 +129,7 @@ struct SuccessResponse {
 _**Unit struct response without content.**_
 ```
 #[derive(salvo_oapi::ToResponses)]
-#[response(status = NOT_FOUND)]
+#[salvo(response(status = NOT_FOUND))]
 struct NotFound;
 ```
 
@@ -138,7 +138,7 @@ _**Unnamed struct response with inlined response schema.**_
 # #[derive(salvo_oapi::ToSchema)]
 # struct Foo;
 #[derive(salvo_oapi::ToResponses)]
-#[response(status = 201)]
+#[salvo(response(salvo(status = 201)))]
 struct CreatedResponse(#[schema] Foo);
 ```
 
@@ -153,19 +153,19 @@ _**Enum with multiple responses.**_
 #[derive(salvo_oapi::ToResponses)]
 enum UserResponses {
     /// Success response description.
-    #[response(status = 200)]
+    #[salvo(salvo(response(status = 200)))]
     Success { value: String },
 
-    #[response(status = 404)]
+    #[salvo(salvo(response(status = 404)))]
     NotFound,
 
-    #[response(status = 400)]
+    #[salvo(salvo(response(status = 400)))]
     BadRequest(BadRequest),
 
-    #[response(status = 500)]
+    #[salvo(salvo(response(status = 500)))]
     ServerError(#[ref_response] Response),
 
-    #[response(status = 418)]
+    #[salvo(response(status = 418))]
     TeaPot(#[response] Response),
 }
 ```

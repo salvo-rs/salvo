@@ -25,7 +25,7 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
    ```rust
     # use salvo_oapi::ToResponse;
     #[derive(ToResponse)]
-    #[response(description = "Person response returns single Person entity")]
+    #[salvo(response(description = "Person response returns single Person entity"))]
     struct Person {
         name: String,
     }
@@ -76,18 +76,20 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
 
     #[derive(salvo_oapi::ToResponse)]
     enum Person {
-        #[response(examples(
-            ("Person1" = (value = json!({"name": "name1"}))),
-            ("Person2" = (value = json!({"name": "name2"})))
-        ))]
+        #[salvo(
+            response(examples(
+                ("Person1" = (value = json!({"name": "name1"}))),
+                ("Person2" = (value = json!({"name": "name2"})))
+            ))
+        )]
         Admin(#[content("application/vnd-custom-v1+json")] Admin),
 
-        #[response(example = json!({"name": "name3", "id": 1}))]
+        #[salvo(response(example = json!({"name": "name3", "id": 1})))]
         Admin2(#[content("application/vnd-custom-v2+json")] #[schema] Admin2),
     }
    ```
 
-# ToResponse `#[response(...)]` attributes
+# ToResponse `#[salvo(response(...))]` attributes
 
 * `description = "..."` Define description for the response as str. This can be used to
   override the default description resolved from doc comments if present.
@@ -161,16 +163,20 @@ use salvo_oapi::{ToSchema, ToResponse};
  ///
  /// It will also be used in `ToSchema` if present
  #[derive(ToSchema, ToResponse)]
- #[response(
-     description = "Override description for response",
-     content_type = "text/xml"
+ #[salvo(
+    response(
+        description = "Override description for response",
+        content_type = "text/xml"
+    )
  )]
- #[response(
-     example = json!({"name": "the name"}),
-     headers(
-         ("csrf-token", description = "response csrf token"),
-         ("random-id" = i32)
-     )
+ #[salvo(
+    response(
+        example = json!({"name": "the name"}),
+        headers(
+            ("csrf-token", description = "response csrf token"),
+            ("random-id" = i32)
+        )
+    )
  )]
  struct Person {
      name: String,

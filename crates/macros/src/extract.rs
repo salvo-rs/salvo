@@ -4,7 +4,8 @@ use quote::{format_ident, quote};
 use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, MetaNameValue, Token, Type};
+use syn::token::Comma;
+use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
 use crate::shared::{omit_type_path_lifetimes, salvo_crate};
 
@@ -157,22 +158,24 @@ impl ExtractibleArgs {
         for field in data.fields.iter() {
             fields.push(field.try_into()?);
         }
-        let default_sources = Vec::new();
-        let rename_all = None;
+        let mut default_sources = Vec::new();
+        let mut rename_all = None;
         for attr in &attrs {
             if attr.path().is_ident("salvo") {
-                println!("============attr: {:#?}", attr);
-                let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+                let nested = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
                 for meta in nested {
                     match meta {
-                        Meta::List(meta)  => {
+                        Meta::List(meta) => {
                             if meta.path.is_ident("default_source") {
                                 default_sources.push(meta.parse_args()?);
-                            } else 
-                            if meta.path.is_ident("rename_all") {
-                                rename_all = Some(attr.parse_args()? );
                             }
-                        }
+                        },
+                        Meta::NameValue(meta) => {
+                            if meta.path.is_ident("rename_all") {
+                                rename_all = Some(expr_lit_value(&meta.value)?);
+                            }
+                        },
+                        _ => {}
                     }
                 }
             }

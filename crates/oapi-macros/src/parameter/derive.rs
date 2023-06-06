@@ -8,20 +8,18 @@ use syn::{
     Lifetime, LifetimeParam,
 };
 
-use crate::{
-    component::{self, ComponentSchema},
-    doc_comment::CommentAttributes,
-    feature::{
-        self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
-        AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
-        IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
-        Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
-    },
-    parameter::ParameterIn,
-    serde::{self, RenameRule, SerdeContainer},
-    type_tree::TypeTree,
-    Array, FieldRename, Required, ResultExt,
+use crate::component::{self, ComponentSchema};
+use crate::doc_comment::CommentAttributes;
+use crate::feature::{
+    self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
+    AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
+    IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
+    ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
 };
+use crate::parameter::ParameterIn;
+use crate::serde::{self, RenameRule, SerdeContainer};
+use crate::type_tree::TypeTree;
+use crate::{attribute, Array, FieldRename, Required, ResultExt};
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
@@ -69,13 +67,9 @@ impl ToTokens for ToParameters {
         let mut parameters_features = self
             .attrs
             .iter()
-            .filter(|attr| attr.path().is_ident("parameters"))
-            .map(|attribute| {
-                attribute
-                    .parse_args::<ToParametersFeatures>()
-                    .unwrap_or_abort()
-                    .into_inner()
-            })
+            .filter(|attr| attr.path().is_ident("salvo"))
+            .filter_map(|attr| attribute::find_nested_list(attr, "parameters").ok().flatten())
+            .map(|meta| meta.parse_args::<ToParametersFeatures>().unwrap_or_abort().into_inner())
             .reduce(|acc, item| acc.merge(item));
         let serde_container = serde::parse_container(&self.attrs);
 

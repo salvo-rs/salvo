@@ -2,7 +2,7 @@ use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::ToTokens;
 use regex::Regex;
-use syn::{FnArg, Ident, PatType, Receiver, Type, TypePath};
+use syn::{FnArg, Ident, PatType, Receiver,  Type, TypePath};
 
 pub(crate) enum InputType<'a> {
     Request(&'a PatType),

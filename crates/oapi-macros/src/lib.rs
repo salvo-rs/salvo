@@ -43,6 +43,7 @@ mod security_requirement;
 mod serde;
 mod shared;
 mod type_tree;
+mod attribute;
 
 pub(crate) use self::{
     component::{ComponentSchema, ComponentSchemaProps},
@@ -72,7 +73,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToSchema, attributes(schema))]
+#[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -86,7 +87,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToParameters, attributes(parameter, parameters))]
+#[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -107,7 +108,7 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content, schema))]
+#[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -121,7 +122,7 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponses, attributes(response, schema, ref_response, response))]
+#[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
