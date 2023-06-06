@@ -29,6 +29,7 @@ use syn::{
     Attribute, DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
 };
 
+mod attribute;
 mod component;
 mod doc_comment;
 mod endpoint;
@@ -43,7 +44,6 @@ mod security_requirement;
 mod serde;
 mod shared;
 mod type_tree;
-mod attribute;
 
 pub(crate) use self::{
     component::{ComponentSchema, ComponentSchemaProps},

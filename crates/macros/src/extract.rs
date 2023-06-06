@@ -169,12 +169,12 @@ impl ExtractibleArgs {
                             if meta.path.is_ident("default_source") {
                                 default_sources.push(meta.parse_args()?);
                             }
-                        },
+                        }
                         Meta::NameValue(meta) => {
                             if meta.path.is_ident("rename_all") {
                                 rename_all = Some(expr_lit_value(&meta.value)?);
                             }
-                        },
+                        }
                         _ => {}
                     }
                 }

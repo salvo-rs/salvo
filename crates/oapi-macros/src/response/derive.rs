@@ -12,7 +12,7 @@ use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Type, Ty
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
 use crate::schema::{EnumSchema, NamedStructSchema};
-use crate::{Array, attribute, ResultExt};
+use crate::{attribute, Array, ResultExt};
 
 use super::{
     Content, DeriveResponseValue, DeriveResponsesAttributes, DeriveToResponseValue, DeriveToResponsesValue,
