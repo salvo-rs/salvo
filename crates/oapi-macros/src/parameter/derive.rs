@@ -74,11 +74,9 @@ impl ToTokens for ToParameters {
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
-        if self
-            .attrs
-            .iter()
-            .any(|attr| attr.path().is_ident("salvo") && attribute::find_nested_list(attr, "parameter").ok().flatten().is_some())
-        {
+        if self.attrs.iter().any(|attr| {
+            attr.path().is_ident("salvo") && attribute::find_nested_list(attr, "parameter").ok().flatten().is_some()
+        }) {
             abort! {
                 ident,
                 "found `parameter` attribute in unsupported context";
