@@ -191,13 +191,14 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
-   if attributes
+    if attributes
         .iter()
-        .any(|attribute| attribute.path().is_ident("deprecated")) {
-            Some(Deprecated::True)
-        } else {
-            None
-        }
+        .any(|attribute| attribute.path().is_ident("deprecated"))
+    {
+        Some(Deprecated::True)
+    } else {
+        None
+    }
 }
 
 /// Check whether field is required based on following rules.
