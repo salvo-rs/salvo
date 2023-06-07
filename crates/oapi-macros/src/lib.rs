@@ -29,6 +29,7 @@ use syn::{
     Attribute, DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
 };
 
+mod attribute;
 mod component;
 mod doc_comment;
 mod endpoint;
@@ -72,7 +73,7 @@ pub fn endpoint(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToSchema, attributes(schema))]
+#[proc_macro_derive(ToSchema, attributes(salvo))] //attributes(schema)
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -86,7 +87,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToParameters, attributes(parameter, parameters))]
+#[proc_macro_derive(ToParameters, attributes(salvo))] //attributes(parameter, parameters)
 pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -107,7 +108,7 @@ pub fn derive_to_parameters(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content, schema))]
+#[proc_macro_derive(ToResponse, attributes(salvo))] //attributes(response, content, schema))
 pub fn derive_to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -121,7 +122,7 @@ pub fn derive_to_response(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponses, attributes(response, schema, ref_response, response))]
+#[proc_macro_derive(ToResponses, attributes(salvo))] //attributes(response, schema, ref_response, response))
 pub fn to_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -190,18 +191,14 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
-    attributes.iter().find_map(|attribute| {
-        if attribute
-            .path()
-            .get_ident()
-            .map(|ident| *ident == "deprecated")
-            .unwrap_or(false)
-        {
-            Some(crate::Deprecated::True)
-        } else {
-            None
-        }
-    })
+    if attributes
+        .iter()
+        .any(|attribute| attribute.path().is_ident("deprecated"))
+    {
+        Some(Deprecated::True)
+    } else {
+        None
+    }
 }
 
 /// Check whether field is required based on following rules.

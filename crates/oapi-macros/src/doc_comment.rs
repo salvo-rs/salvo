@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use proc_macro2::Ident;
 use proc_macro_error::abort_call_site;
 use syn::{Attribute, Expr, Lit, Meta};
 
@@ -17,23 +16,16 @@ impl CommentAttributes {
         Self(Self::as_string_vec(attributes.iter().filter(Self::is_doc_attribute)))
     }
 
-    fn is_doc_attribute(attribute: &&Attribute) -> bool {
-        match Self::get_attribute_ident(attribute) {
-            Some(attribute) => attribute == DOC_ATTRIBUTE_TYPE,
-            None => false,
-        }
+    fn is_doc_attribute(attr: &&Attribute) -> bool {
+        attr.path().is_ident(DOC_ATTRIBUTE_TYPE)
     }
 
-    fn get_attribute_ident(attribute: &Attribute) -> Option<&Ident> {
-        attribute.path().get_ident()
+    fn as_string_vec<'a, I: Iterator<Item = &'a Attribute>>(attrs: I) -> Vec<String> {
+        attrs.into_iter().filter_map(Self::parse_doc_comment).collect()
     }
 
-    fn as_string_vec<'a, I: Iterator<Item = &'a Attribute>>(attributes: I) -> Vec<String> {
-        attributes.into_iter().filter_map(Self::parse_doc_comment).collect()
-    }
-
-    fn parse_doc_comment(attribute: &Attribute) -> Option<String> {
-        match &attribute.meta {
+    fn parse_doc_comment(attr: &Attribute) -> Option<String> {
+        match &attr.meta {
             Meta::NameValue(name_value) => {
                 if let Expr::Lit(ref doc_comment) = name_value.value {
                     if let Lit::Str(ref comment) = doc_comment.lit {

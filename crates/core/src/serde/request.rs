@@ -412,7 +412,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_from_query() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "query"))]
+        #[salvo(extract(default_source(from = "query")))]
         struct RequestData {
             q1: String,
             q2: i64,
@@ -434,12 +434,12 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_lifetime() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "query"))]
+        #[salvo(extract(default_source(from = "query")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"), source(from = "query"))]
-            #[extract(source(from = "body"))]
+            #[salvo(extract(source(from = "param"), source(from = "query")))]
+            #[salvo(extract(source(from = "body")))]
             q1: &'a str,
-            // #[extract(source(from = "query"))]
+            // #[salvo(extract(source(from = "query")))]
             // #[serde(alias = "param2", alias = "param3")]
             // q2: i64,
         }
@@ -455,9 +455,9 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_rename() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "query"))]
+        #[salvo(extract(default_source(from = "query")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"), source(from = "query"), rename = "abc")]
+            #[salvo(extract(source(from = "param"), source(from = "query"), rename = "abc"))]
             q1: &'a str,
         }
 
@@ -471,10 +471,10 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "query"), rename_all = "PascalCase")]
+        #[salvo(extract(default_source(from = "query"), rename_all = "PascalCase"))]
         struct RequestData<'a> {
             first_name: &'a str,
-            #[extract(rename = "lastName")]
+            #[salvo(extract(rename = "lastName"))]
             last_name: &'a str,
         }
 
@@ -495,20 +495,20 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_multi_sources() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "query"))]
+        #[salvo(extract(default_source(from = "query")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"))]
-            #[extract(alias = "param1")]
+            #[salvo(extract(source(from = "param")))]
+            #[salvo(extract(alias = "param1"))]
             p1: String,
-            #[extract(source(from = "param"), alias = "param2")]
+            #[salvo(extract(source(from = "param"), alias = "param2"))]
             p2: &'a str,
-            #[extract(source(from = "param"), alias = "param3")]
+            #[salvo(extract(source(from = "param"), alias = "param3"))]
             p3: usize,
-            // #[extract(source(from = "query"))]
+            // #[salvo(extract(source(from = "query")))]
             q1: String,
-            // #[extract(source(from = "query"))]
+            // #[salvo(extract(source(from = "query")))]
             q2: i64,
-            // #[extract(source(from = "body", format = "json"))]
+            // #[salvo(extract(source(from = "body", format = "json")))]
             // body: RequestBody<'a>,
         }
 
@@ -535,9 +535,9 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_vec() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "body", format = "json"))]
+        #[salvo(extract(default_source(from = "body", format = "json")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"))]
+            #[salvo(extract(source(from = "param")))]
             p2: &'a str,
             users: Vec<User>,
         }
@@ -582,9 +582,9 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_bool() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "body", format = "json"))]
+        #[salvo(extract(default_source(from = "body", format = "json")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"))]
+            #[salvo(extract(source(from = "param")))]
             p2: &'a str,
             b: bool,
         }
@@ -599,9 +599,9 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_str() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[extract(default_source(from = "body", format = "json"))]
+        #[salvo(extract(default_source(from = "body", format = "json")))]
         struct RequestData<'a> {
-            #[extract(source(from = "param"))]
+            #[salvo(extract(source(from = "param")))]
             p2: &'a str,
             s: &'a str,
         }

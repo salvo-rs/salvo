@@ -1,6 +1,7 @@
 [workspace]
 members = ["*"]
 exclude = ["work-with-tower", "db-prisma-orm", "target"]
+resolver = "2"
 
 [workspace.package]
 version = "0.1.0"

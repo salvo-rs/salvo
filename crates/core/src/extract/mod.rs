@@ -8,10 +8,10 @@
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
 //! // Get the data field value from the body by default.
-//! #[extract(default_source(from = "body"))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct GoodMan<'a> {
 //!     /// The id number is obtained from the request path parameter, and the data is automatically parsed as i64 type.
-//!     #[extract(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
 //!     /// Reference types can be used to avoid memory copying.
 //!     username: &'a str,
@@ -31,30 +31,30 @@
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[extract(default_source(from = "body", format = "json"))]
+//! #[salvo(extract(default_source(from = "body", format = "json")))]
 //! struct GoodMan<'a> {
-//!     #[extract(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
-//!     #[extract(source(from = "query"))]
+//!     #[salvo(extract(source(from = "query")))]
 //!     username: &'a str,
 //!     first_name: String,
 //!     last_name: String,
 //!     lovers: Vec<String>,
 //!     /// The nested field is completely reparsed from Request.
-//!     #[extract(source(from = "request"))]
+//!     #[salvo(extract(source(from = "request")))]
 //!     nested: Nested<'a>,
 //! }
 //!
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[extract(default_source(from = "body", format = "json"))]
+//! #[salvo(extract(default_source(from = "body", format = "json")))]
 //! struct Nested<'a> {
-//!     #[extract(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
-//!     #[extract(source(from = "query"))]
+//!     #[salvo(extract(source(from = "query")))]
 //!     username: &'a str,
 //!     first_name: String,
 //!     last_name: String,
-//!     #[extract(rename = "lovers")]
+//!     #[salvo(rename = "lovers")]
 //!     #[serde(default)]
 //!     pets: Vec<String>,
 //! }

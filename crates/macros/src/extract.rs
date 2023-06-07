@@ -4,9 +4,10 @@ use quote::{format_ident, quote};
 use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, MetaNameValue, Token, Type};
+use syn::token::Comma;
+use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
-use crate::shared::{omit_type_path_lifetimes, salvo_crate};
+use crate::{attribute, omit_type_path_lifetimes, salvo_crate};
 
 struct FieldInfo {
     ident: Option<Ident>,
@@ -25,12 +26,14 @@ impl TryFrom<&Field> for FieldInfo {
         let mut aliases = Vec::with_capacity(field.attrs.len());
         let mut rename = None;
         for attr in attrs {
-            if attr.path().is_ident("extract") {
-                let info: ExtractFieldInfo = attr.parse_args()?;
-                sources.extend(info.sources);
-                aliases.extend(info.aliases);
-                if info.rename.is_some() {
-                    rename = info.rename;
+            if attr.path().is_ident("salvo") {
+                if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
+                    let info: ExtractFieldInfo = metas.parse_args()?;
+                    sources.extend(info.sources);
+                    aliases.extend(info.aliases);
+                    if info.rename.is_some() {
+                        rename = info.rename;
+                    }
                 }
             }
         }
@@ -43,33 +46,6 @@ impl TryFrom<&Field> for FieldInfo {
             aliases,
             rename,
         })
-    }
-}
-
-#[derive(Default, Debug)]
-struct ExtractStructInfo {
-    default_sources: Vec<SourceInfo>,
-    rename_all: Option<String>,
-}
-impl Parse for ExtractStructInfo {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut extract = Self::default();
-        while !input.is_empty() {
-            let id = input.parse::<syn::Ident>()?;
-            if id == "default_source" {
-                let item;
-                syn::parenthesized!(item in input);
-                extract.default_sources.push(item.parse::<SourceInfo>()?);
-            } else if id == "rename_all" {
-                input.parse::<Token![=]>()?;
-                let expr = input.parse::<Expr>()?;
-                extract.rename_all = Some(expr_lit_value(&expr)?);
-            } else {
-                return Err(input.error("unexpected attribute"));
-            }
-            input.parse::<Token![,]>().ok();
-        }
-        Ok(extract)
     }
 }
 
@@ -119,10 +95,9 @@ impl Parse for SourceInfo {
         };
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
         for field in fields {
-            let id = field.path.get_ident().unwrap();
-            if id == "from" {
+            if field.path.is_ident("from") {
                 source.from = expr_lit_value(&field.value)?;
-            } else if id == "format" {
+            } else if field.path.is_ident("format") {
                 source.format = expr_lit_value(&field.value)?;
             } else {
                 return Err(input.error("unexpected attribute"));
@@ -184,17 +159,30 @@ impl ExtractibleArgs {
         for field in data.fields.iter() {
             fields.push(field.try_into()?);
         }
-        let mut extract: Option<ExtractStructInfo> = None;
+        let mut default_sources = Vec::new();
+        let mut rename_all = None;
         for attr in &attrs {
-            if attr.path().is_ident("extract") {
-                extract = Some(attr.parse_args()?);
-                break;
+            if attr.path().is_ident("salvo") {
+                if let Ok(Some(metas)) = attribute::find_nested_list(attr, "extract") {
+                    let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
+                    for meta in nested {
+                        match meta {
+                            Meta::List(meta) => {
+                                if meta.path.is_ident("default_source") {
+                                    default_sources.push(meta.parse_args()?);
+                                }
+                            }
+                            Meta::NameValue(meta) => {
+                                if meta.path.is_ident("rename_all") {
+                                    rename_all = Some(expr_lit_value(&meta.value)?);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
-        let ExtractStructInfo {
-            default_sources,
-            rename_all,
-        } = extract.unwrap_or_default();
         Ok(Self {
             ident,
             generics,

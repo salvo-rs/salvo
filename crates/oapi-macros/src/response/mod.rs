@@ -12,6 +12,7 @@ use syn::{
 };
 
 use crate::{
+    attribute,
     component::ComponentSchema,
     feature::Inline,
     operation::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree},
@@ -358,11 +359,20 @@ impl ToTokens for ResponseTuple<'_> {
 trait DeriveResponseValue: Parse {
     fn merge_from(self, other: Self) -> Self;
 
-    fn from_attributes(attributes: &[Attribute]) -> Option<Self> {
-        attributes
-            .iter()
-            .filter(|attribute| attribute.path().get_ident().unwrap() == "response")
-            .map(|attribute| attribute.parse_args::<Self>().unwrap_or_abort())
+    fn from_attributes(attrs: &[Attribute]) -> Option<Self> {
+        attrs
+            .into_iter()
+            .filter_map(|attr| {
+                if attr.path().is_ident("salvo") {
+                    if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
+                        Some(metas.parse_args::<Self>().unwrap_or_abort())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
             .reduce(|acc, item| acc.merge_from(item))
     }
 }

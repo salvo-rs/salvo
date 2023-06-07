@@ -197,10 +197,10 @@ async fn upload(req: &mut Request, res: &mut Response) {
 ```rust
 #[derive(Serialize, Deserialize, Extractible, Debug)]
 /// 默認從 body 中獲取數據字段值
-#[extract(default_source(from = "body"))]
+#[salvo(extract(default_source(from = "body")))]
 struct GoodMan<'a> {
     /// 其中, id 號從請求路徑參數中獲取, 並且自動解析數據為 i64 類型.
-    #[extract(source(from = "param"))]
+    #[salvo(extract(source(from = "param")))]
     id: i64,
     /// 可以使用引用類型, 避免內存複製.
     username: &'a str,
