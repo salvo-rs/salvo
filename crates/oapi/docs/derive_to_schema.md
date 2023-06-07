@@ -24,7 +24,7 @@ struct Pet {
 }
 ```
 
-# Struct Optional Configuration Options for `#[schema(...)]`
+# Struct Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
@@ -37,7 +37,7 @@ struct Pet {
 * `default` Can be used to populate default values on all fields using the struct's
   [`Default`](std::default::Default) implementation.
 
-# Enum Optional Configuration Options for `#[schema(...)]`
+# Enum Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
 * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
@@ -47,7 +47,7 @@ struct Pet {
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
-# Enum Variant Optional Configuration Options for `#[schema(...)]`
+# Enum Variant Optional Configuration Options for `#[salvo(schema(...))]`
 Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
 unnamed struct type configuration options are supported.
 
@@ -55,7 +55,7 @@ In addition to the variant type specific configuration options enum variants sup
 _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If both _serde_
 _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 
-# Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
+# Unnamed Field Struct Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
   only one field, the field's default value in the schema will be set from the struct's
@@ -72,7 +72,7 @@ _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
   the OpenAPI. E.g _`symbol = "path::to::Pet"`_. This would make the schema appear in the generated
   OpenAPI spec as _`path.to.Pet`_.
 
-# Named Fields Optional Configuration Options for `#[schema(...)]`
+# Named Fields Optional Configuration Options for `#[salvo(schema(...))]`
 * `example = ...` Can be method reference or _`json!(...)`_.
 * `default = ...` Can be method reference or _`json!(...)`_.
 * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
@@ -235,7 +235,7 @@ _**Create enum with numeric values.**_
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
 #[repr(u8)]
-#[schema(default = default_value, example = 2)]
+#[salvo(schema(default = default_value, example = 2))]
 enum Mode {
     One = 1,
     Two,
@@ -267,7 +267,7 @@ _**Simple example of a Pet with descriptions and object level example.**_
 # use salvo_oapi::ToSchema;
 /// This is a pet.
 #[derive(ToSchema)]
-#[schema(example = json!({"name": "bob the cat", "id": 0}))]
+#[salvo(schema(example = json!({"name": "bob the cat", "id": 0})))]
 struct Pet {
     /// Unique id of a pet.
     id: u64,
@@ -283,7 +283,7 @@ _**The `schema` attribute can also be placed at field level as follows.**_
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
 struct Pet {
-    #[schema(example = 1, default = 0)]
+    #[salvo(schema(example = 1, default = 0))]
     id: u64,
     name: String,
     age: Option<i32>,
@@ -295,9 +295,9 @@ _**You can also use method reference for attribute values.**_
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
 struct Pet {
-    #[schema(example = u64::default, default = u64::default)]
+    #[salvo(schema(example = u64::default, default = u64::default))]
     id: u64,
-    #[schema(default = default_name)]
+    #[salvo(schema(default = default_name))]
     name: String,
     age: Option<i32>,
 }
@@ -311,7 +311,7 @@ _**For enums and unnamed field structs you can define `schema` at type level.**_
 ```
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
-#[schema(example = "Bus")]
+#[salvo(schema(example = "Bus"))]
 enum VehicleType {
     Rocket, Car, Bus, Submarine
 }
@@ -323,10 +323,10 @@ _**Also you write complex enum combining all above types.**_
 #[derive(ToSchema)]
 enum ErrorResponse {
     InvalidCredentials,
-    #[schema(default = String::default, example = "Pet not found")]
+    #[salvo(schema(default = String::default, example = "Pet not found"))]
     NotFound(String),
     System {
-        #[schema(example = "Unknown system failure")]
+        #[salvo(schema(example = "Unknown system failure"))]
         details: String,
     }
 }
@@ -336,15 +336,15 @@ _**Use `xml` attribute to manipulate xml output.**_
 ```
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
-#[schema(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test"))]
+#[salvo(schema(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test")))]
 struct User {
-    #[schema(xml(attribute, prefix = "u"))]
+    #[salvo(schema(xml(attribute, prefix = "u")))]
     id: i64,
-    #[schema(xml(name = "user_name", prefix = "u"))]
+    #[salvo(schema(xml(name = "user_name", prefix = "u")))]
     username: String,
-    #[schema(xml(wrapped(name = "linkList"), name = "link"))]
+    #[salvo(schema(xml(wrapped(name = "linkList"), name = "link")))]
     links: Vec<String>,
-    #[schema(xml(wrapped, name = "photo_url"))]
+    #[salvo(schema(xml(wrapped, name = "photo_url")))]
     photos_urls: Vec<String>
 }
 ```
@@ -370,7 +370,7 @@ with [`SchemaFormat::KnownFormat(KnownFormat::Binary)`][binary].**_
 #[derive(ToSchema)]
 struct Post {
     id: i32,
-    #[schema(value_type = String, format = Binary)]
+    #[salvo(schema(value_type = String, format = Binary))]
     value: Vec<u8>,
 }
 ```
@@ -379,7 +379,7 @@ _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` optio
 ```
 # use salvo_oapi::ToSchema;
 #[derive(ToSchema)]
-#[schema(value_type = String)]
+#[salvo(schema(value_type = String))]
 struct Value(i64);
 ```
 
@@ -393,7 +393,7 @@ _**Use a virtual `Object` type to render generic `object` _(`type: object`)_ in 
 # struct Bar;
 #[derive(ToSchema)]
 struct Value {
-    #[schema(value_type = Object)]
+    #[salvo(schema(value_type = Object))]
     field: Bar,
 };
 ```
@@ -402,10 +402,10 @@ _**Serde `rename` / `rename_all` will take precedence over schema `rename` / `re
 ```
 #[derive(salvo_oapi::ToSchema, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-#[schema(rename_all = "UPPERCASE")]
+#[salvo(schema(rename_all = "UPPERCASE"))]
 enum Random {
     #[serde(rename = "string_value")]
-    #[schema(rename = "custom_value")]
+    #[salvo(schema(rename = "custom_value"))]
     String(String),
 
     Number {
@@ -417,7 +417,7 @@ enum Random {
 _**Add `symbol` to the enum.**_
 ```
 #[derive(salvo_oapi::ToSchema)]
-#[schema(symbol = "UserType")]
+#[salvo(schema(symbol = "UserType"))]
 enum UserType {
     Admin,
     Moderator,
@@ -429,11 +429,11 @@ _**Example with validation attributes.**_
 ```
 #[derive(salvo_oapi::ToSchema, serde::Deserialize)]
 struct Item {
-    #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
+    #[salvo(schema(maximum = 10, minimum = 5, multiple_of = 2.5))]
     id: i32,
-    #[schema(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+    #[salvo(schema(max_length = 10, min_length = 5, pattern = "[a-z]*"))]
     value: String,
-    #[schema(max_items = 5, min_items = 1)]
+    #[salvo(schema(max_items = 5, min_items = 1))]
     items: Vec<String>,
 }
 ````
@@ -452,7 +452,7 @@ fn custom_type() -> Object {
 
 #[derive(salvo_oapi::ToSchema)]
 struct Value {
-    #[schema(schema_with = custom_type)]
+    #[salvo(schema(schema_with = custom_type))]
     id: String,
 }
 ```
@@ -461,7 +461,7 @@ _**Use `as` attribute to change the name and the path of the schema in the gener
 spec.**_
 ```
  #[derive(salvo_oapi::ToSchema)]
- #[schema(symbol = "api::models::person::Person")]
+ #[salvo(schema(symbol = "api::models::person::Person"))]
  struct Person {
      name: String,
  }

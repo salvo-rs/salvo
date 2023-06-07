@@ -8,10 +8,10 @@
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
 //! // Get the data field value from the body by default.
-//! #[salvo(default_source(from = "body"))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct GoodMan<'a> {
 //!     /// The id number is obtained from the request path parameter, and the data is automatically parsed as i64 type.
-//!     #[salvo(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
 //!     /// Reference types can be used to avoid memory copying.
 //!     username: &'a str,
@@ -31,26 +31,26 @@
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(default_source(from = "body", format = "json"))]
+//! #[salvo(extract(default_source(from = "body", format = "json")))]
 //! struct GoodMan<'a> {
-//!     #[salvo(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
-//!     #[salvo(source(from = "query"))]
+//!     #[salvo(extract(source(from = "query")))]
 //!     username: &'a str,
 //!     first_name: String,
 //!     last_name: String,
 //!     lovers: Vec<String>,
 //!     /// The nested field is completely reparsed from Request.
-//!     #[salvo(source(from = "request"))]
+//!     #[salvo(extract(source(from = "request")))]
 //!     nested: Nested<'a>,
 //! }
 //!
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(default_source(from = "body", format = "json"))]
+//! #[salvo(extract(default_source(from = "body", format = "json")))]
 //! struct Nested<'a> {
-//!     #[salvo(source(from = "param"))]
+//!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
-//!     #[salvo(source(from = "query"))]
+//!     #[salvo(extract(source(from = "query")))]
 //!     username: &'a str,
 //!     first_name: String,
 //!     last_name: String,

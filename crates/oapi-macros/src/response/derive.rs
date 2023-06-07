@@ -162,19 +162,19 @@ trait Response {
         Type::Path(type_path)
     }
 
-    fn has_no_field_attributes(attribute: &Attribute) -> (bool, &'static str) {
+    fn has_no_field_attributes(attr: &Attribute) -> (bool, &'static str) {
         const ERROR: &str = "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
-        if let Some(attr) = attribute::find_nested_list(attribute, "response").ok().flatten() {
-            if let Ok(metas) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+        if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
+            if let Ok(metas) = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                 for meta in metas {
-                    if !meta.path().is_ident("symbol") && !meta.path().is_ident("content") {
-                        return (true, ERROR);
+                    if meta.path().is_ident("symbol") || meta.path().is_ident("content") {
+                        return (false, ERROR);
                     }
                 }
             }
         }
-        (false, ERROR)
+        (true, ERROR)
     }
 
     fn validate_attributes<'a, I: IntoIterator<Item = &'a Attribute>>(
@@ -438,18 +438,22 @@ impl<'r> EnumResponse<'r> {
 
         let field = variant.fields.iter().next();
 
-        let content_type = field.and_then(|field| {
-            field
-                .attrs
-                .iter()
-                .find(|attribute| attribute.path().is_ident("content"))
-                .map(|attribute| {
-                    attribute
-                        .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
-                        .unwrap_or_abort()
-                })
-                .map(|content| content.value())
-        });
+        let mut content_type = None;
+        if let Some(attrs) = field.map(|f| &f.attrs) {
+            for attr in attrs {
+                if attr.path().is_ident("salvo") {
+                    if let Some(metas) = attribute::find_nested_list(attr, "content").ok().flatten() {
+                        content_type = Some(
+                            metas
+                                .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
+                                .unwrap_or_abort()
+                                .value(),
+                        );
+                        break;
+                    }
+                }
+            }
+        }
 
         let mut is_inline = false;
         if let Some(field) = field {

@@ -59,7 +59,7 @@ extern crate self as salvo_oapi;
 /// ```
 /// use salvo_oapi::ToSchema;
 /// #[derive(ToSchema)]
-/// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
+/// #[salvo(schema(example = json!({"name": "bob the cat", "id": 1})))]
 /// struct Pet {
 ///     id: u64,
 ///     name: String,

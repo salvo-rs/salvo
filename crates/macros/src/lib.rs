@@ -191,9 +191,9 @@ mod tests {
     #[test]
     fn test_extract_simple() {
         let input = quote! {
-            #[salvo(default_source(from = "body"))]
+            #[salvo(extract(default_source(from = "body")))]
             struct BadMan<'a> {
-                #[salvo(source(from = "query"))]
+                #[salvo(extract(source(from = "query")))]
                 id: i64,
                 username: String,
             }
@@ -234,11 +234,11 @@ mod tests {
     #[test]
     fn test_extract_with_lifetime() {
         let input = quote! {
-            #[salvo(
+            #[salvo(extract(
                 default_source(from = "query"),
                 default_source(from = "param"),
                 default_source(from = "body")
-            )]
+            ))]
             struct BadMan<'a> {
                 id: i64,
                 username: String,

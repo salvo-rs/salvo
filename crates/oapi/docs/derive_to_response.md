@@ -4,12 +4,12 @@ in [`salvo_oapi::endpoint`][path] or in [`OpenApi`][openapi].
 This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
 
 
-_`#[response]`_ attribute can be used to alter and add [response attributes](#toresponse-response-attributes).
+_`#[salvo(response(...))]`_ attribute can be used to alter and add [response attributes](#toresponse-response-attributes).
 
-_`#[content]`_ attributes is used to make enum variant a content of a specific type for the
+_`#[salvo(content(...))]`_ attributes is used to make enum variant a content of a specific type for the
 response.
 
-_`#[schema]`_ attribute is used to inline a schema for a response in unnamed structs or
+_`#[salvo(schema(...))]`_ attribute is used to inline a schema for a response in unnamed structs or
 enum variants with `#[content]` attribute. **Note!** [`ToSchema`] need to be implemented for
 the field or variant type.
 
@@ -34,7 +34,7 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
 2. By decorating unnamed field `struct` with [`derive@ToResponse`] derive macro. Unnamed field struct
    allows users to use new type pattern to define one inner field which is used as a schema for
    the generated response. This allows users to define `Vec` and `Option` response types.
-   Additionally these types can also be used with `#[schema]` attribute to inline the
+   Additionally these types can also be used with `#[salvo(schema(...))]` attribute to inline the
    field's type schema if it implements [`ToSchema`] derive macro.
 
    ```rust
@@ -56,11 +56,11 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
     struct SuccessResponse;
    ```
 
-4. By decorating `enum` with variants having `#[content(...)]` attribute. This allows users to
+4. By decorating `enum` with variants having `#[salvo(content(...))]` attribute. This allows users to
    define multiple response content schemas to single response according to OpenAPI spec.
    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
-   these variants can also be used with `#[schema]` attribute to inline the variant's type schema
+   these variants can also be used with `#[salvo(schema(...))]` attribute to inline the variant's type schema
    if it implements [`ToSchema`] derive macro.
 
    ```rust
@@ -82,10 +82,10 @@ _`ToResponse`_ can be used in four different ways to generate OpenAPI response c
                 ("Person2" = (value = json!({"name": "name2"})))
             ))
         )]
-        Admin(#[content("application/vnd-custom-v1+json")] Admin),
+        Admin(#[salvo(content("application/vnd-custom-v1+json"))] Admin),
 
         #[salvo(response(example = json!({"name": "name3", "id": 1})))]
-        Admin2(#[content("application/vnd-custom-v2+json")] #[schema] Admin2),
+        Admin2(#[salvo(content("application/vnd-custom-v2+json"))] #[salvo(schema(inline))] Admin2),
     }
    ```
 
@@ -191,7 +191,7 @@ _**Create inlined person list response.**_
  # }
  /// Person list response
  #[derive(salvo_oapi::ToResponse)]
- struct PersonList(#[schema] Vec<Person>);
+ struct PersonList(#[salvo(schema(inline))] Vec<Person>);
 ```
 
 _**Create enum response from variants.**_

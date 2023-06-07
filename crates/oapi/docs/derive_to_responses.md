@@ -16,7 +16,7 @@ a response without content since there is no inner fields.
 
 Unnamed field _`struct`_ decorated with [`derive@ToResponses`] will by default create a response with
 referenced [schema][to_schema] if field is object or schema if type is [primitive
-type][primitive]. _`#[schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
+type][primitive]. _`#[salvo(schema(...))]`_ attribute at field of unnamed _`struct`_ can be used to inline
 the schema if type of the field implements [`ToSchema`][to_schema] trait. Alternatively
 _`#[to_response]`_ and _`#[ref_response]`_ can be used at field to either reference a reusable
 [response][to_response] or inline a reusable [response][to_response]. In both cases the field
@@ -138,8 +138,8 @@ _**Unnamed struct response with inlined response schema.**_
 # #[derive(salvo_oapi::ToSchema)]
 # struct Foo;
 #[derive(salvo_oapi::ToResponses)]
-#[salvo(response(salvo(status = 201)))]
-struct CreatedResponse(#[schema] Foo);
+#[salvo(response(status = 201))]
+struct CreatedResponse(#[salvo(schema(...))] Foo);
 ```
 
 _**Enum with multiple responses.**_
@@ -153,20 +153,20 @@ _**Enum with multiple responses.**_
 #[derive(salvo_oapi::ToResponses)]
 enum UserResponses {
     /// Success response description.
-    #[salvo(salvo(response(status = 200)))]
+    #[salvo(response(status = 200))]
     Success { value: String },
 
-    #[salvo(salvo(response(status = 404)))]
+    #[salvo(response(status = 404))]
     NotFound,
 
-    #[salvo(salvo(response(status = 400)))]
+    #[salvo(response(status = 400))]
     BadRequest(BadRequest),
 
-    #[salvo(salvo(response(status = 500)))]
-    ServerError(#[ref_response] Response),
+    #[salvo(response(status = 500))]
+    ServerError(Response),
 
     #[salvo(response(status = 418))]
-    TeaPot(#[response] Response),
+    TeaPot(Response),
 }
 ```
 

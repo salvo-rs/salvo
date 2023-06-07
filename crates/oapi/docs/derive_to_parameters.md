@@ -25,9 +25,9 @@ struct Query {
 }
 ```
 
-# ToParameters Container Attributes for `#[parameters(...)]`
+# ToParameters Container Attributes for `#[salvo(parameters(...))]`
 
-The following attributes are available for use in on the container attribute `#[parameters(...)]` for the struct
+The following attributes are available for use in on the container attribute `#[salvo(parameters(...))]` for the struct
 deriving `ToParameters`:
 
 * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
@@ -45,7 +45,7 @@ Use `names` to define name for single unnamed argument.
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(names("id"))]
+#[salvo(parameters(names("id")))]
 struct Id(u64);
 ```
 
@@ -54,13 +54,13 @@ Use `names` to define names for multiple unnamed arguments.
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(names("id", "name"))]
+#[salvo(parameters(names("id", "name")))]
 struct IdAndName(u64, String);
 ```
 
-# ToParameters Field Attributes for `#[parameter(...)]`
+# ToParameters Field Attributes for `#[salvo(parameter(...))]`
 
-The following attributes are available for use in the `#[parameter(...)]` on struct fields:
+The following attributes are available for use in the `#[salvo(parameter(...))]` on struct fields:
 
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 
@@ -149,7 +149,7 @@ Other _`serde`_ attributes will impact the serialization but will not be reflect
 
 # Examples
 
-_**Demonstrate [`ToParameters`][to_parameters] usage with the `#[parameters(...)]` container attribute to
+_**Demonstrate [`ToParameters`][to_parameters] usage with the `#[salvo(parameters(...))]` container attribute to
 be used as a path query, and inlining a schema query field:**_
 
 ```
@@ -171,7 +171,7 @@ struct PetQuery {
     /// Age of pet
     age: Option<i32>,
     /// Kind of pet
-    #[parameter(inline)]
+    #[salvo(parameter(inline))]
     kind: PetKind
 }
 
@@ -191,9 +191,9 @@ _**Override `String` with `i64` using `value_type` attribute.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Filter {
-    #[parameter(value_type = i64)]
+    #[salvo(parameter(value_type = i64))]
     id: String,
 }
 ```
@@ -203,9 +203,9 @@ _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Filter {
-    #[parameter(value_type = Object)]
+    #[salvo(parameter(value_type = Object))]
     id: String,
 }
 ```
@@ -215,9 +215,9 @@ _**You can use a generic type to override the default type of the field.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Filter {
-    #[parameter(value_type = Option<String>)]
+    #[salvo(parameter(value_type = Option<String>))]
     id: String
 }
 ```
@@ -227,9 +227,9 @@ _**You can even override a [`Vec`] with another one.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Filter {
-    #[parameter(value_type = Vec<i32>)]
+    #[salvo(parameter(value_type = Vec<i32>))]
     id: Vec<String>
 }
 ```
@@ -244,9 +244,9 @@ struct Id {
 }
 
 #[derive(ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Filter {
-    #[parameter(value_type = Id)]
+    #[salvo(parameter(value_type = Id))]
     id: String
 }
 ```
@@ -255,11 +255,11 @@ _**Example with validation attributes.**_
 ```
 #[derive(salvo_oapi::ToParameters, serde::Deserialize)]
 struct Item {
-    #[parameter(maximum = 10, minimum = 5, multiple_of = 2.5)]
+    #[salvo(parameter(maximum = 10, minimum = 5, multiple_of = 2.5))]
     id: i32,
-    #[parameter(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+    #[salvo(parameter(max_length = 10, min_length = 5, pattern = "[a-z]*"))]
     value: String,
-    #[parameter(max_items = 5, min_items = 1)]
+    #[salvo(parameter(max_items = 5, min_items = 1))]
     items: Vec<String>,
 }
 ````
@@ -277,9 +277,9 @@ fn custom_type() -> Object {
 }
 
 #[derive(salvo_oapi::ToParameters, serde::Deserialize)]
-#[parameters(parameter_in = Query)]
+#[salvo(parameters(parameter_in = Query))]
 struct Query {
-    #[parameter(schema_with = custom_type)]
+    #[salvo(parameter(schema_with = custom_type))]
     email: String,
 }
 ```

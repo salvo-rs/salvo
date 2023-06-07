@@ -23,7 +23,7 @@ use crate::{attribute, Array, FieldRename, Required, ResultExt};
 
 impl_merge!(ToParametersFeatures, FieldFeatures);
 
-/// Container attribute `#[parameters(...)]`.
+/// Container attribute `#[salvo(parameters(...))]`.
 pub(crate) struct ToParametersFeatures(Vec<Feature>);
 
 impl Parse for ToParametersFeatures {
@@ -74,7 +74,11 @@ impl ToTokens for ToParameters {
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
-        if self.attrs.iter().any(|attr| attr.path().is_ident("parameter")) {
+        if self
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("salvo") && attribute::find_nested_list(attr, "parameter").ok().flatten().is_some())
+        {
             abort! {
                 ident,
                 "found `parameter` attribute in unsupported context";
@@ -117,7 +121,7 @@ impl ToTokens for ToParameters {
                 abort! {
                     field,
                     "tuple structs are not supported";
-                    help = "consider using a struct with named fields instead, or use `#[parameters(names(\"...\"))]` to specify a name for each field",
+                    help = "consider using a struct with named fields instead, or use `#[salvo(parameters(names(\"...\")))]` to specify a name for each field",
                 }
             };
             quote!{ #salvo::extract::metadata::Field{
@@ -229,7 +233,7 @@ impl ToParameters {
             Data::Struct(data_struct) => match &data_struct.fields {
                 syn::Fields::Named(named_fields) => {
                     if field_names.is_some() {
-                        abort! {ident, "`#[parameters(names(...))]` is not supported attribute on a struct with named fields"}
+                        abort! {ident, "`#[salvo(parameters(names(...)))]` is not supported attribute on a struct with named fields"}
                     }
                     named_fields.named.iter()
                 }
@@ -256,7 +260,7 @@ impl ToParameters {
                         ident,
                         "declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}",
                             names.len(), unnamed_fields.len(), ident;
-                        help = r#"Did you forget to add a field name to `#[parameters(names(... , "field_name"))]`"#;
+                        help = r#"Did you forget to add a field name to `#[salvo(parameters(names(... , "field_name")))]`"#;
                         help = "Or have you added extra name but haven't defined a type?"
                     }
                 }
@@ -265,7 +269,7 @@ impl ToParameters {
                 abort! {
                     ident,
                     "struct with unnamed fields must have explicit name declarations.";
-                    help = "Try defining `#[parameters(names(...))]` over your type: {}", ident,
+                    help = "Try defining `#[salvo(parameters(names(...)))]` over your type: {}", ident,
                 }
             }
         }
@@ -343,8 +347,17 @@ impl Parameter<'_> {
             .field
             .attrs
             .iter()
-            .filter(|attribute| attribute.path().is_ident("parameter"))
-            .map(|attribute| attribute.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
+            .filter_map(|attr| {
+                if attr.path().is_ident("salvo") {
+                    if let Some(metas) = attribute::find_nested_list(attr, "parameter").ok().flatten() {
+                        Some(metas.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
 
@@ -404,7 +417,7 @@ impl ToTokens for Parameter<'_> {
             .unwrap_or_else(|| {
                 abort!(
                     field, "No name specified for unnamed field.";
-                    help = "Try adding #[parameters(names(...))] container attribute to specify the name for this field"
+                    help = "Try adding #[salvo(parameters(names(...)))] container attribute to specify the name for this field"
                 )
             });
 
