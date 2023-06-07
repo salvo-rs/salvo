@@ -44,7 +44,7 @@ async fn edit(req: &mut Request) -> String {
         default_source(from = "param"),
         default_source(from = "body")
     )
-}]
+)]
 struct BadMan<'a> {
     id: i64,
     username: &'a str,
