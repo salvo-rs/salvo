@@ -239,9 +239,9 @@ mod models {
 
     #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
     pub struct Todo {
-        #[salvo(schema(example = 1))]
+        #[schema(example = 1)]
         pub id: u64,
-        #[salvo(schema(example = "Buy coffee"))]
+        #[schema(example = "Buy coffee")]
         pub text: String,
         pub completed: bool,
     }
