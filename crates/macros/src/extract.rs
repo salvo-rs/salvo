@@ -7,7 +7,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
-use crate::{omit_type_path_lifetimes, salvo_crate, attribute};
+use crate::{attribute, omit_type_path_lifetimes, salvo_crate};
 
 struct FieldInfo {
     ident: Option<Ident>,

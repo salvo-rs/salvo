@@ -335,7 +335,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(inner_attributes, |attribute| {
             const ERROR: &str = "Unexpected attribute, `content` is only supported on unnamed field enum variant";
-            if attribute.path().is_ident( "content") {
+            if attribute.path().is_ident("content") {
                 (false, ERROR)
             } else {
                 (true, ERROR)

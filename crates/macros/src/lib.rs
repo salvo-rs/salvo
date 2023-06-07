@@ -11,10 +11,10 @@
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, Item};
 
+mod attribute;
 mod extract;
 mod handler;
 mod shared;
-mod attribute;
 
 use shared::*;
 
