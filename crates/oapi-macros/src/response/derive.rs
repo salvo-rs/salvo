@@ -198,11 +198,10 @@ impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().is_ident("salvo") {
-                if attribute::has_nested_path(attr, "response", "inline").unwrap_or(false) {
-                    is_inline = true;
-                    break;
-                }
+            if attr.path().is_ident("salvo") && attribute::has_nested_path(attr, "response", "inline").unwrap_or(false)
+            {
+                is_inline = true;
+                break;
             }
         }
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
@@ -346,11 +345,9 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().is_ident("salvo") {
-                if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
-                    is_inline = true;
-                    break;
-                }
+            if attr.path().is_ident("salvo") && attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
+                is_inline = true;
+                break;
             }
         }
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
@@ -457,11 +454,11 @@ impl<'r> EnumResponse<'r> {
         let mut is_inline = false;
         if let Some(field) = field {
             for attr in &field.attrs {
-                if attr.path().is_ident("salvo") {
-                    if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
-                        is_inline = true;
-                        break;
-                    }
+                if attr.path().is_ident("salvo")
+                    && attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false)
+                {
+                    is_inline = true;
+                    break;
                 }
             }
         }

@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use proc_macro2::Ident;
 use proc_macro_error::abort_call_site;
 use syn::{Attribute, Expr, Lit, Meta};
 

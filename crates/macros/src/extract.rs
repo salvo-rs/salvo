@@ -163,7 +163,7 @@ impl ExtractibleArgs {
         let mut rename_all = None;
         for attr in &attrs {
             if attr.path().is_ident("salvo") {
-                if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
+                if let Ok(Some(metas)) = attribute::find_nested_list(attr, "extract") {
                     let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
                     for meta in nested {
                         match meta {
