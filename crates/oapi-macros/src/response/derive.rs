@@ -168,8 +168,7 @@ trait Response {
         if let Some(attr) = attribute::find_nested_list(attribute, "response").ok().flatten() {
             if let Ok(metas) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
                 for meta in metas {
-                    let ident = &*meta.path().get_ident().unwrap().to_string();
-                    if ident != "symbol" && ident != "content" {
+                    if !meta.path().is_ident("symbol") && !meta.path().is_ident("content") {
                         return (true, ERROR);
                     }
                 }
@@ -199,7 +198,7 @@ impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+            if attr.path().is_ident("salvo") {
                 if attribute::has_nested_path(attr, "response", "inline").unwrap_or(false) {
                     is_inline = true;
                     break;
@@ -336,7 +335,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(inner_attributes, |attribute| {
             const ERROR: &str = "Unexpected attribute, `content` is only supported on unnamed field enum variant";
-            if attribute.path().get_ident().unwrap() == "content" {
+            if attribute.path().is_ident( "content") {
                 (false, ERROR)
             } else {
                 (true, ERROR)
@@ -347,7 +346,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
         let mut is_inline = false;
         for attr in inner_attributes {
-            if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+            if attr.path().is_ident("salvo") {
                 if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
                     is_inline = true;
                     break;
@@ -446,7 +445,7 @@ impl<'r> EnumResponse<'r> {
             field
                 .attrs
                 .iter()
-                .find(|attribute| attribute.path().get_ident().unwrap() == "content")
+                .find(|attribute| attribute.path().is_ident("content"))
                 .map(|attribute| {
                     attribute
                         .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
@@ -458,7 +457,7 @@ impl<'r> EnumResponse<'r> {
         let mut is_inline = false;
         if let Some(field) = field {
             for attr in &field.attrs {
-                if attr.path().get_ident().map(|i| i.to_string()).as_deref() == Some("salvo") {
+                if attr.path().is_ident("salvo") {
                     if attribute::has_nested_path(attr, "schema", "inline").unwrap_or(false) {
                         is_inline = true;
                         break;

@@ -183,13 +183,7 @@ impl_merge!(
 pub(crate) fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| {
-            attribute
-                .path()
-                .get_ident()
-                .map(|ident| *ident == "salvo")
-                .unwrap_or(false)
-        })
+        .filter(|attribute| attribute.path().is_ident("salvo"))
         .filter_map(|attr| attribute::find_nested_list(attr, "schema").ok().flatten())
         .map(|attr| attr.parse_args::<T>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
@@ -204,13 +198,7 @@ pub(crate) fn parse_schema_features_with<
 ) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| {
-            attribute
-                .path()
-                .get_ident()
-                .map(|ident| *ident == "schema")
-                .unwrap_or(false)
-        })
+        .filter(|attribute| attribute.path().is_ident("schema"))
         .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }

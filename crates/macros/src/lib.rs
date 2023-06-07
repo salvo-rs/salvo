@@ -14,6 +14,9 @@ use syn::{parse_macro_input, DeriveInput, Item};
 mod extract;
 mod handler;
 mod shared;
+mod attribute;
+
+use shared::*;
 
 /// `handler` is a macro to help create `Handler` from function or impl block easily.
 ///

@@ -29,6 +29,7 @@ use syn::{
     Attribute, DeriveInput, ExprPath, Item, Lit, LitStr, Member, Token,
 };
 
+mod attribute;
 mod component;
 mod doc_comment;
 mod endpoint;
@@ -43,7 +44,6 @@ mod security_requirement;
 mod serde;
 mod shared;
 mod type_tree;
-mod attribute;
 
 pub(crate) use self::{
     component::{ComponentSchema, ComponentSchemaProps},
@@ -191,18 +191,9 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<crate::Deprecated> {
-    attributes.iter().find_map(|attribute| {
-        if attribute
-            .path()
-            .get_ident()
-            .map(|ident| *ident == "deprecated")
-            .unwrap_or(false)
-        {
-            Some(crate::Deprecated::True)
-        } else {
-            None
-        }
-    })
+    attributes
+        .iter()
+        .any(|attribute| attribute.path().is_ident("deprecated"))
 }
 
 /// Check whether field is required based on following rules.

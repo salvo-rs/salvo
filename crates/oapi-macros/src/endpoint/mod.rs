@@ -100,13 +100,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             };
 
             attr.doc_comments = Some(CommentAttributes::from_attributes(attrs).0);
-            attr.deprecated = attrs.iter().find_map(|attr| {
-                if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
-                    None
-                } else {
-                    Some(true)
-                }
-            });
+            attr.deprecated = attrs.iter().any(|attr| attr.path().is_ident("deprecated"));
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
             let meta = metadata(&salvo, &oapi, attr, name, modifiers)?;
@@ -123,13 +117,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let attrs = &item_impl.attrs;
 
             attr.doc_comments = Some(CommentAttributes::from_attributes(attrs).0);
-            attr.deprecated = attrs.iter().find_map(|attr| {
-                if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated") {
-                    None
-                } else {
-                    Some(true)
-                }
-            });
+            attr.deprecated = attrs.iter().any(|attr| attr.path().is_ident("deprecated"));
 
             let mut hmtd = None;
             for item in &item_impl.items {

@@ -361,7 +361,7 @@ trait DeriveResponseValue: Parse {
     fn from_attributes(attributes: &[Attribute]) -> Option<Self> {
         attributes
             .iter()
-            .filter(|attribute| attribute.path().get_ident().unwrap() == "response")
+            .filter(|attribute| attribute.path().is_ident("response"))
             .map(|attribute| attribute.parse_args::<Self>().unwrap_or_abort())
             .reduce(|acc, item| acc.merge_from(item))
     }

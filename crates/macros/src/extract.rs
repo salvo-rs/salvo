@@ -7,7 +7,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{DeriveInput, Error, Expr, ExprLit, Field, Generics, Lit, Meta, MetaNameValue, Token, Type};
 
-use crate::shared::{omit_type_path_lifetimes, salvo_crate};
+use crate::{omit_type_path_lifetimes, salvo_crate, attribute};
 
 struct FieldInfo {
     ident: Option<Ident>,
@@ -27,11 +27,13 @@ impl TryFrom<&Field> for FieldInfo {
         let mut rename = None;
         for attr in attrs {
             if attr.path().is_ident("salvo") {
-                let info: ExtractFieldInfo = attr.parse_args()?;
-                sources.extend(info.sources);
-                aliases.extend(info.aliases);
-                if info.rename.is_some() {
-                    rename = info.rename;
+                if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
+                    let info: ExtractFieldInfo = metas.parse_args()?;
+                    sources.extend(info.sources);
+                    aliases.extend(info.aliases);
+                    if info.rename.is_some() {
+                        rename = info.rename;
+                    }
                 }
             }
         }
@@ -93,10 +95,9 @@ impl Parse for SourceInfo {
         };
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
         for field in fields {
-            let id = field.path.get_ident().unwrap();
-            if id == "from" {
+            if field.path.is_ident("from") {
                 source.from = expr_lit_value(&field.value)?;
-            } else if id == "format" {
+            } else if field.path.is_ident("format") {
                 source.format = expr_lit_value(&field.value)?;
             } else {
                 return Err(input.error("unexpected attribute"));
@@ -162,20 +163,22 @@ impl ExtractibleArgs {
         let mut rename_all = None;
         for attr in &attrs {
             if attr.path().is_ident("salvo") {
-                let nested = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
-                for meta in nested {
-                    match meta {
-                        Meta::List(meta) => {
-                            if meta.path.is_ident("default_source") {
-                                default_sources.push(meta.parse_args()?);
+                if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
+                    let nested = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)?;
+                    for meta in nested {
+                        match meta {
+                            Meta::List(meta) => {
+                                if meta.path.is_ident("default_source") {
+                                    default_sources.push(meta.parse_args()?);
+                                }
                             }
-                        },
-                        Meta::NameValue(meta) => {
-                            if meta.path.is_ident("rename_all") {
-                                rename_all = Some(expr_lit_value(&meta.value)?);
+                            Meta::NameValue(meta) => {
+                                if meta.path.is_ident("rename_all") {
+                                    rename_all = Some(expr_lit_value(&meta.value)?);
+                                }
                             }
-                        },
-                        _ => {}
+                            _ => {}
+                        }
                     }
                 }
             }
