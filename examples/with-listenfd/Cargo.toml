@@ -1,0 +1,13 @@
+[package]
+name = "example-with-listenfd"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+hyper = { workspace = true, features = ["server"] }
+listenfd = "*"
+salvo = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
