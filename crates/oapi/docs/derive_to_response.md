@@ -147,7 +147,7 @@ impl Piece for PersonResponse {
 
 #[endpoint(
     responses(
-        (status = 200, response = PersonResponse)
+        (status_code = 200, response = PersonResponse)
     )
 )]
 fn get_person() -> PersonResponse {

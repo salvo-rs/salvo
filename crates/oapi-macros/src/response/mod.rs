@@ -46,12 +46,12 @@ impl Parse for Response<'_> {
 /// Parsed representation of response attributes from `#[salvo_oapi::endpoint]` attribute.
 #[derive(Default, Debug)]
 pub(crate) struct ResponseTuple<'r> {
-    pub(crate) status_code: ResponseStatus,
+    pub(crate) status_code: ResponseStatusCode,
     pub(crate) inner: Option<ResponseTupleInner<'r>>,
 }
 
 const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
-    "The `response` attribute may only be used in conjunction with the `status` attribute";
+    "The `response` attribute may only be used in conjunction with the `status_code` attribute";
 
 impl<'r> ResponseTuple<'r> {
     // This will error if the `response` attribute has already been set
@@ -85,7 +85,7 @@ pub(crate) enum ResponseTupleInner<'r> {
 
 impl Parse for ResponseTuple<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, example, examples, response";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status_code, description, body, content_type, headers, example, examples, response";
 
         let mut response = ResponseTuple::default();
 
@@ -96,8 +96,8 @@ impl Parse for ResponseTuple<'_> {
             let attribute_name = &*ident.to_string();
 
             match attribute_name {
-                "status" => {
-                    response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
+                "status_code" => {
+                    response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
                 }
                 "description" => {
                     response.as_value(input.span())?.description = parse::description(input)?;
@@ -150,8 +150,8 @@ impl<'r> From<ResponseValue<'r>> for ResponseTuple<'r> {
     }
 }
 
-impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
-    fn from((status_code, response_value): (ResponseStatus, ResponseValue<'r>)) -> Self {
+impl<'r> From<(ResponseStatusCode, ResponseValue<'r>)> for ResponseTuple<'r> {
+    fn from((status_code, response_value): (ResponseStatusCode, ResponseValue<'r>)) -> Self {
         ResponseTuple {
             inner: Some(ResponseTupleInner::Value(response_value)),
             status_code,
@@ -451,7 +451,7 @@ impl Parse for DeriveToResponseValue {
 
 #[derive(Default)]
 struct DeriveToResponsesValue {
-    status: ResponseStatus,
+    status_code: ResponseStatusCode,
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     description: String,
@@ -461,7 +461,7 @@ struct DeriveToResponsesValue {
 
 impl DeriveResponseValue for DeriveToResponsesValue {
     fn merge_from(mut self, other: Self) -> Self {
-        self.status = other.status;
+        self.status_code = other.status_code;
 
         if other.content_type.is_some() {
             self.content_type = other.content_type;
@@ -486,20 +486,20 @@ impl DeriveResponseValue for DeriveToResponsesValue {
 impl Parse for DeriveToResponsesValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut response = DeriveToResponsesValue::default();
-        const MISSING_STATUS_ERROR: &str = "missing expected `status` attribute";
+        const MISSING_STATUS_ERROR: &str = "missing expected `status_code` attribute";
         let first_span = input.span();
 
         let status_ident = input
             .parse::<Ident>()
             .map_err(|error| Error::new(error.span(), MISSING_STATUS_ERROR))?;
 
-        if status_ident == "status" {
-            response.status = parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
+        if status_ident == "status_code" {
+            response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
         } else {
             return Err(Error::new(status_ident.span(), MISSING_STATUS_ERROR));
         }
 
-        if response.status.to_token_stream().is_empty() {
+        if response.status_code.to_token_stream().is_empty() {
             return Err(Error::new(first_span, MISSING_STATUS_ERROR));
         }
 
@@ -541,9 +541,9 @@ impl Parse for DeriveToResponsesValue {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct ResponseStatus(TokenStream2);
+pub(crate) struct ResponseStatusCode(TokenStream2);
 
-impl Parse for ResponseStatus {
+impl Parse for ResponseStatusCode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         fn parse_lit_int(input: ParseStream) -> syn::Result<Cow<'_, str>> {
             input.parse::<LitInt>()?.base10_parse().map(Cow::Owned)
@@ -560,7 +560,7 @@ impl Parse for ResponseStatus {
                         Err(Error::new(
                             value.span(),
                             format!(
-                                "Invalid status range, expected one of: {}",
+                                "Invalid status code range, expected one of: {}",
                                 VALID_STATUS_RANGES.join(", "),
                             ),
                         ))
@@ -601,9 +601,9 @@ impl Parse for ResponseStatus {
 
         let lookahead = input.lookahead1();
         if lookahead.peek(LitInt) {
-            parse_lit_int(input).map(|status| Self(status.to_token_stream()))
+            parse_lit_int(input).map(|status_code| Self(status_code.to_token_stream()))
         } else if lookahead.peek(LitStr) {
-            parse_lit_str_status_range(input).map(|status| Self(status.to_token_stream()))
+            parse_lit_str_status_range(input).map(|status_code| Self(status_code.to_token_stream()))
         } else if lookahead.peek(syn::Ident) {
             parse_http_status_code(input).map(Self)
         } else {
@@ -612,7 +612,7 @@ impl Parse for ResponseStatus {
     }
 }
 
-impl ToTokens for ResponseStatus {
+impl ToTokens for ResponseStatusCode {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         self.0.to_tokens(tokens);
     }
@@ -710,7 +710,7 @@ impl ToTokens for Responses<'_> {
 /// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
-///         (status = 200, description = "success response",
+///         (status_code = 200, description = "success response",
 ///             headers = [
 ///                 ("xrfs-token" = String, description = "New csrf token sent back in response header")
 ///             ]
@@ -724,7 +724,7 @@ impl ToTokens for Responses<'_> {
 /// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
-///         (status = 200, description = "success response",
+///         (status_code = 200, description = "success response",
 ///             headers = [
 ///                 ("xrfs-token")
 ///             ]
@@ -738,7 +738,7 @@ impl ToTokens for Responses<'_> {
 /// #[salvo_oapi::endpoint(
 ///     ...
 ///     responses = [
-///         (status = 200, description = "success response",
+///         (status_code = 200, description = "success response",
 ///             headers = [
 ///                 ("xrfs-token"),
 ///                 ("another-header"),

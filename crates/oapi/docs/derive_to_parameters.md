@@ -178,7 +178,7 @@ struct PetQuery {
 #[salvo_oapi::endpoint(
     parameters(PetQuery),
     responses(
-        (status = 200, description = "success response")
+        (status_code = 200, description = "success response")
     )
 )]
 async fn get_pet(query: PetQuery) {

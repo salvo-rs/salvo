@@ -82,7 +82,7 @@ _**Example request body definitions.**_
 
 # Response Attributes
 
-* `status = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing
+* `status_code = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing
   a range such as _`"4XX"`_ or `"default"` or a valid _`http::status::StatusCode`_.
   _`StatusCode`_ can either be use path to the status code or _status code_ constant directly.
 
@@ -111,9 +111,9 @@ _**Example request body definitions.**_
   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 
 * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
-   define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
+   define response attributes. _`response`_ attribute cannot co-exist with other than _`status_code`_ attribute.
 
-* `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
+* `content((...), (...))` Can be used to define multiple return types for single response status code. Supported format for single
   _content_ is `(content_type = response_body, example = "...", examples(...))`. _`example`_
   and _`examples`_ are optional arguments. Examples attribute behaves exactly same way as in
   the response and is mutually exclusive with the example attribute.
@@ -137,18 +137,18 @@ _**Example request body definitions.**_
 **Minimal response format:**
 ```text
 responses(
-    (status = 200, description = "success response"),
-    (status = 404, description = "resource missing"),
-    (status = "5XX", description = "server error"),
-    (status = StatusCode::INTERNAL_SERVER_ERROR, description = "internal server error"),
-    (status = IM_A_TEAPOT, description = "happy easter")
+    (status_code = 200, description = "success response"),
+    (status_code = 404, description = "resource missing"),
+    (status_code = "5XX", description = "server error"),
+    (status_code = StatusCode::INTERNAL_SERVER_ERROR, description = "internal server error"),
+    (status_code = IM_A_TEAPOT, description = "happy easter")
 )
 ```
 
 **More complete Response:**
 ```text
 responses(
-    (status = 200, description = "Success response", body = Pet, content_type = "application/json",
+    (status_code = 200, description = "Success response", body = Pet, content_type = "application/json",
         headers(...),
         example = json!({"id": 1, "name": "bob the cat"})
     )
@@ -158,16 +158,16 @@ responses(
 **Response with multiple response content types:**
 ```text
 responses(
-    (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+    (status_code = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
 )
 ```
 
 **Multiple response return types with _`content(...)`_ attribute:**
 
-_**Define multiple response return types for single response status with their own example.**_
+_**Define multiple response return types for single response status code with their own example.**_
 ```text
 responses(
-   (status = 200, content(
+   (status_code = 200, content(
            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
        )
@@ -180,14 +180,14 @@ responses(
 _**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 ```text
 responses(
-    (status = 200, response = ReusableResponse)
+    (status_code = 200, response = ReusableResponse)
 )
 ```
 
 _**[`ToResponse`][to_response_trait] can also be inlined to the responses map.**_
 ```text
 responses(
-    (status = 200, response = inline(ReusableResponse))
+    (status_code = 200, response = inline(ReusableResponse))
 )
 ```
 
@@ -348,7 +348,7 @@ _**More minimal example with the defaults.**_
 #[salvo_oapi::endpoint(
    request_body = Pet,
    responses(
-        (status = 200, description = "Pet stored successfully", body = Pet,
+        (status_code = 200, description = "Pet stored successfully", body = Pet,
             headers(
                 ("x-cache-len", description = "Cache length")
             )
@@ -373,7 +373,7 @@ _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated Ope
 # use salvo_oapi::{endpoint, extract::PathParam};
 #[endpoint(
     responses(
-        (status = 200, description = "Pet found from database")
+        (status_code = 200, description = "Pet found from database")
     ),
     parameters(
         ("id", description = "Pet id"),
@@ -402,7 +402,7 @@ _**Example with multiple return types**_
 # impl User for User1 {}
 #[salvo_oapi::endpoint(
     responses(
-        (status = 200, content(
+        (status_code = 200, content(
                 ("application/vnd.user.v1+json" = User1, example = json!({"id": "id".to_string()})),
                 ("application/vnd.user.v2+json" = User2, example = json!({"id": 2}))
             )
@@ -424,7 +424,7 @@ _**Example with multiple examples on single response.**_
 # }
 #[salvo_oapi::endpoint(
     responses(
-        (status = 200, body = User,
+        (status_code = 200, body = User,
             examples(
                 ("Demo" = (summary = "This is summary", description = "Long description",
                             value = json!(User{name: "Demo".to_string()}))),

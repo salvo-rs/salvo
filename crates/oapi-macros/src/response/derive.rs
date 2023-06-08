@@ -90,23 +90,23 @@ impl ToTokens for ToResponses {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
                     let response = NamedStructResponse::new(&self.attributes, &self.ident, &fields.named).0;
-                    let status = &response.status_code;
+                    let status_code = &response.status_code;
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unnamed(fields) => {
                     let field = fields.unnamed.iter().next().expect("Unnamed struct must have 1 field");
 
                     let response = UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs).0;
-                    let status = &response.status_code;
+                    let status_code = &response.status_code;
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
                 Fields::Unit => {
                     let response = UnitStructResponse::new(&self.attributes).0;
-                    let status = &response.status_code;
+                    let status_code = &response.status_code;
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status_code, #response))))
                 }
             },
             Data::Enum(enum_value) => enum_value
@@ -125,8 +125,8 @@ impl ToTokens for ToResponses {
                     Fields::Unit => UnitStructResponse::new(&variant.attrs).0,
                 })
                 .map(|response| {
-                    let status = &response.status_code;
-                    quote!((#status, #oapi::oapi::RefOr::from(#response)))
+                    let status_code = &response.status_code;
+                    quote!((#status_code, #oapi::oapi::RefOr::from(#response)))
                 })
                 .collect::<Array<TokenStream>>(),
             Data::Union(_) => abort!(self.ident, "`ToResponses` does not support `Union` type"),
@@ -207,7 +207,7 @@ impl<'u> UnnamedStructResponse<'u> {
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
             .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
-        let status_code = mem::take(&mut derive_value.status);
+        let status_code = mem::take(&mut derive_value.status_code);
         Self(
             (
                 status_code,
@@ -238,7 +238,7 @@ impl NamedStructResponse<'_> {
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
             .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
-        let status_code = mem::take(&mut derive_value.status);
+        let status_code = mem::take(&mut derive_value.status_code);
 
         let inline_schema = NamedStructSchema {
             attributes,
@@ -274,7 +274,7 @@ impl UnitStructResponse<'_> {
 
         let mut derive_value = DeriveToResponsesValue::from_attributes(attributes)
             .expect("`ToResponses` must have `#[salvo(response(...))]` attribute");
-        let status_code = mem::take(&mut derive_value.status);
+        let status_code = mem::take(&mut derive_value.status_code);
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
 
         Self(
