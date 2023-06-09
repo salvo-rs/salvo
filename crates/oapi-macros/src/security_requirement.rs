@@ -4,7 +4,6 @@ use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token::Comma,
     LitStr, Token,
 };
 
@@ -26,7 +25,7 @@ impl Parse for SecurityRequirementAttr {
 
         let scopes_stream;
         bracketed!(scopes_stream in input);
-        let scopes = Punctuated::<LitStr, Comma>::parse_terminated(&scopes_stream)?
+        let scopes = Punctuated::<LitStr, Token![,]>::parse_terminated(&scopes_stream)?
             .iter()
             .map(LitStr::value)
             .collect::<Vec<_>>();

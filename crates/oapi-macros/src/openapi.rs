@@ -4,7 +4,6 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    token::{And, Comma},
     Error, ExprPath, LitStr, Token, TypePath,
 };
 
@@ -48,9 +47,9 @@ impl Parse for Tag {
             let ident = input
                 .parse::<Ident>()
                 .map_err(|error| syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str(input)?,
                 "description" => tag.description = Some(parse_utils::parse_next_literal_str(input)?),
                 "external_docs" => {
@@ -97,7 +96,7 @@ impl ToTokens for Tag {
 struct Server {
     url: String,
     description: Option<String>,
-    variables: Punctuated<ServerVariable, Comma>,
+    variables: Punctuated<ServerVariable, Token![,]>,
 }
 
 impl Parse for Server {
@@ -107,9 +106,9 @@ impl Parse for Server {
         let mut server = Server::default();
         while !server_stream.is_empty() {
             let ident = server_stream.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "url" => {
                     server.url = parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value()
                 }
@@ -121,13 +120,13 @@ impl Parse for Server {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables"),
+                        format!("unexpected attribute: {attr_name}, expected one of: url, description, variables"),
                     ))
                 }
             }
 
             if !server_stream.is_empty() {
-                server_stream.parse::<Comma>()?;
+                server_stream.parse::<Token![,]>()?;
             }
         }
 
@@ -186,7 +185,7 @@ struct ServerVariable {
     name: String,
     default_value: String,
     description: Option<String>,
-    enum_values: Option<Punctuated<LitStr, Comma>>,
+    enum_values: Option<Punctuated<LitStr, Token![,]>>,
 }
 
 impl Parse for ServerVariable {
@@ -204,9 +203,9 @@ impl Parse for ServerVariable {
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "default" => {
                     server_variable.default_value =
                         parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
@@ -222,14 +221,14 @@ impl Parse for ServerVariable {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                        "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values"
+                        "unexpected attribute: {attr_name}, expected one of: default, description, enum_values"
                     ),
                     ))
                 }
             }
 
             if !content.is_empty() {
-                content.parse::<Comma>()?;
+                content.parse::<Token![,]>()?;
             }
         }
 

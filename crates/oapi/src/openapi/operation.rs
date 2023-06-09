@@ -260,6 +260,14 @@ impl Operation {
         self.servers.insert(server);
         self
     }
+
+    /// For easy chaining of operations.
+    pub fn then<F>(self, func: F) -> Self
+    where
+        F: FnOnce(Self) -> Self,
+    {
+        func(self)
+    }
 }
 
 #[cfg(test)]

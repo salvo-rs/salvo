@@ -3,7 +3,6 @@ use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token::Comma,
     Error, LitBool, LitStr, Token,
 };
 
@@ -26,7 +25,7 @@ where
     T: Parse,
     R: FromIterator<T>,
 {
-    Punctuated::<Group, Comma>::parse_terminated(input).and_then(|groups| {
+    Punctuated::<Group, Token![,]>::parse_terminated(input).and_then(|groups| {
         groups
             .into_iter()
             .map(|group| syn::parse2::<T>(group.stream()))
@@ -34,13 +33,13 @@ where
     })
 }
 
-pub(crate) fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Comma>>
+pub(crate) fn parse_punctuated_within_parenthesis<T>(input: ParseStream) -> syn::Result<Punctuated<T, Token![,]>>
 where
     T: Parse,
 {
     let content;
     parenthesized!(content in input);
-    Punctuated::<T, Comma>::parse_terminated(&content)
+    Punctuated::<T, Token![,]>::parse_terminated(&content)
 }
 
 pub(crate) fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {

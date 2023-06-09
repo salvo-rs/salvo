@@ -347,9 +347,9 @@ impl Parse for ExternalDocs {
             let ident = input
                 .parse::<Ident>()
                 .map_err(|error| syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "url" => {
                     external_docs.url = parse_utils::parse_next_literal_str(input)?;
                 }

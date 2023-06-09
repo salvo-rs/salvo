@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{punctuated::Punctuated, token::Comma, Attribute, Field, Generics};
+use syn::{punctuated::Punctuated, Attribute, Field, Generics, Token};
 
 use crate::{
     component::ComponentSchemaProps,
@@ -22,7 +22,7 @@ use super::{
 #[derive(Debug)]
 pub(crate) struct NamedStructSchema<'a> {
     pub(crate) struct_name: Cow<'a, str>,
-    pub(crate) fields: &'a Punctuated<Field, Comma>,
+    pub(crate) fields: &'a Punctuated<Field, Token![,]>,
     pub(crate) attributes: &'a [Attribute],
     pub(crate) features: Option<Vec<Feature>>,
     pub(crate) rename_all: Option<RenameAll>,
@@ -225,7 +225,7 @@ impl ToTokens for NamedStructSchema<'_> {
 #[derive(Debug)]
 pub(super) struct UnnamedStructSchema<'a> {
     pub(super) struct_name: Cow<'a, str>,
-    pub(super) fields: &'a Punctuated<Field, Comma>,
+    pub(super) fields: &'a Punctuated<Field, Token![,]>,
     pub(super) attributes: &'a [Attribute],
     pub(super) features: Option<Vec<Feature>>,
     pub(super) symbol: Option<Symbol>,

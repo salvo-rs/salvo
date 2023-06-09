@@ -48,6 +48,24 @@ impl RequestBody {
         self.contents.insert(kind.into(), content.into());
         self
     }
+
+    /// Fill [`RequestBody`] with values from another [`RequestBody`].
+    pub fn merge(&mut self, other: RequestBody) {
+        let RequestBody {
+            description,
+            contents,
+            required,
+        } = other;
+        if let Some(description) = description {
+            if !description.is_empty() {
+                self.description = Some(description);
+            }
+        }
+        self.contents.extend(contents);
+        if let Some(required) = required {
+            self.required = Some(required);
+        }
+    }
 }
 
 #[cfg(test)]

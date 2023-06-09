@@ -7,7 +7,6 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    token::Comma,
     Attribute, Error, ExprPath, LitInt, LitStr, Token,
 };
 
@@ -93,9 +92,9 @@ impl Parse for ResponseTuple<'_> {
             let ident = input
                 .parse::<Ident>()
                 .map_err(|error| Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}")))?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "status_code" => {
                     response.status_code = parse_utils::parse_next(input, || input.parse::<ResponseStatusCode>())?;
                 }
@@ -195,8 +194,8 @@ pub(crate) struct ResponseValue<'r> {
     pub(crate) content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     pub(crate) example: Option<AnyValue>,
-    pub(crate) examples: Option<Punctuated<Example, Comma>>,
-    contents: Punctuated<Content<'r>, Comma>,
+    pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
+    contents: Punctuated<Content<'r>, Token![,]>,
 }
 
 impl<'r> ResponseValue<'r> {
@@ -254,7 +253,7 @@ impl ToTokens for ResponseTuple<'_> {
 
                 let create_content = |path_type: &PathType,
                                       example: &Option<AnyValue>,
-                                      examples: &Option<Punctuated<Example, Comma>>|
+                                      examples: &Option<Punctuated<Example, Token![,]>>|
                  -> TokenStream2 {
                     let content_schema = match path_type {
                         PathType::RefPath(ref_type) => quote! {
@@ -292,9 +291,7 @@ impl ToTokens for ResponseTuple<'_> {
                                 quote!((#name, #example))
                             })
                             .collect::<Array<TokenStream2>>();
-                        content.extend(quote!(
-                            .examples_from_iter(#examples)
-                        ))
+                        content.extend(quote!( .examples_from_iter(#examples)))
                     }
                     quote! {
                         #content
@@ -383,7 +380,7 @@ struct DeriveToResponseValue {
     headers: Vec<Header>,
     description: String,
     example: Option<(AnyValue, Ident)>,
-    examples: Option<(Punctuated<Example, Comma>, Ident)>,
+    examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }
 
 impl DeriveResponseValue for DeriveToResponseValue {
@@ -414,9 +411,9 @@ impl Parse for DeriveToResponseValue {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "description" => {
                     response.description = parse::description(input)?;
                 }
@@ -435,13 +432,13 @@ impl Parse for DeriveToResponseValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {attribute_name}, expected any of: inline, description, content_type, headers, example"),
+                        format!("unexpected attribute: {attr_name}, expected any of: inline, description, content_type, headers, example"),
                     ));
                 }
             }
 
             if !input.is_empty() {
-                input.parse::<Comma>()?;
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -456,7 +453,7 @@ struct DeriveToResponsesValue {
     headers: Vec<Header>,
     description: String,
     example: Option<(AnyValue, Ident)>,
-    examples: Option<(Punctuated<Example, Comma>, Ident)>,
+    examples: Option<(Punctuated<Example, Token![,]>, Ident)>,
 }
 
 impl DeriveResponseValue for DeriveToResponsesValue {
@@ -505,9 +502,9 @@ impl Parse for DeriveToResponsesValue {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
+            let attr_name = &*ident.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "description" => {
                     response.description = parse::description(input)?;
                 }
@@ -526,13 +523,13 @@ impl Parse for DeriveToResponsesValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {attribute_name}, expected any of: description, content_type, headers, example, examples"),
+                        format!("unexpected attribute: {attr_name}, expected any of: description, content_type, headers, example, examples"),
                     ));
                 }
             }
 
             if !input.is_empty() {
-                input.parse::<Comma>()?;
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -627,7 +624,7 @@ struct Content<'c>(
     String,
     PathType<'c>,
     Option<AnyValue>,
-    Option<Punctuated<Example, Comma>>,
+    Option<Punctuated<Example, Token![,]>>,
 );
 
 impl Parse for Content<'_> {
@@ -638,14 +635,14 @@ impl Parse for Content<'_> {
         let content_type = content.parse::<LitStr>()?;
         content.parse::<Token![=]>()?;
         let body = content.parse()?;
-        content.parse::<Option<Comma>>()?;
+        content.parse::<Option<Token![,]>>()?;
         let mut example = None::<AnyValue>;
-        let mut examples = None::<Punctuated<Example, Comma>>;
+        let mut examples = None::<Punctuated<Example, Token![,]>>;
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
-            match attribute_name {
+            let attr_name = &*ident.to_string();
+            match attr_name {
                 "example" => example = Some(parse_utils::parse_next(&content, || AnyValue::parse_json(&content))?),
                 "examples" => examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?),
                 _ => {
@@ -657,7 +654,7 @@ impl Parse for Content<'_> {
             }
 
             if !content.is_empty() {
-                content.parse::<Comma>()?;
+                content.parse::<Token![,]>()?;
             }
         }
 
@@ -837,8 +834,8 @@ impl ToTokens for Header {
 mod parse {
     use syn::parse::ParseStream;
     use syn::punctuated::Punctuated;
-    use syn::token::{Bracket, Comma};
-    use syn::{bracketed, parenthesized, LitStr, Result};
+    use syn::token::Bracket;
+    use syn::{bracketed, parenthesized, LitStr, Result, Token};
 
     use crate::operation::example::Example;
     use crate::{parse_utils, AnyValue};
@@ -859,7 +856,7 @@ mod parse {
             } else if look_content_type.peek(Bracket) {
                 let content_types;
                 bracketed!(content_types in input);
-                Ok(Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                Ok(Punctuated::<LitStr, Token![,]>::parse_terminated(&content_types)?
                     .into_iter()
                     .map(|lit| lit.value())
                     .collect())
@@ -883,7 +880,7 @@ mod parse {
     }
 
     #[inline]
-    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
+    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Token![,]>> {
         parse_utils::parse_punctuated_within_parenthesis(input)
     }
 }

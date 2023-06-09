@@ -1,7 +1,6 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
-use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::ComponentSchema;
@@ -54,7 +53,7 @@ pub(crate) struct RequestBodyAttr<'r> {
     pub(crate) content_type: Option<String>,
     pub(crate) description: Option<String>,
     pub(crate) example: Option<AnyValue>,
-    pub(crate) examples: Option<Punctuated<Example, Comma>>,
+    pub(crate) examples: Option<Punctuated<Example, Token![,]>>,
 }
 
 impl Parse for RequestBodyAttr<'_> {
@@ -72,9 +71,9 @@ impl Parse for RequestBodyAttr<'_> {
                 let ident = group
                     .parse::<Ident>()
                     .map_err(|error| Error::new(error.span(), EXPECTED_ATTRIBUTE_MESSAGE))?;
-                let attribute_name = &*ident.to_string();
+                let attr_name = &*ident.to_string();
 
-                match attribute_name {
+                match attr_name {
                     "content" => {
                         request_body_attr.content =
                             Some(parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
