@@ -42,7 +42,7 @@ impl Parameters {
             .find(|item| item.name == parameter.name && item.parameter_in == parameter.parameter_in);
 
         if let Some(exist_item) = exist_item {
-            exist_item.fill_with(parameter);
+            exist_item.merge(parameter);
         } else {
             self.0.push(parameter);
         }
@@ -138,7 +138,7 @@ impl Parameter {
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
-            required: Required::True,
+            required: Required::Unset,
             ..Default::default()
         }
     }
@@ -151,11 +151,14 @@ impl Parameter {
     /// Add in of the [`Parameter`].
     pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
         self.parameter_in = parameter_in;
+        if self.parameter_in == ParameterIn::Path {
+            self.required = Required::True;
+        }
         self
     }
 
     /// Fill [`Parameter`] with values from another [`Parameter`]. Fields will replaced if it is not set.
-    pub fn fill_with(&mut self, other: Parameter) -> bool {
+    pub fn merge(&mut self, other: Parameter) -> bool {
         let Parameter {
             name,
             parameter_in,
@@ -171,29 +174,31 @@ impl Parameter {
         if name != self.name || parameter_in != self.parameter_in {
             return false;
         }
-        if self.description.is_none() {
-            self.description = description;
+        if let Some(description) = description {
+            self.description = Some(description);
         }
 
-        self.required = required;
+        if required != Required::Unset {
+            self.required = required;
+        }
 
-        if self.deprecated.is_none() {
-            self.deprecated = deprecated;
+        if let Some(deprecated) = deprecated {
+            self.deprecated = Some(deprecated);
         }
-        if self.schema.is_none() {
-            self.schema = schema;
+        if let Some(schema) = schema {
+            self.schema = Some(schema);
         }
-        if self.style.is_none() {
-            self.style = style;
+        if let Some(style) = style {
+            self.style = Some(style);
         }
-        if self.explode.is_none() {
-            self.explode = explode;
+        if let Some(explode) = explode {
+            self.explode = Some(explode);
         }
-        if self.allow_reserved.is_none() {
-            self.allow_reserved = allow_reserved;
+        if let Some(allow_reserved) = allow_reserved {
+            self.allow_reserved = Some(allow_reserved);
         }
-        if self.example.is_none() {
-            self.example = example;
+        if let Some(example) = example {
+            self.example = Some(example);
         }
         true
     }

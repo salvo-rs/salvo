@@ -35,7 +35,11 @@ async fn main() {
 }
 
 /// List todos.
-#[endpoint]
+#[endpoint(
+    parameters(
+        ("offset", description = "Offset is an optional query paramter"),
+    )
+)]
 pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usize, false>) -> Json<Vec<Todo>> {
     let todos = STORE.lock().await;
     let todos: Vec<Todo> = todos

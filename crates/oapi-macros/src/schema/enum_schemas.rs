@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, token::Comma, Attribute, Fields, Variant};
+use syn::{punctuated::Punctuated, Attribute, Fields, Token, Variant};
 
 use crate::{
     doc_comment::CommentAttributes,
@@ -39,7 +39,7 @@ pub(crate) struct EnumSchema<'a> {
 impl<'e> EnumSchema<'e> {
     pub(crate) fn new(
         enum_name: Cow<'e, str>,
-        variants: &'e Punctuated<Variant, Comma>,
+        variants: &'e Punctuated<Variant, Token![,]>,
         attributes: &'e [Attribute],
     ) -> Self {
         if variants.iter().all(|variant| matches!(variant.fields, Fields::Unit)) {
@@ -193,7 +193,7 @@ impl ToTokens for EnumSchemaType<'_> {
 #[cfg(feature = "repr")]
 #[derive(Debug)]
 pub(super) struct ReprEnum<'a> {
-    variants: &'a Punctuated<Variant, Comma>,
+    variants: &'a Punctuated<Variant, Token![,]>,
     attributes: &'a [Attribute],
     enum_type: syn::TypePath,
     enum_features: Vec<Feature>,
@@ -249,7 +249,7 @@ fn rename_enum_variant<'a>(
 
 #[derive(Debug)]
 pub(super) struct SimpleEnum<'a> {
-    variants: &'a Punctuated<Variant, Comma>,
+    variants: &'a Punctuated<Variant, Token![,]>,
     attributes: &'a [Attribute],
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
@@ -335,7 +335,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
 
 #[derive(Debug)]
 pub(super) struct ComplexEnum<'a> {
-    variants: &'a Punctuated<Variant, Comma>,
+    variants: &'a Punctuated<Variant, Token![,]>,
     attributes: &'a [Attribute],
     enum_name: Cow<'a, str>,
     enum_features: Vec<Feature>,

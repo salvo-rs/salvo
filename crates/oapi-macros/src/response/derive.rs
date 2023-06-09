@@ -6,8 +6,7 @@ use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Type, TypePath, Variant};
+use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Meta, Path, Token, Type, TypePath, Variant};
 
 use crate::doc_comment::CommentAttributes;
 use crate::operation::{InlineType, PathType};
@@ -166,7 +165,7 @@ trait Response {
         const ERROR: &str = "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
         if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
-            if let Ok(metas) = metas.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+            if let Ok(metas) = metas.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) {
                 for meta in metas {
                     if meta.path().is_ident("symbol") || meta.path().is_ident("content") {
                         return (false, ERROR);
@@ -228,7 +227,7 @@ struct NamedStructResponse<'n>(ResponseTuple<'n>);
 impl Response for NamedStructResponse<'_> {}
 
 impl NamedStructResponse<'_> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Comma>) -> Self {
+    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Token![,]>) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(
             fields.iter().flat_map(|field| &field.attrs),
@@ -292,7 +291,7 @@ struct ToResponseNamedStructResponse<'p>(ResponseTuple<'p>);
 impl Response for ToResponseNamedStructResponse<'_> {}
 
 impl<'p> ToResponseNamedStructResponse<'p> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Comma>) -> Self {
+    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Token![,]>) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(
             fields.iter().flat_map(|field| &field.attrs),
@@ -375,7 +374,7 @@ struct EnumResponse<'r>(ResponseTuple<'r>);
 impl Response for EnumResponse<'_> {}
 
 impl<'r> EnumResponse<'r> {
-    fn new(ident: &Ident, variants: &'r Punctuated<Variant, Comma>, attributes: &[Attribute]) -> Self {
+    fn new(ident: &Ident, variants: &'r Punctuated<Variant, Token![,]>, attributes: &[Attribute]) -> Self {
         Self::validate_attributes(attributes, Self::has_no_field_attributes);
         Self::validate_attributes(
             variants.iter().flat_map(|variant| &variant.attrs),
@@ -389,7 +388,7 @@ impl<'r> EnumResponse<'r> {
             .into_iter()
             .map(Self::parse_variant_attributes)
             .filter_map(Self::to_content);
-        let contents: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
+        let contents: Punctuated<Content, Token![,]> = Punctuated::from_iter(variants_content);
 
         let derive_value = DeriveToResponseValue::from_attributes(attributes);
         if let Some(derive_value) = &derive_value {

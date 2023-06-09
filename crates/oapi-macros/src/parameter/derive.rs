@@ -4,8 +4,8 @@ use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, GenericParam, Generics, Ident,
-    Lifetime, LifetimeParam,
+    parse::Parse, punctuated::Punctuated, Attribute, Data, Field, GenericParam, Generics, Ident, Lifetime,
+    LifetimeParam, Token,
 };
 
 use crate::component::{self, ComponentSchema};
@@ -247,7 +247,7 @@ impl ToParameters {
 
     fn validate_unnamed_field_names(
         &self,
-        unnamed_fields: &Punctuated<Field, Comma>,
+        unnamed_fields: &Punctuated<Field, Token![,]>,
         field_names: &Option<&Vec<String>>,
     ) {
         let ident = &self.ident;

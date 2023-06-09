@@ -31,20 +31,17 @@ fn metadata(
             }
         }
     }));
-    Ok(quote! {
+    let stream = quote! {
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
         }
         fn #cfn() -> #oapi::oapi::Endpoint {
             let mut components = #oapi::oapi::Components::new();
             let status_codes: &[#salvo::http::StatusCode] = &#status_codes;
-            fn get_operation(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Operation {
-                #opt
-            }
             fn modify(components: &mut #oapi::oapi::Components, operation: &mut #oapi::oapi::Operation) {
                 #(#modifiers)*
             }
-            let mut operation = get_operation(&mut components);
+            let mut operation = #oapi::oapi::Operation::new();
             modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
                 operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
@@ -67,7 +64,8 @@ fn metadata(
         #oapi::oapi::__private::inventory::submit! {
             #oapi::oapi::EndpointRegistry::save(#tfn, #cfn)
         }
-    })
+    };
+    Ok(stream)
 }
 pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<TokenStream> {
     let salvo = crate::salvo_crate();

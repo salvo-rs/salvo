@@ -34,9 +34,9 @@ impl Parse for XmlAttr {
             let attribute = input
                 .parse::<Ident>()
                 .map_err(|error| Error::new(error.span(), EXPECTED_ATTRIBUTE_MESSAGE))?;
-            let attribute_name = &*attribute.to_string();
+            let attr_name = &*attribute.to_string();
 
-            match attribute_name {
+            match attr_name {
                 "name" => xml.name = Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value()),
                 "namespace" => {
                     xml.namespace = Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())

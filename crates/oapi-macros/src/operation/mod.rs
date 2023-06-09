@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::ops::Deref;
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, quote_spanned, ToTokens};
-use syn::{parenthesized, parse::Parse, spanned::Spanned, token::Paren, Expr, ExprPath, Path, Token, Type};
+use quote::quote;
+use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token, Type};
 
 use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
@@ -47,11 +47,69 @@ impl<'a> Operation<'a> {
     pub(crate) fn modifiers(&self) -> Vec<TokenStream2> {
         let mut modifiers = vec![];
         let oapi = crate::oapi_crate();
-        if let Some(request_body) = &self.request_body {
-            if let Some(content) = &request_body.content {
+
+        if let Some(rb) = self.request_body {
+            modifiers.push(quote! {
+                if let Some(request_body) = operation.request_body.as_mut() {
+                    request_body.merge(#rb);
+                } else {
+                    operation.request_body = Some(#rb);
+                }
+            });
+            if let Some(content) = &rb.content {
                 modifiers.append(&mut generate_register_schemas(&oapi, content));
             }
         }
+
+        // let responses = Responses(self.responses);
+        // modifiers.push(quote! {
+        //     .responses(#responses)
+        // });
+        if let Some(security_requirements) = self.security {
+            modifiers.push(quote! {
+                operation.securities.append(&mut #security_requirements);
+            })
+        }
+        if let Some(operation_id) = &self.operation_id {
+            modifiers.push(quote! {
+                operation.operation_id = Some(#operation_id);
+            });
+        }
+
+        if let Some(deprecated) = self.deprecated {
+            modifiers.push(quote! {
+                operation.deprecated = Some(#deprecated.into());
+            })
+        }
+
+        if let Some(tags) = self.tags {
+            let tags = tags.iter().collect::<Array<_>>();
+            modifiers.push(quote! {
+                operation.tags.append(&mut #tags);
+            })
+        }
+
+        if let Some(summary) = self.summary {
+            modifiers.push(quote! {
+                operation.summary = Some(#summary.into());
+            })
+        }
+
+        if let Some(description) = self.description {
+            let description = description.join("\n");
+            if !description.is_empty() {
+                modifiers.push(quote! {
+                    operation.description = Some(#description.into());
+                })
+            }
+        }
+
+        self.parameters.iter().for_each(|parameter| {
+            modifiers.push(quote! {
+                #parameter
+            })
+        });
+
         for response in self.responses {
             match response {
                 Response::ToResponses(path) => {
@@ -103,60 +161,6 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
         _ => {}
     }
     modifiers
-}
-
-impl ToTokens for Operation<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let oapi = crate::oapi_crate();
-        tokens.extend(quote! { #oapi::oapi::Operation::new() });
-        if let Some(request_body) = self.request_body {
-            tokens.extend(quote! {
-                .request_body(#request_body)
-            })
-        }
-
-        // let responses = Responses(self.responses);
-        // tokens.extend(quote! {
-        //     .responses(#responses)
-        // });
-        if let Some(security_requirements) = self.security {
-            tokens.extend(quote! {
-                .securities(#security_requirements)
-            })
-        }
-        if let Some(operation_id) = &self.operation_id {
-            tokens.extend(quote_spanned! { operation_id.span() =>
-                .operation_id(#operation_id)
-            });
-        }
-
-        if let Some(deprecated) = self.deprecated {
-            tokens.extend(quote!( .deprecated(#deprecated)))
-        }
-
-        if let Some(tags) = self.tags {
-            let tags = tags.iter().collect::<Array<_>>();
-            tokens.extend(quote!( .tags(#tags)))
-        }
-
-        if let Some(summary) = self.summary {
-            tokens.extend(quote! {
-                .summary(#summary)
-            })
-        }
-
-        if let Some(description) = self.description {
-            let description = description.join("\n");
-
-            if !description.is_empty() {
-                tokens.extend(quote! {
-                    .description(#description)
-                })
-            }
-        }
-
-        self.parameters.iter().for_each(|parameter| parameter.to_tokens(tokens));
-    }
 }
 
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.

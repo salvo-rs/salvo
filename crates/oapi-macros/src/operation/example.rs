@@ -1,7 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::token::Comma;
 use syn::{parenthesized, Error, LitStr, Token};
 
 use crate::{parse_utils, AnyValue};
@@ -31,8 +30,8 @@ impl Parse for Example {
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
-            match attribute_name {
+            let attr_name = &*ident.to_string();
+            match attr_name {
                 "summary" => {
                     example.summary = Some(
                         parse_utils::parse_next(&content, || content.parse::<LitStr>())?
@@ -60,14 +59,14 @@ impl Parse for Example {
                     return Err(
                         Error::new(
                             ident.span(),
-                            format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, external_value")
+                            format!("unexpected attribute: {attr_name}, expected one of: summary, description, value, external_value")
                         )
                     )
                 }
             }
 
             if !content.is_empty() {
-                content.parse::<Comma>()?;
+                content.parse::<Token![,]>()?;
             }
         }
 
