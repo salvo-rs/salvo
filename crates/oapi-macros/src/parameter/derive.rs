@@ -116,7 +116,7 @@ impl ToTokens for ToParameters {
             } else if let Some(name) = names.as_ref().and_then(|names|names.get(index)) {
                 name.to_string()
             } else {
-                abort! {
+                abort!{
                     field,
                     "tuple structs are not supported";
                     help = "consider using a struct with named fields instead, or use `#[salvo(parameters(names(\"...\")))]` to specify a name for each field",

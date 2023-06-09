@@ -182,7 +182,7 @@ struct ParameterFeatures(Vec<Feature>);
 impl Parse for ParameterFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
-            // param features
+            // parameter features
             input as Style,
             Explode,
             AllowReserved,
@@ -261,9 +261,7 @@ impl ToTokens for ValueParameter<'_> {
         }
 
         let (schema_features, param_features) = &self.features;
-
         tokens.extend(param_features.to_token_stream());
-
         if !schema_features.is_empty() && self.parameter_schema.is_none() {
             abort!(
                 Span::call_site(),
@@ -318,12 +316,11 @@ impl Parse for ParameterIn {
             format!("unexpected in, expected one of: {variants}")
         }
         let style = input.parse::<Ident>()?;
-
-        match &*style.to_string() {
-            "Path" => Ok(Self::Path),
-            "Query" => Ok(Self::Query),
-            "Header" => Ok(Self::Header),
-            "Cookie" => Ok(Self::Cookie),
+        match &*style.to_string().to_lowercase() {
+            "path" => Ok(Self::Path),
+            "query" => Ok(Self::Query),
+            "header" => Ok(Self::Header),
+            "cookie" => Ok(Self::Cookie),
             _ => Err(Error::new(style.span(), expected_style())),
         }
     }

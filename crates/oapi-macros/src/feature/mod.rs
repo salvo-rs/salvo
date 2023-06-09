@@ -169,6 +169,7 @@ impl ToTokens for Feature {
             Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
             Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
             Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+            Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),
             Feature::Style(style) => quote! { .style(#style) },
             Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
@@ -225,10 +226,6 @@ impl ToTokens for Feature {
                     "Names feature does not support `ToTokens`";
                     help = "Names is only used with ToParameters to artificially give names for unnamed struct type `ToParameters`."
                 }
-            }
-            Feature::Required(required) => {
-                let name = <Required as Name>::get_name();
-                quote! { .#name(#required) }
             }
         };
 

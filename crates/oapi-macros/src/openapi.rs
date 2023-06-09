@@ -246,7 +246,7 @@ impl Parse for Components {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
         parenthesized!(content in input);
-        const EXPECTED_ATTRIBUTE: &str = "unexpected attribute. expected one of: schemas, responses";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected attribute, expected one of: schemas, responses";
 
         let mut schemas: Vec<Schema> = Vec::new();
         let mut responses: Vec<Response> = Vec::new();

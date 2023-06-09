@@ -876,10 +876,7 @@ impl Required {
     }
 }
 impl Parse for Required {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
