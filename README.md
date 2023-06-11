@@ -77,23 +77,6 @@ async fn hello(res: &mut Response) {
 }
 ```
 
-In the `main` function, we need to create a root Router first, and then create a server and call it's `bind` function:
-
-```rust
-use salvo::prelude::*;
-
-#[handler]
-async fn hello() -> &'static str {
-    "Hello World"
-}
-#[tokio::main]
-async fn main() {
-    let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    Server::new(acceptor).serve(router).await;
-}
-```
-
 ### Middleware
 
 There is no difference between Handler and Middleware, Middleware is just Handler. **So you can write middlewares without to know concepts like associated type, generic type. You can write middleware if you can write function!!!**
@@ -141,7 +124,6 @@ Then write the routers that require the user to login together, and use the corr
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
-    .post(list_articles)
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
@@ -157,7 +139,6 @@ Router::new()
     .push(
         Router::with_path("articles")
             .hoop(auth_check)
-            .post(list_articles)
             .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
     );
 ```

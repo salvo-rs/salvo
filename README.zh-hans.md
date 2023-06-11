@@ -127,7 +127,6 @@ Router::with_path("articles")
 ```rust
 Router::with_path("articles")
     .hoop(auth_check)
-    .post(list_articles)
     .push(Router::with_path("<id>").patch(edit_article).delete(delete_article));
 ```
 
@@ -143,7 +142,6 @@ Router::new()
     .push(
         Router::with_path("articles")
             .hoop(auth_check)
-            .post(list_articles)
             .push(Router::with_path("<id>").patch(edit_article).delete(delete_article)),
     );
 ```
