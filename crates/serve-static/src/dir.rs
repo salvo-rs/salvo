@@ -67,6 +67,7 @@ where
 }
 
 /// StaticDir
+#[non_exhaustive]
 #[derive(Clone)]
 pub struct StaticDir {
     /// Static roots.

@@ -20,6 +20,7 @@ use super::read_trust_anchor;
 
 /// Private key and certificate
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Keycert {
     /// Private key.
     pub key: Vec<u8>,

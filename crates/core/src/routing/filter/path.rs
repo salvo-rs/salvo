@@ -413,6 +413,7 @@ impl PathWisp for NamedWisp {
 
 /// Regex wisp match part in url segment use regex pattern and give it a name.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct RegexWisp {
     /// The name of the wisp.
     pub name: String,

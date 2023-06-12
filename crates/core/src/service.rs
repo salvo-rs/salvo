@@ -16,6 +16,7 @@ use crate::routing::{FlowCtrl, PathState, Router};
 use crate::Depot;
 
 /// Service http request.
+#[non_exhaustive]
 pub struct Service {
     /// The router of this service.
     pub router: Arc<Router>,

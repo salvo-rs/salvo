@@ -134,6 +134,7 @@ impl FromStr for SourceFormat {
 
 /// Struct's metadata information.
 #[derive(Default, Clone, Debug)]
+#[non_exhaustive]
 pub struct Metadata {
     /// The name of this type.
     pub name: &'static str,
@@ -189,6 +190,7 @@ impl Metadata {
 
 /// Information about struct field.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Field {
     /// Field name.
     pub name: &'static str,
@@ -251,6 +253,7 @@ impl Field {
 
 /// Request source for extract data.
 #[derive(Copy, Clone, Debug)]
+#[non_exhaustive]
 pub struct Source {
     /// The source from.
     pub from: SourceFrom,

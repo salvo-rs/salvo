@@ -28,6 +28,7 @@ impl fmt::Debug for MethodFilter {
 
 /// Filter by request uri scheme.
 #[derive(Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct SchemeFilter {
     /// Scheme to filter.
     pub scheme: Scheme,
@@ -108,6 +109,7 @@ impl fmt::Debug for HostFilter {
 
 /// Filter by request uri host.
 #[derive(Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct PortFilter {
     /// Port to filter.
     pub port: u16,

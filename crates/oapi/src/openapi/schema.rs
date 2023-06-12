@@ -64,6 +64,7 @@ impl Default for Schema {
 /// [`OneOf`] composite object.
 ///
 /// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Discriminator {
@@ -95,6 +96,7 @@ impl Discriminator {
 /// See [`Schema::OneOf`] for more details.
 ///
 /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
 pub struct OneOf {
     /// Components of _OneOf_ component.
@@ -205,6 +207,7 @@ impl From<OneOf> for RefOr<Schema> {
 /// See [`Schema::AllOf`] for more details.
 ///
 /// [allof]: https://spec.openapis.org/oas/latest.html#components-object
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
 pub struct AllOf {
     /// Components of _AllOf_ component.

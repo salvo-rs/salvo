@@ -70,6 +70,7 @@ pub fn empty() -> EmptyHandler {
 }
 
 #[doc(hidden)]
+#[non_exhaustive]
 pub struct WhenHoop<H, F> {
     pub inner: H,
     pub filter: F,

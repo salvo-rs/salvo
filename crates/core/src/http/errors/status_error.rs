@@ -27,6 +27,7 @@ macro_rules! default_errors {
 
 /// StatusError contains http error information.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct StatusError {
     /// Http error status code.
     pub code: StatusCode,

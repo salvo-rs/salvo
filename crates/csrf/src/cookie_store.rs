@@ -8,6 +8,7 @@ use super::CsrfStore;
 
 /// CookieStore is a `CsrfStore` implementation that stores the CSRF secret in a cookie.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct CookieStore {
     /// CSRF cookie ttl.
     pub ttl: Duration,

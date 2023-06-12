@@ -18,6 +18,7 @@ use crate::{RefOr, Response, Responses, Schema, SecurityScheme};
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct Components {
     /// Map of reusable [OpenAPI Schema Object][schema]s.
     ///

@@ -114,6 +114,7 @@ pub trait IntoConfigStream<C> {
 }
 
 /// Acceptor's return type.
+#[non_exhaustive]
 pub struct Accepted<C> {
     /// Incoming stream.
     pub conn: C,
@@ -166,6 +167,7 @@ pub trait Acceptor {
 
 /// Holding information.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Holding {
     /// Local addr.
     pub local_addr: SocketAddr,

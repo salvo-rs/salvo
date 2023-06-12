@@ -82,6 +82,7 @@ impl Paths {
 /// a single path.
 ///
 /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PathItem {

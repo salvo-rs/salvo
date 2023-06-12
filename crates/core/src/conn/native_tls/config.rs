@@ -11,6 +11,7 @@ use tokio_native_tls::native_tls::Identity;
 use crate::conn::IntoConfigStream;
 
 /// Builder to set the configuration for the TLS server.
+#[non_exhaustive]
 pub struct NativeTlsConfig {
     pkcs12_path: Option<PathBuf>,
     /// The pkcs12 data.

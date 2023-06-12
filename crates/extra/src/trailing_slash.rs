@@ -36,6 +36,7 @@ pub fn default_add_skipper(req: &mut Request, _depot: &Depot) -> bool {
 }
 
 /// TrailingSlash
+#[non_exhaustive]
 pub struct TrailingSlash {
     /// Action of this `TrailingSlash`.
     pub action: TrailingSlashAction,

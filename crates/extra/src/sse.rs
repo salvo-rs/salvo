@@ -204,6 +204,7 @@ impl Display for SseEvent {
 /// SseKeepAlive
 #[allow(missing_debug_implementations)]
 #[pin_project]
+#[non_exhaustive]
 pub struct SseKeepAlive<S> {
     #[pin]
     event_stream: S,

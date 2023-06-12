@@ -76,6 +76,7 @@ impl From<CompressionAlgo> for HeaderValue {
 
 /// Compression
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Compression {
     /// Compression algorithms to use.
     pub algos: IndexMap<CompressionAlgo, CompressionLevel>,

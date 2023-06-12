@@ -93,6 +93,7 @@ impl Deref for Flash {
 
 /// A flash message.
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[non_exhaustive]
 pub struct FlashMessage {
     /// Flash message level.
     pub level: FlashLevel,
@@ -221,6 +222,7 @@ impl FlashDepotExt for Depot {
 }
 
 /// FlashHandler
+#[non_exhaustive]
 pub struct FlashHandler<S> {
     store: S,
     /// Minimum level of messages to be displayed.

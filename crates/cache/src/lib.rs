@@ -197,6 +197,7 @@ impl From<CachedBody> for ResBody {
 
 /// Cached entry which will be stored in the cache store.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct CachedEntry {
     /// Response status.
     pub status: Option<StatusCode>,
@@ -232,6 +233,7 @@ impl CachedEntry {
 }
 
 /// A constructed via `salvo_cache::Cache::builder()`.
+#[non_exhaustive]
 pub struct Cache<S, I> {
     /// Cache store.
     pub store: S,

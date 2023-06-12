@@ -8,6 +8,7 @@ use salvo_core::{prelude::StatusError, writer};
 use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
 /// Represents an endpoint.
+#[non_exhaustive]
 pub struct Endpoint {
     /// The operation information of the endpoint.
     pub operation: Operation,
@@ -136,6 +137,7 @@ impl<'a> EndpointOutRegister for &'a String {
 }
 
 /// A components for all endpoints.
+#[non_exhaustive]
 pub struct EndpointRegistry {
     /// The type id of the endpoint.
     pub type_id: fn() -> TypeId,

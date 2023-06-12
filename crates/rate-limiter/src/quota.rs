@@ -23,6 +23,7 @@ pub trait QuotaGetter<Key>: Send + Sync + 'static {
 }
 
 /// A basic quota.
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct BasicQuota {
     /// The limit of requests.
@@ -65,6 +66,7 @@ impl BasicQuota {
 }
 
 /// A common used quota has cells field.
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct CelledQuota {
     /// The limit of requests.

@@ -5,6 +5,7 @@ use super::{Flash, FlashHandler, FlashStore};
 
 /// SessionStore is a `FlashStore` implementation that stores the flash messages in a session.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct SessionStore {
     /// The cookie name for the flash messages.
     pub name: String,

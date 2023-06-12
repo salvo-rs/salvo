@@ -78,6 +78,7 @@ impl Operations {
 /// Implements [OpenAPI Operation Object][operation] object.
 ///
 /// [operation]: https://spec.openapis.org/oas/latest.html#operation-object
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {

@@ -12,6 +12,7 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
 
 /// Find token from http request url query string.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct QueryFinder {
     /// The query name for the csrf token.
     pub query_name: String,

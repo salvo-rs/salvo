@@ -6,6 +6,7 @@ use super::{Flash, FlashHandler, FlashStore};
 
 /// CookieStore is a `FlashStore` implementation that stores the flash messages in a cookie.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct CookieStore {
     /// The cookie max age.
     pub max_age: Duration,

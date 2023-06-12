@@ -18,6 +18,7 @@ use bytes::Bytes;
 pub use crate::http::body::ResBody;
 
 /// Represents an HTTP response
+#[non_exhaustive]
 pub struct Response {
     /// The HTTP status code.
     pub status_code: Option<StatusCode>,

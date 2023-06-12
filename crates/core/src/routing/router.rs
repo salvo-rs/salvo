@@ -83,6 +83,7 @@ use crate::{Depot, Request};
 /// ```
 ///
 /// This form of definition can make the definition of router clear and simple for complex projects.
+#[non_exhaustive]
 pub struct Router {
     /// routers is the children of current router.
     pub routers: Vec<Router>,

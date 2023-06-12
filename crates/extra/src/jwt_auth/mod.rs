@@ -77,6 +77,7 @@ impl JwtAuthDepotExt for Depot {
 }
 
 /// JwtAuth, used as middleware.
+#[non_exhaustive]
 pub struct JwtAuth<C> {
     /// The secret key.
     pub secret: String,

@@ -15,6 +15,7 @@ pub trait JwtTokenFinder: Send + Sync {
 
 /// HeaderFinder
 #[derive(Eq, PartialEq, Clone, Default)]
+#[non_exhaustive]
 pub struct HeaderFinder {
     /// Cared methods list.
     pub cared_methods: Vec<Method>,
@@ -74,6 +75,7 @@ impl JwtTokenFinder for HeaderFinder {
 
 /// FormFinder
 #[derive(Eq, PartialEq, Clone, Default)]
+#[non_exhaustive]
 pub struct FormFinder {
     /// Cared methods list.
     pub cared_methods: Vec<Method>,
@@ -115,6 +117,7 @@ impl JwtTokenFinder for FormFinder {
 
 /// QueryFinder
 #[derive(Eq, PartialEq, Clone, Default)]
+#[non_exhaustive]
 pub struct QueryFinder {
     /// Cared methods list.
     pub cared_methods: Vec<Method>,
@@ -157,6 +160,7 @@ impl JwtTokenFinder for QueryFinder {
 
 /// CookieFinder
 #[derive(Eq, PartialEq, Clone, Default)]
+#[non_exhaustive]
 pub struct CookieFinder {
     /// Cared methods list.
     pub cared_methods: Vec<Method>,
