@@ -190,7 +190,7 @@ impl ToTokens for ToParameters {
             impl #de_impl_generics #salvo::Extractible<'__de> for #ident #ty_generics #where_clause {
                 fn metadata() -> &'__de #salvo::extract::Metadata {
                     static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
-                    METADATA.get_or_init(|| 
+                    METADATA.get_or_init(||
                         #salvo::extract::Metadata::new(#name)
                             .default_sources(vec![#default_source])
                             .fields(vec![#(#fields),*])
