@@ -8,12 +8,21 @@ use salvo_core::{prelude::StatusError, writer};
 use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
 /// Represents an endpoint.
-#[non_exhaustive]
 pub struct Endpoint {
     /// The operation information of the endpoint.
     pub operation: Operation,
     /// The OpenApi components section of the endpoint.
     pub components: Components,
+}
+
+impl Endpoint {
+    /// Create new `Endpoint` with given operation and components.
+    pub fn new(operation: Operation, components: Components) -> Self {
+        Self {
+            operation,
+            components,
+        }
+    }
 }
 
 /// A trait for endpoint argument register.

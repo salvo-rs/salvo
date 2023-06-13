@@ -122,13 +122,7 @@ impl ToTokens for ToParameters {
                     help = "consider using a struct with named fields instead, or use `#[salvo(parameters(names(\"...\")))]` to specify a name for each field",
                 }
             };
-            quote!{ #salvo::extract::metadata::Field{
-                name: #name,
-                sources: vec![],
-                aliases: vec![],
-                metadata: None,
-                rename: None,
-            }}
+            quote!{ #salvo::extract::metadata::Field::new(#name)}
         })
         .collect::<Vec<_>>();
         let params = self
@@ -196,12 +190,12 @@ impl ToTokens for ToParameters {
             impl #de_impl_generics #salvo::Extractible<'__de> for #ident #ty_generics #where_clause {
                 fn metadata() -> &'__de #salvo::extract::Metadata {
                     static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
-                    METADATA.get_or_init(|| #salvo::extract::Metadata {
-                        name: #name,
-                        default_sources: vec![#default_source],
-                        fields: vec![#(#fields),*],
-                        rename_all: #rename_all,
-                    })
+                    METADATA.get_or_init(|| 
+                        #salvo::extract::Metadata::new(#name)
+                            .default_sources(vec![#default_source])
+                            .fields(vec![#(#fields),*])
+                            .rename_all(#rename_all)
+                    )
                 }
                 async fn extract(req: &'__de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
                     #salvo::serde::from_request(req, Self::metadata()).await

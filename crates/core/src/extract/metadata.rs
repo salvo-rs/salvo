@@ -158,13 +158,13 @@ impl Metadata {
     }
 
     /// Sets the default sources list to a new value.
-    pub fn set_default_sources(mut self, default_sources: Vec<Source>) -> Self {
+    pub fn default_sources(mut self, default_sources: Vec<Source>) -> Self {
         self.default_sources = default_sources;
         self
     }
 
     /// set all fields list to a new value.
-    pub fn set_fields(mut self, fields: Vec<Field>) -> Self {
+    pub fn fields(mut self, fields: Vec<Field>) -> Self {
         self.fields = fields;
         self
     }
@@ -182,8 +182,8 @@ impl Metadata {
     }
 
     /// Rule for rename all fields of type.
-    pub fn rename_all(mut self, rename_all: RenameRule) -> Self {
-        self.rename_all = Some(rename_all);
+    pub fn rename_all(mut self, rename_all: impl Into<Option<RenameRule>>) -> Self {
+        self.rename_all = rename_all.into();
         self
     }
 }

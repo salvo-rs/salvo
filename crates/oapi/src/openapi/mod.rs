@@ -281,6 +281,7 @@ impl OpenApi {
                 let Endpoint {
                     operation,
                     mut components,
+                    ..
                 } = (creator)();
                 let methods = if let Some(method) = &node.method {
                     vec![*method]
