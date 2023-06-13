@@ -111,14 +111,6 @@ mod models {
         Mutex::new(Vec::new())
     }
 
-    #[derive(Serialize, Deserialize, ToSchema)]
-    pub(super) enum TodoError {
-        /// Happens when Todo item already exists
-        Config(String),
-        /// Todo not found from storage
-        NotFound(String),
-    }
-
     #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
     pub struct Todo {
         #[salvo(schema(example = 1))]
