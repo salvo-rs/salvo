@@ -74,9 +74,14 @@ pub struct QuinnAcceptor {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(pub h3::server::Connection<h3_quinn::Connection, Bytes>);
+pub struct H3Connection(h3_quinn::Connection);
+impl H3Connection {
+    pub fn into_inner(self) -> h3_quinn::Connection {
+        self.0
+    }
+}
 impl Deref for H3Connection {
-    type Target = h3::server::Connection<h3_quinn::Connection, Bytes>;
+    type Target = h3_quinn::Connection;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

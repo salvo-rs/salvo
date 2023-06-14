@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
 use salvo_core::http::{Request, Response, StatusCode, StatusError};
-use salvo_core::writer::Text;
+use salvo_core::writing::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;

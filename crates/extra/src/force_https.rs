@@ -6,7 +6,7 @@ use salvo_core::handler::Skipper;
 use salvo_core::http::header;
 use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::{Request, ResBody, Response};
-use salvo_core::writer::Redirect;
+use salvo_core::writing::Redirect;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 /// Middleware for force redirect to http uri.

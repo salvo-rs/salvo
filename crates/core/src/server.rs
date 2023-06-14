@@ -49,7 +49,7 @@ impl<A: Acceptor + Send> Server<A> {
                 #[cfg(feature = "http2")]
                 http2: http2::Builder::new(crate::runtimes::TokioExecutor),
                 #[cfg(feature = "quinn")]
-                quinn: crate::conn::quinn::Builder,
+                quinn: crate::conn::quinn::Builder::new(),
             },
         }
     }

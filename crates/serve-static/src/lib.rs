@@ -13,7 +13,7 @@ mod file;
 
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::uri::{Parts as UriParts, Uri};
-use salvo_core::writer::Redirect;
+use salvo_core::writing::Redirect;
 use salvo_core::Response;
 
 pub use dir::StaticDir;

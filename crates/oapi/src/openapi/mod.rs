@@ -3,7 +3,7 @@ use std::collections::{btree_map, BTreeSet};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
-use salvo_core::{async_trait, writer, Depot, FlowCtrl, Handler, Router};
+use salvo_core::{async_trait, writing, Depot, FlowCtrl, Handler, Router};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
@@ -332,7 +332,7 @@ impl Handler for OpenApi {
         } else {
             self.to_json().unwrap()
         };
-        res.render(writer::Text::Json(&content));
+        res.render(writing::Text::Json(&content));
     }
 }
 /// Represents available [OpenAPI versions][version].

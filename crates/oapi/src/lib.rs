@@ -39,7 +39,7 @@ pub use salvo_oapi_macros::ToSchema;
 use std::collections::{BTreeMap, HashMap};
 
 use salvo_core::http::StatusError;
-use salvo_core::{extract::Extractible, writer};
+use salvo_core::{extract::Extractible, writing};
 
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_oapi;
@@ -390,7 +390,7 @@ pub trait ToResponses {
     fn to_responses(components: &mut Components) -> Responses;
 }
 
-impl<C> ToResponses for writer::Json<C>
+impl<C> ToResponses for writing::Json<C>
 where
     C: ToSchema,
 {
@@ -486,7 +486,7 @@ pub trait ToResponse {
     fn to_response(components: &mut Components) -> RefOr<crate::Response>;
 }
 
-impl<C> ToResponse for writer::Json<C>
+impl<C> ToResponse for writing::Json<C>
 where
     C: ToSchema,
 {

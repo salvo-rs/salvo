@@ -364,6 +364,14 @@ impl Request {
         &self.extensions
     }
 
+    cfg_feature! {
+        #![feature = "quinn"]
+        #[inline]
+        pub fn web_transport_mut(&mut self) -> Option<&mut h3::server::Connection<h3_quinn::Connection, Bytes>> {
+            self.extensions_mut().get_mut::<h3::server::Connection<h3_quinn::Connection, Bytes>>()
+        }
+    }
+
     /// Returns a mutable reference to the associated extensions.
     ///
     /// # Examples

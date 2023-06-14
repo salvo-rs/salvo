@@ -5,7 +5,7 @@ use migration::{Migrator, MigratorTrait};
 use salvo::affix;
 use salvo::prelude::*;
 use salvo::serve_static::StaticDir;
-use salvo::writer::Text;
+use salvo::writing::Text;
 use sea_orm::{entity::*, query::*, DatabaseConnection};
 use tera::Tera;
 
