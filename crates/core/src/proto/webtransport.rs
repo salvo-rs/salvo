@@ -1,3 +1,5 @@
+//! WebTransport supports.
+
 use std::sync::Mutex;
 
 use bytes::Buf;

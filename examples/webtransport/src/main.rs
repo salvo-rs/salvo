@@ -1,20 +1,13 @@
-
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{time::Duration};
 
 use anyhow::{Context, Result};
+use bytes::{BufMut, Bytes, BytesMut};
 use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
-use bytes::{BufMut, Bytes, BytesMut};
-use serde::{Deserialize, Serialize};
+use salvo::proto::webtransport;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::pin;
-use salvo::proto::webtransport;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-struct User {
-    id: usize,
-    name: String,
-}
 macro_rules! log_result {
     ($expr:expr) => {
         if let Err(err) = $expr {
@@ -52,8 +45,7 @@ async fn send_chunked(mut send: impl AsyncWrite + Unpin, data: Bytes) -> anyhow:
 }
 
 #[handler]
-async fn connect(req: &mut Request, res: &mut Response) -> Result<(), salvo::Error> {
-    let user = req.parse_queries::<User>();
+async fn connect(req: &mut Request) -> Result<(), salvo::Error> {
     let session = req.web_transport_mut().await.unwrap();
     let session_id = session.session_id();
 
@@ -161,11 +153,22 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
             const status = document.getElementById('status');
             const msg = document.getElementById('msg');
             const submit = document.getElementById('submit');
-            const transport = new WebTransport(`https://${location.host}/webtransport?id=123&name=chris`);
+            const url = `https://${location.host}/webtransport?id=123&name=chris`;
 
-            const transport = await initTransport(url);
+            useTransport(url);
             status.innerHTML = '<p><em>Connected!</em></p>';
-            await closeTransport(transport);
+            
+            async function useTransport(url) {
+                const transport = await initTransport(url);
+              
+                let writer = transport.datagrams.writable.getWriter();
+                let encoder = new TextEncoder('utf-8');
+                let data = encoder.encode("Hello data");
+                await writer.write(data);
+              
+                // When done, close the transport
+                await closeTransport(transport);
+              }
 
             async function initTransport(url) {
                 // Initialize transport connection
