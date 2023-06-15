@@ -9,6 +9,7 @@ use futures_util::stream::{Stream, TryStreamExt};
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
 use http::version::Version;
+use http::Extensions;
 use mime::Mime;
 
 use crate::http::StatusCode;
@@ -20,7 +21,7 @@ pub use crate::http::body::ResBody;
 /// Represents an HTTP response
 #[non_exhaustive]
 pub struct Response {
-    /// The HTTP status code.
+    /// The HTTP status code.WebTransportSession
     pub status_code: Option<StatusCode>,
     /// The HTTP headers.
     pub headers: HeaderMap,
@@ -31,6 +32,7 @@ pub struct Response {
     pub cookies: CookieJar,
     /// The HTTP body.
     pub body: ResBody,
+    pub(crate) extensions: Extensions,
 }
 impl Default for Response {
     #[inline]
@@ -74,6 +76,7 @@ impl From<hyper::Response<ResBody>> for Response {
             headers,
             #[cfg(feature = "cookie")]
             cookies,
+            extensions: Extensions::new(),
         }
     }
 }
@@ -89,6 +92,7 @@ impl Response {
             headers: HeaderMap::new(),
             #[cfg(feature = "cookie")]
             cookies: CookieJar::default(),
+            extensions: Extensions::new(),
         }
     }
 
@@ -102,6 +106,7 @@ impl Response {
             version: Version::default(),
             headers: HeaderMap::new(),
             cookies,
+            extensions: Extensions::new(),
         }
     }
 
@@ -199,6 +204,7 @@ impl Response {
             #[cfg(not(feature = "cookie"))]
             headers,
             body,
+            extensions,
             ..
         } = self;
 
@@ -210,6 +216,7 @@ impl Response {
         }
 
         let mut res = hyper::Response::new(body);
+        *res.extensions_mut() = extensions;
         *res.headers_mut() = headers;
         // Default to a 404 if no response code was set
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);

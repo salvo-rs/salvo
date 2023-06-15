@@ -1,25 +1,20 @@
-use std::{
-    marker::PhantomData,
-    pin::Pin,
-    sync::Mutex,
-    task::{Context, Poll},
-};
+use std::sync::Mutex;
 
 use bytes::Buf;
-use futures_util::{future::poll_fn, ready, Future};
+use futures_util::future::poll_fn;
 use h3::connection::ConnectionState;
 use h3::error::{Code, Error, ErrorLevel};
-use h3::ext::{Datagram, Protocol};
 use h3::frame::FrameStream;
 use h3::proto::frame::Frame;
-use h3::quic::{self, OpenStreams, RecvDatagramExt, SendDatagramExt, SendStreamUnframed, WriteBuf};
-use h3::server::{self, Connection, RequestStream};
-use h3::stream::{BidiStreamHeader, BufRecvStream, UniStreamHeader};
+use h3::quic::{self, SendDatagramExt};
+use h3::server::{Connection, RequestStream};
+use h3::stream::BufRecvStream;
 use h3::webtransport::SessionId;
 use h3_webtransport::server::{AcceptUni, AcceptedBi, OpenBi, OpenUni, ReadDatagram};
-use h3_webtransport::stream::{BidiStream, RecvStream, SendStream};
-use http::{Method, Request, Response, StatusCode};
+use h3_webtransport::stream::BidiStream;
+use http::{Response, StatusCode};
 
+/// A WebTransport session.
 pub struct WebTransportSession<C, B>
 where
     C: quic::Connection<B>,
@@ -29,7 +24,7 @@ where
     session_id: SessionId,
     /// The underlying HTTP/3 connection
     pub(crate) server_conn: Mutex<Connection<C, B>>,
-    connect_stream: RequestStream<C::BidiStream, B>,
+    pub(crate) connect_stream: RequestStream<C::BidiStream, B>,
     opener: Mutex<C::OpenStreams>,
 }
 
@@ -42,7 +37,6 @@ where
     ///
     /// TODO: is the API or the user responsible for validating the CONNECT request?
     pub async fn accept(
-        request: &Request<()>,
         mut stream: RequestStream<C::BidiStream, B>,
         mut conn: Connection<C, B>,
     ) -> Result<Self, Error> {
@@ -78,16 +72,12 @@ where
         // Respond to the CONNECT request.
 
         //= https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-3.3
-        let response = if validate_wt_connect(&request) {
-            Response::builder()
-                // This is the only header that chrome cares about.
-                .header("sec-webtransport-http3-draft", "draft02")
-                .status(StatusCode::OK)
-                .body(())
-                .unwrap()
-        } else {
-            Response::builder().status(StatusCode::BAD_REQUEST).body(()).unwrap()
-        };
+        let response = Response::builder()
+            // This is the only header that chrome cares about.
+            .header("sec-webtransport-http3-draft", "draft02")
+            .status(StatusCode::OK)
+            .body(())
+            .unwrap();
 
         stream.send_response(response).await?;
 
@@ -207,9 +197,4 @@ where
     pub fn session_id(&self) -> SessionId {
         self.session_id
     }
-}
-
-fn validate_wt_connect(request: &Request<()>) -> bool {
-    let protocol = request.extensions().get::<Protocol>();
-    matches!((request.method(), protocol), (&Method::CONNECT, Some(p)) if p == &Protocol::WEB_TRANSPORT)
 }

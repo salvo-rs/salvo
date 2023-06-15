@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::vec;
 
-use bytes::Bytes;
 use h3_quinn::quinn::Endpoint;
 pub use h3_quinn::quinn::ServerConfig;
 use http::uri::Scheme;
@@ -76,6 +75,7 @@ pub struct QuinnAcceptor {
 /// Http3 Connection.
 pub struct H3Connection(h3_quinn::Connection);
 impl H3Connection {
+    /// Get inner quinn connection.
     pub fn into_inner(self) -> h3_quinn::Connection {
         self.0
     }
