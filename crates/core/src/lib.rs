@@ -33,7 +33,7 @@ pub mod runtimes;
 pub mod serde;
 mod server;
 mod service;
-pub mod writer;
+pub mod writing;
 cfg_feature! {
     #![feature ="test"]
     pub mod test;
@@ -48,7 +48,7 @@ pub use self::http::{Request, Response};
 pub use self::routing::{FlowCtrl, Router};
 pub use self::server::Server;
 pub use self::service::Service;
-pub use self::writer::{Piece, Writer};
+pub use self::writing::{Piece, Writer};
 /// Result type which has `salvo::Error` as it's error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -88,7 +88,7 @@ pub mod prelude {
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
-    pub use crate::writer::{Json, Piece, Redirect, Text, Writer};
+    pub use crate::writing::{Json, Piece, Redirect, Text, Writer};
 }
 
 #[doc(hidden)]
