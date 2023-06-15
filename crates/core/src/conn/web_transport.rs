@@ -29,7 +29,7 @@ where
     session_id: SessionId,
     /// The underlying HTTP/3 connection
     server_conn: Mutex<Connection<C, B>>,
-    connect_stream: RequestStream<C::RecvStream, B>,
+    connect_stream: RequestStream<C::BidiStream, B>,
     opener: Mutex<C::OpenStreams>,
 }
 
@@ -41,11 +41,12 @@ where
     /// Accepts a *CONNECT* request for establishing a WebTransport session.
     ///
     /// TODO: is the API or the user responsible for validating the CONNECT request?
-    pub async fn accept(
+    pub async fn accept<S>(
         request: Request<()>,
-        mut stream: RequestStream<C::RecvStream, B>,
+        mut stream: RequestStream<C::BidiStream, B>,
         mut conn: Connection<C, B>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, Error>
+    {
         let shared = conn.shared_state().clone();
         {
             let config = shared.write("Read WebTransport support").peer_config;
