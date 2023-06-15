@@ -81,7 +81,7 @@ rustls = "0.21.1"
 rustls-pemfile = "1.0"
 rust-embed = "6"
 salvo-rustls = "0.0.2"
-salvo-utils = "0.0.2"
+salvo-utils = "0.0.3"
 salvo_macros = { version = "0.44.2", path = "crates/macros", default-features = false }
 salvo_core = { version = "0.44.2", path = "crates/core", default-features = false }
 salvo_extra = { version = "0.44.2", path = "crates/extra", default-features = false }
