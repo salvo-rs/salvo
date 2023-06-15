@@ -23,6 +23,10 @@ pub enum Error {
     Io(IoError),
     /// SerdeJson error.
     SerdeJson(serde_json::Error),
+    #[cfg(feature = "quinn")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
+    /// H3 error.
+    H3(h3::Error),
     /// Anyhow error.
     #[cfg(feature = "anyhow")]
     #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
@@ -51,6 +55,8 @@ impl Display for Error {
             Self::HttpStatus(e) => Display::fmt(e, f),
             Self::Io(e) => Display::fmt(e, f),
             Self::SerdeJson(e) => Display::fmt(e, f),
+            #[cfg(feature = "quinn")]
+            Self::H3(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
             Self::Anyhow(e) => Display::fmt(e, f),
             #[cfg(feature = "eyre")]
@@ -96,6 +102,15 @@ impl From<serde_json::Error> for Error {
     #[inline]
     fn from(e: serde_json::Error) -> Error {
         Error::SerdeJson(e)
+    }
+}
+cfg_feature! {
+    #![feature = "quinn"]
+    impl From<h3::Error> for Error {
+        #[inline]
+        fn from(e: h3::Error) -> Error {
+            Error::H3(e)
+        }
     }
 }
 cfg_feature! {

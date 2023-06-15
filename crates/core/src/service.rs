@@ -226,6 +226,29 @@ impl HyperHandler {
                     tracing::warn!("request with head method should not have body: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD");
                 }
             }
+            #[cfg(feature = "quinn")]
+            {
+                use bytes::Bytes;
+                use parking_lot::Mutex;
+                if let Some(session) = req
+                    .extensions
+                    .remove::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>()
+                {
+                    res.extensions.insert(session);
+                }
+                if let Some(conn) = req
+                    .extensions
+                    .remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>()
+                {
+                    res.extensions.insert(conn);
+                }
+                if let Some(stream) = req
+                    .extensions
+                    .remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>()
+                {
+                    res.extensions.insert(stream);
+                }
+            }
             res
         }
     }

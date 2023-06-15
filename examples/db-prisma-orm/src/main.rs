@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use salvo::prelude::TcpListener;
-use salvo::writer::Json;
+use salvo::writing::Json;
 use salvo::{handler, Depot, Error, FlowCtrl, Handler, Listener, Request, Response, Result, Router, Server};
 
 use std::collections::HashMap;

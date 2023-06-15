@@ -198,8 +198,8 @@ cfg_feature! {
 
         impl<S, B> From<H3ReqBody<S, B>> for ReqBody
         where
-            S: RecvStream + Send + Sync + Unpin + 'static,
-            B: Buf + Send + Sync + Unpin + 'static,
+            S: RecvStream + Send + Sync +  Unpin + 'static,
+            B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
                 ReqBody::Inner(Box::pin(value))

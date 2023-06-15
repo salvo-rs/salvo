@@ -1,6 +1,7 @@
 //! Http request.
 
 use std::fmt::{self, Formatter};
+use std::sync::Mutex;
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -51,7 +52,7 @@ pub struct Request {
 
     // The request body as a reader.
     body: ReqBody,
-    extensions: Extensions,
+    pub(crate) extensions: Extensions,
 
     // The request method.
     method: Method,
@@ -362,6 +363,44 @@ impl Request {
     #[inline]
     pub fn extensions(&self) -> &Extensions {
         &self.extensions
+    }
+
+    cfg_feature! {
+        #![feature = "quinn"]
+
+        #[inline]
+        fn is_wt_connect(&self) -> bool {
+            let protocol = self.extensions().get::<h3::ext::Protocol>();
+            matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &h3::ext::Protocol::WEB_TRANSPORT)
+        }
+
+        #[inline]
+        /// Try to get a WebTransport session from the request.
+        pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>, crate::Error> {
+            if self.is_wt_connect() {
+                if self.extensions.get::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().is_none() {
+                    let conn = self.extensions.remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>();
+                    let stream = self.extensions.remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>();
+                    if conn.is_some() && stream.is_some() {
+                        let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
+                        self.extensions.insert(session);
+                        Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                    } else {
+                        if let Some(conn) = conn {
+                            self.extensions_mut().insert(conn);
+                        }
+                        if let Some(stream) = stream {
+                            self.extensions_mut().insert(stream);
+                        }
+                        Err(crate::Error::Other("invalid web transport".into()))
+                    }
+                } else {
+                    Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                }
+            } else {
+                Err(crate::Error::Other("no web transport".into()))
+            }
+        }
     }
 
     /// Returns a mutable reference to the associated extensions.

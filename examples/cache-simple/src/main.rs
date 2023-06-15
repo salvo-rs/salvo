@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use salvo::cache::{Cache, MemoryStore, RequestIssuer};
 use salvo::prelude::*;
-use salvo::writer::Text;
+use salvo::writing::Text;
 use time::OffsetDateTime;
 
 #[handler]

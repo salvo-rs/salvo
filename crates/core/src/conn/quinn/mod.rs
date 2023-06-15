@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::vec;
 
-use bytes::Bytes;
 use h3_quinn::quinn::Endpoint;
 pub use h3_quinn::quinn::ServerConfig;
 use http::uri::Scheme;
@@ -74,9 +73,15 @@ pub struct QuinnAcceptor {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(pub h3::server::Connection<h3_quinn::Connection, Bytes>);
+pub struct H3Connection(h3_quinn::Connection);
+impl H3Connection {
+    /// Get inner quinn connection.
+    pub fn into_inner(self) -> h3_quinn::Connection {
+        self.0
+    }
+}
 impl Deref for H3Connection {
-    type Target = h3::server::Connection<h3_quinn::Connection, Bytes>;
+    type Target = h3_quinn::Connection;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -130,9 +135,7 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
-                        .await
-                        .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+                    let conn = h3_quinn::Connection::new(conn);
                     return Ok(Accepted {
                         conn: H3Connection(conn),
                         local_addr: self.holdings[0].local_addr.clone(),

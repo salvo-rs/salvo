@@ -1,0 +1,17 @@
+[package]
+name = "example-webtransport"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+anyhow.workspace = true
+futures-util.workspace = true
+salvo = { workspace = true, features = ["quinn", "anyhow"] }
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde = "1"
+serde_json = "1"
+bytes = "1"
