@@ -21,13 +21,13 @@ mod cfg;
 
 pub mod catcher;
 pub mod conn;
-pub mod proto;
 mod depot;
 mod error;
 pub mod extract;
 pub mod fs;
 pub mod handler;
 pub mod http;
+pub mod proto;
 pub mod routing;
 pub mod runtimes;
 #[doc(hidden)]
