@@ -151,9 +151,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
         </div>
         <script>
             const status = document.getElementById('status');
-            const msg = document.getElementById('msg');
-            const submit = document.getElementById('submit');
-            const url = `https://${location.host}/webtransport?id=123&name=chris`;
+            const url = `https://${location.host}/webtransport`;
 
             useTransport(url);
             status.innerHTML = '<p><em>Connected!</em></p>';
