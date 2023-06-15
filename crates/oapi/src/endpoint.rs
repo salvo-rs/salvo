@@ -3,7 +3,7 @@
 use std::any::TypeId;
 
 use salvo_core::http::StatusCode;
-use salvo_core::{prelude::StatusError, writer};
+use salvo_core::{prelude::StatusError, writing};
 
 use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
@@ -33,7 +33,7 @@ pub trait EndpointOutRegister {
     fn register(compontents: &mut Components, operation: &mut Operation);
 }
 
-impl<C> EndpointOutRegister for writer::Json<C>
+impl<C> EndpointOutRegister for writing::Json<C>
 where
     C: ToSchema,
 {

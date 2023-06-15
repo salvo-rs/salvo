@@ -13,7 +13,7 @@ pub use config::Config;
 use rust_embed::RustEmbed;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
 use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
-use salvo_core::writer::Redirect;
+use salvo_core::writing::Redirect;
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router};
 use serde::Serialize;
 
