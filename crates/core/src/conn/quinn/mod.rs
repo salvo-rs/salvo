@@ -135,9 +135,7 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
-                        .await
-                        .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+                    let conn = h3_quinn::Connection::new(conn);
                     return Ok(Accepted {
                         conn: H3Connection(conn),
                         local_addr: self.holdings[0].local_addr.clone(),

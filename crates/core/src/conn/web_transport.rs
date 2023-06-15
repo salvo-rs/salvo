@@ -28,7 +28,7 @@ where
     // See: https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3/#section-2-3
     session_id: SessionId,
     /// The underlying HTTP/3 connection
-    server_conn: Mutex<Connection<C, B>>,
+    pub(crate) server_conn: Mutex<Connection<C, B>>,
     connect_stream: RequestStream<C::BidiStream, B>,
     opener: Mutex<C::OpenStreams>,
 }
@@ -41,12 +41,11 @@ where
     /// Accepts a *CONNECT* request for establishing a WebTransport session.
     ///
     /// TODO: is the API or the user responsible for validating the CONNECT request?
-    pub async fn accept<S>(
-        request: Request<()>,
+    pub async fn accept(
+        request: &Request<()>,
         mut stream: RequestStream<C::BidiStream, B>,
         mut conn: Connection<C, B>,
-    ) -> Result<Self, Error>
-    {
+    ) -> Result<Self, Error> {
         let shared = conn.shared_state().clone();
         {
             let config = shared.write("Read WebTransport support").peer_config;
@@ -106,10 +105,7 @@ where
 
     /// Receive a datagram from the client
     pub fn accept_datagram(&self) -> ReadDatagram<C, B> {
-        ReadDatagram {
-            conn: &self.server_conn,
-            _marker: PhantomData,
-        }
+        ReadDatagram::new(&self.server_conn)
     }
 
     /// Sends a datagram
@@ -129,9 +125,7 @@ where
 
     /// Accept an incoming unidirectional stream from the client, it reads the stream until EOF.
     pub fn accept_uni(&self) -> AcceptUni<C, B> {
-        AcceptUni {
-            conn: &self.server_conn,
-        }
+        AcceptUni::new(&self.server_conn)
     }
 
     /// Accepts an incoming bidirectional stream or request
@@ -201,20 +195,12 @@ where
 
     /// Open a new bidirectional stream
     pub fn open_bi(&self, session_id: SessionId) -> OpenBi<C, B> {
-        OpenBi {
-            opener: &self.opener,
-            stream: None,
-            session_id,
-        }
+        OpenBi::new(&self.opener, session_id)
     }
 
     /// Open a new unidirectional stream
     pub fn open_uni(&self, session_id: SessionId) -> OpenUni<C, B> {
-        OpenUni {
-            opener: &self.opener,
-            stream: None,
-            session_id,
-        }
+        OpenUni::new(&self.opener, session_id)
     }
 
     /// Returns the session id

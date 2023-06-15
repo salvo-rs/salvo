@@ -3,6 +3,7 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 
+use bytes::Bytes;
 use futures_util::future::poll_fn;
 use futures_util::Stream;
 use h3::error::ErrorLevel;
@@ -61,14 +62,23 @@ impl Builder {
                 Ok(Some((request, stream))) => {
                     tracing::debug!("new request: {:#?}", request);
                     let hyper_handler = hyper_handler.clone();
-                    tokio::spawn(async move {
-                        match process_request(&mut conn, request, stream, hyper_handler).await {
-                            Ok(_) => {},
-                            Err(e) => {
-                                tracing::error!(error = ?e, "process request failed")
-                            }
+                    match request.method() {
+                        &Method::CONNECT
+                            if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) =>
+                        {
+                            conn = process_web_transport(conn, request, stream, hyper_handler).await?
                         }
-                    });
+                        _ => {
+                            tokio::spawn(async move {
+                                match process_request(request, stream, hyper_handler).await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        tracing::error!(error = ?e, "process request failed")
+                                    }
+                                }
+                            });
+                        }
+                    }
                 }
                 Ok(None) => {
                     break;
@@ -86,66 +96,76 @@ impl Builder {
     }
 }
 
-async fn process_request<C>(
-    conn: &mut h3::server::Connection<C, bytes::Bytes>,
+async fn process_web_transport<C>(
+    conn: h3::server::Connection<C, Bytes>,
     request: hyper::Request<()>,
-    stream: RequestStream<C::BidiStream, bytes::Bytes>,
+    stream: RequestStream<C::BidiStream, Bytes>,
+    mut hyper_handler: crate::service::HyperHandler,
+) -> IoResult<h3::server::Connection<C, Bytes>>
+where
+    C: h3::quic::Connection<Bytes> + Send + Unpin + 'static,
+    C::BidiStream: h3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
+    C::RecvStream: h3::quic::RecvStream + Send + Unpin + 'static,
+    <<C as h3::quic::Connection<Bytes>>::BidiStream as h3::quic::BidiStream<Bytes>>::RecvStream: Send + Unpin,
+    <<C as h3::quic::Connection<Bytes>>::BidiStream as h3::quic::BidiStream<Bytes>>::SendStream: Send + Unpin,
+    <C as h3::quic::Connection<Bytes>>::OpenStreams: Send + Unpin,
+    <C as h3::quic::Connection<Bytes>>::SendStream: Send + Unpin,
+    <C as h3::quic::Connection<Bytes>>::BidiStream: Send + Unpin,
+{
+    let session = WebTransportSession::accept(&request, stream, conn)
+        .await
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to accept request: {}", e)))?;
+    let (parts, _body) = request.into_parts();
+    let mut request = hyper::Request::from_parts(parts, ReqBody::None);
+    // request.extensions_mut().insert(session);
+    session
+        .server_conn
+        .into_inner()
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed get connection : {}", e)))
+}
+
+async fn process_request<S>(
+    request: hyper::Request<()>,
+    stream: RequestStream<S, Bytes>,
     mut hyper_handler: crate::service::HyperHandler,
 ) -> IoResult<()>
 where
-    C: h3::quic::Connection<bytes::Bytes> + Send + Unpin + 'static,
-    C::BidiStream: h3::quic::BidiStream<bytes::Bytes> + Send + Unpin + 'static,
-    C::RecvStream: h3::quic::RecvStream + Send + Unpin + 'static,
-    <<C as h3::quic::Connection<bytes::Bytes>>::BidiStream as h3::quic::BidiStream<bytes::Bytes>>::RecvStream:
-        std::marker::Send + Unpin,
+    S: h3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
+    <S as h3::quic::BidiStream<Bytes>>::RecvStream: Send + Sync + Unpin,
 {
-    match request.method() {
-        &Method::CONNECT if request.extensions().get::<Protocol>() == Some(&Protocol::WEB_TRANSPORT) => {
-            // let session = WebTransportSession::accept(request, stream, conn)
-            //     .await
-            //     .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to accept request: {}", e)))?;
-            // let (parts, _body) = request.into_parts();
-            // let mut request = hyper::Request::from_parts(parts, ReqBody::None);
-            // request.extensions_mut().insert(session);
-            // request
+    let (mut tx, rx) = stream.split();
+    let (parts, _body) = request.into_parts();
+    let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
+
+    let response = hyper::service::Service::call(&mut hyper_handler, request)
+        .await
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
+
+    let (parts, mut body) = response.into_parts();
+    let empty_res = http::Response::from_parts(parts, ());
+    match tx.send_response(empty_res).await {
+        Ok(_) => {
+            tracing::debug!("response to connection successful");
         }
-        _ => {
-            let (mut tx, rx) = stream.split();
-            let (parts, _body) = request.into_parts();
-            let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
-
-            let response = hyper::service::Service::call(&mut hyper_handler, request)
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
-
-            let (parts, mut body) = response.into_parts();
-            let empty_res = http::Response::from_parts(parts, ());
-            match tx.send_response(empty_res).await {
-                Ok(_) => {
-                    tracing::debug!("response to connection successful");
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "unable to send response to connection peer");
-                }
-            }
-
-            let mut body = Pin::new(&mut body);
-            while let Some(result) = poll_fn(|cx| body.as_mut().poll_next(cx)).await {
-                match result {
-                    Ok(bytes) => {
-                        if let Err(e) = tx.send_data(bytes).await {
-                            tracing::error!(error = ?e, "unable to send data to connection peer");
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!(error = ?e, "unable to poll data from connection");
-                    }
-                }
-            }
-            tx.finish()
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to finish stream : {}", e)))?;
+        Err(e) => {
+            tracing::error!(error = ?e, "unable to send response to connection peer");
         }
     }
-    Ok(())
+
+    let mut body = Pin::new(&mut body);
+    while let Some(result) = poll_fn(|cx| body.as_mut().poll_next(cx)).await {
+        match result {
+            Ok(bytes) => {
+                if let Err(e) = tx.send_data(bytes).await {
+                    tracing::error!(error = ?e, "unable to send data to connection peer");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, "unable to poll data from connection");
+            }
+        }
+    }
+    tx.finish()
+        .await
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to finish stream : {}", e)))
 }
