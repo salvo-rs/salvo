@@ -443,7 +443,7 @@ mod tests {
     use salvo_core::http::Method;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
-    use salvo_core::writer::Redirect;
+    use salvo_core::writing::Redirect;
 
     use super::*;
 
