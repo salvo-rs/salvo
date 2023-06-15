@@ -21,6 +21,7 @@ mod cfg;
 
 pub mod catcher;
 pub mod conn;
+pub mod proto;
 mod depot;
 mod error;
 pub mod extract;

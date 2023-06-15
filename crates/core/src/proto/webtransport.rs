@@ -9,9 +9,10 @@ use h3::proto::frame::Frame;
 use h3::quic::{self, SendDatagramExt};
 use h3::server::{Connection, RequestStream};
 use h3::stream::BufRecvStream;
-use h3::webtransport::SessionId;
+pub use h3::webtransport::SessionId;
 use h3_webtransport::server::{AcceptUni, AcceptedBi, OpenBi, OpenUni, ReadDatagram};
 use h3_webtransport::stream::BidiStream;
+pub use h3_webtransport::{server, stream};
 use http::{Response, StatusCode};
 
 /// A WebTransport session.

@@ -230,7 +230,7 @@ impl HyperHandler {
             {
                 use bytes::Bytes;
                 use parking_lot::Mutex;
-                if let Some(session) = req.extensions.remove::<crate::conn::WebTransportSession<h3_quinn::Connection, Bytes>>() {
+                if let Some(session) = req.extensions.remove::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>() {
                     res.extensions.insert(session);
                 }
                 if let Some(conn) = req.extensions.remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>() {

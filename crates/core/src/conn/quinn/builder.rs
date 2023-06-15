@@ -11,7 +11,7 @@ use h3::error::ErrorLevel;
 use h3::ext::Protocol;
 use h3::server::RequestStream;
 
-use crate::conn::WebTransportSession;
+use crate::proto::WebTransportSession;
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::http::Method;
 

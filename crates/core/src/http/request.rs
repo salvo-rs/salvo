@@ -376,15 +376,15 @@ impl Request {
 
         #[inline]
         /// Try to get a WebTransport session from the request.
-        pub async fn web_transport_mut(&mut self) -> Result<&mut crate::conn::WebTransportSession<h3_quinn::Connection, Bytes>, crate::Error> {
+        pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
-                if self.extensions.get::<crate::conn::WebTransportSession<h3_quinn::Connection, Bytes>>().is_none() {
+                if self.extensions.get::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().is_none() {
                     let conn = self.extensions.remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>();
                     let stream = self.extensions.remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>();
                     if conn.is_some() && stream.is_some() {
-                        let session =  crate::conn::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
+                        let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
                         self.extensions.insert(session);
-                        Ok(self.extensions.get_mut::<crate::conn::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                        Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
                     } else {
                         if let Some(conn) = conn {
                             self.extensions_mut().insert(conn);
@@ -395,7 +395,7 @@ impl Request {
                         Err(crate::Error::Other("invalid web transport".into()))
                     }
                 } else {
-                    Ok(self.extensions.get_mut::<crate::conn::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                    Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
                 }
             } else {
                 Err(crate::Error::Other("no web transport".into()))

@@ -58,7 +58,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
             const status = document.getElementById('status');
             const msg = document.getElementById('msg');
             const submit = document.getElementById('submit');
-            const ws = new WebSocket(`ws://${location.host}/ws?id=123&name=dddf`);
+            const ws = new WebSocket(`ws://${location.host}/ws?id=123&name=chris`);
 
             ws.onopen = function() {
                 status.innerHTML = '<p><em>Connected!</em></p>';

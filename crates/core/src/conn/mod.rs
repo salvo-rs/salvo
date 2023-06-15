@@ -40,9 +40,6 @@ cfg_feature! {
     #![feature = "quinn"]
     pub mod quinn;
     pub use self::quinn::{QuinnListener, H3Connection};
-
-    mod web_transport;
-    pub use web_transport::WebTransportSession;
 }
 cfg_feature! {
     #![unix]
