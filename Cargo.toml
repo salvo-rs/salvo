@@ -74,7 +74,7 @@ proc-macro-error = "1"
 proc-macro2 = "1"
 quinn = { version = "0.10", default-features = false }
 rand = "0.8"
-rcgen = "0.10"
+rcgen = "0.11"
 regex = "1"
 ring = "0.16"
 rustls = "0.21.1"
