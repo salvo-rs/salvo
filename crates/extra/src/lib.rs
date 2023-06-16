@@ -49,8 +49,8 @@ cfg_feature! {
     pub mod sse;
 }
 cfg_feature! {
-    #![feature = "ws"]
-    pub mod ws;
+    #![feature = "websocket"]
+    pub mod websocket;
 }
 cfg_feature! {
     #![feature =  "size-limiter"]

@@ -78,9 +78,9 @@ cfg_feature! {
     pub use salvo_extra::timeout;
 }
 cfg_feature! {
-    #![feature ="ws"]
+    #![feature ="websocket"]
     #[doc(no_inline)]
-    pub use salvo_extra::ws;
+    pub use salvo_extra::websocket;
 }
 cfg_feature! {
     #![feature ="cache"]
@@ -198,8 +198,8 @@ pub mod prelude {
         pub use salvo_extra::timeout::Timeout;
     }
     cfg_feature! {
-        #![feature ="ws"]
-        pub use salvo_extra::ws::WebSocketUpgrade;
+        #![feature ="websocket"]
+        pub use salvo_extra::websocket::WebSocketUpgrade;
     }
     cfg_feature! {
         #![feature ="serve-static"]

@@ -39,6 +39,10 @@ cfg_feature! {
     #![feature ="test"]
     pub mod test;
 }
+cfg_feature! {
+    #![feature ="quinn"]
+    pub use proto::webtransport;
+}
 
 pub use self::conn::Listener;
 pub use self::depot::Depot;

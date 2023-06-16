@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["full"]
-full = ["affix", "basic-auth", "caching-headers", "catch-panic", "force-https", "jwt-auth", "compression", "logging", "sse", "size-limiter", "trailing-slash", "timeout", "ws"]
+full = ["affix", "basic-auth", "caching-headers", "catch-panic", "force-https", "jwt-auth", "compression", "logging", "sse", "size-limiter", "trailing-slash", "timeout", "websocket"]
 affix = []
 basic-auth = ["dep:base64"]
 caching-headers = ["dep:etag", "dep:tracing"]
@@ -30,7 +30,7 @@ size-limiter = []
 sse = ["dep:futures-util", "dep:pin-project", "tokio", "dep:serde", "dep:serde_json", "dep:tracing"]
 trailing-slash = ["dep:tracing"]
 timeout = ["tokio/macros"]
-ws = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
+websocket = ["dep:futures-util", "dep:hyper", "tokio", "tokio-tungstenite", "dep:tracing"]
 
 [dependencies]
 async-session = { workspace = true, optional = true }
