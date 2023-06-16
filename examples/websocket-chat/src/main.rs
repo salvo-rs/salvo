@@ -12,7 +12,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use salvo::prelude::*;
-use salvo::ws::{Message, WebSocket, WebSocketUpgrade};
+use salvo::websocket::{Message, WebSocket, WebSocketUpgrade};
 
 type Users = RwLock<HashMap<usize, mpsc::UnboundedSender<Result<Message, salvo::Error>>>>;
 
