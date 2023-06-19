@@ -14,5 +14,9 @@ cobertura.xml
 debug.log
 **/temp
 tarpaulin-report.*
+examples/*/.env.local
+examples/**/package-lock.json
+examples/**/pnpm-lock.yaml
+**/node_modules
 
 .DS_Store
