@@ -17,7 +17,7 @@ function App() {
   });
   return (
     <div className="app">
-      <button onClick={getWelcome}>Welcome</button>
+      <button onClick={getWelcome}>Get data from server</button>
       <p>{content}</p>
       <img src={logo} alt="logo" />
       <a

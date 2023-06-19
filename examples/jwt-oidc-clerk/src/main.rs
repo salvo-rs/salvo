@@ -1,10 +1,8 @@
-use jsonwebtoken::{self, EncodingKey};
-use salvo::http::{Method, StatusError};
+use salvo::http::StatusError;
+use salvo::jwt_auth::HeaderFinder;
 use salvo::jwt_auth::OidcDecoder;
-use salvo::jwt_auth::{CookieFinder, HeaderFinder, QueryFinder};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
 
 const ISSUER_URL: &str = "https://coherent-gopher-0.clerk.accounts.dev";
 
@@ -31,17 +29,13 @@ async fn main() {
     Server::new(acceptor).serve(router).await;
 }
 #[handler]
-async fn welcome(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<String, StatusError> {
+async fn welcome( depot: &mut Depot) -> Result<String, StatusError> {
     match depot.jwt_auth_state() {
         JwtAuthState::Authorized => {
             let data = depot.jwt_auth_data::<JwtClaims>().unwrap();
             Ok(format!("Hi {}, have logged in successfully!", data.claims.sub))
         }
-        JwtAuthState::Unauthorized => {
-            Err(StatusError::unauthorized())
-        }
-        _ => {
-            Err(StatusError::forbidden())
-        }
+        JwtAuthState::Unauthorized => Err(StatusError::unauthorized()),
+        _ => Err(StatusError::forbidden()),
     }
 }
