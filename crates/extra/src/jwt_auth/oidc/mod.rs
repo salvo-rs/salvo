@@ -1,3 +1,5 @@
+//! Oidc(OpenID Connect) support module
+
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -10,8 +12,6 @@ use jsonwebtoken::jwk::{Jwk, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use salvo_core::async_trait;
 use salvo_core::http::header::CACHE_CONTROL;
-use salvo_core::http::uri::Uri;
-use salvo_core::http::ReqBody;
 use salvo_core::Depot;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
@@ -53,18 +53,23 @@ impl JwtAuthDecoder for OidcDecoder {
     }
 }
 
+/// A builder for `OidcDecoder`.
 pub struct DecoderBuilder<T>
 where
     T: AsRef<str>,
 {
+    /// The issuer URL of the token. eg: https://xx-xx.clerk.accounts.dev
     pub issuer: T,
+    /// The http client for the decoder.
     pub http_client: Option<reqwest::Client>,
+    /// The validation options for the decoder.
     pub validation: Option<Validation>,
 }
 impl<T> DecoderBuilder<T>
 where
     T: AsRef<str>,
 {
+    /// Create a new `DecoderBuilder`.
     pub fn new(issuer: T) -> Self {
         Self {
             issuer,
@@ -72,14 +77,18 @@ where
             validation: None,
         }
     }
+    /// Set the http client for the decoder.
     pub fn http_client(mut self, client: reqwest::Client) -> Self {
         self.http_client = Some(client);
         self
     }
+    /// Set the validation options for the decoder.
     pub fn validation(mut self, validation: Validation) -> Self {
         self.validation = Some(validation);
         self
     }
+
+    /// Build a `OidcDecoder`.
     pub async fn build(self) -> Result<OidcDecoder, JwtAuthError> {
         let Self {
             issuer,
@@ -270,13 +279,13 @@ impl OidcDecoder {
 /// Struct used to store the computed information needed to decode a JWT
 /// Intended to be cached inside of [`JwkSetStore`] to prevent decoding information about the same JWK more than once
 pub struct DecodingInfo {
-    jwk: Jwk,
+    // jwk: Jwk,
     key: DecodingKey,
     validation: Validation,
-    alg: Algorithm,
+    // alg: Algorithm,
 }
 impl DecodingInfo {
-    fn new(jwk: Jwk, key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {
+    fn new(key: DecodingKey, alg: Algorithm, validation_settings: &Validation) -> Self {
         let mut validation = Validation::new(alg);
 
         validation.aud = validation_settings.aud.clone();
@@ -289,10 +298,10 @@ impl DecodingInfo {
         validation.validate_nbf = validation_settings.validate_nbf;
 
         Self {
-            jwk,
+            // jwk,
             key,
             validation,
-            alg,
+            // alg,
         }
     }
 
@@ -352,7 +361,7 @@ pub(crate) fn decode_jwk(jwk: &Jwk, validation: &Validation) -> Result<(String, 
     };
     match (kid, alg, dec_key) {
         (Some(kid), Some(alg), Some(dec_key)) => {
-            let info = DecodingInfo::new(jwk.clone(), dec_key, alg, validation);
+            let info = DecodingInfo::new(dec_key, alg, validation);
             Ok((kid, info))
         }
         _ => Err(JwtAuthError::InvalidJwk),

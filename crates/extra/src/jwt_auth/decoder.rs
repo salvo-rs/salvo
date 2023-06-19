@@ -39,22 +39,6 @@ impl ConstDecoder {
     }
 }
 
-impl<'a> From<&'a str> for ConstDecoder {
-    fn from(secret: &'a str) -> Self {
-        ConstDecoder::new(secret.to_owned())
-    }
-}
-impl<'a> From<&'a String> for ConstDecoder {
-    fn from(secret: &'a String) -> Self {
-        ConstDecoder::new(secret.to_owned())
-    }
-}
-impl From<String> for ConstDecoder {
-    fn from(secret: String) -> Self {
-        ConstDecoder::new(secret)
-    }
-}
-
 #[async_trait]
 impl JwtAuthDecoder for ConstDecoder {
     type Error = JwtError;

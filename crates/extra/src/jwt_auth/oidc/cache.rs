@@ -30,6 +30,7 @@ pub struct CachePolicy {
 }
 
 impl CachePolicy {
+    /// Create a new cache policy from the header value of the Cache-Control header
     pub fn from_header_val(value: Option<&HeaderValue>) -> Self {
         // Initalize the default config of polling every second
         let mut config = Self::default();
@@ -84,6 +85,7 @@ impl Default for CachePolicy {
     }
 }
 
+/// The udpate action of cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateAction {
     /// We checked the JWKS uri and it was the same as the last time we refreshed it so no action was taken
@@ -92,6 +94,7 @@ pub enum UpdateAction {
     JwksUpdate,
     /// The JWKS Uri responded with a different cache-control header
     CacheUpdate(CachePolicy),
+    /// The JWKS Uri responded with a different cache-control header and the JWKS was updated
     JwksAndCacheUpdate(CachePolicy),
 }
 
@@ -105,6 +108,7 @@ pub struct CacheState {
 }
 
 impl CacheState {
+    /// Create a new `CacheState`
     pub fn new() -> Self {
         Self {
             last_update: AtomicU64::new(current_time()),
@@ -112,24 +116,29 @@ impl CacheState {
             is_error: AtomicBool::new(false),
         }
     }
+    /// Check is the cache is error
     pub fn is_error(&self) -> bool {
         self.is_error.load(Ordering::SeqCst)
     }
+    /// Set the cache is error
     pub fn set_is_error(&self, value: bool) {
         self.is_error.store(value, Ordering::SeqCst);
     }
 
+    /// Get the cache last updated timestamp
     pub fn last_update(&self) -> u64 {
         self.last_update.load(Ordering::SeqCst)
     }
+    /// Set the cache last updated timestamp
     pub fn set_last_update(&self, timestamp: u64) {
         self.last_update.store(timestamp, Ordering::SeqCst);
     }
 
+    /// Check if the cache is revalidating
     pub fn is_revalidating(&self) -> bool {
         self.is_revalidating.load(Ordering::SeqCst)
     }
-
+    /// Set the cache is revalidating
     pub fn set_is_revalidating(&self, value: bool) {
         self.is_revalidating.store(value, Ordering::SeqCst);
     }
@@ -143,13 +152,16 @@ impl Default for CacheState {
 
 /// Helper Struct for storing
 pub struct JwkSetStore {
+    /// The current JWKS
     pub jwks: JwkSet,
     decoding_map: HashMap<String, Arc<DecodingInfo>>,
+    /// The cache policy for this store
     pub cache_policy: CachePolicy,
     validation: Validation,
 }
 
 impl JwkSetStore {
+    /// Create a new `JwkSetStore`
     pub fn new(jwks: JwkSet, cache_policy: CachePolicy, validation: Validation) -> Self {
         Self {
             jwks,
@@ -174,6 +186,7 @@ impl JwkSetStore {
         }
     }
 
+    /// Get the DecodingInfo for a given kid
     pub fn get_key(&self, kid: &str) -> Option<Arc<DecodingInfo>> {
         self.decoding_map.get(kid).cloned()
     }

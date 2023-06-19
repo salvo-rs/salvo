@@ -2,7 +2,6 @@
 
 use std::marker::PhantomData;
 
-use base64::Engine;
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use once_cell::sync::Lazy;
@@ -42,21 +41,29 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
     ]
 });
 
+/// JwtAuthError
 #[derive(Debug, Error)]
 pub enum JwtAuthError {
-    #[error("HTTP Request Failed")]
+    /// HTTP request failed
+    #[error("HTTP request failed")]
     ReqwestError(#[from] reqwest::Error),
+    /// InvalidUri
     #[error("InvalidUri")]
     InvalidUri(#[from] salvo_core::http::uri::InvalidUri),
+    /// Serde error
     #[error("Serde error")]
     SerdeError(#[from] serde_json::Error),
-    #[error("Failed to discover OIDC Configuration")]
+    /// Failed to discover OIDC configuration
+    #[error("Failed to discover OIDC configuration")]
     DiscoverError,
-    #[error("Decoding of JWKS Failed")]
+    /// Decoding of JWKS error
+    #[error("Decoding of JWKS error")]
     DecodeError(#[from] base64::DecodeError),
+    /// JWT was missing kid, alg, or decoding components
     #[error("JWT was missing kid, alg, or decoding components")]
     InvalidJwk,
-    #[error("Issuer URL Invalid")]
+    /// Issuer URL invalid
+    #[error("Issuer URL invalid")]
     IssuerParseError,
     /// Failure of validating the token. See [jsonwebtoken::errors::ErrorKind] for possible reasons this value could be returned
     /// Would typically result in a 401 HTTP Status code
@@ -135,10 +142,10 @@ where
 {
     /// Create new `JwtAuth`.
     #[inline]
-    pub fn new(decoder: impl Into<D>) -> Self {
+    pub fn new(decoder: D) -> Self {
         JwtAuth {
             response_error: true,
-            decoder: decoder.into(),
+            decoder,
             _claims: PhantomData::<C>,
             finders: vec![Box::new(HeaderFinder::new())],
         }
@@ -228,7 +235,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new("ABCDEF".into()).response_error(true).finders(vec![
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(ConstDecoder::new("ABCDEF")).response_error(true).finders(vec![
             Box::new(HeaderFinder::new()),
             Box::new(QueryFinder::new("jwt_token")),
             Box::new(CookieFinder::new("jwt_token")),

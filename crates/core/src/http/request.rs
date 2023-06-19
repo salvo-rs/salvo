@@ -1,6 +1,7 @@
 //! Http request.
 
 use std::fmt::{self, Formatter};
+use std::sync::Mutex;
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]

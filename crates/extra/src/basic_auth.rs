@@ -148,7 +148,7 @@ mod tests {
     #[async_trait]
     impl BasicAuthValidator for Validator {
         async fn validate(&self, username: &str, password: &str, _depot: &mut Depot) -> bool {
-            Ok(username == "root" && password == "pwd")
+            username == "root" && password == "pwd"
         }
     }
 
