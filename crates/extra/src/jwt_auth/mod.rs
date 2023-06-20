@@ -6,12 +6,19 @@ pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
 use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
+use thiserror::Error;
 
 use salvo_core::http::{Method, Request, Response, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
 
 mod finder;
 pub use finder::{CookieFinder, FormFinder, HeaderFinder, JwtTokenFinder, QueryFinder};
+
+mod decoder;
+pub use decoder::{ConstDecoder, JwtAuthDecoder};
+
+pub mod oidc;
+pub use oidc::OidcDecoder;
 
 /// key used to insert auth decoded data to depot.
 pub const JWT_AUTH_DATA_KEY: &str = "::salvo::jwt_auth::auth_data";
@@ -33,6 +40,44 @@ static ALL_METHODS: Lazy<Vec<Method>> = Lazy::new(|| {
         Method::TRACE,
     ]
 });
+
+/// JwtAuthError
+#[derive(Debug, Error)]
+pub enum JwtAuthError {
+    /// HTTP request failed
+    #[error("HTTP request failed")]
+    ReqwestError(#[from] reqwest::Error),
+    /// InvalidUri
+    #[error("InvalidUri")]
+    InvalidUri(#[from] salvo_core::http::uri::InvalidUri),
+    /// Serde error
+    #[error("Serde error")]
+    SerdeError(#[from] serde_json::Error),
+    /// Failed to discover OIDC configuration
+    #[error("Failed to discover OIDC configuration")]
+    DiscoverError,
+    /// Decoding of JWKS error
+    #[error("Decoding of JWKS error")]
+    DecodeError(#[from] base64::DecodeError),
+    /// JWT was missing kid, alg, or decoding components
+    #[error("JWT was missing kid, alg, or decoding components")]
+    InvalidJwk,
+    /// Issuer URL invalid
+    #[error("Issuer URL invalid")]
+    IssuerParseError,
+    /// Failure of validating the token. See [jsonwebtoken::errors::ErrorKind] for possible reasons this value could be returned
+    /// Would typically result in a 401 HTTP Status code
+    #[error("JWT Is Invalid")]
+    ValidationFailed(#[from] jsonwebtoken::errors::Error),
+    /// Failure to re-validate the JWKS.
+    /// Would typically result in a 401 or 500 status code depending on preference
+    #[error("Token was unable to be validated due to cache expiration")]
+    CacheError,
+    /// Token did not contain a kid in its header and would be impossible to validate
+    /// Would typically result in a 401 HTTP Status code
+    #[error("Token did not contain a KID field")]
+    MissingKid,
+}
 
 /// JwtAuthState
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -72,37 +117,37 @@ impl JwtAuthDepotExt for Depot {
 
     #[inline]
     fn jwt_auth_state(&self) -> JwtAuthState {
-        self.get(JWT_AUTH_STATE_KEY).cloned().unwrap_or(JwtAuthState::Unauthorized)
+        self.get(JWT_AUTH_STATE_KEY)
+            .cloned()
+            .unwrap_or(JwtAuthState::Unauthorized)
     }
 }
 
 /// JwtAuth, used as middleware.
 #[non_exhaustive]
-pub struct JwtAuth<C> {
-    /// The secret key.
-    pub secret: String,
+pub struct JwtAuth<C, D> {
     /// Response error directly when set to true.
     pub response_error: bool,
     _claims: PhantomData<C>,
-    /// The validation.
-    pub validation: Validation,
+    /// The decoder.
+    pub decoder: D,
     /// The finders list.
     pub finders: Vec<Box<dyn JwtTokenFinder>>,
 }
 
-impl<C> JwtAuth<C>
+impl<C, D> JwtAuth<C, D>
 where
     C: DeserializeOwned + Send + Sync + 'static,
+    D: JwtAuthDecoder + Send + Sync + 'static,
 {
     /// Create new `JwtAuth`.
     #[inline]
-    pub fn new(secret: String) -> JwtAuth<C> {
+    pub fn new(decoder: D) -> Self {
         JwtAuth {
             response_error: true,
-            secret,
+            decoder,
             _claims: PhantomData::<C>,
             finders: vec![Box::new(HeaderFinder::new())],
-            validation: Validation::default(),
         }
     }
     /// Sets response_error value and return Self.
@@ -112,23 +157,10 @@ where
         self
     }
 
-    /// Sets validation with new value and return Self.
+    /// Get decoder mutable reference.
     #[inline]
-    pub fn validation(mut self, validation: Validation) -> Self {
-        self.validation = validation;
-        self
-    }
-
-    /// Get secret mutable reference.
-    #[inline]
-    pub fn secret_mut(&mut self) -> &mut String {
-        &mut self.secret
-    }
-    /// Sets secret with new value and return Self.
-    #[inline]
-    pub fn secret(mut self, secret: String) -> Self {
-        self.secret = secret;
-        self
+    pub fn decoder_mut(&mut self) -> &mut D {
+        &mut self.decoder
     }
 
     /// Get extractor list mutable reference.
@@ -143,12 +175,6 @@ where
         self
     }
 
-    /// Decode token with secret.
-    #[inline]
-    pub fn decode(&self, token: &str) -> Result<TokenData<C>, JwtError> {
-        decode::<C>(token, &DecodingKey::from_secret(self.secret.as_ref()), &self.validation)
-    }
-
     async fn find_token(&self, req: &mut Request) -> Option<String> {
         for finder in &self.finders {
             if let Some(token) = finder.find_token(req).await {
@@ -160,14 +186,15 @@ where
 }
 
 #[async_trait]
-impl<C> Handler for JwtAuth<C>
+impl<C, D> Handler for JwtAuth<C, D>
 where
     C: DeserializeOwned + Send + Sync + 'static,
+    D: JwtAuthDecoder + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let token = self.find_token(req).await;
         if let Some(token) = token {
-            if let Ok(data) = self.decode(&token) {
+            if let Ok(data) = self.decoder.decode::<C>(&token, depot).await {
                 depot.insert(JWT_AUTH_DATA_KEY, data);
                 depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Authorized);
             } else {
@@ -193,11 +220,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use time::{OffsetDateTime, Duration};
     use jsonwebtoken::EncodingKey;
     use salvo_core::prelude::*;
     use salvo_core::test::{ResponseExt, TestClient};
     use serde::{Deserialize, Serialize};
+    use time::{Duration, OffsetDateTime};
 
     use super::*;
 
@@ -208,14 +235,11 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtAuth<JwtClaims> =
-            JwtAuth::new("ABCDEF".into())
-                .response_error(true)
-                .finders(vec![
-                    Box::new(HeaderFinder::new()),
-                    Box::new(QueryFinder::new("jwt_token")),
-                    Box::new(CookieFinder::new("jwt_token")),
-                ]);
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(ConstDecoder::new("ABCDEF")).response_error(true).finders(vec![
+            Box::new(HeaderFinder::new()),
+            Box::new(QueryFinder::new("jwt_token")),
+            Box::new(CookieFinder::new("jwt_token")),
+        ]);
 
         #[handler]
         async fn hello() -> &'static str {

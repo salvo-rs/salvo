@@ -1,6 +1,6 @@
 use jsonwebtoken::{self, EncodingKey};
 use salvo::http::{Method, StatusError};
-use salvo::jwt_auth::QueryFinder;
+use salvo::jwt_auth::{ConstDecoder, QueryFinder};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
@@ -17,7 +17,7 @@ pub struct JwtClaims {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let auth_handler: JwtAuth<JwtClaims> = JwtAuth::new(SECRET_KEY.to_owned())
+    let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::new(SECRET_KEY))
         .finders(vec![
             // Box::new(HeaderFinder::new()),
             Box::new(QueryFinder::new("jwt_token")),
