@@ -93,7 +93,7 @@ impl AcmeClient {
         tracing::debug!(kid = kid.as_str(), "new order request");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
-        let resp: NewOrderResponse = jose::request_json(
+        let res: NewOrderResponse = jose::request_json(
             &self.client,
             &self.key_pair,
             Some(kid),
@@ -111,8 +111,8 @@ impl AcmeClient {
         )
         .await?;
 
-        tracing::debug!(status = resp.status.as_str(), "order created");
-        Ok(resp)
+        tracing::debug!(status = res.status.as_str(), "order created");
+        Ok(res)
     }
 
     #[inline]
@@ -120,7 +120,7 @@ impl AcmeClient {
         tracing::debug!(auth_uri = %auth_url, "fetch authorization");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
-        let resp: FetchAuthorizationResponse = jose::request_json(
+        let res: FetchAuthorizationResponse = jose::request_json(
             &self.client,
             &self.key_pair,
             self.kid.as_deref(),
@@ -131,12 +131,12 @@ impl AcmeClient {
         .await?;
 
         tracing::debug!(
-            identifier = ?resp.identifier,
-            status = resp.status.as_str(),
+            identifier = ?res.identifier,
+            status = res.status.as_str(),
             "authorization response",
         );
 
-        Ok(resp)
+        Ok(res)
     }
 
     #[inline]
@@ -258,19 +258,19 @@ async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>, FullBody>, non
     let new_nonce = nonce_url
         .parse()
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to parse url: {}", e)))?;
-    let resp = client
+    let res = client
         .get(new_nonce)
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get nonce: {}", e)))?;
 
-    if !resp.status().is_success() {
+    if !res.status().is_success() {
         return Err(IoError::new(
             ErrorKind::Other,
-            format!("failed to load directory: status = {}", resp.status()),
+            format!("failed to load directory: status = {}", res.status()),
         ));
     }
 
-    let nonce = resp
+    let nonce = res
         .headers()
         .get("replay-nonce")
         .and_then(|value| value.to_str().ok())

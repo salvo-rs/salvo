@@ -1,0 +1,17 @@
+[package]
+name = "example-jwt-jwt-oidc-clerk"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+anyhow = "1"
+dotenv = "0.15.0"
+jsonwebtoken.workspace = true
+salvo = { workspace = true, features = ["anyhow", "jwt-auth", "proxy"] }
+serde = "1"
+time.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

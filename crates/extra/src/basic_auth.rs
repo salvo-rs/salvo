@@ -11,7 +11,6 @@ pub const USERNAME_KEY: &str = "::salvo::basic_auth::username";
 #[async_trait]
 pub trait BasicAuthValidator: Send + Sync {
     /// Validate is that username and password is right.
-    #[must_use = "validate future must be used"]
     async fn validate(&self, username: &str, password: &str, depot: &mut Depot) -> bool;
 }
 /// BasicAuthDepotExt
