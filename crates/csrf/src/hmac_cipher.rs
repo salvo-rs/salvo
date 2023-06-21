@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
@@ -13,7 +15,10 @@ impl HmacCipher {
     /// Given an HMAC key, return an `HmacCipher` instance.
     #[inline]
     pub fn new(hmac_key: [u8; 32]) -> Self {
-        Self { hmac_key, token_size: 32 }
+        Self {
+            hmac_key,
+            token_size: 32,
+        }
     }
 
     /// Sets the length of the token.
@@ -31,28 +36,37 @@ impl HmacCipher {
 }
 
 impl CsrfCipher for HmacCipher {
-    fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        if secret.len() != self.token_size {
-            false
+    fn verify(&self, token: &str, proof: &str) -> bool {
+        if let (Ok(token), Ok(proof)) = (
+            URL_SAFE_NO_PAD.decode(token.as_bytes()),
+            URL_SAFE_NO_PAD.decode(proof.as_bytes()),
+        ) {
+            if proof.len() != self.token_size {
+                false
+            } else {
+                let mut hmac = self.hmac();
+                hmac.update(&token);
+                hmac.verify((&*proof).into()).is_ok()
+            }
         } else {
-            let token = token.to_vec();
-            let mut hmac = self.hmac();
-            hmac.update(&token);
-            hmac.verify(secret.into()).is_ok()
+            false
         }
     }
-    fn generate(&self) -> (Vec<u8>, Vec<u8>) {
+    fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
         let mut hmac = self.hmac();
         hmac.update(&token);
         let mac = hmac.finalize();
-        let secret = mac.into_bytes();
-        (token.to_vec(), secret.to_vec())
+        let proof = mac.into_bytes();
+        (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+
     use super::*;
 
     #[test]
@@ -74,8 +88,8 @@ mod tests {
     fn test_verify() {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
-        let (token, secret) = hmac_cipher.generate();
-        assert!(hmac_cipher.verify(&token, &secret));
+        let (token, proof) = hmac_cipher.generate();
+        assert!(hmac_cipher.verify(&token, &proof));
     }
 
     #[test]
@@ -83,17 +97,17 @@ mod tests {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
         let (token, _) = hmac_cipher.generate();
-        let invalid_secret = vec![0u8; hmac_cipher.token_size];
-        assert!(!hmac_cipher.verify(&token, &invalid_secret));
+        let invalid_proof = URL_SAFE_NO_PAD.encode(&vec![0u8; hmac_cipher.token_size]);
+        assert!(!hmac_cipher.verify(&token, &invalid_proof));
     }
 
     #[test]
     fn test_generate() {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
-        let (token, secret) = hmac_cipher.generate();
+        let (token, proof) = hmac_cipher.generate();
         assert_eq!(token.len(), hmac_cipher.token_size);
-        assert_eq!(secret.len(), hmac_cipher.token_size);
-        assert!(hmac_cipher.verify(&token, &secret));
+        assert_eq!(proof.len(), hmac_cipher.token_size);
+        assert!(hmac_cipher.verify(&token, &proof));
     }
 }

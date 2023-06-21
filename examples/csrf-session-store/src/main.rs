@@ -11,10 +11,10 @@ pub async fn home(res: &mut Response) {
     <body>
     <h2>Csrf Exampe: SessionStore</h2>
     <ul>
-        <li><a href="../bcrypt">Bcrypt</a></li>
-        <li><a href="../hmac">Hmac</a></li>
-        <li><a href="../aes_gcm">Aes Gcm</a></li>
-        <li><a href="../ccp">chacha20poly1305</a></li>
+        <li><a href="/bcrypt/">Bcrypt</a></li>
+        <li><a href="/hmac/">Hmac</a></li>
+        <li><a href="/aes_gcm/">Aes Gcm</a></li>
+        <li><a href="/ccp/">chacha20poly1305</a></li>
     </ul>
     </body>"#;
     res.render(Text::Html(html));
@@ -92,10 +92,10 @@ fn get_page_html(csrf_token: &str, msg: &str) -> String {
     <body>
     <h2>Csrf Exampe: SessionStore</h2>
     <ul>
-        <li><a href="../bcrypt/">Bcrypt</a></li>
-        <li><a href="../hmac/">Hmac</a></li>
-        <li><a href="../aes_gcm/">Aes Gcm</a></li>
-        <li><a href="../ccp/">chacha20poly1305</a></li>
+        <li><a href="/bcrypt/">Bcrypt</a></li>
+        <li><a href="/hmac/">Hmac</a></li>
+        <li><a href="/aes_gcm/">Aes Gcm</a></li>
+        <li><a href="/ccp/">chacha20poly1305</a></li>
     </ul>
     <form action="./" method="post">
         <input type="hidden" name="csrf_token" value="{csrf_token}" />

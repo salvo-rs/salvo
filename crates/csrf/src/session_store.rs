@@ -1,9 +1,9 @@
 use salvo_core::{async_trait, Depot, Error, Request, Response};
 use salvo_session::SessionDepotExt;
 
-use super::CsrfStore;
+use super::{CsrfCipher, CsrfStore};
 
-/// CookieStore is a `CsrfStore` implementation that stores the CSRF secret in a session.
+/// CookieStore is a `CsrfStore` implementation that stores the CSRF proof in a session.
 #[derive(Debug)]
 pub struct SessionStore {
     name: String,
@@ -18,7 +18,7 @@ impl SessionStore {
     /// Create a new `SessionStore`.
     pub fn new() -> Self {
         Self {
-            name: "salvo.csrf.secret".into(),
+            name: "salvo.csrf".into(),
         }
     }
 }
@@ -26,20 +26,24 @@ impl SessionStore {
 #[async_trait]
 impl CsrfStore for SessionStore {
     type Error = Error;
-    async fn load_secret(&self, _req: &mut Request, depot: &mut Depot) -> Option<Vec<u8>> {
-        depot.session().and_then(|s| s.get::<Vec<u8>>(&self.name))
+    async fn load<C: CsrfCipher>(&self, _req: &mut Request, depot: &mut Depot, _cipher: &C) -> Option<(String, String)> {
+        depot
+            .session()
+            .and_then(|s| s.get::<String>(&self.name))
+            .and_then(|s| s.split_once('.').map(|(t, p)| (t.into(), p.into())))
     }
-    async fn save_secret(
+    async fn save(
         &self,
         _req: &mut Request,
         depot: &mut Depot,
         _res: &mut Response,
-        secret: &[u8],
+        token: &str,
+        proof: &str,
     ) -> Result<(), Self::Error> {
         depot
             .session_mut()
             .expect("session must be exist")
-            .insert(&self.name, secret)?;
+            .insert(&self.name, format!("{token}.{proof}"))?;
         Ok(())
     }
 }

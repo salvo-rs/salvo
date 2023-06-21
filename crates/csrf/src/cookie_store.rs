@@ -1,12 +1,13 @@
-use base64::engine::{general_purpose, Engine};
 use cookie::time::Duration;
 use cookie::{Cookie, Expiration, SameSite};
 use salvo_core::http::uri::Scheme;
 use salvo_core::{async_trait, Depot, Error, Request, Response};
 
+use crate::CsrfCipher;
+
 use super::CsrfStore;
 
-/// CookieStore is a `CsrfStore` implementation that stores the CSRF secret in a cookie.
+/// CookieStore is a `CsrfStore` implementation that stores the CSRF proof in a cookie.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct CookieStore {
@@ -31,7 +32,7 @@ impl CookieStore {
     pub fn new() -> Self {
         Self {
             ttl: Duration::days(1),
-            name: "salvo.csrf.secret".into(),
+            name: "salvo.csrf".into(),
             path: "/".into(),
             domain: None,
         }
@@ -63,20 +64,28 @@ impl CookieStore {
 #[async_trait]
 impl CsrfStore for CookieStore {
     type Error = Error;
-    async fn load_secret(&self, req: &mut Request, _depot: &mut Depot) -> Option<Vec<u8>> {
+    async fn load<C: CsrfCipher>(&self, req: &mut Request, _depot: &mut Depot, cipher: &C) -> Option<(String, String)> {
         req.cookie(&self.name)
-            .and_then(|c| general_purpose::STANDARD.decode(c.value()).ok())
+            .and_then(|c| c.value().split_once('.'))
+            .and_then(|(token, proof)| {
+                if cipher.verify(token, proof) {
+                    Some((token.into(), proof.into()))
+                } else {
+                    None
+                }
+            })
     }
-    async fn save_secret(
+    async fn save(
         &self,
         req: &mut Request,
         _depot: &mut Depot,
         res: &mut Response,
-        secret: &[u8],
+        token: &str,
+        proof: &str,
     ) -> Result<(), Self::Error> {
         let secure = req.uri().scheme() == Some(&Scheme::HTTPS);
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
-        let cookie_builder = Cookie::build(self.name.clone(), general_purpose::STANDARD.encode(secret))
+        let cookie_builder = Cookie::build(self.name.clone(), format!("{token}.{proof}"))
             .http_only(true)
             .same_site(SameSite::Strict)
             .path(self.path.clone())
@@ -116,13 +125,13 @@ impl CsrfStore for CookieStore {
 //         let mut depot = Depot::new();
 //         let mut res = Response::new();
 
-//         let secret = vec![1, 2, 3, 4, 5];
+//         let proof = vec![1, 2, 3, 4, 5];
 //         cookie_store
-//             .save_secret(&mut req, &mut depot, &mut res, &secret)
+//             .save_proof(&mut req, &mut depot, &mut res, &proof)
 //             .await
 //             .unwrap();
 
-//         let loaded_secret = cookie_store.load_secret(&mut req, &mut depot).await;
-//         assert_eq!(loaded_secret, Some(secret));
+//         let loaded_proof = cookie_store.load_proof(&mut req, &mut depot).await;
+//         assert_eq!(loaded_proof, Some(proof));
 //     }
 // }

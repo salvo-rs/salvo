@@ -1,3 +1,6 @@
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
+
 use super::CsrfCipher;
 
 /// BcryptCipher is a CSRF protection implementation that uses bcrypt.
@@ -15,7 +18,10 @@ impl BcryptCipher {
     /// Create a new `BcryptCipher`.
     #[inline]
     pub fn new() -> Self {
-        Self { cost: 8, token_size: 32 }
+        Self {
+            cost: 8,
+            token_size: 32,
+        }
     }
 
     /// Sets the length of the token.
@@ -36,18 +42,27 @@ impl BcryptCipher {
 }
 
 impl CsrfCipher for BcryptCipher {
-    fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        bcrypt::verify(token, std::str::from_utf8(secret).unwrap_or_default()).unwrap_or(false)
+    fn verify(&self, token: &str, proof: &str) -> bool {
+        if let Ok(token) = URL_SAFE_NO_PAD.decode(token.as_bytes()) {
+            let proof = proof.replace('_', "/").replace('-', "+");
+            bcrypt::verify(token, &proof).unwrap_or(false)
+        } else {
+            false
+        }
     }
-    fn generate(&self) -> (Vec<u8>, Vec<u8>) {
+    fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
-        let secret = bcrypt::hash(&token, self.cost).unwrap();
-        (token, secret.as_bytes().to_vec())
+        let proof = bcrypt::hash(&token, self.cost).unwrap().replace('+', "/").replace('/', "_");
+
+        (URL_SAFE_NO_PAD.encode(token), proof)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+
     use super::*;
 
     #[test]
@@ -84,15 +99,15 @@ mod tests {
     #[test]
     fn test_bcrypt_cipher_verify_and_generate() {
         let cipher = BcryptCipher::new();
-        let (token, secret) = cipher.generate();
-        assert!(cipher.verify(&token, &secret));
+        let (token, proof) = cipher.generate();
+        assert!(cipher.verify(&token, &proof));
     }
 
     #[test]
     fn test_bcrypt_cipher_verify_invalid_token() {
         let cipher = BcryptCipher::new();
-        let (token, secret) = cipher.generate();
-        let invalid_token = vec![0; token.len()];
-        assert!(!cipher.verify(&invalid_token, &secret));
+        let (token, proof) = cipher.generate();
+        let invalid_token = URL_SAFE_NO_PAD.encode(vec![0; token.len()]);
+        assert!(!cipher.verify(&invalid_token, &proof));
     }
 }

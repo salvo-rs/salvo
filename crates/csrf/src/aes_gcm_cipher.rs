@@ -1,6 +1,8 @@
 use aead::generic_array::GenericArray;
 use aead::{Aead, KeyInit};
 use aes_gcm::Aes256Gcm;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 
 use super::CsrfCipher;
 
@@ -36,27 +38,37 @@ impl AesGcmCipher {
 }
 
 impl CsrfCipher for AesGcmCipher {
-    fn verify(&self, token: &[u8], secret: &[u8]) -> bool {
-        if token.len() < 8 || secret.len() < 20 {
-            false
+    fn verify(&self, token: &str, proof: &str) -> bool {
+        if let (Ok(token), Ok(proof)) = (
+            URL_SAFE_NO_PAD.decode(token.as_bytes()),
+            URL_SAFE_NO_PAD.decode(proof.as_bytes()),
+        ) {
+            if token.len() < 8 || proof.len() < 20 {
+                false
+            } else {
+                let nonce = GenericArray::from_slice(&proof[0..12]);
+                let aead = self.aead();
+                aead.decrypt(nonce, &proof[12..]).map(|p| p == token).unwrap_or(false)
+            }
         } else {
-            let nonce = GenericArray::from_slice(&secret[0..12]);
-            let aead = self.aead();
-            aead.decrypt(nonce, &secret[12..]).map(|p| p == token).unwrap_or(false)
+            false
         }
     }
-    fn generate(&self) -> (Vec<u8>, Vec<u8>) {
+    fn generate(&self) -> (String, String) {
         let token = self.random_bytes(self.token_size);
         let aead = self.aead();
-        let mut secret = self.random_bytes(12);
-        let nonce = GenericArray::from_slice(&secret);
-        secret.append(&mut aead.encrypt(nonce, token.as_slice()).unwrap());
-        (token, secret)
+        let mut proof = self.random_bytes(12);
+        let nonce = GenericArray::from_slice(&proof);
+        proof.append(&mut aead.encrypt(nonce, token.as_slice()).unwrap());
+        (URL_SAFE_NO_PAD.encode(token), URL_SAFE_NO_PAD.encode(proof))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+
     use super::AesGcmCipher;
     use super::CsrfCipher;
 
@@ -65,13 +77,13 @@ mod tests {
         let aead_key = [0u8; 32];
         let cipher = AesGcmCipher::new(aead_key);
 
-        let (token, secret) = cipher.generate();
-        assert!(cipher.verify(&token, &secret));
+        let (token, proof) = cipher.generate();
+        assert!(cipher.verify(&token, &proof));
 
-        let invalid_secret = vec![0u8; secret.len()];
-        assert!(!cipher.verify(&token, &invalid_secret));
+        let invalid_proof = URL_SAFE_NO_PAD.encode(vec![0u8; proof.len()]);
+        assert!(!cipher.verify(&token, &invalid_proof));
 
-        let invalid_token = vec![0u8; token.len()];
-        assert!(!cipher.verify(&invalid_token, &secret));
+        let invalid_token = URL_SAFE_NO_PAD.encode(vec![0u8; token.len()]);
+        assert!(!cipher.verify(&invalid_token, &proof));
     }
 }
