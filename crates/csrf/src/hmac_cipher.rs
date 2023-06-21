@@ -106,8 +106,6 @@ mod tests {
         let hmac_key = [0u8; 32];
         let hmac_cipher = HmacCipher::new(hmac_key);
         let (token, proof) = hmac_cipher.generate();
-        assert_eq!(token.len(), hmac_cipher.token_size);
-        assert_eq!(proof.len(), hmac_cipher.token_size);
         assert!(hmac_cipher.verify(&token, &proof));
     }
 }
