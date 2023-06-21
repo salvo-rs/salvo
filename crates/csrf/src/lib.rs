@@ -19,7 +19,7 @@ use std::error::Error as StdError;
 
 mod finder;
 
-pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder, QueryFinder};
+pub use finder::{CsrfTokenFinder, FormFinder, HeaderFinder, JsonFinder};
 
 use rand::distributions::Standard;
 use rand::Rng;
@@ -405,7 +405,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_validates_token_in_query() {
-        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), QueryFinder::new());
+        let csrf = Csrf::new(BcryptCipher::new(), CookieStore::new(), HeaderFinder::new("csrf-token"));
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
 
@@ -418,7 +418,8 @@ mod tests {
         let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
-        let mut res = TestClient::post(format!("http://127.0.0.1:5801?a=1&csrf-token={}&b=2", csrf_token))
+        let mut res = TestClient::post("http://127.0.0.1:5801?a=1&b=2")
+            .add_header("csrf-token", csrf_token, true)
             .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;
@@ -431,7 +432,7 @@ mod tests {
         let csrf = Csrf::new(
             HmacCipher::new(*b"01234567012345670123456701234567"),
             CookieStore::new(),
-            QueryFinder::new().with_query_name("my-csrf-token"),
+            HeaderFinder::new("my-csrf-token"),
         );
         let router = Router::new().hoop(csrf).get(get_index).post(post_index);
         let service = Service::new(router);
@@ -445,7 +446,8 @@ mod tests {
         let res = TestClient::post("http://127.0.0.1:5801").send(&service).await;
         assert_eq!(res.status_code.unwrap(), StatusCode::FORBIDDEN);
 
-        let mut res = TestClient::post(format!("http://127.0.0.1:5801?a=1&my-csrf-token={}&b=2", csrf_token))
+        let mut res = TestClient::post("http://127.0.0.1:5801?a=1&b=2")
+            .add_header("my-csrf-token", csrf_token, true)
             .add_header("cookie", cookie.to_string(), true)
             .send(&service)
             .await;

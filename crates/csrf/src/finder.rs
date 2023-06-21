@@ -10,42 +10,6 @@ pub trait CsrfTokenFinder: Send + Sync + 'static {
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
 
-/// Find token from http request url query string.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct QueryFinder {
-    /// The query name for the csrf token.
-    pub query_name: String,
-}
-impl Default for QueryFinder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl QueryFinder {
-    /// Create new `QueryFinder`.
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            query_name: "csrf-token".into(),
-        }
-    }
-
-    /// Sets query name, it's query_name's default value is `csrf-token`.
-    #[inline]
-    pub fn query_name(mut self, name: impl Into<String>) -> Self {
-        self.query_name = name.into();
-        self
-    }
-}
-#[async_trait]
-impl CsrfTokenFinder for QueryFinder {
-    #[inline]
-    async fn find_token(&self, req: &mut Request) -> Option<String> {
-        req.query(&self.query_name)
-    }
-}
-
 /// Find token from http request header.
 #[derive(Clone, Debug)]
 pub struct HeaderFinder {
@@ -124,15 +88,7 @@ impl CsrfTokenFinder for JsonFinder {
 mod tests {
     use super::*;
     use salvo_core::test::TestClient;
-
-    #[tokio::test]
-    async fn test_query_finder() {
-        let query_finder = QueryFinder::new();
-        let mut req = TestClient::get("http://test.com/?csrf-token=test_token").build();
-        let token = query_finder.find_token(&mut req).await;
-        assert_eq!(token, Some("test_token".to_string()));
-    }
-
+    
     #[tokio::test]
     async fn test_header_finder() {
         let header_finder = HeaderFinder::new("x-csrf-token");
