@@ -18,7 +18,9 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::{Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray},
+    schema::{
+        Array, Discriminator, KnownFormat, Object, Ref, Schema, SchemaFormat, SchemaType, ToArray,
+    },
     security::{SecurityRequirement, SecurityScheme},
     server::{Server, ServerVariable, ServerVariables, Servers},
     tag::Tag,
@@ -45,7 +47,7 @@ mod xml;
 
 use crate::{router::NormNode, Endpoint};
 
-static PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\{([^]]+)\}"#).unwrap());
+static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\{([^}:]+)"#).unwrap());
 
 /// Root object of the OpenAPI document.
 ///
@@ -266,16 +268,15 @@ impl OpenApi {
         }
 
         let path = join_path(base_path, node.path.as_deref().unwrap_or_default());
-        let parameter_names = PARAMETER_NAME_REGEX
-            .captures(&path)
-            .map(|captures| {
+        let path_parameter_names = PATH_PARAMETER_NAME_REGEX
+            .captures_iter(&path)
+            .filter_map(|captures| {
                 captures
                     .iter()
                     .skip(1)
                     .map(|capture| capture.unwrap().as_str().to_owned())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+                    .next()
+            }).collect::<Vec<_>>();
         if let Some(type_id) = &node.type_id {
             if let Some(creator) = crate::EndpointRegistry::find(type_id) {
                 let Endpoint {
@@ -293,19 +294,40 @@ impl OpenApi {
                         PathItemType::Patch,
                     ]
                 };
-                let not_exist_parameters = parameter_names
+                let not_exist_parameters = operation
+                    .parameters
+                    .0
                     .iter()
-                    .filter(|name| !operation.parameters.0.iter().any(|parameter| parameter.name == **name))
+                    .filter(|p| {
+                        p.parameter_in == ParameterIn::Path
+                            && !path_parameter_names.contains(&p.name)
+                    })
+                    .map(|p| &p.name)
                     .collect::<Vec<_>>();
                 if !not_exist_parameters.is_empty() {
-                    tracing::warn!(parameters = ?not_exist_parameters, path, "parameters not found in operation");
+                    tracing::warn!(parameters = ?not_exist_parameters, path, "information for not exist parameters");
+                }
+                let meta_not_exist_parameters = path_parameter_names
+                    .iter()
+                    .filter(|name| {
+                        !name.starts_with("*") && !operation.parameters.0.iter().any(|parameter| {
+                            parameter.name == **name && parameter.parameter_in == ParameterIn::Path
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                if !meta_not_exist_parameters.is_empty() {
+                    tracing::warn!(parameters = ?meta_not_exist_parameters, path, "parameters information not provided");
                 }
                 let path_item = self.paths.entry(path.clone()).or_default();
                 for method in methods {
                     if let btree_map::Entry::Vacant(e) = path_item.operations.entry(method) {
                         e.insert(operation.clone());
                     } else {
-                        tracing::warn!("path `{}` already contains operation for method `{:?}`", path, method);
+                        tracing::warn!(
+                            "path `{}` already contains operation for method `{:?}`",
+                            path,
+                            method
+                        );
                     }
                 }
                 self.components.append(&mut components);
@@ -326,7 +348,11 @@ impl Handler for OpenApi {
         res: &mut salvo_core::Response,
         _ctrl: &mut FlowCtrl,
     ) {
-        let pretty = req.queries().get("pretty").map(|v| &**v != "false").unwrap_or(false);
+        let pretty = req
+            .queries()
+            .get("pretty")
+            .map(|v| &**v != "false")
+            .unwrap_or(false);
         let content = if pretty {
             self.to_pretty_json().unwrap()
         } else {
@@ -496,7 +522,8 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
+        let raw_json =
+            include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
         let openapi = OpenApi::with_info(
             Info::new("My api", "1.0.0")
                 .description("My api description")
@@ -539,7 +566,8 @@ mod tests {
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("../../testdata/expected_openapi_with_paths.json").replace("\r\n", "\n");
+        let expected =
+            include_str!("../../testdata/expected_openapi_with_paths.json").replace("\r\n", "\n");
 
         assert_eq!(
             serialized, expected,
@@ -572,7 +600,8 @@ mod tests {
                         "/ap/v2/user",
                         PathItem::new(
                             PathItemType::Get,
-                            Operation::new().add_response("200", Response::new("Get user success 2")),
+                            Operation::new()
+                                .add_response("200", Response::new("Get user success 2")),
                         ),
                     )
                     .path(
