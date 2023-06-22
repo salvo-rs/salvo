@@ -85,7 +85,7 @@ impl<'a> Operation<'a> {
         if let Some(tags) = self.tags {
             let tags = tags.iter().collect::<Array<_>>();
             modifiers.push(quote! {
-                operation.tags.append(&mut #tags);
+                operation.tags.extend(#tags.into_iter().map(|t|t.into()));
             })
         }
 
