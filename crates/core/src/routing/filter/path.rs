@@ -870,7 +870,7 @@ impl PathFilter {
         let path_wisps = match parser.parse() {
             Ok(path_wisps) => path_wisps,
             Err(e) => {
-                panic!("{}", e);
+                panic!("{}, raw_value: {}", e, raw_value);
             }
         };
         PathFilter { raw_value, path_wisps }
