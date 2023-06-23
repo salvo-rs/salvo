@@ -105,10 +105,7 @@ where
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.header(arg).ok_or_else(|| {
-            ParseError::other(format!(
-                "header parameter {} not found or convert to type failed",
-                arg
-            ))
+            ParseError::other(format!("header parameter {} not found or convert to type failed", arg))
         })?;
         Ok(Self(value))
     }

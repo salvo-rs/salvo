@@ -94,12 +94,9 @@ where
         panic!("query parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req.query(arg).ok_or_else(|| {
-            ParseError::other(format!(
-                "query parameter {} not found or convert to type failed",
-                arg
-            ))
-        })?;
+        let value = req
+            .query(arg)
+            .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
         Ok(Self(value))
     }
 }

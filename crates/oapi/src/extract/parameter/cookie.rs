@@ -100,10 +100,7 @@ where
             .get(arg)
             .and_then(|v| from_str_val(v.value()).ok())
             .ok_or_else(|| {
-                ParseError::other(format!(
-                    "cookie parameter {} not found or convert to type failed",
-                    arg
-                ))
+                ParseError::other(format!("cookie parameter {} not found or convert to type failed", arg))
             })?;
         Ok(Self(value))
     }
@@ -122,10 +119,7 @@ where
         unimplemented!("cookie parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req
-            .cookies()
-            .get(arg)
-            .and_then(|v| from_str_val(v.value()).ok());
+        let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))
     }
 }
