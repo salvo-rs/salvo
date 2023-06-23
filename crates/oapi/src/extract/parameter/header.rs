@@ -82,6 +82,14 @@ where
         self.0.fmt(f)
     }
 }
+impl<T> fmt::Display for HeaderParam<T, true>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0.as_ref().unwrap().fmt(f)
+    }
+}
 
 #[async_trait]
 impl<'de, T> Extractible<'de> for HeaderParam<T, true>
@@ -97,7 +105,10 @@ where
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.header(arg).ok_or_else(|| {
-            ParseError::other(format!("header parameter {} not found or convert to type failed", arg))
+            ParseError::other(format!(
+                "header parameter {} not found or convert to type failed",
+                arg
+            ))
         })?;
         Ok(Self(value))
     }

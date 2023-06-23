@@ -72,6 +72,15 @@ where
     }
 }
 
+impl<T> fmt::Display for QueryParam<T, true>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0.as_ref().unwrap().fmt(f)
+    }
+}
+
 #[async_trait]
 impl<'de, T> Extractible<'de> for QueryParam<T, true>
 where
@@ -85,9 +94,12 @@ where
         panic!("query parameter can not be extracted from request")
     }
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
-        let value = req
-            .query(arg)
-            .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
+        let value = req.query(arg).ok_or_else(|| {
+            ParseError::other(format!(
+                "query parameter {} not found or convert to type failed",
+                arg
+            ))
+        })?;
         Ok(Self(value))
     }
 }

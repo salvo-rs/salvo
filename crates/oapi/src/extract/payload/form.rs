@@ -56,6 +56,15 @@ where
     }
 }
 
+impl<T> fmt::Display for FormBody<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[async_trait]
 impl<'de, T> Extractible<'de> for FormBody<T>
 where
