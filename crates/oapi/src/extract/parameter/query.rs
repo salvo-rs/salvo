@@ -125,11 +125,17 @@ where
     T: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg)
+        let parameter = Parameter::new(arg.trim_start_matches('_'))
             .parameter_in(ParameterIn::Query)
             .description(format!("Get parameter `{arg}` from request url query."))
             .schema(T::to_schema(components))
             .required(R);
-        operation.parameters.insert(parameter);
+        if arg.starts_with('_') {
+            if !operation.parameters.contains(&parameter.name, parameter.parameter_in) {
+                operation.parameters.insert(parameter);
+            }
+        } else {
+            operation.parameters.insert(parameter);
+        }
     }
 }

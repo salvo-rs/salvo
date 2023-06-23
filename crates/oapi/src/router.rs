@@ -7,7 +7,8 @@ use crate::path::PathItemType;
 
 #[derive(Debug, Default)]
 pub(crate) struct NormNode {
-    pub(crate) type_id: Option<TypeId>,
+    pub(crate) handler_type_id: Option<TypeId>,
+    pub(crate) handler_type_name: Option<&'static str>,
     pub(crate) method: Option<PathItemType>,
     pub(crate) path: Option<String>,
     pub(crate) children: Vec<NormNode>,
@@ -37,7 +38,8 @@ impl NormNode {
                 }
             }
         }
-        node.type_id = router.handler.as_ref().map(|h| h.type_id());
+        node.handler_type_id = router.handler.as_ref().map(|h| h.type_id());
+        node.handler_type_name = router.handler.as_ref().map(|h| h.type_name());
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {

@@ -33,6 +33,12 @@ impl Parameters {
         self.insert(parameter);
         self
     }
+    /// Returns `true` if instance contains a parameter with the given name and location.
+    pub fn contains(&self, name: &str, parameter_in: ParameterIn) -> bool {
+        self.0
+            .iter()
+            .any(|item| item.name == name && item.parameter_in == parameter_in)
+    }
     /// Inserts a parameter into the instance.
     pub fn insert<P: Into<Parameter>>(&mut self, parameter: P) {
         let parameter = parameter.into();
@@ -259,7 +265,7 @@ impl Parameter {
 }
 
 /// In definition of [`Parameter`].
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ParameterIn {
     /// Declares that parameter is used as query parameter.
