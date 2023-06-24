@@ -273,22 +273,6 @@ impl NamedFile {
         Self::builder(path).build().await
     }
 
-    /// Attempts to send a file. If file not exists, not found error will occur.
-    pub async fn send_file<P>(path: P, req_headers: &HeaderMap, res: &mut Response)
-    where
-        P: Into<PathBuf> + Send,
-    {
-        let path = path.into();
-        if !path.exists() {
-            res.render(StatusError::not_found());
-        } else {
-            match Self::builder(path).build().await {
-                Ok(file) => file.send(req_headers, res).await,
-                Err(_) => res.render(StatusError::internal_server_error()),
-            }
-        }
-    }
-
     /// Returns reference to the underlying `File` object.
     #[inline]
     pub fn file(&self) -> &File {
