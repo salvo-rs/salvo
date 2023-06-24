@@ -326,25 +326,6 @@ impl Response {
         piece.render(self);
     }
 
-    /// Renders content and returns `&mut Self`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use salvo_core::http::{Response, StatusCode};
-    ///
-    /// let mut res = Response::new();
-    /// res.with_render("hello world");
-    /// ```
-    #[inline]
-    pub fn with_render<P>(&mut self, piece: P) -> &mut Self
-    where
-        P: Piece,
-    {
-        self.render(piece);
-        self
-    }
-
     /// Render content with status code.
     #[inline]
     pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
@@ -353,15 +334,6 @@ impl Response {
     {
         self.status_code = Some(code);
         piece.render(self);
-    }
-    /// Render content with status code.
-    #[inline]
-    pub fn with_stuff<P>(&mut self, code: StatusCode, piece: P) -> &mut Self
-    where
-        P: Piece,
-    {
-        self.stuff(code, piece);
-        self
     }
 
     /// Attempts to send a file. If file not exists, not found error will occur.
