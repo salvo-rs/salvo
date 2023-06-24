@@ -14,7 +14,7 @@ use http::Extensions;
 use mime::Mime;
 
 use crate::fs::NamedFile;
-use crate::http::{StatusError, StatusCode};
+use crate::http::{StatusCode, StatusError};
 use crate::{Error, Piece};
 use bytes::Bytes;
 
