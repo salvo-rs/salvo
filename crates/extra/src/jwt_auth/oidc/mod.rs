@@ -1,5 +1,6 @@
 //! Oidc(OpenID Connect) support module
 
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -42,7 +43,6 @@ impl JwtAuthDecoder for OidcDecoder {
     where
         C: DeserializeOwned,
     {
-        let token = token.as_ref();
         // Early return error conditions before acquiring a read lock
         let header = jsonwebtoken::decode_header(token)?;
         let kid = header.kid.ok_or(JwtAuthError::MissingKid)?;
@@ -89,7 +89,7 @@ where
     }
 
     /// Build a `OidcDecoder`.
-    pub async fn build(self) -> Result<OidcDecoder, JwtAuthError> {
+    pub fn build(self) -> impl Future<Output = Result<OidcDecoder, JwtAuthError>> {
         let Self {
             issuer,
             http_client,
@@ -110,7 +110,6 @@ where
                 .build()
                 .unwrap()
         });
-
         let decoder = OidcDecoder {
             issuer,
             http_client,
@@ -118,16 +117,17 @@ where
             cache_state,
             notifier: Arc::new(Notify::new()),
         };
-        decoder.update_cache().await?;
-
-        Ok(decoder)
+        async move {
+            decoder.update_cache().await?;
+            Ok(decoder)
+        }
     }
 }
 
 impl OidcDecoder {
     /// Create a new `OidcDecoder`.
-    pub async fn new(issuer: impl AsRef<str>) -> Result<Self, JwtAuthError> {
-        Self::builder(issuer).build().await
+    pub fn new(issuer: impl AsRef<str>) -> impl Future<Output = Result<Self, JwtAuthError>> {
+        Self::builder(issuer).build()
     }
 
     /// Create a new `DecoderBuilder`.
@@ -223,6 +223,7 @@ impl OidcDecoder {
 
     /// Primary method for getting the [`DecodingInfo`] for a JWK needed to validate a JWT.
     /// If the kid was not present in [`JwkSetStore`]
+    #[allow(clippy::future_not_send)]
     async fn get_kid_retry(&self, kid: impl AsRef<str>) -> Result<Arc<DecodingInfo>, JwtAuthError> {
         let kid = kid.as_ref();
         // Check to see if we have the kid
@@ -242,6 +243,7 @@ impl OidcDecoder {
     /// Returns an Error, if the cache is stale and beyond the Stale While Revalidate and Stale If Error allowances configured in [`crate::cache::Settings`]
     /// Returns Ok if the cache is not stale.
     /// Returns Ok after triggering a background update of the JWKS If the cache is stale but within the Stale While Revalidate and Stale If Error allowances.
+    #[allow(clippy::future_not_send)]
     async fn get_kid(&self, kid: &str) -> Result<Option<Arc<DecodingInfo>>, JwtAuthError> {
         let read_cache = self.cache.read().await;
         let fetched = self.cache_state.last_update();
@@ -314,7 +316,7 @@ impl DecodingInfo {
             Err(e) => {
                 tracing::error!(error = ?e, token, "error decoding jwt token");
                 Err(JwtAuthError::from(e))
-            },
+            }
         }
     }
 }
@@ -369,7 +371,7 @@ pub(crate) fn decode_jwk(jwk: &Jwk, validation: &Validation) -> Result<(String, 
 }
 
 fn b64_decode<T: AsRef<[u8]>>(input: T) -> Result<Vec<u8>, base64::DecodeError> {
-    Ok(URL_SAFE_NO_PAD.decode(input.as_ref())?)
+    URL_SAFE_NO_PAD.decode(input.as_ref())
 }
 
 pub(crate) fn current_time() -> u64 {

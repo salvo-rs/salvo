@@ -341,11 +341,10 @@ impl Parameter<'_> {
             .iter()
             .filter_map(|attr| {
                 if attr.path().is_ident("salvo") {
-                    if let Some(metas) = attribute::find_nested_list(attr, "parameter").ok().flatten() {
-                        Some(metas.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
-                    } else {
-                        None
-                    }
+                    attribute::find_nested_list(attr, "parameter")
+                        .ok()
+                        .flatten()
+                        .map(|metas| metas.parse_args::<FieldFeatures>().unwrap_or_abort().into_inner())
                 } else {
                     None
                 }

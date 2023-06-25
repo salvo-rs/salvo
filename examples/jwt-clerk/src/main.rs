@@ -1,9 +1,7 @@
 use salvo::http::StatusError;
-use salvo::jwt_auth::{HeaderFinder, OidcDecoder};
+use salvo::jwt_auth::{ConstDecoder, HeaderFinder};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
-
-const ISSUER_URL: &str = "https://coherent-gopher-0.clerk.accounts.dev";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtClaims {
@@ -16,8 +14,10 @@ pub struct JwtClaims {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let decoder = OidcDecoder::new(ISSUER_URL.to_owned()).await.unwrap();
-    let auth_handler: JwtAuth<JwtClaims, OidcDecoder> = JwtAuth::new(decoder)
+    let rsa_pem = include_bytes!("../jwt_key.pem").to_vec();
+
+    let decoder = ConstDecoder::from_rsa_pem(&rsa_pem).unwrap();
+    let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(decoder)
         .finders(vec![Box::new(HeaderFinder::new())])
         .force_passed(true);
 

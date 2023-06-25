@@ -358,14 +358,13 @@ trait DeriveResponseValue: Parse {
 
     fn from_attributes(attrs: &[Attribute]) -> Option<Self> {
         attrs
-            .into_iter()
+            .iter()
             .filter_map(|attr| {
                 if attr.path().is_ident("salvo") {
-                    if let Some(metas) = attribute::find_nested_list(attr, "response").ok().flatten() {
-                        Some(metas.parse_args::<Self>().unwrap_or_abort())
-                    } else {
-                        None
-                    }
+                    attribute::find_nested_list(attr, "response")
+                        .ok()
+                        .flatten()
+                        .map(|metas| metas.parse_args::<Self>().unwrap_or_abort())
                 } else {
                     None
                 }

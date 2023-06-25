@@ -31,6 +31,7 @@ where
     opener: Mutex<C::OpenStreams>,
 }
 
+#[allow(clippy::future_not_send)]
 impl<C, B> WebTransportSession<C, B>
 where
     C: quic::Connection<B>,

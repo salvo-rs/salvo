@@ -126,8 +126,10 @@ impl JwtAuthDepotExt for Depot {
 /// JwtAuth, used as middleware.
 #[non_exhaustive]
 pub struct JwtAuth<C, D> {
-    /// Response error directly when set to true.
-    pub response_error: bool,
+    /// Only write auth state to depot when set to `true`.
+    /// 
+    /// **Note**: If you set to `true`, you must handle auth state in next middlewares or handler.
+    pub force_passed: bool,
     _claims: PhantomData<C>,
     /// The decoder.
     pub decoder: D,
@@ -144,16 +146,16 @@ where
     #[inline]
     pub fn new(decoder: D) -> Self {
         JwtAuth {
-            response_error: true,
+            force_passed: false,
             decoder,
             _claims: PhantomData::<C>,
             finders: vec![Box::new(HeaderFinder::new())],
         }
     }
-    /// Sets response_error value and return Self.
+    /// Sets force_passed value and return Self.
     #[inline]
-    pub fn response_error(mut self, response_error: bool) -> Self {
-        self.response_error = response_error;
+    pub fn force_passed(mut self, force_passed: bool) -> Self {
+        self.force_passed = force_passed;
         self
     }
 
@@ -194,25 +196,26 @@ where
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let token = self.find_token(req).await;
         if let Some(token) = token {
-            if let Ok(data) = self.decoder.decode::<C>(&token, depot).await {
-                depot.insert(JWT_AUTH_DATA_KEY, data);
-                depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Authorized);
-            } else {
-                depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
-                if self.response_error {
-                    res.render(StatusError::forbidden());
-                    ctrl.skip_rest();
+            match self.decoder.decode::<C>(&token, depot).await {
+                Ok(data) => {
+                    depot.insert(JWT_AUTH_DATA_KEY, data);
+                    depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Authorized);
+                    depot.insert(JWT_AUTH_TOKEN_KEY, token);
+                }
+                Err(e) => {
+                    tracing::error!(error = ?e, "jwt auth error");
+                    depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
+                    if !self.force_passed {
+                        res.render(StatusError::forbidden());
+                        ctrl.skip_rest();
+                    }
                 }
             }
-            depot.insert(JWT_AUTH_TOKEN_KEY, token);
-            ctrl.call_next(req, depot, res).await;
         } else {
             depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Unauthorized);
-            if self.response_error {
+            if !self.force_passed {
                 res.render(StatusError::unauthorized());
                 ctrl.skip_rest();
-            } else {
-                ctrl.call_next(req, depot, res).await;
             }
         }
     }
@@ -235,11 +238,12 @@ mod tests {
     }
     #[tokio::test]
     async fn test_jwt_auth() {
-        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(ConstDecoder::new("ABCDEF")).response_error(true).finders(vec![
-            Box::new(HeaderFinder::new()),
-            Box::new(QueryFinder::new("jwt_token")),
-            Box::new(CookieFinder::new("jwt_token")),
-        ]);
+        let auth_handler: JwtAuth<JwtClaims, ConstDecoder> = JwtAuth::new(ConstDecoder::from_secret(b"ABCDEF"))
+            .finders(vec![
+                Box::new(HeaderFinder::new()),
+                Box::new(QueryFinder::new("jwt_token")),
+                Box::new(CookieFinder::new("jwt_token")),
+            ]);
 
         #[handler]
         async fn hello() -> &'static str {

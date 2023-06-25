@@ -17,13 +17,13 @@ pub struct JwtClaims {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::new(SECRET_KEY))
+    let auth_handler: JwtAuth<JwtClaims, _> = JwtAuth::new(ConstDecoder::from_secret(SECRET_KEY.as_bytes()))
         .finders(vec![
             // Box::new(HeaderFinder::new()),
             Box::new(QueryFinder::new("jwt_token")),
             // Box::new(CookieFinder::new("jwt_token")),
         ])
-        .response_error(false);
+        .force_passed(true);
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor)

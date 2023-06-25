@@ -1,5 +1,5 @@
 [package]
-name = "example-jwt-oidc-clerk"
+name = "example-jwt-clerk"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true

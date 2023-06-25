@@ -188,6 +188,7 @@ async fn process_web_transport(
     Ok(Some(conn))
 }
 
+#[allow(clippy::future_not_send)]
 async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,

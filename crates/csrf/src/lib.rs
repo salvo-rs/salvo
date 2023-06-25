@@ -268,7 +268,7 @@ impl<C: CsrfCipher, S: CsrfStore> Handler for Csrf<C, S> {
                 if !self.skipper.skipped(req, depot) {
                     if let Some(token) = &self.find_token(req).await {
                         tracing::debug!("csrf token: {token}");
-                        if !self.cipher.verify(&token, &proof) {
+                        if !self.cipher.verify(token, &proof) {
                             tracing::debug!("rejecting request due to invalid or expired CSRF token");
                             res.status_code(StatusCode::FORBIDDEN);
                             ctrl.skip_rest();

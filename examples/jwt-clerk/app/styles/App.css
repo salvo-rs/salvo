@@ -1,0 +1,39 @@
+.app {
+  color: white;
+  font-size: calc(10px + 2vmin);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 100px;
+}
+
+.app h1 {
+  margin: 0;
+}
+
+.app img {
+  height: 40vmin;
+  pointer-events: none;
+  margin: 50px 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app img {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.app a {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

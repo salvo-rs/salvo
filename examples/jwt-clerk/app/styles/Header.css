@@ -1,0 +1,39 @@
+header {
+  padding: 0 30px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+header ul {
+  display: flex;
+}
+
+header li {
+  list-style: none;
+  display: block;
+}
+
+header button {
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-left: 20px;
+  padding: 10px 20px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+header .sign-up-btn {
+  border: 1px solid #61dafb;
+  color: #61dafb;
+}
+
+header .sign-in-btn {
+  background: #61dafb;
+  color: #282c34;
+}
