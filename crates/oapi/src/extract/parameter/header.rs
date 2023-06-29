@@ -137,6 +137,6 @@ where
             .description(format!("Get parameter `{arg}` from request headers."))
             .schema(T::to_schema(components))
             .required(R);
-            operation.parameters.insert(parameter);
+        operation.parameters.insert(parameter);
     }
 }

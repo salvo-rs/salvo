@@ -134,6 +134,6 @@ where
             .description(format!("Get parameter `{arg}` from request cookie."))
             .schema(T::to_schema(components))
             .required(R);
-            operation.parameters.insert(parameter);
+        operation.parameters.insert(parameter);
     }
 }

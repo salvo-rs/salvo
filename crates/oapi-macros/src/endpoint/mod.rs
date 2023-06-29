@@ -15,14 +15,8 @@ fn metadata(
     name: &Ident,
     mut modifiers: Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
-    let tfn = Ident::new(
-        &format!("__salvo_oapi_endpoint_type_id_{}", name),
-        Span::call_site(),
-    );
-    let cfn = Ident::new(
-        &format!("__salvo_oapi_endpoint_creator_{}", name),
-        Span::call_site(),
-    );
+    let tfn = Ident::new(&format!("__salvo_oapi_endpoint_type_id_{}", name), Span::call_site());
+    let cfn = Ident::new(&format!("__salvo_oapi_endpoint_creator_{}", name), Span::call_site());
     let opt = Operation::new(&attr);
     modifiers.append(opt.modifiers().as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
@@ -140,10 +134,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 }
             }
             if hmtd.is_none() {
-                return Err(syn::Error::new_spanned(
-                    item_impl.impl_token,
-                    "missing handle function",
-                ));
+                return Err(syn::Error::new_spanned(item_impl.impl_token, "missing handle function"));
             }
             let hmtd = hmtd.unwrap();
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, &hmtd.sig)?;
@@ -168,11 +159,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
     }
 }
 
-fn handle_fn(
-    salvo: &Ident,
-    oapi: &Ident,
-    sig: &Signature,
-) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
     let name = &sig.ident;
     let mut extract_ts = Vec::with_capacity(sig.inputs.len());
     let mut call_args: Vec<Ident> = Vec::with_capacity(sig.inputs.len());

@@ -93,6 +93,6 @@ where
             .description(format!("Get parameter `{arg}` from request url path."))
             .schema(T::to_schema(components))
             .required(true);
-            operation.parameters.insert(parameter);
+        operation.parameters.insert(parameter);
     }
 }
