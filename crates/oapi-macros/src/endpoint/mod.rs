@@ -190,21 +190,22 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = id.to_token_stream().to_string();
-
-                    extract_ts.push(quote! {
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
-                            Ok(data) => {
-                                data
-                            },
-                            Err(e) => {
-                                #salvo::__private::tracing::error!(error = ?e, "failed to extract data in endpoint macro");
-                                res.render(#salvo::http::errors::StatusError::bad_request().brief(
-                                    "Failed to extract data in endpoint macro."
-                                ).cause(e));
-                                return;
-                            }
-                        };
-                    });
+                    if !idv.starts_with('_') {
+                        extract_ts.push(quote! {
+                            let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
+                                Ok(data) => {
+                                    data
+                                },
+                                Err(e) => {
+                                    #salvo::__private::tracing::error!(error = ?e, "failed to extract data in endpoint macro");
+                                    res.render(#salvo::http::errors::StatusError::bad_request().brief(
+                                        "Failed to extract data in endpoint macro."
+                                    ).cause(e));
+                                    return;
+                                }
+                            };
+                        });
+                    }
                     modifiers.push(quote! {
                          <#ty as #oapi::oapi::EndpointArgRegister>::register(components, operation, #idv);
                     });
