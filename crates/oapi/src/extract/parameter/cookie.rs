@@ -129,17 +129,11 @@ where
     T: ToSchema,
 {
     fn register(components: &mut Components, operation: &mut Operation, arg: &str) {
-        let parameter = Parameter::new(arg.trim_start_matches('_'))
+        let parameter = Parameter::new(arg)
             .parameter_in(ParameterIn::Cookie)
             .description(format!("Get parameter `{arg}` from request cookie."))
             .schema(T::to_schema(components))
             .required(R);
-        if arg.starts_with('_') {
-            if !operation.parameters.contains(&parameter.name, parameter.parameter_in) {
-                operation.parameters.insert(parameter);
-            }
-        } else {
             operation.parameters.insert(parameter);
-        }
     }
 }
