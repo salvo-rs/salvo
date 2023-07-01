@@ -34,7 +34,7 @@ impl Handler for Logger {
             ctrl.call_next(req, depot, res).await;
             let duration = now.elapsed();
 
-            let status = match res.status_code.unwrap_or(StatusCode::OK);
+            let status = res.status_code.unwrap_or(StatusCode::OK);
             tracing::info!(
                 status = %status,
                 duration = ?duration,
