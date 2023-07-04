@@ -213,15 +213,11 @@ impl<A: Acceptor + Send> Server<A> {
                                 let conn = conn.serve(handler, builders);
                                 if timeout.is_some() {
                                     tokio::select! {
-                                        result = conn => {
-                                            if let Err(e) = result {
-                                                tracing::error!(error = ?e, "http serve connection failed");
-                                            }
-                                        },
+                                        _ = conn => {},
                                         _ = timeout_notify.notified() => {}
                                     }
-                                } else if let Err(e) = conn.await {
-                                    tracing::error!(error = ?e, "http serve connection failed");
+                                } else {
+                                    conn.await.ok();
                                 }
 
                                 if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
