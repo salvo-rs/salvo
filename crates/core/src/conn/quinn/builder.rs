@@ -7,18 +7,18 @@ use std::sync::Mutex;
 use bytes::Bytes;
 use futures_util::future::poll_fn;
 use futures_util::Stream;
-use h3::error::ErrorLevel;
-use h3::ext::Protocol;
-use h3::server::RequestStream;
+use salvo_http3::error::ErrorLevel;
+use salvo_http3::ext::Protocol;
+use salvo_http3::server::RequestStream;
 
-use crate::proto::WebTransportSession;
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::http::Method;
+use crate::proto::WebTransportSession;
 
 /// Builder is used to serve HTTP3 connection.
-pub struct Builder(h3::server::Builder);
+pub struct Builder(salvo_http3::server::Builder);
 impl Deref for Builder {
-    type Target = h3::server::Builder;
+    type Target = salvo_http3::server::Builder;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -36,7 +36,7 @@ impl Default for Builder {
 impl Builder {
     /// Create a new builder.
     pub fn new() -> Self {
-        let mut builder = h3::server::builder();
+        let mut builder = salvo_http3::server::builder();
         builder
             .enable_webtransport(true)
             .enable_connect(true)
@@ -56,7 +56,7 @@ impl Builder {
     ) -> IoResult<()> {
         let mut conn = self
             .0
-            .build::<h3_quinn::Connection, bytes::Bytes>(conn.into_inner())
+            .build::<salvo_http3::http3_quinn::Connection, bytes::Bytes>(conn.into_inner())
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid connection: {}", e)))?;
         loop {
@@ -103,11 +103,11 @@ impl Builder {
 }
 
 async fn process_web_transport(
-    conn: h3::server::Connection<h3_quinn::Connection, Bytes>,
+    conn: salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>,
     request: hyper::Request<()>,
-    stream: RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>,
+    stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
     mut hyper_handler: crate::service::HyperHandler,
-) -> IoResult<Option<h3::server::Connection<h3_quinn::Connection, Bytes>>> {
+) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
     request.extensions_mut().insert(Mutex::new(conn));
@@ -121,13 +121,9 @@ async fn process_web_transport(
     let stream;
     if let Some(session) = response
         .extensions_mut()
-        .remove::<WebTransportSession<h3_quinn::Connection, Bytes>>()
+        .remove::<WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>()
     {
-        let WebTransportSession {
-            server_conn,
-            connect_stream,
-            ..
-        } = session;
+        let (server_conn, connect_stream) = session.split();
 
         conn = Some(
             server_conn
@@ -138,7 +134,7 @@ async fn process_web_transport(
     } else {
         conn = response
             .extensions_mut()
-            .remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>()
+            .remove::<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>()
             .map(|c| {
                 c.into_inner()
                     .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get conn : {}", e)))
@@ -146,7 +142,7 @@ async fn process_web_transport(
             .transpose()?;
         stream = response
             .extensions_mut()
-            .remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>();
+            .remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
     }
 
     let Some(conn) = conn else {
@@ -195,8 +191,8 @@ async fn process_request<S>(
     mut hyper_handler: crate::service::HyperHandler,
 ) -> IoResult<()>
 where
-    S: h3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
-    <S as h3::quic::BidiStream<Bytes>>::RecvStream: Send + Sync + Unpin,
+    S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
+    <S as salvo_http3::quic::BidiStream<Bytes>>::RecvStream: Send + Sync + Unpin,
 {
     let (mut tx, rx) = stream.split();
     let (parts, _body) = request.into_parts();

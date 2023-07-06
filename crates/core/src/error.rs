@@ -26,7 +26,7 @@ pub enum Error {
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
     /// H3 error.
-    H3(h3::Error),
+    H3(salvo_http3::Error),
     /// Anyhow error.
     #[cfg(feature = "anyhow")]
     #[cfg_attr(docsrs, doc(cfg(feature = "anyhow")))]
@@ -106,9 +106,9 @@ impl From<serde_json::Error> for Error {
 }
 cfg_feature! {
     #![feature = "quinn"]
-    impl From<h3::Error> for Error {
+    impl From<salvo_http3::Error> for Error {
         #[inline]
-        fn from(e: h3::Error) -> Error {
+        fn from(e: salvo_http3::Error) -> Error {
             Error::H3(e)
         }
     }

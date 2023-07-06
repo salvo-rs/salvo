@@ -232,19 +232,19 @@ impl HyperHandler {
                 use parking_lot::Mutex;
                 if let Some(session) = req
                     .extensions
-                    .remove::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>()
+                    .remove::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>()
                 {
                     res.extensions.insert(session);
                 }
                 if let Some(conn) = req
                     .extensions
-                    .remove::<Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>()
+                    .remove::<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>()
                 {
                     res.extensions.insert(conn);
                 }
                 if let Some(stream) = req
                     .extensions
-                    .remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>()
+                    .remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>()
                 {
                     res.extensions.insert(stream);
                 }

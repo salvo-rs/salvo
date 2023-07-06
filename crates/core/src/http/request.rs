@@ -369,21 +369,21 @@ impl Request {
 
         #[inline]
         fn is_wt_connect(&self) -> bool {
-            let protocol = self.extensions().get::<h3::ext::Protocol>();
-            matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &h3::ext::Protocol::WEB_TRANSPORT)
+            let protocol = self.extensions().get::<salvo_http3::ext::Protocol>();
+            matches!((self.method(), protocol), (&Method::CONNECT, Some(p)) if p == &salvo_http3::ext::Protocol::WEB_TRANSPORT)
         }
 
         #[inline]
         /// Try to get a WebTransport session from the request.
-        pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>, crate::Error> {
+        pub async fn web_transport_mut(&mut self) -> Result<&mut crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>, crate::Error> {
             if self.is_wt_connect() {
-                if self.extensions.get::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().is_none() {
-                    let conn = self.extensions.remove::<std::sync::Mutex<h3::server::Connection<h3_quinn::Connection, Bytes>>>();
-                    let stream = self.extensions.remove::<h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>>();
+                if self.extensions.get::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().is_none() {
+                    let conn = self.extensions.remove::<std::sync::Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>();
+                    let stream = self.extensions.remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
                     if conn.is_some() && stream.is_some() {
                         let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
                         self.extensions.insert(session);
-                        Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                        Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
                     } else {
                         if let Some(conn) = conn {
                             self.extensions_mut().insert(conn);
@@ -394,7 +394,7 @@ impl Request {
                         Err(crate::Error::Other("invalid web transport".into()))
                     }
                 } else {
-                    Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<h3_quinn::Connection, Bytes>>().unwrap())
+                    Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
                 }
             } else {
                 Err(crate::Error::Other("no web transport".into()))

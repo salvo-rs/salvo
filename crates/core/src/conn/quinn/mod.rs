@@ -7,9 +7,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::vec;
 
-use h3_quinn::quinn::Endpoint;
-pub use h3_quinn::quinn::ServerConfig;
 use http::uri::Scheme;
+use salvo_http3::http3_quinn::{self, Endpoint};
+pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
@@ -50,7 +50,10 @@ where
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self { local_addr, config } = self;
-        let socket = local_addr.to_socket_addrs()?.next().ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
+        let socket = local_addr
+            .to_socket_addrs()?
+            .next()
+            .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
         let holding = Holding {
             local_addr: socket.into(),
             http_version: Version::HTTP_3,
@@ -73,15 +76,15 @@ pub struct QuinnAcceptor {
 }
 
 /// Http3 Connection.
-pub struct H3Connection(h3_quinn::Connection);
+pub struct H3Connection(http3_quinn::Connection);
 impl H3Connection {
     /// Get inner quinn connection.
-    pub fn into_inner(self) -> h3_quinn::Connection {
+    pub fn into_inner(self) -> http3_quinn::Connection {
         self.0
     }
 }
 impl Deref for H3Connection {
-    type Target = h3_quinn::Connection;
+    type Target = http3_quinn::Connection;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -135,7 +138,7 @@ impl Acceptor for QuinnAcceptor {
             let remote_addr = new_conn.remote_address();
             match new_conn.await {
                 Ok(conn) => {
-                    let conn = h3_quinn::Connection::new(conn);
+                    let conn = http3_quinn::Connection::new(conn);
                     return Ok(Accepted {
                         conn: H3Connection(conn),
                         local_addr: self.holdings[0].local_addr.clone(),

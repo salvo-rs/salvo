@@ -22,7 +22,7 @@ cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = ["hyper/http2", "salvo-utils/http2"]
-quinn = ["dep:h3", "dep:h3-quinn", "dep:quinn", "dep:h3-webtransport", "rustls"]
+quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
 rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
@@ -53,7 +53,9 @@ mime.workspace = true
 mime_guess.workspace = true
 multer.workspace = true
 multimap = { workspace = true, features = ["serde"] }
+native-tls = { workspace = true, optional = true, features = ["alpn"] }
 once_cell.workspace = true
+openssl = { workspace = true, optional = true }
 percent-encoding.workspace = true
 pin-project.workspace = true
 parking_lot.workspace = true
@@ -62,26 +64,23 @@ rcgen = { workspace = true, optional = true }
 regex.workspace = true
 ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
-h3 = { workspace = true, optional = true }
+salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros.workspace = true
-h3-quinn = { workspace = true, optional = true }
-h3-webtransport = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde_urlencoded = { workspace = true, optional = true }
 tempfile.workspace = true
 textnonce.workspace = true
 thiserror.workspace = true
-openssl = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
-native-tls = { workspace = true, optional = true, features = ["alpn"] }
 tokio-rustls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-stream.workspace = true
 tracing.workspace = true
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }
+
 brotli = { workspace = true, optional = true, features = ["default"] }
 flate2 = { workspace = true, optional = true, features = ["default"] }
 zstd = { workspace = true, optional = true, features = ["default"] }

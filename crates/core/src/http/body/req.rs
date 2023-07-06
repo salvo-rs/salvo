@@ -143,7 +143,7 @@ cfg_feature! {
         use std::task::{Context, Poll};
 
         use hyper::body::{Body, Frame, SizeHint};
-        use h3::quic::RecvStream;
+        use salvo_http3::quic::RecvStream;
 
         use bytes::{Buf, Bytes};
 
@@ -152,7 +152,7 @@ cfg_feature! {
 
         /// Http3 request body.
         pub struct H3ReqBody<S, B> {
-            inner: h3::server::RequestStream<S, B>,
+            inner: salvo_http3::server::RequestStream<S, B>,
         }
         impl<S, B> H3ReqBody<S, B>
         where
@@ -160,7 +160,7 @@ cfg_feature! {
             B: Buf + Send + Unpin + 'static,
         {
             /// Create new `H3ReqBody` instance.
-            pub fn new(inner: h3::server::RequestStream<S, B>) -> Self {
+            pub fn new(inner: salvo_http3::server::RequestStream<S, B>) -> Self {
                 Self { inner }
             }
         }

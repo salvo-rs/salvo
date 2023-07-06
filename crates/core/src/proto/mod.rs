@@ -3,8 +3,6 @@
 cfg_feature! {
     #![feature = "quinn"]
 
-    pub mod webtransport;
-    pub use webtransport::WebTransportSession;
-
-    pub use h3::quic;
+    pub use salvo_http3::{quic, webtransport};
+    pub use salvo_http3::webtransport::server::WebTransportSession;
 }
