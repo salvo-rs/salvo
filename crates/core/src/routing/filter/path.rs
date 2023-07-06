@@ -943,7 +943,10 @@ mod tests {
     #[test]
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[RegexWisp { name: "abc", regex: Regex("\\d+") }]"#);
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[RegexWisp { name: "abc", regex: Regex("\\d+") }]"#
+        );
     }
     #[test]
     fn test_parse_wildcard_regex() {
