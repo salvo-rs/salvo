@@ -943,14 +943,14 @@ mod tests {
     #[test]
     fn test_parse_single_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[RegexWisp { name: "abc", regex: \d+ }]"#);
+        assert_eq!(format!("{:?}", segments), r#"[RegexWisp { name: "abc", regex: Regex("\\d+") }]"#);
     }
     #[test]
     fn test_parse_wildcard_regex() {
         let segments = PathParser::new(r"/<abc:/\d+/.+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[RegexWisp { name: "abc", regex: \d+/.+ }]"#
+            r#"[RegexWisp { name: "abc", regex: Regex("\\d+/.+") }]"#
         );
     }
     #[test]
@@ -958,7 +958,7 @@ mod tests {
         let segments = PathParser::new(r"/prefix_<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("prefix_"), RegexWisp { name: "abc", regex: \d+ }])]"#
+            r#"[CombWisp([ConstWisp("prefix_"), RegexWisp { name: "abc", regex: Regex("\\d+") }])]"#
         );
     }
     #[test]
@@ -966,7 +966,7 @@ mod tests {
         let segments = PathParser::new(r"/<abc:/\d+/>_suffix.png").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([RegexWisp { name: "abc", regex: \d+ }, ConstWisp("_suffix.png")])]"#
+            r#"[CombWisp([RegexWisp { name: "abc", regex: Regex("\\d+") }, ConstWisp("_suffix.png")])]"#
         );
     }
     #[test]
@@ -974,7 +974,7 @@ mod tests {
         let segments = PathParser::new(r"/prefix<abc:/\d+/>suffix.png").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }, ConstWisp("suffix.png")])]"#
+            r#"[CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: Regex("\\d+") }, ConstWisp("suffix.png")])]"#
         );
     }
     #[test]
@@ -990,7 +990,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }])]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: Regex("\\d+") }])]"#
         );
     }
     #[test]
@@ -998,7 +998,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }])]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: Regex("\\d+") }])]"#
         );
     }
     #[test]
@@ -1006,7 +1006,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id:/\d+/>/prefix<abc:/\d+/>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), RegexWisp { name: "id", regex: \d+ }]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }])]"#
+            r#"[CombWisp([ConstWisp("first"), RegexWisp { name: "id", regex: Regex("\\d+") }]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: Regex("\\d+") }])]"#
         );
     }
     #[test]
@@ -1014,7 +1014,7 @@ mod tests {
         let segments = PathParser::new(r"/first<id>/prefix<abc:/\d+/>ext").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: \d+ }, ConstWisp("ext")])]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), CombWisp([ConstWisp("prefix"), RegexWisp { name: "abc", regex: Regex("\\d+") }, ConstWisp("ext")])]"#
         );
     }
     #[test]
