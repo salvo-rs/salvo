@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["full"]
 full = ["brotli", "gzip", "deflate", "zstd"]
 brotli = ["dep:brotli"]
-gzip = ["dep:zstd"]
+gzip = ["dep:flate2"]
 deflate = ["dep:flate2"]
 zstd = ["dep:zstd"]
 
