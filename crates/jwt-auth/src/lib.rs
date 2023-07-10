@@ -58,6 +58,8 @@ const ALL_METHODS: [Method; 9] = [
 #[derive(Debug, Error)]
 pub enum JwtAuthError {
     /// HTTP request failed
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("HTTP request failed")]
     ReqwestError(#[from] reqwest::Error),
     /// InvalidUri
