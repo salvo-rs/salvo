@@ -117,22 +117,22 @@ impl Encoder {
             Self::Brotli(ref mut encoder) => {
                 encoder.flush()?;
                 Ok(encoder.get_mut().take())
-            },
+            }
             #[cfg(feature = "deflate")]
             Self::Deflate(ref mut encoder) => {
                 encoder.flush()?;
                 Ok(encoder.get_mut().take())
-            },
+            }
             #[cfg(feature = "gzip")]
             Self::Gzip(ref mut encoder) => {
                 encoder.flush()?;
                 Ok(encoder.get_mut().take())
-            },
+            }
             #[cfg(feature = "zstd")]
             Self::Zstd(ref mut encoder) => {
                 encoder.flush()?;
                 Ok(encoder.get_mut().take())
-            },
+            }
         }
     }
 
