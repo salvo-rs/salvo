@@ -1,9 +1,12 @@
 //! Compress the body of a response.
-use std::io::{self, Error as IoError, Write};
+use std::io::{Result as IoResult, Write};
 
+#[cfg(feature = "brotli")]
 use brotli::CompressorWriter as BrotliEncoder;
 use bytes::{Bytes, BytesMut};
+#[cfg(feature = "gzip")]
 use flate2::write::{GzEncoder, ZlibEncoder};
+#[cfg(feature = "zstd")]
 use zstd::stream::write::Encoder as ZstdEncoder;
 
 use super::{CompressionAlgo, CompressionLevel};
@@ -13,24 +16,26 @@ pub(super) struct Writer {
 }
 
 impl Writer {
+    #[allow(dead_code)]
     fn new() -> Writer {
         Writer {
             buf: BytesMut::with_capacity(8192),
         }
     }
 
+    #[allow(dead_code)]
     fn take(&mut self) -> Bytes {
         self.buf.split().freeze()
     }
 }
 
-impl io::Write for Writer {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+impl Write for Writer {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> IoResult<()> {
         Ok(())
     }
 }
@@ -98,6 +103,7 @@ pub(super) enum Encoder {
 }
 
 impl Encoder {
+    #[allow(unused_variables)]
     pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel) -> Self {
         match algo {
             #[cfg(feature = "brotli")]
@@ -111,7 +117,7 @@ impl Encoder {
         }
     }
     #[inline]
-    pub(super) fn take(&mut self) -> Result<Bytes, IoError> {
+    pub(super) fn take(&mut self) -> IoResult<Bytes> {
         match *self {
             #[cfg(feature = "brotli")]
             Self::Brotli(ref mut encoder) => {
@@ -136,7 +142,7 @@ impl Encoder {
         }
     }
 
-    pub(super) fn finish(self) -> Result<Bytes, IoError> {
+    pub(super) fn finish(self) -> IoResult<Bytes> {
         match self {
             #[cfg(feature = "brotli")]
             Self::Brotli(mut encoder) => match encoder.flush() {
@@ -161,7 +167,8 @@ impl Encoder {
         }
     }
 
-    pub(super) fn write(&mut self, data: &[u8]) -> Result<(), IoError> {
+    #[allow(unused_variables)]
+    pub(super) fn write(&mut self, data: &[u8]) -> IoResult<()> {
         match *self {
             #[cfg(feature = "brotli")]
             Self::Brotli(ref mut encoder) => encoder.write_all(data),

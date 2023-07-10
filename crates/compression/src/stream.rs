@@ -25,12 +25,13 @@ pub(super) struct EncodeStream<B> {
 }
 
 impl<B> EncodeStream<B> {
+    #[allow(unused_variables)]
     pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel, body: B) -> Self {
         Self {
-            encoder: Some(Encoder::new(algo, level)),
             body,
             eof: false,
             encoding: None,
+            encoder: Some(Encoder::new(algo, level)),
         }
     }
 }
