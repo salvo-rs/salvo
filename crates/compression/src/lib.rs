@@ -109,6 +109,7 @@ pub struct Compression {
 impl Default for Compression {
     #[inline]
     fn default() -> Self {
+        #[allow(unused_mut)]
         let mut algos = IndexMap::new();
         #[cfg(feature = "zstd")]
         algos.insert(CompressionAlgo::Zstd, CompressionLevel::Default);
