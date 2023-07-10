@@ -185,7 +185,7 @@ impl ToTokens for NamedStructSchema<'_> {
 
         if !flatten_fields.is_empty() {
             tokens.extend(quote! {
-                #oapi::oapi::AllOf::new()
+                #oapi::oapi::schema::AllOf::new()
             });
 
             for field in flatten_fields {
