@@ -1,6 +1,6 @@
 [package]
 name = "salvo-oapi-macros"
-version.workspace = true
+version = { workspace = true }
 edition = "2021"
 description = "Macros for salvo-oapi"
 license = "MIT/Apache-2.0"
@@ -15,14 +15,14 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislea
 proc-macro = true
 
 [dependencies]
-proc-macro2.workspace = true
+proc-macro2 = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits"] }
-quote.workspace = true
-proc-macro-crate.workspace = true
-proc-macro-error.workspace = true
-regex.workspace = true
+quote = { workspace = true }
+proc-macro-crate = { workspace = true }
+proc-macro-error = { workspace = true }
+regex = { workspace = true }
 uuid = { workspace = true, optional = true }
-inventory.workspace = true
+inventory = { workspace = true }
 
 [features]
 default = []

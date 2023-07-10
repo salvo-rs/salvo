@@ -1,17 +1,17 @@
 [package]
 name = "salvo-otel"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 OpenTelemetry support for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
 keywords = ["http", "OpenTelemetry", "web", "framework", "server"]
-license.workspace = true
-categories.workspace = true
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -29,4 +29,4 @@ salvo_core = { workspace = true, default-features = false }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
-tokio.workspace = true
+tokio = { workspace = true }

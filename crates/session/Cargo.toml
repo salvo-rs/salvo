@@ -1,29 +1,29 @@
 [package]
 name = "salvo-session"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 Session support for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
 keywords = ["http", "session", "web", "framework", "server"]
-license.workspace = true
-categories.workspace = true
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-async-session.workspace = true
+async-session = { workspace = true }
 cookie = { workspace = true, features = ["percent-encode", "signed"] }
 salvo_core = { workspace = true, features = ["cookie"] }
-tracing.workspace = true
+tracing = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"]}
-tracing-test.workspace = true
+tracing-test = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

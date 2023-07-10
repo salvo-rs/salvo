@@ -37,13 +37,20 @@ pub enum CompressionLevel {
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 #[non_exhaustive]
 pub enum CompressionAlgo {
-    /// Gzip
-    Gzip,
-    /// Deflate
-    Deflate,
-    /// Brotli
+    #[cfg(feature = "brotli")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     Brotli,
-    /// Zstd
+
+    #[cfg(feature = "deflate")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
+    Deflate,
+    
+    #[cfg(feature = "gzip")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
+    Gzip,
+    
+    #[cfg(feature = "zstd")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     Zstd,
 }
 impl CompressionAlgo {}
@@ -53,9 +60,18 @@ impl FromStr for CompressionAlgo {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            #[cfg(feature = "brotli")]
             "br" => Ok(CompressionAlgo::Brotli),
-            "gzip" => Ok(CompressionAlgo::Gzip),
+            #[cfg(feature = "brotli")]
+            "brotli" => Ok(CompressionAlgo::Brotli),
+
+            #[cfg(feature = "deflate")]
             "deflate" => Ok(CompressionAlgo::Deflate),
+            
+            #[cfg(feature = "gzip")]
+            "gzip" => Ok(CompressionAlgo::Gzip),
+
+            #[cfg(feature = "zstd")]
             "zstd" => Ok(CompressionAlgo::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
@@ -66,9 +82,13 @@ impl From<CompressionAlgo> for HeaderValue {
     #[inline]
     fn from(algo: CompressionAlgo) -> Self {
         match algo {
-            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
-            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
+            #[cfg(feature = "brotli")]
             CompressionAlgo::Brotli => HeaderValue::from_static("br"),
+            #[cfg(feature = "deflate")]
+            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
+            #[cfg(feature = "gzip")]
+            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
+            #[cfg(feature = "zstd")]
             CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
         }
     }
@@ -92,9 +112,13 @@ impl Default for Compression {
     #[inline]
     fn default() -> Self {
         let mut algos = IndexMap::new();
+        #[cfg(feature = "zstd")]
         algos.insert(CompressionAlgo::Zstd, CompressionLevel::Default);
+        #[cfg(feature = "gzip")]
         algos.insert(CompressionAlgo::Gzip, CompressionLevel::Default);
+        #[cfg(feature = "deflate")]
         algos.insert(CompressionAlgo::Deflate, CompressionLevel::Default);
+        #[cfg(feature = "brotli")]
         algos.insert(CompressionAlgo::Brotli, CompressionLevel::Default);
         Self {
             algos,
@@ -128,36 +152,48 @@ impl Compression {
     }
 
     /// Sets `Compression` with algos.
+    #[cfg(feature = "gzip")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     #[inline]
     pub fn enable_gzip(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Gzip, level);
         self
     }
     /// Disable gzip compression.
+    #[cfg(feature = "gzip")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     #[inline]
     pub fn disable_gzip(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Gzip);
         self
     }
     /// Enable zstd compression.
+    #[cfg(feature = "zstd")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     #[inline]
     pub fn enable_zstd(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Zstd, level);
         self
     }
     /// Disable zstd compression.
+    #[cfg(feature = "zstd")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     #[inline]
     pub fn disable_zstd(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Zstd);
         self
     }
     /// Enable brotli compression.
+    #[cfg(feature = "brotli")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     #[inline]
     pub fn enable_brotli(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Brotli, level);
         self
     }
     /// Disable brotli compression.
+    #[cfg(feature = "brotli")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
     #[inline]
     pub fn disable_brotli(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Brotli);
@@ -165,6 +201,8 @@ impl Compression {
     }
 
     /// Enable deflate compression.
+    #[cfg(feature = "deflate")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     #[inline]
     pub fn enable_deflate(mut self, level: CompressionLevel) -> Self {
         self.algos.insert(CompressionAlgo::Deflate, level);
@@ -172,6 +210,8 @@ impl Compression {
     }
 
     /// Disable deflate compression.
+    #[cfg(feature = "deflate")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     #[inline]
     pub fn disable_deflate(mut self) -> Self {
         self.algos.remove(&CompressionAlgo::Deflate);

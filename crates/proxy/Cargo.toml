@@ -1,17 +1,17 @@
 [package]
 name = "salvo-proxy"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 TBD: Proxy support for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
-keywords.workspace = true
-license.workspace = true
-categories.workspace = true
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,14 +19,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false }
-tracing.workspace = true
-tokio.workspace = true
-fastrand.workspace = true
+tracing = { workspace = true }
+tokio = { workspace = true }
+fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
 salvo-utils = { workspace = true, features = ["client", "http1", "http2", "runtime"] }
 salvo-rustls = { workspace = true, features = ["http1", "http2", "webpki-tokio"] }
-once_cell.workspace = true
-percent-encoding.workspace = true
+once_cell = { workspace = true }
+percent-encoding = { workspace = true }
 
 [dev-dependencies]
 salvo_core = {  workspace = true, features = ["test"] }

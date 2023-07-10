@@ -1,17 +1,17 @@
 [package]
 name = "salvo-serve-static"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 Serve static assets for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
-keywords.workspace = true
-license.workspace = true
-categories.workspace = true
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -23,18 +23,18 @@ all = ["embed"]
 embed = ["dep:rust-embed"]
 
 [dependencies]
-hex.workspace = true
-mime.workspace = true
-mime_guess.workspace = true
-path-slash.workspace = true
-percent-encoding.workspace = true
+hex = { workspace = true }
+mime = { workspace = true }
+mime_guess = { workspace = true }
+path-slash = { workspace = true }
+percent-encoding = { workspace = true }
 rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
+serde_json = { workspace = true }
 time = {workspace = true, features = ["formatting", "serde"] }
-tracing.workspace = true
-tokio.workspace = true
+tracing = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
