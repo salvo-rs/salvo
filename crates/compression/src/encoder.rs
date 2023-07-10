@@ -5,7 +5,9 @@ use std::io::{Result as IoResult, Write};
 use brotli::CompressorWriter as BrotliEncoder;
 use bytes::{Bytes, BytesMut};
 #[cfg(feature = "gzip")]
-use flate2::write::{GzEncoder, ZlibEncoder};
+use flate2::write::GzEncoder;
+#[cfg(feature = "deflate")]
+use flate2::write::ZlibEncoder;
 #[cfg(feature = "zstd")]
 use zstd::stream::write::Encoder as ZstdEncoder;
 
