@@ -27,7 +27,7 @@ impl HeaderFinder {
     #[inline]
     pub fn new() -> Self {
         Self {
-            cared_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.to_vec(),
             header_names: vec![AUTHORIZATION, PROXY_AUTHORIZATION],
         }
     }
@@ -88,7 +88,7 @@ impl FormFinder {
     pub fn new<T: Into<Cow<'static, str>>>(field_name: T) -> Self {
         Self {
             field_name: field_name.into(),
-            cared_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.to_vec(),
         }
     }
     /// Get cared methods list mutable reference.
@@ -130,7 +130,7 @@ impl QueryFinder {
     pub fn new<T: Into<Cow<'static, str>>>(query_name: T) -> Self {
         Self {
             query_name: query_name.into(),
-            cared_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.to_vec(),
         }
     }
     /// Get cared methods list mutable reference.
@@ -173,7 +173,7 @@ impl CookieFinder {
     pub fn new<T: Into<Cow<'static, str>>>(cookie_name: T) -> Self {
         Self {
             cookie_name: cookie_name.into(),
-            cared_methods: ALL_METHODS.clone(),
+            cared_methods: ALL_METHODS.to_vec(),
         }
     }
     /// Get cared methods list mutable reference.

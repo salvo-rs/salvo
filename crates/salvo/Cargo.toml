@@ -1,16 +1,16 @@
 [package]
 name = "salvo"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
-description.workspace = true
-homepage.workspace = true
-repository.workspace = true
-documentation.workspace = true
-readme.workspace = true
-keywords.workspace = true
-license.workspace = true
-categories.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+description = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -42,9 +42,9 @@ test = ["salvo_core/test"]
 affix = ["salvo_extra/affix"]
 basic-auth = ["salvo_extra/basic-auth"]
 force-https = ["salvo_extra/force-https"]
-jwt-auth = ["salvo_extra/jwt-auth"]
+jwt-auth = ["dep:salvo-jwt-auth"]
 catch-panic = ["salvo_extra/catch-panic"]
-compression = ["salvo_extra/compression"]
+compression = ["dep:salvo-compression"]
 logging = ["salvo_extra/logging"]
 proxy = ["salvo-proxy"]
 size-limiter = ["salvo_extra/size-limiter"]
@@ -65,14 +65,16 @@ oapi = ["dep:salvo-oapi"]
 
 [dependencies]
 salvo_core = { workspace = true }
-salvo_extra = { workspace = true, features = ["default"], optional = true }
-salvo-cache = { workspace = true, features = ["default"], optional = true }
+salvo_extra = { workspace = true, features = ["full"], optional = true }
+salvo-compression = { workspace = true, features = ["full"], optional = true }
+salvo-jwt-auth = { workspace = true, features = ["full"], optional = true }
+salvo-cache = { workspace = true, features = ["full"], optional = true }
 salvo-cors = { workspace = true, optional = true }
-salvo-csrf = { workspace = true, features = ["all"], optional = true }
-salvo-flash = { workspace = true, features = ["all"], optional = true }
-salvo-rate-limiter = { workspace = true, features = ["all"], optional = true }
+salvo-csrf = { workspace = true, features = ["full"], optional = true }
+salvo-flash = { workspace = true, features = ["full"], optional = true }
+salvo-rate-limiter = { workspace = true, features = ["full"], optional = true }
 salvo-session = { workspace = true, optional = true }
-salvo-serve-static = { workspace = true, features = ["all"], optional = true }
+salvo-serve-static = { workspace = true, features = ["full"], optional = true }
 salvo-proxy = { workspace = true, optional = true }
 salvo-otel = { workspace = true, optional = true }
-salvo-oapi = { workspace = true, features = ["all"], optional = true }
+salvo-oapi = { workspace = true, features = ["full"], optional = true }

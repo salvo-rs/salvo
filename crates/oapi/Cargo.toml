@@ -1,6 +1,6 @@
 [package]
 name = "salvo-oapi"
-version.workspace = true
+version = { workspace = true }
 edition = "2021"
 description = "OpenApi support for Salvo web framework"
 readme = "README.md"
@@ -14,7 +14,7 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
-all = ["swagger-ui", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "indexmap"]
+full = ["swagger-ui", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "indexmap"]
 swagger-ui = ["dep:rust-embed"]
 chrono = ["salvo-oapi-macros/chrono"]
 decimal = ["salvo-oapi-macros/decimal"]
@@ -27,21 +27,21 @@ indexmap = ["salvo-oapi-macros/indexmap"]
 [dependencies]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
-base64.workspace = true
-num-traits.workspace = true
-thiserror.workspace = true
-bytes.workspace = true
-futures-util.workspace = true
+base64 = { workspace = true }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-inventory.workspace = true
-mime_guess.workspace = true
-once_cell.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-serde_urlencoded.workspace = true
-regex.workspace = true
-tokio.workspace = true
-tracing.workspace = true
+inventory = { workspace = true }
+mime_guess = { workspace = true }
+once_cell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+regex = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 
 # Non-feature optional dependencies
 email_address = { workspace = true, optional = true }
@@ -55,19 +55,19 @@ rust-embed = { workspace = true, features = ["interpolate-folder-path"], optiona
 serde_yaml = { workspace = true, optional = true }
 
 [build-dependencies]
-regex.workspace = true
+regex = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-assert-json-diff.workspace = true
-salvo_core.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-paste.workspace = true
+assert-json-diff = { workspace = true }
+salvo_core = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+paste = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
-rust_decimal.workspace = true
+rust_decimal = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 time = { workspace = true, features = ["serde-human-readable"] }

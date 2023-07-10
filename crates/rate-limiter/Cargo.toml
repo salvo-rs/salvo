@@ -1,17 +1,17 @@
 [package]
 name = "salvo-rate-limiter"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 Rate limiter middleware for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
-keywords.workspace = true
-license.workspace = true
-categories.workspace = true
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["memory-store", "fixed-guard", "sliding-guard"]
-all = ["memory-store", "fixed-guard", "sliding-guard"]
+full = ["memory-store", "fixed-guard", "sliding-guard"]
 memory-store = ["dep:moka"]
 fixed-guard = []
 sliding-guard = []
@@ -27,12 +27,12 @@ sliding-guard = []
 [dependencies]
 moka = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
-serde.workspace = true
+serde = { workspace = true }
 time = { workspace = true, features = ["serde"] }
-tracing.workspace = true
-tokio.workspace = true
+tracing = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-once_cell.workspace = true
+once_cell = { workspace = true }

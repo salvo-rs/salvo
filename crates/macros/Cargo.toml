@@ -1,15 +1,15 @@
 [package]
 name = "salvo_macros"
-version.workspace = true
+version = { workspace = true }
 authors = ["Chrislearn Young <chrislearn@hotmail.com>", "driftluo <driftluo@foxmail.com>"]
-edition.workspace = true
+edition = { workspace = true }
 description = "salvo proc macros"
-homepage.workspace = true
-repository.workspace = true
-readme.workspace = true
-keywords.workspace = true
-license.workspace = true
-categories.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+categories = { workspace = true }
 
 [lib]
 name = "salvo_macros"
@@ -17,9 +17,9 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-cruet.workspace = true
-proc-macro-crate.workspace = true
-proc-macro2.workspace = true
-quote.workspace = true
-regex.workspace = true
+cruet = { workspace = true }
+proc-macro-crate = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+regex = { workspace = true }
 syn = { workspace = true, features = ["full", "parsing"] }

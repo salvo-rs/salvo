@@ -52,6 +52,10 @@ jobs:
             path: crates/extra
           - crate: salvo-proxy
             path: crates/proxy
+          - crate: salvo-compression
+            path: crates/compression
+          - crate: salvo-jwt-auth
+            path: crates/jwt-auth
           - crate: salvo-session
             path: crates/session
           - crate: salvo-flash

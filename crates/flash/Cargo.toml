@@ -1,17 +1,17 @@
 [package]
 name = "salvo-flash"
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
 description = """
 Flash message support for salvo web server framework.
 """
-homepage.workspace = true
-repository.workspace = true
+homepage = { workspace = true }
+repository = { workspace = true }
 readme = "./README.md"
 keywords = ["http", "session", "web", "framework", "server"]
-license.workspace = true
-categories.workspace = true
+license = { workspace = true }
+categories = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie-store"]
-all = ["cookie-store", "session-store"]
+full = ["cookie-store", "session-store"]
 cookie-store = ["salvo_core/cookie", "dep:serde_json"]
 session-store = ["dep:salvo-session"]
 
@@ -28,11 +28,11 @@ async-session = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 salvo_extra = { workspace = true, default-features = false }
 salvo-session = { workspace = true, optional = true }
-tracing.workspace = true
-serde.workspace = true
+tracing = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 salvo_core = {workspace = true, features = ["test"] }
-tracing-test.workspace = true
-tokio.workspace = true
+tracing-test = { workspace = true }
+tokio = { workspace = true }
