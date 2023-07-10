@@ -3,10 +3,12 @@ name = "salvo-jwt-auth"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
-description = { workspace = true }
+description = """
+Jwt auth support for salvo web server framework.
+"""
 homepage = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
+readme = "./README.md"
 keywords = { workspace = true }
 license = { workspace = true }
 categories = { workspace = true }
