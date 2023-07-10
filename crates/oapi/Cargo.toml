@@ -14,7 +14,7 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
-all = ["swagger-ui", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "indexmap"]
+full = ["swagger-ui", "chrono", "decimal", "yaml", "uuid", "time", "smallvec", "indexmap"]
 swagger-ui = ["dep:rust-embed"]
 chrono = ["salvo-oapi-macros/chrono"]
 decimal = ["salvo-oapi-macros/decimal"]

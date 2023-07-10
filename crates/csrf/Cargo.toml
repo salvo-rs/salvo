@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie-store", "bcrypt-cipher"]
-all = ["cookie-store", "session-store", "bcrypt-cipher", "hmac-cipher", "aes-gcm-cipher", "ccp-cipher"]
+full = ["cookie-store", "session-store", "bcrypt-cipher", "hmac-cipher", "aes-gcm-cipher", "ccp-cipher"]
 cookie-store = ["salvo_core/cookie", "dep:cookie"]
 session-store = ["dep:salvo-session"]
 bcrypt-cipher = ["dep:bcrypt"]

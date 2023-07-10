@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-all = ["oidc"]
+full = ["oidc"]
 oidc = ["dep:reqwest"]
 
 [dependencies]
@@ -33,3 +33,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["http1", "test"] }
+time.workspace = true

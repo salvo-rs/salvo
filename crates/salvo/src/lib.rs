@@ -40,7 +40,7 @@ cfg_feature! {
 cfg_feature! {
     #![feature ="compression"]
     #[doc(no_inline)]
-    pub use salvo_extra::compression;
+    pub use salvo_compression as compression;
 }
 cfg_feature! {
     #![feature ="force-https"]
@@ -50,7 +50,7 @@ cfg_feature! {
 cfg_feature! {
     #![feature ="jwt-auth"]
     #[doc(no_inline)]
-    pub use salvo_extra::jwt_auth;
+    pub use salvo_jwt_auth as jwt_auth;
 }
 cfg_feature! {
     #![feature ="logging"]
@@ -155,7 +155,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="compression"]
-        pub use salvo_extra::compression::{Compression, CompressionAlgo, CompressionLevel};
+        pub use salvo_compression::{Compression, CompressionAlgo, CompressionLevel};
     }
     cfg_feature! {
         #![feature ="csrf"]
@@ -167,7 +167,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="jwt-auth"]
-        pub use salvo_extra::jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState};
+        pub use salvo_jwt_auth::{JwtAuthDepotExt, JwtAuth, JwtAuthState};
     }
     cfg_feature! {
         #![feature ="logging"]

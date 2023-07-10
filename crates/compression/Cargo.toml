@@ -16,8 +16,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["all"]
-all = ["brotli", "gzip", "deflate", "zstd"]
+default = ["full"]
+full = ["brotli", "gzip", "deflate", "zstd"]
 brotli = ["dep:brotli"]
 gzip = ["dep:zstd"]
 deflate = ["dep:flate2"]
