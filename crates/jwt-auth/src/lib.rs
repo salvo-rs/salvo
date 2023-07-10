@@ -8,7 +8,6 @@
 #![warn(clippy::future_not_send)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-
 use std::marker::PhantomData;
 
 pub use jsonwebtoken::errors::Error as JwtError;
@@ -43,16 +42,16 @@ pub const JWT_AUTH_STATE_KEY: &str = "::salvo::jwt_auth::auth_state";
 pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::jwt_auth::auth_token";
 
 const ALL_METHODS: [Method; 9] = [
-        Method::GET,
-        Method::POST,
-        Method::PUT,
-        Method::DELETE,
-        Method::HEAD,
-        Method::OPTIONS,
-        Method::CONNECT,
-        Method::PATCH,
-        Method::TRACE,
-    ];
+    Method::GET,
+    Method::POST,
+    Method::PUT,
+    Method::DELETE,
+    Method::HEAD,
+    Method::OPTIONS,
+    Method::CONNECT,
+    Method::PATCH,
+    Method::TRACE,
+];
 
 /// JwtAuthError
 #[derive(Debug, Error)]
@@ -140,7 +139,7 @@ impl JwtAuthDepotExt for Depot {
 #[non_exhaustive]
 pub struct JwtAuth<C, D> {
     /// Only write auth state to depot when set to `true`.
-    /// 
+    ///
     /// **Note**: If you set to `true`, you must handle auth state in next middlewares or handler.
     pub force_passed: bool,
     _claims: PhantomData<C>,

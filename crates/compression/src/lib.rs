@@ -4,9 +4,7 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
-use salvo_core::http::header::{
-    HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE,
-};
+use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use salvo_core::http::{Mime, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
@@ -44,11 +42,11 @@ pub enum CompressionAlgo {
     #[cfg(feature = "deflate")]
     #[cfg_attr(docsrs, doc(cfg(feature = "deflate")))]
     Deflate,
-    
+
     #[cfg(feature = "gzip")]
     #[cfg_attr(docsrs, doc(cfg(feature = "gzip")))]
     Gzip,
-    
+
     #[cfg(feature = "zstd")]
     #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     Zstd,
@@ -67,7 +65,7 @@ impl FromStr for CompressionAlgo {
 
             #[cfg(feature = "deflate")]
             "deflate" => Ok(CompressionAlgo::Deflate),
-            
+
             #[cfg(feature = "gzip")]
             "gzip" => Ok(CompressionAlgo::Gzip),
 
@@ -143,7 +141,7 @@ impl Compression {
     pub fn new() -> Self {
         Default::default()
     }
-    
+
     /// Remove all compression algorithms.
     #[inline]
     pub fn disable_all(mut self) -> Self {
@@ -245,7 +243,8 @@ impl Compression {
         }
 
         if !self.content_types.is_empty() {
-            let content_type = res.headers()
+            let content_type = res
+                .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or_default();
@@ -267,10 +266,7 @@ impl Compression {
 
         let accept_algos = parse_accept_encoding(header);
         if self.force_priority {
-            let accept_algos = accept_algos
-                .into_iter()
-                .map(|(algo, _)| algo)
-                .collect::<Vec<_>>();
+            let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
             self.algos
                 .iter()
                 .find(|(algo, _level)| accept_algos.contains(algo))
@@ -311,13 +307,7 @@ fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
 
 #[async_trait]
 impl Handler for Compression {
-    async fn handle(
-        &self,
-        req: &mut Request,
-        depot: &mut Depot,
-        res: &mut Response,
-        ctrl: &mut FlowCtrl,
-    ) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         ctrl.call_next(req, depot, res).await;
         if ctrl.is_ceased() || res.headers().contains_key(CONTENT_ENCODING) {
             return;
@@ -340,8 +330,7 @@ impl Handler for Compression {
                 }
                 match self.negotiate(req, res) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, Some(bytes)))
-                            .ok();
+                        res.streaming(EncodeStream::new(algo, level, Some(bytes))).ok();
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
