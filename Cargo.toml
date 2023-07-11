@@ -46,7 +46,7 @@ http-body-util = "0.1.0-rc.2" #{ git = "https://github.com/hyperium/http-body", 
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
-hyper = "=1.0.0-rc.3"
+hyper = "=1.0.0-rc.4"
 indexmap = "2"
 inventory = "0.3"
 jsonwebtoken = "8"
