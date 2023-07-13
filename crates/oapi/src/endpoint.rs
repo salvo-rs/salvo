@@ -24,13 +24,13 @@ impl Endpoint {
 
 /// A trait for endpoint argument register.
 pub trait EndpointArgRegister {
-    /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
-    fn register(compontents: &mut Components, operation: &mut Operation, arg: &str);
+    /// Modify the OpenApi components section or current operation information with given argument. This function is called by macros internal.
+    fn register(components: &mut Components, operation: &mut Operation, arg: &str);
 }
 /// A trait for endpoint return type register.
 pub trait EndpointOutRegister {
-    /// Modify the OpenApi compontents section or current operation information with given argument. This function is called by macros internal.
-    fn register(compontents: &mut Components, operation: &mut Operation);
+    /// Modify the OpenApi components section or current operation information with given argument. This function is called by macros internal.
+    fn register(components: &mut Components, operation: &mut Operation);
 }
 
 impl<C> EndpointOutRegister for writing::Json<C>
