@@ -5,7 +5,7 @@ use std::fmt::{self, Formatter};
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName};
+use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT_TYPE};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
@@ -447,7 +447,7 @@ impl Request {
     #[inline]
     pub fn content_type(&self) -> Option<Mime> {
         self.headers
-            .get("content-type")
+            .get(CONTENT_TYPE)
             .and_then(|h| h.to_str().ok())
             .and_then(|v| v.parse().ok())
     }

@@ -3,6 +3,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use http_body_util::BodyExt;
+use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
 use tempfile::Builder;
@@ -38,14 +39,18 @@ impl FormData {
 
     /// Parse MIME `multipart/*` information from a stream as a [`FormData`].
     pub(crate) async fn read(headers: &HeaderMap, body: ReqBody) -> Result<FormData, ParseError> {
-        match headers.get(CONTENT_TYPE) {
-            Some(ctype) if ctype == "application/x-www-form-urlencoded" => {
+        let ctype: Option<Mime> = headers
+            .get(CONTENT_TYPE)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|v| v.parse().ok());
+        match ctype {
+            Some(ctype) if ctype.subtype() == mime::WWW_FORM_URLENCODED => {
                 let data = BodyExt::collect(body).await.map_err(ParseError::other)?.to_bytes();
                 let mut form_data = FormData::new();
                 form_data.fields = form_urlencoded::parse(&data).into_owned().collect();
                 Ok(form_data)
             }
-            Some(ctype) if ctype.to_str().unwrap_or("").starts_with("multipart/") => {
+            Some(ctype) if ctype.type_() == mime::MULTIPART => {
                 let mut form_data = FormData::new();
                 if let Some(boundary) = headers
                     .get(CONTENT_TYPE)
