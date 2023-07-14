@@ -325,20 +325,19 @@ mod tests {
         assert_eq!(upgrade_type, Some("websocket"));
     }
 
-    //TODO: https://github.com/hyperium/http-body/issues/88
-    // #[tokio::test]
-    // async fn test_proxy() {
-    //     let router = Router::new()
-    //         .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+    #[tokio::test]
+    async fn test_proxy() {
+        let router = Router::new()
+            .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
-    //     let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
-    //         .send(router)
-    //         .await
-    //         .take_string()
-    //         .await
-    //         .unwrap();
-    //     assert!(content.contains("Install Rust"));
-    // }
+        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
+            .send(router)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Install Rust"));
+    }
     #[test]
     fn test_others() {
         let mut handler = Proxy::new(["https://www.bing.com"]);

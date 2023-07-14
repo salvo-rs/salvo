@@ -264,7 +264,7 @@ where
 
     #[inline]
     fn call(
-        &mut self,
+        &self,
         #[cfg(not(feature = "fix-http1-request-uri"))] req: HyperRequest<B>,
         #[cfg(feature = "fix-http1-request-uri")] mut req: HyperRequest<B>,
     ) -> Self::Future {

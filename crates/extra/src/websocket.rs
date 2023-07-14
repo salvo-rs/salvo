@@ -18,6 +18,7 @@ use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use salvo_core::http::{StatusCode, StatusError};
 use salvo_core::{Error, Request, Response};
+use salvo_core::runtimes::TokioIo;
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
     WebSocketStream,
@@ -158,7 +159,7 @@ impl WebSocketUpgrade {
 /// Close messages need to be handled explicitly: usually by closing the `Sink` end of the
 /// `WebSocket`.
 pub struct WebSocket {
-    inner: WebSocketStream<hyper::upgrade::Upgraded>,
+    inner: WebSocketStream<TokioIo<hyper::upgrade::Upgraded>>,
 }
 
 impl WebSocket {
@@ -168,7 +169,7 @@ impl WebSocket {
         role: protocol::Role,
         config: Option<protocol::WebSocketConfig>,
     ) -> Self {
-        WebSocketStream::from_raw_socket(upgraded, role, config)
+        WebSocketStream::from_raw_socket(TokioIo::new(upgraded), role, config)
             .map(|inner| WebSocket { inner })
             .await
     }
