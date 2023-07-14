@@ -44,7 +44,7 @@ fn metadata(
             let mut operation = #oapi::oapi::Operation::new();
             modify(&mut components, &mut operation);
             if operation.operation_id.is_none() {
-                operation.operation_id = Some(::std::any::type_name::<#name>().to_owned());
+                operation.operation_id = Some(::std::any::type_name::<#name>().replace("::", "."));
             }
             if !status_codes.is_empty() {
                 let responses = std::ops::DerefMut::deref_mut(&mut operation.responses);
