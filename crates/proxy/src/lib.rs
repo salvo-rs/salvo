@@ -10,22 +10,19 @@
 
 use std::convert::{Infallible, TryFrom};
 
-use hyper::body::Incoming as HyperBody;
+use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
-use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
+use reqwest::Client;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
-use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::ReqBody;
-use salvo_core::http::StatusCode;
+use salvo_core::http::uri::Uri;
+use salvo_core::http::{ReqBody, ResBody, StatusCode};
+use salvo_core::rt::TokioIo;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
-use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use salvo_utils::client::{connect::HttpConnector, legacy::Client};
-use salvo_utils::rt::TokioExecutor;
 use tokio::io::copy_bidirectional;
 
 type HyperRequest = hyper::Request<ReqBody>;
-type HyperResponse = hyper::Response<HyperBody>;
+type HyperResponse = hyper::Response<ResBody>;
 
 #[inline]
 pub(crate) fn encode_url_path(path: &str) -> String {
@@ -84,8 +81,7 @@ where
 /// Proxy
 pub struct Proxy<U> {
     upstreams: U,
-    http_client: OnceCell<Client<HttpConnector, ReqBody>>,
-    https_client: OnceCell<Client<HttpsConnector<HttpConnector>, ReqBody>>,
+    client: Client,
 }
 
 impl<U> Proxy<U>
@@ -97,8 +93,7 @@ where
     pub fn new(upstreams: U) -> Self {
         Proxy {
             upstreams,
-            http_client: OnceCell::new(),
-            https_client: OnceCell::new(),
+            client: Client::new(),
         }
     }
 
@@ -178,42 +173,29 @@ where
         request_upgraded: Option<OnUpgrade>,
     ) -> Result<HyperResponse, Error> {
         let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
-        let is_https = proxied_request
-            .uri()
-            .scheme()
-            .map(|s| s == &Scheme::HTTPS)
-            .unwrap_or(false);
-        let mut response = if is_https {
-            let client = self.https_client.get_or_init(|| {
-                let connector = HttpsConnectorBuilder::new()
-                    .with_webpki_roots()
-                    .https_or_http()
-                    .enable_http1()
-                    .enable_http2()
-                    .build();
-                Client::builder(TokioExecutor::new()).build::<_, ReqBody>(connector)
-            });
-            client.request(proxied_request).await.map_err(Error::other)?
-        } else {
-            let client = self
-                .http_client
-                .get_or_init(|| Client::builder(TokioExecutor::new()).build::<_, ReqBody>(HttpConnector::new()));
-            client.request(proxied_request).await.map_err(Error::other)?
-        };
+
+        let proxied_request = proxied_request.map(reqwest::Body::wrap_stream);
+        let mut response = self
+            .client
+            .execute(proxied_request.try_into().map_err(Error::other)?)
+            .await
+            .map_err(Error::other)?;
 
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = get_upgrade_type(response.headers());
 
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let mut response_upgraded = response
+                let response_upgraded = response
                     .extensions_mut()
                     .remove::<OnUpgrade>()
                     .ok_or_else(|| Error::other("response does not have an upgrade extension"))?
                     .await?;
+                let mut response_upgraded = TokioIo::new(response_upgraded);
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
-                            Ok(mut request_upgraded) => {
+                            Ok(request_upgraded) => {
+                                let mut request_upgraded = TokioIo::new(request_upgraded);
                                 if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
                                 {
                                     tracing::error!(error = ?e, "coping between upgraded connections failed");
@@ -231,7 +213,14 @@ where
                 return Err(Error::other("upgrade type mismatch"));
             }
         }
-        Ok(response)
+        let res_headers = response.headers().clone();
+        let mut hyper_response = hyper::Response::builder()
+            .status(response.status())
+            .version(response.version())
+            .body(ResBody::Stream(Box::pin(response.bytes_stream().map_err(|e| e.into()))))
+            .map_err(Error::other)?;
+        *hyper_response.headers_mut() = res_headers;
+        Ok(hyper_response)
     }
 }
 
@@ -262,7 +251,7 @@ where
                         ) = response.into_parts();
                         res.status_code(status);
                         res.set_headers(headers);
-                        res.body(body.into());
+                        res.body(body);
                     }
                     Err(e) => {
                         tracing::error!(error = ?e, uri = ?req.uri(), "get response data failed");
@@ -299,6 +288,9 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
+    use salvo_core::prelude::*;
+    use salvo_core::test::*;
+
     use super::*;
 
     #[test]
@@ -325,20 +317,19 @@ mod tests {
         assert_eq!(upgrade_type, Some("websocket"));
     }
 
-    //TODO: https://github.com/hyperium/http-body/issues/88
-    // #[tokio::test]
-    // async fn test_proxy() {
-    //     let router = Router::new()
-    //         .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+    #[tokio::test]
+    async fn test_proxy() {
+        let router = Router::new()
+            .push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
-    //     let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
-    //         .send(router)
-    //         .await
-    //         .take_string()
-    //         .await
-    //         .unwrap();
-    //     assert!(content.contains("Install Rust"));
-    // }
+        let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
+            .send(router)
+            .await
+            .take_string()
+            .await
+            .unwrap();
+        assert!(content.contains("Install Rust"));
+    }
     #[test]
     fn test_others() {
         let mut handler = Proxy::new(["https://www.bing.com"]);

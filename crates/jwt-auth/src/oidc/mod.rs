@@ -10,6 +10,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use jsonwebtoken::jwk::{Jwk, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
+use reqwest::Client;
 use salvo_core::async_trait;
 use salvo_core::http::header::CACHE_CONTROL;
 use salvo_core::Depot;
@@ -103,12 +104,8 @@ where
         let cache = Arc::new(RwLock::new(JwkSetStore::new(jwks, CachePolicy::default(), validation)));
         let cache_state = Arc::new(CacheState::new());
 
-        let http_client = http_client.unwrap_or_else(|| {
-            reqwest::ClientBuilder::new()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap()
-        });
+        let http_client =
+            http_client.unwrap_or_else(|| Client::builder().timeout(Duration::from_secs(30)).build().unwrap());
         let decoder = OidcDecoder {
             issuer,
             http_client,

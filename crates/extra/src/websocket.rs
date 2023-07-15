@@ -17,6 +17,7 @@ use hyper::upgrade::OnUpgrade;
 use salvo_core::http::header::{SEC_WEBSOCKET_VERSION, UPGRADE};
 use salvo_core::http::headers::{Connection, HeaderMapExt, SecWebsocketAccept, SecWebsocketKey, Upgrade};
 use salvo_core::http::{StatusCode, StatusError};
+use salvo_core::rt::TokioIo;
 use salvo_core::{Error, Request, Response};
 use tokio_tungstenite::{
     tungstenite::protocol::{self, WebSocketConfig},
@@ -146,8 +147,7 @@ impl WebSocketUpgrade {
             Ok(())
         } else {
             tracing::debug!("websocket couldn't be upgraded since no upgrade state was present");
-            Err(StatusError::bad_request()
-                .brief("Websocket couldn't be upgraded since no upgrade state was present."))
+            Err(StatusError::bad_request().brief("Websocket couldn't be upgraded since no upgrade state was present."))
         }
     }
 }
@@ -158,7 +158,7 @@ impl WebSocketUpgrade {
 /// Close messages need to be handled explicitly: usually by closing the `Sink` end of the
 /// `WebSocket`.
 pub struct WebSocket {
-    inner: WebSocketStream<hyper::upgrade::Upgraded>,
+    inner: WebSocketStream<TokioIo<hyper::upgrade::Upgraded>>,
 }
 
 impl WebSocket {
@@ -168,7 +168,7 @@ impl WebSocket {
         role: protocol::Role,
         config: Option<protocol::WebSocketConfig>,
     ) -> Self {
-        WebSocketStream::from_raw_socket(upgraded, role, config)
+        WebSocketStream::from_raw_socket(TokioIo::new(upgraded), role, config)
             .map(|inner| WebSocket { inner })
             .await
     }
@@ -384,6 +384,7 @@ mod tests {
     use salvo_core::conn::{Acceptor, Listener};
     use salvo_core::http::header::*;
     use salvo_core::prelude::*;
+    use salvo_core::rt::TokioIo;
 
     use super::*;
 
@@ -418,7 +419,7 @@ mod tests {
 
         let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
 
-        let (mut sender, conn) = hyper::client::conn::http1::handshake(stream).await.unwrap();
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(TokioIo::new(stream)).await.unwrap();
         tokio::task::spawn(async move {
             if let Err(err) = conn.await {
                 println!("Connection failed: {:?}", err);

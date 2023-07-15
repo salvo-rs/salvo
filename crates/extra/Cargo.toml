@@ -37,9 +37,6 @@ futures-util = { workspace = true, optional = true }
 hyper = { workspace = true, features = ["server", "http1", "http2", "client"], optional = true }
 pin-project = { workspace = true, optional = true }
 salvo_core = { workspace = true }
-# Use reqwest for http-body-util bug: https://github.com/hyperium/http-body/issues/88
-# salvo-utils = { workspace = true, optional = true, features = ["runtime", "http1", "tcp", "client"] }
-# salvo-rustls = { workspace = true, optional = true, features = ["http1", "http2", "webpki-tokio"] }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }

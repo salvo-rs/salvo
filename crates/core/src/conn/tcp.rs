@@ -6,8 +6,7 @@ use std::vec;
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 
 use crate::async_trait;
-use crate::conn::Holding;
-use crate::conn::HttpBuilders;
+use crate::conn::{Holding, HttpBuilders};
 use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -141,7 +140,7 @@ impl HttpConnection for TcpStream {
         #[cfg(feature = "http1")]
         builders
             .http1
-            .serve_connection(self, handler)
+            .serve_connection(crate::rt::TokioIo::new(self), handler)
             .with_upgrades()
             .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))

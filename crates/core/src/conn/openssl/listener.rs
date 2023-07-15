@@ -15,10 +15,10 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::Holding;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Holding, Acceptor, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
+use crate::rt::TokioIo;
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -108,7 +108,7 @@ where
         #[cfg(feature = "http2")]
         builders
             .http2
-            .serve_connection(self, handler)
+            .serve_connection(TokioIo::new(self), handler)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

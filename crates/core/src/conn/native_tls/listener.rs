@@ -11,9 +11,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::Holding;
-use crate::conn::{Accepted, Acceptor, HttpBuilders, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
+use crate::rt::TokioIo;
 use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;
@@ -74,7 +74,7 @@ where
         #[cfg(feature = "http2")]
         builders
             .http2
-            .serve_connection(self, handler)
+            .serve_connection(TokioIo::new(self), handler)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
@@ -164,7 +164,10 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let conn = tls_acceptor.accept(conn).await.map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        let conn = tls_acceptor
+            .accept(conn)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
         Ok(Accepted {
             conn,
             local_addr,

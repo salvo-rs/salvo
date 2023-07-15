@@ -18,16 +18,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+futures-util = { workspace = true, default-features = false }
 salvo_core = { workspace = true, default-features = false }
 tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-salvo-utils = { workspace = true, features = ["client", "http1", "http2", "runtime"] }
-salvo-rustls = { workspace = true, features = ["http1", "http2", "webpki-tokio"] }
-once_cell = { workspace = true }
+reqwest = { workspace = true, features = ["stream"] }
+salvo-utils = { workspace = true, features = ["runtime"] }
 percent-encoding = { workspace = true }
 
 [dev-dependencies]
-salvo_core = {  workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

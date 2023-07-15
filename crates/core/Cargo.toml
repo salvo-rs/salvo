@@ -21,14 +21,14 @@ full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", 
 cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
-http2 = ["hyper/http2", "salvo-utils/http2"]
+http2 = ["hyper/http2"]
 quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
 rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
 test = ["dep:brotli", "dep:flate2", "dep:zstd", "dep:base64", "dep:encoding_rs", "dep:serde_urlencoded", "dep:url", "tokio/macros"]
-acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:salvo-rustls", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
+acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:reqwest", "dep:rcgen", "dep:ring", "dep:x509-parser", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
 cruet = { workspace = true }
@@ -47,8 +47,6 @@ headers = { workspace = true }
 http = { workspace = true }
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap = { workspace = true }
-salvo-utils = { workspace = true, features = ["runtime", "http1", "tcp", "client"] }
-salvo-rustls = { workspace = true, optional = true }
 mime = { workspace = true }
 mime_guess = { workspace = true }
 multer = { workspace = true }
@@ -62,10 +60,12 @@ parking_lot = { workspace = true }
 quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
+reqwest = { workspace = true, optional = true, features = ["json"] }
 ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
+salvo-utils = { workspace = true, features = ["runtime"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde_urlencoded = { workspace = true, optional = true }

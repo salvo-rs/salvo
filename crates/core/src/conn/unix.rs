@@ -7,9 +7,9 @@ use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::async_trait;
-use crate::conn::Holding;
-use crate::conn::HttpBuilders;
+use crate::conn::{Holding, HttpBuilders};
 use crate::http::{HttpConnection, Version};
+use crate::rt::TokioIo;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
@@ -96,7 +96,7 @@ impl HttpConnection for UnixStream {
         #[cfg(feature = "http1")]
         builders
             .http1
-            .serve_connection(self, handler)
+            .serve_connection(TokioIo::new(self), handler)
             .with_upgrades()
             .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))

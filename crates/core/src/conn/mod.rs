@@ -75,6 +75,7 @@ cfg_feature! {
         use crate::service::HyperHandler;
         use crate::http::{version_from_alpn, HttpConnection, Version};
         use crate::conn::HttpBuilders;
+        use crate::rt::TokioIo;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
         #[async_trait]
@@ -95,7 +96,7 @@ cfg_feature! {
                 #[cfg(feature = "http2")]
                 builders
                     .http2
-                    .serve_connection(self, handler)
+                    .serve_connection(TokioIo::new(self), handler)
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             }
