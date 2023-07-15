@@ -174,7 +174,7 @@ where
     ) -> Result<HyperResponse, Error> {
         let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request = proxied_request.map(|body| reqwest::Body::wrap_stream(body));
+        let proxied_request = proxied_request.map(reqwest::Body::wrap_stream);
         let mut response = self
             .client
             .execute(proxied_request.try_into().map_err(Error::other)?)
