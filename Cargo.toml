@@ -39,7 +39,7 @@ etag = "4"
 eyre = "0.6"
 fastrand = "2"
 form_urlencoded = "1"
-futures-util = "0.3"
+futures-util = {version = "0.3", default-features = false }
 headers = "0.3"
 http = "0.2"
 http-body-util = "0.1.0-rc.3"

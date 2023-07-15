@@ -13,7 +13,7 @@ use tokio_native_tls::TlsStream;
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
-use crate::runtimes::TokioIo;
+use crate::rt::TokioIo;
 use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;

@@ -288,6 +288,9 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 // Unit tests for Proxy
 #[cfg(test)]
 mod tests {
+    use salvo_core::prelude::*;
+    use salvo_core::test::*;
+    
     use super::*;
 
     #[test]

@@ -18,7 +18,7 @@ use crate::async_trait;
 use crate::conn::{Accepted, Holding, Acceptor, HttpBuilders, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
 use crate::service::HyperHandler;
-use crate::runtimes::TokioIo;
+use crate::rt::TokioIo;
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {

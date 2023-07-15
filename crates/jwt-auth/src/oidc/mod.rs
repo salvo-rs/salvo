@@ -10,6 +10,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use jsonwebtoken::jwk::{Jwk, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
+use reqwest::Client;
 use salvo_core::async_trait;
 use salvo_core::http::header::CACHE_CONTROL;
 use salvo_core::Depot;
