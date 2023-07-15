@@ -1,21 +1,18 @@
 use std::{
     io::{Error as IoError, ErrorKind, Result as IoResult},
     sync::Arc,
+    time::Duration,
 };
 
 use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
 use http::header;
-use http_body_util::BodyExt;
-use salvo_rustls::{HttpsConnector, HttpsConnectorBuilder};
-use salvo_utils::client::connect::HttpConnector;
-use salvo_utils::client::legacy::Client;
-use salvo_utils::rt::TokioExecutor;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use super::{Challenge, Problem};
 
-use super::{jose, key_pair::KeyPair, ChallengeType, FullBody};
+use super::{jose, key_pair::KeyPair, ChallengeType};
 use super::{Directory, Identifier};
 
 #[derive(Debug, Deserialize)]
@@ -37,7 +34,7 @@ pub(crate) struct FetchAuthorizationResponse {
 }
 
 pub(crate) struct AcmeClient {
-    pub(crate) client: Client<HttpsConnector<HttpConnector>, FullBody>,
+    pub(crate) client: Client,
     pub(crate) directory: Directory,
     pub(crate) key_pair: Arc<KeyPair>,
     pub(crate) contacts: Vec<String>,
@@ -47,13 +44,7 @@ pub(crate) struct AcmeClient {
 impl AcmeClient {
     #[inline]
     pub(crate) async fn new(directory_url: &str, key_pair: Arc<KeyPair>, contacts: Vec<String>) -> IoResult<Self> {
-        let client = Client::builder(TokioExecutor::new()).build::<_, FullBody>(
-            HttpsConnectorBuilder::new()
-                .with_native_roots()
-                .https_or_http()
-                .enable_http1()
-                .build(),
-        );
+        let client = Client::builder().timeout(Duration::from_secs(30)).build().unwrap();
         let directory = get_directory(&client, directory_url).await?;
         Ok(Self {
             client,
@@ -205,25 +196,18 @@ impl AcmeClient {
             None::<()>,
         )
         .await?;
-        res.into_body()
-            .collect()
+        res.bytes()
             .await
-            .map(|b| b.to_bytes())
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to download certificate: {}", e)))
     }
 }
 
-async fn get_directory(
-    client: &Client<HttpsConnector<HttpConnector>, FullBody>,
-    directory_url: &str,
-) -> IoResult<Directory> {
+async fn get_directory(client: &Client, directory_url: &str) -> IoResult<Directory> {
     tracing::debug!("loading directory");
 
-    let directory_url = directory_url
-        .parse()
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to parse url: {}", e)))?;
     let res = client
         .get(directory_url)
+        .send()
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to load directory: {}", e)))?;
 
@@ -235,11 +219,9 @@ async fn get_directory(
     }
 
     let data = res
-        .into_body()
-        .collect()
+        .bytes()
         .await
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?
-        .to_bytes();
+        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to read response: {}", e)))?;
     let directory = serde_json::from_slice::<Directory>(&data)
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to load directory: {}", e)))?;
 
@@ -252,14 +234,12 @@ async fn get_directory(
     Ok(directory)
 }
 
-async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>, FullBody>, nonce_url: &str) -> IoResult<String> {
+async fn get_nonce(client: &Client, nonce_url: &str) -> IoResult<String> {
     tracing::debug!("creating nonce");
 
-    let new_nonce = nonce_url
-        .parse()
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to parse url: {}", e)))?;
     let res = client
-        .get(new_nonce)
+        .get(nonce_url)
+        .send()
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to get nonce: {}", e)))?;
 
@@ -282,7 +262,7 @@ async fn get_nonce(client: &Client<HttpsConnector<HttpConnector>, FullBody>, non
 }
 
 async fn create_acme_account(
-    client: &Client<HttpsConnector<HttpConnector>, FullBody>,
+    client: &Client,
     directory: &Directory,
     key_pair: &KeyPair,
     contacts: Vec<String>,

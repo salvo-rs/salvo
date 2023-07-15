@@ -29,7 +29,7 @@ pub mod handler;
 pub mod http;
 pub mod proto;
 pub mod routing;
-pub mod runtimes;
+pub mod rt;
 #[doc(hidden)]
 pub mod serde;
 mod server;

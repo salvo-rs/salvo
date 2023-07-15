@@ -1,5 +1,5 @@
 #[cfg(feature = "http2")]
-use crate::runtimes::TokioExecutor;
+use crate::rt::TokioExecutor;
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
