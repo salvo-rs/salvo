@@ -306,7 +306,7 @@ mod tests {
             .take_string()
             .await
             .unwrap();
-        assert!(result.contains("code:404"));
+        assert!(result.contains("code: 404"));
         let result = TestClient::get(format!("{}/not_exist", base_url))
             .add_header("accept", "application/xml", true)
             .send(&serivce)

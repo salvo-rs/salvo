@@ -38,6 +38,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use mime::Mime;
 use once_cell::sync::Lazy;
+use serde::Serialize;
 
 use crate::handler::{Handler, WhenHoop};
 use crate::http::{guess_accept_mime, header, Request, ResBody, Response, StatusCode, StatusError};
@@ -93,18 +94,31 @@ fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&s
 }
 #[inline]
 fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
-    format!(
-        r#"{{"error":{{"code":{},"name":"{}","brief":"{}","cause":"{}"}}}}"#,
-        code.as_u16(),
-        name,
-        brief,
-        cause.unwrap_or(EMPTY_CAUSE_MSG)
-    )
+    #[derive(Serialize)]
+    struct Data<'a> {
+        error: Error<'a>,
+    }
+    #[derive(Serialize)]
+    struct Error<'a> {
+        code: u16,
+        name: &'a str,
+        brief: &'a str,
+        cause: &'a str,
+    }
+    let data = Data {
+        error: Error {
+            code: code.as_u16(),
+            name,
+            brief,
+            cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
+        },
+    };
+    serde_json::to_string(&data).unwrap()
 }
 #[inline]
 fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
     format!(
-        "code:{},\nname:{},\nbrief:{},\ncause:{}",
+        "code: {}\n\nname: {}\n\nbrief: {}\n\ncause: {}",
         code.as_u16(),
         name,
         brief,
@@ -113,13 +127,21 @@ fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&
 }
 #[inline]
 fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
-    format!(
-        "<error><code>{}</code><name>{}</name><brief>{}</brief><cause>{}</cause></error>",
-        code.as_u16(),
+    #[derive(Serialize)]
+    struct Data<'a> {
+        code: u16,
+        name: &'a str,
+        brief: &'a str,
+        cause: &'a str,
+    }
+
+    let data = Data {
+        code: code.as_u16(),
         name,
         brief,
-        cause.unwrap_or(EMPTY_CAUSE_MSG)
-    )
+        cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
+    };
+    serde_xml_rs::to_string(&data).unwrap()
 }
 /// Create bytes from `StatusError`.
 #[inline]
