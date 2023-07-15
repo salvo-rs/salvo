@@ -24,10 +24,10 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 fastrand = { workspace = true }
 hyper = { workspace = true, features = ["server", "http1", "http2"] }
-reqwest = { workspace = true, optional = true, features = ["stream"] }
+reqwest = { workspace = true, features = ["stream"] }
 salvo-utils = { workspace = true, features = ["runtime"] }
 percent-encoding = { workspace = true }
 
 [dev-dependencies]
-salvo_core = {  workspace = true, features = ["test"] }
+salvo_core = { workspace = true, features = ["test"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
