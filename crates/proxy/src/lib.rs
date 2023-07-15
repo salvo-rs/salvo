@@ -290,7 +290,7 @@ fn get_upgrade_type(headers: &HeaderMap) -> Option<&str> {
 mod tests {
     use salvo_core::prelude::*;
     use salvo_core::test::*;
-    
+
     use super::*;
 
     #[test]

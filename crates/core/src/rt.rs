@@ -5,7 +5,6 @@
 
 pub use hyper::rt::*;
 
-
 /// Tokio runtimes
 pub mod tokio {
     pub use salvo_utils::rt::{TokioExecutor, TokioIo};

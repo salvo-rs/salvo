@@ -39,7 +39,7 @@ etag = "4"
 eyre = "0.6"
 fastrand = "2"
 form_urlencoded = "1"
-futures-util = {version = "0.3", default-features = false }
+futures-util = { version = "0.3", default-features = false }
 headers = "0.3"
 http = "0.2"
 http-body-util = "0.1.0-rc.3"
@@ -79,7 +79,7 @@ ring = "0.16"
 rustls = "0.21.1"
 rustls-pemfile = "1.0"
 rust-embed = "6"
-salvo-utils = {path = "D:/Soncai/salvo-rs/salvo-utils"}
+salvo-utils = { version = "0.0.5", default-features = true }
 salvo_macros = { version = "0.47.0", path = "crates/macros", default-features = false }
 salvo_core = { version = "0.47.0", path = "crates/core", default-features = false }
 salvo_extra = { version = "0.47.0", path = "crates/extra", default-features = false }
