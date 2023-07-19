@@ -9,7 +9,6 @@ use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::{HttpConnection, Version};
-use crate::rt::TokioIo;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
@@ -75,7 +74,7 @@ impl Acceptor for UnixAcceptor {
             conn,
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
-            http_versions: vec![Version::HTTP_11],
+            http_version: Version::HTTP_11,
             http_scheme: Scheme::HTTP,
         })
     }
@@ -85,7 +84,7 @@ impl Acceptor for UnixAcceptor {
 impl HttpConnection for UnixStream {
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder
-            .serve_connection(TokioIo::new(self), handler)
+            .serve_connection(self, handler)
             .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }
