@@ -43,7 +43,7 @@ where
         let inner = TokioUnixListener::bind(self.path)?;
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
-            http_version: Version::HTTP_11,
+            http_versions: vec![Version::HTTP_11],
             http_scheme: Scheme::HTTP,
         };
         Ok(UnixAcceptor {
@@ -75,17 +75,14 @@ impl Acceptor for UnixAcceptor {
             conn,
             local_addr: self.holdings[0].local_addr.clone(),
             remote_addr: remote_addr.into(),
-            http_version: self.holdings[0].http_version,
-            http_scheme: self.holdings[0].http_scheme.clone(),
+            http_versions: vec![Version::HTTP_11],
+            http_scheme: Scheme::HTTP,
         })
     }
 }
 
 #[async_trait]
 impl HttpConnection for UnixStream {
-    async fn version(&mut self) -> Option<Version> {
-        Some(Version::HTTP_11)
-    }
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder
             .serve_connection(TokioIo::new(self), handler)

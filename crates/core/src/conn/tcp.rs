@@ -127,9 +127,6 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 
 #[async_trait]
 impl HttpConnection for TcpStream {
-    async fn version(&mut self) -> Option<Version> {
-        Some(Version::HTTP_11)
-    }
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder
             .serve_connection(self, handler)

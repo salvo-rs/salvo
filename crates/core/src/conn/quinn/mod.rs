@@ -116,9 +116,6 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn version(&mut self) -> Option<Version> {
-        Some(Version::HTTP_3)
-    }
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder.quinn.serve_connection(self, handler).await
     }

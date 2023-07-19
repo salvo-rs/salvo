@@ -12,7 +12,7 @@ use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
-use crate::http::{version_from_alpn, HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;
@@ -60,9 +60,6 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
-        self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
-    }
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder
             .serve_connection(self, handler)

@@ -73,7 +73,7 @@ cfg_feature! {
 
         use crate::async_trait;
         use crate::service::HyperHandler;
-        use crate::http::{version_from_alpn, HttpConnection, Version};
+        use crate::http::{HttpConnection};
         use crate::conn::HttpBuilder;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
@@ -82,9 +82,6 @@ cfg_feature! {
         where
             S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
         {
-            async fn version(&mut self) -> Option<Version> {
-                self.get_ref().1.alpn_protocol().map(version_from_alpn)
-            }
             async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
                 builder
                     .serve_connection(self, handler)

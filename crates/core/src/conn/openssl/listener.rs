@@ -16,7 +16,7 @@ use super::OpensslConfig;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
-use crate::http::{version_from_alpn, HttpConnection, Version};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 /// OpensslListener
@@ -103,9 +103,6 @@ impl<S> HttpConnection for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
-        self.ssl().selected_alpn_protocol().map(version_from_alpn)
-    }
     async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         builder
             .serve_connection(self, handler)
