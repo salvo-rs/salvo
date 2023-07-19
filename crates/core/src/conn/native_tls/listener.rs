@@ -86,9 +86,11 @@ where
             .iter()
             .map(|h| {
                 let mut versions = h.http_versions.clone();
+                #[cfg(feature = "http1")]
                 if !versions.contains(&Version::HTTP_11) {
                     versions.push(Version::HTTP_11);
                 }
+                #[cfg(feature = "http2")]
                 if !versions.contains(&Version::HTTP_2) {
                     versions.push(Version::HTTP_2);
                 }
