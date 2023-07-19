@@ -10,6 +10,7 @@ use crate::{
     feature::{pop_feature, pop_feature_as_inner, Feature, FeaturesExt, IntoInner, RenameAll, Symbol, ToTokensExt},
     schema::Inline,
     type_tree::{TypeTree, ValueType},
+    Deprecated,
 };
 
 use super::{
@@ -73,7 +74,13 @@ impl NamedStructSchema<'_> {
             _ => None,
         });
 
-        let deprecated = crate::get_deprecated(&field.attrs);
+        let deprecated = crate::get_deprecated(&field.attrs).or_else(|| {
+            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature {
+                Feature::Deprecated(_) => Some(Deprecated::True),
+                _ => None,
+            })
+        });
+
         let value_type = field_features
             .as_mut()
             .and_then(|features| features.pop_value_type_feature());

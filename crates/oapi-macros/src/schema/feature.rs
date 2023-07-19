@@ -2,7 +2,7 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Example, ExclusiveMaximum,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Deprecated, Example, ExclusiveMaximum,
     ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems,
     MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required,
     SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
@@ -22,7 +22,8 @@ impl Parse for NamedFieldStructFeatures {
             MaxProperties,
             MinProperties,
             Inline,
-            Default
+            Default,
+            Deprecated
         )))
     }
 }
@@ -40,7 +41,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Symbol,
             Format,
             ValueType,
-            Inline
+            Inline,
+            Deprecated
         )))
     }
 }
@@ -56,7 +58,8 @@ impl Parse for EnumFeatures {
             Default,
             Symbol,
             RenameAll,
-            Inline
+            Inline,
+            Deprecated
         )))
     }
 }
@@ -72,7 +75,8 @@ impl Parse for ComplexEnumFeatures {
             Default,
             RenameAll,
             Symbol,
-            Inline
+            Inline,
+            Deprecated
         )))
     }
 }
@@ -106,7 +110,8 @@ impl Parse for NamedFieldFeatures {
             MinItems,
             SchemaWith,
             AdditionalProperties,
-            Required
+            Required,
+            Deprecated
         )))
     }
 }
@@ -122,7 +127,8 @@ impl Parse for EnumNamedFieldVariantFeatures {
             XmlAttr,
             Symbol,
             Rename,
-            RenameAll
+            RenameAll,
+            Deprecated
         )))
     }
 }
@@ -139,7 +145,8 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
             Symbol,
             Format,
             ValueType,
-            Rename
+            Rename,
+            Deprecated
         )))
     }
 }
