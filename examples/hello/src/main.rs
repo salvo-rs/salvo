@@ -28,7 +28,7 @@ async fn main() {
 }
 
 fn route() -> Router {
-    Router::new()
+    Router::new().get(hello)
     .push(Router::with_path("a").get(hello2))
         .push(Router::with_path("你好").get(hello_zh))
         .push(Router::with_path("hello3").get(hello3))

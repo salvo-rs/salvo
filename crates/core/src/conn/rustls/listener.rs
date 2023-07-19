@@ -78,10 +78,19 @@ where
         let holdings = inner
             .holdings()
             .iter()
-            .map(|h| Holding {
-                local_addr: h.local_addr.clone(),
-                http_version: Version::HTTP_2,
-                http_scheme: Scheme::HTTPS,
+            .map(|h| {
+                let mut versions = h.http_versions.clone();
+                if !versions.contains(&Version::HTTP_11) {
+                    versions.push(Version::HTTP_11);
+                }
+                if !versions.contains(&Version::HTTP_2) {
+                    versions.push(Version::HTTP_2);
+                }
+                Holding {
+                    local_addr: h.local_addr.clone(),
+                    http_versions: versions,
+                    http_scheme: Scheme::HTTPS,
+                }
             })
             .collect();
         RustlsAcceptor {
@@ -138,7 +147,10 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let conn = tls_acceptor.accept(conn).await.map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        let conn = tls_acceptor
+            .accept(conn)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
         Ok(Accepted {
             conn,
             local_addr,

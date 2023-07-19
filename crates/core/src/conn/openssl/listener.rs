@@ -15,10 +15,9 @@ use tokio_openssl::SslStream;
 use super::OpensslConfig;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Holding, Acceptor, HttpBuilders, IntoConfigStream, Listener};
-use crate::http::{version_from_alpn, HttpConnection, Version};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
+use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
-use crate::rt::TokioIo;
 
 /// OpensslListener
 pub struct OpensslListener<C, T> {
@@ -75,10 +74,19 @@ where
         let holdings = inner
             .holdings()
             .iter()
-            .map(|h| Holding {
-                local_addr: h.local_addr.clone(),
-                http_version: Version::HTTP_2,
-                http_scheme: Scheme::HTTPS,
+            .map(|h| {
+                let mut versions = h.http_versions.clone();
+                if !versions.contains(&Version::HTTP_11) {
+                    versions.push(Version::HTTP_11);
+                }
+                if !versions.contains(&Version::HTTP_2) {
+                    versions.push(Version::HTTP_2);
+                }
+                Holding {
+                    local_addr: h.local_addr.clone(),
+                    http_versions: versions,
+                    http_scheme: Scheme::HTTPS,
+                }
             })
             .collect();
         OpensslAcceptor {
@@ -95,20 +103,9 @@ impl<S> HttpConnection for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn version(&mut self) -> Option<Version> {
-        self.ssl().selected_alpn_protocol().map(version_from_alpn)
-    }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        #[cfg(not(feature = "http2"))]
-        {
-            let _ = handler;
-            let _ = builders;
-            panic!("http2 feature is required");
-        }
-        #[cfg(feature = "http2")]
-        builders
-            .http2
-            .serve_connection(TokioIo::new(self), handler)
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+        builder
+            .serve_connection(self, handler)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

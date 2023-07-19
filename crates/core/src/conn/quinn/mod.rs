@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
 use crate::conn::Holding;
-use crate::conn::HttpBuilders;
+use crate::conn::HttpBuilder;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
@@ -56,7 +56,7 @@ where
             .ok_or_else(|| IoError::new(ErrorKind::AddrNotAvailable, "No address available"))?;
         let holding = Holding {
             local_addr: socket.into(),
-            http_version: Version::HTTP_3,
+            http_versions: vec![Version::HTTP_3],
             http_scheme: Scheme::HTTPS,
         };
         let crypto = config.build_server_config()?;
@@ -116,11 +116,8 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn version(&mut self) -> Option<Version> {
-        Some(Version::HTTP_3)
-    }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        builders.quinn.serve_connection(self, handler).await
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+        builder.quinn.serve_connection(self, handler).await
     }
 }
 
@@ -144,7 +141,7 @@ impl Acceptor for QuinnAcceptor {
                         local_addr: self.holdings[0].local_addr.clone(),
                         remote_addr: remote_addr.into(),
                         http_scheme: self.holdings[0].http_scheme.clone(),
-                        http_version: self.holdings[0].http_version,
+                        http_version: Version::HTTP_3,
                     });
                 }
                 Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),

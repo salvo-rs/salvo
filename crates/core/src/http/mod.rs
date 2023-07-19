@@ -26,26 +26,24 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 
 use crate::async_trait;
-use crate::conn::HttpBuilders;
+use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
 
-/// A helper trait for get a protocol from certain types.
+/// A helper trait for http connection.
 #[async_trait]
 pub trait HttpConnection {
-    /// The http protocol version.
-    async fn version(&mut self) -> Option<Version>;
     /// Serve this http connection.
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()>;
 }
 
 /// Get Http version from alph.
-pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
-    if proto.as_ref().windows(2).any(|window| window == b"h2") {
-        Version::HTTP_2
-    } else {
-        Version::HTTP_11
-    }
-}
+// pub fn version_from_alpn(proto: impl AsRef<[u8]>) -> Version {
+//     if proto.as_ref().windows(2).any(|window| window == b"h2") {
+//         Version::HTTP_2
+//     } else {
+//         Version::HTTP_11
+//     }
+// }
 
 #[inline]
 pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {

@@ -9,8 +9,8 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
 use crate::conn::Holding;
-use crate::conn::HttpBuilders;
-use crate::http::{HttpConnection, Version};
+use crate::conn::HttpBuilder;
+use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
@@ -117,16 +117,10 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn version(&mut self) -> Option<Version> {
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.version().await,
-            JoinedStream::B(b) => b.version().await,
-        }
-    }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        match self {
-            JoinedStream::A(a) => a.serve(handler, builders).await,
-            JoinedStream::B(b) => b.serve(handler, builders).await,
+            JoinedStream::A(a) => a.serve(handler, builder).await,
+            JoinedStream::B(b) => b.serve(handler, builder).await,
         }
     }
 }
