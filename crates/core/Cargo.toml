@@ -68,6 +68,7 @@ salvo_macros = { workspace = true }
 salvo-utils = { workspace = true, features = ["runtime"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
+serde-xml-rs = { workspace = true }
 serde_urlencoded = { workspace = true, optional = true }
 tempfile = { workspace = true }
 textnonce = { workspace = true }

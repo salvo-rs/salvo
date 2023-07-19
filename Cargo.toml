@@ -88,7 +88,7 @@ salvo-cache = { version = "0.47.0", path = "crates/cache", default-features = fa
 salvo-cors = { version = "0.47.0", path = "crates/cors", default-features = false }
 salvo-csrf = { version = "0.47.0", path = "crates/csrf", default-features = false }
 salvo-flash = { version = "0.47.0", path = "crates/flash", default-features = false }
-salvo-http3 = { version = "0.0.2", default-features = false }
+salvo-http3 = { version = "0.0.3", default-features = false }
 salvo-jwt-auth = { version = "0.47.0", path = "crates/jwt-auth", default-features = false }
 salvo-oapi = { version = "0.47.0", path = "./crates/oapi", default-features = false }
 salvo-oapi-macros = { version = "0.47.0", path = "crates/oapi-macros", default-features = false }
@@ -99,6 +99,7 @@ salvo-serve-static = { version = "0.47.0", path = "crates/serve-static", default
 salvo-session = { version = "0.47.0", path = "crates/session", default-features = false }
 serde = "1"
 serde_json = "1"
+serde-xml-rs = "0.6"
 serde_urlencoded = "0.7"
 serde_yaml = "0.9"
 sha2 = "0.10"
