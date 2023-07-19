@@ -1,5 +1,5 @@
 //! TcpListener and it's implements.
-use std::io::{Error as IoError, Result as IoResult, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
 use std::vec;
 
