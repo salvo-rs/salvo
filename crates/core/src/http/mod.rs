@@ -26,7 +26,7 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 
 use crate::async_trait;
-use crate::conn::HttpBuilders;
+use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
 
 /// A helper trait for get a protocol from certain types.
@@ -35,7 +35,7 @@ pub trait HttpConnection {
     /// The http protocol version.
     async fn version(&mut self) -> Option<Version>;
     /// Serve this http connection.
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()>;
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()>;
 }
 
 /// Get Http version from alph.

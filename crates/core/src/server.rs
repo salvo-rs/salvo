@@ -13,7 +13,7 @@ use tokio::time::Duration;
 
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
@@ -22,7 +22,7 @@ use crate::Service;
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<A> {
     acceptor: A,
-    builders: HttpBuilders,
+    builder: HttpBuilder,
 }
 
 impl<A: Acceptor + Send> Server<A> {
@@ -43,7 +43,7 @@ impl<A: Acceptor + Send> Server<A> {
     pub fn new(acceptor: A) -> Self {
         Server {
             acceptor,
-            builders: HttpBuilders {
+            builder: HttpBuilder {
                 #[cfg(feature = "http1")]
                 http1: http1::Builder::new(),
                 #[cfg(feature = "http2")]
@@ -64,7 +64,7 @@ impl<A: Acceptor + Send> Server<A> {
         #![feature = "http1"]
         /// Use this function to set http1 protocol.
         pub fn http1_mut(&mut self) -> &mut http1::Builder {
-            &mut self.builders.http1
+            &mut self.builder.http1
         }
     }
 
@@ -72,7 +72,7 @@ impl<A: Acceptor + Send> Server<A> {
         #![feature = "http2"]
         /// Use this function to set http2 protocol.
         pub fn http2_mut(&mut self) -> &mut http2::Builder<crate::rt::TokioExecutor> {
-            &mut self.builders.http2
+            &mut self.builder.http2
         }
     }
 
@@ -80,7 +80,7 @@ impl<A: Acceptor + Send> Server<A> {
         #![feature = "quinn"]
         /// Use this function to set http3 protocol.
         pub fn quinn_mut(&mut self) -> &mut quinn::Builder {
-            &mut self.builders.quinn
+            &mut self.builder.quinn
         }
     }
 
@@ -156,7 +156,7 @@ impl<A: Acceptor + Send> Server<A> {
         S: Into<Service> + Send,
         G: Future<Output = ()> + Send + 'static,
     {
-        let Self { mut acceptor, builders } = self;
+        let Self { mut acceptor, builder } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
         let timeout_notify = Arc::new(Notify::new());
@@ -166,7 +166,7 @@ impl<A: Acceptor + Send> Server<A> {
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
             tracing::info!("listening {}", holding);
-            if holding.http_version == Version::HTTP_3 {
+            if holding.http_versions.contains(&Version::HTTP_3)  {
                 if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
                     alt_svc_h3 = Some(
@@ -179,7 +179,7 @@ impl<A: Acceptor + Send> Server<A> {
         }
 
         let service = Arc::new(service.into());
-        let builders = Arc::new(builders);
+        let builder = Arc::new(builder);
         loop {
             tokio::select! {
                 _ = &mut signal => {
@@ -207,10 +207,10 @@ impl<A: Acceptor + Send> Server<A> {
                             let notify = notify.clone();
                             let timeout_notify = timeout_notify.clone();
                             let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, alt_svc_h3.clone());
-                            let builders = builders.clone();
+                            let builder = builder.clone();
                             tokio::spawn(async move {
                                 alive_connections.fetch_add(1, Ordering::SeqCst);
-                                let conn = conn.serve(handler, builders);
+                                let conn = conn.serve(handler, builder);
                                 if timeout.is_some() {
                                     tokio::select! {
                                         _ = conn => {},

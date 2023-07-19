@@ -7,7 +7,7 @@ use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 
 use crate::async_trait;
-use crate::conn::{Holding, HttpBuilders};
+use crate::conn::{Holding, HttpBuilder};
 use crate::http::{HttpConnection, Version};
 use crate::rt::TokioIo;
 use crate::service::HyperHandler;
@@ -86,18 +86,9 @@ impl HttpConnection for UnixStream {
     async fn version(&mut self) -> Option<Version> {
         Some(Version::HTTP_11)
     }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        #[cfg(not(feature = "http1"))]
-        {
-            let _ = handler;
-            let _ = builders;
-            panic!("http1 feature is required");
-        }
-        #[cfg(feature = "http1")]
-        builders
-            .http1
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+        builder
             .serve_connection(TokioIo::new(self), handler)
-            .with_upgrades()
             .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }

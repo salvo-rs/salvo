@@ -55,7 +55,7 @@ mod joined;
 pub use joined::JoinedListener;
 
 mod proto;
-pub use proto::HttpBuilders;
+pub use proto::HttpBuilder;
 
 cfg_feature! {
     #![unix]
@@ -74,8 +74,7 @@ cfg_feature! {
         use crate::async_trait;
         use crate::service::HyperHandler;
         use crate::http::{version_from_alpn, HttpConnection, Version};
-        use crate::conn::HttpBuilders;
-        use crate::rt::TokioIo;
+        use crate::conn::HttpBuilder;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
         #[async_trait]
@@ -86,17 +85,9 @@ cfg_feature! {
             async fn version(&mut self) -> Option<Version> {
                 self.get_ref().1.alpn_protocol().map(version_from_alpn)
             }
-            async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-                #[cfg(not(feature = "http2"))]
-                {
-                    let _ = handler;
-                    let _ = builders;
-                    panic!("http2 feature is required");
-                }
-                #[cfg(feature = "http2")]
-                builders
-                    .http2
-                    .serve_connection(TokioIo::new(self), handler)
+            async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+                builder
+                    .serve_connection(self, handler)
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             }
@@ -172,8 +163,8 @@ pub trait Acceptor {
 pub struct Holding {
     /// Local addr.
     pub local_addr: SocketAddr,
-    /// Http version.
-    pub http_version: Version,
+    /// Http versions.
+    pub http_versions: Vec<Version>,
     /// Http scheme.
     pub http_scheme: Scheme,
 }
@@ -182,7 +173,7 @@ impl Display for Holding {
         write!(
             f,
             "{:?} on {}://{}",
-            self.http_version,
+            self.http_versions,
             self.http_scheme,
             self.local_addr.to_string().trim_start_matches("socket://")
         )

@@ -11,9 +11,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilders, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
 use crate::http::{version_from_alpn, HttpConnection, Version};
-use crate::rt::TokioIo;
 use crate::service::HyperHandler;
 
 use super::NativeTlsConfig;
@@ -64,17 +63,9 @@ where
     async fn version(&mut self) -> Option<Version> {
         self.get_ref().negotiated_alpn().ok().flatten().map(version_from_alpn)
     }
-    async fn serve(self, handler: HyperHandler, builders: Arc<HttpBuilders>) -> IoResult<()> {
-        #[cfg(not(feature = "http2"))]
-        {
-            let _ = handler;
-            let _ = builders;
-            panic!("http2 feature is required");
-        }
-        #[cfg(feature = "http2")]
-        builders
-            .http2
-            .serve_connection(TokioIo::new(self), handler)
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+        builder
+            .serve_connection(self, handler)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
@@ -96,10 +87,19 @@ where
         let holdings = inner
             .holdings()
             .iter()
-            .map(|h| Holding {
-                local_addr: h.local_addr.clone(),
-                http_version: Version::HTTP_2,
-                http_scheme: Scheme::HTTPS,
+            .map(|h| {
+                let mut versions = h.http_versions.clone();
+                if !versions.contains(&Version::HTTP_11) {
+                    versions.push(Version::HTTP_11);
+                }
+                if !versions.contains(&Version::HTTP_2) {
+                    versions.push(Version::HTTP_2);
+                }
+                Holding {
+                    local_addr: h.local_addr.clone(),
+                    http_versions: versions,
+                    http_scheme: Scheme::HTTPS,
+                }
             })
             .collect();
         NativeTlsAcceptor {
