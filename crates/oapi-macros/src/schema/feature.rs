@@ -2,7 +2,7 @@ use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::Attribute;
 
 use crate::feature::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Deprecated,Example, ExclusiveMaximum,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperties, Default, Deprecated, Example, ExclusiveMaximum,
     ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems,
     MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required,
     SchemaWith, Symbol, ValueType, WriteOnly, XmlAttr,
