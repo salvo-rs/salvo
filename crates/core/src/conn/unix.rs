@@ -1,5 +1,5 @@
 //! UnixListener module
-use std::io::Result as IoResult;
+use std::io::{Error as IoError, Result as IoResult, ErrorKind};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -86,7 +86,7 @@ impl HttpConnection for UnixStream {
         builder
             .serve_connection(self, handler)
             .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 

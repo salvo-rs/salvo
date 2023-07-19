@@ -61,12 +61,20 @@ impl HttpBuilder {
         };
         match protocol {
             Protocol::H1 => {
+                #[cfg(not(feature = "http1"))]
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "http1 feature not enabled").into());
+                #[cfg(feature = "http1")]
                 self.http1
                     .serve_connection(TokioIo::new(io), service)
                     .with_upgrades()
-                    .await?
+                    .await?;
             }
-            Protocol::H2 => self.http2.serve_connection(TokioIo::new(io), service).await?,
+            Protocol::H2 => {
+                #[cfg(not(feature = "http2"))]
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "http2 feature not enabled").into());
+                #[cfg(feature = "http2")]
+                self.http2.serve_connection(TokioIo::new(io), service).await?;
+            }
         }
 
         Ok(())

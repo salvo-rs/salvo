@@ -1,5 +1,5 @@
 //! TcpListener and it's implements.
-use std::io::{Error as IoError, Result as IoResult};
+use std::io::{Error as IoError, Result as IoResult, ErrorKind};
 use std::sync::Arc;
 use std::vec;
 
@@ -131,7 +131,7 @@ impl HttpConnection for TcpStream {
         builder
             .serve_connection(self, handler)
             .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
 }
 
