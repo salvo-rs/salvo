@@ -166,7 +166,7 @@ impl<A: Acceptor + Send> Server<A> {
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
             tracing::info!("listening {}", holding);
-            if holding.http_versions.contains(&Version::HTTP_3)  {
+            if holding.http_versions.contains(&Version::HTTP_3) {
                 if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
                     alt_svc_h3 = Some(
