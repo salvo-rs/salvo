@@ -80,15 +80,19 @@ impl<'c> ComponentSchema {
                 })
                 .to_tokens(&mut tokens);
             }
-            Some(GenericType::Cow) | Some(GenericType::Box) | Some(GenericType::RefCell) => {
+            Some(GenericType::Cow)
+            | Some(GenericType::Box)
+            | Some(GenericType::Arc)
+            | Some(GenericType::Rc)
+            | Some(GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
                         .as_ref()
-                        .expect("CompnentSchema generic container type should have children")
+                        .expect("ComponentSchema generic container type should have children")
                         .iter()
                         .next()
-                        .expect("CompnentSchema generic container type should have 1 child"),
+                        .expect("ComponentSchema generic container type should have 1 child"),
                     features: Some(features),
                     description,
                     deprecated,

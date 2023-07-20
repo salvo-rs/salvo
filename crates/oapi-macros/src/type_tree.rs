@@ -204,6 +204,8 @@ impl<'t> TypeTree<'t> {
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
+            "Arc" => Some(GenericType::Arc),
+            "Rc" => Some(GenericType::Rc),
             "RefCell" => Some(GenericType::RefCell),
             _ => None,
         }
@@ -274,4 +276,6 @@ pub(crate) enum GenericType {
     Cow,
     Box,
     RefCell,
+    Arc,
+    Rc,
 }
