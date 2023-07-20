@@ -103,23 +103,11 @@ struct Rewind<T> {
 }
 
 impl<T> Rewind<T> {
-    #[cfg(test)]
-    fn new(io: T) -> Self {
-        Rewind { pre: None, inner: io }
-    }
-
-    #[allow(dead_code)]
     fn new_buffered(io: T, buf: Bytes) -> Self {
         Rewind {
             pre: Some(buf),
             inner: io,
         }
-    }
-
-    #[cfg(test)]
-    fn rewind(&mut self, bs: Bytes) {
-        debug_assert!(self.pre.is_none());
-        self.pre = Some(bs);
     }
 }
 
