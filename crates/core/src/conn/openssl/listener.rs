@@ -163,20 +163,24 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        let ssl = Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-        let mut tls_stream =
-            SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-        use std::pin::Pin;
-        Pin::new(&mut tls_stream)
-            .accept()
-            .await
-            .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
-        Ok(Accepted {
-            conn: tls_stream,
-            local_addr,
-            remote_addr,
-            http_version,
-            http_scheme,
-        })
+        if http_scheme == Scheme::HTTPS {
+            let ssl = Ssl::new(tls_acceptor.context()).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            let mut tls_stream =
+                SslStream::new(ssl, conn).map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            use std::pin::Pin;
+            Pin::new(&mut tls_stream)
+                .accept()
+                .await
+                .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
+            Ok(Accepted {
+                conn: tls_stream,
+                local_addr,
+                remote_addr,
+                http_version,
+                http_scheme,
+            })
+        } else {
+            Err(IoError::new(ErrorKind::Other, "openssl: invalid scheme."))
+        }
     }
 }
