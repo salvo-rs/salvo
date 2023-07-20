@@ -80,7 +80,11 @@ impl<'c> ComponentSchema {
                 })
                 .to_tokens(&mut tokens);
             }
-            Some(GenericType::Cow) | Some(GenericType::Box)| Some(GenericType::Arc)| Some(GenericType::Rc) | Some(GenericType::RefCell) => {
+            Some(GenericType::Cow)
+            | Some(GenericType::Box)
+            | Some(GenericType::Arc)
+            | Some(GenericType::Rc)
+            | Some(GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
