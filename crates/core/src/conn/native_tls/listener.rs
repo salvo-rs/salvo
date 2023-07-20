@@ -163,7 +163,6 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        if http_scheme == Scheme::HTTPS {
             let conn = tls_acceptor
                 .accept(conn)
                 .await
@@ -175,8 +174,5 @@ where
                 http_version,
                 http_scheme,
             })
-        } else {
-            Err(IoError::new(ErrorKind::Other, "native_tls: invalid scheme."))
-        }
     }
 }

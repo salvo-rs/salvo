@@ -149,20 +149,16 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-        if http_scheme == Scheme::HTTPS {
-            let conn = tls_acceptor
-                .accept(conn)
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
-            Ok(Accepted {
-                conn,
-                local_addr,
-                remote_addr,
-                http_version,
-                http_scheme,
-            })
-        } else {
-            Err(IoError::new(ErrorKind::Other, "rustls: invalid scheme."))
-        }
+        let conn = tls_acceptor
+            .accept(conn)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        Ok(Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        })
     }
 }
