@@ -32,7 +32,7 @@ rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-time = {workspace = true, features = ["formatting", "serde"] }
+time = {workspace = true, features = ["formatting", "macros", "serde"] }
 tracing = { workspace = true }
 tokio = { workspace = true }
 

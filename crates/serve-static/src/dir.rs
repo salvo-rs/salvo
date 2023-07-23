@@ -13,7 +13,7 @@ use salvo_core::writing::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use time::{format_description, OffsetDateTime};
+use time::{macros::format_description, OffsetDateTime};
 
 use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url};
 
@@ -315,7 +315,7 @@ fn list_xml(current: &CurrentInfo) -> String {
     if current.dirs.is_empty() && current.files.is_empty() {
         ftxt.push_str("No files");
     } else {
-        let format = format_description::parse("%Y-%m-%d %H:%M:%S").unwrap();
+        let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
             write!(
                 ftxt,
@@ -375,7 +375,7 @@ fn list_html(current: &CurrentInfo) -> String {
             write!(ftxt, "<a href=\"../\">[..]</a>").ok();
         }
         write!(ftxt, "</th><th>Name</th><th>Last modified</th><th>Size</th></tr>").ok();
-        let format = format_description::parse("%Y-%m-%d %H:%M:%S").unwrap();
+        let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
         for dir in &current.dirs {
             write!(
                 ftxt,
