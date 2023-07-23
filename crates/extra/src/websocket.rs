@@ -70,7 +70,7 @@ impl WebSocketUpgrade {
     /// It is often more optimal to allow them to buffer a little, hence the default value.
     #[inline]
     pub fn write_buffer_size(mut self, max: usize) -> Self {
-        self.config.get_or_insert_with(WebSocketConfig::default).write_buffer_size = Some(max);
+        self.config.get_or_insert_with(WebSocketConfig::default).write_buffer_size = max;
         self
     }
 
@@ -86,7 +86,7 @@ impl WebSocketUpgrade {
     /// and probably a little more depending on error handling strategy.
     #[inline]
     pub fn max_write_buffer_size(mut self, max: usize) -> Self {
-        self.config.get_or_insert_with(WebSocketConfig::default).max_write_buffer_size = Some(max);
+        self.config.get_or_insert_with(WebSocketConfig::default).max_write_buffer_size = max;
         self
     }
 
