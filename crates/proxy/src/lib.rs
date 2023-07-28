@@ -175,22 +175,25 @@ where
         let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
         let proxied_request = proxied_request.map(reqwest::Body::wrap_stream);
-        let mut response = self
+        let response = self
             .client
             .execute(proxied_request.try_into().map_err(Error::other)?)
             .await
             .map_err(Error::other)?;
 
-        if response.status() == StatusCode::SWITCHING_PROTOCOLS {
+        let res_headers = response.headers().clone();
+        let hyper_response = hyper::Response::builder()
+            .status(response.status())
+            .version(response.version());
+
+        let mut hyper_response = if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = get_upgrade_type(response.headers());
 
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let response_upgraded = response
-                    .extensions_mut()
-                    .remove::<OnUpgrade>()
-                    .ok_or_else(|| Error::other("response does not have an upgrade extension"))?
-                    .await?;
-                let mut response_upgraded = TokioIo::new(response_upgraded);
+                let mut response_upgraded = response
+                    .upgrade()
+                    .await
+                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {}", e)))?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
@@ -212,13 +215,12 @@ where
             } else {
                 return Err(Error::other("upgrade type mismatch"));
             }
-        }
-        let res_headers = response.headers().clone();
-        let mut hyper_response = hyper::Response::builder()
-            .status(response.status())
-            .version(response.version())
-            .body(ResBody::Stream(Box::pin(response.bytes_stream().map_err(|e| e.into()))))
-            .map_err(Error::other)?;
+            hyper_response.body(ResBody::None).map_err(Error::other)?
+        } else {
+            hyper_response
+                .body(ResBody::Stream(Box::pin(response.bytes_stream().map_err(|e| e.into()))))
+                .map_err(Error::other)?
+        };
         *hyper_response.headers_mut() = res_headers;
         Ok(hyper_response)
     }
