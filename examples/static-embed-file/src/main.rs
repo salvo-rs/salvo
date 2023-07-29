@@ -21,5 +21,7 @@ async fn serve_file(req: &mut Request, res: &mut Response) {
     let path = req.param::<String>("**path").unwrap();
     if let Some(file) = Assets::get(&path) {
         file.render(req, res);
+    } else {
+        res.status_code(StatusCode::NOT_FOUND);
     }
 }
