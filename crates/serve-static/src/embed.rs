@@ -56,6 +56,9 @@ fn render_embedded_data(
     res: &mut Response,
     mime: Option<Mime>,
 ) {
+    let mime = mime.unwrap_or_else(|| mime_guess::from_path(req.uri().path()).first_or_octet_stream());
+    res.headers_mut().insert(CONTENT_TYPE, mime.as_ref().parse().unwrap());
+
     let hash = hex::encode(metadata.sha256_hash());
     // if etag is matched, return 304
     if req
@@ -71,8 +74,6 @@ fn render_embedded_data(
     // otherwise, return 200 with etag hash
     res.headers_mut().insert(ETAG, hash.parse().unwrap());
 
-    let mime = mime.unwrap_or_else(|| mime_guess::from_path(req.uri().path()).first_or_octet_stream());
-    res.headers_mut().insert(CONTENT_TYPE, mime.as_ref().parse().unwrap());
     match data {
         Cow::Borrowed(data) => {
             res.write_body(data).ok();
