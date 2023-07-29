@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{RefOr, Schema,Discriminator};
+use crate::{Discriminator, RefOr, Schema};
 
 /// OneOf [Composite Object][oneof] component holds
 /// multiple components together where API endpoint could return any of them.

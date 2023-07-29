@@ -320,33 +320,33 @@ impl<'c> ComponentSchema {
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
                         let schema = if default.is_some() || nullable.is_some() {
-                        quote_spanned! {type_path.span()=>
-                                    #oapi::oapi::schema::AllOf::new()
-                                        #nullable
-                                        .item(#schema)
-                                    #default
-                                }
-                            } else {
-                                quote_spanned! {type_path.span() =>
-                                    #schema
-                                }
-                            };
-                            schema.to_tokens(tokens);
+                            quote_spanned! {type_path.span()=>
+                                #oapi::oapi::schema::AllOf::new()
+                                    #nullable
+                                    .item(#schema)
+                                #default
+                            }
+                        } else {
+                            quote_spanned! {type_path.span() =>
+                                #schema
+                            }
+                        };
+                        schema.to_tokens(tokens);
                     } else {
                         let default = pop_feature!(features => Feature::Default(_));
                         let schema = if default.is_some() || nullable.is_some() {
-                             quote! {
-                                    #oapi::oapi::schema::AllOf::new()
-                                        #nullable
-                                        .item(#schema)
-                                        #default
-                                }
-                            } else {
-                                quote! {
-                                    #schema
-                                }
-                            };
-                            schema.to_tokens(tokens);
+                            quote! {
+                                #oapi::oapi::schema::AllOf::new()
+                                    #nullable
+                                    .item(#schema)
+                                    #default
+                            }
+                        } else {
+                            quote! {
+                                #schema
+                            }
+                        };
+                        schema.to_tokens(tokens);
                     }
                 }
             }
