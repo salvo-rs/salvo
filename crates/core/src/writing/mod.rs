@@ -44,6 +44,22 @@ where
 }
 
 #[async_trait]
+impl<P> Writer for Option<P>
+where
+    P: Piece + Sized + Send,
+{
+    #[inline]
+    async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        match self {
+            Some(v) => v.render(res),
+            None => {
+                res.status_code(StatusCode::NOT_FOUND);
+            }
+        }
+    }
+}
+
+#[async_trait]
 impl<T, E> Writer for Result<T, E>
 where
     T: Writer + Send,
