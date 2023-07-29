@@ -128,6 +128,7 @@ impl<'c> ComponentSchema {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
+        let default = pop_feature!(features => Feature::Default(_));
 
         let additional_properties = additional_properties
             .as_ref()
@@ -160,6 +161,7 @@ impl<'c> ComponentSchema {
                 #additional_properties
                 #description_stream
                 #deprecated_stream
+                #default
         });
 
         example.to_tokens(tokens);
@@ -181,6 +183,7 @@ impl<'c> ComponentSchema {
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
+        let default = pop_feature!(features => Feature::Default(_));
 
         let child = type_tree
             .children
@@ -237,6 +240,10 @@ impl<'c> ComponentSchema {
         if let Some(min_items) = min_items {
             validate(&min_items);
             tokens.extend(min_items.to_token_stream())
+        }
+
+        if let Some(default) = default {
+            tokens.extend(default.to_token_stream())
         }
 
         example.to_tokens(tokens);
@@ -311,35 +318,35 @@ impl<'c> ComponentSchema {
                         }
                     };
                     if is_inline {
-                        nullable
-                            .map(|nullable| {
-                                quote_spanned! {type_path.span()=>
-                                    #oapi::oapi::schema::AllOf::new()
-                                        #nullable
-                                        .item(#schema)
-                                }
-                            })
-                            .unwrap_or_else(|| {
-                                quote_spanned! {type_path.span() =>
-                                    #schema
-                                }
-                            })
-                            .to_tokens(tokens);
+                        let default = pop_feature!(features => Feature::Default(_));
+                        let schema = if default.is_some() || nullable.is_some() {
+                            quote_spanned! {type_path.span()=>
+                                #oapi::oapi::schema::AllOf::new()
+                                    #nullable
+                                    .item(#schema)
+                                #default
+                            }
+                        } else {
+                            quote_spanned! {type_path.span() =>
+                                #schema
+                            }
+                        };
+                        schema.to_tokens(tokens);
                     } else {
-                        nullable
-                            .map(|nullable| {
-                                quote! {
-                                    #oapi::oapi::schema::AllOf::new()
-                                        #nullable
-                                        .item(#schema)
-                                }
-                            })
-                            .unwrap_or_else(|| {
-                                quote! {
-                                    #schema
-                                }
-                            })
-                            .to_tokens(tokens);
+                        let default = pop_feature!(features => Feature::Default(_));
+                        let schema = if default.is_some() || nullable.is_some() {
+                            quote! {
+                                #oapi::oapi::schema::AllOf::new()
+                                    #nullable
+                                    .item(#schema)
+                                    #default
+                            }
+                        } else {
+                            quote! {
+                                #schema
+                            }
+                        };
+                        schema.to_tokens(tokens);
                     }
                 }
             }
