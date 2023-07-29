@@ -247,7 +247,7 @@ tuples separated by commas:
 
 * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
 
-* `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+* `explode` Defines whether new _`parameter=value`_ is created for each parameter within _`object`_ or _`array`_.
 
 * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 

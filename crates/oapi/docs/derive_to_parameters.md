@@ -64,7 +64,7 @@ The following attributes are available for use in the `#[salvo(parameter(...))]`
 
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 
-* `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
+* `explode` Defines whether new _`parameter=value`_ pair is created for each parameter within _`object`_ or _`array`_.
 
 * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 
