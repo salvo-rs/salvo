@@ -6,7 +6,7 @@ resolver = "2"
 version = "0.49.1"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 description = """
 Salvo is a powerful and simple Rust web server framework.
 """
@@ -59,10 +59,10 @@ native-tls = "0.2"
 num-traits = "0.2"
 once_cell = "1"
 openssl = "0.10"
-opentelemetry-http = { version = "0.8", default-features = false }
-opentelemetry-semantic-conventions = { version = "0.11", default-features = false }
-opentelemetry-prometheus = { version = "0.12", default-features = false }
-opentelemetry = { version = "0.19", default-features = false }
+opentelemetry-http = { version = "0.9", default-features = false }
+opentelemetry-semantic-conventions = { version = "0.12", default-features = false }
+opentelemetry-prometheus = { version = "0.13", default-features = false }
+opentelemetry = { version = "0.20", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
