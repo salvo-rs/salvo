@@ -62,6 +62,7 @@ where
 }
 
 /// Identify user by Request Uri.
+#[derive(Clone, Debug)]
 pub struct RequestIssuer {
     use_scheme: bool,
     use_authority: bool,

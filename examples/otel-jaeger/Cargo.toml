@@ -24,7 +24,7 @@ tracing-subscriber.workspace = true
 opentelemetry = { workspace = true, features = ["metrics", "rt-tokio"] }
 reqwest = "0.11"
 prometheus = "0.13"
-opentelemetry-prometheus .workspace = true
-opentelemetry-http .workspace = true
+opentelemetry-prometheus.workspace = true
+opentelemetry-http.workspace = true
 opentelemetry-jaeger = { workspace = true, features = ["rt-tokio", "collector_client", "hyper_collector_client"] }
  
