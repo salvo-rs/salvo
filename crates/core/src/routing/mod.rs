@@ -1,9 +1,9 @@
 //! Routing and filters
 //! Router can route http requests to different handlers.
 
-pub mod filter;
+pub mod filters;
 mod router;
-pub use filter::*;
+pub use filters::*;
 pub use router::{DetectMatched, Router};
 
 use std::borrow::Cow;

@@ -17,7 +17,7 @@ pub use openapi::*;
 pub mod endpoint;
 pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
-mod router;
+mod routing;
 
 cfg_feature! {
     #![feature ="swagger-ui"]

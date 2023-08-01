@@ -43,7 +43,7 @@ pub mod server;
 mod tag;
 mod xml;
 
-use crate::{router::NormNode, Endpoint};
+use crate::{routing::NormNode, Endpoint};
 
 static PATH_PARAMETER_NAME_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{([^}:]+)").unwrap());
 

@@ -1,7 +1,7 @@
 use std::fmt::{self, Formatter};
 use std::sync::Arc;
 
-use super::filter;
+use super::filters;
 use super::{Filter, FnFilter, PathFilter, PathState};
 use crate::handler::{Handler, WhenHoop};
 use crate::http::uri::Scheme;
@@ -302,82 +302,82 @@ impl Router {
 
     /// Add a [`SchemeFilter`] to current router.
     ///
-    /// [`SchemeFilter`]: super::filter::HostFilter
+    /// [`SchemeFilter`]: super::filters::HostFilter
     #[inline]
     pub fn scheme(self, scheme: Scheme) -> Self {
-        self.filter(filter::scheme(scheme))
+        self.filter(filters::scheme(scheme))
     }
 
     /// Add a [`HostFilter`] to current router.
     ///
-    /// [`HostFilter`]: super::filter::HostFilter
+    /// [`HostFilter`]: super::filters::HostFilter
     #[inline]
     pub fn host(self, host: impl Into<String>) -> Self {
-        self.filter(filter::host(host))
+        self.filter(filters::host(host))
     }
 
     /// Add a [`PortFilter`] to current router.
     ///
-    /// [`PortFilter`]: super::filter::PortFilter
+    /// [`PortFilter`]: super::filters::PortFilter
     #[inline]
     pub fn port(self, port: u16) -> Self {
-        self.filter(filter::port(port))
+        self.filter(filters::port(port))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter get method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::get()).handle(handler))
+        self.push(Router::with_filter(filters::get()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::post()).handle(handler))
+        self.push(Router::with_filter(filters::post()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::put()).handle(handler))
+        self.push(Router::with_filter(filters::put()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::delete()).handle(handler))
+        self.push(Router::with_filter(filters::delete()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::patch()).handle(handler))
+        self.push(Router::with_filter(filters::patch()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::head()).handle(handler))
+        self.push(Router::with_filter(filters::head()).handle(handler))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
     ///
-    /// [`MethodFilter`]: super::filter::MethodFilter
+    /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
     pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filter::options()).handle(handler))
+        self.push(Router::with_filter(filters::options()).handle(handler))
     }
 }
 
