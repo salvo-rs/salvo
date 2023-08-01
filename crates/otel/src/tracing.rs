@@ -33,10 +33,10 @@ where
         attributes.push(resource::TELEMETRY_SDK_NAME.string(env!("CARGO_CRATE_NAME")));
         attributes.push(resource::TELEMETRY_SDK_VERSION.string(env!("CARGO_PKG_VERSION")));
         attributes.push(resource::TELEMETRY_SDK_LANGUAGE.string("rust"));
-        attributes.push(trace::HTTP_METHOD.string(req.method().to_string()));
-        attributes.push(trace::HTTP_URL.string(req.uri().to_string()));
-        attributes.push(trace::HTTP_CLIENT_IP.string(remote_addr));
-        attributes.push(trace::HTTP_FLAVOR.string(format!("{:?}", req.version())));
+        attributes.push(trace::HTTP_REQUEST_METHOD.string(req.method().to_string()));
+        attributes.push(trace::URL_FULL.string(req.uri().to_string()));
+        attributes.push(trace::CLIENT_ADDRESS.string(remote_addr));
+        attributes.push(trace::NETWORK_PROTOCOL_VERSION.string(format!("{:?}", req.version())));
         let mut span = self
             .tracer
             .span_builder(format!("{} {}", req.method(), req.uri()))
@@ -58,9 +58,9 @@ where
                 "request.success"
             };
             span.add_event(event.to_string(), vec![]);
-            span.set_attribute(trace::HTTP_STATUS_CODE.i64(status.as_u16() as i64));
+            span.set_attribute(trace::HTTP_RESPONSE_STATUS_CODE.i64(status.as_u16() as i64));
             if let Some(content_length) = res.headers().typed_get::<headers::ContentLength>() {
-                span.set_attribute(trace::HTTP_RESPONSE_CONTENT_LENGTH.i64(content_length.0 as i64));
+                span.set_attribute(trace::HTTP_RESPONSE_BODY_SIZE.i64(content_length.0 as i64));
             }
         }
         .with_context(Context::current_with_span(span))
