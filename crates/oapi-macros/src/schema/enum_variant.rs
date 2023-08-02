@@ -88,6 +88,7 @@ pub(crate) struct Enum<'e, V: Variant> {
     items: Array<'e, TokenStream>,
     schema_type: TokenStream,
     enum_type: TokenStream,
+    description: Option<TokenStream>,
     _p: PhantomData<V>,
 }
 
@@ -105,6 +106,11 @@ impl<V: Variant> Enum<'_, V> {
         self.example = Some(example.into());
         self
     }
+
+    pub(crate) fn description<I: Into<TokenStream>>(mut self, description: I) -> Self {
+        self.description = Some(description.into());
+        self
+    }
 }
 
 impl<T> ToTokens for Enum<'_, T>
@@ -119,10 +125,12 @@ where
         let items = &self.items;
         let schema_type = &self.schema_type;
         let enum_type = &self.enum_type;
+        let description = &self.description;
 
         tokens.extend(quote! {
             #oapi::oapi::Object::new()
                 #symbol
+                #description
                 #example
                 .schema_type(#schema_type)
                 .enum_values::<[#enum_type; #len], #enum_type>(#items)
@@ -151,6 +159,7 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
         Self {
             symbol: None,
             example: None,
+            description: None,
             len,
             items,
             schema_type,

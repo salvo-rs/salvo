@@ -438,6 +438,8 @@ impl ComplexEnum<'_> {
                 );
 
                 let example = pop_feature!(unit_features => Feature::Example(_));
+                let description = CommentAttributes::from_attributes(&variant.attrs).as_formatted_string();
+                let description = (!description.is_empty()).then(|| Feature::Description(description.into()));
 
                 // Unit variant is just simple enum with single variant.
                 let mut sev = Enum::new([SimpleEnumVariant {
@@ -448,6 +450,9 @@ impl ComplexEnum<'_> {
                 }
                 if let Some(example) = example {
                     sev = sev.example(example.to_token_stream());
+                }
+                if let Some(description) = description {
+                    sev = sev.description(description.to_token_stream());
                 }
                 sev.to_token_stream()
             }
