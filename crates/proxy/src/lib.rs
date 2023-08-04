@@ -79,9 +79,13 @@ where
 }
 
 /// Proxy
+#[non_exhaustive]
+
 pub struct Proxy<U> {
-    upstreams: U,
-    client: Client,
+    /// Upstreams list.
+    pub upstreams: U,
+    /// [`Client`] for proxy.
+    pub client: Client,
 }
 
 impl<U> Proxy<U>
@@ -96,6 +100,10 @@ where
             client: Client::new(),
         }
     }
+    /// Create new `Proxy` with upstreams list and [`Client`].
+    pub fn with_client(upstreams: U, client: Client) -> Self {
+        Proxy { upstreams, client }
+    }
 
     /// Get upstreams list.
     #[inline]
@@ -106,6 +114,17 @@ where
     #[inline]
     pub fn upstreams_mut(&mut self) -> &mut U {
         &mut self.upstreams
+    }
+
+    /// Get client reference.
+    #[inline]
+    pub fn client(&self) -> &Client {
+        &self.client
+    }
+    /// Get client mutable reference.
+    #[inline]
+    pub fn client_mut(&mut self) -> &mut Client {
+        &mut self.client
     }
 
     #[inline]
