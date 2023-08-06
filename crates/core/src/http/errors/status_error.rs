@@ -46,7 +46,7 @@ impl StatusError {
         self.brief = brief.into();
         self
     }
-    /// Sets brief field and returns Self.
+    /// Sets detail field and returns Self.
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
