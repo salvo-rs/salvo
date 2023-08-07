@@ -3,9 +3,11 @@ use std::io::{self, Result as IoResult};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::Holding;
@@ -117,10 +119,12 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>,
+        graceful_shutdown_token: CancellationToken,
+        idle_connection_close_timeout: Option<Duration>,) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.serve(handler, builder).await,
-            JoinedStream::B(b) => b.serve(handler, builder).await,
+            JoinedStream::A(a) => a.serve(handler, builder, graceful_shutdown_token, idle_connection_close_timeout).await,
+            JoinedStream::B(b) => b.serve(handler, builder, graceful_shutdown_token, idle_connection_close_timeout).await,
         }
     }
 }

@@ -2,8 +2,10 @@
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
 use std::vec;
+use std::time::Duration;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
@@ -127,9 +129,15 @@ impl TryFrom<TokioTcpListener> for TcpAcceptor {
 
 #[async_trait]
 impl HttpConnection for TcpStream {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        graceful_shutdown_token: CancellationToken,
+        idle_connection_close_timeout: Option<Duration>,
+    ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler)
+            .serve_connection(self, handler, graceful_shutdown_token, idle_connection_close_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
