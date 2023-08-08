@@ -67,9 +67,11 @@ cfg_feature! {
     mod sealed {
         use std::io::{Error as IoError, ErrorKind, Result as IoResult};
         use std::sync::Arc;
+        use std::time::Duration;
 
         use tokio_rustls::server::TlsStream;
         use tokio::io::{AsyncRead, AsyncWrite};
+        use tokio_util::sync::CancellationToken;
 
         use crate::async_trait;
         use crate::service::HyperHandler;
@@ -82,9 +84,11 @@ cfg_feature! {
         where
             S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
         {
-            async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+            async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>,
+                server_shutdown_token: CancellationToken,
+                idle_connection_timeout: Option<Duration>) -> IoResult<()> {
                 builder
-                    .serve_connection(self, handler)
+                    .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
                     .await
                     .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
             }

@@ -2,6 +2,7 @@
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
@@ -9,6 +10,7 @@ use futures_util::{Stream, StreamExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
@@ -60,9 +62,15 @@ impl<S> HttpConnection for TlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler)
+            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }
@@ -163,16 +171,16 @@ where
             http_version,
             http_scheme,
         } = self.inner.accept().await?;
-            let conn = tls_acceptor
-                .accept(conn)
-                .await
-                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
-            Ok(Accepted {
-                conn,
-                local_addr,
-                remote_addr,
-                http_version,
-                http_scheme,
-            })
+        let conn = tls_acceptor
+            .accept(conn)
+            .await
+            .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+        Ok(Accepted {
+            conn,
+            local_addr,
+            remote_addr,
+            http_version,
+            http_scheme,
+        })
     }
 }

@@ -1,7 +1,7 @@
 //! openssl module
 use std::io::{Error as IoError, Result as IoResult};
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll};use std::time::Duration;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
@@ -10,7 +10,7 @@ use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_openssl::SslStream;
+use tokio_openssl::SslStream;use tokio_util::sync::CancellationToken;
 
 use super::OpensslConfig;
 
@@ -105,9 +105,15 @@ impl<S> HttpConnection for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler)
+            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

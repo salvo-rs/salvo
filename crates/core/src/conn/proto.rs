@@ -1,16 +1,23 @@
+use std::cmp;
 use std::error::Error as StdError;
+use std::future::Future;
+use std::io::Result as IoResult;
+use std::io::{self, IoSlice};
 use std::marker::Unpin;
-use std::{cmp, io};
-use std::{
-    pin::Pin,
-    task::{self, Poll},
-};
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{self, Context, Poll};
+use std::time::Duration;
 
 use bytes::{Buf, Bytes};
 
 use http::{Request, Response};
 use hyper::service::Service;
+use pin_project::pin_project;
+use tokio::io::BufReader;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
+use tokio::sync::{oneshot, Notify};
+use tokio_util::sync::CancellationToken;
 
 use crate::http::body::{Body, HyperBody};
 use crate::rt::TokioIo;
@@ -41,7 +48,13 @@ pub struct HttpBuilder {
 
 impl HttpBuilder {
     /// Bind a connection together with a [`Service`].
-    pub async fn serve_connection<I, S, B>(&self, mut io: I, service: S) -> Result<()>
+    pub async fn serve_connection<I, S, B>(
+        &self,
+        mut io: I,
+        service: S,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> Result<()>
     where
         S: Service<Request<HyperBody>, Response = Response<B>> + Send,
         S::Future: Send + 'static,
@@ -57,36 +70,82 @@ impl HttpBuilder {
             H2,
         }
 
+        let conn_shutdown_token = CancellationToken::new();
         let mut buf = Vec::new();
-        let protocol = loop {
-            if buf.len() < 24 {
-                io.read_buf(&mut buf).await?;
-
-                let len = buf.len().min(H2_PREFACE.len());
-
-                if buf[0..len] != H2_PREFACE[0..len] {
-                    break Protocol::H1;
-                }
+        let mut buf_reader = BufReader::new(&mut io);
+        let protocol = if buf_reader.read_exact(&mut buf).await.is_ok() {
+            if buf == H2_PREFACE {
+                Protocol::H2
             } else {
-                break Protocol::H2;
+                Protocol::H1
             }
+        } else {
+            Protocol::H1
         };
-        let io = Rewind::new_buffered(io, Bytes::from(buf));
+        let socket = Rewind::new_buffered(io, Bytes::from(buf));
+
+        let socket = match idle_connection_timeout {
+            Some(timeout) => tokio_util::either::Either::Left(ClosingInactiveConnection::new(socket, timeout, {
+                let conn_shutdown_token = conn_shutdown_token.clone();
+
+                move || {
+                    let conn_shutdown_token = conn_shutdown_token.clone();
+                    async move {
+                        conn_shutdown_token.cancel();
+                    }
+                }
+            })),
+            None => tokio_util::either::Either::Right(socket),
+        };
+
         match protocol {
             Protocol::H1 => {
                 #[cfg(not(feature = "http1"))]
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, "http1 feature not enabled").into());
                 #[cfg(feature = "http1")]
-                self.http1
-                    .serve_connection(TokioIo::new(io), service)
-                    .with_upgrades()
-                    .await?;
+                {
+                    let mut conn = self
+                        .http1
+                        .serve_connection(TokioIo::new(socket), service)
+                        .with_upgrades();
+
+                    tokio::select! {
+                        _ = &mut conn => {
+                            // Connection completed successfully.
+                            return Ok(());
+                        },
+                        _ = conn_shutdown_token.cancelled() => {
+                            tracing::info!("closing connection due to inactivity");
+                        }
+                        _ = server_shutdown_token.cancelled() => {}
+                    }
+
+                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
+                    Pin::new(&mut conn).graceful_shutdown();
+                    conn.await.ok();
+                }
             }
             Protocol::H2 => {
                 #[cfg(not(feature = "http2"))]
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, "http2 feature not enabled").into());
                 #[cfg(feature = "http2")]
-                self.http2.serve_connection(TokioIo::new(io), service).await?;
+                {
+                    let mut conn = self.http2.serve_connection(TokioIo::new(socket), service);
+                    tokio::select! {
+                        _ = &mut conn => {
+                            // Connection completed successfully.
+                            return Ok(());
+                        },
+                        _ = conn_shutdown_token.cancelled() => {
+                            tracing::info!("closing connection due to inactivity");
+                        }
+                        _ = server_shutdown_token.cancelled() => {}
+                    }
+
+                    // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
+                    Pin::new(&mut conn).graceful_shutdown();
+                    conn.await.ok();
+                }
             }
         }
 
@@ -127,10 +186,11 @@ where
                 if !prefix.is_empty() {
                     self.pre = Some(prefix);
                 }
-
+                println!("======poll ready  {} remaing: {}", copy_len, buf.remaining());
                 return Poll::Ready(Ok(()));
             }
         }
+        println!("======inner poll poll_read");
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 }
@@ -161,5 +221,103 @@ where
 
     fn is_write_vectored(&self) -> bool {
         self.inner.is_write_vectored()
+    }
+}
+
+#[pin_project]
+struct ClosingInactiveConnection<T> {
+    #[pin]
+    inner: T,
+    #[pin]
+    alive: Arc<Notify>,
+    timeout: Duration,
+    stop_tx: oneshot::Sender<()>,
+}
+
+impl<T> AsyncRead for ClosingInactiveConnection<T>
+where
+    T: AsyncRead,
+{
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        let this = self.project();
+
+        match this.inner.poll_read(cx, buf) {
+            Poll::Ready(Ok(())) => {
+                this.alive.notify_waiters();
+                Poll::Ready(Ok(()))
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl<T> AsyncWrite for ClosingInactiveConnection<T>
+where
+    T: AsyncWrite,
+{
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+        let this = self.project();
+        this.alive.notify_waiters();
+        this.inner.poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        let this = self.project();
+        this.alive.notify_waiters();
+        this.inner.poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        let this = self.project();
+        this.alive.notify_waiters();
+        this.inner.poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
+        let this = self.project();
+        this.alive.notify_waiters();
+        this.inner.poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
+    }
+}
+
+impl<T> ClosingInactiveConnection<T> {
+    fn new<F, Fut>(inner: T, timeout: Duration, mut f: F) -> ClosingInactiveConnection<T>
+    where
+        F: Send + FnMut() -> Fut + 'static,
+        Fut: Future + Send + 'static,
+    {
+        let alive = Arc::new(Notify::new());
+        let (stop_tx, stop_rx) = oneshot::channel();
+        tokio::spawn({
+            let alive = alive.clone();
+
+            async move {
+                let check_timeout = async {
+                    loop {
+                        match tokio::time::timeout(timeout, alive.notified()).await {
+                            Ok(()) => {}
+                            Err(_) => {
+                                f().await;
+                            }
+                        }
+                    }
+                };
+                tokio::select! {
+                    _ = stop_rx => {},
+                    _ = check_timeout => {}
+                }
+            }
+        });
+        Self {
+            inner,
+            alive,
+            timeout,
+            stop_tx,
+        }
     }
 }

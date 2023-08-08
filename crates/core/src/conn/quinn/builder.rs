@@ -3,6 +3,7 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use bytes::Bytes;
 use futures_util::future::poll_fn;
@@ -10,6 +11,7 @@ use futures_util::Stream;
 use salvo_http3::error::ErrorLevel;
 use salvo_http3::ext::Protocol;
 use salvo_http3::server::RequestStream;
+use tokio_util::sync::CancellationToken;
 
 use crate::http::body::{H3ReqBody, ReqBody};
 use crate::http::Method;
@@ -53,6 +55,8 @@ impl Builder {
         &self,
         conn: crate::conn::quinn::H3Connection,
         hyper_handler: crate::service::HyperHandler,
+        _server_shutdown_token: CancellationToken, //TODO
+        _idle_connection_timeout: Option<Duration>, //TODO
     ) -> IoResult<()> {
         let mut conn = self
             .0

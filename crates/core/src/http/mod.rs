@@ -24,6 +24,9 @@ pub use http::version::Version;
 
 use std::io::Result as IoResult;
 use std::sync::Arc;
+use std::time::Duration;
+
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::HttpBuilder;
@@ -33,7 +36,13 @@ use crate::service::HyperHandler;
 #[async_trait]
 pub trait HttpConnection {
     /// Serve this http connection.
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()>;
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()>;
 }
 
 /// Get Http version from alph.

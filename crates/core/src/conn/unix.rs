@@ -1,10 +1,12 @@
 //! UnixListener module
-use std::io::{Error as IoError, Result as IoResult, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
@@ -82,9 +84,15 @@ impl Acceptor for UnixAcceptor {
 
 #[async_trait]
 impl HttpConnection for UnixStream {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler)
+            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

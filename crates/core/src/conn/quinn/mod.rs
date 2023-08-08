@@ -5,12 +5,14 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use std::vec;
 
 use http::uri::Scheme;
-use salvo_http3::http3_quinn::{self, Endpoint};
 pub use salvo_http3::http3_quinn::ServerConfig;
+use salvo_http3::http3_quinn::{self, Endpoint};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
@@ -116,8 +118,14 @@ impl AsyncWrite for H3Connection {
 
 #[async_trait]
 impl HttpConnection for H3Connection {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>) -> IoResult<()> {
-        builder.quinn.serve_connection(self, handler).await
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()> {
+        builder.quinn.serve_connection(self, handler, server_shutdown_token, idle_connection_timeout).await
     }
 }
 

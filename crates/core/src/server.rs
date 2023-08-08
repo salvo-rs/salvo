@@ -10,6 +10,7 @@ use hyper::server::conn::http1;
 use hyper::server::conn::http2;
 use tokio::sync::Notify;
 use tokio::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
@@ -23,6 +24,7 @@ use crate::Service;
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
+    idle_timeout: Option<Duration>,
 }
 
 impl<A: Acceptor + Send> Server<A> {
@@ -51,6 +53,7 @@ impl<A: Acceptor + Send> Server<A> {
                 #[cfg(feature = "quinn")]
                 quinn: crate::conn::quinn::Builder::new(),
             },
+            idle_timeout: None,
         }
     }
 
@@ -82,6 +85,14 @@ impl<A: Acceptor + Send> Server<A> {
         pub fn quinn_mut(&mut self) -> &mut quinn::Builder {
             &mut self.builder.quinn
         }
+    }
+
+    /// Specify connection idle timeout. Connections will be terminated if there was no activity
+    /// within this period of time.
+    #[must_use]
+    pub fn idle_timeout(mut self, timeout: Duration) -> Self {
+        self.idle_timeout = Some(timeout);
+        self
     }
 
     /// Serve a [`Service`]
@@ -156,10 +167,15 @@ impl<A: Acceptor + Send> Server<A> {
         S: Into<Service> + Send,
         G: Future<Output = ()> + Send + 'static,
     {
-        let Self { mut acceptor, builder } = self;
+        let Self {
+            mut acceptor,
+            builder,
+            idle_timeout,
+        } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
-        let timeout_notify = Arc::new(Notify::new());
+        let timeout_token = CancellationToken::new();
+        let server_shutdown_token = CancellationToken::new();
 
         tokio::pin!(signal);
 
@@ -183,16 +199,17 @@ impl<A: Acceptor + Send> Server<A> {
         loop {
             tokio::select! {
                 _ = &mut signal => {
+                    server_shutdown_token.cancel();
                     if let Some(timeout) = timeout {
                         tracing::info!(
                             timeout_in_seconds = timeout.as_secs_f32(),
                             "initiate graceful shutdown",
                         );
 
-                        let timeout_notify = timeout_notify.clone();
+                        let timeout_token = timeout_token.clone();
                         tokio::spawn(async move {
                             tokio::time::sleep(timeout).await;
-                            timeout_notify.notify_waiters();
+                            timeout_token.cancel();
                         });
                     } else {
                         tracing::info!("initiate graceful shutdown");
@@ -202,26 +219,32 @@ impl<A: Acceptor + Send> Server<A> {
                  accepted = acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
+                            alive_connections.fetch_add(1, Ordering::Release);
+
                             let service = service.clone();
                             let alive_connections = alive_connections.clone();
                             let notify = notify.clone();
-                            let timeout_notify = timeout_notify.clone();
                             let handler = service.hyper_handler(local_addr, remote_addr, http_scheme, alt_svc_h3.clone());
                             let builder = builder.clone();
+
+                            let timeout_token = timeout_token.clone();
+                            let server_shutdown_token = server_shutdown_token.clone();
+
                             tokio::spawn(async move {
-                                alive_connections.fetch_add(1, Ordering::SeqCst);
-                                let conn = conn.serve(handler, builder);
+                                let conn = conn.serve(handler, builder, server_shutdown_token, idle_timeout);
                                 if timeout.is_some() {
                                     tokio::select! {
-                                        _ = conn => {},
-                                        _ = timeout_notify.notified() => {}
+                                        _ = conn => {
+                                        },
+                                        _ = timeout_token.cancelled() => {
+                                        }
                                     }
                                 } else {
                                     conn.await.ok();
                                 }
 
-                                if alive_connections.fetch_sub(1, Ordering::SeqCst) == 1 {
-                                    notify.notify_one();
+                                if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
+                                    notify.notify_waiters();
                                 }
                             });
                         },
@@ -233,7 +256,7 @@ impl<A: Acceptor + Send> Server<A> {
             }
         }
 
-        if alive_connections.load(Ordering::SeqCst) > 0 {
+        if alive_connections.load(Ordering::Acquire) > 0 {
             tracing::info!("wait for all connections to close.");
             notify.notified().await;
         }
