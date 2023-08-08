@@ -151,7 +151,7 @@ impl SwaggerUi {
     /// # use salvo_oapi::OpenApi;
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-docs/openapi.json", OpenApi::new("example api", "0.0.1"))
+    ///     .url("/api-docs/openapi.json")
     ///     .oauth(oauth::Config::new()
     ///         .client_id("client-id")
     ///         .scopes(vec![String::from("openid")])

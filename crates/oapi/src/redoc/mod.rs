@@ -56,7 +56,7 @@ impl ReDoc {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::rapidoc::ReDoc;
+    /// # use salvo_oapi::redoc::ReDoc;
     /// let doc = ReDoc::new("/rapidoc/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
