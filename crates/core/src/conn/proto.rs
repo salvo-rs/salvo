@@ -70,8 +70,6 @@ impl HttpBuilder {
             H2,
         }
 
-        println!("========http builder serve conn");
-
         let conn_shutdown_token = CancellationToken::new();
         let mut buf = Vec::new();
         let mut buf_reader = BufReader::new(&mut io);
@@ -84,7 +82,6 @@ impl HttpBuilder {
         } else {
             Protocol::H1
         };
-        println!("========http builder serve conn1111");
         let socket = Rewind::new_buffered(io, Bytes::from(buf));
 
         let socket = match idle_connection_timeout {
