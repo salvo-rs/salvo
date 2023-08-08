@@ -1,8 +1,8 @@
 //! TcpListener and it's implements.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::sync::Arc;
-use std::vec;
 use std::time::Duration;
+use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;

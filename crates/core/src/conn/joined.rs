@@ -119,12 +119,22 @@ where
     A: HttpConnection + Send,
     B: HttpConnection + Send,
 {
-    async fn serve(self, handler: HyperHandler, builder: Arc<HttpBuilder>,
+    async fn serve(
+        self,
+        handler: HyperHandler,
+        builder: Arc<HttpBuilder>,
         server_shutdown_token: CancellationToken,
-        idle_connection_timeout: Option<Duration>,) -> IoResult<()> {
+        idle_connection_timeout: Option<Duration>,
+    ) -> IoResult<()> {
         match self {
-            JoinedStream::A(a) => a.serve(handler, builder, server_shutdown_token, idle_connection_timeout).await,
-            JoinedStream::B(b) => b.serve(handler, builder, server_shutdown_token, idle_connection_timeout).await,
+            JoinedStream::A(a) => {
+                a.serve(handler, builder, server_shutdown_token, idle_connection_timeout)
+                    .await
+            }
+            JoinedStream::B(b) => {
+                b.serve(handler, builder, server_shutdown_token, idle_connection_timeout)
+                    .await
+            }
         }
     }
 }
