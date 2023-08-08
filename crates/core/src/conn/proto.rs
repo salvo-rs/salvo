@@ -1,18 +1,20 @@
+use std::cmp;
 use std::error::Error as StdError;
+use std::future::Future;
+use std::io::Result as IoResult;
+use std::io::{self, IoSlice};
 use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Context, Poll};
 use std::time::Duration;
-use std::{cmp, io::{self, IoSlice}};
-use std::future::Future;
-use std::io::Result as IoResult;
 
 use bytes::{Buf, Bytes};
 
 use http::{Request, Response};
 use hyper::service::Service;
 use pin_project::pin_project;
+use tokio::io::BufReader;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 use tokio::sync::{oneshot, Notify};
 use tokio_util::sync::CancellationToken;
@@ -50,8 +52,8 @@ impl HttpBuilder {
         &self,
         mut io: I,
         service: S,
-        graceful_shutdown_token: CancellationToken,
-        idle_connection_close_timeout: Option<Duration>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
     ) -> Result<()>
     where
         S: Service<Request<HyperBody>, Response = Response<B>> + Send,
@@ -68,31 +70,31 @@ impl HttpBuilder {
             H2,
         }
 
-        let connection_shutdown_token = CancellationToken::new();
+        println!("========http builder serve conn");
+
+        let conn_shutdown_token = CancellationToken::new();
         let mut buf = Vec::new();
-        let protocol = loop {
-            if buf.len() < 24 {
-                io.read_buf(&mut buf).await?;
-
-                let len = buf.len().min(H2_PREFACE.len());
-
-                if buf[0..len] != H2_PREFACE[0..len] {
-                    break Protocol::H1;
-                }
+        let mut buf_reader = BufReader::new(&mut io);
+        let protocol = if buf_reader.read_exact(&mut buf).await.is_ok() {
+            if buf == H2_PREFACE {
+                Protocol::H2
             } else {
-                break Protocol::H2;
+                Protocol::H1
             }
+        } else {
+            Protocol::H1
         };
+        println!("========http builder serve conn1111");
         let socket = Rewind::new_buffered(io, Bytes::from(buf));
 
-        let socket = match idle_connection_close_timeout {
+        let socket = match idle_connection_timeout {
             Some(timeout) => tokio_util::either::Either::Left(ClosingInactiveConnection::new(socket, timeout, {
-                let connection_shutdown_token = connection_shutdown_token.clone();
+                let conn_shutdown_token = conn_shutdown_token.clone();
 
                 move || {
-                    let connection_shutdown_token = connection_shutdown_token.clone();
+                    let conn_shutdown_token = conn_shutdown_token.clone();
                     async move {
-                        connection_shutdown_token.cancel();
+                        conn_shutdown_token.cancel();
                     }
                 }
             })),
@@ -115,10 +117,10 @@ impl HttpBuilder {
                             // Connection completed successfully.
                             return Ok(());
                         },
-                        _ = connection_shutdown_token.cancelled() => {
+                        _ = conn_shutdown_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
                         }
-                        _ = graceful_shutdown_token.cancelled() => {}
+                        _ = server_shutdown_token.cancelled() => {}
                     }
 
                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
@@ -137,10 +139,10 @@ impl HttpBuilder {
                             // Connection completed successfully.
                             return Ok(());
                         },
-                        _ = connection_shutdown_token.cancelled() => {
+                        _ = conn_shutdown_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
                         }
-                        _ = graceful_shutdown_token.cancelled() => {}
+                        _ = server_shutdown_token.cancelled() => {}
                     }
 
                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
@@ -187,10 +189,11 @@ where
                 if !prefix.is_empty() {
                     self.pre = Some(prefix);
                 }
-
+                println!("======poll ready  {} remaing: {}", copy_len, buf.remaining());
                 return Poll::Ready(Ok(()));
             }
         }
+        println!("======inner poll poll_read");
         Pin::new(&mut self.inner).poll_read(cx, buf)
     }
 }
@@ -274,11 +277,7 @@ where
         this.inner.poll_shutdown(cx)
     }
 
-    fn poll_write_vectored(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[IoSlice<'_>],
-    ) -> Poll<IoResult<usize>> {
+    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>]) -> Poll<IoResult<usize>> {
         let this = self.project();
         this.alive.notify_waiters();
         this.inner.poll_write_vectored(cx, bufs)

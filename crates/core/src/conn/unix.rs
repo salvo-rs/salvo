@@ -88,11 +88,11 @@ impl HttpConnection for UnixStream {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_shutdown_token: CancellationToken,
-        idle_connection_close_timeout: Option<Duration>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
     ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler, graceful_shutdown_token, idle_connection_close_timeout)
+            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

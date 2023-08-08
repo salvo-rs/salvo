@@ -172,7 +172,7 @@ impl<A: Acceptor + Send> Server<A> {
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
         let timeout_token = CancellationToken::new();
-        let graceful_shutdown_token = CancellationToken::new();
+        let server_shutdown_token = CancellationToken::new();
 
         tokio::pin!(signal);
 
@@ -196,7 +196,7 @@ impl<A: Acceptor + Send> Server<A> {
         loop {
             tokio::select! {
                 _ = &mut signal => {
-                    graceful_shutdown_token.cancel();
+                    server_shutdown_token.cancel();
                     if let Some(timeout) = timeout {
                         tracing::info!(
                             timeout_in_seconds = timeout.as_secs_f32(),
@@ -225,26 +225,21 @@ impl<A: Acceptor + Send> Server<A> {
                             let builder = builder.clone();
 
                             let timeout_token = timeout_token.clone();
-                            let graceful_shutdown_token = graceful_shutdown_token.clone();
+                            let server_shutdown_token = server_shutdown_token.clone();
 
                             tokio::spawn(async move {
-                                println!("=============connect open");
-                                let conn = conn.serve(handler, builder, graceful_shutdown_token, idle_timeout);
+                                let conn = conn.serve(handler, builder, server_shutdown_token, idle_timeout);
                                 if timeout.is_some() {
                                     tokio::select! {
                                         _ = conn => {
-                                            println!("============conn");
                                         },
                                         _ = timeout_token.cancelled() => {
-                                            println!("============timeout notified");
                                         }
                                     }
                                 } else {
-                                    println!("===========????n");
                                     conn.await.ok();
                                 }
 
-                                println!("=============connect close   {}", alive_connections.load(Ordering::Acquire));
                                 if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
                                     notify.notify_waiters();
                                 }

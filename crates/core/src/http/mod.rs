@@ -40,8 +40,8 @@ pub trait HttpConnection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_shutdown_token: CancellationToken,
-        idle_connection_close_timeout: Option<Duration>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
     ) -> IoResult<()>;
 }
 

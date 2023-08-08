@@ -55,8 +55,8 @@ impl Builder {
         &self,
         conn: crate::conn::quinn::H3Connection,
         hyper_handler: crate::service::HyperHandler,
-        graceful_shutdown_token: CancellationToken,
-        idle_connection_close_timeout: Option<Duration>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
     ) -> IoResult<()> {
         let mut conn = self
             .0

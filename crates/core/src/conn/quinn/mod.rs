@@ -122,10 +122,10 @@ impl HttpConnection for H3Connection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        graceful_shutdown_token: CancellationToken,
-        idle_connection_close_timeout: Option<Duration>,
+        server_shutdown_token: CancellationToken,
+        idle_connection_timeout: Option<Duration>,
     ) -> IoResult<()> {
-        builder.quinn.serve_connection(self, handler, graceful_shutdown_token, idle_connection_close_timeout).await
+        builder.quinn.serve_connection(self, handler, server_shutdown_token, idle_connection_timeout).await
     }
 }
 
