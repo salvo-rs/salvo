@@ -8,7 +8,6 @@ use std::borrow::Cow;
 
 mod config;
 pub mod oauth;
-use crate::OpenApi;
 pub use config::Config;
 use rust_embed::RustEmbed;
 use salvo_core::http::uri::{Parts as UriParts, Uri};
@@ -77,9 +76,7 @@ const INDEX_TMPL: &str = r#"
 /// Implements [`Handler`] for serving Swagger UI.
 #[derive(Clone, Debug)]
 pub struct SwaggerUi {
-    urls: Vec<(Url<'static>, OpenApi)>,
     config: Config<'static>,
-    external_urls: Vec<(Url<'static>, serde_json::Value)>,
 }
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
@@ -94,17 +91,10 @@ impl SwaggerUi {
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}");
     /// ```
     pub fn new(config: impl Into<Config<'static>>) -> Self {
-        Self {
-            urls: Vec::new(),
-            config: config.into(),
-            external_urls: Vec::new(),
-        }
+        Self { config: config.into() }
     }
 
     /// Add api doc [`Url`] into [`SwaggerUi`].
-    ///
-    /// Method takes two arguments where first one is path which exposes the [`OpenApi`] to the user.
-    /// Second argument is the actual Rust implementation of the OpenAPI doc which is being exposed.
     ///
     /// Calling this again will add another url to the Swagger UI.
     ///
@@ -115,11 +105,10 @@ impl SwaggerUi {
     /// # use salvo_oapi::OpenApi;
     ///
     /// let swagger = SwaggerUi::new("/api-doc/openapi.json")
-    ///     .url("/api-docs/openapi2.json", OpenApi::new("example api", "0.0.1"));
+    ///     .url("/api-docs/openapi2.json");
     /// ```
-    pub fn url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
-        self.urls.push((url.into(), openapi));
-
+    pub fn url<U: Into<Url<'static>>>(mut self, url: U) -> Self {
+        self.config.urls.push(url.into());
         self
     }
 
@@ -140,77 +129,13 @@ impl SwaggerUi {
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
     ///       vec![
-    ///          (Url::with_primary("api doc 1", "/api-docs/openapi.json", true), OpenApi::new("example api", "0.0.1")),
-    ///          (Url::new("api doc 2", "/api-docs/openapi2.json"), OpenApi::new("example api2", "0.0.1"))
+    ///          (Url::with_primary("api doc 1", "/api-docs/openapi.json", true)),
+    ///          (Url::new("api doc 2", "/api-docs/openapi2.json"))
     ///     ]
     /// );
     /// ```
-    pub fn urls(mut self, urls: Vec<(Url<'static>, OpenApi)>) -> Self {
-        self.urls = urls;
-
-        self
-    }
-
-    /// Add external API doc to the [`SwaggerUi`].
-    ///
-    /// This operation is unchecked and so it does not check any validity of provided content.
-    /// Users are required to do their own check if any regarding validity of the external
-    /// OpenAPI document.
-    ///
-    /// Method accepts two arguments, one is [`Url`] the API doc is served at and the second one is
-    /// the [`serde_json::Value`] of the OpenAPI doc to be served.
-    ///
-    /// # Examples
-    ///
-    /// Add external API doc to the [`SwaggerUi`].
-    ///```rust
-    /// # use salvo_oapi::swagger_ui::{SwaggerUi, Url};
-    /// # use salvo_oapi::OpenApi;
-    /// # use serde_json::json;
-    /// let external_openapi = json!({"openapi": "3.0.0"});
-    ///
-    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .external_url_unchecked("/api-docs/openapi.json", external_openapi);
-    ///```
-    pub fn external_url_unchecked<U: Into<Url<'static>>>(mut self, url: U, openapi: serde_json::Value) -> Self {
-        self.external_urls.push((url.into(), openapi));
-
-        self
-    }
-
-    /// Add external API docs to the [`SwaggerUi`] from iterator.
-    ///
-    /// This operation is unchecked and so it does not check any validity of provided content.
-    /// Users are required to do their own check if any regarding validity of the external
-    /// OpenAPI documents.
-    ///
-    /// Method accepts one argument, an `iter` of [`Url`] and [`serde_json::Value`] tuples. The
-    /// [`Url`] will point to location the OpenAPI document is served and the [`serde_json::Value`]
-    /// is the OpenAPI document to be served.
-    ///
-    /// # Examples
-    ///
-    /// Add external API docs to the [`SwaggerUi`].
-    ///```rust
-    /// # use salvo_oapi::swagger_ui::{SwaggerUi, Url};
-    /// # use salvo_oapi::OpenApi;
-    /// # use serde_json::json;
-    /// let external_openapi = json!({"openapi": "3.0.0"});
-    /// let external_openapi2 = json!({"openapi": "3.0.0"});
-    ///
-    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .external_urls_from_iter_unchecked([
-    ///         ("/api-docs/openapi.json", external_openapi),
-    ///         ("/api-docs/openapi2.json", external_openapi2)
-    ///     ]);
-    ///```
-    pub fn external_urls_from_iter_unchecked<I: IntoIterator<Item = (U, serde_json::Value)>, U: Into<Url<'static>>>(
-        mut self,
-        external_urls: I,
-    ) -> Self {
-        self.external_urls
-            .extend(external_urls.into_iter().map(|(url, doc)| (url.into(), doc)));
-
+    pub fn urls(mut self, urls: Vec<Url<'static>>) -> Self {
+        self.config.urls = urls;
         self
     }
 
@@ -424,7 +349,7 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
         }
         Some(Cow::Owned(index.as_bytes().to_vec()))
     } else {
-        SwaggerUiDist::get(path).map(|f|f.data)
+        SwaggerUiDist::get(path).map(|f| f.data)
     };
     let file = bytes.map(|bytes| SwaggerFile {
         bytes,
