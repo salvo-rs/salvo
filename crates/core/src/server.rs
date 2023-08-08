@@ -95,7 +95,6 @@ impl<A: Acceptor + Send> Server<A> {
         self
     }
 
-
     /// Serve a [`Service`]
     #[inline]
     pub async fn serve<S>(self, service: S)
@@ -168,7 +167,11 @@ impl<A: Acceptor + Send> Server<A> {
         S: Into<Service> + Send,
         G: Future<Output = ()> + Send + 'static,
     {
-        let Self { mut acceptor, builder, idle_timeout } = self;
+        let Self {
+            mut acceptor,
+            builder,
+            idle_timeout,
+        } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
         let timeout_token = CancellationToken::new();
