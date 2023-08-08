@@ -4,14 +4,8 @@
 //!
 //! [salvo]: <https://docs.rs/salvo/>
 //!
-use std::borrow::Cow;
-
-use salvo_core::http::uri::{Parts as UriParts, Uri};
-use salvo_core::http::{header, HeaderValue, ResBody, StatusError};
 use salvo_core::writing::Text;
-use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response, Router};
-use serde::Serialize;
-
+use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 
 const INDEX_TMPL: &str = r#"
 <!doctype html>
@@ -52,6 +46,11 @@ impl RapiDoc {
         }
     }
 
+    /// Returns the spec url.
+    pub fn sepec_url(&self) -> &str {
+        &self.spec_url
+    }
+
     /// Consusmes the [`RapiDoc`] and returns [`Router`] with the [`RapiDoc`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).handle(self)
@@ -60,7 +59,7 @@ impl RapiDoc {
 
 #[async_trait]
 impl Handler for RapiDoc {
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+    async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         res.render(Text::Html(&self.html));
     }
 }
