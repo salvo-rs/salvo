@@ -23,6 +23,14 @@ cfg_feature! {
     #![feature ="swagger-ui"]
     pub mod swagger_ui;
 }
+cfg_feature! {
+    #![feature ="rapidoc"]
+    pub mod rapidoc;
+}
+cfg_feature! {
+    #![feature ="redoc"]
+    pub mod redoc;
+}
 
 #[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
