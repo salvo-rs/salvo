@@ -53,20 +53,8 @@ Salvo 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅僅需�
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
 
+### Hello World
 
-創建一個全新的項目:
-
-```bash
-cargo new hello_salvo --bin
-```
-
-添加依賴項到 `Cargo.toml`
-
-```toml
-[dependencies]
-salvo = { version= "0.49" }
-tokio = { version = "1", features = ["macros"] }
-```
 在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello`, 這個函數隻是簡單地打印文本 `"Hello World"`.
 
 ```rust

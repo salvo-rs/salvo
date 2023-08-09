@@ -47,22 +47,10 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - Support OpenAPI;
 - Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
 
-## ⚡️ Quick start
+## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs).
 
-Create a new rust project:
-
-```bash
-cargo new hello_salvo --bin
-```
-
-Add this to `Cargo.toml`
-
-```toml
-[dependencies]
-salvo = { version= "0.49" }
-tokio = { version = "1", features = ["macros"] }
-```
+### Hello World
 
 Create a simple function handler in the main.rs file, we call it `hello`, this function just render plain text `"Hello World"`.
 
