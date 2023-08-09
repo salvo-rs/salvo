@@ -1,5 +1,5 @@
 //! JoinListener and it's implements.
-use std::io::{self, Result as IoResult};
+use std::io::Result as IoResult;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -31,7 +31,7 @@ where
     B: AsyncRead + Send + Unpin + 'static,
 {
     #[inline]
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_read(cx, buf),
             JoinedStream::B(b) => Pin::new(b).poll_read(cx, buf),
@@ -45,7 +45,7 @@ where
     B: AsyncWrite + Send + Unpin + 'static,
 {
     #[inline]
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_write(cx, buf),
             JoinedStream::B(b) => Pin::new(b).poll_write(cx, buf),
@@ -53,7 +53,7 @@ where
     }
 
     #[inline]
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_flush(cx),
             JoinedStream::B(b) => Pin::new(b).poll_flush(cx),
@@ -61,7 +61,7 @@ where
     }
 
     #[inline]
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<()>> {
         match &mut self.get_mut() {
             JoinedStream::A(a) => Pin::new(a).poll_shutdown(cx),
             JoinedStream::B(b) => Pin::new(b).poll_shutdown(cx),

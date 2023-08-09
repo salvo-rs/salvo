@@ -1,5 +1,5 @@
 //! rustls module
-use std::io::{self, Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
 use tokio_rustls::rustls::{Certificate, RootCertStore};
 
@@ -10,7 +10,7 @@ mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
 
 #[inline]
-pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> io::Result<RootCertStore> {
+pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertStore> {
     let certs = rustls_pemfile::certs(&mut trust_anchor)?;
     let mut store = RootCertStore::empty();
     for cert in certs {
