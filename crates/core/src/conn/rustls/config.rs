@@ -1,7 +1,7 @@
 //! rustls module
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult};
+use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -82,7 +82,7 @@ impl Keycert {
         &self.ocsp_resp
     }
 
-    fn build_certified_key(&mut self) -> io::Result<CertifiedKey> {
+    fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
             .map(|certs| certs.into_iter().map(Certificate).collect())
             .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
@@ -156,7 +156,7 @@ impl RustlsConfig {
     /// Anonymous and authenticated clients will be accepted. If no trust anchor is provided by any
     /// of the `client_auth_` methods, then client authentication is disabled by default.
     #[inline]
-    pub fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn client_auth_optional_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
         file.read_to_end(&mut data)?;
@@ -178,7 +178,7 @@ impl RustlsConfig {
     /// Only authenticated clients will be accepted. If no trust anchor is provided by any of the
     /// `client_auth_` methods, then client authentication is disabled by default.
     #[inline]
-    pub fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn client_auth_required_path(mut self, path: impl AsRef<Path>) -> IoResult<Self> {
         let mut data = vec![];
         let mut file = File::open(path)?;
         file.read_to_end(&mut data)?;
@@ -211,7 +211,7 @@ impl RustlsConfig {
     }
 
     /// ServerConfig
-    pub(crate) fn build_server_config(mut self) -> io::Result<ServerConfig> {
+    pub(crate) fn build_server_config(mut self) -> IoResult<ServerConfig> {
         let fallback = self
             .fallback
             .as_mut()

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
-use std::io::{self, Write};
+use std::io::{self, Write, Result as IoResult};
+
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
 use flate2::write::{GzDecoder, ZlibDecoder};
@@ -32,12 +33,12 @@ impl Writer {
 }
 
 impl io::Write for Writer {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> IoResult<()> {
         Ok(())
     }
 }

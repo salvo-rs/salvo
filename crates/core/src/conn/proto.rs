@@ -1,8 +1,8 @@
 use std::cmp;
 use std::error::Error as StdError;
 use std::future::Future;
+use std::io::IoSlice;
 use std::io::Result as IoResult;
-use std::io::{self, IoSlice};
 use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -14,9 +14,9 @@ use bytes::{Buf, Bytes};
 use http::{Request, Response};
 use hyper::service::Service;
 use pin_project::pin_project;
-use tokio::io::BufReader;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 use tokio::sync::{oneshot, Notify};
+use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
 
 use crate::http::body::{Body, HyperBody};
@@ -50,7 +50,7 @@ impl HttpBuilder {
     /// Bind a connection together with a [`Service`].
     pub async fn serve_connection<I, S, B>(
         &self,
-        mut io: I,
+        mut socket: I,
         service: S,
         server_shutdown_token: CancellationToken,
         idle_connection_timeout: Option<Duration>,
@@ -71,9 +71,8 @@ impl HttpBuilder {
         }
 
         let conn_shutdown_token = CancellationToken::new();
-        let mut buf = Vec::new();
-        let mut buf_reader = BufReader::new(&mut io);
-        let protocol = if buf_reader.read_exact(&mut buf).await.is_ok() {
+        let mut buf = [0;24];
+        let protocol = if socket.read_exact(&mut buf).await.is_ok() {
             if buf == H2_PREFACE {
                 Protocol::H2
             } else {
@@ -82,10 +81,10 @@ impl HttpBuilder {
         } else {
             Protocol::H1
         };
-        let socket = Rewind::new_buffered(io, Bytes::from(buf));
+        let socket = Rewind::new_buffered(Bytes::from(buf.to_vec()), socket);
 
         let socket = match idle_connection_timeout {
-            Some(timeout) => tokio_util::either::Either::Left(ClosingInactiveConnection::new(socket, timeout, {
+            Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
                 let conn_shutdown_token = conn_shutdown_token.clone();
 
                 move || {
@@ -95,7 +94,7 @@ impl HttpBuilder {
                     }
                 }
             })),
-            None => tokio_util::either::Either::Right(socket),
+            None => Either::Right(socket),
         };
 
         match protocol {
@@ -162,7 +161,7 @@ struct Rewind<T> {
 }
 
 impl<T> Rewind<T> {
-    fn new_buffered(io: T, buf: Bytes) -> Self {
+    fn new_buffered(buf: Bytes, io: T) -> Self {
         Rewind {
             pre: Some(buf),
             inner: io,
@@ -174,7 +173,7 @@ impl<T> AsyncRead for Rewind<T>
 where
     T: AsyncRead + Unpin,
 {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         if let Some(mut prefix) = self.pre.take() {
             // If there are no remaining bytes, let the bytes get dropped.
             if !prefix.is_empty() {
@@ -197,23 +196,23 @@ impl<T> AsyncWrite for Rewind<T>
 where
     T: AsyncWrite + Unpin,
 {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
         Pin::new(&mut self.inner).poll_write(cx, buf)
     }
 
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut task::Context<'_>,
-        bufs: &[io::IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<IoResult<usize>> {
         Pin::new(&mut self.inner).poll_write_vectored(cx, bufs)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.inner).poll_flush(cx)
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
         Pin::new(&mut self.inner).poll_shutdown(cx)
     }
 
@@ -236,7 +235,7 @@ impl<T> AsyncRead for ClosingInactiveConnection<T>
 where
     T: AsyncRead,
 {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
         let this = self.project();
 
         match this.inner.poll_read(cx, buf) {
