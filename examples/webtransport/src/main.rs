@@ -1,4 +1,4 @@
-use std::{time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -113,20 +113,16 @@ where
     Ok(())
 }
 
-#[handler]
-async fn index(res: &mut Response) {
-    res.render(Text::Html(INDEX_HTML));
-}
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
+
     let cert = include_bytes!("../certs/cert.pem").to_vec();
     let key = include_bytes!("../certs/key.pem").to_vec();
 
-    let router = Router::new()
-        .get(index)
-        .push(Router::with_path("webtransport").handle(connect));
+    let router = Router::new().push(Router::with_path("counter").handle(connect)).push(
+        Router::with_path("<**path>").get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
+    );
 
     let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
     let listener = TcpListener::new(("127.0.0.1", 5800)).rustls(config.clone());
@@ -138,56 +134,3 @@ async fn main() {
 
     Server::new(acceptor).serve(router).await;
 }
-
-static INDEX_HTML: &str = r#"<!DOCTYPE html>
-<html>
-    <head>
-        <title>WebTransport</title>
-    </head>
-    <body>
-        <h1>WebTransport</h1>
-        <div id="status">
-            <p><em>Connecting...</em></p>
-        </div>
-        <script>
-            const status = document.getElementById('status');
-            const url = `https://${location.host}/webtransport`;
-
-            useTransport(url);
-            status.innerHTML = '<p><em>Connected!</em></p>';
-            
-            async function useTransport(url) {
-                const transport = await initTransport(url);
-              
-                let writer = transport.datagrams.writable.getWriter();
-                let encoder = new TextEncoder('utf-8');
-                let data = encoder.encode("Hello data");
-                await writer.write(data);
-              
-                // When done, close the transport
-                await closeTransport(transport);
-              }
-
-            async function initTransport(url) {
-                // Initialize transport connection
-                const transport = new WebTransport(url);
-                
-                // The connection can be used once ready fulfills
-                await transport.ready;
-                return transport;
-            }
-              
-            async function closeTransport(transport) {
-                // Respond to connection closing
-                try {
-                    await transport.closed;
-                    console.log(`The HTTP/3 connection to ${url} closed gracefully.`);
-                } catch (error) {
-                    console.error(`The HTTP/3 connection to ${url} closed due to ${error}.`);
-                }
-            }
-              
-        </script>
-    </body>
-</html>
-"#;

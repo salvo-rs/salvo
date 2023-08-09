@@ -9,6 +9,8 @@ async fn main() {
         StaticDir::new([
             "static-dir-list/static/boy",
             "static-dir-list/static/girl",
+            "static/boy",
+            "static/girl",
         ])
         .defaults("index.html")
         .listing(true),
