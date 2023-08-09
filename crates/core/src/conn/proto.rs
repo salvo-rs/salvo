@@ -71,7 +71,7 @@ impl HttpBuilder {
         }
 
         let conn_shutdown_token = CancellationToken::new();
-        let mut buf = [0;24];
+        let mut buf = [0; 24];
         let protocol = if socket.read_exact(&mut buf).await.is_ok() {
             if buf == H2_PREFACE {
                 Protocol::H2
