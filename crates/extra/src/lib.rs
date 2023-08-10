@@ -53,7 +53,11 @@ cfg_feature! {
     pub mod websocket;
 }
 cfg_feature! {
-    #![feature =  "size-limiter"]
+    #![feature = "concurrency-limiter"]
+    pub mod concurrency_limiter;
+}
+cfg_feature! {
+    #![feature = "size-limiter"]
     pub mod size_limiter;
 }
 cfg_feature! {

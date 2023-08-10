@@ -1,0 +1,12 @@
+[package]
+name = "example-concurrency-limiter"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+
+[dependencies]
+salvo = { workspace = true, features = ["concurrency-limiter"]}
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

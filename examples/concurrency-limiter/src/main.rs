@@ -10,6 +10,7 @@ async fn index(res: &mut Response) {
 #[handler]
 async fn upload(req: &mut Request, res: &mut Response) {
     let file = req.file("file").await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     if let Some(file) = file {
         let dest = format!("temp/{}", file.name().unwrap_or("file"));
         tracing::debug!(dest = %dest, "upload file");
@@ -32,12 +33,7 @@ async fn main() {
     create_dir_all("temp").unwrap();
     let router = Router::new()
         .get(index)
-        .push(
-            Router::new()
-                .hoop(max_size(1024 * 1024 * 10))
-                .path("limited")
-                .post(upload),
-        )
+        .push(Router::new().hoop(max_concurrency(1)).path("limited").post(upload))
         .push(Router::with_path("unlimit").post(upload));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
@@ -57,7 +53,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
             <input type="submit" value="upload" />
         </form>
         <form action="/limited" method="post" enctype="multipart/form-data">
-            <h3>Limited 10MiB</h3>
+            <h3>Limited</h3>
             <input type="file" name="file" />
             <input type="submit" value="upload" />
         </form>
