@@ -58,9 +58,14 @@ cfg_feature! {
     pub use salvo_extra::logging;
 }
 cfg_feature! {
-    #![feature ="size-limiter"]
+    #![feature ="concurrency-limiter"]
     #[doc(no_inline)]
     pub use salvo_extra::size_limiter;
+}
+cfg_feature! {
+    #![feature ="size-limiter"]
+    #[doc(no_inline)]
+    pub use salvo_extra::concurrency_limiter;
 }
 cfg_feature! {
     #![feature ="sse"]
@@ -180,6 +185,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="session"]
         pub use salvo_session::{SessionDepotExt, SessionHandler, SessionStore};
+    }
+    cfg_feature! {
+        #![feature ="concurrency-limiter"]
+        pub use salvo_extra::concurrency_limiter::max_concurrency;
     }
     cfg_feature! {
         #![feature ="size-limiter"]
