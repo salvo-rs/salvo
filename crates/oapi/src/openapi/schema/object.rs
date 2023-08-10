@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -50,8 +51,8 @@ pub struct Object {
     pub enum_values: Option<Vec<Value>>,
 
     /// Vector of required field names.
-    #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
-    pub required: Vec<String>,
+    #[serde(skip_serializing_if = "IndexSet::is_empty", default = "IndexSet::new")]
+    pub required: IndexSet<String>,
 
     /// Map of fields with their [`Schema`] types.
     ///
@@ -194,7 +195,7 @@ impl Object {
 
     /// Add field to the required fields of [`Object`].
     pub fn required(mut self, required_field: impl Into<String>) -> Self {
-        self.required.push(required_field.into());
+        self.required.insert(required_field.into());
         self
     }
 
