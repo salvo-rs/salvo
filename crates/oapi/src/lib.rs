@@ -230,7 +230,7 @@ impl ToSchema for StatusError {
                 .property("name", String::to_schema(components))
                 .required("brief")
                 .property("brief", String::to_schema(components))
-                .required("brief")
+                .required("detail")
                 .property("detail", String::to_schema(components))
                 .property("cause", String::to_schema(components)),
         );
