@@ -78,6 +78,23 @@ where
     }
 }
 
+/// Url rest getter. You can use this to get the rest of the url.
+pub type UrlRestGetter = Box<dyn Fn(&Request, &Depot) -> String + Send + Sync + 'static>;
+
+/// Default url rest getter.
+pub fn default_url_rest_getter(req: &Request, _depot: &Depot) -> String {
+    let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
+    let mut rest = if let Some((_, rest)) = param {
+        encode_url_path(rest)
+    } else {
+        "".into()
+    };
+    if let Some(query) = req.uri().query() {
+        rest = format!("{}?{}", rest, query);
+    }
+    rest
+}
+
 /// Proxy
 #[non_exhaustive]
 
@@ -86,6 +103,8 @@ pub struct Proxy<U> {
     pub upstreams: U,
     /// [`Client`] for proxy.
     pub client: Client,
+    /// Url rest getter.
+    pub url_rest_getter: UrlRestGetter,
 }
 
 impl<U> Proxy<U>
@@ -98,11 +117,26 @@ where
         Proxy {
             upstreams,
             client: Client::new(),
+            url_rest_getter: Box::new(default_url_rest_getter),
         }
     }
     /// Create new `Proxy` with upstreams list and [`Client`].
     pub fn with_client(upstreams: U, client: Client) -> Self {
-        Proxy { upstreams, client }
+        Proxy {
+            upstreams,
+            client,
+            url_rest_getter: Box::new(default_url_rest_getter),
+        }
+    }
+
+    /// Set url rest getter.
+    #[inline]
+    pub fn url_rest_getter<G>(mut self, url_rest_getter: G) -> Self
+    where
+        G: Fn(&Request, &Depot) -> String + Send + Sync + 'static,
+    {
+        self.url_rest_getter = Box::new(url_rest_getter);
+        self
     }
 
     /// Get upstreams list.
@@ -128,23 +162,14 @@ where
     }
 
     #[inline]
-    fn build_proxied_request(&self, req: &mut Request) -> Result<HyperRequest, Error> {
+    fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
         let upstream = self.upstreams.elect().map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
         }
 
-        let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
-        let mut rest = if let Some((_, rest)) = param {
-            encode_url_path(rest)
-        } else {
-            "".into()
-        };
-        if let Some(query) = req.uri().query() {
-            rest = format!("{}?{}", rest, query);
-        }
-
+        let rest = (self.url_rest_getter)(req, depot);
         let forward_url = if upstream.ends_with('/') && rest.starts_with('/') {
             format!("{}{}", upstream.trim_end_matches('/'), rest)
         } else if upstream.ends_with('/') || rest.starts_with('/') {
@@ -252,8 +277,8 @@ where
     U::Error: Into<BoxedError>,
 {
     #[inline]
-    async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        match self.build_proxied_request(req) {
+    async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+        match self.build_proxied_request(req, depot) {
             Ok(proxied_request) => {
                 match self
                     .call_proxied_server(proxied_request, req.extensions_mut().remove())
