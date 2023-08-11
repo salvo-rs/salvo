@@ -184,7 +184,7 @@ where
             return Err(Error::other("upstreams is empty"));
         }
 
-        let path = encode_url_path((self.url_path_getter)(req, depot).unwrap_or_default());
+        let path = encode_url_path(&(self.url_path_getter)(req, depot).unwrap_or_default());
         let query = (self.url_query_getter)(req, depot);
         let rest = if let Some(query) = query {
             if query.starts_with('?') {
