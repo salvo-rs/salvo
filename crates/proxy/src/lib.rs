@@ -24,8 +24,10 @@ use tokio::io::copy_bidirectional;
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
 
+
+/// Encode url path. This can be used when build your custom url rest getter.
 #[inline]
-pub(crate) fn encode_url_path(path: &str) -> String {
+pub fn encode_url_path(path: &str) -> String {
     path.split('/')
         .map(|s| utf8_percent_encode(s, CONTROLS).to_string())
         .collect::<Vec<_>>()
