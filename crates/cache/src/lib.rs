@@ -167,6 +167,7 @@ pub trait CacheStore: Send + Sync + 'static {
 /// [`ResBody`] has Stream type, which is not `Send + Sync`, so we need to convert it to `CachedBody`.
 /// If response's body is ['ResBody::Stream`], it will not be cached.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum CachedBody {
     /// None body.
     None,
@@ -175,13 +176,13 @@ pub enum CachedBody {
     /// Chunks body.
     Chunks(VecDeque<Bytes>),
 }
-impl TryFrom<&ResBody> for CachedBody {
+impl TryFrom<ResBody> for CachedBody {
     type Error = Error;
-    fn try_from(body: &ResBody) -> Result<Self, Self::Error> {
+    fn try_from(body: ResBody) -> Result<Self, <Self as TryFrom<ResBody>>::Error> {
         match body {
             ResBody::None => Ok(Self::None),
-            ResBody::Once(bytes) => Ok(Self::Once(bytes.to_owned())),
-            ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks.to_owned())),
+            ResBody::Once(bytes) => Ok(Self::Once(bytes)),
+            ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks)),
             _ => Err(Error::other("unsupported body type")),
         }
     }
@@ -283,9 +284,9 @@ where
             Some(cache) => cache,
             None => {
                 ctrl.call_next(req, depot, res).await;
-                if !res.body.is_stream() {
+                if !res.body.is_stream() && !res.body.is_error() {
                     let headers = res.headers().clone();
-                    let body: CachedBody = (&res.body).try_into().unwrap();
+                    let body: CachedBody = res.body.take().try_into().unwrap();
                     let cached_data = CachedEntry::new(res.status_code, headers, body);
                     if let Err(e) = self.store.save_entry(key, cached_data).await {
                         tracing::error!(error = ?e, "cache failed");

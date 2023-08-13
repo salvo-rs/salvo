@@ -68,6 +68,12 @@ impl ResBody {
             ResBody::Error(_) => None,
         }
     }
+
+    /// Set body to none and returns current body.
+    #[inline]
+    pub fn take(&mut self) -> ResBody {
+        std::mem::replace(self, ResBody::None)
+    }
 }
 
 impl Stream for ResBody {
