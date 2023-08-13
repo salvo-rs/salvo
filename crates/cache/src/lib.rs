@@ -176,13 +176,13 @@ pub enum CachedBody {
     /// Chunks body.
     Chunks(VecDeque<Bytes>),
 }
-impl TryFrom<ResBody> for CachedBody {
+impl TryFrom<&ResBody> for CachedBody {
     type Error = Error;
-    fn try_from(body: ResBody) -> Result<Self, <Self as TryFrom<ResBody>>::Error> {
+    fn try_from(body: &ResBody) -> Result<Self, Self::Error> {
         match body {
             ResBody::None => Ok(Self::None),
-            ResBody::Once(bytes) => Ok(Self::Once(bytes)),
-            ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks)),
+            ResBody::Once(bytes) => Ok(Self::Once(bytes.to_owned())),
+            ResBody::Chunks(chunks) => Ok(Self::Chunks(chunks.to_owned())),
             _ => Err(Error::other("unsupported body type")),
         }
     }
@@ -286,10 +286,15 @@ where
                 ctrl.call_next(req, depot, res).await;
                 if !res.body.is_stream() && !res.body.is_error() {
                     let headers = res.headers().clone();
-                    let body: CachedBody = res.body.take().try_into().unwrap();
-                    let cached_data = CachedEntry::new(res.status_code, headers, body);
-                    if let Err(e) = self.store.save_entry(key, cached_data).await {
-                        tracing::error!(error = ?e, "cache failed");
+                    let body = TryInto::<CachedBody>::try_into(&res.body);
+                    match body {
+                        Ok(body) => {
+                            let cached_data = CachedEntry::new(res.status_code, headers, body);
+                            if let Err(e) = self.store.save_entry(key, cached_data).await {
+                                tracing::error!(error = ?e, "cache failed");
+                            }
+                        }
+                        Err(e) => tracing::error!(error = ?e, "cache failed"),
                     }
                 }
                 return;
