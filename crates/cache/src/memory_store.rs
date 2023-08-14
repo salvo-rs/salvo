@@ -64,19 +64,12 @@ where
 
     /// Sets the eviction listener closure to the cache.
     ///
-    /// The closure should take `Arc<K>`, `V` and [`RemovalCause`][removal-cause] as
-    /// the arguments. The [immediate delivery mode][immediate-mode] is used for the
-    /// listener.
-    ///
     /// # Panics
     ///
     /// It is very important to make the listener closure not to panic. Otherwise,
     /// the cache will stop calling the listener after a panic. This is an intended
     /// behavior because the cache cannot know whether is is memory safe or not to
     /// call the panicked lister again.
-    ///
-    /// [removal-cause]: ../notification/enum.RemovalCause.html
-    /// [immediate-mode]: ../notification/enum.DeliveryMode.html#variant.Immediate
     pub fn eviction_listener(
         mut self,
         listener: impl Fn(Arc<K>, CachedEntry, RemovalCause) + Send + Sync + 'static,
