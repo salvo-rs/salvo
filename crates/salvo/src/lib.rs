@@ -60,12 +60,12 @@ cfg_feature! {
 cfg_feature! {
     #![feature ="concurrency-limiter"]
     #[doc(no_inline)]
-    pub use salvo_extra::size_limiter;
+    pub use salvo_extra::concurrency_limiter;
 }
 cfg_feature! {
     #![feature ="size-limiter"]
     #[doc(no_inline)]
-    pub use salvo_extra::concurrency_limiter;
+    pub use salvo_extra::size_limiter;
 }
 cfg_feature! {
     #![feature ="sse"]
