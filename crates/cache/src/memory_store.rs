@@ -2,10 +2,12 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::hash::Hash;
+use std::sync::Arc;
 use std::time::Duration;
 
 use moka::sync::Cache as MokaCache;
 use moka::sync::CacheBuilder as MokaCacheBuilder;
+use moka::notification::RemovalCause;
 use salvo_core::async_trait;
 
 use super::{CacheStore, CachedEntry};
@@ -57,6 +59,29 @@ where
     /// expiration.
     pub fn time_to_live(mut self, duration: Duration) -> Self {
         self.inner = self.inner.time_to_live(duration);
+        self
+    }
+
+    /// Sets the eviction listener closure to the cache.
+    ///
+    /// The closure should take `Arc<K>`, `V` and [`RemovalCause`][removal-cause] as
+    /// the arguments. The [immediate delivery mode][immediate-mode] is used for the
+    /// listener.
+    ///
+    /// # Panics
+    ///
+    /// It is very important to make the listener closure not to panic. Otherwise,
+    /// the cache will stop calling the listener after a panic. This is an intended
+    /// behavior because the cache cannot know whether is is memory safe or not to
+    /// call the panicked lister again.
+    ///
+    /// [removal-cause]: ../notification/enum.RemovalCause.html
+    /// [immediate-mode]: ../notification/enum.DeliveryMode.html#variant.Immediate
+    pub fn eviction_listener(
+        mut self,
+        listener: impl Fn(Arc<K>, CachedEntry, RemovalCause) + Send + Sync + 'static,
+    ) -> Self {
+        self.inner = self.inner.eviction_listener(listener);
         self
     }
 
