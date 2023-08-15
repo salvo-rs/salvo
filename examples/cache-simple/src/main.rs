@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use salvo::cache::{Cache, MemoryStore, RequestIssuer};
+use salvo::cache::{Cache, MokaStore, RequestIssuer};
 use salvo::prelude::*;
 use salvo::writing::Text;
 use time::OffsetDateTime;
@@ -23,11 +23,11 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let short_cache = Cache::new(
-        MemoryStore::builder().time_to_live(Duration::from_secs(5)).build(),
+        MokaStore::builder().time_to_live(Duration::from_secs(5)).build(),
         RequestIssuer::default(),
     );
     let long_cache = Cache::new(
-        MemoryStore::builder().time_to_live(Duration::from_secs(60)).build(),
+        MokaStore::builder().time_to_live(Duration::from_secs(60)).build(),
         RequestIssuer::default(),
     );
     let router = Router::new()

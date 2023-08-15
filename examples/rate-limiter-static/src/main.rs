@@ -1,5 +1,5 @@
 use salvo::prelude::*;
-use salvo::rate_limiter::{BasicQuota, FixedGuard, MemoryStore, RateLimiter, RemoteIpIssuer};
+use salvo::rate_limiter::{BasicQuota, FixedGuard, MokaStore, RateLimiter, RemoteIpIssuer};
 
 #[handler]
 async fn hello() -> &'static str {
@@ -12,7 +12,7 @@ async fn main() {
 
     let limiter = RateLimiter::new(
         FixedGuard::new(),
-        MemoryStore::new(),
+        MokaStore::new(),
         RemoteIpIssuer,
         BasicQuota::per_second(1),
     );
