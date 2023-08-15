@@ -18,12 +18,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["memory-store"]
-full = ["memory-store"]
-memory-store = ["dep:moka"]
+default = ["moka-store"]
+full = ["moka-store", "lru-store"]
+lru-store = ["dep:lru"]
+moka-store = ["dep:moka"]
 
 [dependencies]
 bytes = { workspace = true }
+lru = { workspace = true, optional = true }
 moka = { workspace = true, optional = true }
 salvo_core = { workspace = true, features = ["http1"]}
 tracing = { workspace = true }
