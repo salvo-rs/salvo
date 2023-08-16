@@ -33,10 +33,10 @@ pub use quota::{BasicQuota, CelledQuota, QuotaGetter};
 mod cfg;
 
 cfg_feature! {
-    #![feature = "memory-store"]
+    #![feature = "moka-store"]
 
-    mod memory_store;
-    pub use memory_store::MemoryStore;
+    mod moka_store;
+    pub use moka_store::MokaStore;
 }
 
 cfg_feature! {
@@ -246,7 +246,7 @@ mod tests {
         }
         let limiter = RateLimiter::new(
             FixedGuard::default(),
-            MemoryStore::default(),
+            MokaStore::default(),
             UserIssuer,
             CustomQuotaGetter,
         );
@@ -327,7 +327,7 @@ mod tests {
         }
         let limiter = RateLimiter::new(
             SlidingGuard::default(),
-            MemoryStore::default(),
+            MokaStore::default(),
             UserIssuer,
             CustomQuotaGetter,
         );

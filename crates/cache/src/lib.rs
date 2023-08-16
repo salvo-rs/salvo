@@ -6,7 +6,7 @@
 //! You can define your custom [`CacheIssuer`] to determine which responses should be cached,
 //! or you can use the default [`RequestIssuer`].
 //!
-//! The default cache store is [`MemoryStore`], which is a wrapper of [`moka`].
+//! The default cache store is [`MokaStore`], which is a wrapper of [`moka`].
 //! You can define your own cache store by implementing [`CacheStore`].
 //!
 //! Example: [cache-simple](https://github.com/salvo-rs/salvo/tree/main/examples/cache-simple)
@@ -35,10 +35,10 @@ pub use skipper::MethodSkipper;
 mod cfg;
 
 cfg_feature! {
-    #![feature = "memory-store"]
+    #![feature = "moka-store"]
 
-    pub mod memory_store;
-    pub use memory_store::{MemoryStore};
+    pub mod moka_store;
+    pub use moka_store::{MokaStore};
 }
 
 /// Issuer
@@ -325,7 +325,7 @@ mod tests {
     #[tokio::test]
     async fn test_cache() {
         let cache = Cache::new(
-            MemoryStore::builder()
+            MokaStore::builder()
                 .time_to_live(std::time::Duration::from_secs(5))
                 .build(),
             RequestIssuer::default(),
