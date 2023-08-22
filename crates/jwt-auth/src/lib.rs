@@ -40,6 +40,8 @@ pub const JWT_AUTH_DATA_KEY: &str = "::salvo::jwt_auth::auth_data";
 pub const JWT_AUTH_STATE_KEY: &str = "::salvo::jwt_auth::auth_state";
 /// key used to insert auth token data to depot.
 pub const JWT_AUTH_TOKEN_KEY: &str = "::salvo::jwt_auth::auth_token";
+/// key used to insert auth error to depot.
+pub const JWT_AUTH_ERROR_KEY: &str = "::salvo::jwt_auth::auth_error";
 
 const ALL_METHODS: [Method; 9] = [
     Method::GET,
@@ -113,6 +115,8 @@ pub trait JwtAuthDepotExt {
         C: DeserializeOwned + Send + Sync + 'static;
     /// get jwt auth state from depot.
     fn jwt_auth_state(&self) -> JwtAuthState;
+    /// get jwt auth error from depot.
+    fn jwt_auth_error(&self) -> Option<&JwtError>;
 }
 
 impl JwtAuthDepotExt for Depot {
@@ -134,6 +138,11 @@ impl JwtAuthDepotExt for Depot {
         self.get(JWT_AUTH_STATE_KEY)
             .cloned()
             .unwrap_or(JwtAuthState::Unauthorized)
+    }
+
+    #[inline]
+    fn jwt_auth_error(&self) -> Option<&JwtError> {
+        self.get(JWT_AUTH_ERROR_KEY)
     }
 }
 
@@ -219,6 +228,7 @@ where
                 Err(e) => {
                     tracing::error!(error = ?e, "jwt auth error");
                     depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
+                    depot.insert(JWT_AUTH_ERROR_KEY, e);
                     if !self.force_passed {
                         res.render(StatusError::forbidden());
                         ctrl.skip_rest();

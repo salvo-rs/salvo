@@ -8,7 +8,7 @@ use salvo_core::{async_trait, Depot};
 #[async_trait]
 pub trait JwtAuthDecoder {
     /// Error type.
-    type Error: std::error::Error;
+    type Error: std::error::Error + Send + Sync + 'static;
 
     ///Decode token.
     async fn decode<C>(&self, token: &str, depot: &mut Depot) -> Result<TokenData<C>, Self::Error>
