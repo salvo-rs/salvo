@@ -92,7 +92,7 @@ impl Handler for TrailingSlash {
         }
 
         let original_path = req.uri().path();
-        if !original_path.is_empty() {
+        if !original_path.is_empty() && original_path != "/" { // skip root path
             let ends_with_slash = original_path.ends_with('/');
             let new_uri = if self.action == TrailingSlashAction::Add && !ends_with_slash {
                 Some(replace_uri_path(req.uri(), &format!("{original_path}/")))
