@@ -4,7 +4,7 @@ pub use named_file::*;
 
 use std::cmp;
 use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind, Result as IoResult, Read, Seek};
+use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
