@@ -5,7 +5,7 @@ Note that the files contain private keys.
 */
 
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 
 use async_trait::async_trait;

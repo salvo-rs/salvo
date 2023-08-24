@@ -1,7 +1,7 @@
 //! Compress the body of a response.
 use std::collections::VecDeque;
 use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind};
+use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
