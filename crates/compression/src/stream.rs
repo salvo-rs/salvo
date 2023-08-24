@@ -1,7 +1,7 @@
 //! Compress the body of a response.
 use std::collections::VecDeque;
 use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind};
+use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -21,7 +21,7 @@ pub(super) struct EncodeStream<B> {
     encoder: Option<Encoder>,
     body: B,
     eof: bool,
-    encoding: Option<JoinHandle<Result<Encoder, IoError>>>,
+    encoding: Option<JoinHandle<IoResult<Encoder>>>,
 }
 
 impl<B> EncodeStream<B> {
@@ -37,13 +37,13 @@ impl<B> EncodeStream<B> {
 }
 impl EncodeStream<BoxStream<'static, Result<Bytes, BoxedError>>> {
     #[inline]
-    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         Stream::poll_next(Pin::new(&mut self.body), cx).map_err(|e| IoError::new(ErrorKind::Other, e))
     }
 }
 impl EncodeStream<HyperBody> {
     #[inline]
-    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         match ready!(Body::poll_frame(Pin::new(&mut self.body), cx)) {
             Some(Ok(frame)) => Poll::Ready(frame.into_data().map(Ok).ok()),
             Some(Err(e)) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
@@ -53,7 +53,7 @@ impl EncodeStream<HyperBody> {
 }
 impl EncodeStream<Option<Bytes>> {
     #[inline]
-    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         if let Some(body) = Pin::new(&mut self.body).take() {
             Poll::Ready(Some(Ok(body)))
         } else {
@@ -63,7 +63,7 @@ impl EncodeStream<Option<Bytes>> {
 }
 impl EncodeStream<VecDeque<Bytes>> {
     #[inline]
-    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, IoError>>> {
+    fn poll_chunk(&mut self, _cx: &mut Context<'_>) -> Poll<Option<IoResult<Bytes>>> {
         if let Some(body) = Pin::new(&mut self.body).pop_front() {
             Poll::Ready(Some(Ok(body)))
         } else {
@@ -75,7 +75,7 @@ impl EncodeStream<VecDeque<Bytes>> {
 macro_rules! impl_stream {
     ($name: ty) => {
         impl Stream for EncodeStream<$name> {
-            type Item = Result<Bytes, IoError>;
+            type Item = IoResult<Bytes>;
             fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
                 let this = self.get_mut();
                 loop {

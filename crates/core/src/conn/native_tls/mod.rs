@@ -3,7 +3,7 @@ pub mod listener;
 pub use listener::NativeTlsListener;
 
 mod config;
-pub use config::NativeTlsConfig;
+pub use config::{Identity, NativeTlsConfig};
 
 #[cfg(test)]
 mod tests {

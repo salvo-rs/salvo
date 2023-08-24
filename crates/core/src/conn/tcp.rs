@@ -19,13 +19,13 @@ use super::{Accepted, Acceptor, Listener};
 use crate::conn::IntoConfigStream;
 
 #[cfg(feature = "rustls")]
-use crate::conn::rustls::{RustlsConfig, RustlsListener};
+use crate::conn::rustls::RustlsListener;
 
 #[cfg(feature = "native-tls")]
-use crate::conn::native_tls::{NativeTlsConfig, NativeTlsListener};
+use crate::conn::native_tls::NativeTlsListener;
 
 #[cfg(feature = "openssl")]
-use crate::conn::openssl::{OpensslConfig, OpensslListener};
+use crate::conn::openssl::OpensslListener;
 
 #[cfg(feature = "acme")]
 use crate::conn::acme::AcmeListener;
@@ -46,9 +46,10 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `RustlsListener` from current `TcpListener`.
         #[inline]
-        pub fn rustls<C>(self, config_stream: C) -> RustlsListener<C, Self>
+        pub fn rustls<S, C>(self, config_stream: S) -> RustlsListener<S, C, Self>
         where
-            C: IntoConfigStream<RustlsConfig> + Send + 'static,
+            S: IntoConfigStream<C> + Send + 'static,
+            C: TryInto<crate::conn::rustls::ServerConfig, Error = IoError> + Send + 'static,
         {
             RustlsListener::new(config_stream, self)
         }
@@ -59,9 +60,10 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `NativeTlsListener` from current `TcpListener`.
         #[inline]
-        pub fn native_tls<C>(self, config_stream: C) -> NativeTlsListener<C, Self>
+        pub fn native_tls<S, C>(self, config_stream: S) -> NativeTlsListener<S, C, Self>
         where
-            C: IntoConfigStream<NativeTlsConfig> + Send + 'static,
+            S: IntoConfigStream<C> + Send + 'static,
+            C: TryInto<crate::conn::native_tls::Identity, Error = IoError> + Send + 'static,
         {
             NativeTlsListener::new(config_stream, self)
         }
@@ -72,9 +74,10 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `OpensslListener` from current `TcpListener`.
         #[inline]
-        pub fn openssl<C>(self, config_stream: C) -> OpensslListener<C, Self>
+        pub fn openssl<S, C>(self, config_stream: S) -> OpensslListener<S, C, Self>
         where
-            C: IntoConfigStream<OpensslConfig> + Send + 'static,
+            S: IntoConfigStream<C> + Send + 'static,
+            C: TryInto<crate::conn::openssl::SslAcceptorBuilder, Error = IoError> + Send + 'static,
         {
             OpensslListener::new(config_stream, self)
         }

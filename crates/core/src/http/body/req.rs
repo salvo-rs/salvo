@@ -1,7 +1,7 @@
 //! Http body.
 use std::boxed::Box;
 use std::fmt::{self, Formatter};
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -82,7 +82,7 @@ impl Body for ReqBody {
     }
 }
 impl Stream for ReqBody {
-    type Item = Result<Bytes, IoError>;
+    type Item = IoResult<Bytes>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {

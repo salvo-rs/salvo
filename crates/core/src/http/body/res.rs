@@ -2,7 +2,7 @@
 
 use std::boxed::Box;
 use std::collections::VecDeque;
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
@@ -77,7 +77,7 @@ impl ResBody {
 }
 
 impl Stream for ResBody {
-    type Item = Result<Bytes, IoError>;
+    type Item = IoResult<Bytes>;
 
     #[inline]
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {

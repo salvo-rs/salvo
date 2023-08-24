@@ -4,7 +4,7 @@ pub use named_file::*;
 
 use std::cmp;
 use std::future::Future;
-use std::io::{self, Error as IoError, ErrorKind, Read, Seek};
+use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -14,7 +14,7 @@ use futures_util::stream::Stream;
 
 pub(crate) enum ChunkedState<T> {
     File(Option<T>),
-    Future(tokio::task::JoinHandle<Result<(T, Bytes), IoError>>),
+    Future(tokio::task::JoinHandle<IoResult<(T, Bytes)>>),
 }
 
 /// A stream of bytes that reads a file in chunks.
@@ -33,7 +33,7 @@ impl<T> Stream for ChunkedFile<T>
 where
     T: Read + Seek + Unpin + Send + 'static,
 {
-    type Item = Result<Bytes, IoError>;
+    type Item = IoResult<Bytes>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         if self.total_size == self.read_size {

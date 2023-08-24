@@ -281,7 +281,7 @@ where
     }
 
     #[inline]
-    async fn accept(&mut self) -> Result<Accepted<Self::Conn>, IoError> {
+    async fn accept(&mut self) -> IoResult<Accepted<Self::Conn>> {
         let Accepted {
             conn,
             local_addr,

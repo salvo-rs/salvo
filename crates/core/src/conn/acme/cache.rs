@@ -5,7 +5,7 @@ Note that the files contain private keys.
 */
 
 use std::error::Error as StdError;
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 
 use async_trait::async_trait;
@@ -150,7 +150,7 @@ where
     }
 }
 #[inline]
-async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> Result<(), IoError> {
+async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> IoResult<()> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
     #[cfg(unix)]
