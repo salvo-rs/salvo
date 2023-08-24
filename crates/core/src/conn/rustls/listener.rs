@@ -1,5 +1,6 @@
 //! rustls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -16,34 +17,41 @@ use crate::conn::{Accepted, Acceptor, IntoConfigStream, Listener};
 use crate::http::uri::Scheme;
 use crate::http::Version;
 
-use super::RustlsConfig;
+use super::ServerConfig;
 
 /// RustlsListener
-pub struct RustlsListener<C, T> {
-    config_stream: C,
+pub struct RustlsListener<S, C, T> {
+    config_stream: S,
     inner: T,
+    _config: PhantomData<C>,
 }
 
-impl<C, T> RustlsListener<C, T>
+impl<S, C, T> RustlsListener<S, C, T>
 where
-    C: IntoConfigStream<RustlsConfig> + Send + 'static,
+    S: IntoConfigStream<C> + Send + 'static,
+    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
     T: Listener + Send,
 {
     /// Create a new `RustlsListener`.
     #[inline]
-    pub fn new(config_stream: C, inner: T) -> Self {
-        RustlsListener { config_stream, inner }
+    pub fn new(config_stream: S, inner: T) -> Self {
+        RustlsListener {
+            config_stream,
+            inner,
+            _config: PhantomData,
+        }
     }
 }
 
 #[async_trait]
-impl<C, T> Listener for RustlsListener<C, T>
+impl<S, C, T> Listener for RustlsListener<S, C, T>
 where
-    C: IntoConfigStream<RustlsConfig> + Send + 'static,
+    S: IntoConfigStream<C> + Send + 'static,
+    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-    type Acceptor = RustlsAcceptor<BoxStream<'static, RustlsConfig>, T::Acceptor>;
+    type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor>;
 
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
@@ -58,23 +66,21 @@ where
 }
 
 /// RustlsAcceptor
-pub struct RustlsAcceptor<C, T> {
-    config_stream: C,
+pub struct RustlsAcceptor<S, C, T> {
+    config_stream: S,
     inner: T,
     holdings: Vec<Holding>,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
+    _config: PhantomData<C>,
 }
-impl<C, T> RustlsAcceptor<C, T>
+impl<S, C, T> RustlsAcceptor<S, C, T>
 where
+    S: futures_util::Stream<Item = C> + Send + 'static,
+    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
     T: Acceptor + Send,
-    C: Send,
 {
     /// Create a new `RustlsAcceptor`.
-    pub fn new(config_stream: C, inner: T) -> RustlsAcceptor<C, T>
-    where
-        C: Send,
-        T: Send,
-    {
+    pub fn new(config_stream: S, inner: T) -> RustlsAcceptor<S, C, T> {
         let holdings = inner
             .holdings()
             .iter()
@@ -100,14 +106,16 @@ where
             inner,
             holdings,
             tls_acceptor: None,
+            _config: PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl<C, T> Acceptor for RustlsAcceptor<C, T>
+impl<S, C, T> Acceptor for RustlsAcceptor<S, C, T>
 where
-    C: Stream<Item = RustlsConfig> + Send + Unpin + 'static,
+    S: Stream<Item = C> + Send + Unpin + 'static,
+    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
     T: Acceptor + Send + 'static,
     <T as Acceptor>::Conn: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
@@ -129,7 +137,7 @@ where
             config
         };
         if let Some(config) = config {
-            let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config.build_server_config()?));
+            let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config.try_into()?));
             if self.tls_acceptor.is_some() {
                 tracing::info!("tls config changed.");
             } else {

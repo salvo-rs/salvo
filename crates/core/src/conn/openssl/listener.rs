@@ -1,7 +1,9 @@
 //! openssl module
 use std::io::{Error as IoError, Result as IoResult};
+use std::marker::PhantomData;
 use std::sync::Arc;
-use std::task::{Context, Poll};use std::time::Duration;
+use std::task::{Context, Poll};
+use std::time::Duration;
 
 use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
@@ -10,9 +12,10 @@ use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_openssl::SslStream;use tokio_util::sync::CancellationToken;
+use tokio_openssl::SslStream;
+use tokio_util::sync::CancellationToken;
 
-use super::OpensslConfig;
+use super::SslAcceptorBuilder;
 
 use crate::async_trait;
 use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
@@ -20,31 +23,38 @@ use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 /// OpensslListener
-pub struct OpensslListener<C, T> {
-    config_stream: C,
+pub struct OpensslListener<S, C, T> {
+    config_stream: S,
     inner: T,
+    _config: PhantomData<C>,
 }
 
-impl<C, T> OpensslListener<C, T>
+impl<S, C, T> OpensslListener<S, C, T>
 where
-    C: IntoConfigStream<OpensslConfig> + Send + 'static,
+    S: IntoConfigStream<C> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
     T: Listener + Send,
 {
     /// Create new OpensslListener with config stream.
     #[inline]
-    pub fn new(config_stream: C, inner: T) -> Self {
-        OpensslListener { config_stream, inner }
+    pub fn new(config_stream: S, inner: T) -> Self {
+        OpensslListener {
+            config_stream,
+            inner,
+            _config: PhantomData,
+        }
     }
 }
 
 #[async_trait]
-impl<C, T> Listener for OpensslListener<C, T>
+impl<S, C, T> Listener for OpensslListener<S, C, T>
 where
-    C: IntoConfigStream<OpensslConfig> + Send + 'static,
+    S: IntoConfigStream<C> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
 {
-    type Acceptor = OpensslAcceptor<BoxStream<'static, OpensslConfig>, T::Acceptor>;
+    type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor>;
 
     async fn bind(self) -> Self::Acceptor {
         self.try_bind().await.unwrap()
@@ -59,18 +69,21 @@ where
 }
 
 /// OpensslAcceptor
-pub struct OpensslAcceptor<C, T> {
-    config_stream: C,
+pub struct OpensslAcceptor<S, C, T> {
+    config_stream: S,
     inner: T,
     holdings: Vec<Holding>,
     tls_acceptor: Option<Arc<SslAcceptor>>,
+    _config: PhantomData<C>,
 }
-impl<C, T> OpensslAcceptor<C, T>
+impl<S, C, T> OpensslAcceptor<S, C, T>
 where
-    T: Acceptor,
+    S: futures_util::Stream<Item = C> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
+    T: Acceptor + Send,
 {
     /// Create new OpensslAcceptor.
-    pub fn new(config_stream: C, inner: T) -> OpensslAcceptor<C, T> {
+    pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T> {
         let holdings = inner
             .holdings()
             .iter()
@@ -96,6 +109,7 @@ where
             inner,
             holdings,
             tls_acceptor: None,
+            _config: PhantomData,
         }
     }
 }
@@ -120,9 +134,10 @@ where
 }
 
 #[async_trait]
-impl<C, T> Acceptor for OpensslAcceptor<C, T>
+impl<S, C, T> Acceptor for OpensslAcceptor<S, C, T>
 where
-    C: Stream<Item = OpensslConfig> + Send + Unpin + 'static,
+    S: Stream<Item = C> + Send + Unpin + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
     T: Acceptor + Send + 'static,
 {
     type Conn = SslStream<T::Conn>;
@@ -144,8 +159,8 @@ where
             }
             config
         };
-        if let Some(mut config) = config {
-            match config.create_acceptor_builder() {
+        if let Some(config) = config {
+            match config.try_into() {
                 Ok(builder) => {
                     if self.tls_acceptor.is_some() {
                         tracing::info!("tls config changed.");

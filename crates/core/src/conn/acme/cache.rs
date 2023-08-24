@@ -150,7 +150,7 @@ where
     }
 }
 #[inline]
-async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> Result<(), IoError> {
+async fn write_data(file_path: impl AsRef<Path> + Send, data: impl AsRef<[u8]> + Send) -> IoResult<()> {
     let mut file = OpenOptions::new();
     file.write(true).create(true).truncate(true);
     #[cfg(unix)]

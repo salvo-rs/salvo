@@ -244,6 +244,14 @@ impl RustlsConfig {
     }
 }
 
+impl TryInto<ServerConfig> for RustlsConfig {
+    type Error = IoError;
+
+    fn try_into(self) -> IoResult<ServerConfig> {
+        self.build_server_config()
+    }
+}
+
 pub(crate) struct CertResolver {
     fallback: Option<Arc<CertifiedKey>>,
     certified_keys: HashMap<String, Arc<CertifiedKey>>,

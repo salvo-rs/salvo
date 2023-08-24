@@ -1,12 +1,13 @@
 //! native_tls module
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::io::{Error as IoError, ErrorKind, Read};
+use std::io::{Error as IoError, ErrorKind, Result as IoResult, Read};
 use std::path::{Path, PathBuf};
 
 use futures_util::future::{ready, Ready};
 use futures_util::stream::{once, Once, Stream};
-use tokio_native_tls::native_tls::Identity;
+
+pub use tokio_native_tls::native_tls::Identity;
 
 use crate::conn::IntoConfigStream;
 
@@ -64,9 +65,9 @@ impl NativeTlsConfig {
         self
     }
 
-    /// Generate identity
+    /// Build identity
     #[inline]
-    pub fn identity(mut self) -> Result<Identity, IoError> {
+    pub fn build_identity(mut self) -> IoResult<Identity> {
         if self.pkcs12.is_empty() {
             if let Some(path) = &self.pkcs12_path {
                 let mut file = File::open(path)?;
@@ -74,6 +75,14 @@ impl NativeTlsConfig {
             }
         }
         Identity::from_pkcs12(&self.pkcs12, &self.password).map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
+    }
+}
+
+impl TryInto<Identity> for NativeTlsConfig {
+    type Error = IoError;
+
+    fn try_into(self) -> IoResult<Identity> {
+        self.build_identity()
     }
 }
 
