@@ -17,7 +17,7 @@ pub(crate) fn has_nested_path(attr: &Attribute, ident: &str, path: &str) -> syn:
     let Some(list) = find_nested_list(attr, ident)? else {
         return Ok(false);
     };
-    let Ok(metas) =  list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) else {
+    let Ok(metas) = list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated) else {
         return Ok(false);
     };
     for meta in metas {
