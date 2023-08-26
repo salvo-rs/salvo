@@ -1,13 +1,12 @@
 //! native_tls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use std::marker::PhantomData;
 
-use futures_util::stream::BoxStream;
+use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
-use futures_util::{Stream, StreamExt};
 use http::uri::Scheme;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_native_tls::TlsStream;

@@ -5,9 +5,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_util::stream::BoxStream;
+use futures_util::stream::{BoxStream, Stream, StreamExt};
 use futures_util::task::noop_waker_ref;
-use futures_util::{Stream, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::server::TlsStream;
 
@@ -75,7 +74,7 @@ pub struct RustlsAcceptor<S, C, T> {
 }
 impl<S, C, T> RustlsAcceptor<S, C, T>
 where
-    S: futures_util::Stream<Item = C> + Send + 'static,
+    S: Stream<Item = C> + Send + 'static,
     C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
     T: Acceptor + Send,
 {

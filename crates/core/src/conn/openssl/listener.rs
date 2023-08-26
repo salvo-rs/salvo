@@ -5,9 +5,8 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use futures_util::stream::BoxStream;
 use futures_util::task::noop_waker_ref;
-use futures_util::{Stream, StreamExt};
+use futures_util::stream::{Stream,BoxStream, StreamExt};
 use http::uri::Scheme;
 use openssl::ssl::{Ssl, SslAcceptor};
 use tokio::io::ErrorKind;
@@ -78,7 +77,7 @@ pub struct OpensslAcceptor<S, C, T> {
 }
 impl<S, C, T> OpensslAcceptor<S, C, T>
 where
-    S: futures_util::Stream<Item = C> + Send + 'static,
+    S: Stream<Item = C> + Send + 'static,
     C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
     T: Acceptor + Send,
 {
