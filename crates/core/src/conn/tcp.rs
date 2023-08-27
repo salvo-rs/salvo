@@ -100,10 +100,6 @@ where
 {
     type Acceptor = TcpAcceptor;
 
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
-
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         TokioTcpListener::bind(self.local_addr).await?.try_into()
     }

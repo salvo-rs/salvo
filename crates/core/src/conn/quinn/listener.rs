@@ -51,10 +51,6 @@ where
 {
     type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C>;
 
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
-
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self {
             config_stream,

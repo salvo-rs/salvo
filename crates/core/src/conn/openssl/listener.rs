@@ -55,10 +55,6 @@ where
 {
     type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor>;
 
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
-
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         Ok(OpensslAcceptor::new(
             self.config_stream.into_stream().boxed(),

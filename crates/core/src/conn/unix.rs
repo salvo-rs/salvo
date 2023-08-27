@@ -36,10 +36,6 @@ where
 {
     type Acceptor = UnixAcceptor;
 
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
-
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let inner = TokioUnixListener::bind(self.path)?;
         let holding = Holding {

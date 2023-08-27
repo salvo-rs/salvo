@@ -7,6 +7,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use std::vec;
 
+use futures_util::Stream;
 use salvo_http3::http3_quinn;
 pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -14,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
-use crate::conn::HttpBuilder;
+use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 
@@ -84,5 +85,16 @@ impl HttpConnection for H3Connection {
             .quinn
             .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
             .await
+    }
+}
+
+impl<T> IntoConfigStream<ServerConfig> for T
+where
+    T: Stream<Item = ServerConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
     }
 }
