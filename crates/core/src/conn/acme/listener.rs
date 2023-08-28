@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
@@ -150,7 +151,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(mut self) -> IoResult<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -243,14 +244,14 @@ cfg_feature! {
         T::Acceptor: Send + Unpin + 'static,
         A: std::net::ToSocketAddrs + Send,
     {
-        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig>>;
+        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, Infallible>>;
 
         async fn try_bind(self) -> IoResult<Self::Acceptor> {
             let Self { acme, local_addr } = self;
+            let mut crypto = acme.server_config.as_ref().unwrap().clone();
+            crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
             let a = acme.try_bind().await?;
 
-            let crypto = self.acme.server_config.unwrap().as_ref().clone();
-            crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
             let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(futures_util::stream::once(async {config}), local_addr).try_bind().await?;
             let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
