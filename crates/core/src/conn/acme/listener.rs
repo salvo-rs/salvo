@@ -144,7 +144,7 @@ impl<T> AcmeListener<T> {
 impl<T> Listener for AcmeListener<T>
 where
     T: Listener + Send,
-    T::Acceptor: Send + Unpin + 'static,
+    T::Acceptor: Send + 'static,
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
