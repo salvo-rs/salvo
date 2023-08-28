@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use bytes::{BufMut, Bytes, BytesMut};
-use salvo::conn::rustls::{Keycert, RustlsConfig};
 use salvo::prelude::*;
 use salvo::proto::webtransport;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -117,7 +116,7 @@ where
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().push(Router::with_path("counter").handle(connect)).push(
+    let mut router = Router::new().push(Router::with_path("counter").handle(connect)).push(
         Router::with_path("<**path>").get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
     );
 
