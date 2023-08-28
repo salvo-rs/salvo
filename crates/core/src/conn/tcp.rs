@@ -46,10 +46,11 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `RustlsListener` from current `TcpListener`.
         #[inline]
-        pub fn rustls<S, C>(self, config_stream: S) -> RustlsListener<S, C, Self>
+        pub fn rustls<S, C, E>(self, config_stream: S) -> RustlsListener<S, C, Self, E>
         where
             S: IntoConfigStream<C> + Send + 'static,
-            C: TryInto<crate::conn::rustls::ServerConfig, Error = IoError> + Send + 'static,
+            C: TryInto<crate::conn::rustls::ServerConfig, Error = E> + Send + 'static,
+            E: std::error::Error + Send
         {
             RustlsListener::new(config_stream, self)
         }
@@ -60,10 +61,11 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `NativeTlsListener` from current `TcpListener`.
         #[inline]
-        pub fn native_tls<S, C>(self, config_stream: S) -> NativeTlsListener<S, C, Self>
+        pub fn native_tls<S, C, E>(self, config_stream: S) -> NativeTlsListener<S, C, Self, E>
         where
             S: IntoConfigStream<C> + Send + 'static,
-            C: TryInto<crate::conn::native_tls::Identity, Error = IoError> + Send + 'static,
+            C: TryInto<crate::conn::native_tls::Identity, Error = E> + Send + 'static,
+            E: std::error::Error + Send
         {
             NativeTlsListener::new(config_stream, self)
         }
@@ -74,10 +76,11 @@ impl<T: ToSocketAddrs + Send> TcpListener<T> {
 
         /// Creates a new `OpensslListener` from current `TcpListener`.
         #[inline]
-        pub fn openssl<S, C>(self, config_stream: S) -> OpensslListener<S, C, Self>
+        pub fn openssl<S, C, E>(self, config_stream: S) -> OpensslListener<S, C, Self, E>
         where
             S: IntoConfigStream<C> + Send + 'static,
-            C: TryInto<crate::conn::openssl::SslAcceptorBuilder, Error = IoError> + Send + 'static,
+            C: TryInto<crate::conn::openssl::SslAcceptorBuilder, Error = E> + Send + 'static,
+            E: std::error::Error + Send
         {
             OpensslListener::new(config_stream, self)
         }
@@ -99,10 +102,6 @@ where
     T: ToSocketAddrs + Send,
 {
     type Acceptor = TcpAcceptor;
-
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         TokioTcpListener::bind(self.local_addr).await?.try_into()

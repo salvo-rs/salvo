@@ -95,10 +95,6 @@ where
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
 
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
-
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let a = self.a.try_bind().await?;
         let b = self.b.try_bind().await?;
@@ -111,6 +107,12 @@ pub struct JoinedAcceptor<A, B> {
     a: A,
     b: B,
     holdings: Vec<Holding>,
+}
+
+impl<A, B> JoinedAcceptor<A, B> {
+    pub fn new(a: A, b: B, holdings: Vec<Holding>) -> Self {
+        JoinedAcceptor { a, b, holdings }
+    }
 }
 
 #[async_trait]

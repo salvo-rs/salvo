@@ -9,13 +9,12 @@ async fn hello() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("0.0.0.0:443")
+    let mut router = Router::new().get(hello);
+    let listener = TcpListener::new("0.0.0.0:443")
         .acme()
-        // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
         .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
-        .bind()
-        .await;
+        .http01_challege(&mut router).quinn("0.0.0.0:443");
+    let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
     Server::new(acceptor).serve(router).await;
 }

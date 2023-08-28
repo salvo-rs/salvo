@@ -1,5 +1,6 @@
 //! QuinnListener and it's implements.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::error::Error as StdError;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -21,16 +22,17 @@ use super::H3Connection;
 use crate::conn::{Accepted, Acceptor, Listener};
 
 /// QuinnListener
-pub struct QuinnListener<S, C, T> {
+pub struct QuinnListener<S, C, T, E> {
     config_stream: S,
     local_addr: T,
-    _config: PhantomData<C>,
+    _phantom: PhantomData<(C, E)>,
 }
-impl<S, C, T> QuinnListener<S, C, T>
+impl<S, C, T, E> QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
-    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: ToSocketAddrs + Send,
+    E: StdError + Send,
 {
     /// Bind to socket address.
     #[inline]
@@ -38,22 +40,19 @@ where
         QuinnListener {
             config_stream,
             local_addr,
-            _config: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
 #[async_trait]
-impl<S, C, T> Listener for QuinnListener<S, C, T>
+impl<S, C, T, E> Listener for QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
-    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
     T: ToSocketAddrs + Send,
+    E: StdError + Send,
 {
-    type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C>;
-
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
+    type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         let Self {
@@ -70,21 +69,22 @@ where
 }
 
 /// QuinnAcceptor
-pub struct QuinnAcceptor<S, C> {
+pub struct QuinnAcceptor<S, C, E> {
     config_stream: S,
     socket: SocketAddr,
     holdings: Vec<Holding>,
     endpoint: Option<Endpoint>,
-    _config: PhantomData<C>,
+    _phantom: PhantomData<(C, E)>,
 }
 
-impl<S, C> QuinnAcceptor<S, C>
+impl<S, C, E> QuinnAcceptor<S, C, E>
 where
     S: Stream<Item = C> + Send + 'static,
-    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
+    E: StdError + Send,
 {
     /// Create a new `QuinnAcceptor`.
-    pub fn new(config_stream: S, socket: SocketAddr) -> QuinnAcceptor<S, C> {
+    pub fn new(config_stream: S, socket: SocketAddr) -> QuinnAcceptor<S, C, E> {
         let holding = Holding {
             local_addr: socket.into(),
             http_versions: vec![Version::HTTP_3],
@@ -95,16 +95,17 @@ where
             socket,
             holdings: vec![holding],
             endpoint: None,
-            _config: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl<S, C> Acceptor for QuinnAcceptor<S, C>
+impl<S, C, E> Acceptor for QuinnAcceptor<S, C, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<ServerConfig, Error = IoError> + Send + 'static,
+    C: TryInto<ServerConfig, Error = E> + Send + 'static,
+    E: StdError + Send,
 {
     type Conn = H3Connection;
 
@@ -124,7 +125,10 @@ where
             config
         };
         if let Some(config) = config {
-            let endpoint = Endpoint::server(config.try_into()?, self.socket)?;
+            let config = config
+                .try_into()
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+            let endpoint = Endpoint::server(config, self.socket)?;
             if self.endpoint.is_some() {
                 tracing::info!("quinn config changed.");
             } else {

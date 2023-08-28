@@ -1,6 +1,7 @@
 //! openssl module
 use std::io::{Error as IoError, Result as IoResult};
 use std::marker::PhantomData;
+use std::error::Error as StdError;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -22,17 +23,18 @@ use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 
 /// OpensslListener
-pub struct OpensslListener<S, C, T> {
+pub struct OpensslListener<S, C, T, E> {
     config_stream: S,
     inner: T,
-    _config: PhantomData<C>,
+    _phantom: PhantomData<(C, E)>,
 }
 
-impl<S, C, T> OpensslListener<S, C, T>
+impl<S, C, T, E> OpensslListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Listener + Send,
+    E: StdError + Send,
 {
     /// Create new OpensslListener with config stream.
     #[inline]
@@ -40,24 +42,21 @@ where
         OpensslListener {
             config_stream,
             inner,
-            _config: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
 
 #[async_trait]
-impl<S, C, T> Listener for OpensslListener<S, C, T>
+impl<S, C, T, E> Listener for OpensslListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Listener + Send,
     T::Acceptor: Send + 'static,
+    E: StdError + Send,
 {
-    type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor>;
-
-    async fn bind(self) -> Self::Acceptor {
-        self.try_bind().await.unwrap()
-    }
+    type Acceptor = OpensslAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
         Ok(OpensslAcceptor::new(
@@ -68,21 +67,22 @@ where
 }
 
 /// OpensslAcceptor
-pub struct OpensslAcceptor<S, C, T> {
+pub struct OpensslAcceptor<S, C, T, E> {
     config_stream: S,
     inner: T,
     holdings: Vec<Holding>,
     tls_acceptor: Option<Arc<SslAcceptor>>,
-    _config: PhantomData<C>,
+    _phantom: PhantomData<(C, E)>,
 }
-impl<S, C, T> OpensslAcceptor<S, C, T>
+impl<S, C, T, E> OpensslAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send,
+    E: StdError + Send,
 {
     /// Create new OpensslAcceptor.
-    pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T> {
+    pub fn new(config_stream: S, inner: T) -> OpensslAcceptor<S, C, T, E> {
         let holdings = inner
             .holdings()
             .iter()
@@ -108,7 +108,7 @@ where
             inner,
             holdings,
             tls_acceptor: None,
-            _config: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -133,11 +133,12 @@ where
 }
 
 #[async_trait]
-impl<S, C, T> Acceptor for OpensslAcceptor<S, C, T>
+impl<S, C, T, E> Acceptor for OpensslAcceptor<S, C, T, E>
 where
     S: Stream<Item = C> + Send + Unpin + 'static,
-    C: TryInto<SslAcceptorBuilder, Error = IoError> + Send + 'static,
+    C: TryInto<SslAcceptorBuilder, Error = E> + Send + 'static,
     T: Acceptor + Send + 'static,
+    E: StdError + Send,
 {
     type Conn = SslStream<T::Conn>;
 

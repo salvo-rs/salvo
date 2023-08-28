@@ -229,7 +229,9 @@ impl RustlsConfig {
             TlsClientAuth::Optional(trust_anchor) => {
                 AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
             }
-            TlsClientAuth::Required(trust_anchor) => AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed(),
+            TlsClientAuth::Required(trust_anchor) => {
+                AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
+            }
         };
 
         let mut config = ServerConfig::builder()
@@ -273,10 +275,20 @@ impl IntoConfigStream<RustlsConfig> for RustlsConfig {
         once(ready(self))
     }
 }
-
 impl<T> IntoConfigStream<RustlsConfig> for T
 where
     T: Stream<Item = RustlsConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
+    }
+}
+
+impl<T> IntoConfigStream<ServerConfig> for T
+where
+    T: Stream<Item = ServerConfig> + Send + 'static,
 {
     type Stream = T;
 

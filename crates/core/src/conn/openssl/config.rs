@@ -164,10 +164,20 @@ impl IntoConfigStream<OpensslConfig> for OpensslConfig {
         once(ready(self))
     }
 }
-
 impl<T> IntoConfigStream<OpensslConfig> for T
 where
     T: Stream<Item = OpensslConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
+    }
+}
+
+impl<T> IntoConfigStream<SslAcceptorBuilder> for T
+where
+    T: Stream<Item = SslAcceptorBuilder> + Send + 'static,
 {
     type Stream = T;
 
