@@ -188,7 +188,10 @@ pub trait Listener {
     type Acceptor: Acceptor;
 
     /// Bind and returns acceptor.
-    async fn bind(self) -> Self::Acceptor where Self: Sized {
+    async fn bind(self) -> Self::Acceptor
+    where
+        Self: Sized,
+    {
         self.try_bind().await.unwrap()
     }
 
