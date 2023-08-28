@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
@@ -101,7 +100,7 @@ impl<T> AcmeListener<T> {
             };
             router
                 .routers
-                .push(Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).handle(handler));
+                .insert(0, Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).handle(handler));
         } else {
             panic!("`HTTP-01` challenge's key should not be none");
         }
@@ -241,7 +240,7 @@ cfg_feature! {
         T::Acceptor: Send + Unpin + 'static,
         A: std::net::ToSocketAddrs + Send,
     {
-        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, Infallible>>;
+        type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
         async fn try_bind(self) -> IoResult<Self::Acceptor> {
             let Self { acme, local_addr } = self;
@@ -324,6 +323,9 @@ where
             }
         });
         Ok(acceptor)
+    }
+    pub fn server_config(&self) -> Arc<ServerConfig> {
+        self.server_config.clone()
     }
 }
 #[async_trait]

@@ -166,3 +166,9 @@ function addToEventLog(text, severity = 'info') {
     entry.scrollIntoView();
   }
 }
+
+window.addEventListener("load", (event) => {
+  const url = window.location;
+  const counterUrl = `${url.protocol}//${url.host}/counter`;
+  document.getElementById("url").value = counterUrl;
+});
