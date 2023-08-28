@@ -182,7 +182,7 @@ impl Router {
         }
         None
     }
-    
+
     /// Insert a router at position `index` within current router, shifting all routers after it to the right.
     #[inline]
     pub fn insert(mut self, index: usize, router: Router) -> Self {
