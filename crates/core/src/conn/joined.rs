@@ -109,6 +109,12 @@ pub struct JoinedAcceptor<A, B> {
     holdings: Vec<Holding>,
 }
 
+impl<A, B> JoinedAcceptor<A, B> {
+    pub fn new(a: A, b: B, holdings: Vec<Holding>) -> Self {
+        JoinedAcceptor { a, b, holdings }
+    }
+}
+
 #[async_trait]
 impl<A, B> HttpConnection for JoinedStream<A, B>
 where

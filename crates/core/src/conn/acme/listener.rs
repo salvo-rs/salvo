@@ -33,7 +33,6 @@ pub struct AcmeListener<T> {
     inner: T,
     config_builder: AcmeConfigBuilder,
     check_duration: Duration,
-    server_config: Option<Arc<ServerConfig>>,
 }
 
 impl<T> AcmeListener<T> {
@@ -44,7 +43,6 @@ impl<T> AcmeListener<T> {
             inner,
             config_builder: AcmeConfig::builder(),
             check_duration: Duration::from_secs(10 * 60),
-            server_config: None,
         }
     }
 
@@ -212,11 +210,10 @@ where
             server_config.alpn_protocols.push(ACME_TLS_ALPN_NAME.to_vec());
         }
         let server_config = Arc::new(server_config);
-        self.server_config = Some(server_config.clone());
 
-        let tls_acceptor = TlsAcceptor::from(server_config);
+        let tls_acceptor = TlsAcceptor::from(server_config.clone());
         let inner = inner.try_bind().await?;
-        let acceptor = AcmeAcceptor::new(acme_config, cert_resolver, inner, tls_acceptor, check_duration).await?;
+        let acceptor = AcmeAcceptor::new(acme_config, server_config, cert_resolver, inner, tls_acceptor, check_duration).await?;
         Ok(acceptor)
     }
 }
@@ -248,14 +245,14 @@ cfg_feature! {
 
         async fn try_bind(self) -> IoResult<Self::Acceptor> {
             let Self { acme, local_addr } = self;
-            let mut crypto = acme.server_config.as_ref().unwrap().clone();
-            crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
             let a = acme.try_bind().await?;
 
+            let mut crypto = a.server_config.as_ref().clone();
+            crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
             let config = crate::conn::quinn::ServerConfig::with_crypto(Arc::new(crypto));
             let b = QuinnListener::new(futures_util::stream::once(async {config}), local_addr).try_bind().await?;
             let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
-            Ok(JoinedAcceptor { a, b, holdings })
+            Ok(JoinedAcceptor::new(a, b, holdings))
         }
     }
 }
@@ -263,6 +260,7 @@ cfg_feature! {
 /// AcmeAcceptor
 pub struct AcmeAcceptor<T> {
     config: Arc<AcmeConfig>,
+    server_config: Arc<ServerConfig>,
     inner: T,
     holdings: Vec<Holding>,
     tls_acceptor: tokio_rustls::TlsAcceptor,
@@ -274,6 +272,7 @@ where
 {
     pub(crate) async fn new(
         config: impl Into<Arc<AcmeConfig>> + Send,
+        server_config: impl Into<Arc<ServerConfig>> + Send,
         cert_resolver: Arc<ResolveServerCert>,
         inner: T,
         tls_acceptor: TlsAcceptor,
@@ -305,6 +304,7 @@ where
 
         let acceptor = AcmeAcceptor {
             config: config.into(),
+            server_config: server_config.into(),
             inner,
             holdings,
             tls_acceptor,
