@@ -31,8 +31,8 @@ impl<S, C, T, E> QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    E: StdError + Send,
     T: ToSocketAddrs + Send,
+    E: StdError + Send,
 {
     /// Bind to socket address.
     #[inline]
@@ -49,8 +49,8 @@ impl<S, C, T, E> Listener for QuinnListener<S, C, T, E>
 where
     S: IntoConfigStream<C> + Send + 'static,
     C: TryInto<ServerConfig, Error = E> + Send + 'static,
-    E: StdError + Send,
     T: ToSocketAddrs + Send,
+    E: StdError + Send,
 {
     type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
 
