@@ -219,6 +219,7 @@ where
 
 cfg_feature! {
     #![feature = "quinn"]
+    /// A wrapper around an underlying listener which implements the ACME and Quinn.
     pub struct AcmeQuinnListener<T, A> {
         acme: AcmeListener<T>,
         local_addr: A,
