@@ -13,8 +13,8 @@ async fn main() {
     let acceptor = TcpListener::new("0.0.0.0:443")
         .acme()
         // .directory("letsencrypt", salvo::conn::acme::LETS_ENCRYPT_STAGING)
-        .cache_path("acme/letsencrypt")
-        .add_domain("acme-tls-alpn01.salvo.rs")
+        .cache_path("temp/letsencrypt")
+        .add_domain("test.salvo.rs")
         .bind()
         .await;
     Server::new(acceptor).serve(router).await;
