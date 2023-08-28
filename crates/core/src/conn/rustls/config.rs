@@ -275,14 +275,16 @@ impl IntoConfigStream<RustlsConfig> for RustlsConfig {
         once(ready(self))
     }
 }
+impl<T> IntoConfigStream<RustlsConfig> for T
+where
+    T: Stream<Item = RustlsConfig> + Send + 'static,
+{
+    type Stream = T;
 
-// impl IntoConfigStream<ServerConfig> for ServerConfig {
-//     type Stream = Once<Ready<ServerConfig>>;
-
-//     fn into_stream(self) -> Self::Stream {
-//         once(ready(self))
-//     }
-// }
+    fn into_stream(self) -> Self {
+        self
+    }
+}
 
 impl<T> IntoConfigStream<ServerConfig> for T
 where

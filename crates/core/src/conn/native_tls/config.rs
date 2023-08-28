@@ -93,10 +93,20 @@ impl IntoConfigStream<NativeTlsConfig> for NativeTlsConfig {
         once(ready(self))
     }
 }
-
 impl<T> IntoConfigStream<NativeTlsConfig> for T
 where
     T: Stream<Item = NativeTlsConfig> + Send + 'static,
+{
+    type Stream = T;
+
+    fn into_stream(self) -> Self {
+        self
+    }
+}
+
+impl<T> IntoConfigStream<Identity> for T
+where
+    T: Stream<Item = Identity> + Send + 'static,
 {
     type Stream = T;
 
