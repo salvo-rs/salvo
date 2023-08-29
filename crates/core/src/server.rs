@@ -186,7 +186,7 @@ impl<A: Acceptor + Send> Server<A> {
                 if let Some(addr) = holding.local_addr.clone().into_std() {
                     let port = addr.port();
                     alt_svc_h3 = Some(
-                        format!(r#"h3-29=":{port}"; ma=2592000,quic=":{port}"; ma=2592000; v="46,43""#)
+                        format!(r#"h3=":{port}"; ma=2592000,h3-29=":{port}"; ma=2592000"#)
                             .parse::<HeaderValue>()
                             .unwrap(),
                     );
