@@ -23,13 +23,6 @@ use crate::{async_trait, Depot, Writer};
 ///     let length = file.metadata().await.unwrap().len();
 ///     ReadSeeker::new(file, length).send(req.headers(), res).await;
 /// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     let router = Router::new().path("/video_stream.mp4").get(video_stream);
-///     let acceptor = TcpListener::new("0.0.0.0:4000").bind().await;
-///     Server::new(acceptor).serve(router).await;
-/// }
 /// ```
 #[derive(Debug)]
 pub struct ReadSeeker<R> {
