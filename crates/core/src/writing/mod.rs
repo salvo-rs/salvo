@@ -3,11 +3,13 @@
 mod json;
 mod redirect;
 mod text;
+mod seek;
 
 use http::StatusCode;
 pub use json::Json;
 pub use redirect::Redirect;
 pub use text::Text;
+pub use seek::ReadSeeker;
 
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::{async_trait, Depot, Request, Response};
@@ -22,7 +24,7 @@ use crate::{async_trait, Depot, Request, Response};
 pub trait Writer {
     /// Write data to [`Response`].
     #[must_use = "write future must be used"]
-    async fn write(mut self, req: &mut Request, depot: &mut Depot, res: &mut Response);
+    async fn write(self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
 /// `Piece` is used to write data to [`Response`].
