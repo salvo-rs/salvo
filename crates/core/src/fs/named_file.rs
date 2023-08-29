@@ -427,8 +427,7 @@ impl NamedFile {
             true
         } else if req_headers.contains_key(IF_NONE_MATCH) {
             false
-        } else if let (Some(last_modified), Some(since)) =
-            (&last_modified, req_headers.typed_get::<IfModifiedSince>())
+        } else if let (Some(last_modified), Some(since)) = (&last_modified, req_headers.typed_get::<IfModifiedSince>())
         {
             !since.is_modified(*last_modified)
         } else {
@@ -530,7 +529,7 @@ impl NamedFile {
 #[async_trait]
 impl Writer for NamedFile {
     async fn write(mut self, req: &mut Request, _depot: &mut Depot, res: &mut Response) {
-        self.send( req.headers(), res).await;
+        self.send(req.headers(), res).await;
     }
 }
 

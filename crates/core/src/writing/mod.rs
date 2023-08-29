@@ -2,14 +2,14 @@
 
 mod json;
 mod redirect;
-mod text;
 mod seek;
+mod text;
 
 use http::StatusCode;
 pub use json::Json;
 pub use redirect::Redirect;
-pub use text::Text;
 pub use seek::ReadSeeker;
+pub use text::Text;
 
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::{async_trait, Depot, Request, Response};

@@ -10,12 +10,12 @@ use crate::http::{HttpRange, Request, Response, StatusCode, StatusError};
 use crate::{async_trait, Depot, Writer};
 
 /// `ReadSeeker` is used to write data to [`Response`] from a reader which implements [`AsyncRead`] and [`AsyncSeek`].
-/// 
+///
 /// # Example
 /// ```
 /// use salvo_core::prelude::*;
 /// use salvo_core::writing::ReadSeeker;
-/// 
+///
 /// #[handler]
 /// async fn video_stream(req: &mut Request, res: &mut Response) {
 ///     let file = tokio::fs::File::open("video.mp4").await.unwrap();
@@ -23,7 +23,7 @@ use crate::{async_trait, Depot, Writer};
 ///     let length = file.metadata().await.unwrap().len();
 ///     ReadSeeker::new(file, length).send(req.headers(), res).await;
 /// }
-/// 
+///
 /// #[tokio::main]
 /// async fn main() {
 ///     let router = Router::new().path("/video_stream.mp4").get(video_stream);
