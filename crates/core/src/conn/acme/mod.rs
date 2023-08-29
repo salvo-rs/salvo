@@ -76,6 +76,10 @@ use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 use cache::AcmeCache;
 pub use config::{AcmeConfig, AcmeConfigBuilder};
 pub use listener::AcmeListener;
+cfg_feature! {
+    #![feature = "quinn"]
+    pub use listener::AcmeQuinnListener;
+}
 
 /// Letsencrypt production directory url
 pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/directory";
