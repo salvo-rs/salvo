@@ -186,6 +186,8 @@ impl Request {
     }
 
     /// Returns a mutable reference to the associated URI.
+    /// 
+    /// *Notice: If you using this mutable reference to change the uri, you should change the `params` and `queries` manually.*
     ///
     /// # Examples
     ///
@@ -198,6 +200,15 @@ impl Request {
     #[inline]
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.uri
+    }
+
+    /// Set the associated URI. `querie` will be reset.
+    /// 
+    /// *Notice: `params` will not reset.*
+    #[inline]
+    pub fn set_uri(&mut self, uri: Uri) {
+        self.uri = uri;
+        self.queries = OnceCell::new();
     }
 
     /// Returns a reference to the associated HTTP method.
