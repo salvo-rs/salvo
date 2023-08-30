@@ -273,7 +273,6 @@ impl Request {
         &mut self.local_addr
     }
 
-
     /// Returns a reference to the associated header field map.
     ///
     /// # Examples
@@ -515,8 +514,8 @@ impl Request {
     }
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &MultiMap<String, String> {
-       let _ = self.queries();
-       self.queries.get_mut().unwrap()
+        let _ = self.queries();
+        self.queries.get_mut().unwrap()
     }
 
     /// Get query value from queries.
