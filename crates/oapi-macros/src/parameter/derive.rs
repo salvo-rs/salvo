@@ -17,7 +17,7 @@ use crate::feature::{
     ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
-use crate::serde::{self, RenameRule, SerdeContainer};
+use crate::serde::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
 use crate::{attribute, Array, FieldRename, Required, ResultExt};
 
