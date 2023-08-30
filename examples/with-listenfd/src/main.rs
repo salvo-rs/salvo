@@ -19,7 +19,7 @@ async fn main() -> Result<(), salvo::Error>  {
     let (addr, listener) = if let Some(listener) = listenfd.take_tcp_listener(0)? {
         (
             listener.local_addr()?,
-            tokio::net::TcpListener::from_std(listener.into()).unwrap(),
+            tokio::net::TcpListener::from_std(listener).unwrap(),
         )
     } else {
         let addr: SocketAddr = format!(

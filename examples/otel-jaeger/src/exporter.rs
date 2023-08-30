@@ -12,7 +12,7 @@ impl Exporter {
         let registry = Registry::new_custom(None, None).expect("create prometheus registry");
         Self { registry }
     }
-    fn handle(&self, req: &mut Request, res: &mut Response) {
+    fn handle(&self, req: &Request, res: &mut Response) {
         if req.method() != Method::GET {
             res.status_code(StatusCode::METHOD_NOT_ALLOWED);
             return;

@@ -9,7 +9,7 @@ impl QueryRoot {
     fn get_all_users(context: &DatabaseContext) -> FieldResult<Vec<User>> {
         let read = context.0.read();
         let users = read.get_all_users();
-        let mut result = Vec::<User>::new();
+        let mut result = Vec::with_capacity(users.len());
         result.reserve(users.len());
         for user in users {
             result.push(User {
