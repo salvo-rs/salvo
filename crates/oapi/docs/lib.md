@@ -17,8 +17,10 @@ you can use to annotate your code to have items documented.
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
-* **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+- **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
+- **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
+  format `ulid` in OpenAPI spec.
 * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.

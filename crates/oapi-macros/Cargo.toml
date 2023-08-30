@@ -21,6 +21,7 @@ quote = { workspace = true }
 proc-macro-crate = { workspace = true }
 proc-macro-error = { workspace = true }
 regex = { workspace = true }
+ulid = { workspace = true, optional = true, default-features = false }
 uuid = { workspace = true, optional = true }
 inventory = { workspace = true }
 
@@ -28,6 +29,7 @@ inventory = { workspace = true }
 default = []
 chrono = []
 decimal = []
+ulid = ["dep:ulid"]
 uuid = ["dep:uuid"]
 time = []
 smallvec = []
