@@ -205,7 +205,7 @@ pub trait FlashDepotExt {
 impl FlashDepotExt for Depot {
     #[inline]
     fn incoming_flash(&mut self) -> Option<&Flash> {
-        self.get::<Flash>(INCOMING_FLASH_KEY)
+        self.get::<Flash>(INCOMING_FLASH_KEY).ok()
     }
 
     #[inline]

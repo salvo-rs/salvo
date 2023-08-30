@@ -73,7 +73,7 @@ impl Depot {
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&mut Box<dyn Any + Send + Sync>>> {
+    pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
         self.get(&format!("{:?}", TypeId::of::<T>()))
     }
 
@@ -82,7 +82,7 @@ impl Depot {
     /// Returns `Err(None)` if value is not present in depot.
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn obtain_mut<T: Any + Send + Sync>(&self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
+    pub fn obtain_mut<T: Any + Send + Sync>(&mut self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
         self.get_mut(&format!("{:?}", TypeId::of::<T>()))
     }
 
@@ -110,11 +110,7 @@ impl Depot {
     #[inline]
     pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Result<&V, Option<&Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.get(key) {
-            if let Some(value) = value.downcast_ref::<V>() {
-                Ok(value)
-            } else {
-                Err(Some(value))
-            }
+            value.downcast_ref::<V>().ok_or(Some(value))
         } else {
             Err(None)
         }
@@ -130,7 +126,11 @@ impl Depot {
         key: &str,
     ) -> Result<&mut V, Option<&mut Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.get_mut(key) {
-            value.downcast_mut::<V>().map(|b| *b).map_err(|e| Some(e))
+            if value.downcast_mut::<V>().is_some() {
+                return Ok(value.downcast_mut::<V>().unwrap());
+            } else {
+                Err(Some(value))
+            }
         } else {
             Err(None)
         }
@@ -140,7 +140,7 @@ impl Depot {
     #[inline]
     pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
         if let Some(value) = self.map.remove(key) {
-            value.downcast::<V>().map(|b| *b).map_err(|e| Some(e))
+            value.downcast::<V>().map(|b| *b).map_err(Some)
         } else {
             Err(None)
         }

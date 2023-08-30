@@ -112,11 +112,11 @@ impl SessionDepotExt for Depot {
     }
     #[inline]
     fn session(&self) -> Option<&Session> {
-        self.get(SESSION_KEY)
+        self.get(SESSION_KEY).ok()
     }
     #[inline]
     fn session_mut(&mut self) -> Option<&mut Session> {
-        self.get_mut(SESSION_KEY)
+        self.get_mut(SESSION_KEY).ok()
     }
 }
 
