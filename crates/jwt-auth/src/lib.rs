@@ -135,7 +135,8 @@ impl JwtAuthDepotExt for Depot {
 
     #[inline]
     fn jwt_auth_state(&self) -> JwtAuthState {
-        self.get(JWT_AUTH_STATE_KEY).ok()
+        self.get(JWT_AUTH_STATE_KEY)
+            .ok()
             .cloned()
             .unwrap_or(JwtAuthState::Unauthorized)
     }
