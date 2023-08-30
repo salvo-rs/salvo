@@ -387,7 +387,7 @@ impl ToTokens for ExternalDocs {
 
 /// Represents OpenAPI Any value used in example and default fields.
 #[derive(Clone, Debug)]
-pub(self) enum AnyValue {
+enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
     DefaultTrait { struct_ident: Ident, field_ident: Member },

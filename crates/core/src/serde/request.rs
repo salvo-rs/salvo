@@ -53,10 +53,7 @@ pub(crate) struct RequestDeserializer<'de> {
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
     #[inline]
-    pub(crate) fn new(
-        request: &'de mut Request,
-        metadata: &'de Metadata,
-    ) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;
         if let Some(ctype) = request.content_type() {
             match ctype.subtype() {

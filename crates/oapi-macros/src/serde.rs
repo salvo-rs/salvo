@@ -177,29 +177,27 @@ pub(crate) fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| serde_attribute.parse_args_with(SerdeValue::parse).unwrap_or_abort())
-        .fold(Some(SerdeValue::default()), |acc, value| {
-            acc.map(|mut acc| {
-                if value.skip {
-                    acc.skip = value.skip;
-                }
-                if value.skip_serializing_if {
-                    acc.skip_serializing_if = value.skip_serializing_if;
-                }
-                if value.rename.is_some() {
-                    acc.rename = value.rename;
-                }
-                if value.flatten {
-                    acc.flatten = value.flatten;
-                }
-                if value.is_default {
-                    acc.is_default = value.is_default;
-                }
-                if value.double_option {
-                    acc.double_option = value.double_option;
-                }
+        .try_fold(SerdeValue::default(), |mut acc, value| {
+            if value.skip {
+                acc.skip = value.skip;
+            }
+            if value.skip_serializing_if {
+                acc.skip_serializing_if = value.skip_serializing_if;
+            }
+            if value.rename.is_some() {
+                acc.rename = value.rename;
+            }
+            if value.flatten {
+                acc.flatten = value.flatten;
+            }
+            if value.is_default {
+                acc.is_default = value.is_default;
+            }
+            if value.double_option {
+                acc.double_option = value.double_option;
+            }
 
-                acc
-            })
+            Some(acc)
         })
 }
 
@@ -208,26 +206,24 @@ pub(crate) fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| serde_attribute.parse_args_with(SerdeContainer::parse).unwrap_or_abort())
-        .fold(Some(SerdeContainer::default()), |acc, value| {
-            acc.map(|mut acc| {
-                if value.is_default {
-                    acc.is_default = value.is_default;
+        .try_fold(SerdeContainer::default(), |mut acc, value| {
+            if value.is_default {
+                acc.is_default = value.is_default;
+            }
+            match value.enum_repr {
+                SerdeEnumRepr::ExternallyTagged => {}
+                SerdeEnumRepr::Untagged
+                | SerdeEnumRepr::InternallyTagged { .. }
+                | SerdeEnumRepr::AdjacentlyTagged { .. }
+                | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                    acc.enum_repr = value.enum_repr;
                 }
-                match value.enum_repr {
-                    SerdeEnumRepr::ExternallyTagged => {}
-                    SerdeEnumRepr::Untagged
-                    | SerdeEnumRepr::InternallyTagged { .. }
-                    | SerdeEnumRepr::AdjacentlyTagged { .. }
-                    | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                        acc.enum_repr = value.enum_repr;
-                    }
-                }
-                if value.rename_all.is_some() {
-                    acc.rename_all = value.rename_all;
-                }
+            }
+            if value.rename_all.is_some() {
+                acc.rename_all = value.rename_all;
+            }
 
-                acc
-            })
+            Some(acc)
         })
 }
 

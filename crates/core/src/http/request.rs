@@ -187,6 +187,8 @@ impl Request {
 
     /// Returns a mutable reference to the associated URI.
     ///
+    /// *Notice: If you using this mutable reference to change the uri, you should change the `params` and `queries` manually.*
+    ///
     /// # Examples
     ///
     /// ```
@@ -198,6 +200,15 @@ impl Request {
     #[inline]
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.uri
+    }
+
+    /// Set the associated URI. `querie` will be reset.
+    ///
+    /// *Notice: `params` will not reset.*
+    #[inline]
+    pub fn set_uri(&mut self, uri: Uri) {
+        self.uri = uri;
+        self.queries = OnceCell::new();
     }
 
     /// Returns a reference to the associated HTTP method.
@@ -258,8 +269,19 @@ impl Request {
     }
     /// Get request remote address.
     #[inline]
+    pub fn remote_addr_mut(&mut self) -> &mut SocketAddr {
+        &mut self.remote_addr
+    }
+
+    /// Get request remote address reference.
+    #[inline]
     pub fn local_addr(&self) -> &SocketAddr {
         &self.local_addr
+    }
+    /// Get mutable request remote address reference.
+    #[inline]
+    pub fn local_addr_mut(&mut self) -> &mut SocketAddr {
+        &mut self.local_addr
     }
 
     /// Returns a reference to the associated header field map.
@@ -500,6 +522,11 @@ impl Request {
                 .into_owned()
                 .collect()
         })
+    }
+    /// Get mutable queries reference.
+    pub fn queries_mut(&mut self) -> &MultiMap<String, String> {
+        let _ = self.queries();
+        self.queries.get_mut().unwrap()
     }
 
     /// Get query value from queries.
