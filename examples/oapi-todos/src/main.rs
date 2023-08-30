@@ -22,10 +22,10 @@ async fn main() {
     let doc = OpenApi::new("todos api", "0.0.1").merge_router(&router);
 
     let router = router
-        .push(doc.into_router("/api-doc/openapi.json"))
-        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"))
-        .push(RapiDoc::new("/api-doc/openapi.json").into_router("/rapidoc"))
-        .push(ReDoc::new("/api-doc/openapi.json").into_router("/redoc"));
+        .unshift(doc.into_router("/api-doc/openapi.json"))
+        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"))
+        .unshift(RapiDoc::new("/api-doc/openapi.json").into_router("/rapidoc"))
+        .unshift(ReDoc::new("/api-doc/openapi.json").into_router("/redoc"));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;

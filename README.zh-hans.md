@@ -259,8 +259,8 @@ async fn main() {
     let doc = OpenApi::new("test api", "0.0.1").merge_router(&router);
 
     let router = router
-        .push(doc.into_router("/api-doc/openapi.json"))
-        .push(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
+        .unshift(doc.into_router("/api-doc/openapi.json"))
+        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("swagger-ui"));
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
