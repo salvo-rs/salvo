@@ -54,7 +54,7 @@ impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
     #[inline]
     pub(crate) fn new(
-        request: &'de mut Request,
+        request: &'de Request,
         metadata: &'de Metadata,
     ) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;

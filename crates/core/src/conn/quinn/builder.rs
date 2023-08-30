@@ -110,14 +110,14 @@ async fn process_web_transport(
     conn: salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>,
     request: hyper::Request<()>,
     stream: RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>,
-    mut hyper_handler: crate::service::HyperHandler,
+    hyper_handler: crate::service::HyperHandler,
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
     request.extensions_mut().insert(Mutex::new(conn));
     request.extensions_mut().insert(stream);
 
-    let mut response = hyper::service::Service::call(&mut hyper_handler, request)
+    let mut response = hyper::service::Service::call(&hyper_handler, request)
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
 
@@ -192,7 +192,7 @@ async fn process_web_transport(
 async fn process_request<S>(
     request: hyper::Request<()>,
     stream: RequestStream<S, Bytes>,
-    mut hyper_handler: crate::service::HyperHandler,
+    hyper_handler: crate::service::HyperHandler,
 ) -> IoResult<()>
 where
     S: salvo_http3::quic::BidiStream<Bytes> + Send + Unpin + 'static,
@@ -202,7 +202,7 @@ where
     let (parts, _body) = request.into_parts();
     let request = hyper::Request::from_parts(parts, ReqBody::from(H3ReqBody::new(rx)));
 
-    let response = hyper::service::Service::call(&mut hyper_handler, request)
+    let response = hyper::service::Service::call(&hyper_handler, request)
         .await
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to call hyper service : {}", e)))?;
 
