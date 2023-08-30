@@ -67,10 +67,23 @@ impl Depot {
         self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
         self
     }
+
     /// Obtain a reference to a value previous inject to the depot.
+    ///
+    /// Returns `Err(None)` if value is not present in depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn obtain<T: Any + Send + Sync>(&self) -> Option<&T> {
+    pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&mut Box<dyn Any + Send + Sync>>> {
         self.get(&format!("{:?}", TypeId::of::<T>()))
+    }
+
+    /// Obtain a mutable reference to a value previous inject to the depot.
+    ///
+    /// Returns `Err(None)` if value is not present in depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
+    #[inline]
+    pub fn obtain_mut<T: Any + Send + Sync>(&self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
+        self.get_mut(&format!("{:?}", TypeId::of::<T>()))
     }
 
     /// Inserts a key-value pair into the depot.
@@ -90,16 +103,37 @@ impl Depot {
         self.map.contains_key(key)
     }
 
-    /// Immutably borrows value from depot, returning none if value is not present in depot.
+    /// Immutably borrows value from depot.
+    ///
+    /// Returns `Err(None)` if value is not present in depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Option<&V> {
-        self.map.get(key).and_then(|b| b.downcast_ref::<V>())
+    pub fn get<V: Any + Send + Sync>(&self, key: &str) -> Result<&V, Option<&Box<dyn Any + Send + Sync>>> {
+        if let Some(value) = self.map.get(key) {
+            if let Some(value) = value.downcast_ref::<V>() {
+                Ok(value)
+            } else {
+                Err(Some(value))
+            }
+        } else {
+            Err(None)
+        }
     }
 
-    /// Mutably borrows value from depot, returning none if value is not present in depot.
+    /// Mutably borrows value from depot.
+    ///
+    /// Returns `Err(None)` if value is not present in depot.
+    /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
-    pub fn get_mut<V: Any + Send + Sync>(&mut self, key: &str) -> Option<&mut V> {
-        self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())
+    pub fn get_mut<V: Any + Send + Sync>(
+        &mut self,
+        key: &str,
+    ) -> Result<&mut V, Option<&mut Box<dyn Any + Send + Sync>>> {
+        if let Some(value) = self.map.get_mut(key) {
+            value.downcast_mut::<V>().map(|b| *b).map_err(|e| Some(e))
+        } else {
+            Err(None)
+        }
     }
 
     /// Remove value from depot and returning the value at the key if the key was previously in the depot.
