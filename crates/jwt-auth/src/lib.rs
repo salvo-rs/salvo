@@ -122,7 +122,7 @@ pub trait JwtAuthDepotExt {
 impl JwtAuthDepotExt for Depot {
     #[inline]
     fn jwt_auth_token(&self) -> Option<&String> {
-        self.get(JWT_AUTH_TOKEN_KEY)
+        self.get(JWT_AUTH_TOKEN_KEY).ok()
     }
 
     #[inline]
@@ -130,19 +130,20 @@ impl JwtAuthDepotExt for Depot {
     where
         C: DeserializeOwned + Send + Sync + 'static,
     {
-        self.get(JWT_AUTH_DATA_KEY)
+        self.get(JWT_AUTH_DATA_KEY).ok()
     }
 
     #[inline]
     fn jwt_auth_state(&self) -> JwtAuthState {
         self.get(JWT_AUTH_STATE_KEY)
+            .ok()
             .cloned()
             .unwrap_or(JwtAuthState::Unauthorized)
     }
 
     #[inline]
     fn jwt_auth_error(&self) -> Option<&JwtError> {
-        self.get(JWT_AUTH_ERROR_KEY)
+        self.get(JWT_AUTH_ERROR_KEY).ok()
     }
 }
 
