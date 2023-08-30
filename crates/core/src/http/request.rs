@@ -258,7 +258,7 @@ impl Request {
     }
     /// Get request remote address.
     #[inline]
-    pub fn remote_addr_mut(&self) -> &mut SocketAddr {
+    pub fn remote_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.remote_addr
     }
 
@@ -269,7 +269,7 @@ impl Request {
     }
     /// Get mutable request remote address reference.
     #[inline]
-    pub fn local_addr_mut(&self) -> &mut SocketAddr {
+    pub fn local_addr_mut(&mut self) -> &mut SocketAddr {
         &mut self.local_addr
     }
 
@@ -516,7 +516,7 @@ impl Request {
     /// Get mutable queries reference.
     pub fn queries_mut(&mut self) -> &MultiMap<String, String> {
        let _ = self.queries();
-       self.get_mut().unwrap()
+       self.queries.get_mut().unwrap()
     }
 
     /// Get query value from queries.
