@@ -102,10 +102,20 @@ impl Depot {
         self.map.get_mut(key).and_then(|b| b.downcast_mut::<V>())
     }
 
-    /// Take value from depot container.
+    /// Remove value from depot and returning the value at the key if the key was previously in the depot.
     #[inline]
-    pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Option<V> {
-        self.map.remove(key).and_then(|b| b.downcast::<V>().ok()).map(|b| *b)
+    pub fn remove<V: Any + Send + Sync>(&mut self, key: &str) -> Result<V, Option<Box<dyn Any + Send + Sync>>> {
+        if let Some(value) = self.map.remove(key) {
+            value.downcast::<V>().map(|b| *b).map_err(|e| Some(e))
+        } else {
+            Err(None)
+        }
+    }
+
+    /// Delete the key from depot, if the key is not present, return `false`.
+    #[inline]
+    pub fn delete(&mut self, key: &str) -> bool {
+        self.map.remove(key).is_some()
     }
 
     /// Transfer all data to a new instance.
