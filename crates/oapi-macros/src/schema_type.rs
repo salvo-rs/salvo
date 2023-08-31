@@ -25,12 +25,24 @@ impl SchemaType<'_> {
         };
         let name = &*last_segment.ident.to_string();
 
-        #[cfg(not(any(feature = "chrono", feature = "decimal", feature = "ulid", feature = "uuid", feature = "time",)))]
+        #[cfg(not(any(
+            feature = "chrono",
+            feature = "decimal",
+            feature = "ulid",
+            feature = "uuid",
+            feature = "time",
+        )))]
         {
             is_primitive(name)
         }
 
-        #[cfg(any(feature = "chrono", feature = "decimal", feature = "ulid", feature = "uuid", feature = "time",))]
+        #[cfg(any(
+            feature = "chrono",
+            feature = "decimal",
+            feature = "ulid",
+            feature = "uuid",
+            feature = "time",
+        ))]
         {
             let mut primitive = is_primitive(name);
 
