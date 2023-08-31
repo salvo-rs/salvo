@@ -144,6 +144,9 @@ generated OpenAPI doc. The following attributes are currently supported:
 * `default` Supported at the container level and field level according to [serde attributes].
 * `skip_serializing_if = "..."` Supported  **only** at the field level.
 * `with = ...` Supported **only** at field level.
+* `skip_serializing = "..."` Supported  **only** at the field or variant level.
+* `skip_deserializing = "..."` Supported  **only** at the field or variant level.
+* `skip = "..."` Supported  **only** at the field level.
 
 Other _`serde`_ attributes will impact the serialization but will not be reflected on the generated OpenAPI doc.
 

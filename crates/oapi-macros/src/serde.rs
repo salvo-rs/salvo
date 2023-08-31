@@ -38,7 +38,11 @@ impl SerdeValue {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 match tt {
-                    TokenTree::Ident(ident) if ident == "skip" || ident == "skip_serializing" => value.skip = true,
+                    TokenTree::Ident(ident)
+                        if ident == "skip" || ident == "skip_serializing" || ident == "skip_deserializing" =>
+                    {
+                        value.skip = true
+                    }
                     TokenTree::Ident(ident) if ident == "skip_serializing_if" => value.skip_serializing_if = true,
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {

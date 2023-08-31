@@ -17,7 +17,7 @@ use crate::feature::{
     ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
-use crate::serde::{self, RenameRule, SerdeContainer};
+use crate::serde::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
 use crate::{attribute, Array, FieldRename, Required, ResultExt};
 
@@ -128,9 +128,18 @@ impl ToTokens for ToParameters {
         let params = self
             .get_struct_fields(&names.as_ref())
             .enumerate()
-            .map(|(index, field)| {
+            .filter_map(|(index, field)| {
+                let field_params = serde::parse_value(&field.attrs);
+                if matches!(&field_params, Some(params) if !params.skip) {
+                    Some((index, field, field_params))
+                } else {
+                    None
+                }
+            })
+            .map(|(index, field, field_serde_params)|{
                 Parameter {
                     field,
+                    field_serde_params,
                     container_attributes: FieldParameterContainerAttributes {
                         rename_all: rename_all.as_ref().and_then(|feature| {
                             match feature {
@@ -323,6 +332,8 @@ impl Parse for FieldFeatures {
 struct Parameter<'a> {
     /// Field in the container used to create a single parameter.
     field: &'a Field,
+    //// Field serde params parsed from field attributes.
+    field_serde_params: Option<SerdeValue>,
     /// Attributes on the container which are relevant for this macro.
     container_attributes: FieldParameterContainerAttributes<'a>,
     /// Either serde rename all rule or to_parameters rename all rule if provided.
@@ -400,6 +411,7 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let field = self.field;
+        let field_serde_params = &self.field_serde_params;
         let ident = &field.ident;
         let mut name = &*ident
             .as_ref()
@@ -416,11 +428,10 @@ impl ToTokens for Parameter<'_> {
             name = &name[2..];
         }
 
-        let field_param_serde = serde::parse_value(&field.attrs);
         let (schema_features, mut param_features) = self.resolve_field_features();
 
         let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
-        let rename_to = field_param_serde
+        let rename_to = field_serde_params
             .as_ref()
             .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
             .or_else(|| rename.map(Cow::Owned));
@@ -466,7 +477,7 @@ impl ToTokens for Parameter<'_> {
                 .unwrap_or(false);
 
             let non_required = (component.is_option() && !required)
-                || !crate::is_required(field_param_serde.as_ref(), self.serde_container);
+                || !crate::is_required(field_serde_params.as_ref(), self.serde_container);
             let required: Required = (!non_required).into();
 
             tokens.extend(quote! {
