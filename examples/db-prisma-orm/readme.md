@@ -7,7 +7,7 @@ cargo run --bin prisma-cli -- migrate dev
 cargo run --bin db_prisma_orm
 # 调用接口
 # 添加数据
-curl -d '{"username":"test","email": "test@1.com"}' -H 'Content-Type: application/json' -X POST http://127.0.0.1:5800
+curl -d '{"username":"test","email": "test@1.com"}' -H 'Content-Type: application/json' -X POST http://0.0.0.0:5800
 # 查询数据
-curl http://127.0.0.1:5800
+curl http://0.0.0.0:5800
 ```

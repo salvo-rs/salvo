@@ -31,6 +31,6 @@ async fn main() {
         .push(Router::with_path("eyre").get(handle_eyre))
         .push(Router::with_path("custom").get(handle_custom));
 
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;
 }

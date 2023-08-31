@@ -10,8 +10,8 @@ async fn main() {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello);
-    let acceptor = TcpListener::new("127.0.0.1:5800")
-        .join(TcpListener::new("127.0.0.1:5801"))
+    let acceptor = TcpListener::new("0.0.0.0:5800")
+        .join(TcpListener::new("0.0.0.0:5801"))
         .bind()
         .await;
 

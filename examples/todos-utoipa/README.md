@@ -10,6 +10,6 @@ cargo run
 
 and then try:
 
-http://127.0.0.1:5800/api-doc/openapi.json
+http://0.0.0.0:5800/api-doc/openapi.json
 
-http://127.0.0.1:5800/swagger-ui/
+http://0.0.0.0:5800/swagger-ui/

@@ -21,7 +21,7 @@ async fn main() {
         .finders(vec![Box::new(HeaderFinder::new())])
         .force_passed(true);
 
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     let router = Router::new()
         .push(Router::with_hoop(auth_handler).path("welcome").get(welcome))
         .push(Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:5801"])));
