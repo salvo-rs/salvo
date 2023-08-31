@@ -10,7 +10,7 @@ static STORE: Lazy<Db> = Lazy::new(new_store);
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().push(
+    let router = Router::new().get(index).push(
         Router::with_path("api").push(
             Router::with_path("todos")
                 .get(list_todos)
@@ -29,6 +29,11 @@ async fn main() {
 
     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
     Server::new(acceptor).serve(router).await;
+}
+
+#[handler]
+pub async fn index() -> Text<&'static str> {
+    Text::Html(INDEX_HTML)
 }
 
 /// List todos.
@@ -122,3 +127,18 @@ mod models {
         pub completed: bool,
     }
 }
+
+static INDEX_HTML: &str = r#"<!DOCTYPE html>
+<html>
+    <head>
+        <title>Oapi todos</title>
+    </head>
+    <body>
+        <ul>
+        <li><a href="swagger-ui" target="_blank">swagger-ui</a></li>
+        <li><a href="rapidoc" target="_blank">rapidoc</a></li>
+        <li><a href="redoc" target="_blank">redoc</a></li>
+        </ul>
+    </body>
+</html>
+"#;
