@@ -199,8 +199,9 @@ impl<'t> TypeTree<'t> {
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            "LinkedList" => Some(GenericType::LinkedList),
             #[cfg(feature = "smallvec")]
-            "SmallVec" => Some(GenericType::Vec),
+            "SmallVec" => Some(GenericType::SmallVec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
@@ -271,6 +272,9 @@ pub(crate) enum ValueType {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub(crate) enum GenericType {
     Vec,
+    LinkedList,
+    #[cfg(feature = "smallvec")]
+    SmallVec,
     Map,
     Option,
     Cow,

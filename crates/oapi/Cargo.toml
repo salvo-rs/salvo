@@ -69,7 +69,6 @@ assert-json-diff = { workspace = true }
 salvo_core = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
-paste = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }
 rust_decimal = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
