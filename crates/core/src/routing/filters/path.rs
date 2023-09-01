@@ -388,9 +388,9 @@ pub struct NamedWisp(pub String);
 impl PathWisp for NamedWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        if self.0.starts_with('*') {
+        if self.0.starts_with('*') || self.0.starts_with('?') {
             let rest = state.all_rest().unwrap_or_default();
-            if !rest.is_empty() || self.0.starts_with("**") {
+            if !rest.is_empty() || self.0.starts_with("*") {
                 let rest = rest.to_string();
                 state.params.insert(self.0.clone(), rest);
                 state.cursor.0 = state.parts.len();
@@ -435,14 +435,10 @@ impl PartialEq for RegexWisp {
 impl PathWisp for RegexWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        if self.name.starts_with('*') {
-            let rest = state.all_rest();
-            if rest.is_none() {
-                return false;
-            }
-            let rest = &*rest.unwrap();
-            if !rest.is_empty() || self.name.starts_with("**") {
-                let cap = self.regex.captures(rest).and_then(|caps| caps.get(0));
+        if self.name.starts_with('*') || self.name.starts_with('?') {
+            let rest = state.all_rest().unwrap_or_default();
+            if !rest.is_empty() || self.name.starts_with("*") {
+                let cap = self.regex.captures(&*rest).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
@@ -775,7 +771,7 @@ impl PathParser {
     }
     fn validate(&self, wisps: &[WispKind], all_names: &mut IndexSet<String>) -> Result<(), String> {
         if !wisps.is_empty() {
-            let wild_name = all_names.iter().find(|v| v.starts_with('*'));
+            let wild_name = all_names.iter().find(|v| v.starts_with('*') || v.starts_with('?'));
             if let Some(wild_name) = wild_name {
                 return Err(format!(
                     "wildcard name `{}` must added at the last in url: `{}`",
@@ -798,7 +794,7 @@ impl PathParser {
             };
 
             if let Some(name) = name {
-                if name.starts_with('*') && index != wisps.len() - 1 {
+                if (name.starts_with('*') || name.starts_with('?'))&& index != wisps.len() - 1 {
                     return Err(format!(
                         "wildcard name `{}` must added at the last in url: `{}`",
                         name,
@@ -817,7 +813,7 @@ impl PathParser {
         }
         let wild_names = all_names
             .iter()
-            .filter(|v| v.starts_with('*'))
+            .filter(|v| v.starts_with('*') || v.starts_with('?'))
             .map(|c| &**c)
             .collect::<Vec<_>>();
         if wild_names.len() > 1 {
@@ -1027,6 +1023,12 @@ mod tests {
             format!("{:?}", segments),
             r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*rest")]"#
         );
+        
+        let segments = PathParser::new(r"/first<id>/<?rest>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("?rest")]"#
+        );
     }
     #[test]
     fn test_parse_num0() {
@@ -1180,8 +1182,20 @@ mod tests {
     }
     #[test]
     fn test_detect_wildcard() {
-        let filter = PathFilter::new("/users/<id>/<**rest>");
+        let filter = PathFilter::new("/users/<id>/<*rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(filter.detect(&mut state));
+        
+        let filter = PathFilter::new("/users/<id>/<?rest>");
+        let mut state = PathState::new("/users/12/facebook/insights/23");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(!filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(!filter.detect(&mut state));
     }
 }
