@@ -84,7 +84,10 @@ pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send +
 
 /// Default url path getter. This getter will get the url path from request wildcard param, like `<*rest>`, `<?rest>`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
-    let param = req.params().iter().find(|(key, _)| key.starts_with('*') || key.starts_with('?'));
+    let param = req
+        .params()
+        .iter()
+        .find(|(key, _)| key.starts_with('*') || key.starts_with('?'));
     if let Some((_, rest)) = param {
         Some(encode_url_path(rest))
     } else {
@@ -390,8 +393,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy() {
-        let router = Router::new()
-            .push(Router::with_path("rust/<*rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+        let router =
+            Router::new().push(Router::with_path("rust/<*rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
             .send(router)
