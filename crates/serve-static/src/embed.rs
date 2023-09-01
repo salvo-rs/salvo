@@ -119,7 +119,7 @@ where
 {
     #[inline]
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
+        let param = req.params().iter().find(|(key, _)| key.starts_with('*') || key.starts_with('?'));
         let req_path = if let Some((_, value)) = param {
             value.clone()
         } else {

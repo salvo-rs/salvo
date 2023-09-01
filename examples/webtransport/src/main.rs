@@ -121,7 +121,7 @@ async fn main() {
     let key = include_bytes!("../certs/key.pem").to_vec();
 
     let router = Router::new().push(Router::with_path("counter").handle(connect)).push(
-        Router::with_path("<**path>").get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
+        Router::with_path("<*path>").get(StaticDir::new(["webtransport/static", "./static"]).defaults("client.html")),
     );
 
     let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));

@@ -1106,7 +1106,7 @@ mod tests {
 
     #[test]
     fn test_parse_rest2_failed() {
-        assert!(PathParser::new(r"/first<id><*ext>/<**rest>").parse().is_err());
+        assert!(PathParser::new(r"/first<id><*ext>/<*rest>").parse().is_err());
     }
 
     #[test]
