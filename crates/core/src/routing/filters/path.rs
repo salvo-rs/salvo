@@ -794,7 +794,7 @@ impl PathParser {
             };
 
             if let Some(name) = name {
-                if (name.starts_with('*') || name.starts_with('?'))&& index != wisps.len() - 1 {
+                if (name.starts_with('*') || name.starts_with('?')) && index != wisps.len() - 1 {
                     return Err(format!(
                         "wildcard name `{}` must added at the last in url: `{}`",
                         name,
@@ -1023,7 +1023,7 @@ mod tests {
             format!("{:?}", segments),
             r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*rest")]"#
         );
-        
+
         let segments = PathParser::new(r"/first<id>/<?rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
@@ -1189,7 +1189,7 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(filter.detect(&mut state));
-        
+
         let filter = PathFilter::new("/users/<id>/<?rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
