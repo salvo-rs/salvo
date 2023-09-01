@@ -390,7 +390,7 @@ impl PathWisp for NamedWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.0.starts_with('*') || self.0.starts_with('?') {
             let rest = state.all_rest().unwrap_or_default();
-            if !rest.is_empty() || self.0.starts_with("*") {
+            if !rest.is_empty() || self.0.starts_with('*') {
                 let rest = rest.to_string();
                 state.params.insert(self.0.clone(), rest);
                 state.cursor.0 = state.parts.len();
@@ -437,8 +437,8 @@ impl PathWisp for RegexWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.name.starts_with('*') || self.name.starts_with('?') {
             let rest = state.all_rest().unwrap_or_default();
-            if !rest.is_empty() || self.name.starts_with("*") {
-                let cap = self.regex.captures(&*rest).and_then(|caps| caps.get(0));
+            if !rest.is_empty() || self.name.starts_with('*') {
+                let cap = self.regex.captures(&rest).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
