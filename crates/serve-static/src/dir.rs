@@ -190,7 +190,7 @@ impl Handler for StaticDir {
         let param = req
             .params()
             .iter()
-            .find(|(key, _)| key.starts_with('*') || key.starts_with('?'));
+            .find(|(key, _)| key.starts_with('*'));
         let req_path = req.uri().path();
         let rel_path = if let Some((_, value)) = param {
             value.clone()

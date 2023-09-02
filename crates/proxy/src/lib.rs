@@ -87,7 +87,7 @@ pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> 
     let param = req
         .params()
         .iter()
-        .find(|(key, _)| key.starts_with('*') || key.starts_with('?'));
+        .find(|(key, _)| key.starts_with('*'));
     if let Some((_, rest)) = param {
         Some(encode_url_path(rest))
     } else {

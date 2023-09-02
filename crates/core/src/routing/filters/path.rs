@@ -390,6 +390,9 @@ impl PathWisp for NamedWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
+            if self.0.starts_with("*?") && rest.trim_start_matches('/').trim_end_matches('/').contains('/') {
+                return false;
+            }
             if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.to_string();
                 state.params.insert(self.0.clone(), rest);
@@ -435,8 +438,11 @@ impl PartialEq for RegexWisp {
 impl PathWisp for RegexWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        if self.name.starts_with('*') || self.name.starts_with('+') {
+        if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
+            if self.name.starts_with("*?") && rest.trim_start_matches('/').trim_end_matches('/').contains('/') {
+                return false;
+            }
             if !rest.is_empty() || !self.name.starts_with("*+") {
                 let cap = self.regex.captures(&rest).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
@@ -771,7 +777,7 @@ impl PathParser {
     }
     fn validate(&self, wisps: &[WispKind], all_names: &mut IndexSet<String>) -> Result<(), String> {
         if !wisps.is_empty() {
-            let wild_name = all_names.iter().find(|v| v.starts_with('*') || v.starts_with('?'));
+            let wild_name = all_names.iter().find(|v| v.starts_with('*'));
             if let Some(wild_name) = wild_name {
                 return Err(format!(
                     "wildcard name `{}` must added at the last in url: `{}`",
@@ -813,7 +819,7 @@ impl PathParser {
         }
         let wild_names = all_names
             .iter()
-            .filter(|v| v.starts_with('*') || v.starts_with('?'))
+            .filter(|v| v.starts_with('*'))
             .map(|c| &**c)
             .collect::<Vec<_>>();
         if wild_names.len() > 1 {
@@ -923,7 +929,7 @@ mod tests {
     #[test]
     fn test_parse_rest_without_name() {
         let segments = PathParser::new("/hello/<**>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello"), NamedWisp("*")]"#);
+        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello"), NamedWisp("**")]"#);
     }
 
     #[test]
@@ -1021,13 +1027,19 @@ mod tests {
         let segments = PathParser::new(r"/first<id>/<**rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*rest")]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("**rest")]"#
         );
 
         let segments = PathParser::new(r"/first<id>/<*+rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("?rest")]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*+rest")]"#
+        );
+
+        let segments = PathParser::new(r"/first<id>/<*?rest>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*?rest")]"#
         );
     }
     #[test]
