@@ -12,7 +12,6 @@ use std::marker::PhantomData;
 
 pub use jsonwebtoken::errors::Error as JwtError;
 pub use jsonwebtoken::{decode, Algorithm, DecodingKey, TokenData, Validation};
-// use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 use thiserror::Error;
 

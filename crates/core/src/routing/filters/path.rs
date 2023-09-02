@@ -435,7 +435,7 @@ impl PartialEq for RegexWisp {
 impl PathWisp for RegexWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
-        if self.name.starts_with('*') || self.name.starts_with('?') {
+        if self.name.starts_with('*') || self.name.starts_with('+') {
             let rest = state.all_rest().unwrap_or_default();
             if !rest.is_empty() || self.name.starts_with('*') {
                 let cap = self.regex.captures(&rest).and_then(|caps| caps.get(0));
@@ -1024,7 +1024,7 @@ mod tests {
             r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*rest")]"#
         );
 
-        let segments = PathParser::new(r"/first<id>/<?rest>").parse().unwrap();
+        let segments = PathParser::new(r"/first<id>/<*+rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
             r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("?rest")]"#
@@ -1182,20 +1182,20 @@ mod tests {
     }
     #[test]
     fn test_detect_wildcard() {
-        let filter = PathFilter::new("/users/<id>/<*rest>");
-        let mut state = PathState::new("/users/12/facebook/insights/23");
-        assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12/");
-        assert!(filter.detect(&mut state));
-        let mut state = PathState::new("/users/12");
-        assert!(filter.detect(&mut state));
-
-        let filter = PathFilter::new("/users/<id>/<?rest>");
+        let filter = PathFilter::new("/users/<id>/<**rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12/");
         assert!(!filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(!filter.detect(&mut state));
+        
+        let filter = PathFilter::new("/users/<id>/<*+rest>");
+        let mut state = PathState::new("/users/12/facebook/insights/23");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(filter.detect(&mut state));
     }
 }

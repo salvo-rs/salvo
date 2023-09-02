@@ -58,6 +58,25 @@ impl<'c> ComponentSchema {
                 deprecated_stream,
                 type_definition,
             ),
+            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+                type_definition,
+            ),
+            #[cfg(feature = "smallvec")]
+            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+                type_definition,
+            ),
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
                 if !features.iter().any(|feature| matches!(feature, Feature::Nullable(_))) {

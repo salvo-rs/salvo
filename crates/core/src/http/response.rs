@@ -418,12 +418,13 @@ impl Response {
 impl fmt::Debug for Response {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "HTTP/1.1 {}\n{:?}",
-            self.status_code.unwrap_or(StatusCode::NOT_FOUND),
-            self.headers
-        )
+        f.debug_struct("Response")
+            .field("status_code", &self.status_code)
+            .field("version", &self.version)
+            .field("headers", &self.headers)
+            // omits Extensions because not useful
+            .field("body", &self.body)
+            .finish()
     }
 }
 

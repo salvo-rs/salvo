@@ -30,7 +30,7 @@ use crate::conn::openssl::OpensslListener;
 #[cfg(feature = "acme")]
 use crate::conn::acme::AcmeListener;
 
-/// TcpListener
+/// `TcpListener` is used to create a TCP connection listener.
 pub struct TcpListener<T> {
     local_addr: T,
 }
@@ -107,7 +107,7 @@ where
         TokioTcpListener::bind(self.local_addr).await?.try_into()
     }
 }
-/// TcpAcceptor
+/// `TcpAcceptor` is used to accept a TCP connection.
 pub struct TcpAcceptor {
     inner: TokioTcpListener,
     holdings: Vec<Holding>,

@@ -15,7 +15,7 @@ use crate::service::HyperHandler;
 
 use super::{Accepted, Acceptor, Listener};
 
-/// Unix domain socket listener.
+/// `UnixListener` is used to create a Unix socket connection listener.
 #[cfg(unix)]
 pub struct UnixListener<T> {
     path: T,
@@ -50,7 +50,7 @@ where
     }
 }
 
-/// UnixAcceptor
+/// `UnixAcceptor` is used to accept a Unix socket connection.
 pub struct UnixAcceptor {
     inner: TokioUnixListener,
     holdings: Vec<Holding>,
