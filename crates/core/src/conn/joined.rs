@@ -69,7 +69,7 @@ where
     }
 }
 
-/// JoinedListener
+/// `JoinedListener` is a listener that can join two listeners. 
 #[pin_project]
 pub struct JoinedListener<A, B> {
     #[pin]
