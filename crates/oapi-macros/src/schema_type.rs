@@ -382,7 +382,7 @@ impl Parse for Variant {
         ];
         let known_formats = FORMATS
             .into_iter()
-            .filter(|_format| !excluded_format.contains(&_format))
+            .filter(|format| !excluded_format.contains(format))
             .collect::<Vec<_>>();
 
         let lookahead = input.lookahead1();

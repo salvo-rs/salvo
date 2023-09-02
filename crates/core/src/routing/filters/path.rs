@@ -436,13 +436,9 @@ impl PathWisp for RegexWisp {
     #[inline]
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.name.starts_with('*') {
-            let rest = state.all_rest();
-            if rest.is_none() {
-                return false;
-            }
-            let rest = &*rest.unwrap();
+            let rest = state.all_rest().unwrap_or_default();
             if !rest.is_empty() || self.name.starts_with("**") {
-                let cap = self.regex.captures(rest).and_then(|caps| caps.get(0));
+                let cap = self.regex.captures(&rest).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
                     state.forward(cap.len());
@@ -1183,5 +1179,17 @@ mod tests {
         let filter = PathFilter::new("/users/<id>/<**rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(filter.detect(&mut state));
+
+        let filter = PathFilter::new("/users/<id>/<*rest>");
+        let mut state = PathState::new("/users/12/facebook/insights/23");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(!filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(!filter.detect(&mut state));
     }
 }
