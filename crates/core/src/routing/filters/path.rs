@@ -390,7 +390,10 @@ impl PathWisp for NamedWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.0.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
-            if !rest.is_empty() || self.0.starts_with("**") {
+            if self.0.starts_with("*?") && rest.trim_start_matches('/').trim_end_matches('/').contains('/') {
+                return false;
+            }
+            if !rest.is_empty() || !self.0.starts_with("*+") {
                 let rest = rest.to_string();
                 state.params.insert(self.0.clone(), rest);
                 state.cursor.0 = state.parts.len();
@@ -437,7 +440,10 @@ impl PathWisp for RegexWisp {
     fn detect<'a>(&self, state: &mut PathState) -> bool {
         if self.name.starts_with('*') {
             let rest = state.all_rest().unwrap_or_default();
-            if !rest.is_empty() || self.name.starts_with("**") {
+            if self.name.starts_with("*?") && rest.trim_start_matches('/').trim_end_matches('/').contains('/') {
+                return false;
+            }
+            if !rest.is_empty() || !self.name.starts_with("*+") {
                 let cap = self.regex.captures(&rest).and_then(|caps| caps.get(0));
                 if let Some(cap) = cap {
                     let cap = cap.as_str().to_owned();
@@ -922,8 +928,8 @@ mod tests {
     }
     #[test]
     fn test_parse_rest_without_name() {
-        let segments = PathParser::new("/hello/<*>").parse().unwrap();
-        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello"), NamedWisp("*")]"#);
+        let segments = PathParser::new("/hello/<**>").parse().unwrap();
+        assert_eq!(format!("{:?}", segments), r#"[ConstWisp("hello"), NamedWisp("**")]"#);
     }
 
     #[test]
@@ -1018,10 +1024,22 @@ mod tests {
     }
     #[test]
     fn test_parse_rest() {
-        let segments = PathParser::new(r"/first<id>/<*rest>").parse().unwrap();
+        let segments = PathParser::new(r"/first<id>/<**rest>").parse().unwrap();
         assert_eq!(
             format!("{:?}", segments),
-            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*rest")]"#
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("**rest")]"#
+        );
+
+        let segments = PathParser::new(r"/first<id>/<*+rest>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*+rest")]"#
+        );
+
+        let segments = PathParser::new(r"/first<id>/<*?rest>").parse().unwrap();
+        assert_eq!(
+            format!("{:?}", segments),
+            r#"[CombWisp([ConstWisp("first"), NamedWisp("id")]), NamedWisp("*?rest")]"#
         );
     }
     #[test]
@@ -1079,14 +1097,14 @@ mod tests {
 
     #[test]
     fn test_parse_comb_1() {
-        let filter = PathFilter::new("/first<id>world<*rest>");
+        let filter = PathFilter::new("/first<id>world<**rest>");
         let mut state = PathState::new("first123world.ext");
         assert!(filter.detect(&mut state));
     }
 
     #[test]
     fn test_parse_comb_2() {
-        let filter = PathFilter::new("/abc/hello<id>world<*rest>");
+        let filter = PathFilter::new("/abc/hello<id>world<**rest>");
         let mut state = PathState::new("abc/hello123world.ext");
         assert!(filter.detect(&mut state));
     }
@@ -1105,11 +1123,11 @@ mod tests {
 
     #[test]
     fn test_parse_rest_failed1() {
-        assert!(PathParser::new(r"/first<id>ext2/<*rest><id>").parse().is_err());
+        assert!(PathParser::new(r"/first<id>ext2/<**rest><id>").parse().is_err());
     }
     #[test]
     fn test_parse_rest_failed2() {
-        assert!(PathParser::new(r"/first<id>ext2/<*rest>wefwe").parse().is_err());
+        assert!(PathParser::new(r"/first<id>ext2/<**rest>wefwe").parse().is_err());
     }
     #[test]
     fn test_parse_many_slashes() {
@@ -1184,12 +1202,22 @@ mod tests {
         let mut state = PathState::new("/users/12");
         assert!(filter.detect(&mut state));
 
-        let filter = PathFilter::new("/users/<id>/<*rest>");
+        let filter = PathFilter::new("/users/<id>/<*+rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12/");
         assert!(!filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(!filter.detect(&mut state));
+
+        let filter = PathFilter::new("/users/<id>/<*?rest>");
+        let mut state = PathState::new("/users/12/facebook/insights/23");
+        assert!(!filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12");
+        assert!(filter.detect(&mut state));
+        let mut state = PathState::new("/users/12/abc");
+        assert!(filter.detect(&mut state));
     }
 }

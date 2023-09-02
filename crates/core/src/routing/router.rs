@@ -548,7 +548,7 @@ mod tests {
         let router = Router::new().push(
             Router::with_path("users").push(
                 Router::with_path(r"<id:/\d+/>")
-                    .push(Router::new().push(Router::with_path("facebook/insights/<*rest>").handle(fake_handler))),
+                    .push(Router::new().push(Router::with_path("facebook/insights/<*+rest>").handle(fake_handler))),
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -583,12 +583,11 @@ mod tests {
     }
     #[test]
     fn test_router_detect6() {
-        let router =
-            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
-                Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::new().path("<*rest>").handle(fake_handler)),
-                ),
-            )));
+        let router = Router::new().push(Router::with_path("users").push(
+            Router::with_path(r"<id:/\d+/>").push(Router::new().push(
+                Router::with_path("facebook/insights").push(Router::new().path("<*+rest>").handle(fake_handler)),
+            )),
+        ));
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
@@ -604,7 +603,7 @@ mod tests {
         let router =
             Router::new().push(Router::with_path("用户").push(Router::with_path(r"<id:/\d+/>").push(
                 Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
+                    Router::with_path("facebook/insights").push(Router::with_path("<*+rest>").handle(fake_handler)),
                 ),
             )));
         let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights").build();
