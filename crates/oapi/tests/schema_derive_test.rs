@@ -1,10 +1,10 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
-use serde::Serialize;
-use serde_json::{json, Value};
 use salvo_oapi::openapi::{Object, ObjectBuilder};
 use salvo_oapi::{OpenApi, ToSchema, TupleUnit};
+use serde::Serialize;
+use serde_json::{json, Value};
 
 mod common;
 
@@ -2954,11 +2954,7 @@ fn derive_struct_component_field_type_path_override() {
         }
     };
 
-    let component_ref: &str = post
-        .pointer("/properties/value/$ref")
-        .unwrap()
-        .as_str()
-        .unwrap();
+    let component_ref: &str = post.pointer("/properties/value/$ref").unwrap().as_str().unwrap();
     assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
 }
 
@@ -4209,9 +4205,7 @@ fn derive_schema_with_custom_field_with_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
             .schema_type(salvo_oapi::openapi::SchemaType::String)
-            .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
-                "email".to_string(),
-            )))
+            .format(Some(salvo_oapi::openapi::SchemaFormat::Custom("email".to_string())))
             .description(Some("this is the description"))
             .build()
     }

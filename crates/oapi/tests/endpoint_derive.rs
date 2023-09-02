@@ -2,15 +2,15 @@ use std::collections::BTreeMap;
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use paste::paste;
-use serde::Serialize;
-use serde_json::{json, Value};
-use std::collections::HashMap;
 use salvo_oapi::openapi::RefOr;
 use salvo_oapi::openapi::{Object, ObjectBuilder};
 use salvo_oapi::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
     IntoParams, IntoResponses, OpenApi, ToSchema,
 };
+use serde::Serialize;
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
 mod common;
 
@@ -1408,9 +1408,7 @@ fn derive_path_with_into_params_custom_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
             .schema_type(salvo_oapi::openapi::SchemaType::String)
-            .format(Some(salvo_oapi::openapi::SchemaFormat::Custom(
-                "email".to_string(),
-            )))
+            .format(Some(salvo_oapi::openapi::SchemaFormat::Custom("email".to_string())))
             .description(Some("this is the description"))
             .build()
     }
@@ -1634,7 +1632,6 @@ fn derive_into_params_with_serde_skip_serializing() {
         operation: get,
         path: "/params"
     };
-
 
     let value = operation.pointer("/parameters");
 

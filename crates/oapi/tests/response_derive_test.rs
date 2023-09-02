@@ -1,7 +1,7 @@
 use assert_json_diff::assert_json_eq;
-use serde_json::json;
 use salvo_oapi::ToSchema;
 use salvo_oapi_gen::ToResponse;
+use serde_json::json;
 
 #[test]
 fn derive_name_struct_response() {
@@ -146,10 +146,7 @@ fn derive_response_with_attributes() {
     ///
     /// It will also be used in `ToSchema` if present
     #[derive(ToSchema, ToResponse)]
-    #[response(
-        description = "Override description for response",
-        content_type = "text/xml"
-    )]
+    #[response(description = "Override description for response", content_type = "text/xml")]
     #[response(
         example = json!({"name": "the name"}),
         headers(

@@ -1,6 +1,6 @@
 use assert_json_diff::assert_json_eq;
-use serde_json::json;
 use salvo_oapi::OpenApi;
+use serde_json::json;
 
 mod common;
 
@@ -116,9 +116,7 @@ fn derive_path_parameter_multiple_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = doc
-        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
-        .unwrap();
+    let parameters = doc.pointer("/paths/~1foo~1{id}~1{digest}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
