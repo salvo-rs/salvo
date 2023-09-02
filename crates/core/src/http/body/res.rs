@@ -2,6 +2,7 @@
 
 use std::boxed::Box;
 use std::collections::VecDeque;
+use std::fmt::Debug;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
@@ -187,5 +188,18 @@ impl From<Vec<u8>> for ResBody {
 impl From<Box<[u8]>> for ResBody {
     fn from(value: Box<[u8]>) -> ResBody {
         ResBody::Once(value.into())
+    }
+}
+
+impl Debug for ResBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResBody::None => write!(f, "ResBody::None"),
+            ResBody::Once(bytes) => write!(f, "ResBody::Once({:?})", bytes),
+            ResBody::Chunks(chunks) => write!(f, "ResBody::Chunks({:?})", chunks),
+            ResBody::Hyper(_) => write!(f, "ResBody::Hyper(_)"),
+            ResBody::Stream(_) => write!(f, "ResBody::Stream(_)"),
+            ResBody::Error(_) => write!(f, "ResBody::Error(_)"),
+        }
     }
 }
