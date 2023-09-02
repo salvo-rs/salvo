@@ -6,11 +6,11 @@ use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
 
-/// `JwtTokenFinder` is to provide a way to find a JWT (JSON Web Token) from a request. 
+/// `JwtTokenFinder` is to provide a way to find a JWT (JSON Web Token) from a request.
 #[async_trait]
 pub trait JwtTokenFinder: Send + Sync {
     /// Get token from request.
-    /// 
+    ///
     /// The token is returned as an  Option<String> , where  Some  contains the token if found, and  None  if not found.
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
@@ -39,7 +39,7 @@ impl HeaderFinder {
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
         &mut self.header_names
     }
-    
+
     /// Sets header names and returns Self.
     #[inline]
     pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
