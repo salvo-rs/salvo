@@ -306,11 +306,9 @@ impl OpenApi {
                 let meta_not_exist_parameters = path_parameter_names
                     .iter()
                     .filter(|name| {
-                        !(name.starts_with('*')
-                            || name.starts_with('?')
-                            || operation.parameters.0.iter().any(|parameter| {
-                                parameter.name == **name && parameter.parameter_in == ParameterIn::Path
-                            }))
+                        !name.starts_with('*') && !operation.parameters.0.iter().any(|parameter| {
+                            parameter.name == **name && parameter.parameter_in == ParameterIn::Path
+                        })
                     })
                     .collect::<Vec<_>>();
                 if !meta_not_exist_parameters.is_empty() {

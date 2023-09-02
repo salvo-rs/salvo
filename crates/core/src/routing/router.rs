@@ -529,7 +529,7 @@ mod tests {
         let router = Router::new().push(
             Router::with_path("users").push(
                 Router::with_path(r"<id:/\d+/>")
-                    .push(Router::new().push(Router::with_path("facebook/insights/<*rest>").handle(fake_handler))),
+                    .push(Router::new().push(Router::with_path("facebook/insights/<**rest>").handle(fake_handler))),
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -567,7 +567,7 @@ mod tests {
         let router =
             Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
                 Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<*rest>").handle(fake_handler)),
+                    Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
                 ),
             )));
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();

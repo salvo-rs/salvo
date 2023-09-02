@@ -73,7 +73,7 @@ pub(crate) fn route() -> Router {
         )
         .push(Router::with_path("/api-doc/openapi.json").get(openapi_json))
         .push(
-            Router::with_path("/swagger-ui/<*>")
+            Router::with_path("/swagger-ui/<**>")
                 .hoop(affix::inject(config))
                 .get(serve_swagger),
         )

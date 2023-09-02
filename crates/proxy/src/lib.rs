@@ -82,7 +82,7 @@ where
 /// Url part getter. You can use this to get the proxied url path or query.
 pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
-/// Default url path getter. This getter will get the url path from request wildcard param, like `<*rest>`, `<*+rest>`.
+/// Default url path getter. This getter will get the url path from request wildcard param, like `<**rest>`, `<*+rest>`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
     let param = req
         .params()
@@ -394,7 +394,7 @@ mod tests {
     #[tokio::test]
     async fn test_proxy() {
         let router =
-            Router::new().push(Router::with_path("rust/<*rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
+            Router::new().push(Router::with_path("rust/<**rest>").handle(Proxy::new(vec!["https://www.rust-lang.org"])));
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
             .send(router)
