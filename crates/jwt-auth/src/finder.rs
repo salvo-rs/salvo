@@ -6,14 +6,16 @@ use salvo_core::http::{Method, Request};
 
 use super::ALL_METHODS;
 
-/// JwtTokenFinder
+/// `JwtTokenFinder` is to provide a way to find a JWT (JSON Web Token) from a request.
 #[async_trait]
 pub trait JwtTokenFinder: Send + Sync {
     /// Get token from request.
+    ///
+    /// The token is returned as an  Option<String> , where  Some  contains the token if found, and  None  if not found.
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
 
-/// HeaderFinder
+/// `HeaderFinder` is to find a JWT from a request header.
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct HeaderFinder {
@@ -32,12 +34,13 @@ impl HeaderFinder {
         }
     }
 
-    #[doc(hidden)]
+    /// Get header names mutable reference.
     #[inline]
     pub fn header_names_mut(&mut self) -> &mut Vec<HeaderName> {
         &mut self.header_names
     }
-    #[doc(hidden)]
+
+    /// Sets header names and returns Self.
     #[inline]
     pub fn header_names(mut self, header_names: impl Into<Vec<HeaderName>>) -> Self {
         self.header_names = header_names.into();
@@ -73,7 +76,7 @@ impl JwtTokenFinder for HeaderFinder {
     }
 }
 
-/// FormFinder
+/// `FormFinder` is to find a JWT from a request form.
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct FormFinder {
@@ -115,7 +118,7 @@ impl JwtTokenFinder for FormFinder {
     }
 }
 
-/// QueryFinder
+/// `QueryFinder` is to find a JWT from a request query string.
 #[derive(Eq, PartialEq, Clone, Default)]
 #[non_exhaustive]
 pub struct QueryFinder {
