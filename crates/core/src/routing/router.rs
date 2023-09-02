@@ -583,12 +583,11 @@ mod tests {
     }
     #[test]
     fn test_router_detect6() {
-        let router =
-            Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
-                Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::new().path("<*+rest>").handle(fake_handler)),
-                ),
-            )));
+        let router = Router::new().push(Router::with_path("users").push(
+            Router::with_path(r"<id:/\d+/>").push(Router::new().push(
+                Router::with_path("facebook/insights").push(Router::new().path("<*+rest>").handle(fake_handler)),
+            )),
+        ));
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);

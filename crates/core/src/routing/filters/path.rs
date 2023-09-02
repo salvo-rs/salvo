@@ -1201,7 +1201,7 @@ mod tests {
         assert!(filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(filter.detect(&mut state));
-        
+
         let filter = PathFilter::new("/users/<id>/<*+rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(filter.detect(&mut state));
@@ -1209,7 +1209,7 @@ mod tests {
         assert!(!filter.detect(&mut state));
         let mut state = PathState::new("/users/12");
         assert!(!filter.detect(&mut state));
-        
+
         let filter = PathFilter::new("/users/<id>/<*?rest>");
         let mut state = PathState::new("/users/12/facebook/insights/23");
         assert!(!filter.detect(&mut state));
