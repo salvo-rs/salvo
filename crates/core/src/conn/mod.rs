@@ -1,7 +1,7 @@
-//! Various listener implementations for handling HTTP connections. 
-//! 
-//! These listeners include implementations for different TLS libraries such as  `rustls` ,  `native-tls` , and  `openssl`. 
-//! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol. 
+//! Various listener implementations for handling HTTP connections.
+//!
+//! These listeners include implementations for different TLS libraries such as  `rustls` ,  `native-tls` , and  `openssl`.
+//! The module also provides support for HTTP versions 1 and 2, as well as the QUIC protocol.
 //! Additionally, it includes implementations for Unix domain sockets.
 use std::fmt::{self, Display, Formatter};
 use std::io::Result as IoResult;
@@ -111,8 +111,8 @@ pub trait IntoConfigStream<C> {
 }
 
 /// [`Acceptor`]'s return type.
-/// 
-/// The  `Accepted`  struct represents an accepted connection and contains information such as the connection itself, 
+///
+/// The  `Accepted`  struct represents an accepted connection and contains information such as the connection itself,
 /// the local and remote addresses, the HTTP scheme, and the HTTP version.
 #[non_exhaustive]
 pub struct Accepted<C> {
