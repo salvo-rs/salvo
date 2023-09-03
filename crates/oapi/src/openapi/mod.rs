@@ -193,13 +193,21 @@ impl OpenApi {
         self.servers = servers.into_iter().collect();
         self
     }
+    /// Add [`Server`] to configure operations and endpoints of the API and returns `Self`.
+    pub fn add_server<S>(mut self, server: S) -> Self
+    where
+        S: Into<Server>,
+    {
+        self.servers.insert(server.into());
+        self
+    }
 
     /// Set paths to configure operations and endpoints of the API.
     pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
         self.paths = paths.into();
         self
     }
-    /// Add [`PathItem`] to configure operations and endpoints of the API.
+    /// Add [`PathItem`] to configure operations and endpoints of the API and returns `Self`.
     pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
     where
         P: Into<String>,

@@ -45,18 +45,15 @@ impl Components {
     pub fn new() -> Self {
         Default::default()
     }
-    /// Add [`SecurityScheme`] to [`Components`]
+    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
-        mut self,
-        name: N,
-        security_scheme: S,
-    ) -> Self {
+    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_scheme: S) -> Self {
         self.security_schemes.insert(name.into(), security_scheme.into());
+
         self
     }
 
@@ -67,6 +64,20 @@ impl Components {
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+        &mut self,
+        schemas: I,
+    ) {
+        self.security_schemes
+            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+    }
+
+    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    ///
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         schemas: I,
     ) -> Self {
@@ -75,13 +86,14 @@ impl Components {
         self
     }
 
-    /// Add [`Schema`] to [`Components`].
+    /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
         self
     }
+
     /// Add [`Schema`]s from iterator.
     ///
     /// # Examples
@@ -126,18 +138,6 @@ impl Components {
                 .into_iter()
                 .map(|(name, response)| (name.into(), response.into())),
         );
-        self
-    }
-
-    /// Add [`SecurityScheme`] to [`Components`].
-    ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_scheme: S) -> Self {
-        self.security_schemes.insert(name.into(), security_scheme.into());
-
         self
     }
 
