@@ -1,4 +1,6 @@
-//! The flash message lib for Savlo web server framework. Read more: <https://salvo.rs>
+//! The flash message lib for Savlo web server framework.
+//!
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -221,7 +223,7 @@ impl FlashDepotExt for Depot {
     }
 }
 
-/// FlashHandler
+/// `FlashHandler` is a middleware for flash messages.
 #[non_exhaustive]
 pub struct FlashHandler<S> {
     store: S,

@@ -5,7 +5,7 @@
 //! Data can be saved in Cookies via [`CookieStore`](struct.CookieStore.html) or in session
 //! via [`SessionStore`](struct.SessionStore.html). [`SessionStore`](struct.SessionStore.html) need to work with `salvo-session` crate.
 //!
-//!
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]

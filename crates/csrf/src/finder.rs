@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use salvo_core::{async_trait, Request};
 use serde_json::Value;
 
-/// CsrfTokenFinder
+/// Used to find csrf token from request.
 #[async_trait]
 pub trait CsrfTokenFinder: Send + Sync + 'static {
     /// Find token from request.

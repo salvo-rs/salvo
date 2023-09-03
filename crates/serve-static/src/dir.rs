@@ -17,7 +17,7 @@ use time::{macros::format_description, OffsetDateTime};
 
 use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url};
 
-/// Static roots.
+/// Trait for collecting static roots.
 pub trait StaticRoots {
     /// Collect all static roots.
     fn collect(self) -> Vec<PathBuf>;
@@ -66,7 +66,7 @@ where
     }
 }
 
-/// StaticDir
+/// Handler that serves a directory.
 #[non_exhaustive]
 #[derive(Clone)]
 pub struct StaticDir {

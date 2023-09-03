@@ -6,14 +6,14 @@ use base64::Engine;
 
 use super::CsrfCipher;
 
-/// AesGcmCipher is a CSRF protection implementation that uses HMAC.
+/// CSRF protection implementation that uses AES-GCM.
 pub struct AesGcmCipher {
     aead_key: [u8; 32],
     token_size: usize,
 }
 
 impl AesGcmCipher {
-    /// Given an HMAC key, return an `AesGcmCipher` instance.
+    /// Given an aead key, return an `AesGcmCipher` instance.
     #[inline]
     pub fn new(aead_key: [u8; 32]) -> Self {
         Self {

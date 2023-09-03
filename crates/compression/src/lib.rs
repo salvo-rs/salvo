@@ -1,4 +1,6 @@
-//! Compress the body of a response.
+//! Compression middleware for for Savlo web server framework.
+//!
+//! Read more: <https://salvo.rs>
 use std::str::FromStr;
 
 use indexmap::IndexMap;

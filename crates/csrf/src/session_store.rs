@@ -3,7 +3,7 @@ use salvo_session::SessionDepotExt;
 
 use super::{CsrfCipher, CsrfStore};
 
-/// CookieStore is a `CsrfStore` implementation that stores the CSRF proof in a session.
+/// A `CsrfStore` implementation that stores the CSRF proof in a session.
 #[derive(Debug)]
 pub struct SessionStore {
     name: String,

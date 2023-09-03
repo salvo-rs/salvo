@@ -4,7 +4,7 @@ use salvo_core::fs::{NamedFile, NamedFileBuilder};
 use salvo_core::http::{Request, Response, StatusError};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Writer};
 
-/// StaticFile
+/// `StaticFile` is a handler that serves a single file.
 #[derive(Clone)]
 pub struct StaticFile(NamedFileBuilder);
 

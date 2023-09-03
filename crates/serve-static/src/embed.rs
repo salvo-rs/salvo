@@ -20,7 +20,7 @@ macro_rules! join_path {
     }
 }
 
-/// Serve static embed assets.
+/// Handler that serves embed file.
 #[non_exhaustive]
 #[derive(Default)]
 pub struct StaticEmbed<T> {

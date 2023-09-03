@@ -1,4 +1,6 @@
-//! Proxy middleware.
+//! Proxy support for Savlo web server framework.
+//!
+//! Read more: <https://salvo.rs>
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -96,7 +98,7 @@ pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String>
     req.uri().query().map(Into::into)
 }
 
-/// Proxy
+/// Handler that can proxy request to other server.
 #[non_exhaustive]
 
 pub struct Proxy<U> {

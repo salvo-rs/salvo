@@ -62,6 +62,8 @@ sessions. Although the salvo session handler ensures that they
 will not be used as valid sessions, For most session stores, it is the
 salvo application's responsibility to call cleanup on the session
 store if it requires it.
+
+Read more: <https://salvo.rs>
 */
 #![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
 #![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
@@ -88,7 +90,7 @@ use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response
 pub const SESSION_KEY: &str = "::salvo::session";
 const BASE64_DIGEST_LEN: usize = 44;
 
-/// SessionDepotExt
+/// Trait for `Depot` to get and set session.
 pub trait SessionDepotExt {
     /// Sets session
     fn set_session(&mut self, session: Session) -> &mut Self;
@@ -120,7 +122,7 @@ impl SessionDepotExt for Depot {
     }
 }
 
-/// HandlerBuilder
+/// `HandlerBuilder` is a builder for [`SessionHandler`].
 pub struct HandlerBuilder<S> {
     store: S,
     cookie_path: String,
@@ -280,7 +282,7 @@ where
     }
 }
 
-/// SessionHandler
+/// `SessionHandler` is a middleware for session.
 pub struct SessionHandler<S> {
     store: S,
     cookie_path: String,

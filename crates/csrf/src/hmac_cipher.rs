@@ -5,7 +5,7 @@ use sha2::Sha256;
 
 use super::CsrfCipher;
 
-/// HmacCipher is a CSRF protection implementation that uses HMAC.
+/// A CSRF protection implementation that uses HMAC.
 pub struct HmacCipher {
     hmac_key: [u8; 32],
     token_size: usize,

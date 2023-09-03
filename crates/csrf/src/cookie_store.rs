@@ -7,7 +7,7 @@ use crate::CsrfCipher;
 
 use super::CsrfStore;
 
-/// CookieStore is a `CsrfStore` implementation that stores the CSRF proof in a cookie.
+/// A `CsrfStore` implementation that stores the CSRF proof in a cookie.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct CookieStore {

@@ -3,7 +3,7 @@ use base64::Engine;
 
 use super::CsrfCipher;
 
-/// BcryptCipher is a CSRF protection implementation that uses bcrypt.
+/// CSRF protection implementation that uses bcrypt.
 pub struct BcryptCipher {
     cost: u32,
     token_size: usize,

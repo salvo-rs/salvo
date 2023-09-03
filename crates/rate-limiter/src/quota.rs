@@ -7,7 +7,7 @@ use salvo_core::async_trait;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 
-/// `QuotaGetter` is used to get quota. You can config users' quota config in database.
+/// Used to get quota and you can config users' quota config in database.
 #[async_trait]
 pub trait QuotaGetter<Key>: Send + Sync + 'static {
     /// Quota type.

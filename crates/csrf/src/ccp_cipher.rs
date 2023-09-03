@@ -6,14 +6,14 @@ use chacha20poly1305::ChaCha20Poly1305;
 
 use super::CsrfCipher;
 
-/// CcpCipher is a CSRF protection implementation that uses HMAC.
+/// CcpCipher is a CSRF protection implementation that uses [`ChaCha20Poly1305`](https://datatracker.ietf.org/doc/html/rfc8439).
 pub struct CcpCipher {
     aead_key: [u8; 32],
     token_size: usize,
 }
 
 impl CcpCipher {
-    /// Given an HMAC key, return an `CcpCipher` instance.
+    /// Given an aead key, return an `CcpCipher` instance.
     #[inline]
     pub fn new(aead_key: [u8; 32]) -> Self {
         Self {
