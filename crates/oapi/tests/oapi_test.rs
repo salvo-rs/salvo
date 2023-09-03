@@ -44,32 +44,10 @@ mod pet_api {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
-struct A {
-    a: String,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-struct B {
-    b: i64,
-}
-
-#[derive(Deserialize, Serialize, ToSchema)]
-struct C<T, R> {
-    field_1: R,
-    field_2: T,
-}
-
-#[derive(Debug, Serialize)]
-struct Foo;
-
-#[derive(Debug, Serialize)]
-struct FooResources;
-
 #[test]
 #[ignore = "this is just a test bed to run macros"]
 fn oapi_test() {
-    let doc = salvo_oapi::OpenApi::new("my application", "0.1.0");
+    let mut doc = salvo_oapi::OpenApi::new("my application", "0.1.0");
     doc.components.security_scheme(
         "token_jwt",
         SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")),
@@ -83,14 +61,7 @@ fn oapi_test() {
                 .default_value("the_user")
                 .description("this is user"),
         )]);
-
-    //
-    // security(
-    //     (),
-    //     ("my_auth" = ["read:items", "edit:items"]),
-    //     ("token_jwt" = [])
-    // )
     let router = Router::with_path("/pets/{id}").get(pet_api::get_pet_by_id);
 
-    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+    println!("{}", doc.to_pretty_json().unwrap());
 }
