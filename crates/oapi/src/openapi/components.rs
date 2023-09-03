@@ -54,9 +54,9 @@ impl Components {
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
-        security_schema: S,
+        security_scheme: S,
     ) -> Self {
-        self.security_schemes.insert(name.into(), security_schema.into());
+        self.security_schemes.insert(name.into(), security_scheme.into());
         self
     }
 
@@ -135,8 +135,8 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_schema: S) -> Self {
-        self.security_schemes.insert(name.into(), security_schema.into());
+    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(mut self, name: N, security_scheme: S) -> Self {
+        self.security_schemes.insert(name.into(), security_scheme.into());
 
         self
     }

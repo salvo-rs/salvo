@@ -443,7 +443,7 @@ async fn get_user() -> Json<User> {
 [to_schema]: trait.ToSchema.html
 [openapi]: derive.OpenApi.html
 [security]: openapi/security/struct.SecurityRequirement.html
-[security_schema]: openapi/security/struct.SecuritySchema.html
+[security_scheme]: openapi/security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [to_parameters]: trait.ToParameters.html
 [style]: openapi/path/enum.ParameterStyle.html
