@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use crate::http::{ResBody, StatusCode};
 
-use crate::{Scribe, Response};
+use crate::{Response, Scribe};
 
 /// Result type with `StatusError` has it's error type.
 pub type StatusResult<T> = Result<T, StatusError>;

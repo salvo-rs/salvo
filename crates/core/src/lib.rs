@@ -94,7 +94,7 @@ pub mod prelude {
     pub use crate::routing::{FlowCtrl, Router};
     pub use crate::server::Server;
     pub use crate::service::Service;
-    pub use crate::writing::{Json, Scribe, Redirect, Text, Writer};
+    pub use crate::writing::{Json, Redirect, Scribe, Text, Writer};
 }
 
 #[doc(hidden)]

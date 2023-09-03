@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
 use crate::http::{ParseError, StatusError};
-use crate::{Scribe, Response};
+use crate::{Response, Scribe};
 
 /// `BoxedError` is a boxed error type that can be used as a trait object.
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;

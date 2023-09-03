@@ -5,7 +5,7 @@ use serde::de::value::Error as DeError;
 use thiserror::Error;
 
 use crate::http::StatusError;
-use crate::{BoxedError, Scribe, Response};
+use crate::{BoxedError, Response, Scribe};
 
 /// Result type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;
