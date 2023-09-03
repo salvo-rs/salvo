@@ -138,7 +138,7 @@ impl PathItem {
             self.summary = other.summary.take();
         }
     }
-    
+
     /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`PathItemType`].
     pub fn add_operation<O: Into<Operation>>(mut self, path_item_type: PathItemType, operation: O) -> Self {

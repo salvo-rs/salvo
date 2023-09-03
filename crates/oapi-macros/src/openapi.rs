@@ -160,7 +160,7 @@ impl ToTokens for Server {
                 });
 
                 quote! {
-                    .variable(#name, #oapi::oapi::server::ServerVariable::new()
+                    .add_variable(#name, #oapi::oapi::server::ServerVariable::new()
                         .default_value(#default_value)
                         #description
                         #enum_values

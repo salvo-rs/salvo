@@ -199,7 +199,7 @@ impl Server {
         self.description = Some(description.into());
         self
     }
-    
+
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`] and returns `Self`.
     ///
     /// * `name` Defines name of the parameter which is being substituted within the url. If url has

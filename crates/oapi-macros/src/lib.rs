@@ -610,7 +610,7 @@ mod tests {
                         components,
                     }
                 }
-                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__salvo_oapi_endpoint_type_id_hello , __salvo_oapi_endpoint_creator_hello) }    
+                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__salvo_oapi_endpoint_type_id_hello , __salvo_oapi_endpoint_creator_hello) }
             }
             .to_string()
         );

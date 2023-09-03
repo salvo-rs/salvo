@@ -179,7 +179,6 @@ impl Operation {
         self
     }
 
-
     /// Add or change short summary of the [`Operation`].
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         self.summary = Some(summary.into());
