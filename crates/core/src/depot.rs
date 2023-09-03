@@ -2,7 +2,9 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 
-/// Depot is for store temp data of current request. Each handler can read or write data to it.
+/// `Depot` is for store temp data of current request. 
+/// 
+/// `Depot` is created for each request, each handler can read and write data from it.
 ///
 /// # Example
 ///

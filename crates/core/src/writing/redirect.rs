@@ -1,4 +1,4 @@
-use super::Piece;
+use super::Scribe;
 use crate::http::header::{HeaderValue, LOCATION};
 use crate::http::uri::Uri;
 use crate::http::{Response, StatusCode};
@@ -84,7 +84,7 @@ impl Redirect {
     }
 }
 
-impl Piece for Redirect {
+impl Scribe for Redirect {
     #[inline]
     fn render(self, res: &mut Response) {
         let Self { status_code, location } = self;

@@ -1,4 +1,4 @@
-//! Http module
+//! The http related types and functions.
 
 pub mod errors;
 pub mod form;

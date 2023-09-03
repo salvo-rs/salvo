@@ -1,4 +1,4 @@
-use super::Piece;
+use super::Scribe;
 use crate::http::header::{HeaderValue, CONTENT_TYPE};
 use crate::http::Response;
 
@@ -48,21 +48,21 @@ where
         content
     }
 }
-impl Piece for Text<&'static str> {
+impl Scribe for Text<&'static str> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
         res.write_body(content).ok();
     }
 }
-impl Piece for Text<String> {
+impl Scribe for Text<String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
         res.write_body(content).ok();
     }
 }
-impl<'a> Piece for Text<&'a String> {
+impl<'a> Scribe for Text<&'a String> {
     #[inline]
     fn render(self, res: &mut Response) {
         let content = self.set_header(res);
