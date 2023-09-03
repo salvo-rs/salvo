@@ -173,8 +173,7 @@ impl Operation {
         self.tags = tags.into_iter().map(|t| t.into()).collect();
         self
     }
-
-    /// Append tag to [`Operation`] tags.
+    /// Append tag to [`Operation`] tags and returns `Self`.
     pub fn add_tag<S: Into<String>>(mut self, tag: S) -> Self {
         self.tags.push(tag.into());
         self
@@ -204,8 +203,7 @@ impl Operation {
             .extend(parameters.into_iter().map(|parameter| parameter.into()));
         self
     }
-
-    /// Append parameter to [`Operation`] parameters.
+    /// Append parameter to [`Operation`] parameters and returns `Self`.
     pub fn add_parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         self.parameters.insert(parameter);
         self
@@ -222,8 +220,7 @@ impl Operation {
         self.responses = responses.into();
         self
     }
-
-    /// Append status code and a [`Response`] to the [`Operation`] responses map.
+    /// Append status code and a [`Response`] to the [`Operation`] responses map and returns `Self`.
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
@@ -243,8 +240,7 @@ impl Operation {
         self.securities = securities.into_iter().collect();
         self
     }
-
-    /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
+    /// Append [`SecurityRequirement`] to [`Operation`] security requirements and returns `Self`.
     pub fn add_security(mut self, security: SecurityRequirement) -> Self {
         self.securities.push(security);
         self
@@ -255,8 +251,7 @@ impl Operation {
         self.servers = Servers(servers.into_iter().collect());
         self
     }
-
-    /// Append a new [`Server`] to the [`Operation`] servers.
+    /// Append a new [`Server`] to the [`Operation`] servers and returns `Self`.
     pub fn add_server(mut self, server: Server) -> Self {
         self.servers.insert(server);
         self

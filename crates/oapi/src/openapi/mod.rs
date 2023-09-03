@@ -193,13 +193,21 @@ impl OpenApi {
         self.servers = servers.into_iter().collect();
         self
     }
+    /// Add [`Server`] to configure operations and endpoints of the API and returns `Self`.
+    pub fn add_server<S>(mut self, server: S) -> Self
+    where
+        S: Into<Server>,
+    {
+        self.servers.insert(server.into());
+        self
+    }
 
     /// Set paths to configure operations and endpoints of the API.
     pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
         self.paths = paths.into();
         self
     }
-    /// Add [`PathItem`] to configure operations and endpoints of the API.
+    /// Add [`PathItem`] to configure operations and endpoints of the API and returns `Self`.
     pub fn add_path<P, I>(mut self, path: P, item: I) -> Self
     where
         P: Into<String>,
@@ -497,11 +505,21 @@ pub enum RefOr<T> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use std::str::FromStr;
 
-    use crate::{info::Info, Operation, Paths};
+    use serde_json::{json, Value};
 
     use super::{response::Response, *};
+    use crate::{
+        extract::*,
+        info::Info,
+        security::{Http, HttpAuthScheme, SecurityScheme},
+        server::{Server, ServerVariable},
+        OpenApi, Operation, Paths, ToSchema,
+    };
+
+    use salvo_core::prelude::*;
+    use salvo_core::Router;
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
@@ -511,16 +529,29 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
-        let openapi = OpenApi::with_info(
+        let raw_json = r#"{
+            "openapi": "3.1.0",
+            "info": {
+              "title": "My api",
+              "description": "My api description",
+              "license": {
+                "name": "MIT",
+                "url": "http://mit.licence"
+              },
+              "version": "1.0.0"
+            },
+            "paths": {}
+          }"#;
+        let doc: OpenApi = OpenApi::with_info(
             Info::new("My api", "1.0.0")
                 .description("My api description")
                 .license(License::new("MIT").url("http://mit.licence")),
         );
-        let serialized = serde_json::to_string_pretty(&openapi)?;
+        let serialized = doc.to_json()?;
 
         assert_eq!(
-            serialized, raw_json,
+            Value::from_str(&serialized)?,
+            Value::from_str(raw_json)?,
             "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
         );
         Ok(())
@@ -528,7 +559,7 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new("My big api", "1.1.0").paths(
+        let doc = OpenApi::new("My big api", "1.1.0").paths(
             Paths::new()
                 .path(
                     "/api/v1/users",
@@ -553,11 +584,48 @@ mod tests {
                 ),
         );
 
-        let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("../../testdata/expected_openapi_with_paths.json").replace("\r\n", "\n");
+        let serialized = doc.to_json()?;
+        let expected = r#"
+        {
+            "openapi": "3.1.0",
+            "info": {
+              "title": "My big api",
+              "version": "1.1.0"
+            },
+            "paths": {
+              "/api/v1/users": {
+                "get": {
+                  "responses": {
+                    "200": {
+                      "description": "Get users list"
+                    }
+                  }
+                },
+                "post": {
+                  "responses": {
+                    "200": {
+                      "description": "Post new user"
+                    }
+                  }
+                }
+              },
+              "/api/v1/users/{id}": {
+                "get": {
+                  "responses": {
+                    "200": {
+                      "description": "Get user by id"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        "#
+        .replace("\r\n", "\n");
 
         assert_eq!(
-            serialized, expected,
+            Value::from_str(&serialized)?,
+            Value::from_str(&expected)?,
             "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{expected}"
         );
         Ok(())
@@ -663,5 +731,171 @@ mod tests {
                 }
             )
         )
+    }
+
+    #[test]
+    fn simple_document_with_security() {
+        #[derive(Deserialize, Serialize, ToSchema)]
+        #[salvo(schema(example = json!({"name": "bob the cat", "id": 1})))]
+        struct Pet {
+            id: u64,
+            name: String,
+            age: Option<i32>,
+        }
+
+        /// Get pet by id
+        ///
+        /// Get pet from database by pet database id
+        #[salvo_oapi::endpoint(
+        responses(
+            (status_code = 200, description = "Pet found successfully"),
+            (status_code = 404, description = "Pet was not found")
+        ),
+        parameters(
+            ("id", description = "Pet database id to get Pet for"),
+        ),
+        security(
+            (),
+            ("my_auth" = ["read:items", "edit:items"]),
+            ("token_jwt" = [])
+        )
+    )]
+        pub async fn get_pet_by_id(pet_id: PathParam<u64>) -> Json<Pet> {
+            let pet = Pet {
+                id: pet_id.into_inner(),
+                age: None,
+                name: "lightning".to_string(),
+            };
+            Json(pet)
+        }
+
+        let mut doc = salvo_oapi::OpenApi::new("my application", "0.1.0").add_server(
+            Server::new("/api/bar/")
+                .description("this is description of the server")
+                .add_variable(
+                    "username",
+                    ServerVariable::new()
+                        .default_value("the_user")
+                        .description("this is user"),
+                ),
+        );
+        doc.components.security_schemes.insert(
+            "token_jwt".into(),
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")),
+        );
+
+        let router = Router::with_path("/pets/{id}").get(get_pet_by_id);
+        let doc = doc.merge_router(&router);
+
+        assert_eq!(
+            Value::from_str(
+                r#"{
+                    "openapi": "3.1.0",
+                    "info": {
+                       "title": "my application",
+                       "version": "0.1.0"
+                    },
+                    "servers": [
+                       {
+                          "url": "/api/bar/",
+                          "description": "this is description of the server",
+                          "variables": {
+                             "username": {
+                                "default": "the_user",
+                                "description": "this is user"
+                             }
+                          }
+                       }
+                    ],
+                    "paths": {
+                       "/pets/{id}": {
+                          "get": {
+                             "summary": "Get pet by id",
+                             "description": "Get pet by id\n\nGet pet from database by pet database id",
+                             "operationId": "salvo_oapi.openapi.tests.simple_document_with_security.get_pet_by_id",
+                             "parameters": [
+                                {
+                                   "name": "pet_id",
+                                   "in": "path",
+                                   "description": "Get parameter `pet_id` from request url path.",
+                                   "required": true,
+                                   "schema": {
+                                      "type": "integer",
+                                      "format": "int64",
+                                      "minimum": 0.0
+                                   }
+                                },
+                                {
+                                   "name": "id",
+                                   "in": "path",
+                                   "description": "Pet database id to get Pet for",
+                                   "required": false
+                                }
+                             ],
+                             "responses": {
+                                "200": {
+                                   "description": "Pet found successfully"
+                                },
+                                "404": {
+                                   "description": "Pet was not found"
+                                }
+                             },
+                             "security": [
+                                {},
+                                {
+                                   "my_auth": [
+                                      "read:items",
+                                      "edit:items"
+                                   ]
+                                },
+                                {
+                                   "token_jwt": []
+                                }
+                             ]
+                          }
+                       }
+                    },
+                    "components": {
+                       "schemas": {
+                          "salvo_oapi.openapi.tests.simple_document_with_security.Pet": {
+                             "type": "object",
+                             "required": [
+                                "id",
+                                "name"
+                             ],
+                             "properties": {
+                                "age": {
+                                   "type": "integer",
+                                   "format": "int32",
+                                   "nullable": true
+                                },
+                                "id": {
+                                   "type": "integer",
+                                   "format": "int64",
+                                   "minimum": 0.0
+                                },
+                                "name": {
+                                   "type": "string"
+                                }
+                             },
+                             "example": {
+                                "id": 1,
+                                "name": "bob the cat"
+                             }
+                          }
+                       },
+                       "securitySchemes": {
+                          "token_jwt": {
+                             "type": "http",
+                             "scheme": "bearer",
+                             "bearerFormat": "JWT"
+                          }
+                       }
+                    }
+                 }"#
+            )
+            .unwrap(),
+            Value::from_str(&doc.to_json().unwrap()).unwrap()
+        );
     }
 }

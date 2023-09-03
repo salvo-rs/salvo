@@ -163,17 +163,14 @@ impl Response {
         self
     }
 
-    /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.
+    /// Add [`Content`] of the [`Response`] with content type e.g `application/json` and returns `Self`.
     pub fn add_content<S: Into<String>, C: Into<Content>>(mut self, key: S, content: C) -> Self {
         self.contents.insert(key.into(), content.into());
-
         self
     }
-
-    /// Add response [`Header`].
+    /// Add response [`Header`] and returns `Self`.
     pub fn add_header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
         self.headers.insert(name.into(), header);
-
         self
     }
 }
