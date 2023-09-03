@@ -511,7 +511,7 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("../../testdata/expected_openapi_minimal.json").replace("\r\n", "\n");
+        let raw_json = include_str!("../../tests/data/expected_openapi_minimal.json").replace("\r\n", "\n");
         let openapi = OpenApi::with_info(
             Info::new("My api", "1.0.0")
                 .description("My api description")
@@ -554,7 +554,7 @@ mod tests {
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("../../testdata/expected_openapi_with_paths.json").replace("\r\n", "\n");
+        let expected = include_str!("../../tests/data/expected_openapi_with_paths.json").replace("\r\n", "\n");
 
         assert_eq!(
             serialized, expected,

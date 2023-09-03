@@ -1,17 +1,12 @@
-#![allow(dead_code)]
-
 use salvo_oapi::{
-    openapi::{
-        self,
-        security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
-        server::{ServerBuilder, ServerVariableBuilder},
-    },
-    Modify, OpenApi, ToSchema,
+    security::{HttpAuthScheme, SecurityScheme},
+    server::{Server, ServerVariable},
+    OpenApi, ToSchema,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, ToSchema)]
-#[schema(example = json!({"name": "bob the cat", "id": 1}))]
+#[salvo(schema(example = json!({"name": "bob the cat", "id": 1})))]
 struct Pet {
     id: u64,
     name: String,
@@ -21,18 +16,13 @@ struct Pet {
 mod pet_api {
     use super::*;
 
-    const ID: &str = "get_pet";
-
     /// Get pet by id
     ///
     /// Get pet from database by pet database id
     #[salvo_oapi::endpoint(
-        get,
-        operation_id = ID,
-        path = "/pets/{id}",
         responses(
-            (status = 200, description = "Pet found successfully", body = Pet),
-            (status = 404, description = "Pet was not found")
+            (status_code = 200, description = "Pet found successfully", body = Pet),
+            (status_code = 404, description = "Pet was not found")
         ),
         parameters(
             ("id" = u64, Path, description = "Pet database id to get Pet for"),
@@ -53,29 +43,6 @@ mod pet_api {
     }
 }
 
-#[derive(Default, OpenApi)]
-#[openapi(
-    paths(pet_api::get_pet_by_id),
-    components(schemas(Pet, GenericC, GenericD)),
-    modifiers(&Foo),
-    security(
-        (),
-        ("my_auth" = ["read:items", "edit:items"]),
-        ("token_jwt" = [])
-    )
-)]
-struct ApiDoc;
-
-macro_rules! build_foo {
-    ($typ: ident, $d: ty, $r: ty) => {
-        #[derive(Debug, Serialize, ToSchema)]
-        struct $typ {
-            data: $d,
-            resources: $r,
-        }
-    };
-}
-
 #[derive(Deserialize, Serialize, ToSchema)]
 struct A {
     a: String,
@@ -87,37 +54,9 @@ struct B {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
 struct C<T, R> {
     field_1: R,
     field_2: T,
-}
-
-impl Modify for Foo {
-    fn modify(&self, openapi: &mut openapi::OpenApi) {
-        if let Some(schema) = openapi.components.as_mut() {
-            schema.add_security_scheme(
-                "token_jwt",
-                SecurityScheme::Http(
-                    HttpBuilder::new()
-                        .scheme(HttpAuthScheme::Bearer)
-                        .bearer_format("JWT")
-                        .build(),
-                ),
-            )
-        }
-
-        openapi.servers = Some(vec![ServerBuilder::new()
-            .url("/api/bar/{username}")
-            .description(Some("this is description of the server"))
-            .parameter(
-                "username",
-                ServerVariableBuilder::new()
-                    .default_value("the_user")
-                    .description(Some("this is user")),
-            )
-            .build()]);
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -128,12 +67,39 @@ struct FooResources;
 
 #[test]
 #[ignore = "this is just a test bed to run macros"]
-fn derive_openapi() {
-    salvo_oapi::openapi::OpenApi::new(
-        salvo_oapi::openapi::Info::new("my application", "0.1.0"),
-        salvo_oapi::openapi::Paths::new(),
+fn oapi_test() {
+    let doc = salvo_oapi::OpenApi::new(
+        salvo_oapi::Info::new("my application", "0.1.0"),
+        salvo_oapi::Paths::new(),
     );
-    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+    doc.add_security_scheme(
+        "token_jwt",
+        SecurityScheme::Http(
+            HttpBuilder::new()
+                .scheme(HttpAuthScheme::Bearer)
+                .bearer_format("JWT")
+                .build(),
+        ),
+    );
 
-    build_foo!(GetFooBody, Foo, FooResources);
+    doc.servers = Some(vec![ServerBuilder::new()
+        .url("/api/bar/{username}")
+        .description(Some("this is description of the server"))
+        .parameter(
+            "username",
+            ServerVariableBuilder::new()
+                .default_value("the_user")
+                .description(Some("this is user")),
+        )
+        .build()]);
+
+    //
+    // security(
+    //     (),
+    //     ("my_auth" = ["read:items", "edit:items"]),
+    //     ("token_jwt" = [])
+    // )
+    let router = Router::with_path("/pets/{id}").get(pet_api::get_pet_by_id);
+
+    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 }
