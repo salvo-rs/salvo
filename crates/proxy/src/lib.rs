@@ -82,7 +82,7 @@ where
 /// Url part getter. You can use this to get the proxied url path or query.
 pub type UrlPartGetter = Box<dyn Fn(&Request, &Depot) -> Option<String> + Send + Sync + 'static>;
 
-/// Default url path getter. This getter will get the url path from request wildcard param, like `<*rest>`, `<**rest>`.
+/// Default url path getter. This getter will get the url path from request wildcard param, like `<**rest>`, `<*+rest>`.
 pub fn default_url_path_getter(req: &Request, _depot: &Depot) -> Option<String> {
     let param = req.params().iter().find(|(key, _)| key.starts_with('*'));
     if let Some((_, rest)) = param {
