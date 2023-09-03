@@ -5,7 +5,7 @@ use serde::de::value::Error as DeError;
 use thiserror::Error;
 
 use crate::http::StatusError;
-use crate::{BoxedError, Piece, Response};
+use crate::{BoxedError, Response, Scribe};
 
 /// Result type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -82,7 +82,7 @@ impl ParseError {
     }
 }
 
-impl Piece for ParseError {
+impl Scribe for ParseError {
     #[inline]
     fn render(self, res: &mut Response) {
         res.render(

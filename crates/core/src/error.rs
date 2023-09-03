@@ -4,9 +4,9 @@ use std::fmt::{self, Display, Formatter};
 use std::io::Error as IoError;
 
 use crate::http::{ParseError, StatusError};
-use crate::{Piece, Response};
+use crate::{Response, Scribe};
 
-/// BoxedError
+/// `BoxedError` is a boxed error type that can be used as a trait object.
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Errors that can happen inside salvo.
@@ -139,7 +139,7 @@ impl From<BoxedError> for Error {
     }
 }
 
-impl Piece for Error {
+impl Scribe for Error {
     #[inline]
     fn render(self, res: &mut Response) {
         let status_error = match self {
@@ -151,7 +151,7 @@ impl Piece for Error {
 }
 cfg_feature! {
     #![feature = "anyhow"]
-    impl Piece for anyhow::Error {
+    impl Scribe for anyhow::Error {
         #[inline]
         fn render(self, res: &mut Response) {
             tracing::error!(error = ?self, "anyhow error occurred");
@@ -161,7 +161,7 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature = "eyre"]
-    impl Piece for eyre::Report {
+    impl Scribe for eyre::Report {
         #[inline]
         fn render(self, res: &mut Response) {
             tracing::error!(error = ?self, "eyre error occurred");

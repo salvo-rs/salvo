@@ -15,7 +15,7 @@ use mime::Mime;
 
 use crate::fs::NamedFile;
 use crate::http::{StatusCode, StatusError};
-use crate::{Error, Piece};
+use crate::{Error, Scribe};
 use bytes::Bytes;
 
 pub use crate::http::body::ResBody;
@@ -321,7 +321,7 @@ impl Response {
     /// ```
     pub fn render<P>(&mut self, piece: P)
     where
-        P: Piece,
+        P: Scribe,
     {
         piece.render(self);
     }
@@ -330,7 +330,7 @@ impl Response {
     #[inline]
     pub fn stuff<P>(&mut self, code: StatusCode, piece: P)
     where
-        P: Piece,
+        P: Scribe,
     {
         self.status_code = Some(code);
         piece.render(self);

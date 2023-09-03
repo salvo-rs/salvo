@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use crate::http::{ResBody, StatusCode};
 
-use crate::{Piece, Response};
+use crate::{Response, Scribe};
 
 /// Result type with `StatusError` has it's error type.
 pub type StatusResult<T> = Result<T, StatusError>;
@@ -165,7 +165,7 @@ impl StatusError {
     }
 }
 
-impl Piece for StatusError {
+impl Scribe for StatusError {
     #[inline]
     fn render(self, res: &mut Response) {
         res.status_code = Some(self.code);

@@ -27,17 +27,17 @@ pub trait Writer {
     async fn write(self, req: &mut Request, depot: &mut Depot, res: &mut Response);
 }
 
-/// `Piece` is used to write data to [`Response`].
+/// `Scribe` is used to write data to [`Response`].
 ///
-/// `Piece` is simpler than [`Writer`] ant it implements [`Writer`].
-pub trait Piece {
+/// `Scribe` is simpler than [`Writer`] ant it implements [`Writer`].
+pub trait Scribe {
     /// Render data to [`Response`].
     fn render(self, res: &mut Response);
 }
 #[async_trait]
 impl<P> Writer for P
 where
-    P: Piece + Sized + Send,
+    P: Scribe + Sized + Send,
 {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
@@ -48,7 +48,7 @@ where
 #[async_trait]
 impl<P> Writer for Option<P>
 where
-    P: Piece + Sized + Send,
+    P: Scribe + Sized + Send,
 {
     #[inline]
     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
@@ -81,19 +81,19 @@ where
 }
 
 #[allow(clippy::unit_arg)]
-impl Piece for () {
+impl Scribe for () {
     #[inline]
     fn render(self, _res: &mut Response) {}
 }
 
-impl Piece for StatusCode {
+impl Scribe for StatusCode {
     #[inline]
     fn render(self, res: &mut Response) {
         res.status_code(self);
     }
 }
 
-impl Piece for &'static str {
+impl Scribe for &'static str {
     #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut()
@@ -101,7 +101,7 @@ impl Piece for &'static str {
         res.write_body(self).ok();
     }
 }
-impl<'a> Piece for &'a String {
+impl<'a> Scribe for &'a String {
     #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut()
@@ -109,7 +109,7 @@ impl<'a> Piece for &'a String {
         res.write_body(self.as_bytes().to_vec()).ok();
     }
 }
-impl Piece for String {
+impl Scribe for String {
     #[inline]
     fn render(self, res: &mut Response) {
         res.headers_mut()
