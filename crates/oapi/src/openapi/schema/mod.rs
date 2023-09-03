@@ -509,7 +509,7 @@ mod tests {
                 ),
             )])
             .extend_responses(vec![("200", Response::new("Okay"))])
-            .security_scheme("TLS", SecurityScheme::MutualTls { description: None });
+            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None });
 
         let serialized_components = serde_json::to_string(&components).unwrap();
 

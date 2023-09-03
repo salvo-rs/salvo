@@ -200,7 +200,7 @@ impl Server {
         self
     }
 
-    /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].
+    /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`] and returns `Self`.
     ///
     /// * `name` Defines name of the parameter which is being substituted within the url. If url has
     ///   `{username}` substitution then the name should be `username`.
@@ -208,7 +208,6 @@ impl Server {
     ///   within the url.
     pub fn add_variable<N: Into<String>, V: Into<ServerVariable>>(mut self, name: N, variable: V) -> Self {
         self.variables.insert(name.into(), variable.into());
-
         self
     }
 }
