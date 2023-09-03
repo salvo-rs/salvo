@@ -18,31 +18,6 @@ struct Pet {
     age: Option<i32>,
 }
 
-// #[derive(ToSchema)]
-// struct Status<StatusType> {
-//     status: StatusType,
-// }
-
-// #[derive(ToSchema)]
-// enum StatusType {
-//     Ok,
-//     NotOk,
-// }
-
-// #[derive(ToSchema)]
-// enum Random {
-//     Response { id: String },
-//     PetResponse(Pet),
-//     Ids(Vec<String>),
-//     UnitValue,
-// }
-
-// #[derive(Serialize, Deserialize, ToSchema)]
-// struct Simple {
-//     greeting: &'static str,
-//     cow: Cow<'static, str>,
-// }
-
 mod pet_api {
     use super::*;
 

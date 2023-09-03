@@ -9,7 +9,7 @@ use salvo_oapi::openapi::RefOr;
 use salvo_oapi::openapi::{Object, ObjectBuilder};
 use salvo_oapi::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
-    IntoParams, IntoResponses, OpenApi, ToSchema,
+    ToParameters, IntoResponses, OpenApi, ToSchema,
 };
 
 mod common;
@@ -310,7 +310,7 @@ fn derive_path_params_map() {
         Baz,
     }
 
-    #[derive(serde::Deserialize, IntoParams)]
+    #[derive(serde::Deserialize, ToParameters)]
     #[allow(unused)]
     struct MyParams {
         with_ref: HashMap<String, Foo>,
@@ -813,7 +813,7 @@ fn derive_path_params_intoparams() {
         Foo2,
     }
 
-    #[derive(serde::Deserialize, IntoParams)]
+    #[derive(serde::Deserialize, ToParameters)]
     #[into_params(style = Form, parameter_in = Query)]
     struct MyParams {
         /// Foo database id.
@@ -973,7 +973,7 @@ fn derive_path_params_into_params_with_value_type() {
         value: String,
     }
 
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Filter {
@@ -1105,7 +1105,7 @@ fn derive_path_params_into_params_with_value_type() {
 
 #[test]
 fn derive_path_params_into_params_with_raw_identifier() {
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[into_params(parameter_in = Path)]
     struct Filter {
         #[allow(unused)]
@@ -1147,7 +1147,7 @@ fn derive_path_params_into_params_with_raw_identifier() {
 
 #[test]
 fn derive_path_params_into_params_with_unit_type() {
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[into_params(parameter_in = Path)]
     struct Filter {
         #[allow(unused)]
@@ -1213,7 +1213,7 @@ fn arbitrary_expr_in_operation_id() {
 
 #[test]
 fn derive_path_with_validation_attributes() {
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[allow(dead_code)]
     struct Query {
         #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
@@ -1415,7 +1415,7 @@ fn derive_path_with_into_params_custom_schema() {
             .build()
     }
 
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Query {
@@ -1464,7 +1464,7 @@ fn derive_path_with_into_params_custom_schema() {
 
 #[test]
 fn derive_into_params_required() {
-    #[derive(IntoParams)]
+    #[derive(ToParameters)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Params {
@@ -1520,7 +1520,7 @@ fn derive_into_params_required() {
 
 #[test]
 fn derive_into_params_with_serde_skip() {
-    #[derive(IntoParams, Serialize)]
+    #[derive(ToParameters, Serialize)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Params {
@@ -1567,7 +1567,7 @@ fn derive_into_params_with_serde_skip() {
 
 #[test]
 fn derive_into_params_with_serde_skip_deserializing() {
-    #[derive(IntoParams, Serialize)]
+    #[derive(ToParameters, Serialize)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Params {
@@ -1614,7 +1614,7 @@ fn derive_into_params_with_serde_skip_deserializing() {
 
 #[test]
 fn derive_into_params_with_serde_skip_serializing() {
-    #[derive(IntoParams, Serialize)]
+    #[derive(ToParameters, Serialize)]
     #[into_params(parameter_in = Query)]
     #[allow(unused)]
     struct Params {
