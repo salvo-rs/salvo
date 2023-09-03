@@ -1,7 +1,7 @@
 use assert_json_diff::assert_json_eq;
-use serde_json::{json, Value};
 use salvo_oapi::openapi::{RefOr, Response};
 use salvo_oapi::{OpenApi, ToResponse};
+use serde_json::{json, Value};
 
 mod common;
 
@@ -121,10 +121,7 @@ struct ReusableResponse;
 
 impl<'r> ToResponse<'r> for ReusableResponse {
     fn response() -> (&'r str, RefOr<Response>) {
-        (
-            "ReusableResponseName",
-            Response::new("reusable response").into(),
-        )
+        ("ReusableResponseName", Response::new("reusable response").into())
     }
 }
 

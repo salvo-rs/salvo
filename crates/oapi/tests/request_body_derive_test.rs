@@ -1,7 +1,7 @@
 use assert_json_diff::assert_json_eq;
-use serde_json::{json, Value};
 use salvo_oapi::OpenApi;
 use salvo_oapi_gen::ToSchema;
+use serde_json::{json, Value};
 
 mod common;
 
@@ -140,9 +140,7 @@ fn derive_request_body_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let content = doc
-        .pointer("/paths/~1foo/post/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1foo/post/requestBody/content").unwrap();
 
     assert_json_eq!(
         content,
@@ -398,9 +396,7 @@ fn derive_request_body_complex_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let content = doc
-        .pointer("/paths/~1foo/post/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1foo/post/requestBody/content").unwrap();
     assert_json_eq!(
         content,
         json!(
@@ -436,10 +432,7 @@ fn derive_request_body_ref_path_success() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(
-        paths(derive_request_body_ref_path::post_foo),
-        components(schemas(Foo))
-    )]
+    #[openapi(paths(derive_request_body_ref_path::post_foo), components(schemas(Foo)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -469,9 +462,7 @@ fn unit_type_request_body() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let request_body = doc
-        .pointer("/paths/~1unit_type_test/post/requestBody")
-        .unwrap();
+    let request_body = doc.pointer("/paths/~1unit_type_test/post/requestBody").unwrap();
 
     assert_json_eq!(
         request_body,
@@ -507,9 +498,7 @@ fn request_body_with_example() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
-    let content = doc
-        .pointer("/paths/~1item/get/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1item/get/requestBody/content").unwrap();
     assert_json_eq!(
         content,
         json!(
@@ -552,9 +541,7 @@ fn request_body_with_examples() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
-    let content = doc
-        .pointer("/paths/~1item/get/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1item/get/requestBody/content").unwrap();
     assert_json_eq!(
         content,
         json!(
@@ -591,9 +578,7 @@ fn request_body_with_binary() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
-    let content = doc
-        .pointer("/paths/~1item/get/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1item/get/requestBody/content").unwrap();
     assert_json_eq!(
         content,
         json!(
@@ -619,9 +604,7 @@ fn request_body_with_external_ref() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
-    let content = doc
-        .pointer("/paths/~1item/get/requestBody/content")
-        .unwrap();
+    let content = doc.pointer("/paths/~1item/get/requestBody/content").unwrap();
     assert_json_eq!(
         content,
         json!(

@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
 use salvo_oapi::{
     openapi::{
         self,
@@ -9,6 +8,7 @@ use salvo_oapi::{
     },
     Modify, OpenApi, ToSchema,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, ToSchema)]
 #[schema(example = json!({"name": "bob the cat", "id": 1}))]
