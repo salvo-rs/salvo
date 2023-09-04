@@ -1,7 +1,7 @@
 //! rustls module
+use std::error::Error as StdError;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::marker::PhantomData;
-use std::error::Error as StdError;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -19,7 +19,8 @@ use crate::http::Version;
 
 use super::ServerConfig;
 
-/// RustlsListener
+
+/// A wrapper of `Listener` with rustls.
 pub struct RustlsListener<S, C, T, E> {
     config_stream: S,
     inner: T,
@@ -63,7 +64,7 @@ where
     }
 }
 
-/// RustlsAcceptor
+/// A wrapper of `Acceptor` with rustls.
 pub struct RustlsAcceptor<S, C, T, E> {
     config_stream: S,
     inner: T,
@@ -137,7 +138,9 @@ where
             config
         };
         if let Some(config) = config {
-            let config: ServerConfig = config.try_into().map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
+            let config: ServerConfig = config
+                .try_into()
+                .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))?;
             let tls_acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
             if self.tls_acceptor.is_some() {
                 tracing::info!("tls config changed.");

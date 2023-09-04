@@ -21,7 +21,7 @@ use crate::http::Version;
 use super::H3Connection;
 use crate::conn::{Accepted, Acceptor, Listener};
 
-/// QuinnListener
+/// A wrapper of `Listener` with quinn.
 pub struct QuinnListener<S, C, T, E> {
     config_stream: S,
     local_addr: T,
@@ -68,7 +68,7 @@ where
     }
 }
 
-/// QuinnAcceptor
+/// A wrapper of `Acceptor` with quinn.
 pub struct QuinnAcceptor<S, C, E> {
     config_stream: S,
     socket: SocketAddr,
