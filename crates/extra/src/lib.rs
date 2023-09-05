@@ -72,3 +72,7 @@ cfg_feature! {
     #![feature = "caching-headers"]
     pub mod caching_headers;
 }
+cfg_feature! {
+    #![feature = "request-id"]
+    pub mod request_id;
+}
