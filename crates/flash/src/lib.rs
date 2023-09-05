@@ -194,7 +194,7 @@ pub trait FlashStore: Debug + Send + Sync + 'static {
     async fn clear_flash(&self, depot: &mut Depot, res: &mut Response);
 }
 
-/// FlashDepotExt
+/// A trait for `Depot` to get flash messages.
 pub trait FlashDepotExt {
     /// Get incoming flash.
     fn incoming_flash(&mut self) -> Option<&Flash>;
