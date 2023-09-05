@@ -173,7 +173,7 @@ impl Router {
             }
         }
         if let Some(handler) = self.handler.clone() {
-            if path_state.ended() {
+            if path_state.is_ended() {
                 return Some(DetectMatched {
                     hoops: self.hoops.clone(),
                     handler,

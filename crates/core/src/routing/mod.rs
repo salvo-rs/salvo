@@ -102,7 +102,7 @@ impl PathState {
     }
 
     #[inline]
-    pub fn ended(&self) -> bool {
+    pub fn is_ended(&self) -> bool {
         self.cursor.0 >= self.parts.len()
     }
 }
