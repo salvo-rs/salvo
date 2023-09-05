@@ -1,8 +1,8 @@
 use salvo::prelude::*;
 
 #[handler]
-async fn hello(depot: &mut Depot) -> String {
-    format!("Request id: {:?}", depot.request_id())
+async fn hello(req: &mut Request) -> String {
+    format!("Request id: {:?}", req.header::<String>("x-request-id"))
 }
 
 #[tokio::main]

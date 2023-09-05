@@ -217,7 +217,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="request-id"]
-        pub use salvo_extra::request_id::{RequestId, RequestIdDepotExt};
+        pub use salvo_extra::request_id::RequestId;
     }
     cfg_feature! {
         #![feature ="serve-static"]
