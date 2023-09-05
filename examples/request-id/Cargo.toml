@@ -1,0 +1,11 @@
+[package]
+name = "example-request-id"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+salvo = { workspace = true, features = ["request-id"]}
+tokio = { workspace = true, features = ["macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

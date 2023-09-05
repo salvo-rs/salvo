@@ -88,6 +88,11 @@ cfg_feature! {
     pub use salvo_extra::websocket;
 }
 cfg_feature! {
+    #![feature ="request_id"]
+    #[doc(no_inline)]
+    pub use salvo_extra::request_id;
+}
+cfg_feature! {
     #![feature ="cache"]
     #[doc(no_inline)]
     pub use salvo_cache as cache;
@@ -209,6 +214,10 @@ pub mod prelude {
     cfg_feature! {
         #![feature ="websocket"]
         pub use salvo_extra::websocket::WebSocketUpgrade;
+    }
+    cfg_feature! {
+        #![feature ="request-id"]
+        pub use salvo_extra::request_id::{RequestId, RequestIdDepotExt};
     }
     cfg_feature! {
         #![feature ="serve-static"]
