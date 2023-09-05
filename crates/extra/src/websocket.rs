@@ -316,6 +316,14 @@ impl Message {
         }
     }
 
+    /// Construct a new Pong `Message`.
+    #[inline]
+    pub fn pong<V: Into<Vec<u8>>>(v: V) -> Message {
+        Message {
+            inner: protocol::Message::Pong(v.into()),
+        }
+    }
+
     /// Construct the default Close `Message`.
     #[inline]
     pub fn close() -> Message {
