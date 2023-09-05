@@ -1,4 +1,6 @@
-//! Logging middleware
+//! Simple logging middleware.
+//!
+//! Read more: <https://salvo.rs>
 use std::time::Instant;
 
 use tracing::{Instrument, Level};

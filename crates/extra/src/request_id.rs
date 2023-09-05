@@ -1,4 +1,6 @@
-//! Request id middleware
+//! Request id middleware.
+//!
+//! Read more: <https://salvo.rs>
 use ulid::Ulid;
 
 use salvo_core::http::{header::HeaderName, Request, Response};

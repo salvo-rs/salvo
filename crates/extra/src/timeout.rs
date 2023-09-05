@@ -1,4 +1,6 @@
-//! basic auth middleware
+//! basic auth middleware.
+//!
+//! Read more: <https://salvo.rs>
 use std::time::Duration;
 
 use salvo_core::http::{Request, Response, StatusError};

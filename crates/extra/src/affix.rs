@@ -1,4 +1,6 @@
 //! affix middleware is used to add any data to depot.
+//!
+//! Read more: <https://salvo.rs>
 
 use std::any::TypeId;
 

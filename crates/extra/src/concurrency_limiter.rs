@@ -1,4 +1,6 @@
-//! concurrency limiter middleware
+//! concurrency limiter middleware.
+//!
+//! Read more: <https://salvo.rs>
 
 use tokio::sync::Semaphore;
 

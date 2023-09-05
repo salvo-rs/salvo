@@ -2,7 +2,9 @@
 // Licensed under the MIT license http://opensource.org/licenses/MIT
 // port from https://github.com/seanmonstar/warp/blob/master/src/filters/ws.rs
 
-//! WebSocket
+//! WebSocket implementation for Salvo web framework.
+//!
+//! Read more: <https://salvo.rs>
 
 use std::borrow::Cow;
 use std::fmt::{self, Formatter};

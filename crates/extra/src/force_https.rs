@@ -1,5 +1,6 @@
-//! Force https middleware
-
+//! Force https middleware.
+//!
+//! Read more: <https://salvo.rs>
 use std::borrow::Cow;
 
 use salvo_core::handler::Skipper;

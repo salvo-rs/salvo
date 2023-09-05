@@ -1,4 +1,6 @@
-//! basic auth middleware
+//! basic auth middleware.
+//!
+//! Read more: <https://salvo.rs>
 use salvo_core::http::header::{HeaderName, PROXY_AUTHORIZATION, AUTHORIZATION};
 use salvo_core::http::{Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler};

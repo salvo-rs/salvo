@@ -35,6 +35,8 @@ method. By default, this handler allows weak comparison. To change
 this setting, construct your handler with `Etag::new().strong()`.
 See [`etag::EntityTag`](https://docs.rs/etag/3.0.0/etag/struct.EntityTag.html#comparison)
 for further documentation.
+
+Read more: <https://salvo.rs>
 */
 #[derive(Default, Clone, Copy, Debug)]
 pub struct ETag {

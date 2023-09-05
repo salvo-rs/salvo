@@ -1,5 +1,6 @@
-//! Trailing slash middleware
-
+//! Trailing slash middleware.
+//!
+//! Read more: <https://salvo.rs>
 use std::borrow::Cow;
 use std::str::FromStr;
 

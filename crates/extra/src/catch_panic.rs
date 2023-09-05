@@ -1,4 +1,6 @@
-//! Catch panic middleware
+//! Catch panic middleware.
+//!
+//! Read more: <https://salvo.rs>
 use std::panic::AssertUnwindSafe;
 
 use futures_util::FutureExt;

@@ -44,8 +44,9 @@
 //! The events with multiple fields can be created by combining fields using tuples.
 //!
 //! See also the [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) API,
-//! which specifies the expected behavior of Server Sent Events.
+//! which specifies the expected behavior of Server Sent Events..
 //!
+//! Read more: <https://salvo.rs>
 
 use serde::Serialize;
 use std::borrow::Cow;

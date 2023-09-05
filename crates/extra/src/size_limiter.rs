@@ -1,5 +1,6 @@
-//! size limiter middleware
-
+//! size limiter middleware.
+//!
+//! Read more: <https://salvo.rs>
 use salvo_core::http::StatusError;
 use salvo_core::http::{Body, Request, Response};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler};
