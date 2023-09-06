@@ -286,10 +286,6 @@ Benchmark 測試結果可以從這裏查看:
 [https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
 ![techempower](assets/tp.jpg)
 
-## 🎇 部署
-
-你可以通過 [shuttle.rs](https://www.shuttle.rs/) 部署你的 Salvo 項目, 這非常簡單, 具體參見 shuttle's [官方文檔)(https://docs.shuttle.rs/guide/salvo-examples.html).
-
 ## 🩸 貢獻
 
 非常歡迎大家為項目貢獻力量，可以通過以下方法為項目作出貢獻:
