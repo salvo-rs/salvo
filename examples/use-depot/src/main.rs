@@ -14,7 +14,7 @@ async fn hello(depot: &mut Depot) -> String {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().hoop(set_user).handle(hello);
+    let router = Router::new().hoop(set_user).goal(hello);
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;

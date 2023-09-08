@@ -24,14 +24,14 @@ async fn main() {
     tracing_subscriber::fmt().init();
     let router = Router::new()
         .handle(index)
-        .push(Router::with_path("chat").handle(user_connected));
+        .push(Router::with_path("chat").goal(user_connected));
     
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await; Server::new(acceptor).serve(router).await;
 }
 
 #[handler]
 async fn user_connected(req: &mut Request, res: &mut Response) -> Result<(), StatusError> {
-    let fut = WsHandler::new().handle(req, res)?;
+    let fut = WsHandler::new().goal(req, res)?;
     let fut = async move {
         if let Some(ws) = fut.await {
             // Use a counter to assign a new unique ID for this user.

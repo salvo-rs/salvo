@@ -5,7 +5,7 @@ use salvo::proxy::Proxy;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::with_path("<**rest>").handle(Proxy::new(vec!["http://localhost:3000"]));
+    let router = Router::with_path("<**rest>").goal(Proxy::new(vec!["http://localhost:3000"]));
     println!("{:?}", router);
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;

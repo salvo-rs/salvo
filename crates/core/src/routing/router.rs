@@ -85,19 +85,19 @@ use crate::{Depot, Request};
 /// This form of definition can make the definition of router clear and simple for complex projects.
 #[non_exhaustive]
 pub struct Router {
-    /// routers is the children of current router.
+    /// The children of current router.
     pub routers: Vec<Router>,
-    /// filters is the filters of current router.
+    /// The filters of current router.
     pub filters: Vec<Box<dyn Filter>>,
-    /// hoops is the middlewares of current router.
+    /// The middlewares of current router.
     pub hoops: Vec<Arc<dyn Handler>>,
-    /// handler is the handler of current router.
-    pub handler: Option<Arc<dyn Handler>>,
+    /// The final handler to handle request of current router.
+    pub goal: Option<Arc<dyn Handler>>,
 }
 #[doc(hidden)]
 pub struct DetectMatched {
     pub hoops: Vec<Arc<dyn Handler>>,
-    pub handler: Arc<dyn Handler>,
+    pub goal: Arc<dyn Handler>,
 }
 
 impl Default for Router {
@@ -115,7 +115,7 @@ impl Router {
             routers: Vec::new(),
             filters: Vec::new(),
             hoops: Vec::new(),
-            handler: None,
+            goal: None,
         }
     }
 
@@ -165,18 +165,18 @@ impl Router {
                 if let Some(dm) = child.detect(req, path_state) {
                     return Some(DetectMatched {
                         hoops: [&self.hoops[..], &dm.hoops[..]].concat(),
-                        handler: dm.handler.clone(),
+                        goal: dm.goal.clone(),
                     });
                 } else {
                     path_state.cursor = original_cursor;
                 }
             }
         }
-        if let Some(handler) = self.handler.clone() {
+        if let Some(goal) = self.goal.clone() {
             if path_state.is_ended() {
                 return Some(DetectMatched {
                     hoops: self.hoops.clone(),
-                    handler,
+                    goal,
                 });
             }
         }
@@ -298,8 +298,8 @@ impl Router {
 
     /// Sets current router's handler.
     #[inline]
-    pub fn handle<H: Handler>(mut self, handler: H) -> Self {
-        self.handler = Some(Arc::new(handler));
+    pub fn goal<H: Handler>(mut self, goal: H) -> Self {
+        self.goal = Some(Arc::new(goal));
         self
     }
 
@@ -341,56 +341,56 @@ impl Router {
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn get<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::get()).handle(handler))
+    pub fn get<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::get()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter post method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn post<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::post()).handle(handler))
+    pub fn post<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::post()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter put method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn put<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::put()).handle(handler))
+    pub fn put<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::put()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter delete method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn delete<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::delete()).handle(handler))
+    pub fn delete<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::delete()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter patch method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn patch<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::patch()).handle(handler))
+    pub fn patch<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::patch()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter head method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn head<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::head()).handle(handler))
+    pub fn head<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::head()).goal(goal))
     }
 
     /// Create a new child router with [`MethodFilter`] to filter options method and set this child router's handler.
     ///
     /// [`MethodFilter`]: super::filters::MethodFilter
     #[inline]
-    pub fn options<H: Handler>(self, handler: H) -> Self {
-        self.push(Router::with_filter(filters::options()).handle(handler))
+    pub fn options<H: Handler>(self, goal: H) -> Self {
+        self.push(Router::with_filter(filters::options()).goal(goal))
     }
 }
 
@@ -423,8 +423,8 @@ impl fmt::Debug for Router {
             } else {
                 format!("{prefix}{SYMBOL_TEE}{SYMBOL_RIGHT}{SYMBOL_RIGHT}")
             };
-            let hd = if let Some(handler) = &router.handler {
-                format!(" -> {}", handler.type_name())
+            let hd = if let Some(goal) = &router.goal {
+                format!(" -> {}", goal.type_name())
             } else {
                 "".into()
             };
@@ -529,7 +529,7 @@ mod tests {
         let router = Router::new().push(
             Router::with_path("users").push(
                 Router::with_path(r"<id:/\d+/>")
-                    .push(Router::new().push(Router::with_path("facebook/insights/<**rest>").handle(fake_handler))),
+                    .push(Router::new().push(Router::with_path("facebook/insights/<**rest>").goal(fake_handler))),
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -548,7 +548,7 @@ mod tests {
         let router = Router::new().push(
             Router::with_path("users").push(
                 Router::with_path(r"<id:/\d+/>")
-                    .push(Router::new().push(Router::with_path("facebook/insights/<*+rest>").handle(fake_handler))),
+                    .push(Router::new().push(Router::with_path("facebook/insights/<*+rest>").goal(fake_handler))),
             ),
         );
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -567,7 +567,7 @@ mod tests {
         let router =
             Router::new().push(Router::with_path("users").push(Router::with_path(r"<id:/\d+/>").push(
                 Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<**rest>").handle(fake_handler)),
+                    Router::with_path("facebook/insights").push(Router::with_path("<**rest>").goal(fake_handler)),
                 ),
             )));
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -585,7 +585,7 @@ mod tests {
     fn test_router_detect6() {
         let router = Router::new().push(Router::with_path("users").push(
             Router::with_path(r"<id:/\d+/>").push(Router::new().push(
-                Router::with_path("facebook/insights").push(Router::new().path("<*+rest>").handle(fake_handler)),
+                Router::with_path("facebook/insights").push(Router::new().path("<*+rest>").goal(fake_handler)),
             )),
         ));
         let mut req = TestClient::get("http://local.host/users/12/facebook/insights").build();
@@ -603,7 +603,7 @@ mod tests {
         let router =
             Router::new().push(Router::with_path("用户").push(Router::with_path(r"<id:/\d+/>").push(
                 Router::new().push(
-                    Router::with_path("facebook/insights").push(Router::with_path("<*+rest>").handle(fake_handler)),
+                    Router::with_path("facebook/insights").push(Router::with_path("<*+rest>").goal(fake_handler)),
                 ),
             )));
         let mut req = TestClient::get("http://local.host/%E7%94%A8%E6%88%B7/12/facebook/insights").build();
@@ -619,7 +619,7 @@ mod tests {
     #[test]
     fn test_router_detect9() {
         let router =
-            Router::new().push(Router::with_path("users/<sub:/(images|css)/>/<filename>").handle(fake_handler));
+            Router::new().push(Router::with_path("users/<sub:/(images|css)/>/<filename>").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
@@ -632,7 +632,7 @@ mod tests {
     }
     #[test]
     fn test_router_detect10() {
-        let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").handle(fake_handler));
+        let router = Router::new().push(Router::with_path(r"users/<*sub:/(images|css)/.+/>").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/users/12/m.jpg").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
@@ -646,7 +646,7 @@ mod tests {
     #[test]
     fn test_router_detect11() {
         let router =
-            Router::new().push(Router::with_path(r"avatars/<width:/\d+/>x<height:/\d+/>.<ext>").handle(fake_handler));
+            Router::new().push(Router::with_path(r"avatars/<width:/\d+/>x<height:/\d+/>.<ext>").goal(fake_handler));
         let mut req = TestClient::get("http://local.host/avatars/321x641f.webp").build();
         let mut path_state = PathState::new(req.uri().path());
         let matched = router.detect(&mut req, &mut path_state);
@@ -659,7 +659,7 @@ mod tests {
     }
     #[test]
     fn test_router_detect12() {
-        let router = Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").handle(fake_handler));
+        let router = Router::new().push(Router::with_path("/.well-known/acme-challenge/<token>").goal(fake_handler));
 
         let mut req = TestClient::get("http://local.host/.well-known/acme-challenge/q1XXrxIx79uXNl3I").build();
         let mut path_state = PathState::new(req.uri().path());
