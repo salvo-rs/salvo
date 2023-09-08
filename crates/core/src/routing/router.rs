@@ -212,38 +212,38 @@ impl Router {
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
-    pub fn with_hoop<H: Handler>(handler: H) -> Self {
-        Router::new().hoop(handler)
+    pub fn with_hoop<H: Handler>(hoop: H) -> Self {
+        Router::new().hoop(hoop)
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request. This middleware only effective when the filter return true.
     #[inline]
-    pub fn with_hoop_when<H, F>(handler: H, filter: F) -> Self
+    pub fn with_hoop_when<H, F>(hoop: H, filter: F) -> Self
     where
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        Router::new().hoop_when(handler, filter)
+        Router::new().hoop_when(hoop, filter)
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
-    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
-        self.hoops.push(Arc::new(handler));
+    pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
+        self.hoops.push(Arc::new(hoop));
         self
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request. This middleware only effective when the filter return true.
     #[inline]
-    pub fn hoop_when<H, F>(mut self, handler: H, filter: F) -> Self
+    pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        self.hoops.push(Arc::new(WhenHoop { inner: handler, filter }));
+        self.hoops.push(Arc::new(WhenHoop { inner: hoop, filter }));
         self
     }
 
