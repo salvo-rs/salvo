@@ -153,16 +153,6 @@ impl Depot {
     pub fn delete(&mut self, key: &str) -> bool {
         self.map.remove(key).is_some()
     }
-
-    /// Transfer all data to a new instance.
-    #[inline]
-    pub fn transfer(&mut self) -> Self {
-        let mut map = HashMap::with_capacity(self.map.len());
-        for (k, v) in self.map.drain() {
-            map.insert(k, v);
-        }
-        Self { map }
-    }
 }
 
 impl fmt::Debug for Depot {
