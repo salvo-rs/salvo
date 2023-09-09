@@ -53,9 +53,9 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
 
-### Hello World
+### Hello World with ACME and HTTP3
 
-在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello`, 這個函數隻是簡單地打印文本 `"Hello World"`.
+輕輕鬆鬆實現一個支持 ACME 自動獲取證書的，支持 HTTP3 的服務器.
 
 ```rust
 use salvo::prelude::*;
@@ -67,8 +67,13 @@ async fn hello(_req: &mut Request, _depot: &mut Depot, res: &mut Response) {
 
 #[tokio::main]
 async fn main() {
-    let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    let router =  Router::new().get(hello);
+    let mut router = Router::new().get(hello);
+    let listener = TcpListener::new("0.0.0.0:443")
+        .acme()
+        .cache_path("temp/letsencrypt")
+        .add_domain("test.salvo.rs")
+        .http01_challege(&mut router).quinn("0.0.0.0:443");
+    let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
     Server::new(acceptor).serve(router).await;
 }
 ```
