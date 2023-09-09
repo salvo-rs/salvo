@@ -181,15 +181,6 @@ mod test {
         assert_eq!(depot.get_mut::<String>("one").unwrap(), &mut "ONE".to_owned());
     }
 
-    #[test]
-    fn test_transfer() {
-        let mut depot = Depot::with_capacity(6);
-        depot.insert("one", "ONE".to_owned());
-
-        let depot = depot.transfer();
-        assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
-    }
-
     #[tokio::test]
     async fn test_middleware_use_depot() {
         #[handler]
