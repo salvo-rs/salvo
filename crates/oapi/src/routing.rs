@@ -38,8 +38,8 @@ impl NormNode {
                 }
             }
         }
-        node.handler_type_id = router.handler.as_ref().map(|h| h.type_id());
-        node.handler_type_name = router.handler.as_ref().map(|h| h.type_name());
+        node.handler_type_id = router.goal.as_ref().map(|h| h.type_id());
+        node.handler_type_name = router.goal.as_ref().map(|h| h.type_name());
         let routers = router.routers();
         if !routers.is_empty() {
             for router in routers {

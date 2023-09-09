@@ -23,8 +23,8 @@ static ONLINE_USERS: Lazy<Users> = Lazy::new(Users::default);
 async fn main() {
     tracing_subscriber::fmt().init();
     let router = Router::new()
-        .handle(index)
-        .push(Router::with_path("chat").handle(user_connected));
+        .goal(index)
+        .push(Router::with_path("chat").goal(user_connected));
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;

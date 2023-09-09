@@ -457,7 +457,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_websocket() {
-        let router = Router::new().handle(connect);
+        let router = Router::new().goal(connect);
         let acceptor = TcpListener::new("127.0.0.1:0").bind().await;
         let addr = acceptor.holdings()[0].local_addr.clone().into_std().unwrap();
 

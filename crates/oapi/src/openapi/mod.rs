@@ -247,7 +247,7 @@ impl OpenApi {
 
     /// Consusmes the [`OpenApi`] and returns [`Router`] with the [`OpenApi`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
-        Router::with_path(path.into()).handle(self)
+        Router::with_path(path.into()).goal(self)
     }
 
     /// Consusmes the [`OpenApi`] and informations from a [`Router`].

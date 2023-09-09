@@ -356,7 +356,7 @@ mod tests {
 
         let router = Router::new()
             .hoop(cors_handler)
-            .push(Router::with_path("hello").handle(hello));
+            .push(Router::with_path("hello").goal(hello));
         let service = Service::new(router);
 
         async fn options_access(service: &Service, origin: &str) -> Response {

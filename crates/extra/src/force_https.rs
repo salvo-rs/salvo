@@ -99,7 +99,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_redirect_handler() {
-        let router = Router::with_hoop(ForceHttps::new().https_port(1234)).handle(hello);
+        let router = Router::with_hoop(ForceHttps::new().https_port(1234)).goal(hello);
         let response = TestClient::get("http://127.0.0.1:5800/")
             .add_header(HOST, "127.0.0.1:5800", true)
             .send(router)

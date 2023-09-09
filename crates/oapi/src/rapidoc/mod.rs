@@ -53,7 +53,7 @@ impl RapiDoc {
 
     /// Consusmes the [`RapiDoc`] and returns [`Router`] with the [`RapiDoc`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
-        Router::with_path(path.into()).handle(self)
+        Router::with_path(path.into()).goal(self)
     }
 }
 
