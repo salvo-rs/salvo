@@ -153,16 +153,6 @@ impl Depot {
     pub fn delete(&mut self, key: &str) -> bool {
         self.map.remove(key).is_some()
     }
-
-    /// Transfer all data to a new instance.
-    #[inline]
-    pub fn transfer(&mut self) -> Self {
-        let mut map = HashMap::with_capacity(self.map.len());
-        for (k, v) in self.map.drain() {
-            map.insert(k, v);
-        }
-        Self { map }
-    }
 }
 
 impl fmt::Debug for Depot {
@@ -189,15 +179,6 @@ mod test {
 
         assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
         assert_eq!(depot.get_mut::<String>("one").unwrap(), &mut "ONE".to_owned());
-    }
-
-    #[test]
-    fn test_transfer() {
-        let mut depot = Depot::with_capacity(6);
-        depot.insert("one", "ONE".to_owned());
-
-        let depot = depot.transfer();
-        assert_eq!(depot.get::<String>("one").unwrap(), &"ONE".to_owned());
     }
 
     #[tokio::test]
