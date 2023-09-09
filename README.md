@@ -52,7 +52,7 @@ You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples
 
 ### Hello World with ACME and HTTP3
 
-Create a simple function handler in the main.rs file, we call it `hello`, this function just render plain text `"Hello World"`.
+Easily implement a server that supports ACME to automatically obtain certificates and supports HTTP3.
 
 ```rust
 use salvo::prelude::*;

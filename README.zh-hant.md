@@ -55,7 +55,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 
 ### Hello World with ACME and HTTP3
 
-在 `main.rs` 中創建一個簡單的函數句柄, 命名為`hello`, 這個函數隻是簡單地打印文本 `"Hello World"`.
+輕輕鬆鬆實現一個支持 ACME 自動獲取證書的，支持 HTTP3 的服務器.
 
 ```rust
 use salvo::prelude::*;
