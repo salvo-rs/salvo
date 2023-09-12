@@ -132,9 +132,9 @@ impl From<Object> for AdditionalProperties<Schema> {
     }
 }
 
-impl From<ArrayBuilder> for AdditionalProperties<Schema> {
-    fn from(value: ArrayBuilder) -> Self {
-        Self::RefOr(RefOr::T(Schema::Array(value.build())))
+impl From<Array> for AdditionalProperties<Schema> {
+    fn from(value: Array) -> Self {
+        Self::RefOr(RefOr::T(Schema::Array(value)))
     }
 }
 
@@ -429,11 +429,7 @@ mod tests {
             })
         );
 
-        let json_value = ObjectBuilder::new()
-            .additional_properties(Some(
-                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(SchemaType::Number)),
-            ))
-            .build();
+        let json_value = Object::new().additional_properties(Array::new(Object::new().schema_type(SchemaType::Number)));
         assert_json_eq!(
             json_value,
             json!({

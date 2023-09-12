@@ -175,9 +175,9 @@ impl ToTokens for SchemaType<'_> {
             "NaiveDate" => tokens.extend(quote!(#oapi::oapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "decimal")]
+            #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
             "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "decimal-float")]
+            #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
@@ -463,8 +463,6 @@ impl ToTokens for Variant {
             Self::Password => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Password
             ))),
-            #[cfg(any(feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
             #[cfg(feature = "uuid")]
             Self::Uuid => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
                 #oapi::oapi::KnownFormat::Uuid
