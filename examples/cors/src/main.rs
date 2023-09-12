@@ -17,7 +17,7 @@ async fn backend_server() {
     }
 
     let cors = Cors::new()
-        .allow_origin(["http://0.0.0.0:5800", "http://localhost:5800"])
+        .allow_origin(["http://127.0.0.1:5800", "http://localhost:5800"])
         .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
         .allow_headers("authorization")
         .into_handler();
@@ -53,7 +53,7 @@ const HTML_DATA: &str = r#"
 <div id="content"></div>
 <script>
 document.getElementById("btn").addEventListener("click", function() {
-    fetch("http://0.0.0.0:5600/hello", {method: "POST", headers: {authorization: "abcdef"}}).then(function(response) {
+    fetch("http://127.0.0.1:5600/hello", {method: "POST", headers: {authorization: "abcdef"}}).then(function(response) {
         return response.text();
     }).then(function(data) {
         document.getElementById("content").innerHTML = data;
