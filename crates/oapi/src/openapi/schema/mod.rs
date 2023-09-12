@@ -132,6 +132,12 @@ impl From<Object> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<Array> for AdditionalProperties<Schema> {
+    fn from(value: Array) -> Self {
+        Self::RefOr(RefOr::T(Schema::Array(value)))
+    }
+}
+
 impl From<Ref> for AdditionalProperties<Schema> {
     fn from(value: Ref) -> Self {
         Self::RefOr(RefOr::Ref(value))
@@ -419,6 +425,20 @@ mod tests {
                 "type": "object",
                 "additionalProperties": {
                     "type": "string"
+                }
+            })
+        );
+
+        let json_value = Object::new().additional_properties(Array::new(Object::new().schema_type(SchemaType::Number)));
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "items": {
+                        "type": "number",
+                    },
+                    "type": "array",
                 }
             })
         );

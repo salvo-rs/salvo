@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 
 use listenfd::ListenFd;
+use salvo::conn::tcp::TcpAcceptor;
 use salvo::prelude::*;
-use salvo::conn::{tcp::TcpAcceptor, };
 
 #[handler]
 async fn hello() -> &'static str {
@@ -10,7 +10,7 @@ async fn hello() -> &'static str {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), salvo::Error>  {
+async fn main() -> Result<(), salvo::Error> {
     tracing_subscriber::fmt().init();
 
     let router = Router::new().get(hello);
@@ -27,7 +27,8 @@ async fn main() -> Result<(), salvo::Error>  {
             std::env::var("HOST").unwrap_or("0.0.0.0".into()),
             std::env::var("PORT").unwrap_or("8080".into())
         )
-        .parse().unwrap();
+        .parse()
+        .unwrap();
         (addr, tokio::net::TcpListener::bind(addr).await.unwrap())
     };
 

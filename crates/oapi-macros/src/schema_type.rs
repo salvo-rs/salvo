@@ -28,6 +28,7 @@ impl SchemaType<'_> {
         #[cfg(not(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal-float",
             feature = "ulid",
             feature = "url",
             feature = "uuid",
@@ -40,6 +41,7 @@ impl SchemaType<'_> {
         #[cfg(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal-float",
             feature = "ulid",
             feature = "url",
             feature = "uuid",
@@ -53,7 +55,7 @@ impl SchemaType<'_> {
                 primitive = is_primitive_chrono(name);
             }
 
-            #[cfg(feature = "decimal")]
+            #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             if !primitive {
                 primitive = is_primitive_rust_decimal(name);
             }
@@ -143,7 +145,7 @@ fn is_primitive_chrono(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(feature = "decimal")]
+#[cfg(any(feature = "decimal", feature = "decimal-float"))]
 fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
@@ -173,8 +175,10 @@ impl ToTokens for SchemaType<'_> {
             "NaiveDate" => tokens.extend(quote!(#oapi::oapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "decimal")]
+            #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
             "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "uuid")]
@@ -242,9 +246,10 @@ impl Type<'_> {
 
         #[cfg(not(any(
             feature = "chrono",
+            feature = "decimal-float",
             feature = "ulid",
-            feature = "url",
             feature = "uuid",
+            feature = "url",
             feature = "time"
         )))]
         {
@@ -253,9 +258,10 @@ impl Type<'_> {
 
         #[cfg(any(
             feature = "chrono",
+            feature = "decimal-float",
             feature = "ulid",
-            feature = "url",
             feature = "uuid",
+            feature = "url",
             feature = "time"
         ))]
         {
@@ -265,7 +271,10 @@ impl Type<'_> {
             if !known_format {
                 known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
             }
-
+            #[cfg(feature = "decimal-float")]
+            if !known_format {
+                known_format = matches!(name, "Decimal");
+            }
             #[cfg(feature = "ulid")]
             if !known_format {
                 known_format = matches!(name, "Ulid");
