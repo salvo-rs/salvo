@@ -64,7 +64,12 @@ impl HttpBuilder {
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let conn_shutdown_token = CancellationToken::new();
+        #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = read_version(socket).await?;
+        #[cfg(all(feature = "http1", not(feature = "http2")))]
+        let version = Version::HTTP_11;
+        #[cfg(all(not(feature = "http1"), feature = "http2"))]
+        let version = Version::HTTP_2;
         let socket = match idle_connection_timeout {
             Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
                 let conn_shutdown_token = conn_shutdown_token.clone();
@@ -235,6 +240,7 @@ impl<T> ClosingInactiveConnection<T> {
     }
 }
 
+#[allow(clippy::future_not_send)]
 pub(crate) async fn read_version<'a, A>(mut reader: A) -> IoResult<(Version, Rewind<A>)>
 where
     A: AsyncRead + Unpin,
