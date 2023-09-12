@@ -330,7 +330,7 @@ mod tests {
                 .build(),
             RequestIssuer::default(),
         );
-        let router = Router::new().hoop(cache).handle(cached);
+        let router = Router::new().hoop(cache).goal(cached);
         let service = Service::new(router);
 
         let mut res = TestClient::get("http://127.0.0.1:5801").send(&service).await;

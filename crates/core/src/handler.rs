@@ -30,7 +30,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     Router::new().handle(middleware);
+//!     Router::new().goal(middleware);
 //! }
 //! ```
 

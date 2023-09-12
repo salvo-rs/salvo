@@ -170,7 +170,7 @@ impl HyperHandler {
         async move {
             if let Some(dm) = router.detect(&mut req, &mut path_state) {
                 req.params = path_state.params;
-                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.handler]].concat());
+                let mut ctrl = FlowCtrl::new([&dm.hoops[..], &[dm.goal]].concat());
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
                 if res.status_code.is_none() {
                     res.status_code = Some(StatusCode::OK);
@@ -334,7 +334,7 @@ mod tests {
         let router = Router::with_path("level1").hoop(before1).push(
             Router::with_hoop(before2)
                 .path("level2")
-                .push(Router::with_hoop(before3).path("hello").handle(hello)),
+                .push(Router::with_hoop(before3).path("hello").goal(hello)),
         );
         let service = Service::new(router);
 

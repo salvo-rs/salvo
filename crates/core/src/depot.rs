@@ -22,7 +22,7 @@ use std::fmt::{self, Formatter};
 /// }
 /// #[tokio::main]
 /// async fn main() {
-///     let router = Router::new().hoop(set_user).handle(hello);
+///     let router = Router::new().hoop(set_user).goal(hello);
 ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
 ///     Server::new(acceptor).serve(router).await;
 /// }
@@ -192,7 +192,7 @@ mod test {
         async fn hello(depot: &mut Depot) -> String {
             format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
         }
-        let router = Router::new().hoop(set_user).handle(hello);
+        let router = Router::new().hoop(set_user).goal(hello);
         let service = Service::new(router);
 
         let content = TestClient::get("http://127.0.0.1:5800")

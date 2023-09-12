@@ -38,7 +38,7 @@ async fn index(res: &mut Response) {
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt().init();
-    let router = Router::new().get(index).push(Router::with_path("ws").handle(connect));
+    let router = Router::new().get(index).push(Router::with_path("ws").goal(connect));
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;

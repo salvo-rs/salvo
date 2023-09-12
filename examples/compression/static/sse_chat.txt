@@ -24,7 +24,7 @@ static ONLINE_USERS: Lazy<Users> = Lazy::new(Users::default);
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().handle(index).push(
+    let router = Router::new().goal(index).push(
         Router::with_path("chat")
             .get(user_connected)
             .push(Router::with_path("<id>").post(chat_send)),

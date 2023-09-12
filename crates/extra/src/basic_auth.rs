@@ -157,7 +157,7 @@ mod tests {
     #[tokio::test]
     async fn test_basic_auth() {
         let auth_handler = BasicAuth::new(Validator);
-        let router = Router::with_hoop(auth_handler).handle(hello);
+        let router = Router::with_hoop(auth_handler).goal(hello);
         let service = Service::new(router);
 
         let content = TestClient::get("http://127.0.0.1:5800/")

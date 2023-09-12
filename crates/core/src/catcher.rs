@@ -171,22 +171,22 @@ pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Optio
 ///
 /// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 pub struct Catcher {
+    goal: Arc<dyn Handler>,
     hoops: Vec<Arc<dyn Handler>>,
-    handler: Arc<dyn Handler>,
 }
 impl Default for Catcher {
     fn default() -> Self {
         Catcher {
-            handler: Arc::new(DefaultHandler::new()),
+            goal: Arc::new(DefaultGoal::new()),
             hoops: vec![],
         }
     }
 }
 impl Catcher {
     /// Create new `Catcher`.
-    pub fn new<H: Into<Arc<dyn Handler>>>(handler: H) -> Self {
+    pub fn new<H: Into<Arc<dyn Handler>>>(goal: H) -> Self {
         Catcher {
-            handler: handler.into(),
+            goal: goal.into(),
             hoops: vec![],
         }
     }
@@ -205,26 +205,26 @@ impl Catcher {
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request.
     #[inline]
-    pub fn hoop<H: Handler>(mut self, handler: H) -> Self {
-        self.hoops.push(Arc::new(handler));
+    pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
+        self.hoops.push(Arc::new(hoop));
         self
     }
 
     /// Add a handler as middleware, it will run the handler in current router or it's descendants
     /// handle the request. This middleware only effective when the filter return true.
     #[inline]
-    pub fn hoop_when<H, F>(mut self, handler: H, filter: F) -> Self
+    pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
         H: Handler,
         F: Fn(&Request, &Depot) -> bool + Send + Sync + 'static,
     {
-        self.hoops.push(Arc::new(WhenHoop { inner: handler, filter }));
+        self.hoops.push(Arc::new(WhenHoop { inner: hoop, filter }));
         self
     }
 
     /// Catch error and send error page.
     pub async fn catch(&self, req: &mut Request, depot: &mut Depot, res: &mut Response) {
-        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&self.handler]).cloned().collect());
+        let mut ctrl = FlowCtrl::new(self.hoops.iter().chain([&self.goal]).cloned().collect());
         ctrl.call_next(req, depot, res).await;
     }
 }
@@ -233,8 +233,8 @@ impl<H> From<H> for Catcher
 where
     H: Into<Arc<dyn Handler>>,
 {
-    fn from(handler: H) -> Self {
-        Catcher::new(handler)
+    fn from(goal: H) -> Self {
+        Catcher::new(goal)
     }
 }
 
@@ -245,13 +245,13 @@ where
 ///
 /// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 #[derive(Default)]
-pub struct DefaultHandler {
+pub struct DefaultGoal {
     footer: Option<Cow<'static, str>>,
 }
-impl DefaultHandler {
+impl DefaultGoal {
     /// Create new `Catcher`.
     pub fn new() -> Self {
-        DefaultHandler { footer: None }
+        DefaultGoal { footer: None }
     }
     /// Create with footer.
     #[inline]
@@ -266,7 +266,7 @@ impl DefaultHandler {
     }
 }
 #[async_trait]
-impl Handler for DefaultHandler {
+impl Handler for DefaultGoal {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let status = res.status_code.unwrap_or(StatusCode::NOT_FOUND);
         if (status.is_server_error() || status.is_client_error()) && (res.body.is_none() || res.body.is_error()) {
