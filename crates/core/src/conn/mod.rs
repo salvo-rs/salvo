@@ -58,9 +58,6 @@ pub use tcp::TcpListener;
 mod joined;
 pub use joined::JoinedListener;
 
-mod proto;
-pub use proto::HttpBuilder;
-
 cfg_feature! {
     #![unix]
     pub use unix::UnixListener;
@@ -80,7 +77,7 @@ cfg_feature! {
         use crate::async_trait;
         use crate::service::HyperHandler;
         use crate::http::{HttpConnection};
-        use crate::conn::HttpBuilder;
+        use crate::proto::HttpBuilder;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
         #[async_trait]
