@@ -8,7 +8,7 @@ use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
-use crate::conn::{HttpBuilder, Holding};
+use crate::conn::{Holding, HttpBuilder};
 use crate::http::uri::Scheme;
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;

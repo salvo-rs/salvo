@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
-use crate::conn::{HttpBuilder, Holding};
+use crate::conn::{Holding, HttpBuilder};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
 

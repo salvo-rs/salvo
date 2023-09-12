@@ -1,4 +1,3 @@
-
 use std::cmp;
 use std::error::Error as StdError;
 use std::future::Future;
@@ -248,10 +247,7 @@ where
         _pin: PhantomPinned,
     }
     .await?;
-    Ok((
-        version,
-        Rewind::new_buffered(Bytes::from(buf), reader),
-    ))
+    Ok((version, Rewind::new_buffered(Bytes::from(buf), reader)))
 }
 
 #[derive(Debug)]
