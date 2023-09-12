@@ -14,9 +14,8 @@ use tokio_util::sync::CancellationToken;
 
 #[cfg(feature = "quinn")]
 use crate::conn::quinn;
-use crate::conn::{Accepted, Acceptor, Holding};
+use crate::conn::{Accepted,HttpBuilder, Acceptor, Holding};
 use crate::http::{HeaderValue, HttpConnection, Version};
-use crate::proto::HttpBuilder;
 use crate::Service;
 
 /// HTTP Server

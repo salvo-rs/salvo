@@ -12,6 +12,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::async_trait;
 use crate::http::{HttpConnection, Version};
 
+mod proto;
+pub use proto::HttpBuilder;
+
 cfg_feature! {
     #![feature = "acme"]
     pub mod acme;
@@ -77,7 +80,7 @@ cfg_feature! {
         use crate::async_trait;
         use crate::service::HyperHandler;
         use crate::http::{HttpConnection};
-        use crate::proto::HttpBuilder;
+        use crate::conn::HttpBuilder;
 
         #[cfg(any(feature = "rustls", feature = "acme"))]
         #[async_trait]

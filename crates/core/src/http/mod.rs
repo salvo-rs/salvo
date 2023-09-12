@@ -29,7 +29,7 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
-use crate::proto::HttpBuilder;
+use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
 
 /// A helper trait for http connection.
