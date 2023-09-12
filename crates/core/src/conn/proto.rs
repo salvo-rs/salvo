@@ -1,9 +1,8 @@
 use std::cmp;
 use std::error::Error as StdError;
 use std::future::Future;
-use std::io::IoSlice;
-use std::io::Result as IoResult;
-use std::marker::Unpin;
+use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
+use std::marker::{PhantomPinned, Unpin};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{self, Context, Poll};
@@ -11,10 +10,11 @@ use std::time::Duration;
 
 use bytes::{Buf, Bytes};
 
-use http::{Request, Response};
+use futures_util::ready;
+use http::{Request, Response, Version};
 use hyper::service::Service;
 use pin_project::pin_project;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::{oneshot, Notify};
 use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
@@ -45,12 +45,11 @@ pub struct HttpBuilder {
     #[cfg(feature = "quinn")]
     pub(crate) quinn: quinn::Builder,
 }
-
 impl HttpBuilder {
     /// Bind a connection together with a [`Service`].
     pub async fn serve_connection<I, S, B>(
         &self,
-        mut socket: I,
+        socket: I,
         service: S,
         server_shutdown_token: CancellationToken,
         idle_connection_timeout: Option<Duration>,
@@ -64,25 +63,13 @@ impl HttpBuilder {
         B::Error: Into<Box<dyn StdError + Send + Sync>>,
         I: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        #[derive(Debug)]
-        enum Protocol {
-            H1,
-            H2,
-        }
-
         let conn_shutdown_token = CancellationToken::new();
-        let mut buf = [0; 24];
-        let protocol = if socket.read_exact(&mut buf).await.is_ok() {
-            if buf == H2_PREFACE {
-                Protocol::H2
-            } else {
-                Protocol::H1
-            }
-        } else {
-            Protocol::H1
-        };
-        let socket = Rewind::new_buffered(Bytes::from(buf.to_vec()), socket);
-
+        #[cfg(all(feature = "http1", feature = "http2"))]
+        let (version, socket) = read_version(socket).await?;
+        #[cfg(all(feature = "http1", not(feature = "http2")))]
+        let version = Version::HTTP_11;
+        #[cfg(all(not(feature = "http1"), feature = "http2"))]
+        let version = Version::HTTP_2;
         let socket = match idle_connection_timeout {
             Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
                 let conn_shutdown_token = conn_shutdown_token.clone();
@@ -97,8 +84,8 @@ impl HttpBuilder {
             None => Either::Right(socket),
         };
 
-        match protocol {
-            Protocol::H1 => {
+        match version {
+            Version::HTTP_10 | Version::HTTP_11 => {
                 #[cfg(not(feature = "http1"))]
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, "http1 feature not enabled").into());
                 #[cfg(feature = "http1")]
@@ -124,7 +111,7 @@ impl HttpBuilder {
                     conn.await.ok();
                 }
             }
-            Protocol::H2 => {
+            Version::HTTP_2 => {
                 #[cfg(not(feature = "http2"))]
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, "http2 feature not enabled").into());
                 #[cfg(feature = "http2")]
@@ -146,78 +133,12 @@ impl HttpBuilder {
                     conn.await.ok();
                 }
             }
+            _ => {
+                tracing::info!("unsupported protocol version: {:?}", version);
+            }
         }
 
         Ok(())
-    }
-}
-
-// from https://github.com/hyperium/hyper-util/pull/11/files#diff-1bd3ef8e9a23396b76bdb4ec6ab5aba4c48dd0511d287e485148a90170c6b4fd
-/// Combine a buffer with an IO, rewinding reads to use the buffer.
-#[derive(Debug)]
-struct Rewind<T> {
-    pre: Option<Bytes>,
-    inner: T,
-}
-
-impl<T> Rewind<T> {
-    fn new_buffered(buf: Bytes, io: T) -> Self {
-        Rewind {
-            pre: Some(buf),
-            inner: io,
-        }
-    }
-}
-
-impl<T> AsyncRead for Rewind<T>
-where
-    T: AsyncRead + Unpin,
-{
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
-        if let Some(mut prefix) = self.pre.take() {
-            // If there are no remaining bytes, let the bytes get dropped.
-            if !prefix.is_empty() {
-                let copy_len = cmp::min(prefix.len(), buf.remaining());
-                // TODO: There should be a way to do following two lines cleaner...
-                buf.put_slice(&prefix[..copy_len]);
-                prefix.advance(copy_len);
-                // Put back what's left
-                if !prefix.is_empty() {
-                    self.pre = Some(prefix);
-                }
-                return Poll::Ready(Ok(()));
-            }
-        }
-        Pin::new(&mut self.inner).poll_read(cx, buf)
-    }
-}
-
-impl<T> AsyncWrite for Rewind<T>
-where
-    T: AsyncWrite + Unpin,
-{
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
-        Pin::new(&mut self.inner).poll_write(cx, buf)
-    }
-
-    fn poll_write_vectored(
-        mut self: Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-        bufs: &[IoSlice<'_>],
-    ) -> Poll<IoResult<usize>> {
-        Pin::new(&mut self.inner).poll_write_vectored(cx, bufs)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
-        Pin::new(&mut self.inner).poll_flush(cx)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
-        Pin::new(&mut self.inner).poll_shutdown(cx)
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.inner.is_write_vectored()
     }
 }
 
@@ -316,5 +237,129 @@ impl<T> ClosingInactiveConnection<T> {
             timeout,
             stop_tx,
         }
+    }
+}
+
+#[allow(clippy::future_not_send)]
+pub(crate) async fn read_version<'a, A>(mut reader: A) -> IoResult<(Version, Rewind<A>)>
+where
+    A: AsyncRead + Unpin,
+{
+    let mut buf = [0; 24];
+    let (version, buf) = ReadVersion {
+        reader: &mut reader,
+        buf: ReadBuf::new(&mut buf),
+        version: Version::HTTP_11,
+        _pin: PhantomPinned,
+    }
+    .await?;
+    Ok((version, Rewind::new_buffered(Bytes::from(buf), reader)))
+}
+
+#[derive(Debug)]
+#[pin_project]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
+struct ReadVersion<'a, A: ?Sized> {
+    reader: &'a mut A,
+    buf: ReadBuf<'a>,
+    version: Version,
+    // Make this future `!Unpin` for compatibility with async trait methods.
+    #[pin]
+    _pin: PhantomPinned,
+}
+
+impl<A> Future for ReadVersion<'_, A>
+where
+    A: AsyncRead + Unpin + ?Sized,
+{
+    type Output = IoResult<(Version, Vec<u8>)>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<IoResult<(Version, Vec<u8>)>> {
+        let this = self.project();
+
+        while this.buf.remaining() != 0 {
+            if this.buf.filled() != &H2_PREFACE[0..this.buf.filled().len()] {
+                return Poll::Ready(Ok((*this.version, this.buf.filled().to_vec())));
+            }
+            // if our buffer is empty, then we need to read some data to continue.
+            let rem = this.buf.remaining();
+            ready!(Pin::new(&mut *this.reader).poll_read(cx, this.buf))?;
+            if this.buf.remaining() == rem {
+                return Err(IoError::new(ErrorKind::UnexpectedEof, "early eof")).into();
+            }
+        }
+        if this.buf.filled() == H2_PREFACE {
+            *this.version = Version::HTTP_2;
+        }
+        return Poll::Ready(Ok((*this.version, this.buf.filled().to_vec())));
+    }
+}
+
+// from https://github.com/hyperium/hyper-util/pull/11/files#diff-1bd3ef8e9a23396b76bdb4ec6ab5aba4c48dd0511d287e485148a90170c6b4fd
+/// Combine a buffer with an IO, rewinding reads to use the buffer.
+#[derive(Debug)]
+pub(crate) struct Rewind<T> {
+    pre: Option<Bytes>,
+    inner: T,
+}
+
+impl<T> Rewind<T> {
+    fn new_buffered(buf: Bytes, io: T) -> Self {
+        Rewind {
+            pre: Some(buf),
+            inner: io,
+        }
+    }
+}
+
+impl<T> AsyncRead for Rewind<T>
+where
+    T: AsyncRead + Unpin,
+{
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<IoResult<()>> {
+        if let Some(mut prefix) = self.pre.take() {
+            // If there are no remaining bytes, let the bytes get dropped.
+            if !prefix.is_empty() {
+                let copy_len = cmp::min(prefix.len(), buf.remaining());
+                // TODO: There should be a way to do following two lines cleaner...
+                buf.put_slice(&prefix[..copy_len]);
+                prefix.advance(copy_len);
+                // Put back what's left
+                if !prefix.is_empty() {
+                    self.pre = Some(prefix);
+                }
+                return Poll::Ready(Ok(()));
+            }
+        }
+        Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
+impl<T> AsyncWrite for Rewind<T>
+where
+    T: AsyncWrite + Unpin,
+{
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+        Pin::new(&mut self.inner).poll_write(cx, buf)
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<IoResult<usize>> {
+        Pin::new(&mut self.inner).poll_write_vectored(cx, bufs)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
+        Pin::new(&mut self.inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<IoResult<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(cx)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.inner.is_write_vectored()
     }
 }
