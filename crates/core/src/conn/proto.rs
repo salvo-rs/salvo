@@ -20,6 +20,7 @@ use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
 
 use crate::http::body::{Body, HyperBody};
+#[cfg(any(feature = "http1", feature = "http2"))]
 use crate::rt::TokioIo;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -50,7 +51,9 @@ impl HttpBuilder {
     pub async fn serve_connection<I, S, B>(
         &self,
         socket: I,
+        #[allow(unused_variables)]
         service: S,
+        #[allow(unused_variables)]
         server_shutdown_token: CancellationToken,
         idle_connection_timeout: Option<Duration>,
     ) -> Result<()>
@@ -72,6 +75,7 @@ impl HttpBuilder {
         let version = Version::HTTP_11;
         #[cfg(all(not(feature = "http1"), feature = "http2"))]
         let version = Version::HTTP_2;
+        #[allow(unused_variables)]
         let socket = match idle_connection_timeout {
             Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
                 let conn_shutdown_token = conn_shutdown_token.clone();
