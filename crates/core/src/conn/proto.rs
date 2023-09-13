@@ -51,10 +51,8 @@ impl HttpBuilder {
     pub async fn serve_connection<I, S, B>(
         &self,
         socket: I,
-        #[allow(unused_variables)]
-        service: S,
-        #[allow(unused_variables)]
-        server_shutdown_token: CancellationToken,
+        #[allow(unused_variables)] service: S,
+        #[allow(unused_variables)] server_shutdown_token: CancellationToken,
         idle_connection_timeout: Option<Duration>,
     ) -> Result<()>
     where
