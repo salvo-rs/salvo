@@ -18,7 +18,7 @@ use tokio_util::sync::CancellationToken;
 use super::SslAcceptorBuilder;
 
 use crate::async_trait;
-use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder, IntoConfigStream, Listener};
+use crate::conn::{Accepted, Acceptor,HttpBuilder, Holding, IntoConfigStream, Listener};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
 

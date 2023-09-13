@@ -274,7 +274,7 @@ mod tests {
             .send(super::route())
             .await;
 
-        assert_eq!(res .status_code.unwrap(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status_code.unwrap(), StatusCode::BAD_REQUEST);
     }
 
     fn test_todo() -> Todo {

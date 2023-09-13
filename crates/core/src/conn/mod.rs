@@ -12,6 +12,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::async_trait;
 use crate::http::{HttpConnection, Version};
 
+mod proto;
+pub use proto::HttpBuilder;
+
 cfg_feature! {
     #![feature = "acme"]
     pub mod acme;
@@ -57,9 +60,6 @@ pub use tcp::TcpListener;
 
 mod joined;
 pub use joined::JoinedListener;
-
-mod proto;
-pub use proto::HttpBuilder;
 
 cfg_feature! {
     #![unix]

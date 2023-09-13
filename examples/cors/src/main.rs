@@ -1,8 +1,7 @@
-use salvo::cors::Cors;
 use salvo::catcher::Catcher;
+use salvo::cors::Cors;
 use salvo::http::Method;
 use salvo::prelude::*;
-
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +21,9 @@ async fn backend_server() {
         .allow_headers("authorization")
         .into_handler();
 
-    let router = Router::with_hoop(cors.clone()).push(Router::with_path("hello").post(hello)).options(handler::empty());
+    let router = Router::with_hoop(cors.clone())
+        .push(Router::with_path("hello").post(hello))
+        .options(handler::empty());
 
     let acceptor = TcpListener::new("0.0.0.0:5600").bind().await;
     let service = Service::new(router).catcher(Catcher::default().hoop(cors));

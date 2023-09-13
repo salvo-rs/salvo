@@ -14,7 +14,8 @@ async fn main() {
         .acme()
         .cache_path("temp/letsencrypt")
         .add_domain("test.salvo.rs")
-        .http01_challege(&mut router).quinn("0.0.0.0:443");
+        .http01_challege(&mut router)
+        .quinn("0.0.0.0:443");
     let acceptor = listener.join(TcpListener::new("0.0.0.0:80")).bind().await;
     Server::new(acceptor).serve(router).await;
 }

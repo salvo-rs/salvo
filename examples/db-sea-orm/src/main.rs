@@ -24,7 +24,8 @@ struct AppState {
 #[handler]
 async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<()> {
     let state = depot
-        .obtain::<AppState>().map_err(|_|StatusError::internal_server_error())?;
+        .obtain::<AppState>()
+        .map_err(|_| StatusError::internal_server_error())?;
     let form = req
         .parse_form::<post::Model>()
         .await
@@ -46,7 +47,7 @@ async fn create(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
 async fn list(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
     let state = depot
         .obtain::<AppState>()
-        .map_err(|_|StatusError::internal_server_error())?;
+        .map_err(|_| StatusError::internal_server_error())?;
     let page = req.query("page").unwrap_or(1);
     let posts_per_page = req.query("posts_per_page").unwrap_or(DEFAULT_POSTS_PER_PAGE);
     let paginator = post::Entity::find()
@@ -75,7 +76,7 @@ async fn list(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
 async fn new(depot: &mut Depot) -> Result<Text<String>> {
     let state = depot
         .obtain::<AppState>()
-        .map_err(|_|StatusError::internal_server_error())?;
+        .map_err(|_| StatusError::internal_server_error())?;
     let ctx = tera::Context::new();
     let body = state
         .templates
@@ -88,7 +89,7 @@ async fn new(depot: &mut Depot) -> Result<Text<String>> {
 async fn edit(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
     let state = depot
         .obtain::<AppState>()
-        .map_err(|_|StatusError::internal_server_error())?;
+        .map_err(|_| StatusError::internal_server_error())?;
     let id = req.param::<i32>("id").unwrap_or_default();
     let post: post::Model = post::Entity::find_by_id(id)
         .one(&state.conn)
@@ -110,7 +111,7 @@ async fn edit(req: &mut Request, depot: &mut Depot) -> Result<Text<String>> {
 async fn update(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<()> {
     let state = depot
         .obtain::<AppState>()
-        .map_err(|_|StatusError::internal_server_error())?;
+        .map_err(|_| StatusError::internal_server_error())?;
     let id = req.param::<i32>("id").unwrap_or_default();
     let form = req
         .parse_form::<post::Model>()
@@ -132,7 +133,7 @@ async fn update(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Res
 async fn delete(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<()> {
     let state = depot
         .obtain::<AppState>()
-        .map_err(|_|StatusError::internal_server_error())?;
+        .map_err(|_| StatusError::internal_server_error())?;
     let id = req.param::<i32>("id").unwrap_or_default();
     let post: post::ActiveModel = post::Entity::find_by_id(id)
         .one(&state.conn)
