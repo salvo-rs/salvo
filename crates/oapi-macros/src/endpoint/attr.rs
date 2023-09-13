@@ -23,7 +23,7 @@ pub(crate) struct EndpointAttr<'p> {
 impl Parse for EndpointAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected identifier, expected any of: operation_id, request_body, responses, parameters, tag, security";
+            "unexpected identifier, expected any of: operation_id, request_body, responses, parameters, tags, security";
         let mut attr = EndpointAttr::default();
 
         while !input.is_empty() {
