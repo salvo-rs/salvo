@@ -66,6 +66,8 @@ impl HttpBuilder {
         let conn_shutdown_token = CancellationToken::new();
         #[cfg(all(feature = "http1", feature = "http2"))]
         let (version, socket) = read_version(socket).await?;
+        #[cfg(all(not(feature = "http1"), not(feature = "http2")))]
+        let version = Version::HTTP_11; // Just make the compiler happy.
         #[cfg(all(feature = "http1", not(feature = "http2")))]
         let version = Version::HTTP_11;
         #[cfg(all(not(feature = "http1"), feature = "http2"))]

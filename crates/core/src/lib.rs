@@ -97,9 +97,6 @@ pub mod prelude {
     pub use crate::writing::{Json, Redirect, Scribe, Text, Writer};
 }
 
-#[cfg(all(not(feature = "http1"), not(feature = "http2")))]
-compile_error!("Must enable either `http1` or `http2` feature");
-
 #[doc(hidden)]
 pub mod __private {
     pub use once_cell;
