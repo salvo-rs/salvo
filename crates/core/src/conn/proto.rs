@@ -240,6 +240,7 @@ impl<T> ClosingInactiveConnection<T> {
     }
 }
 
+#[allow(dead_code)]
 #[allow(clippy::future_not_send)]
 pub(crate) async fn read_version<'a, A>(mut reader: A) -> IoResult<(Version, Rewind<A>)>
 where
@@ -302,7 +303,7 @@ pub(crate) struct Rewind<T> {
     pre: Option<Bytes>,
     inner: T,
 }
-
+#[allow(dead_code)]
 impl<T> Rewind<T> {
     fn new_buffered(buf: Bytes, io: T) -> Self {
         Rewind {

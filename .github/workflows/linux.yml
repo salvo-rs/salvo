@@ -74,7 +74,7 @@ jobs:
         run: cargo install cargo-hack
 
       - name: check --feature-powerset
-        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps
+        run: cargo hack check --feature-powerset --at-least-one-of http1,http2 --depth 1 -Z avoid-dev-deps -p salvo
 
   cover:
     strategy:
