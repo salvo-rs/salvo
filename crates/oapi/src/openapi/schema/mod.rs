@@ -279,8 +279,8 @@ pub enum KnownFormat {
     /// Used with [`String`] values to indicate value is in decimal format.
     ///
     /// **decimal** feature need to be enabled.
-    #[cfg(feature = "decimal")]
-    #[cfg_attr(doc_cfg, doc(cfg(feature = "decimal")))]
+    #[cfg(any(feature = "decimal", feature = "decimal-float"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "decimal", feature = "decimal-float"))))]
     Decimal,
     /// Used with [`String`] values to indicate value is in Url format.
     ///
