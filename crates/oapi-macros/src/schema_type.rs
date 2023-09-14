@@ -29,8 +29,8 @@ impl SchemaType<'_> {
             feature = "chrono",
             feature = "decimal",
             feature = "decimal-float",
-            feature = "ulid",
             feature = "url",
+            feature = "ulid",
             feature = "uuid",
             feature = "time",
         )))]
@@ -42,8 +42,8 @@ impl SchemaType<'_> {
             feature = "chrono",
             feature = "decimal",
             feature = "decimal-float",
-            feature = "ulid",
             feature = "url",
+            feature = "ulid",
             feature = "uuid",
             feature = "time",
         ))]
@@ -52,14 +52,16 @@ impl SchemaType<'_> {
 
             #[cfg(feature = "chrono")]
             if !primitive {
-                primitive = is_primitive_chrono(name);
+                primitive = matches!(name, "DateTime" | "NaiveDate" | "Duration" | "NaiveDateTime");
             }
-
             #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             if !primitive {
-                primitive = is_primitive_rust_decimal(name);
+                primitive = matches!(name, "Decimal")
             }
-
+            #[cfg(feature = "url")]
+            if !primitive {
+                primitive = matches!(name, "Url");
+            }
             #[cfg(feature = "uuid")]
             if !primitive {
                 primitive = matches!(name, "Uuid");
@@ -68,11 +70,6 @@ impl SchemaType<'_> {
             if !primitive {
                 primitive = matches!(name, "Ulid");
             }
-            #[cfg(feature = "url")]
-            if !primitive {
-                primitive = matches!(name, "Url");
-            }
-
             #[cfg(feature = "time")]
             if !primitive {
                 primitive = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration");
@@ -138,18 +135,6 @@ fn is_primitive(name: &str) -> bool {
     )
 }
 
-#[inline]
-#[cfg(feature = "chrono")]
-fn is_primitive_chrono(name: &str) -> bool {
-    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime")
-}
-
-#[inline]
-#[cfg(any(feature = "decimal", feature = "decimal-float"))]
-fn is_primitive_rust_decimal(name: &str) -> bool {
-    matches!(name, "Decimal")
-}
-
 impl ToTokens for SchemaType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let oapi = crate::oapi_crate();
@@ -175,16 +160,18 @@ impl ToTokens for SchemaType<'_> {
             "NaiveDate" => tokens.extend(quote!(#oapi::oapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            #[cfg(all(feature = "decimal", feature = "decimal-float"))]
+            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
             "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
+            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
+            #[cfg(feature = "url")]
+            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
             _ => tokens.extend(quote! { #oapi::oapi::SchemaType::Object }),
@@ -246,10 +233,11 @@ impl Type<'_> {
 
         #[cfg(not(any(
             feature = "chrono",
+            feature = "decimal",
             feature = "decimal-float",
+            feature = "url",
             feature = "ulid",
             feature = "uuid",
-            feature = "url",
             feature = "time"
         )))]
         {
@@ -258,10 +246,11 @@ impl Type<'_> {
 
         #[cfg(any(
             feature = "chrono",
+            feature = "decimal",
             feature = "decimal-float",
+            feature = "url",
             feature = "ulid",
             feature = "uuid",
-            feature = "url",
             feature = "time"
         ))]
         {
@@ -269,11 +258,19 @@ impl Type<'_> {
 
             #[cfg(feature = "chrono")]
             if !known_format {
-                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
+                known_format = matches!(name, "DateTime" | "NaiveDate" | "NaiveDateTime");
+            }
+            #[cfg(feature = "decimal")]
+            if !known_format {
+                known_format = matches!(name, "Decimal");
             }
             #[cfg(feature = "decimal-float")]
             if !known_format {
                 known_format = matches!(name, "Decimal");
+            }
+            #[cfg(feature = "url")]
+            if !known_format {
+                known_format = matches!(name, "Url");
             }
             #[cfg(feature = "ulid")]
             if !known_format {
@@ -282,10 +279,6 @@ impl Type<'_> {
             #[cfg(feature = "uuid")]
             if !known_format {
                 known_format = matches!(name, "Uuid");
-            }
-            #[cfg(feature = "url")]
-            if !known_format {
-                known_format = matches!(name, "Url");
             }
 
             #[cfg(feature = "time")]
@@ -325,6 +318,10 @@ impl ToTokens for Type<'_> {
             }
             "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
             "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
+            #[cfg(any(feature = "decimal", feature = "decimal-float"))]
+            "Decimal" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
+            }
             #[cfg(feature = "chrono")]
             "NaiveDate" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) })
@@ -337,7 +334,7 @@ impl ToTokens for Type<'_> {
             "NaiveDateTime" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
             }
-            #[cfg(any(feature = "chrono", feature = "time"))]
+            #[cfg(feature = "time")]
             "Date" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ulid) }),
@@ -366,12 +363,12 @@ pub(crate) enum Variant {
     Date,
     DateTime,
     Password,
+    #[cfg(feature = "url")]
+    Url,
     #[cfg(feature = "ulid")]
     Ulid,
     #[cfg(feature = "uuid")]
     Uuid,
-    #[cfg(feature = "url")]
-    Url,
     Custom(String),
 }
 
@@ -382,12 +379,12 @@ impl Parse for Variant {
             "Url",
         ];
         let excluded_format: &[&str] = &[
+            #[cfg(not(feature = "url"))]
+            "Uri",
             #[cfg(not(feature = "uuid"))]
             "Uuid",
             #[cfg(not(feature = "ulid"))]
             "Ulid",
-            #[cfg(not(feature = "url"))]
-            "Uri",
         ];
         let known_formats = FORMATS
             .into_iter()
@@ -409,12 +406,12 @@ impl Parse for Variant {
                 "Date" => Ok(Self::Date),
                 "DateTime" => Ok(Self::DateTime),
                 "Password" => Ok(Self::Password),
+                #[cfg(feature = "url")]
+                "Url" => Ok(Self::Url),
                 #[cfg(feature = "uuid")]
                 "Uuid" => Ok(Self::Uuid),
                 #[cfg(feature = "ulid")]
                 "Ulid" => Ok(Self::Ulid),
-                #[cfg(feature = "url")]
-                "Url" => Ok(Self::Url),
                 _ => Err(Error::new(
                     format.span(),
                     format!(
@@ -468,12 +465,12 @@ impl ToTokens for Variant {
                 #oapi::oapi::KnownFormat::Uuid
             ))),
             #[cfg(feature = "ulid")]
-            Self::Ulid => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Ulid
+            Self::Ulid => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Ulid
             ))),
             #[cfg(feature = "url")]
-            Self::Url => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Url
+            Self::Url => tokens.extend(quote!(#oapi::oapi::SchemaFormat::KnownFormat(
+                #oapi::oapi::KnownFormat::Url
             ))),
             Self::Custom(value) => tokens.extend(quote!(#oapi::oapi::SchemaFormat::Custom(
                 String::from(#value)

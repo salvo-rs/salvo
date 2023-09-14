@@ -276,6 +276,18 @@ pub enum KnownFormat {
     DateTime,
     /// Hint to UI to obscure input.
     Password,
+    /// Used with [`String`] values to indicate value is in decimal format.
+    ///
+    /// **decimal** feature need to be enabled.
+    #[cfg(feature = "decimal")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "decimal")))]
+    Decimal,
+    /// Used with [`String`] values to indicate value is in Url format.
+    ///
+    /// **url** feature need to be enabled.
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    Url,
     /// Used with [`String`] values to indicate value is in ULID format.
     ///
     /// **ulid** feature need to be enabled.

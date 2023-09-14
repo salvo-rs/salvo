@@ -44,7 +44,7 @@ pub use salvo_oapi_macros::ToResponses;
 #[doc = include_str!("../docs/derive_to_schema.md")]
 pub use salvo_oapi_macros::ToSchema;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, LinkedList};
 
 use salvo_core::http::StatusError;
 use salvo_core::{extract::Extractible, writing};
@@ -135,13 +135,13 @@ impl ToSchema for TupleUnit {
 }
 
 macro_rules! impl_to_schema {
-    ( $ty:path ) => {
+    ($ty:path) => {
         impl_to_schema!( @impl_schema $ty );
     };
-    ( & $ty:path ) => {
+    (&$ty:path) => {
         impl_to_schema!( @impl_schema &$ty );
     };
-    ( @impl_schema $( $tt:tt )* ) => {
+    (@impl_schema $($tt:tt)*) => {
         impl ToSchema for $($tt)* {
             fn to_schema(_components: &mut Components) -> crate::RefOr<crate::schema::Schema> {
                  schema!( $($tt)* ).into()
@@ -151,7 +151,7 @@ macro_rules! impl_to_schema {
 }
 
 macro_rules! impl_to_schema_primitive {
-    ( $( $tt:path  ),* ) => {
+    ($($tt:path),*) => {
         $( impl_to_schema!( $tt ); )*
     };
 }
@@ -175,9 +175,51 @@ impl_to_schema_primitive!(
 );
 impl_to_schema!(&str);
 
+#[cfg(feature = "chrono")]
+impl_to_schema_primitive!(chrono::NaiveDate, chrono::Duration, chrono::NaiveDateTime);
+#[cfg(feature = "chrono")]
+impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] DateTime<T>).into()
+    }
+}
+#[cfg(any(feature = "decimal", feature = "decimal-float"))]
+impl_to_schema!(rust_decimal::Decimal);
+#[cfg(feature = "url")]
+impl_to_schema!(url::Url);
+#[cfg(feature = "uuid")]
+impl_to_schema!(uuid::Uuid);
+#[cfg(feature = "ulid")]
+impl_to_schema!(ulid::Ulid);
+#[cfg(feature = "time")]
+impl_to_schema_primitive!(
+    time::Date,
+    time::PrimitiveDateTime,
+    time::OffsetDateTime,
+    time::Duration
+);
+#[cfg(feature = "smallvec")]
+impl<T: ToSchema + smallvec::Array> ToSchema for smallvec::SmallVec<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] smallvec::SmallVec<T>).into()
+    }
+}
+#[cfg(feature = "indexmap")]
+impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] indexmap::IndexMap<K, V>).into()
+    }
+}
+
 impl<T: ToSchema> ToSchema for Vec<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
+    }
+}
+
+impl<T: ToSchema> ToSchema for LinkedList<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] LinkedList<T>).into()
     }
 }
 
@@ -186,6 +228,15 @@ impl<T: ToSchema> ToSchema for [T] {
         schema!(
             #[inline]
             [T]
+        )
+        .into()
+    }
+}
+impl<T: ToSchema, const N: usize> ToSchema for [T; N] {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(
+            #[inline]
+            [T; N]
         )
         .into()
     }

@@ -14,19 +14,20 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
-full = ["swagger-ui", "rapidoc", "redoc", "chrono", "decimal", "yaml", "ulid", "uuid", "time", "smallvec", "indexmap"]
+full = ["swagger-ui", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml"]
 swagger-ui = ["dep:rust-embed"]
 rapidoc = []
 redoc = []
-chrono = ["salvo-oapi-macros/chrono"]
-decimal = ["salvo-oapi-macros/decimal"]
-decimal_float = ["salvo-oapi-macros/decimal-float"]
-yaml = ["dep:serde_yaml"]
-ulid = ["salvo-oapi-macros/ulid"]
-uuid = ["salvo-oapi-macros/uuid"]
-time = ["salvo-oapi-macros/time"]
-smallvec = ["salvo-oapi-macros/smallvec"]
+chrono = ["salvo-oapi-macros/chrono", "dep:chrono"]
+decimal = ["salvo-oapi-macros/decimal", "dep:rust_decimal"]
+decimal-float = ["salvo-oapi-macros/decimal-float", "dep:rust_decimal"]
+url = ["salvo-oapi-macros/url", "dep:url"]
+ulid = ["salvo-oapi-macros/ulid", "dep:ulid"]
+uuid = ["salvo-oapi-macros/uuid", "dep:uuid"]
+time = ["salvo-oapi-macros/time", "dep:time"]
+smallvec = ["salvo-oapi-macros/smallvec", "dep:smallvec"]
 indexmap = ["salvo-oapi-macros/indexmap"]
+yaml = ["dep:serde_yaml"]
 
 [dependencies]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
@@ -47,16 +48,16 @@ regex = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 
-# Non-feature optional dependencies
-email_address = { workspace = true, optional = true }
-hostname-validator = { workspace = true, optional = true }
-
 # Feature optional dependencies
-url = { workspace = true, optional = true }
-bson = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 rust_decimal = { workspace = true, optional = true }
 rust-embed = { workspace = true, features = ["interpolate-folder-path"], optional = true }
 serde_yaml = { workspace = true, optional = true }
+smallvec = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
+ulid = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
 
 [build-dependencies]
 regex = { workspace = true }
