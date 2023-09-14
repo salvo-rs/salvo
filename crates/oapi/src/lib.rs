@@ -226,7 +226,7 @@ impl<T: ToSchema> ToSchema for [T] {
         .into()
     }
 }
-impl<T: ToSchema, const N: usize> ToSchema for [T;N] {
+impl<T: ToSchema, const N: usize> ToSchema for [T; N] {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(
             #[inline]
