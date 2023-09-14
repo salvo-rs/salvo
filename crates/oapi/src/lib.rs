@@ -175,14 +175,18 @@ impl_to_schema_primitive!(
 );
 impl_to_schema!(&str);
 
-// #[cfg(feature = "chrono")]
-// impl_to_schema_primitive!(
-//     chrono::Date,
-//     chrono::DateTime,
-//     chrono::NaiveDate,
-//     chrono::Duration,
-//     chrono::NaiveDateTime
-// );
+#[cfg(feature = "chrono")]
+impl_to_schema_primitive!(
+    chrono::NaiveDate,
+    chrono::Duration,
+    chrono::NaiveDateTime
+);
+#[cfg(feature = "chrono")]
+impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] DateTime<T>).into()
+    }
+}
 #[cfg(any(feature = "decimal", feature = "decimal-float"))]
 impl_to_schema!(rust_decimal::Decimal);
 #[cfg(feature = "url")]

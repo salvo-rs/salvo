@@ -178,7 +178,9 @@ pub fn schema(input: TokenStream) -> TokenStream {
         object_name: "",
         type_definition: false,
     });
-    schema.to_token_stream().into()
+    let x = schema.to_token_stream().into();
+    println!("{}", x);
+    x
 }
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
