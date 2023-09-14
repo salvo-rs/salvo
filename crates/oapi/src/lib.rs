@@ -44,7 +44,7 @@ pub use salvo_oapi_macros::ToResponses;
 #[doc = include_str!("../docs/derive_to_schema.md")]
 pub use salvo_oapi_macros::ToSchema;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, LinkedList};
 
 use salvo_core::http::StatusError;
 use salvo_core::{extract::Extractible, writing};
@@ -183,7 +183,7 @@ impl_to_schema_primitive!(
 );
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
-    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] DateTime<T>).into()
     }
 }
@@ -218,6 +218,12 @@ impl<K: ToSchema, V: ToSchema> ToSchema for indexmap::IndexMap<K, V> {
 impl<T: ToSchema> ToSchema for Vec<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Vec<T>).into()
+    }
+}
+
+impl<T: ToSchema> ToSchema for LinkedList<T> {
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        schema!(#[inline] LinkedList<T>).into()
     }
 }
 
