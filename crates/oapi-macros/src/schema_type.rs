@@ -319,11 +319,17 @@ impl ToTokens for Type<'_> {
             "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
             "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) }),
+            "Decimal" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
+            }
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) }),
+            "Decimal" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
+            }
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
+            "Decimal" => {
+                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) })
+            }
             #[cfg(feature = "chrono")]
             "NaiveDate" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) })

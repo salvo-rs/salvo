@@ -176,11 +176,7 @@ impl_to_schema_primitive!(
 impl_to_schema!(&str);
 
 #[cfg(feature = "chrono")]
-impl_to_schema_primitive!(
-    chrono::NaiveDate,
-    chrono::Duration,
-    chrono::NaiveDateTime
-);
+impl_to_schema_primitive!(chrono::NaiveDate, chrono::Duration, chrono::NaiveDateTime);
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> ToSchema for chrono::DateTime<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
