@@ -19,7 +19,7 @@ use reqwest::Client;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
-use salvo_core::rt::TokioIo;
+use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
 
