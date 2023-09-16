@@ -1,10 +1,10 @@
 //! openssl module
 use std::fmt::{self, Formatter};
 use std::fs::File;
+use std::future::{Ready, ready};
 use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
 
-use futures_util::future::{ready, Ready};
 use futures_util::stream::{once, Once, Stream};
 use openssl::pkey::PKey;
 use openssl::ssl::{SslAcceptor, SslMethod, SslRef};
@@ -108,7 +108,10 @@ impl OpensslConfig {
     /// Create new `OpensslConfig`
     #[inline]
     pub fn new(keycert: Keycert) -> Self {
-        OpensslConfig { keycert, builder_modifier: None }
+        OpensslConfig {
+            keycert,
+            builder_modifier: None,
+        }
     }
 
     /// Set builder modifier.

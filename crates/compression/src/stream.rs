@@ -3,10 +3,9 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::io::{self, Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use bytes::Bytes;
-use futures_util::ready;
 use futures_util::stream::{BoxStream, Stream};
 use tokio::task::{spawn_blocking, JoinHandle};
 

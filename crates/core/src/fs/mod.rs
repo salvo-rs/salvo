@@ -6,10 +6,9 @@ use std::cmp;
 use std::future::Future;
 use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Seek};
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use bytes::Bytes;
-use futures_util::ready;
 use futures_util::stream::Stream;
 
 pub(crate) enum ChunkedState<T> {

@@ -9,5 +9,3 @@ pub use hyper::rt::*;
 pub mod tokio {
     pub use salvo_utils::rt::{TokioExecutor, TokioIo};
 }
-
-pub use self::tokio::*;

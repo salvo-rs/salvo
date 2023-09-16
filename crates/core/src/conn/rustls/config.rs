@@ -1,11 +1,11 @@
 //! rustls module
 use std::collections::HashMap;
 use std::fs::File;
+use std::future::{ready, Ready};
 use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
 
-use futures_util::future::{ready, Ready};
 use futures_util::stream::{once, Once, Stream};
 pub use tokio_rustls::rustls::server::ServerConfig;
 use tokio_rustls::rustls::server::{

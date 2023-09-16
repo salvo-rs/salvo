@@ -5,12 +5,11 @@ use std::io::{Error as IoError, ErrorKind, IoSlice, Result as IoResult};
 use std::marker::{PhantomPinned, Unpin};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{self, Context, Poll};
+use std::task::{self, ready, Context, Poll};
 use std::time::Duration;
 
 use bytes::{Buf, Bytes};
 
-use futures_util::ready;
 use http::{Request, Response, Version};
 use hyper::service::Service;
 use pin_project::pin_project;
@@ -21,12 +20,12 @@ use tokio_util::sync::CancellationToken;
 
 use crate::http::body::{Body, HyperBody};
 #[cfg(any(feature = "http1", feature = "http2"))]
-use crate::rt::TokioIo;
+use crate::rt::tokio::TokioIo;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[cfg(feature = "http2")]
-use crate::rt::TokioExecutor;
+use crate::rt::tokio::TokioExecutor;
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]

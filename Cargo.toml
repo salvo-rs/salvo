@@ -83,7 +83,7 @@ rust_decimal = "1"
 rustls = "0.21"
 rustls-pemfile = "1"
 rust-embed = {version = ">= 6, <= 8"}
-salvo-utils = { version = "0.0.5", default-features = true }
+salvo-utils = { version = "0.0.6", default-features = true }
 salvo_macros = { version = "0.55.3", path = "crates/macros", default-features = false }
 salvo_core = { version = "0.55.3", path = "crates/core", default-features = false }
 salvo_extra = { version = "0.55.3", path = "crates/extra", default-features = false }
@@ -118,8 +118,8 @@ tokio-native-tls = "0.3"
 tokio-rustls = "0.24"
 tokio-openssl = "0.6"
 tokio-stream = { version = "0.1", default-features = false }
-tokio-util = "0.7"
 tokio-tungstenite = { version = "0.20", default-features = false }
+tokio-util = "0.7"
 tracing-subscriber = { version = "0.3" }
 tracing = "0.1"
 tracing-test = "0.2.1"

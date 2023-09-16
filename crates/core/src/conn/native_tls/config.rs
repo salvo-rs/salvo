@@ -3,8 +3,8 @@ use std::fmt::{self, Formatter};
 use std::fs::File;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult, Read};
 use std::path::{Path, PathBuf};
+use std::future::{ready, Ready};
 
-use futures_util::future::{ready, Ready};
 use futures_util::stream::{once, Once, Stream};
 
 pub use tokio_native_tls::native_tls::Identity;

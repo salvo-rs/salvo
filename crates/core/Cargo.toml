@@ -75,8 +75,8 @@ textnonce = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
-tokio-rustls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
