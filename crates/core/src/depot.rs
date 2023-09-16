@@ -90,7 +90,7 @@ impl Depot {
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
     pub fn obtain_mut<T: Any + Send + Sync>(&mut self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
-        self.get_mut(&format!("{:?}", TypeId::of::<T>()))
+        self.get_mut(&type_key::<T>()))
     }
 
     /// Inserts a key-value pair into the depot.
@@ -112,7 +112,7 @@ impl Depot {
     /// Check is there a value stored in depot.
     #[inline]
     pub fn contains<T: Any + Send + Sync>(&self) -> bool {
-        self.map.contains_key(&format!("{:?}", TypeId::of::<T>()))
+        self.map.contains_key(&type_key::<T>()))
     }
 
     /// Immutably borrows value from depot.
