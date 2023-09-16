@@ -153,6 +153,12 @@ impl Depot {
     pub fn delete(&mut self, key: &str) -> bool {
         self.map.remove(key).is_some()
     }
+
+    /// Remove value from depot and returning the value if the type was previously in the depot.
+    #[inline]
+    pub fn scrape<T: Any + Send + Sync>(&mut self) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
+        self.remove(&format!("{:?}", TypeId::of::<T>()))
+    }
 }
 
 impl fmt::Debug for Depot {
