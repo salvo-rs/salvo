@@ -3,8 +3,7 @@ use std::fmt::{self, Formatter};
 use std::fs::File;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult, Read};
 use std::path::{Path, PathBuf};
-use std::task::ready;
-use std::feature::Ready;
+use std::future::{ready, Ready};
 
 use futures_util::stream::{once, Once, Stream};
 

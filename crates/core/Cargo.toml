@@ -17,8 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie", "http1", "fix-http1-request-uri", "http2", "test"]
-full = ["io-uring", "cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "anyhow", "eyre"]
-io-uring = ["dep:tokio-uring"]
+full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "anyhow", "eyre"]
 cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
@@ -80,7 +79,6 @@ tokio-openssl = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
-tokio-uring = { workspace = true, features = ["bytes"], optional = true }
 tracing = { workspace = true }
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }

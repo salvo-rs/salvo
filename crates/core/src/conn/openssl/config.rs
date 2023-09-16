@@ -1,10 +1,9 @@
 //! openssl module
 use std::fmt::{self, Formatter};
 use std::fs::File;
-use std::future::Ready;
+use std::future::{Ready, ready};
 use std::io::{Error as IoError, Read, Result as IoResult};
 use std::path::Path;
-use std::task::ready;
 
 use futures_util::stream::{once, Once, Stream};
 use openssl::pkey::PKey;
