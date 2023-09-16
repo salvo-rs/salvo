@@ -156,7 +156,7 @@ impl Depot {
 
     /// Remove value from depot and returning the value if the type was previously in the depot.
     #[inline]
-    pub fn scrape<T: Any>(&self) -> Result<&T, Option<&Box<dyn Any>>> {
+    pub fn scrape<T: Any>(&mut self) -> Result<T, Option<Box<dyn Any>>> {
         self.remove(&format!("{:?}", TypeId::of::<T>()))
     }
 }
