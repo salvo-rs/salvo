@@ -33,6 +33,11 @@ pub struct Depot {
     map: HashMap<String, Box<dyn Any + Send + Sync>>,
 }
 
+#[inline]
+fn type_key<T: 'static>() -> String {
+    format!("{:?}", TypeId::of::<T>())
+}
+
 impl Depot {
     /// Creates an empty `Depot`.
     ///
@@ -66,7 +71,7 @@ impl Depot {
     /// Inject a value into the depot.
     #[inline]
     pub fn inject<V: Any + Send + Sync>(&mut self, value: V) -> &mut Self {
-        self.map.insert(format!("{:?}", TypeId::of::<V>()), Box::new(value));
+        self.map.insert(type_key::<V>(), Box::new(value));
         self
     }
 
@@ -76,7 +81,7 @@ impl Depot {
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
     pub fn obtain<T: Any + Send + Sync>(&self) -> Result<&T, Option<&Box<dyn Any + Send + Sync>>> {
-        self.get(&format!("{:?}", TypeId::of::<T>()))
+        self.get(&type_key::<T>())
     }
 
     /// Obtain a mutable reference to a value previous inject to the depot.
@@ -85,7 +90,7 @@ impl Depot {
     /// Returns `Err(Some(Box<dyn Any + Send + Sync>))` if value is present in depot but downcast failed.
     #[inline]
     pub fn obtain_mut<T: Any + Send + Sync>(&mut self) -> Result<&mut T, Option<&mut Box<dyn Any + Send + Sync>>> {
-        self.get_mut(&format!("{:?}", TypeId::of::<T>()))
+        self.get_mut(&type_key::<T>())
     }
 
     /// Inserts a key-value pair into the depot.
@@ -103,6 +108,11 @@ impl Depot {
     #[inline]
     pub fn contains_key(&self, key: &str) -> bool {
         self.map.contains_key(key)
+    }
+    /// Check is there a value stored in depot.
+    #[inline]
+    pub fn contains<T: Any + Send + Sync>(&self) -> bool {
+        self.map.contains_key(&type_key::<T>())
     }
 
     /// Immutably borrows value from depot.
@@ -157,7 +167,7 @@ impl Depot {
     /// Remove value from depot and returning the value if the type was previously in the depot.
     #[inline]
     pub fn scrape<T: Any + Send + Sync>(&mut self) -> Result<T, Option<Box<dyn Any + Send + Sync>>> {
-        self.remove(&format!("{:?}", TypeId::of::<T>()))
+        self.remove(&type_key::<T>())
     }
 }
 
