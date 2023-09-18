@@ -26,7 +26,7 @@ moka-store = ["dep:moka"]
 [dependencies]
 bytes = { workspace = true }
 lru = { workspace = true, optional = true }
-moka = { workspace = true, optional = true }
+moka = { workspace = true, optional = true, features = ["future"] }
 salvo_core = { workspace = true, features = ["http1"]}
 tracing = { workspace = true }
 

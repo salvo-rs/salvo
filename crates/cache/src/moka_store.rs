@@ -5,8 +5,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
 
-use moka::sync::Cache as MokaCache;
-use moka::sync::CacheBuilder as MokaCacheBuilder;
+use moka::future::Cache as MokaCache;
+use moka::future::CacheBuilder as MokaCacheBuilder;
 use moka::notification::RemovalCause;
 use salvo_core::async_trait;
 
@@ -127,11 +127,11 @@ where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync,
     {
-        self.inner.get(key)
+        self.inner.get(key).await
     }
 
     async fn save_entry(&self, key: Self::Key, entry: CachedEntry) -> Result<(), Self::Error> {
-        self.inner.insert(key, entry);
+        self.inner.insert(key, entry).await;
         Ok(())
     }
 }
