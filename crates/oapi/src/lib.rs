@@ -45,6 +45,7 @@ pub use salvo_oapi_macros::ToResponses;
 pub use salvo_oapi_macros::ToSchema;
 
 use std::collections::{BTreeMap, HashMap, LinkedList};
+use std::marker::PhantomData;
 
 use salvo_core::http::StatusError;
 use salvo_core::{extract::Extractible, writing};
@@ -255,6 +256,12 @@ impl<T: ToSchema> ToSchema for &[T] {
 impl<T: ToSchema> ToSchema for Option<T> {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         schema!(#[inline] Option<T>).into()
+    }
+}
+
+impl<T> ToSchema for PhantomData<T> {
+    fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
+        Schema::Object(Object::default()).into()
     }
 }
 
