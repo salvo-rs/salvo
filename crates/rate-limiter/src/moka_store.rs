@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::hash::Hash;
 
-use moka::sync::Cache as MokaCache;
+use moka::future::Cache as MokaCache;
 use salvo_core::async_trait;
 
 use super::{RateGuard, RateStore};
@@ -53,7 +53,7 @@ where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + Sync,
     {
-        let guard = self.inner.get(key);
+        let guard = self.inner.get(key).await;
         if let Some(guard) = guard {
             Ok(guard)
         } else {
@@ -62,7 +62,7 @@ where
     }
 
     async fn save_guard(&self, key: Self::Key, guard: Self::Guard) -> Result<(), Self::Error> {
-        self.inner.insert(key, guard);
+        self.inner.insert(key, guard).await;
         Ok(())
     }
 }
