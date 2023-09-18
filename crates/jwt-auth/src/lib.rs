@@ -228,7 +228,7 @@ where
                     depot.insert(JWT_AUTH_TOKEN_KEY, token);
                 }
                 Err(e) => {
-                    tracing::error!(error = ?e, "jwt auth error");
+                    tracing::info!(error = ?e, "jwt auth error");
                     depot.insert(JWT_AUTH_STATE_KEY, JwtAuthState::Forbidden);
                     depot.insert(JWT_AUTH_ERROR_KEY, e);
                     if !self.force_passed {
