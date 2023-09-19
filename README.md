@@ -16,7 +16,7 @@
     <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
 </a>
 <br>
-<a href="https://discord.gg/rUHf3spK">
+<a href="https://discord.gg/G8KfmS6ByH">
     <img src="https://img.shields.io/discord/1041442427006890014.svg?logo=discord">
 </a>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
