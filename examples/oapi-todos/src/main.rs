@@ -38,6 +38,7 @@ pub async fn index() -> Text<&'static str> {
 
 /// List todos.
 #[endpoint(
+    tags("todos"),
     parameters(
         ("offset", description = "Offset is an optional query paramter."),
     )
@@ -54,7 +55,7 @@ pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usiz
 }
 
 /// Create new todo.
-#[endpoint(status_codes(201, 409))]
+#[endpoint(tags("todos"), status_codes(201, 409))]
 pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?new_todo, "create todo");
 
@@ -72,7 +73,7 @@ pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusE
 }
 
 /// Update existing todo.
-#[endpoint(status_codes(200, 404))]
+#[endpoint(tags("todos"), status_codes(200, 404))]
 pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?updated, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
@@ -89,7 +90,7 @@ pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<
 }
 
 /// Delete todo.
-#[endpoint(status_codes(200, 401, 404))]
+#[endpoint(tags("todos"), status_codes(200, 401, 404))]
 pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> {
     tracing::debug!(id = ?id, "delete todo");
 
