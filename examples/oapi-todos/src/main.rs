@@ -1,10 +1,24 @@
 use once_cell::sync::Lazy;
-use salvo::oapi::extract::*;
+use salvo::oapi::{extract::*, ToSchema};
 use salvo::prelude::*;
-
-use self::models::*;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
+pub type Db = Mutex<Vec<Todo>>;
+
+pub fn new_store() -> Db {
+    Mutex::new(Vec::new())
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct Todo {
+    #[salvo(schema(example = 1))]
+    pub id: u64,
+    #[salvo(schema(example = "Buy coffee"))]
+    pub text: String,
+    pub completed: bool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -105,27 +119,6 @@ pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> 
     } else {
         tracing::debug!(id = ?id, "todo is not found");
         Err(StatusError::not_found())
-    }
-}
-
-mod models {
-    use salvo::oapi::ToSchema;
-    use serde::{Deserialize, Serialize};
-    use tokio::sync::Mutex;
-
-    pub type Db = Mutex<Vec<Todo>>;
-
-    pub fn new_store() -> Db {
-        Mutex::new(Vec::new())
-    }
-
-    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-    pub struct Todo {
-        #[salvo(schema(example = 1))]
-        pub id: u64,
-        #[salvo(schema(example = "Buy coffee"))]
-        pub text: String,
-        pub completed: bool,
     }
 }
 
