@@ -50,6 +50,8 @@ use std::marker::PhantomData;
 use salvo_core::http::StatusError;
 use salvo_core::{extract::Extractible, writing};
 
+use crate::oapi::openapi::schema::OneOf;
+
 // https://github.com/bkchr/proc-macro-crate/issues/10
 extern crate self as salvo_oapi;
 
@@ -299,6 +301,21 @@ impl ToSchema for StatusError {
 impl ToSchema for salvo_core::Error {
     fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
         StatusError::to_schema(components)
+    }
+}
+
+impl<T, E> ToSchema for Result<T, E>
+where
+    T: ToSchema,
+    E: ToSchema,
+{
+    fn to_schema(components: &mut Components) -> RefOr<schema::Schema> {
+        let symbol = std::any::type_name::<Self>().replace("::", ".");
+        let schema = OneOf::new()
+            .item(T::to_schema(components))
+            .item(E::to_schema(components));
+        components.schemas.insert(symbol.clone(), schema.into());
+        crate::RefOr::Ref(crate::Ref::new(format!("#/components/schemas/{}", symbol)))
     }
 }
 
