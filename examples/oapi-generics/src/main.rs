@@ -33,7 +33,7 @@ async fn main() {
 
     let router = router
         .unshift(doc.into_router("/api-doc/openapi.json"))
-        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/"));
+        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"));
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;
