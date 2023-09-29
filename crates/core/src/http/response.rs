@@ -195,8 +195,9 @@ impl Response {
         false
     }
 
+    /// Convert to hyper response.
     #[inline]
-    pub(crate) fn into_hyper(self) -> hyper::Response<ResBody> {
+    pub fn into_hyper(self) -> hyper::Response<ResBody> {
         let Self {
             status_code,
             #[cfg(feature = "cookie")]
@@ -224,6 +225,24 @@ impl Response {
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         res
+    }
+
+    /// Merge data from [`hyper::Response`].
+    #[inline]
+    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>) where B: Into<ResBody> {
+        let (http::response::Parts{
+            status,
+            version,
+            headers,
+            extensions,
+            ..
+        }, body) = res.into_parts();
+
+        self.status_code = Some(status);
+        self.version = version;
+        self.headers = headers;
+        self.extensions = extensions;
+        self.body = body.into();
     }
 
     cfg_feature! {
