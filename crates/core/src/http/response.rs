@@ -196,7 +196,7 @@ impl Response {
     }
 
     /// Convert to hyper response.
-#[doc(hidden)]
+    #[doc(hidden)]
     #[inline]
     pub fn into_hyper(self) -> hyper::Response<ResBody> {
         let Self {
