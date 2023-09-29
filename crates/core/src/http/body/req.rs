@@ -203,7 +203,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Inner(Box::pin(value))
+                ReqBody::Boxed(Box::pin(value))
             }
         }
     }

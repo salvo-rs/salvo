@@ -228,6 +228,18 @@ impl Response {
         res
     }
 
+    /// Strip the respone to [`hyper::Response`].
+    #[inline]
+    pub fn strip_to_hyper(&mut self) -> hyper::Response<ResBody> {
+        let mut res = hyper::Response::new(std::mem::take(&mut self.body));
+        *res.extensions_mut() = std::mem::take(&mut self.extensions);
+        *res.headers_mut() = std::mem::take(&mut self.headers);
+        // Default to a 404 if no response code was set
+        *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
+
+        res
+    }
+
     /// Merge data from [`hyper::Response`].
     #[inline]
     pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>)

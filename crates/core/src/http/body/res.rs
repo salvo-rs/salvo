@@ -18,8 +18,10 @@ use crate::prelude::StatusError;
 /// Response body type.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum ResBody {
     /// None body.
+    #[default]
     None,
     /// Once bytes body.
     Once(Bytes),

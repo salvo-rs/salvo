@@ -46,8 +46,8 @@ cfg_feature! {
 }
 cfg_feature! {
     #![feature ="tower-compat"]
-    mod tower_compat;
-    pub use tower_compat::{TowerCompatExt, TowerCompatHandler};
+    pub mod tower_compat;
+    pub use tower_compat::{TowerServiceCompat, TowerLayerCompat};
 }
 
 pub use self::conn::Listener;
@@ -96,7 +96,7 @@ pub mod prelude {
     }
     cfg_feature! {
         #![feature ="tower-compat"]
-        pub use crate::tower_compat::{TowerCompatExt, TowerCompatHandler};
+        pub use crate::tower_compat::{TowerServiceCompat, TowerLayerCompat};
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::handler::{self, Handler};
