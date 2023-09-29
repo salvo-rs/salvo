@@ -126,7 +126,7 @@ impl Request {
         let (
             http::request::Parts {
                 method,
-                 uri,
+                uri,
                 version,
                 headers,
                 extensions,
