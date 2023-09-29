@@ -229,14 +229,20 @@ impl Response {
 
     /// Merge data from [`hyper::Response`].
     #[inline]
-    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>) where B: Into<ResBody> {
-        let (http::response::Parts{
-            status,
-            version,
-            headers,
-            extensions,
-            ..
-        }, body) = res.into_parts();
+    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>)
+    where
+        B: Into<ResBody>,
+    {
+        let (
+            http::response::Parts {
+                status,
+                version,
+                headers,
+                extensions,
+                ..
+            },
+            body,
+        ) = res.into_parts();
 
         self.status_code = Some(status);
         self.version = version;
