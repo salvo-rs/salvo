@@ -196,6 +196,7 @@ impl Response {
     }
 
     /// Convert to hyper response.
+#[doc(hidden)]
     #[inline]
     pub fn into_hyper(self) -> hyper::Response<ResBody> {
         let Self {
@@ -229,20 +230,29 @@ impl Response {
 
     /// Merge data from [`hyper::Response`].
     #[inline]
-    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>) where B: Into<ResBody> {
-        let (http::response::Parts{
-            status,
-            version,
-            headers,
-            extensions,
-            ..
-        }, body) = res.into_parts();
+    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>)
+    where
+        B: Into<ResBody>,
+    {
+        let (
+            http::response::Parts {
+                status,
+                version,
+                headers,
+                extensions,
+                ..
+            },
+            body,
+        ) = res.into_parts();
 
         self.status_code = Some(status);
         self.version = version;
         self.headers = headers;
         self.extensions = extensions;
-        self.body = body.into();
+        let body = body.into();
+        if !body.is_none() {
+            self.body = body.into();
+        }
     }
 
     cfg_feature! {
@@ -394,6 +404,12 @@ impl Response {
                 tracing::error!("current body's kind is `ResBody::Hyper`, it is not allowed to write bytes");
                 return Err(Error::other(
                     "current body's kind is `ResBody::Hyper`, it is not allowed to write bytes",
+                ));
+            }
+            ResBody::Boxed(_) => {
+                tracing::error!("current body's kind is `ResBody::Boxed`, it is not allowed to write bytes");
+                return Err(Error::other(
+                    "current body's kind is `ResBody::Boxed`, it is not allowed to write bytes",
                 ));
             }
             ResBody::Stream(_) => {

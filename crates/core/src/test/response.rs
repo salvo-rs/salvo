@@ -143,6 +143,7 @@ impl ResponseExt for Response {
                 bytes.freeze()
             }
             ResBody::Hyper(body) => body.collect().await?.to_bytes(),
+            ResBody::Boxed(body) => body.collect().await?.to_bytes(),
             ResBody::Stream(mut stream) => {
                 let mut bytes = BytesMut::new();
                 while let Some(chunk) = stream.next().await {

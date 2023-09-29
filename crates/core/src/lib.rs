@@ -44,6 +44,11 @@ cfg_feature! {
     #![feature ="quinn"]
     pub use proto::webtransport;
 }
+cfg_feature! {
+    #![feature ="tower-compat"]
+    mod tower_compat;
+    pub use tower_compat::{TowerCompatExt, TowerCompatHandler};
+}
 
 pub use self::conn::Listener;
 pub use self::depot::Depot;
@@ -88,6 +93,10 @@ pub mod prelude {
     cfg_feature! {
         #![unix]
         pub use crate::conn::UnixListener;
+    }
+    cfg_feature! {
+        #![feature ="tower-compat"]
+        pub use crate::tower_compat::{TowerCompatExt, TowerCompatHandler};
     }
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::handler::{self, Handler};
