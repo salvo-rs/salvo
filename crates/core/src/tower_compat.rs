@@ -1,10 +1,12 @@
 //! Tower service compat.
+use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
 use std::task::{Context, Poll};
 
+use futures_util::future::BoxFuture;
 use http_body_util::BodyExt;
 use hyper::body::{Body, Bytes, Frame};
 use tower::{Layer, Service, ServiceExt};
@@ -86,26 +88,33 @@ where
     }
 }
 
-pub struct ResponseService(Option<hyper::Response<ResBody>>);
-impl<Req> Service<Req> for ResponseService {
+pub struct FlowCtrlService<'a> {
+    ctrl: &'a mut FlowCtrl,
+    req: &'a mut Request,
+    depot: &'a mut Depot,
+    res: &'a mut Response,
+}
+impl<'a> FlowCtrlService<'a> {
+    pub fn new(ctrl: &'a mut FlowCtrl, req: &'a mut Request, depot: &'a mut Depot, res: &'a mut Response) -> Self {
+        Self { ctrl, req, depot, res }
+    }
+}
+impl<'a> Service<hyper::Request<ReqBody>> for FlowCtrlService<'a>
+{
     type Response = hyper::Response<ResBody>;
-    type Error = IoError;
-    type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+    type Error = Infallible;
+    type Future = BoxFuture<'a, Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, _req: Req) -> Self::Future {
-        std::future::ready({
-            if let Some(res) = self.0.take() {
-                Ok(res)
-            } else {
-                Err(IoError::new(
-                    ErrorKind::Other,
-                    "response is none or called in response service.".to_owned(),
-                ))
-            }
+    fn call(&mut self, hyper_req: hyper::Request<ReqBody>) -> Self::Future {
+        self.req.merge_hyper(hyper_req);
+        let this = self;
+        Box::pin(async move {
+            self.ctrl.call_next(this.req, this.depot, this.res).await;
+            Ok(this.res.strip_to_hyper())
         })
     }
 }
@@ -121,7 +130,7 @@ pub trait TowerLayerCompat {
     }
 }
 
-impl<T> TowerLayerCompat for T where T: Layer<ResponseService> + Send + Sync + Sized + 'static {}
+impl<T> TowerLayerCompat for T where T: for<'a> Layer<FlowCtrlService<'a>> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
 pub struct TowerLayerHandler<L>(L);
@@ -129,19 +138,16 @@ pub struct TowerLayerHandler<L>(L);
 #[async_trait]
 impl<L, B> Handler for TowerLayerHandler<L>
 where
-    B: Body + Send + Sync + 'static,
-    B::Data: Into<Bytes> + Sync + Send + fmt::Debug + 'static,
-    B::Error: StdError + Send + Sync + 'static,
-    L: Layer<ResponseService> + Sync + Send + 'static,
-    L::Service: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Sync + Send + 'static,
-    <L::Service as Service<hyper::Request<ReqBody>>>::Future: Send + 'static,
-    <L::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync + 'static,
+    B: Into<ResBody> + Send + Sync + 'static,
+    for<'a> L: Layer<FlowCtrlService<'a>> + Sync + Send + 'static,
+    for<'a> <L as Layer<FlowCtrlService<'a>>>::Service:
+        Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Sync + Send + 'static,
+    for<'a> <<L as Layer<FlowCtrlService<'a>>>::Service as Service<hyper::Request<ReqBody>>>::Future: Send + 'static,
+    for<'a> <<L as Layer<FlowCtrlService<'a>>>::Service as Service<hyper::Request<ReqBody>>>::Error:
+        StdError + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        ctrl.call_next(req, depot, res).await;
-
-        let hyper_res = res.strip_to_hyper();
-        let mut svc = self.0.layer(ResponseService(Some(hyper_res)));
+        let mut svc = self.0.layer(FlowCtrlService::new(ctrl, req, depot, res));
         if let Err(_) = svc.ready().await {
             tracing::error!("tower service not ready.");
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
@@ -163,17 +169,7 @@ where
                 res.render(StatusError::internal_server_error().cause("call tower service failed."));
                 return;
             }
-        }
-        .map(|res| {
-            ResBody::Boxed(Box::pin(
-                res.map_frame(|f| match f.into_data() {
-                    //TODO: should use Frame::map_data after new version of hyper is released.
-                    Ok(data) => Frame::data(data.into()),
-                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-                })
-                .map_err(|e| e.into()),
-            ))
-        });
+        };
 
         res.merge_hyper(hyper_res);
     }

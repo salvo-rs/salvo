@@ -173,6 +173,7 @@ impl Request {
     }
 
     /// Strip the request to [`hyper::Request`].
+    #[doc(hidden)]
     #[inline]
     pub fn strip_to_hyper(&mut self) -> Result<hyper::Request<ReqBody>, http::Error> {
         let mut builder = http::request::Builder::new()
@@ -189,6 +190,7 @@ impl Request {
     }
 
     /// Merge data from [`hyper::Request`].
+    #[doc(hidden)]
     #[inline]
     pub fn merge_hyper(&mut self, req: hyper::Request<ReqBody>) {
         let (

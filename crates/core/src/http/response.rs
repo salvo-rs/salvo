@@ -229,6 +229,7 @@ impl Response {
     }
 
     /// Strip the respone to [`hyper::Response`].
+    #[doc(hidden)]
     #[inline]
     pub fn strip_to_hyper(&mut self) -> hyper::Response<ResBody> {
         let mut res = hyper::Response::new(std::mem::take(&mut self.body));
@@ -238,9 +239,10 @@ impl Response {
         *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         res
-    }
+    }{}
 
     /// Merge data from [`hyper::Response`].
+    #[doc(hidden)]
     #[inline]
     pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>)
     where
