@@ -7,7 +7,7 @@ use crate::http::{ParseError, StatusError};
 use crate::{Response, Scribe};
 
 /// `BoxedError` is a boxed error type that can be used as a trait object.
-pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+pub type BoxedError = Box<dyn StdError + Send + Sync>;
 
 /// Errors that can happen inside salvo.
 #[derive(Debug)]

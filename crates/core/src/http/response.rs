@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use futures_util::stream::{Stream, TryStreamExt};
+use futures_util::stream::Stream;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
 use http::version::Version;
@@ -15,7 +15,7 @@ use mime::Mime;
 
 use crate::fs::NamedFile;
 use crate::http::{StatusCode, StatusError};
-use crate::{Error, Scribe};
+use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
 pub use crate::http::body::ResBody;
@@ -436,13 +436,14 @@ impl Response {
         }
         Ok(())
     }
-    /// Write streaming data.
+
+    /// Set response's body to stream.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
+    pub fn stream<S, O, E>(&mut self, stream: S) -> crate::Result<()>
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
-        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
+        E: Into<BoxedError> + 'static,
     {
         match &self.body {
             ResBody::Once(_) => {
@@ -456,8 +457,7 @@ impl Response {
             }
             _ => {}
         }
-        let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = ResBody::Stream(Box::pin(mapped));
+        self.body = ResBody::stream(stream);
         Ok(())
     }
 }

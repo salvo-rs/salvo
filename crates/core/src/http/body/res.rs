@@ -7,8 +7,9 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream};
+use futures_util::stream::{BoxStream, Stream, TryStreamExt};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
+use sync_wrapper::SyncWrapper;
 
 use bytes::Bytes;
 
@@ -32,7 +33,7 @@ pub enum ResBody {
     /// Inner body.
     Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
     /// Stream body.
-    Stream(BoxStream<'static, Result<Bytes, BoxedError>>),
+    Stream(SyncWrapper<BoxStream<'static, Result<Bytes, BoxedError>>>),
     /// Error body will be process in catcher.
     Error(StatusError),
 }
@@ -66,6 +67,18 @@ impl ResBody {
     pub fn is_error(&self) -> bool {
         matches!(*self, ResBody::Error(_))
     }
+
+    /// Wrap a futures `Stream` in a box inside `Body`.
+    pub fn stream<S, O, E>(stream: S) -> Self
+    where
+        S: Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<Bytes> + 'static,
+        E: Into<BoxedError> + 'static,
+    {
+        let mapped = stream.map_ok(Into::into).map_err(Into::into);
+        ResBody::Stream(SyncWrapper::new(Box::pin(mapped)))
+    }
+
     /// Get body's size.
     #[inline]
     pub fn size(&self) -> Option<u64> {
@@ -116,6 +129,7 @@ impl Stream for ResBody {
                 Poll::Pending => Poll::Pending,
             },
             ResBody::Stream(stream) => stream
+                .get_mut()
                 .as_mut()
                 .poll_next(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),

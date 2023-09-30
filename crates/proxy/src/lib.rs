@@ -289,7 +289,7 @@ where
             hyper_response.body(ResBody::None).map_err(Error::other)?
         } else {
             hyper_response
-                .body(ResBody::Stream(Box::pin(response.bytes_stream().map_err(|e| e.into()))))
+                .body(ResBody::stream(response.bytes_stream()))
                 .map_err(Error::other)?
         };
         *hyper_response.headers_mut() = res_headers;

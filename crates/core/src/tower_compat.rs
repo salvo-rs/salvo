@@ -3,8 +3,6 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
-use std::marker::PhantomData;
-use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use http_body_util::BodyExt;
@@ -88,20 +86,19 @@ where
     }
 }
 
-struct ResponseService(Option<hyper::Response<ResBody>>);
+pub struct ResponseService(Option<hyper::Response<ResBody>>);
 impl<Req> Service<Req> for ResponseService {
     type Response = hyper::Response<ResBody>;
     type Error = IoError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
+    type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, _req: Req) -> Self::Future {
-        let res = self.0.take();
-        Box::pin(async move {
-            if let Some(res) = res {
+        std::future::ready({
+            if let Some(res) = self.0.take() {
                 Ok(res)
             } else {
                 Err(IoError::new(
@@ -114,71 +111,125 @@ impl<Req> Service<Req> for ResponseService {
 }
 
 /// Trait for tower layer compat.
-pub trait TowerLayerCompat<S> {
+pub trait TowerLayerCompat {
     /// Converts a tower layer to a salvo handler.
-    fn compat(self) -> TowerLayerHandler<Self, S>
+    fn compat(self) -> TowerLayerHandler<Self>
     where
         Self: Sized,
     {
-        TowerLayerHandler(self, PhantomData)
+        TowerLayerHandler(self)
     }
 }
 
-impl<T, S> TowerLayerCompat<S> for T where T: Layer<S> + Send + Sync + Sized + 'static {}
+impl<T> TowerLayerCompat for T where T: Layer<ResponseService> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
-pub struct TowerLayerHandler<L, S>(L, PhantomData<S>);
+pub struct TowerLayerHandler<L>(L);
 
 #[async_trait]
-impl<L, S, B> Handler for TowerLayerHandler<L, S>
+impl<L, B> Handler for TowerLayerHandler<L>
 where
     B: Body + Send + Sync + 'static,
     B::Data: Into<Bytes> + Sync + Send + fmt::Debug + 'static,
     B::Error: StdError + Send + Sync + 'static,
-    S: Sync + Send + 'static,
     L: Layer<ResponseService> + Sync + Send + 'static,
     L::Service: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Sync + Send + 'static,
-    <L::Service as Service<hyper::Request<ReqBody>>>::Future: Sync + Send,
+    <L::Service as Service<hyper::Request<ReqBody>>>::Future: Send + 'static,
     <L::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync + 'static,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        // ctrl.call_next(req, depot, res).await;
+        ctrl.call_next(req, depot, res).await;
 
-        // let hyper_res = res.strip_to_hyper();
-        // let mut svc = self.0.layer(ResponseService(Some(hyper_res)));
-        // if let Err(_) = svc.ready().await {
-        //     tracing::error!("tower service not ready.");
-        //     res.render(StatusError::internal_server_error().cause("tower service not ready."));
-        //     return;
-        // }
-        // let hyper_req = match req.strip_to_hyper() {
-        //     Ok(hyper_req) => hyper_req,
-        //     Err(_) => {
-        //         tracing::error!("strip request to hyper failed.");
-        //         res.render(StatusError::internal_server_error().cause("strip request to hyper failed."));
-        //         return;
-        //     }
-        // };
+        let hyper_res = res.strip_to_hyper();
+        let mut svc = self.0.layer(ResponseService(Some(hyper_res)));
+        if let Err(_) = svc.ready().await {
+            tracing::error!("tower service not ready.");
+            res.render(StatusError::internal_server_error().cause("tower service not ready."));
+            return;
+        }
+        let hyper_req = match req.strip_to_hyper() {
+            Ok(hyper_req) => hyper_req,
+            Err(_) => {
+                tracing::error!("strip request to hyper failed.");
+                res.render(StatusError::internal_server_error().cause("strip request to hyper failed."));
+                return;
+            }
+        };
 
-        // let hyper_res = match svc.call(hyper_req).await {
-        //     Ok(hyper_res) => hyper_res,
-        //     Err(_) => {
-        //         tracing::error!("call tower service failed.");
-        //         res.render(StatusError::internal_server_error().cause("call tower service failed."));
-        //         return;
-        //     }
-        // }
-        // .map(|res| {
-        //     ResBody::Boxed(Box::pin(
-        //         res.map_frame(|f| match f.into_data() {
-        //             //TODO: should use Frame::map_data after new version of hyper is released.
-        //             Ok(data) => Frame::data(data.into()),
-        //             Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-        //         })
-        //         .map_err(|e| e.into()),
-        //     ))
-        // });
+        let hyper_res = match svc.call(hyper_req).await {
+            Ok(hyper_res) => hyper_res,
+            Err(_) => {
+                tracing::error!("call tower service failed.");
+                res.render(StatusError::internal_server_error().cause("call tower service failed."));
+                return;
+            }
+        }
+        .map(|res| {
+            ResBody::Boxed(Box::pin(
+                res.map_frame(|f| match f.into_data() {
+                    //TODO: should use Frame::map_data after new version of hyper is released.
+                    Ok(data) => Frame::data(data.into()),
+                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
+                })
+                .map_err(|e| e.into()),
+            ))
+        });
 
-        // res.merge_hyper(hyper_res);
+        res.merge_hyper(hyper_res);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::prelude::*;
+    use crate::test::{ResponseExt, TestClient};
+
+    #[tokio::test]
+    async fn test_tower_layer() {
+        struct TestService<S> {
+            inner: S,
+        }
+
+        impl<S, Req> Service<Req> for TestService<S>
+        where
+            S: Service<Req>,
+        {
+            type Response = S::Response;
+            type Error = S::Error;
+            type Future = S::Future;
+
+            fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+                self.inner.poll_ready(cx)
+            }
+
+            fn call(&mut self, req: Req) -> Self::Future {
+                self.inner.call(req)
+            }
+        }
+
+        struct MyServiceLayer;
+
+        impl<S> Layer<S> for MyServiceLayer {
+            type Service = TestService<S>;
+
+            fn layer(&self, inner: S) -> Self::Service {
+                TestService { inner }
+            }
+        }
+
+        #[handler]
+        async fn hello() -> &'static str {
+            "Hello World"
+        }
+        let router = Router::new().hoop(MyServiceLayer.compat()).get(hello);
+        asset_eq!(
+            TestClient::get("http://127.0.0.1:5800")
+                .send(router)
+                .take_string()
+                .await,
+            "Hello World"
+        );
     }
 }

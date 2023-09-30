@@ -71,7 +71,7 @@ async fn user_connected(_req: &mut Request, res: &mut Response) {
         Message::UserId(my_id) => Ok::<_, salvo::Error>(SseEvent::default().name("user").data(my_id.to_string())),
         Message::Reply(reply) => Ok(SseEvent::default().data(reply)),
     });
-    SseKeepAlive::new(stream).streaming(res).ok();
+    SseKeepAlive::new(stream).stream(res).ok();
 }
 
 fn user_message(my_id: usize, msg: &str) {

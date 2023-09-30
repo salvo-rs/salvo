@@ -71,6 +71,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde-xml-rs = { workspace = true }
 serde_urlencoded = { workspace = true, optional = true }
+sync_wrapper = { workspace = true }
 tempfile = { workspace = true }
 textnonce = { workspace = true }
 thiserror = { workspace = true }
