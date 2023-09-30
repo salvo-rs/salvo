@@ -10,7 +10,7 @@ use futures_util::stream::Stream;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
 use http::version::Version;
-use http::Extensions;
+use http::{status, Extensions};
 use mime::Mime;
 
 use crate::fs::NamedFile;
@@ -235,16 +235,18 @@ impl Response {
         let mut res = hyper::Response::new(std::mem::take(&mut self.body));
         *res.extensions_mut() = std::mem::take(&mut self.extensions);
         *res.headers_mut() = std::mem::take(&mut self.headers);
-        // Default to a 404 if no response code was set
-        *res.status_mut() = self.status_code.unwrap_or(StatusCode::NOT_FOUND);
+        if let Some(status) = self.status_code {
+            // Default to a 404 if no response code was set
+            *res.status_mut() = status;
+        }
 
         res
-    }{}
+    }
 
     /// Merge data from [`hyper::Response`].
     #[doc(hidden)]
     #[inline]
-    pub fn merge_hyper<B>(&mut self, res: hyper::Response<B>)
+    pub fn merge_hyper<B>(&mut self, hyper_res: hyper::Response<B>)
     where
         B: Into<ResBody>,
     {
@@ -257,7 +259,7 @@ impl Response {
                 ..
             },
             body,
-        ) = res.into_parts();
+        ) = hyper_res.into_parts();
 
         self.status_code = Some(status);
         self.version = version;

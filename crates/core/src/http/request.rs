@@ -192,7 +192,7 @@ impl Request {
     /// Merge data from [`hyper::Request`].
     #[doc(hidden)]
     #[inline]
-    pub fn merge_hyper(&mut self, req: hyper::Request<ReqBody>) {
+    pub fn merge_hyper(&mut self, hyper_req: hyper::Request<ReqBody>) {
         let (
             http::request::Parts {
                 method,
@@ -203,7 +203,7 @@ impl Request {
                 ..
             },
             body,
-        ) = req.into_parts();
+        ) = hyper_req.into_parts();
 
         self.method = method;
         self.uri = uri;
