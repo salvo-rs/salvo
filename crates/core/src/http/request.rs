@@ -212,7 +212,7 @@ impl Request {
         self.extensions = extensions;
         self.body = body;
     }
-    
+
     /// Returns a reference to the associated URI.
     ///
     /// # Examples
