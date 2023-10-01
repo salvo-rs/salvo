@@ -1,6 +1,5 @@
 //! Http response.
 use std::collections::VecDeque;
-use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
@@ -9,8 +8,7 @@ use cookie::{Cookie, CookieJar};
 use futures_util::stream::Stream;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
-use http::version::Version;
-use http::{status, Extensions};
+use http::{version::Version, Extensions};
 use mime::Mime;
 
 use crate::fs::NamedFile;
@@ -19,8 +17,6 @@ use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
 pub use crate::http::body::ResBody;
-
-use super::ReqBody;
 
 /// Represents an HTTP response
 #[non_exhaustive]
@@ -270,10 +266,7 @@ impl Response {
         self.version = version;
         self.headers = headers;
         self.extensions = extensions;
-        let body = body.into();
-        if !body.is_none() {
-            self.body = body.into();
-        }
+        self.body = body.into();
     }
 
     cfg_feature! {

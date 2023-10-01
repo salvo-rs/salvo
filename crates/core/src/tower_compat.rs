@@ -1,19 +1,13 @@
 //! Tower service compat.
-use std::convert::Infallible;
 use std::error::Error as StdError;
 use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
-use std::ops::DerefMut;
-use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
-use http::uri::Scheme;
 use http_body_util::BodyExt;
 use hyper::body::{Body, Bytes, Frame};
-use tokio::sync::Mutex;
 use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
@@ -95,16 +89,16 @@ where
 }
 
 struct FlowCtrlInContext {
-    scheme: Scheme,
     ctrl: FlowCtrl,
+    request: Request,
     depot: Depot,
     response: Response,
 }
 impl FlowCtrlInContext {
-    fn new(ctrl: FlowCtrl, scheme: Scheme, depot: Depot, response: Response) -> Self {
+    fn new(ctrl: FlowCtrl, request: Request, depot: Depot, response: Response) -> Self {
         Self {
             ctrl,
-            scheme,
+            request,
             depot,
             response,
         }
@@ -121,6 +115,7 @@ impl FlowCtrlOutContext {
     }
 }
 
+#[doc(hidden)]
 pub struct FlowCtrlService;
 impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
     type Response = hyper::Response<ResBody>;
@@ -133,8 +128,8 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
 
     fn call(&mut self, mut hyper_req: hyper::Request<ReqBody>) -> Self::Future {
         let Some(FlowCtrlInContext {
-            scheme,
             mut ctrl,
+            mut request,
             mut depot,
             mut response,
         }) = hyper_req.extensions_mut().remove::<FlowCtrlInContext>()
@@ -145,10 +140,12 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
             )))
             .boxed();
         };
-        let mut req = Request::from_hyper(hyper_req, scheme.clone());
+        request.merge_hyper(hyper_req);
         Box::pin(async move {
-            ctrl.call_next(&mut req, &mut depot, &mut response).await;
-            response.extensions.insert(FlowCtrlOutContext::new(ctrl, req, depot));
+            ctrl.call_next(&mut request, &mut depot, &mut response).await;
+            response
+                .extensions
+                .insert(FlowCtrlOutContext::new(ctrl, request, depot));
             Ok(response.strip_to_hyper())
         })
     }
@@ -164,8 +161,7 @@ pub trait TowerLayerCompat {
         <Self::Service as Service<hyper::Request<ReqBody>>>::Future: Send,
         <Self::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync,
     {
-        let mut svc = self.layer(FlowCtrlService);
-        TowerLayerHandler(Buffer::new(svc, 32))
+        TowerLayerHandler(Buffer::new(self.layer(FlowCtrlService), 32))
     }
 }
 
@@ -186,20 +182,14 @@ where
     Svc::Error: StdError + Send + Sync,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        let ctx = FlowCtrlInContext::new(
-            std::mem::take(ctrl),
-            req.scheme.clone(),
-            std::mem::take(depot),
-            std::mem::take(res),
-        );
-        req.extensions_mut().insert(ctx);
         let mut svc = self.0.clone();
         if let Err(_) = svc.ready().await {
             tracing::error!("tower service not ready.");
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
         }
-        let hyper_req = match req.strip_to_hyper() {
+
+        let mut hyper_req = match req.strip_to_hyper() {
             Ok(hyper_req) => hyper_req,
             Err(_) => {
                 tracing::error!("strip request to hyper failed.");
@@ -207,6 +197,13 @@ where
                 return;
             }
         };
+        let ctx = FlowCtrlInContext::new(
+            std::mem::take(ctrl),
+            std::mem::take(req),
+            std::mem::take(depot),
+            std::mem::take(res),
+        );
+        hyper_req.extensions_mut().insert(ctx);
 
         let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
@@ -233,6 +230,7 @@ where
         {
             *origin_depot = depot;
             *origin_ctrl = ctrl;
+            *req = request;
         } else {
             tracing::error!("`FlowCtrlOutContext` should exists in response extensions.");
         }

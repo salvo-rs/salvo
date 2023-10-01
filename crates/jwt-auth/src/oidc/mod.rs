@@ -58,7 +58,7 @@ pub struct DecoderBuilder<T>
 where
     T: AsRef<str>,
 {
-    /// The issuer URL of the token. eg: https://xx-xx.clerk.accounts.dev
+    /// The issuer URL of the token. eg: `https://xx-xx.clerk.accounts.dev`
     pub issuer: T,
     /// The http client for the decoder.
     pub http_client: Option<reqwest::Client>,

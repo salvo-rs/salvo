@@ -105,7 +105,7 @@ impl AnyOf {
         self
     }
 
-    /// Add or change nullable flag for [`Object`].
+    /// Add or change nullable flag for [Object][crate::Object].
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;
         self

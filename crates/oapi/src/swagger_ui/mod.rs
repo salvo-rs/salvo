@@ -114,7 +114,7 @@ impl SwaggerUi {
 
     /// Add multiple [`Url`]s to Swagger UI.
     ///
-    /// Takes one [`Vec`] argument containing tuples of [`Url`] and [`OpenApi`].
+    /// Takes one [`Vec`] argument containing tuples of [`Url`] and [OpenApi][crate::OpenApi].
     ///
     /// Situations where this comes handy is when there is a need or wish to separate different parts
     /// of the api to separate api docs.
