@@ -198,6 +198,7 @@ where
                 return;
             }
         };
+        println!("{:#?}", hyper_res.status());
         drop(svc);
         if let Ok(new_depot) = Arc::try_unwrap(new_depot) {
             *depot = new_depot.into_inner();
