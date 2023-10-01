@@ -20,6 +20,8 @@ use bytes::Bytes;
 
 pub use crate::http::body::ResBody;
 
+use super::ReqBody;
+
 /// Represents an HTTP response
 #[non_exhaustive]
 pub struct Response {
@@ -42,9 +44,12 @@ impl Default for Response {
         Self::new()
     }
 }
-impl From<hyper::Response<ResBody>> for Response {
+impl<B> From<hyper::Response<B>> for Response
+where
+    B: Into<ResBody>,
+{
     #[inline]
-    fn from(res: hyper::Response<ResBody>) -> Self {
+    fn from(res: hyper::Response<B>) -> Self {
         let (
             http::response::Parts {
                 status,
@@ -73,7 +78,7 @@ impl From<hyper::Response<ResBody>> for Response {
 
         Response {
             status_code: Some(status),
-            body,
+            body: body.into(),
             version,
             headers,
             #[cfg(feature = "cookie")]

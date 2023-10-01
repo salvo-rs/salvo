@@ -14,6 +14,7 @@ use http::uri::Scheme;
 use http_body_util::BodyExt;
 use hyper::body::{Body, Bytes, Frame};
 use tokio::sync::Mutex;
+use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
 use crate::http::{ReqBody, ResBody, StatusError};
@@ -93,22 +94,34 @@ where
     }
 }
 
-pub struct FlowCtrlService {
+struct FlowCtrlInContext {
     scheme: Scheme,
-    ctrl: Arc<Mutex<FlowCtrl>>,
-    depot: Arc<Mutex<Depot>>,
-    res: Option<Response>,
+    ctrl: FlowCtrl,
+    depot: Depot,
+    response: Response,
 }
-impl FlowCtrlService {
-    pub fn new(scheme: Scheme, ctrl: Arc<Mutex<FlowCtrl>>, depot: Arc<Mutex<Depot>>, res: Response) -> Self {
+impl FlowCtrlInContext {
+    fn new(ctrl: FlowCtrl, scheme: Scheme, depot: Depot, response: Response) -> Self {
         Self {
-            scheme,
             ctrl,
+            scheme,
             depot,
-            res: Some(res),
+            response,
         }
     }
 }
+struct FlowCtrlOutContext {
+    ctrl: FlowCtrl,
+    request: Request,
+    depot: Depot,
+}
+impl FlowCtrlOutContext {
+    fn new(ctrl: FlowCtrl, request: Request, depot: Depot) -> Self {
+        Self { ctrl, request, depot }
+    }
+}
+
+pub struct FlowCtrlService;
 impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
     type Response = hyper::Response<ResBody>;
     type Error = IoError;
@@ -118,24 +131,25 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, hyper_req: hyper::Request<ReqBody>) -> Self::Future {
-        let Some(mut res) = self.res.take() else {
+    fn call(&mut self, mut hyper_req: hyper::Request<ReqBody>) -> Self::Future {
+        let Some(FlowCtrlInContext {
+            scheme,
+            mut ctrl,
+            mut depot,
+            mut response,
+        }) = hyper_req.extensions_mut().remove::<FlowCtrlInContext>()
+        else {
             return futures_util::future::ready(Err(IoError::new(
                 ErrorKind::Other,
-                "flow ctrl service already called.".to_owned(),
+                "`FlowCtrlInContext` should exists in request extension.".to_owned(),
             )))
             .boxed();
         };
-        let mut req = Request::from_hyper(hyper_req, self.scheme.clone());
-        let mut depot = self.depot.clone();
-        let ctrl = self.ctrl.clone();
+        let mut req = Request::from_hyper(hyper_req, scheme.clone());
         Box::pin(async move {
-            ctrl.lock()
-                .await
-                .deref_mut()
-                .call_next(&mut req, depot.lock().await.deref_mut(), &mut res)
-                .await;
-            Ok(res.strip_to_hyper())
+            ctrl.call_next(&mut req, &mut depot, &mut response).await;
+            response.extensions.insert(FlowCtrlOutContext::new(ctrl, req, depot));
+            Ok(response.strip_to_hyper())
         })
     }
 }
@@ -143,39 +157,43 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
 /// Trait for tower layer compat.
 pub trait TowerLayerCompat {
     /// Converts a tower layer to a salvo handler.
-    fn compat(self) -> TowerLayerHandler<Self>
+    fn compat(self) -> TowerLayerHandler<Self::Service>
     where
-        Self: Sized,
+        Self: Layer<FlowCtrlService> + Sized,
+        Self::Service: tower::Service<hyper::Request<ReqBody>> + Sync + Send + 'static,
+        <Self::Service as Service<hyper::Request<ReqBody>>>::Future: Send,
+        <Self::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync,
     {
-        TowerLayerHandler(self)
+        let mut svc = self.layer(FlowCtrlService);
+        TowerLayerHandler(Buffer::new(svc, 32))
     }
 }
 
 impl<T> TowerLayerCompat for T where T: Layer<FlowCtrlService> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
-pub struct TowerLayerHandler<L>(L);
+pub struct TowerLayerHandler<Svc: Service<hyper::Request<ReqBody>>>(Buffer<Svc, hyper::Request<ReqBody>>);
 
 #[async_trait]
-impl<L, B> Handler for TowerLayerHandler<L>
+impl<Svc, B, E> Handler for TowerLayerHandler<Svc>
 where
-    B: Into<ResBody> + Send + Sync + 'static,
-    L: Layer<FlowCtrlService> + Sync + Send + 'static,
-    L::Service: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Sync + Send + 'static,
-    <L::Service as Service<hyper::Request<ReqBody>>>::Future: Send + 'static,
-    <L::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync + 'static,
+    B: Body + Send + Sync + 'static,
+    B::Data: Into<Bytes> + Send + fmt::Debug + 'static,
+    B::Error: StdError + Send + Sync + 'static,
+    E: StdError + Send + Sync + 'static,
+    Svc: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Send + 'static,
+    Svc::Future: Future<Output = Result<hyper::Response<B>, E>> + Send + 'static,
+    Svc::Error: StdError + Send + Sync,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        let new_ctrl = Arc::new(Mutex::new(std::mem::take(ctrl)));
-        let new_depot = Arc::new(Mutex::new(std::mem::take(depot)));
-        let new_res = std::mem::take(res);
-        let mut svc = {
-            let new_ctrl = new_ctrl.clone();
-            let new_depot = new_depot.clone();
-            self
-            .0
-            .layer(FlowCtrlService::new(req.scheme.clone(), new_ctrl, new_depot, new_res))
-        };
+        let ctx = FlowCtrlInContext::new(
+            std::mem::take(ctrl),
+            req.scheme.clone(),
+            std::mem::take(depot),
+            std::mem::take(res),
+        );
+        req.extensions_mut().insert(ctx);
+        let mut svc = self.0.clone();
         if let Err(_) = svc.ready().await {
             tracing::error!("tower service not ready.");
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
@@ -190,25 +208,33 @@ where
             }
         };
 
-        let hyper_res = match svc.call(hyper_req).await {
+        let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
             Err(_) => {
                 tracing::error!("call tower service failed.");
                 res.render(StatusError::internal_server_error().cause("call tower service failed."));
                 return;
             }
-        };
-        println!("{:#?}", hyper_res.status());
-        drop(svc);
-        if let Ok(new_depot) = Arc::try_unwrap(new_depot) {
-            *depot = new_depot.into_inner();
-        } else {
-            tracing::error!("tower layer assign depot should success.");
         }
-        if let Ok(new_ctrl) = Arc::try_unwrap(new_ctrl) {
-            *ctrl = new_ctrl.into_inner();
+        .map(|res| {
+            ResBody::Boxed(Box::pin(
+                res.map_frame(|f| match f.into_data() {
+                    //TODO: should use Frame::map_data after new version of hyper is released.
+                    Ok(data) => Frame::data(data.into()),
+                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
+                })
+                .map_err(|e| e.into()),
+            ))
+        });
+        let origin_depot = depot;
+        let origin_ctrl = ctrl;
+        if let Some(FlowCtrlOutContext { ctrl, request, depot }) =
+            hyper_res.extensions_mut().remove::<FlowCtrlOutContext>()
+        {
+            *origin_depot = depot;
+            *origin_ctrl = ctrl;
         } else {
-            tracing::error!("tower layer assign ctrl should success.");
+            tracing::error!("`FlowCtrlOutContext` should exists in response extensions.");
         }
 
         res.merge_hyper(hyper_res);
