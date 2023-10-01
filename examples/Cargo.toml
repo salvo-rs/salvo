@@ -1,6 +1,6 @@
 [workspace]
 members = ["*"]
-exclude = ["work-with-tower", "db-prisma-orm", "target", "temp"]
+exclude = ["db-prisma-orm", "target", "temp"]
 resolver = "2"
 
 [workspace.package]

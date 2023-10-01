@@ -13,6 +13,7 @@ use bytes::Bytes;
 use crate::BoxedError;
 
 /// Body for request.
+#[non_exhaustive]
 #[derive(Default)]
 pub enum ReqBody {
     /// None body.
@@ -23,7 +24,7 @@ pub enum ReqBody {
     /// Hyper default body.
     Hyper(Incoming),
     /// Inner body.
-    Inner(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + Unpin + 'static>>),
+    Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
 }
 impl fmt::Debug for ReqBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -31,7 +32,7 @@ impl fmt::Debug for ReqBody {
             ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
             ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
             ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
-            ReqBody::Inner(_) => f.debug_tuple("ReqBody::Inner").finish(),
+            ReqBody::Boxed(_) => f.debug_tuple("ReqBody::Boxed").finish(),
         }
     }
 }
@@ -57,7 +58,7 @@ impl Body for ReqBody {
             ReqBody::Hyper(body) => Pin::new(body)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
-            ReqBody::Inner(inner) => Pin::new(inner)
+            ReqBody::Boxed(inner) => Pin::new(inner)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
         }
@@ -68,7 +69,7 @@ impl Body for ReqBody {
             ReqBody::None => true,
             ReqBody::Once(bytes) => bytes.is_empty(),
             ReqBody::Hyper(body) => body.is_end_stream(),
-            ReqBody::Inner(inner) => inner.is_end_stream(),
+            ReqBody::Boxed(body) => body.is_end_stream(),
         }
     }
 
@@ -77,7 +78,7 @@ impl Body for ReqBody {
             ReqBody::None => SizeHint::with_exact(0),
             ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
             ReqBody::Hyper(body) => body.size_hint(),
-            ReqBody::Inner(inner) => inner.size_hint(),
+            ReqBody::Boxed(body) => body.size_hint(),
         }
     }
 }
@@ -202,7 +203,7 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Inner(Box::pin(value))
+                ReqBody::Boxed(Box::pin(value))
             }
         }
     }

@@ -7,8 +7,9 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream};
+use futures_util::stream::{BoxStream, Stream, TryStreamExt};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
+use sync_wrapper::SyncWrapper;
 
 use bytes::Bytes;
 
@@ -18,8 +19,10 @@ use crate::prelude::StatusError;
 /// Response body type.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum ResBody {
     /// None body.
+    #[default]
     None,
     /// Once bytes body.
     Once(Bytes),
@@ -27,8 +30,10 @@ pub enum ResBody {
     Chunks(VecDeque<Bytes>),
     /// Hyper default body.
     Hyper(Incoming),
+    /// Inner body.
+    Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
     /// Stream body.
-    Stream(BoxStream<'static, Result<Bytes, BoxedError>>),
+    Stream(SyncWrapper<BoxStream<'static, Result<Bytes, BoxedError>>>),
     /// Error body will be process in catcher.
     Error(StatusError),
 }
@@ -50,6 +55,11 @@ impl ResBody {
     }
     /// Check is that body is stream.
     #[inline]
+    pub fn is_boxed(&self) -> bool {
+        matches!(*self, ResBody::Boxed(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
     pub fn is_stream(&self) -> bool {
         matches!(*self, ResBody::Stream(_))
     }
@@ -57,6 +67,18 @@ impl ResBody {
     pub fn is_error(&self) -> bool {
         matches!(*self, ResBody::Error(_))
     }
+
+    /// Wrap a futures `Stream` in a box inside `Body`.
+    pub fn stream<S, O, E>(stream: S) -> Self
+    where
+        S: Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<Bytes> + 'static,
+        E: Into<BoxedError> + 'static,
+    {
+        let mapped = stream.map_ok(Into::into).map_err(Into::into);
+        ResBody::Stream(SyncWrapper::new(Box::pin(mapped)))
+    }
+
     /// Get body's size.
     #[inline]
     pub fn size(&self) -> Option<u64> {
@@ -65,6 +87,7 @@ impl ResBody {
             ResBody::Once(bytes) => Some(bytes.len() as u64),
             ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
             ResBody::Hyper(_) => None,
+            ResBody::Boxed(_) => None,
             ResBody::Stream(_) => None,
             ResBody::Error(_) => None,
         }
@@ -99,7 +122,14 @@ impl Stream for ResBody {
                 Poll::Ready(None) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
             },
+            ResBody::Boxed(body) => match Body::poll_frame(Pin::new(body), cx) {
+                Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            },
             ResBody::Stream(stream) => stream
+                .get_mut()
                 .as_mut()
                 .poll_next(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
@@ -130,6 +160,7 @@ impl Body for ResBody {
             ResBody::Once(bytes) => bytes.is_empty(),
             ResBody::Chunks(chunks) => chunks.is_empty(),
             ResBody::Hyper(body) => body.is_end_stream(),
+            ResBody::Boxed(body) => body.is_end_stream(),
             ResBody::Stream(_) => false,
             ResBody::Error(_) => true,
         }
@@ -144,12 +175,18 @@ impl Body for ResBody {
                 SizeHint::with_exact(size)
             }
             ResBody::Hyper(recv) => recv.size_hint(),
+            ResBody::Boxed(recv) => recv.size_hint(),
             ResBody::Stream(_) => SizeHint::default(),
             ResBody::Error(_) => SizeHint::with_exact(0),
         }
     }
 }
 
+impl From<()> for ResBody {
+    fn from(_value: ()) -> ResBody {
+        ResBody::None
+    }
+}
 impl From<Bytes> for ResBody {
     fn from(value: Bytes) -> ResBody {
         ResBody::Once(value)
@@ -198,6 +235,7 @@ impl Debug for ResBody {
             ResBody::Once(bytes) => write!(f, "ResBody::Once({:?})", bytes),
             ResBody::Chunks(chunks) => write!(f, "ResBody::Chunks({:?})", chunks),
             ResBody::Hyper(_) => write!(f, "ResBody::Hyper(_)"),
+            ResBody::Boxed(_) => write!(f, "ResBody::Boxed(_)"),
             ResBody::Stream(_) => write!(f, "ResBody::Stream(_)"),
             ResBody::Error(_) => write!(f, "ResBody::Error(_)"),
         }
