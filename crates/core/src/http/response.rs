@@ -514,10 +514,10 @@ mod test {
 
     #[tokio::test]
     async fn test_body_stream2() {
-        let mut body = ResBody::Stream(Box::pin(iter(vec![
+        let mut body = ResBody::stream(iter(vec![
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("Hello").freeze()),
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" World").freeze()),
-        ])));
+        ]));
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {

@@ -116,6 +116,7 @@ impl FlowCtrlOutContext {
 }
 
 #[doc(hidden)]
+#[derive(Clone, Debug, Default)]
 pub struct FlowCtrlService;
 impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
     type Response = hyper::Response<ResBody>;
@@ -243,8 +244,8 @@ where
 mod tests {
 
     use super::*;
-    use crate::prelude::*;
     use crate::test::{ResponseExt, TestClient};
+    use crate::{handler, Router};
 
     #[tokio::test]
     async fn test_tower_layer() {
@@ -252,7 +253,7 @@ mod tests {
             inner: S,
         }
 
-        impl<S, Req> Service<Req> for TestService<S>
+        impl<S, Req> tower::Service<Req> for TestService<S>
         where
             S: Service<Req>,
         {
@@ -284,11 +285,13 @@ mod tests {
             "Hello World"
         }
         let router = Router::new().hoop(MyServiceLayer.compat()).get(hello);
-        asset_eq!(
+        assert_eq!(
             TestClient::get("http://127.0.0.1:5800")
                 .send(router)
+                .await
                 .take_string()
-                .await,
+                .await
+                .unwrap(),
             "Hello World"
         );
     }
