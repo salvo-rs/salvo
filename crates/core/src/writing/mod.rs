@@ -119,7 +119,7 @@ impl Scribe for String {
 }
 impl Scribe for std::convert::Infallible {
     #[inline]
-    fn render(self, res: &mut Response) {}
+    fn render(self, _res: &mut Response) {}
 }
 
 #[cfg(test)]
