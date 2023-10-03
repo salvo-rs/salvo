@@ -117,6 +117,10 @@ impl Scribe for String {
         res.write_body(self).ok();
     }
 }
+impl Scribe for std::convert::Infallible {
+    #[inline]
+    fn render(self, res: &mut Response) {}
+}
 
 #[cfg(test)]
 mod tests {
