@@ -336,12 +336,12 @@ impl ToTokens for Type<'_> {
             }
             #[cfg(feature = "time")]
             "Date" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
+            #[cfg(feature = "url")]
+            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Url) }),
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ulid) }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Uuid) }),
-            #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Url) }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
                 tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
