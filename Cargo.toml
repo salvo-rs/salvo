@@ -68,7 +68,7 @@ parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
 pin-project = "1"
-proc-macro-crate = "1"
+proc-macro-crate = "2"
 proc-macro-error = "1"
 proc-macro2 = "1"
 quinn = { version = "0.10", default-features = false }
