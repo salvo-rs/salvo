@@ -25,6 +25,7 @@ jobs:
 
       - name: Check unused dependencies on full features
         run: cargo udeps --features full
+        
       - name: Check unused dependencies on all features
         run: cargo udeps --all-features
   msrv:
