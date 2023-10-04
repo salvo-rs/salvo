@@ -33,7 +33,6 @@ futures-util = { workspace = true }
 indexmap = { workspace = true }
 salvo_core = { workspace = true }
 tokio = { workspace = true }
-tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
 zstd = { workspace = true, optional = true, features = ["default"] }

@@ -26,7 +26,6 @@ session-store = ["dep:salvo-session"]
 [dependencies]
 async-session = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
-salvo_extra = { workspace = true, default-features = false }
 salvo-session = { workspace = true, optional = true }
 tracing = { workspace = true }
 serde = { workspace = true }
@@ -34,5 +33,4 @@ serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 salvo_core = {workspace = true, features = ["test"] }
-tracing-test = { workspace = true }
 tokio = { workspace = true }

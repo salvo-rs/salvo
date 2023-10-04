@@ -8,6 +8,26 @@ on:
       - main
 
 jobs:
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-udeps
+        uses: taiki-e/install-action@cargo-udeps
+
+      - name: Check unused dependencies on default features
+        run: cargo udeps
+
+      - name: Check unused dependencies on full features
+        run: cargo udeps --features full
+        
+      - name: Check unused dependencies on all features
+        run: cargo udeps --all-features
   msrv:
     name: Check MSRV - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest

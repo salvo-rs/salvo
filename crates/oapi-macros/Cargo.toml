@@ -15,26 +15,21 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislea
 proc-macro = true
 
 [dependencies]
-inventory = { workspace = true }
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 proc-macro-crate = { workspace = true }
 proc-macro-error = { workspace = true }
 regex = { workspace = true }
-smallvec = {  workspace = true, features = ["serde"] }
 syn = { workspace = true, features = ["full", "extra-traits"] }
-ulid = { workspace = true, optional = true, default-features = false }
-url = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
 
 [features]
 default = []
 chrono = []
 decimal = []
 decimal-float = []
-ulid = ["dep:ulid"]
-url = ["dep:url"]
-uuid = ["dep:uuid"]
+ulid = []
+url = []
+uuid = []
 time = []
 smallvec = []
 repr = []

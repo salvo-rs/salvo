@@ -33,7 +33,6 @@ yaml = ["dep:serde_yaml"]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 base64 = { workspace = true }
-num-traits = { workspace = true }
 thiserror = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
