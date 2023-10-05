@@ -30,7 +30,7 @@ pub enum ResBody {
     Chunks(VecDeque<Bytes>),
     /// Hyper default body.
     Hyper(Incoming),
-    /// Inner body.
+    /// Boxed body.
     Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
     /// Stream body.
     Stream(SyncWrapper<BoxStream<'static, Result<Bytes, BoxedError>>>),
@@ -41,31 +41,36 @@ impl ResBody {
     /// Check is that body is not set.
     #[inline]
     pub fn is_none(&self) -> bool {
-        matches!(*self, ResBody::None)
+        matches!(*self, Self::None)
     }
     /// Check is that body is once.
     #[inline]
     pub fn is_once(&self) -> bool {
-        matches!(*self, ResBody::Once(_))
+        matches!(*self, Self::Once(_))
     }
     /// Check is that body is chunks.
     #[inline]
     pub fn is_chunks(&self) -> bool {
-        matches!(*self, ResBody::Chunks(_))
+        matches!(*self, Self::Chunks(_))
+    }
+    /// Check is that body is hyper default body type.
+    #[inline]
+    pub fn is_hyper(&self) -> bool {
+        matches!(*self, Self::Hyper(_))
     }
     /// Check is that body is stream.
     #[inline]
     pub fn is_boxed(&self) -> bool {
-        matches!(*self, ResBody::Boxed(_))
+        matches!(*self, Self::Boxed(_))
     }
     /// Check is that body is stream.
     #[inline]
     pub fn is_stream(&self) -> bool {
-        matches!(*self, ResBody::Stream(_))
+        matches!(*self, Self::Stream(_))
     }
     /// Check is that body is error will be process in catcher.
     pub fn is_error(&self) -> bool {
-        matches!(*self, ResBody::Error(_))
+        matches!(*self, Self::Error(_))
     }
 
     /// Wrap a futures `Stream` in a box inside `Body`.
@@ -76,27 +81,27 @@ impl ResBody {
         E: Into<BoxedError> + 'static,
     {
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        ResBody::Stream(SyncWrapper::new(Box::pin(mapped)))
+        Self::Stream(SyncWrapper::new(Box::pin(mapped)))
     }
 
     /// Get body's size.
     #[inline]
     pub fn size(&self) -> Option<u64> {
         match self {
-            ResBody::None => Some(0),
-            ResBody::Once(bytes) => Some(bytes.len() as u64),
-            ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
-            ResBody::Hyper(_) => None,
-            ResBody::Boxed(_) => None,
-            ResBody::Stream(_) => None,
-            ResBody::Error(_) => None,
+            Self::None => Some(0),
+            Self::Once(bytes) => Some(bytes.len() as u64),
+            Self::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
+            Self::Hyper(_) => None,
+            Self::Boxed(_) => None,
+            Self::Stream(_) => None,
+            Self::Error(_) => None,
         }
     }
 
     /// Set body to none and returns current body.
     #[inline]
-    pub fn take(&mut self) -> ResBody {
-        std::mem::replace(self, ResBody::None)
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::None)
     }
 }
 

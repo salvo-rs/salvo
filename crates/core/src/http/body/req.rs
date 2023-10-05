@@ -23,17 +23,35 @@ pub enum ReqBody {
     Once(Bytes),
     /// Hyper default body.
     Hyper(Incoming),
-    /// Inner body.
+    /// Boxed body.
     Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
 }
-impl fmt::Debug for ReqBody {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
-            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
-            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
-            ReqBody::Boxed(_) => f.debug_tuple("ReqBody::Boxed").finish(),
-        }
+impl ReqBody {
+    /// Check is that body is not set.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        matches!(*self, Self::None)
+    }
+    /// Check is that body is once.
+    #[inline]
+    pub fn is_once(&self) -> bool {
+        matches!(*self, Self::Once(_))
+    }
+    /// Check is that body is hyper default body type.
+    #[inline]
+    pub fn is_hyper(&self) -> bool {
+        matches!(*self, Self::Hyper(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
+    pub fn is_boxed(&self) -> bool {
+        matches!(*self, Self::Boxed(_))
+    }
+
+    /// Set body to none and returns current body.
+    #[inline]
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::None)
     }
 }
 
@@ -205,6 +223,17 @@ cfg_feature! {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
                 ReqBody::Boxed(Box::pin(value))
             }
+        }
+    }
+}
+
+impl fmt::Debug for ReqBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
+            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
+            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
+            ReqBody::Boxed(_) => f.debug_tuple("ReqBody::Boxed").finish(),
         }
     }
 }
