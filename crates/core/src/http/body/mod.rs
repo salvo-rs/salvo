@@ -1,5 +1,5 @@
 //! Http body.
-pub use hyper::body::{Body, SizeHint, Frame};
+pub use hyper::body::{Body, Frame, SizeHint};
 
 mod req;
 #[cfg(feature = "quinn")]
@@ -9,4 +9,4 @@ mod res;
 pub use hyper::body::Incoming as HyperBody;
 pub use res::ResBody;
 mod channel;
-pub use channel::{BodySender, BodyReceiver};
+pub use channel::{BodyReceiver, BodySender};

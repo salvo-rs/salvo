@@ -67,7 +67,6 @@ impl BodySender {
 
 impl fmt::Debug for BodySender {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
         let mut builder = f.debug_tuple("BodySender");
 
         builder.finish()
