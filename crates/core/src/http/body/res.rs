@@ -20,9 +20,6 @@ use crate::error::BoxedError;
 use crate::http::body::{BodyReceiver, BodySender};
 use crate::prelude::StatusError;
 
-const CHUNKED_LENGTH: u64 = ::std::u64::MAX - 1;
-const ZERO_LENGTH: u64 = 0;
-
 /// Response body type.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
@@ -110,7 +107,6 @@ impl ResBody {
             trailers_tx: Some(trailers_tx),
         };
         let rx = ResBody::Channel(BodyReceiver {
-            content_length: CHUNKED_LENGTH,
             data_rx,
             trailers_rx,
         });
@@ -202,7 +198,7 @@ impl Body for ResBody {
             Self::Hyper(body) => body.is_end_stream(),
             Self::Boxed(body) => body.is_end_stream(),
             Self::Stream(_) => false,
-            Self::Channel(rx) => rx.content_length == ZERO_LENGTH,
+            Self::Channel(_) => false,
             Self::Error(_) => true,
         }
     }

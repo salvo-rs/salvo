@@ -75,7 +75,6 @@ impl fmt::Debug for BodySender {
 
 /// A receiver for [`ResBody`]
 pub struct BodyReceiver {
-    pub(crate) content_length: u64,
     pub(crate) data_rx: mpsc::Receiver<Result<Bytes, IoError>>,
     pub(crate) trailers_rx: oneshot::Receiver<HeaderMap>,
 }
