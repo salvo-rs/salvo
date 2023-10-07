@@ -16,7 +16,7 @@ use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
-pub use crate::http::body::ResBody;
+pub use crate::http::body::{BodySender, ResBody};
 
 /// Represents an HTTP response
 #[non_exhaustive]
@@ -432,6 +432,12 @@ impl Response {
                     "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
                 ));
             }
+            ResBody::Channel { .. } => {
+                tracing::error!("current body's kind is `ResBody::Channel`, it is not allowed to write bytes");
+                return Err(Error::other(
+                    "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
+                ));
+            }
             ResBody::Error(_) => {
                 self.body = ResBody::Once(data.into());
             }
@@ -441,26 +447,20 @@ impl Response {
 
     /// Set response's body to stream.
     #[inline]
-    pub fn stream<S, O, E>(&mut self, stream: S) -> crate::Result<()>
+    pub fn stream<S, O, E>(&mut self, stream: S)
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
         O: Into<Bytes> + 'static,
         E: Into<BoxedError> + 'static,
     {
-        match &self.body {
-            ResBody::Once(_) => {
-                return Err(Error::other("current body kind is `ResBody::Once` already"));
-            }
-            ResBody::Chunks(_) => {
-                return Err(Error::other("current body kind is `ResBody::Chunks` already"));
-            }
-            ResBody::Stream(_) => {
-                return Err(Error::other("current body kind is `ResBody::Stream` already"));
-            }
-            _ => {}
-        }
         self.body = ResBody::stream(stream);
-        Ok(())
+    }
+    /// Set response's body to channel.
+    #[inline]
+    pub fn channel(&mut self) -> BodySender {
+        let (sender, body) = ResBody::channel();
+        self.body = body;
+        sender
     }
 }
 
@@ -506,7 +506,7 @@ mod test {
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {
-            result.extend_from_slice(&data)
+            result.extend_from_slice(&data.into_data().unwrap_or_default())
         }
 
         assert_eq!("hello", &result)
@@ -521,7 +521,7 @@ mod test {
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {
-            result.extend_from_slice(&data)
+            result.extend_from_slice(&data.into_data().unwrap_or_default())
         }
 
         assert_eq!("Hello World", &result)

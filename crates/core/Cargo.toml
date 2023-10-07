@@ -43,6 +43,7 @@ encoding_rs = { workspace = true, optional = true }
 enumflags2 = { workspace = true }
 eyre = { workspace = true, optional = true }
 form_urlencoded = { workspace = true }
+futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 headers = { workspace = true }
 http = { workspace = true }

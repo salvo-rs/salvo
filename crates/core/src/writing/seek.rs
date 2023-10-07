@@ -137,11 +137,11 @@ where
             }
             res.headers_mut()
                 .typed_insert(ContentLength(cmp::min(length, self.length)));
-            res.stream(ReaderStream::new(self.reader)).ok();
+            res.stream(ReaderStream::new(self.reader));
         } else {
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(self.length));
-            res.stream(ReaderStream::new(self.reader)).ok();
+            res.stream(ReaderStream::new(self.reader));
         }
     }
 }

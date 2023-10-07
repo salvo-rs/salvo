@@ -55,7 +55,7 @@ impl Builder {
         &self,
         conn: crate::conn::quinn::H3Connection,
         hyper_handler: crate::service::HyperHandler,
-        _server_shutdown_token: CancellationToken, //TODO
+        _server_shutdown_token: CancellationToken,  //TODO
         _idle_connection_timeout: Option<Duration>, //TODO
     ) -> IoResult<()> {
         let mut conn = self
@@ -170,9 +170,15 @@ async fn process_web_transport(
     let mut body = Pin::new(&mut body);
     while let Some(result) = poll_fn(|cx| body.as_mut().poll_next(cx)).await {
         match result {
-            Ok(bytes) => {
-                if let Err(e) = stream.send_data(bytes).await {
-                    tracing::error!(error = ?e, "unable to send data to connection peer");
+            Ok(frame) => {
+                if frame.is_data() {
+                    if let Err(e) = stream.send_data(frame.into_data().unwrap_or_default()).await {
+                        tracing::error!(error = ?e, "unable to send data to connection peer");
+                    }
+                } else {
+                    if let Err(e) = stream.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                        tracing::error!(error = ?e, "unable to send trailers to connection peer");
+                    }
                 }
             }
             Err(e) => {
@@ -220,9 +226,15 @@ where
     let mut body = Pin::new(&mut body);
     while let Some(result) = poll_fn(|cx| body.as_mut().poll_next(cx)).await {
         match result {
-            Ok(bytes) => {
-                if let Err(e) = tx.send_data(bytes).await {
-                    tracing::error!(error = ?e, "unable to send data to connection peer");
+            Ok(frame) => {
+                if frame.is_data() {
+                    if let Err(e) = tx.send_data(frame.into_data().unwrap_or_default()).await {
+                        tracing::error!(error = ?e, "unable to send data to connection peer");
+                    }
+                } else {
+                    if let Err(e) = tx.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                        tracing::error!(error = ?e, "unable to send trailers to connection peer");
+                    }
                 }
             }
             Err(e) => {

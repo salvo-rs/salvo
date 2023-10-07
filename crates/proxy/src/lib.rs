@@ -12,6 +12,7 @@
 
 use std::convert::{Infallible, TryFrom};
 
+use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use reqwest::Client;
@@ -244,7 +245,8 @@ where
     ) -> Result<HyperResponse, Error> {
         let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request = proxied_request.map(reqwest::Body::wrap_stream);
+        let proxied_request =
+            proxied_request.map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
         let response = self
             .client
             .execute(proxied_request.try_into().map_err(Error::other)?)
