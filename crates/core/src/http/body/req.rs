@@ -64,8 +64,8 @@ impl Body for ReqBody {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         match &mut *self {
-            ReqBody::None => Poll::Ready(None),
-            ReqBody::Once(bytes) => {
+            Self::None => Poll::Ready(None),
+            Self::Once(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
                 } else {
@@ -73,10 +73,10 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            ReqBody::Hyper(body) => Pin::new(body)
+            Self::Hyper(body) => Pin::new(body)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
-            ReqBody::Boxed(inner) => Pin::new(inner)
+            Self::Boxed(inner) => Pin::new(inner)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
         }
@@ -84,28 +84,28 @@ impl Body for ReqBody {
 
     fn is_end_stream(&self) -> bool {
         match self {
-            ReqBody::None => true,
-            ReqBody::Once(bytes) => bytes.is_empty(),
-            ReqBody::Hyper(body) => body.is_end_stream(),
-            ReqBody::Boxed(body) => body.is_end_stream(),
+            Self::None => true,
+            Self::Once(bytes) => bytes.is_empty(),
+            Self::Hyper(body) => body.is_end_stream(),
+            Self::Boxed(body) => body.is_end_stream(),
         }
     }
 
     fn size_hint(&self) -> SizeHint {
         match self {
-            ReqBody::None => SizeHint::with_exact(0),
-            ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
-            ReqBody::Hyper(body) => body.size_hint(),
-            ReqBody::Boxed(body) => body.size_hint(),
+            Self::None => SizeHint::with_exact(0),
+            Self::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
+            Self::Hyper(body) => body.size_hint(),
+            Self::Boxed(body) => body.size_hint(),
         }
     }
 }
 impl Stream for ReqBody {
-    type Item = IoResult<Bytes>;
+    type Item = IoResult<Frame<Bytes>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
-            Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
+            Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
@@ -115,42 +115,42 @@ impl Stream for ReqBody {
 
 impl From<Bytes> for ReqBody {
     fn from(value: Bytes) -> ReqBody {
-        ReqBody::Once(value)
+        Self::Once(value)
     }
 }
 impl From<Incoming> for ReqBody {
     fn from(value: Incoming) -> ReqBody {
-        ReqBody::Hyper(value)
+        Self::Hyper(value)
     }
 }
 impl From<String> for ReqBody {
     #[inline]
     fn from(value: String) -> ReqBody {
-        ReqBody::Once(value.into())
+        Self::Once(value.into())
     }
 }
 
 impl From<&'static [u8]> for ReqBody {
     fn from(value: &'static [u8]) -> ReqBody {
-        ReqBody::Once(value.into())
+        Self::Once(value.into())
     }
 }
 
 impl From<&'static str> for ReqBody {
     fn from(value: &'static str) -> ReqBody {
-        ReqBody::Once(value.into())
+        Self::Once(value.into())
     }
 }
 
 impl From<Vec<u8>> for ReqBody {
     fn from(value: Vec<u8>) -> ReqBody {
-        ReqBody::Once(value.into())
+        Self::Once(value.into())
     }
 }
 
 impl From<Box<[u8]>> for ReqBody {
     fn from(value: Box<[u8]>) -> ReqBody {
-        ReqBody::Once(value.into())
+        Self::Once(value.into())
     }
 }
 

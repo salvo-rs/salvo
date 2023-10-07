@@ -2,6 +2,7 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
+use futures_util::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
@@ -57,6 +58,7 @@ impl FormData {
                     .and_then(|ct| ct.to_str().ok())
                     .and_then(|ct| multer::parse_boundary(ct).ok())
                 {
+                    let body = body.map(|f| f.map(|f| f.into_data().unwrap_or_default()));
                     let mut multipart = Multipart::new(body, boundary);
                     while let Some(mut field) = multipart.next_field().await? {
                         if let Some(name) = field.name().map(|s| s.to_owned()) {

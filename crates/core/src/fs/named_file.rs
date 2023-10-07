@@ -510,7 +510,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(reader.total_size));
-            res.stream(reader).ok();
+            res.stream(reader);
         } else {
             res.status_code(StatusCode::OK);
             let reader = ChunkedFile {
@@ -521,7 +521,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(length));
-            res.stream(reader).ok();
+            res.stream(reader);
         }
     }
 }
