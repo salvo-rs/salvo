@@ -106,10 +106,7 @@ impl ResBody {
             data_tx,
             trailers_tx: Some(trailers_tx),
         };
-        let rx = ResBody::Channel(BodyReceiver {
-            data_rx,
-            trailers_rx,
-        });
+        let rx = ResBody::Channel(BodyReceiver { data_rx, trailers_rx });
 
         (tx, rx)
     }
