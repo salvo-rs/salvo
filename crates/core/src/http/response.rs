@@ -16,7 +16,7 @@ use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
-pub use crate::http::body::{BodySender, ResBody};
+pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 
 /// Represents an HTTP response
 #[non_exhaustive]
@@ -450,7 +450,7 @@ impl Response {
     pub fn stream<S, O, E>(&mut self, stream: S)
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<Bytes> + 'static,
+        O: Into<BytesFrame> + 'static,
         E: Into<BoxedError> + 'static,
     {
         self.body = ResBody::stream(stream);

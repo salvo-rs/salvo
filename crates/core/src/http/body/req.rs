@@ -114,43 +114,46 @@ impl Stream for ReqBody {
 }
 
 impl From<Bytes> for ReqBody {
-    fn from(value: Bytes) -> ReqBody {
+    fn from(value: Bytes) -> Self {
         Self::Once(value)
     }
 }
 impl From<Incoming> for ReqBody {
-    fn from(value: Incoming) -> ReqBody {
+    fn from(value: Incoming) -> Self {
         Self::Hyper(value)
     }
 }
 impl From<String> for ReqBody {
     #[inline]
-    fn from(value: String) -> ReqBody {
+    fn from(value: String) -> Self {
         Self::Once(value.into())
     }
 }
 
 impl From<&'static [u8]> for ReqBody {
-    fn from(value: &'static [u8]) -> ReqBody {
-        Self::Once(value.into())
+    fn from(value: &'static [u8]) -> Self {
+        Self::Once(Bytes::from_static(value))
     }
 }
 
 impl From<&'static str> for ReqBody {
-    fn from(value: &'static str) -> ReqBody {
-        Self::Once(value.into())
+    fn from(value: &'static str) -> Self {
+        Self::Once(Bytes::from_static(value.as_bytes()))
     }
 }
 
 impl From<Vec<u8>> for ReqBody {
-    fn from(value: Vec<u8>) -> ReqBody {
+    fn from(value: Vec<u8>) -> Self {
         Self::Once(value.into())
     }
 }
 
-impl From<Box<[u8]>> for ReqBody {
-    fn from(value: Box<[u8]>) -> ReqBody {
-        Self::Once(value.into())
+impl<T> From<Box<T>> for ReqBody
+where
+    T: Into<ReqBody>,
+{
+    fn from(value: Box<T>) -> Self {
+        (*value).into()
     }
 }
 
