@@ -16,7 +16,7 @@ use crate::http::{StatusCode, StatusError};
 use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
-pub use crate::http::body::{BodySender, ResBody, BytesFrame};
+pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 
 /// Represents an HTTP response
 #[non_exhaustive]

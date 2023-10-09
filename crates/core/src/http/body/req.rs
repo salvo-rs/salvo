@@ -148,7 +148,10 @@ impl From<Vec<u8>> for ReqBody {
     }
 }
 
-impl<T> From<Box<T>> for ReqBody where T: Into<ReqBody> {
+impl<T> From<Box<T>> for ReqBody
+where
+    T: Into<ReqBody>,
+{
     fn from(value: Box<T>) -> Self {
         (*value).into()
     }

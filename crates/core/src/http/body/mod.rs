@@ -25,7 +25,7 @@ impl BytesFrame {
     pub fn data(buf: impl Into<Bytes>) -> Self {
         Self(Frame::data(buf.into()))
     }
-    
+
     /// Consumes self into the buf of the DATA frame.
     ///
     /// Returns an [`Err`] containing the original [`Frame`] when frame is not a DATA frame.
