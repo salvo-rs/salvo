@@ -17,7 +17,7 @@ use sync_wrapper::SyncWrapper;
 use bytes::Bytes;
 
 use crate::error::BoxedError;
-use crate::http::body::{BodyReceiver, BodySender};
+use crate::http::body::{BodyReceiver, BodySender, BytesFrame};
 use crate::prelude::StatusError;
 
 /// Response body type.
@@ -37,7 +37,7 @@ pub enum ResBody {
     /// Boxed body.
     Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
     /// Stream body.
-    Stream(SyncWrapper<BoxStream<'static, Result<Bytes, BoxedError>>>),
+    Stream(SyncWrapper<BoxStream<'static, Result<BytesFrame, BoxedError>>>),
     /// Channel body.
     Channel(BodyReceiver),
     /// Error body will be process in catcher.
@@ -88,7 +88,7 @@ impl ResBody {
     pub fn stream<S, O, E>(stream: S) -> Self
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<Bytes> + 'static,
+        O: Into<BytesFrame> + 'static,
         E: Into<BoxedError> + 'static,
     {
         let mapped = stream.map_ok(Into::into).map_err(Into::into);
@@ -168,7 +168,7 @@ impl Body for ResBody {
                 .get_mut()
                 .as_mut()
                 .poll_next(cx)
-                .map_ok(Frame::data)
+                .map_ok(|frame| frame.0)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
             Self::Channel(rx) => {
                 if !rx.data_rx.is_terminated() {
@@ -232,48 +232,51 @@ impl Stream for ResBody {
 }
 
 impl From<()> for ResBody {
-    fn from(_value: ()) -> ResBody {
+    fn from(_value: ()) -> Self {
         Self::None
     }
 }
 impl From<Bytes> for ResBody {
-    fn from(value: Bytes) -> ResBody {
+    fn from(value: Bytes) -> Self {
         Self::Once(value)
     }
 }
 impl From<Incoming> for ResBody {
-    fn from(value: Incoming) -> ResBody {
+    fn from(value: Incoming) -> Self {
         Self::Hyper(value)
     }
 }
 impl From<String> for ResBody {
     #[inline]
-    fn from(value: String) -> ResBody {
+    fn from(value: String) -> Self {
         Self::Once(value.into())
     }
 }
 
 impl From<&'static [u8]> for ResBody {
-    fn from(value: &'static [u8]) -> ResBody {
-        Self::Once(value.into())
+    fn from(value: &'static [u8]) -> Self {
+        Self::Once(Bytes::from_static(value))
     }
 }
 
 impl From<&'static str> for ResBody {
-    fn from(value: &'static str) -> ResBody {
-        Self::Once(value.into())
+    fn from(value: &'static str) -> Self {
+        Self::Once(Bytes::from_static(value.as_bytes()))
     }
 }
 
 impl From<Vec<u8>> for ResBody {
-    fn from(value: Vec<u8>) -> ResBody {
+    fn from(value: Vec<u8>) -> Self {
         Self::Once(value.into())
     }
 }
 
-impl From<Box<[u8]>> for ResBody {
-    fn from(value: Box<[u8]>) -> ResBody {
-        Self::Once(value.into())
+impl<T> From<Box<T>> for ResBody
+where
+    T: Into<ResBody>,
+{
+    fn from(value: Box<T>) -> Self {
+        (*value).into()
     }
 }
 
