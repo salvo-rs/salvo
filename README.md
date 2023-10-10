@@ -40,12 +40,12 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
 - HTTP1, HTTP2 and **HTTP3**;
 - Unified middleware and handle interface;
-- Limitless routers nesting;
-- Every router can have one or many middlewares;
+- Router can be nested infinitely, and multiple middlewares can be attached to any router;
 - Integrated Multipart form processing;
 - Support WebSocket, WebTransport;
-- Support OpenAPI;
-- Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+- Support OpenAPI, generate OpenAPI data automatic;
+- Support Acme, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+- Support Tower serivce and layer.
 
 ## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs).
