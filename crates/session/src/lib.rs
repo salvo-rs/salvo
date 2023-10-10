@@ -404,12 +404,12 @@ where
     }
     #[inline]
     fn build_cookie(&self, secure: bool, cookie_value: String) -> Cookie<'static> {
-        let mut cookie = Cookie::build(self.cookie_name.clone(), cookie_value)
+        let mut cookie = Cookie::build((self.cookie_name.clone(), cookie_value))
             .http_only(true)
             .same_site(self.same_site_policy)
             .secure(secure)
             .path(self.cookie_path.clone())
-            .finish();
+            .build();
 
         if let Some(ttl) = self.session_ttl {
             cookie.set_expires(Some((std::time::SystemTime::now() + ttl).into()));

@@ -85,16 +85,16 @@ impl CsrfStore for CookieStore {
     ) -> Result<(), Self::Error> {
         let secure = req.uri().scheme() == Some(&Scheme::HTTPS);
         let expires = cookie::time::OffsetDateTime::now_utc() + self.ttl;
-        let cookie_builder = Cookie::build(self.name.clone(), format!("{token}.{proof}"))
+        let cookie_builder = Cookie::build((self.name.clone(), format!("{token}.{proof}")))
             .http_only(true)
             .same_site(SameSite::Strict)
             .path(self.path.clone())
             .secure(secure)
             .expires(Expiration::DateTime(expires));
         let cookie = if let Some(domain) = &self.domain {
-            cookie_builder.domain(domain.clone()).finish()
+            cookie_builder.domain(domain.clone()).build()
         } else {
-            cookie_builder.finish()
+            cookie_builder.build()
         };
         res.add_cookie(cookie);
         Ok(())
