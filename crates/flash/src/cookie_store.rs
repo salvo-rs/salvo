@@ -88,22 +88,22 @@ impl FlashStore for CookieStore {
     }
     async fn save_flash(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, flash: Flash) {
         res.add_cookie(
-            Cookie::build(self.name.clone(), serde_json::to_string(&flash).unwrap_or_default())
+            Cookie::build((self.name.clone(), serde_json::to_string(&flash).unwrap_or_default()))
                 .max_age(self.max_age)
                 .path(self.path.clone())
                 .same_site(self.same_site)
                 .http_only(self.http_only)
-                .finish(),
+                .build(),
         );
     }
     async fn clear_flash(&self, _depot: &mut Depot, res: &mut Response) {
         res.add_cookie(
-            Cookie::build(self.name.clone(), "")
+            Cookie::build((self.name.clone(), ""))
                 .max_age(Duration::seconds(0))
                 .same_site(self.same_site)
                 .http_only(self.http_only)
                 .path(self.path.clone())
-                .finish(),
+                .build(),
         );
     }
 }
