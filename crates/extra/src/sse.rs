@@ -260,7 +260,7 @@ where
 }
 
 #[inline]
-fn write_request_headers(res: &mut Response) {
+fn write_response_headers(res: &mut Response) {
     res.headers_mut()
         .insert(CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
     // Disable response body caching
@@ -275,7 +275,7 @@ where
     S: TryStream<Ok = SseEvent> + Send + 'static,
     S::Error: StdError + Send + Sync + 'static,
 {
-    write_request_headers(res);
+    write_response_headers(res);
     let body_stream = event_stream
         .map_err(|e| {
             tracing::error!("sse stream error: {}", e);
