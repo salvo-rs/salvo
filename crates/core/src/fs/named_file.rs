@@ -163,7 +163,7 @@ impl NamedFileBuilder {
 
         let file = File::open(&path).await?;
         let content_type = content_type.unwrap_or_else(|| {
-            let ct = mime_guess::from_path(&path).first_or_octet_stream();
+            let ct = mime_infer::from_path(&path).first_or_octet_stream();
             let ftype = ct.type_();
             let stype = ct.subtype();
             if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT)

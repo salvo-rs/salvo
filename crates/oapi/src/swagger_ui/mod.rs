@@ -353,7 +353,7 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
     };
     let file = bytes.map(|bytes| SwaggerFile {
         bytes,
-        content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
+        content_type: mime_infer::from_path(path).first_or_octet_stream().to_string(),
     });
 
     Ok(file)
