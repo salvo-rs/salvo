@@ -52,7 +52,7 @@ impl BodySender {
     }
 
     /// Send data on data channel when it is ready.
-    pub async fn send_data(&mut self, chunk: impl Into<Bytes>) -> IoResult<()> {
+    pub async fn send_data(&mut self, chunk: impl Into<Bytes> + Send) -> IoResult<()> {
         self.ready().await?;
         self.data_tx
             .try_send(Ok(chunk.into()))
