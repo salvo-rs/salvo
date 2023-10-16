@@ -25,7 +25,7 @@ embed = ["dep:rust-embed", "dep:hex", "dep:path-slash"]
 [dependencies]
 hex = { workspace = true, optional = true }
 mime = { workspace = true }
-mime_guess = { workspace = true }
+mime-infer = { workspace = true }
 path-slash = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 rust-embed = { workspace = true, optional = true }

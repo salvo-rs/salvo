@@ -50,7 +50,7 @@ http = { workspace = true }
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap = { workspace = true }
 mime = { workspace = true }
-mime_guess = { workspace = true }
+mime-infer = { workspace = true }
 multer = { workspace = true }
 multimap = { workspace = true, features = ["serde"] }
 native-tls = { workspace = true, optional = true, features = ["alpn"] }
