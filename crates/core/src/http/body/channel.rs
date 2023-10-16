@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
@@ -33,12 +34,25 @@ impl BodySender {
             .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to poll ready: {}", e)))
     }
 
+    /// Returns whether this channel is closed without needing a context.
+    pub fn is_closed(&self) -> bool {
+        self.data_tx.is_closed()
+    }
+    /// Closes this channel from the sender side, preventing any new messages.
+    pub fn close(&mut self) {
+        self.data_tx.close_channel();
+    }
+    /// Disconnects this sender from the channel, closing it if there are no more senders left.
+    pub fn disconnect(&mut self) {
+        self.data_tx.disconnect();
+    }
+
     async fn ready(&mut self) -> IoResult<()> {
         futures_util::future::poll_fn(|cx| self.poll_ready(cx)).await
     }
 
     /// Send data on data channel when it is ready.
-    pub async fn send_data(&mut self, chunk: impl Into<Bytes>) -> IoResult<()> {
+    pub async fn send_data(&mut self, chunk: impl Into<Bytes> + Send) -> IoResult<()> {
         self.ready().await?;
         self.data_tx
             .try_send(Ok(chunk.into()))
@@ -62,6 +76,74 @@ impl BodySender {
             // clone so the send works even if buffer is full
             .clone()
             .try_send(Err(err));
+    }
+}
+
+impl futures_util::AsyncWrite for BodySender {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+        match self.data_tx.poll_ready(cx) {
+            Poll::Ready(Ok(())) => {
+                let data: Bytes = Bytes::from(buf.to_vec());
+                let len = buf.len();
+                Poll::Ready(
+                    self.data_tx
+                        .try_send(Ok(data))
+                        .map(|_| len)
+                        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))),
+                )
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
+                ErrorKind::Other,
+                format!("failed to poll ready: {}", e),
+            ))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<IoResult<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        if self.data_tx.is_closed() {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+impl tokio::io::AsyncWrite for BodySender {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<IoResult<usize>> {
+        match self.data_tx.poll_ready(cx) {
+            Poll::Ready(Ok(())) => {
+                let data: Bytes = Bytes::from(buf.to_vec());
+                let len = buf.len();
+                Poll::Ready(
+                    self.data_tx
+                        .try_send(Ok(data))
+                        .map(|_| len)
+                        .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to send data: {}", e))),
+                )
+            }
+            Poll::Ready(Err(e)) => Poll::Ready(Err(IoError::new(
+                ErrorKind::Other,
+                format!("failed to poll ready: {}", e),
+            ))),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<IoResult<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<IoResult<()>> {
+        if self.data_tx.is_closed() {
+            Poll::Ready(Ok(()))
+        } else {
+            Poll::Pending
+        }
     }
 }
 

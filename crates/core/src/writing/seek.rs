@@ -1,8 +1,9 @@
 use std::cmp;
+use std::io::SeekFrom;
 use std::time::SystemTime;
 
 use headers::*;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, SeekFrom};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::header::{IF_NONE_MATCH, RANGE};
