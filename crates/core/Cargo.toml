@@ -62,7 +62,7 @@ parking_lot = { workspace = true }
 quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
-reqwest = { workspace = true, optional = true, features = ["json"] }
+reqwest = { workspace = true, optional = true, features = ["rustls-tls", "json"] }
 ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
