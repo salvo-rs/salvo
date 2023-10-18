@@ -25,7 +25,7 @@ oidc = ["dep:reqwest"]
 [dependencies]
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
-reqwest = { workspace = true, optional = true, features = ["json"] }
+reqwest = { workspace = true, optional = true, features = ["rustls-tls", "json"] }
 salvo_core = { workspace = true, features = ["cookie"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
