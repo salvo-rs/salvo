@@ -36,7 +36,7 @@ impl RapiDoc {
     ///
     /// ```rust
     /// # use salvo_oapi::rapidoc::RapiDoc;
-    /// let doc = RapiDoc::new("/rapidoc/openapi.json");
+    /// let doc = RapiDoc::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
         let spec_url = spec_url.into();

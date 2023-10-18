@@ -11,7 +11,7 @@ const INDEX_TMPL: &str = r#"
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Redoc</title>
+    <title>Scalar</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
@@ -27,15 +27,8 @@ const INDEX_TMPL: &str = r#"
   </head>
 
   <body>
-    <div id="redoc-container"></div>
-    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
-    <script>
-      Redoc.init(
-        "{{spec_url}}",
-        {},
-        document.getElementById("redoc-container")
-      );
-    </script>
+    <script id="api-reference" data-url="{{spec_url}}"></script>
+    <script src="https://www.unpkg.com/@scalar/api-reference"></script>
   </body>
 </html>
 
@@ -43,11 +36,11 @@ const INDEX_TMPL: &str = r#"
 
 /// Implements [`Handler`] for serving ReDoc.
 #[derive(Clone, Debug)]
-pub struct ReDoc {
+pub struct Scalar {
     spec_url: String,
     html: String,
 }
-impl ReDoc {
+impl Scalar {
     /// Create a new [`ReDoc`] for given path.
     ///
     /// Path argument will expose the ReDoc to the user and should be something that
@@ -56,8 +49,8 @@ impl ReDoc {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::redoc::ReDoc;
-    /// let doc = ReDoc::new("/openapi.json");
+    /// # use salvo_oapi::scalar::Scalar;
+    /// let doc = Scalar::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
         let spec_url = spec_url.into();
@@ -72,14 +65,14 @@ impl ReDoc {
         &self.spec_url
     }
 
-    /// Consusmes the [`ReDoc`] and returns [`Router`] with the [`ReDoc`] as handler.
+    /// Consusmes the [`Scalar`] and returns [`Router`] with the [`Scalar`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }
 }
 
 #[async_trait]
-impl Handler for ReDoc {
+impl Handler for Scalar {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         res.render(Text::Html(&self.html));
     }
