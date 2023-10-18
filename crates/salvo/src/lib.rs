@@ -229,5 +229,6 @@ pub mod prelude {
         pub use crate::oapi::swagger_ui::SwaggerUi;
         pub use crate::oapi::rapidoc::RapiDoc;
         pub use crate::oapi::redoc::ReDoc;
+        pub use crate::oapi::scalar::Scalar;
     }
 }

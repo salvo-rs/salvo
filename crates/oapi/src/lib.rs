@@ -24,6 +24,10 @@ cfg_feature! {
     pub mod swagger_ui;
 }
 cfg_feature! {
+    #![feature ="scalar"]
+    pub mod scalar;
+}
+cfg_feature! {
     #![feature ="rapidoc"]
     pub mod rapidoc;
 }

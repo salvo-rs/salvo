@@ -132,7 +132,7 @@ impl ReDoc {
     ///
     /// ```rust
     /// # use salvo_oapi::redoc::ReDoc;
-    /// let doc = ReDoc::new("/rapidoc/openapi.json");
+    /// let doc = ReDoc::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
         Builder::new(spec_url).build()

@@ -38,6 +38,7 @@ async fn main() {
     let router = router
         .unshift(doc.into_router("/api-doc/openapi.json"))
         .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"))
+        .unshift(Scalar::new("/api-doc/openapi.json").into_router("/scalar"))
         .unshift(RapiDoc::new("/api-doc/openapi.json").into_router("/rapidoc"))
         .unshift(ReDoc::new("/api-doc/openapi.json").into_router("/redoc"));
 
@@ -130,6 +131,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
     <body>
         <ul>
         <li><a href="swagger-ui" target="_blank">swagger-ui</a></li>
+        <li><a href="scalar" target="_blank">scalar</a></li>
         <li><a href="rapidoc" target="_blank">rapidoc</a></li>
         <li><a href="redoc" target="_blank">redoc</a></li>
         </ul>

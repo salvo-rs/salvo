@@ -14,8 +14,9 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
-full = ["swagger-ui", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml"]
+full = ["swagger-ui", "scalar", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml"]
 swagger-ui = ["dep:rust-embed"]
+scalar = []
 rapidoc = []
 redoc = []
 chrono = ["salvo-oapi-macros/chrono", "dep:chrono"]
