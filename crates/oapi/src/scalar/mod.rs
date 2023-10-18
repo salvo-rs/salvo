@@ -49,7 +49,7 @@ impl Scalar {
     /// # Examples
     ///
     /// ```rust
-    /// # use salvo_oapi::redoc::Scalar;
+    /// # use salvo_oapi::scalar::Scalar;
     /// let doc = Scalar::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
