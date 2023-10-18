@@ -12,7 +12,7 @@ const INDEX_TMPL: &str = r#"
 <html>
   <head>
     <meta charset="utf-8">
-    <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
+    <script type="module" src="{{lib_url}}"></script>
   </head>
   <body>
     <rapi-doc spec-url="{{spec_url}}"></rapi-doc>
@@ -21,10 +21,13 @@ const INDEX_TMPL: &str = r#"
 "#;
 
 /// Implements [`Handler`] for serving RapiDoc.
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct RapiDoc {
-    spec_url: String,
-    html: String,
+    /// The lib url path.
+    pub lib_url: String,
+    /// The spec url path.
+    pub spec_url: String,
 }
 impl RapiDoc {
     /// Create a new [`RapiDoc`] for given path.
@@ -39,16 +42,16 @@ impl RapiDoc {
     /// let doc = RapiDoc::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
-        let spec_url = spec_url.into();
         Self {
-            html: INDEX_TMPL.replace("{{spec_url}}", &spec_url),
-            spec_url,
+            lib_url: "https://unpkg.com/rapidoc/dist/rapidoc-min.js".into(),
+            spec_url: spec_url.into(),
         }
     }
 
-    /// Returns the spec url.
-    pub fn sepec_url(&self) -> &str {
-        &self.spec_url
+    /// Set the lib url path.
+    pub fn lib_url(mut self, lib_url: impl Into<String>) -> Self {
+        self.lib_url = lib_url.into();
+        self
     }
 
     /// Consusmes the [`RapiDoc`] and returns [`Router`] with the [`RapiDoc`] as handler.
@@ -60,6 +63,9 @@ impl RapiDoc {
 #[async_trait]
 impl Handler for RapiDoc {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        res.render(Text::Html(&self.html));
+        let html = INDEX_TMPL
+            .replace("{{lib_url}}", &self.lib_url)
+            .replace("{{spec_url}}", &self.spec_url);
+        res.render(Text::Html(html));
     }
 }

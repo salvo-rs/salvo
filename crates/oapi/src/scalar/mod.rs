@@ -1,6 +1,6 @@
-//! This crate implements necessary boiler plate code to serve ReDoc via web server. It
+//! This crate implements necessary boiler plate code to serve Scalar via web server. It
 //! works as a bridge for serving the OpenAPI documentation created with [`salvo`][salvo] library in the
-//! ReDoc.
+//! Scalar.
 //!
 //! [salvo]: <https://docs.rs/salvo/>
 //!
@@ -14,10 +14,6 @@ const INDEX_TMPL: &str = r#"
     <title>Scalar</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
-      rel="stylesheet"
-    />
     <style>
       body {
         margin: 0;
@@ -28,22 +24,25 @@ const INDEX_TMPL: &str = r#"
 
   <body>
     <script id="api-reference" data-url="{{spec_url}}"></script>
-    <script src="https://www.unpkg.com/@scalar/api-reference"></script>
+    <script src="{{lib_url}}"></script>
   </body>
 </html>
 
 "#;
 
-/// Implements [`Handler`] for serving ReDoc.
+/// Implements [`Handler`] for serving Scalar.
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct Scalar {
-    spec_url: String,
-    html: String,
+    /// The lib url path.
+    pub lib_url: String,
+    /// The spec url path.
+    pub spec_url: String,
 }
 impl Scalar {
-    /// Create a new [`ReDoc`] for given path.
+    /// Create a new [`Scalar`] for given path.
     ///
-    /// Path argument will expose the ReDoc to the user and should be something that
+    /// Path argument will expose the Scalar to the user and should be something that
     /// the underlying application framework / library supports.
     ///
     /// # Examples
@@ -53,27 +52,30 @@ impl Scalar {
     /// let doc = Scalar::new("/openapi.json");
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
-        let spec_url = spec_url.into();
         Self {
-            html: INDEX_TMPL.replace("{{spec_url}}", &spec_url),
-            spec_url,
+            lib_url: "https://www.unpkg.com/@scalar/api-reference".into(),
+            spec_url: spec_url.into(),
         }
     }
 
-    /// Returns the spec url.
-    pub fn sepec_url(&self) -> &str {
-        &self.spec_url
+    /// Set the lib url path.
+    pub fn lib_url(mut self, lib_url: impl Into<String>) -> Self {
+        self.lib_url = lib_url.into();
+        self
     }
+
 
     /// Consusmes the [`Scalar`] and returns [`Router`] with the [`Scalar`] as handler.
     pub fn into_router(self, path: impl Into<String>) -> Router {
         Router::with_path(path.into()).goal(self)
     }
 }
-
 #[async_trait]
 impl Handler for Scalar {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
-        res.render(Text::Html(&self.html));
+        let html = INDEX_TMPL
+            .replace("{{lib_url}}", &self.lib_url)
+            .replace("{{spec_url}}", &self.spec_url);
+        res.render(Text::Html(html));
     }
 }
