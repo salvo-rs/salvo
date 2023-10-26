@@ -209,8 +209,6 @@ where
         for (key, value) in req.headers() {
             if key != HOST {
                 build = build.header(key, value);
-            } else {
-                build = build.header(HOST, forward_url.host().unwrap());
             }
         }
         if let Some(host) = forward_url.host().and_then(|host| HeaderValue::from_str(host).ok()) {
