@@ -1,24 +1,22 @@
 //! Http response.
 use std::collections::VecDeque;
-use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use futures_util::stream::{Stream, TryStreamExt};
+use futures_util::stream::Stream;
 use http::header::{HeaderMap, HeaderValue, IntoHeaderName};
 pub use http::response::Parts;
-use http::version::Version;
-use http::Extensions;
+use http::{version::Version, Extensions};
 use mime::Mime;
 
 use crate::fs::NamedFile;
 use crate::http::{StatusCode, StatusError};
-use crate::{Error, Scribe};
+use crate::{BoxedError, Error, Scribe};
 use bytes::Bytes;
 
-pub use crate::http::body::ResBody;
+pub use crate::http::body::{BodySender, BytesFrame, ResBody};
 
 /// Represents an HTTP response
 #[non_exhaustive]
@@ -42,9 +40,12 @@ impl Default for Response {
         Self::new()
     }
 }
-impl From<hyper::Response<ResBody>> for Response {
+impl<B> From<hyper::Response<B>> for Response
+where
+    B: Into<ResBody>,
+{
     #[inline]
-    fn from(res: hyper::Response<ResBody>) -> Self {
+    fn from(res: hyper::Response<B>) -> Self {
         let (
             http::response::Parts {
                 status,
@@ -73,7 +74,7 @@ impl From<hyper::Response<ResBody>> for Response {
 
         Response {
             status_code: Some(status),
-            body,
+            body: body.into(),
             version,
             headers,
             #[cfg(feature = "cookie")]
@@ -195,8 +196,10 @@ impl Response {
         false
     }
 
+    /// Convert to hyper response.
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn into_hyper(self) -> hyper::Response<ResBody> {
+    pub fn into_hyper(self) -> hyper::Response<ResBody> {
         let Self {
             status_code,
             #[cfg(feature = "cookie")]
@@ -224,6 +227,46 @@ impl Response {
         *res.status_mut() = status_code.unwrap_or(StatusCode::NOT_FOUND);
 
         res
+    }
+
+    /// Strip the respone to [`hyper::Response`].
+    #[doc(hidden)]
+    #[inline]
+    pub fn strip_to_hyper(&mut self) -> hyper::Response<ResBody> {
+        let mut res = hyper::Response::new(std::mem::take(&mut self.body));
+        *res.extensions_mut() = std::mem::take(&mut self.extensions);
+        *res.headers_mut() = std::mem::take(&mut self.headers);
+        if let Some(status) = self.status_code {
+            // Default to a 404 if no response code was set
+            *res.status_mut() = status;
+        }
+
+        res
+    }
+
+    /// Merge data from [`hyper::Response`].
+    #[doc(hidden)]
+    #[inline]
+    pub fn merge_hyper<B>(&mut self, hyper_res: hyper::Response<B>)
+    where
+        B: Into<ResBody>,
+    {
+        let (
+            http::response::Parts {
+                status,
+                version,
+                headers,
+                extensions,
+                ..
+            },
+            body,
+        ) = hyper_res.into_parts();
+
+        self.status_code = Some(status);
+        self.version = version;
+        self.headers = headers;
+        self.extensions = extensions;
+        self.body = body.into();
     }
 
     cfg_feature! {
@@ -377,10 +420,22 @@ impl Response {
                     "current body's kind is `ResBody::Hyper`, it is not allowed to write bytes",
                 ));
             }
+            ResBody::Boxed(_) => {
+                tracing::error!("current body's kind is `ResBody::Boxed`, it is not allowed to write bytes");
+                return Err(Error::other(
+                    "current body's kind is `ResBody::Boxed`, it is not allowed to write bytes",
+                ));
+            }
             ResBody::Stream(_) => {
                 tracing::error!("current body's kind is `ResBody::Stream`, it is not allowed to write bytes");
                 return Err(Error::other(
                     "current body's kind is `ResBody::Stream`, it is not allowed to write bytes",
+                ));
+            }
+            ResBody::Channel { .. } => {
+                tracing::error!("current body's kind is `ResBody::Channel`, it is not allowed to write bytes");
+                return Err(Error::other(
+                    "current body's kind is `ResBody::Channel`, it is not allowed to write bytes",
                 ));
             }
             ResBody::Error(_) => {
@@ -389,29 +444,23 @@ impl Response {
         }
         Ok(())
     }
-    /// Write streaming data.
+
+    /// Set response's body to stream.
     #[inline]
-    pub fn streaming<S, O, E>(&mut self, stream: S) -> crate::Result<()>
+    pub fn stream<S, O, E>(&mut self, stream: S)
     where
         S: Stream<Item = Result<O, E>> + Send + 'static,
-        O: Into<Bytes> + 'static,
-        E: Into<Box<dyn StdError + Send + Sync>> + 'static,
+        O: Into<BytesFrame> + 'static,
+        E: Into<BoxedError> + 'static,
     {
-        match &self.body {
-            ResBody::Once(_) => {
-                return Err(Error::other("current body kind is `ResBody::Once` already"));
-            }
-            ResBody::Chunks(_) => {
-                return Err(Error::other("current body kind is `ResBody::Chunks` already"));
-            }
-            ResBody::Stream(_) => {
-                return Err(Error::other("current body kind is `ResBody::Stream` already"));
-            }
-            _ => {}
-        }
-        let mapped = stream.map_ok(Into::into).map_err(Into::into);
-        self.body = ResBody::Stream(Box::pin(mapped));
-        Ok(())
+        self.body = ResBody::stream(stream);
+    }
+    /// Set response's body to channel.
+    #[inline]
+    pub fn channel(&mut self) -> BodySender {
+        let (sender, body) = ResBody::channel();
+        self.body = body;
+        sender
     }
 }
 
@@ -457,7 +506,7 @@ mod test {
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {
-            result.extend_from_slice(&data)
+            result.extend_from_slice(&data.into_data().unwrap_or_default())
         }
 
         assert_eq!("hello", &result)
@@ -465,14 +514,14 @@ mod test {
 
     #[tokio::test]
     async fn test_body_stream2() {
-        let mut body = ResBody::Stream(Box::pin(iter(vec![
+        let mut body = ResBody::stream(iter(vec![
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from("Hello").freeze()),
             Result::<_, Box<dyn Error + Send + Sync>>::Ok(BytesMut::from(" World").freeze()),
-        ])));
+        ]));
 
         let mut result = bytes::BytesMut::new();
         while let Some(Ok(data)) = body.next().await {
-            result.extend_from_slice(&data)
+            result.extend_from_slice(&data.into_data().unwrap_or_default())
         }
 
         assert_eq!("Hello World", &result)

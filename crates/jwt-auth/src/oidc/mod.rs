@@ -1,6 +1,7 @@
 //! Oidc(OpenID Connect) support module
 
 use std::future::Future;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -58,7 +59,7 @@ pub struct DecoderBuilder<T>
 where
     T: AsRef<str>,
 {
-    /// The issuer URL of the token. eg: https://xx-xx.clerk.accounts.dev
+    /// The issuer URL of the token. eg: `https://xx-xx.clerk.accounts.dev`
     pub issuer: T,
     /// The http client for the decoder.
     pub http_client: Option<reqwest::Client>,
@@ -333,7 +334,7 @@ struct OidcConfig {
 
 pub(crate) fn decode_jwk(jwk: &Jwk, validation: &Validation) -> Result<(String, DecodingInfo), JwtAuthError> {
     let kid = jwk.common.key_id.clone();
-    let alg = jwk.common.algorithm;
+    let alg = jwk.common.key_algorithm;
 
     let dec_key = match jwk.algorithm {
         jsonwebtoken::jwk::AlgorithmParameters::EllipticCurve(ref params) => {
@@ -359,6 +360,7 @@ pub(crate) fn decode_jwk(jwk: &Jwk, validation: &Validation) -> Result<(String, 
     };
     match (kid, alg, dec_key) {
         (Some(kid), Some(alg), Some(dec_key)) => {
+            let alg = Algorithm::from_str(alg.to_string().as_str())?;
             let info = DecodingInfo::new(dec_key, alg, validation);
             Ok((kid, info))
         }

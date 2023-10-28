@@ -11,7 +11,7 @@ use super::ALL_METHODS;
 pub trait JwtTokenFinder: Send + Sync {
     /// Get token from request.
     ///
-    /// The token is returned as an  Option<String> , where  Some  contains the token if found, and  None  if not found.
+    /// The token is returned as an `Option<String>`, where Some contains the token if found, and `None` if not found.
     async fn find_token(&self, req: &mut Request) -> Option<String>;
 }
 

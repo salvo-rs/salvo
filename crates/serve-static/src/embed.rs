@@ -56,7 +56,7 @@ fn render_embedded_data(
     res: &mut Response,
     mime: Option<Mime>,
 ) {
-    let mime = mime.unwrap_or_else(|| mime_guess::from_path(req.uri().path()).first_or_octet_stream());
+    let mime = mime.unwrap_or_else(|| mime_infer::from_path(req.uri().path()).first_or_octet_stream());
     res.headers_mut().insert(CONTENT_TYPE, mime.as_ref().parse().unwrap());
 
     let hash = hex::encode(metadata.sha256_hash());
@@ -154,7 +154,7 @@ where
 
         match embedded_file {
             Some(file) => {
-                let mime = mime_guess::from_path(&*key_path).first_or_octet_stream();
+                let mime = mime_infer::from_path(&*key_path).first_or_octet_stream();
                 render_embedded_file(file, req, res, Some(mime));
             }
             None => {

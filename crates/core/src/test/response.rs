@@ -1,10 +1,9 @@
 use std::borrow::Cow;
-use std::io::{self, Write, Result as IoResult};
+use std::io::{self, Result as IoResult, Write};
 
 use bytes::{Bytes, BytesMut};
 use encoding_rs::{Encoding, UTF_8};
 use flate2::write::{GzDecoder, ZlibDecoder};
-use futures_util::stream::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use serde::de::DeserializeOwned;
@@ -135,21 +134,6 @@ impl ResponseExt for Response {
         let bytes = match body {
             ResBody::None => Bytes::new(),
             ResBody::Once(bytes) => bytes,
-            ResBody::Chunks(chunks) => {
-                let mut bytes = BytesMut::new();
-                for chunk in chunks {
-                    bytes.extend(chunk);
-                }
-                bytes.freeze()
-            }
-            ResBody::Hyper(body) => body.collect().await?.to_bytes(),
-            ResBody::Stream(mut stream) => {
-                let mut bytes = BytesMut::new();
-                while let Some(chunk) = stream.next().await {
-                    bytes.extend(chunk?);
-                }
-                bytes.freeze()
-            }
             ResBody::Error(e) => {
                 if let Some(content_type) = content_type {
                     status_error_bytes(&e, content_type, None).1
@@ -157,6 +141,7 @@ impl ResponseExt for Response {
                     status_error_bytes(&e, &"text/html".parse().unwrap(), None).1
                 }
             }
+            _ => BodyExt::collect(body).await?.to_bytes(),
         };
         Ok(bytes)
     }

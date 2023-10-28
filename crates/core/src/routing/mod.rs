@@ -133,6 +133,7 @@ pub enum FlowCtrlStage {
 /// all rest handlers will skipped.
 ///
 /// [`Router`]: crate::routing::Router
+#[derive(Default)]
 pub struct FlowCtrl {
     catching: Option<bool>,
     is_ceased: bool,

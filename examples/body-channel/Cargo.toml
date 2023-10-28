@@ -1,14 +1,11 @@
 [package]
-name = "example-work-with-tower"
+name = "example-body-channel"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 
-
 [dependencies]
-hyper = { workspace = true, features = ["server"] }
 salvo = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-tower = { version = "0.4", features = ["limit"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

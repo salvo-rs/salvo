@@ -1,8 +1,9 @@
 use std::cmp;
+use std::io::SeekFrom;
 use std::time::SystemTime;
 
 use headers::*;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, SeekFrom};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::http::header::{IF_NONE_MATCH, RANGE};
@@ -137,11 +138,11 @@ where
             }
             res.headers_mut()
                 .typed_insert(ContentLength(cmp::min(length, self.length)));
-            res.streaming(ReaderStream::new(self.reader)).ok();
+            res.stream(ReaderStream::new(self.reader));
         } else {
             res.status_code(StatusCode::OK);
             res.headers_mut().typed_insert(ContentLength(self.length));
-            res.streaming(ReaderStream::new(self.reader)).ok();
+            res.stream(ReaderStream::new(self.reader));
         }
     }
 }

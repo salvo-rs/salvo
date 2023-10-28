@@ -333,7 +333,7 @@ impl Handler for Compression {
                 }
                 match self.negotiate(req, res) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, Some(bytes))).ok();
+                        res.stream(EncodeStream::new(algo, level, Some(bytes)));
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
@@ -352,7 +352,7 @@ impl Handler for Compression {
                 }
                 match self.negotiate(req, res) {
                     Some((algo, level)) => {
-                        res.streaming(EncodeStream::new(algo, level, chunks)).ok();
+                        res.stream(EncodeStream::new(algo, level, chunks));
                         res.headers_mut().append(CONTENT_ENCODING, algo.into());
                     }
                     None => {
@@ -363,7 +363,7 @@ impl Handler for Compression {
             }
             ResBody::Hyper(body) => match self.negotiate(req, res) {
                 Some((algo, level)) => {
-                    res.streaming(EncodeStream::new(algo, level, body)).ok();
+                    res.stream(EncodeStream::new(algo, level, body));
                     res.headers_mut().append(CONTENT_ENCODING, algo.into());
                 }
                 None => {
@@ -371,16 +371,19 @@ impl Handler for Compression {
                     return;
                 }
             },
-            ResBody::Stream(body) => match self.negotiate(req, res) {
-                Some((algo, level)) => {
-                    res.streaming(EncodeStream::new(algo, level, body)).ok();
-                    res.headers_mut().append(CONTENT_ENCODING, algo.into());
+            ResBody::Stream(body) => {
+                let body = body.into_inner();
+                match self.negotiate(req, res) {
+                    Some((algo, level)) => {
+                        res.stream(EncodeStream::new(algo, level, body));
+                        res.headers_mut().append(CONTENT_ENCODING, algo.into());
+                    }
+                    None => {
+                        res.body(ResBody::stream(body));
+                        return;
+                    }
                 }
-                None => {
-                    res.body(ResBody::Stream(body));
-                    return;
-                }
-            },
+            }
             _ => {}
         }
         res.headers_mut().remove(CONTENT_LENGTH);

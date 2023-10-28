@@ -3,23 +3,30 @@
 use std::boxed::Box;
 use std::collections::VecDeque;
 use std::fmt::Debug;
+use std::future::Future;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
-use std::task::{self, Context, Poll};
+use std::task::{self, ready, Context, Poll};
 
-use futures_util::stream::{BoxStream, Stream};
+use futures_channel::mpsc;
+use futures_channel::oneshot;
+use futures_util::stream::{BoxStream, FusedStream, Stream, TryStreamExt};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
+use sync_wrapper::SyncWrapper;
 
 use bytes::Bytes;
 
 use crate::error::BoxedError;
+use crate::http::body::{BodyReceiver, BodySender, BytesFrame};
 use crate::prelude::StatusError;
 
 /// Response body type.
 #[allow(clippy::type_complexity)]
 #[non_exhaustive]
+#[derive(Default)]
 pub enum ResBody {
     /// None body.
+    #[default]
     None,
     /// Once bytes body.
     Once(Bytes),
@@ -27,8 +34,12 @@ pub enum ResBody {
     Chunks(VecDeque<Bytes>),
     /// Hyper default body.
     Hyper(Incoming),
+    /// Boxed body.
+    Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
     /// Stream body.
-    Stream(BoxStream<'static, Result<Bytes, BoxedError>>),
+    Stream(SyncWrapper<BoxStream<'static, Result<BytesFrame, BoxedError>>>),
+    /// Channel body.
+    Channel(BodyReceiver),
     /// Error body will be process in catcher.
     Error(StatusError),
 }
@@ -36,75 +47,89 @@ impl ResBody {
     /// Check is that body is not set.
     #[inline]
     pub fn is_none(&self) -> bool {
-        matches!(*self, ResBody::None)
+        matches!(*self, Self::None)
     }
     /// Check is that body is once.
     #[inline]
     pub fn is_once(&self) -> bool {
-        matches!(*self, ResBody::Once(_))
+        matches!(*self, Self::Once(_))
     }
     /// Check is that body is chunks.
     #[inline]
     pub fn is_chunks(&self) -> bool {
-        matches!(*self, ResBody::Chunks(_))
+        matches!(*self, Self::Chunks(_))
+    }
+    /// Check is that body is hyper default body type.
+    #[inline]
+    pub fn is_hyper(&self) -> bool {
+        matches!(*self, Self::Hyper(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
+    pub fn is_boxed(&self) -> bool {
+        matches!(*self, Self::Boxed(_))
     }
     /// Check is that body is stream.
     #[inline]
     pub fn is_stream(&self) -> bool {
-        matches!(*self, ResBody::Stream(_))
+        matches!(*self, Self::Stream(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
+    pub fn is_channel(&self) -> bool {
+        matches!(*self, Self::Channel { .. })
     }
     /// Check is that body is error will be process in catcher.
     pub fn is_error(&self) -> bool {
-        matches!(*self, ResBody::Error(_))
+        matches!(*self, Self::Error(_))
     }
+
+    /// Wrap a futures `Stream` in a box inside `Body`.
+    pub fn stream<S, O, E>(stream: S) -> Self
+    where
+        S: Stream<Item = Result<O, E>> + Send + 'static,
+        O: Into<BytesFrame> + 'static,
+        E: Into<BoxedError> + 'static,
+    {
+        let mapped = stream.map_ok(Into::into).map_err(Into::into);
+        Self::Stream(SyncWrapper::new(Box::pin(mapped)))
+    }
+
+    /// Create a `Body` stream with an associated sender half.
+    ///
+    /// Useful when wanting to stream chunks from another thread.
+    pub fn channel() -> (BodySender, Self) {
+        let (data_tx, data_rx) = mpsc::channel(0);
+        let (trailers_tx, trailers_rx) = oneshot::channel();
+
+        let tx = BodySender {
+            data_tx,
+            trailers_tx: Some(trailers_tx),
+        };
+        let rx = ResBody::Channel(BodyReceiver { data_rx, trailers_rx });
+
+        (tx, rx)
+    }
+
     /// Get body's size.
     #[inline]
     pub fn size(&self) -> Option<u64> {
         match self {
-            ResBody::None => Some(0),
-            ResBody::Once(bytes) => Some(bytes.len() as u64),
-            ResBody::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
-            ResBody::Hyper(_) => None,
-            ResBody::Stream(_) => None,
-            ResBody::Error(_) => None,
+            Self::None => Some(0),
+            Self::Once(bytes) => Some(bytes.len() as u64),
+            Self::Chunks(chunks) => Some(chunks.iter().map(|bytes| bytes.len() as u64).sum()),
+            Self::Hyper(_) => None,
+            Self::Boxed(_) => None,
+            Self::Stream(_) => None,
+            Self::Channel { .. } => None,
+            Self::Error(_) => None,
         }
     }
 
     /// Set body to none and returns current body.
     #[inline]
-    pub fn take(&mut self) -> ResBody {
-        std::mem::replace(self, ResBody::None)
-    }
-}
-
-impl Stream for ResBody {
-    type Item = IoResult<Bytes>;
-
-    #[inline]
-    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.get_mut() {
-            ResBody::None => Poll::Ready(None),
-            ResBody::Once(bytes) => {
-                if bytes.is_empty() {
-                    Poll::Ready(None)
-                } else {
-                    let bytes = std::mem::replace(bytes, Bytes::new());
-                    Poll::Ready(Some(Ok(bytes)))
-                }
-            }
-            ResBody::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(Ok)),
-            ResBody::Hyper(body) => match Body::poll_frame(Pin::new(body), cx) {
-                Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
-                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
-                Poll::Ready(None) => Poll::Ready(None),
-                Poll::Pending => Poll::Pending,
-            },
-            ResBody::Stream(stream) => stream
-                .as_mut()
-                .poll_next(cx)
-                .map_err(|e| IoError::new(ErrorKind::Other, e)),
-            ResBody::Error(_) => Poll::Ready(None),
-        }
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::None)
     }
 }
 
@@ -114,92 +139,158 @@ impl Body for ResBody {
 
     fn poll_frame(
         self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, <ResBody as Body>::Error>>> {
-        match self.poll_next(_cx) {
-            Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Some(Ok(Frame::data(bytes)))),
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
+        match self.get_mut() {
+            Self::None => Poll::Ready(None),
+            Self::Once(bytes) => {
+                if bytes.is_empty() {
+                    Poll::Ready(None)
+                } else {
+                    let bytes = std::mem::replace(bytes, Bytes::new());
+                    Poll::Ready(Some(Ok(Frame::data(bytes))))
+                }
+            }
+            Self::Chunks(chunks) => Poll::Ready(chunks.pop_front().map(|bytes| Ok(Frame::data(bytes)))),
+            Self::Hyper(body) => match Body::poll_frame(Pin::new(body), cx) {
+                Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            },
+            Self::Boxed(body) => match Body::poll_frame(Pin::new(body), cx) {
+                Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
+                Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Pending => Poll::Pending,
+            },
+            Self::Stream(stream) => stream
+                .get_mut()
+                .as_mut()
+                .poll_next(cx)
+                .map_ok(|frame| frame.0)
+                .map_err(|e| IoError::new(ErrorKind::Other, e)),
+            Self::Channel(rx) => {
+                if !rx.data_rx.is_terminated() {
+                    if let Some(chunk) = ready!(Pin::new(&mut rx.data_rx).poll_next(cx)?) {
+                        return Poll::Ready(Some(Ok(Frame::data(chunk))));
+                    }
+                }
+
+                // check trailers after data is terminated
+                match ready!(Pin::new(&mut rx.trailers_rx).poll(cx)) {
+                    Ok(t) => Poll::Ready(Some(Ok(Frame::trailers(t)))),
+                    Err(_) => Poll::Ready(None),
+                }
+            }
+            ResBody::Error(_) => Poll::Ready(None),
         }
     }
 
     fn is_end_stream(&self) -> bool {
         match self {
-            ResBody::None => true,
-            ResBody::Once(bytes) => bytes.is_empty(),
-            ResBody::Chunks(chunks) => chunks.is_empty(),
-            ResBody::Hyper(body) => body.is_end_stream(),
-            ResBody::Stream(_) => false,
-            ResBody::Error(_) => true,
+            Self::None => true,
+            Self::Once(bytes) => bytes.is_empty(),
+            Self::Chunks(chunks) => chunks.is_empty(),
+            Self::Hyper(body) => body.is_end_stream(),
+            Self::Boxed(body) => body.is_end_stream(),
+            Self::Stream(_) => false,
+            Self::Channel(_) => false,
+            Self::Error(_) => true,
         }
     }
 
     fn size_hint(&self) -> SizeHint {
         match self {
-            ResBody::None => SizeHint::with_exact(0),
-            ResBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
-            ResBody::Chunks(chunks) => {
+            Self::None => SizeHint::with_exact(0),
+            Self::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
+            Self::Chunks(chunks) => {
                 let size = chunks.iter().map(|bytes| bytes.len() as u64).sum();
                 SizeHint::with_exact(size)
             }
-            ResBody::Hyper(recv) => recv.size_hint(),
-            ResBody::Stream(_) => SizeHint::default(),
-            ResBody::Error(_) => SizeHint::with_exact(0),
+            Self::Hyper(recv) => recv.size_hint(),
+            Self::Boxed(recv) => recv.size_hint(),
+            Self::Stream(_) => SizeHint::default(),
+            Self::Channel { .. } => SizeHint::default(),
+            Self::Error(_) => SizeHint::with_exact(0),
         }
     }
 }
 
+impl Stream for ResBody {
+    type Item = IoResult<Frame<Bytes>>;
+
+    #[inline]
+    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
+        match Body::poll_frame(self, cx) {
+            Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<()> for ResBody {
+    fn from(_value: ()) -> Self {
+        Self::None
+    }
+}
 impl From<Bytes> for ResBody {
-    fn from(value: Bytes) -> ResBody {
-        ResBody::Once(value)
+    fn from(value: Bytes) -> Self {
+        Self::Once(value)
     }
 }
 impl From<Incoming> for ResBody {
-    fn from(value: Incoming) -> ResBody {
-        ResBody::Hyper(value)
+    fn from(value: Incoming) -> Self {
+        Self::Hyper(value)
     }
 }
 impl From<String> for ResBody {
     #[inline]
-    fn from(value: String) -> ResBody {
-        ResBody::Once(value.into())
+    fn from(value: String) -> Self {
+        Self::Once(value.into())
     }
 }
 
 impl From<&'static [u8]> for ResBody {
-    fn from(value: &'static [u8]) -> ResBody {
-        ResBody::Once(value.into())
+    fn from(value: &'static [u8]) -> Self {
+        Self::Once(Bytes::from_static(value))
     }
 }
 
 impl From<&'static str> for ResBody {
-    fn from(value: &'static str) -> ResBody {
-        ResBody::Once(value.into())
+    fn from(value: &'static str) -> Self {
+        Self::Once(Bytes::from_static(value.as_bytes()))
     }
 }
 
 impl From<Vec<u8>> for ResBody {
-    fn from(value: Vec<u8>) -> ResBody {
-        ResBody::Once(value.into())
+    fn from(value: Vec<u8>) -> Self {
+        Self::Once(value.into())
     }
 }
 
-impl From<Box<[u8]>> for ResBody {
-    fn from(value: Box<[u8]>) -> ResBody {
-        ResBody::Once(value.into())
+impl<T> From<Box<T>> for ResBody
+where
+    T: Into<ResBody>,
+{
+    fn from(value: Box<T>) -> Self {
+        (*value).into()
     }
 }
 
 impl Debug for ResBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResBody::None => write!(f, "ResBody::None"),
-            ResBody::Once(bytes) => write!(f, "ResBody::Once({:?})", bytes),
-            ResBody::Chunks(chunks) => write!(f, "ResBody::Chunks({:?})", chunks),
-            ResBody::Hyper(_) => write!(f, "ResBody::Hyper(_)"),
-            ResBody::Stream(_) => write!(f, "ResBody::Stream(_)"),
-            ResBody::Error(_) => write!(f, "ResBody::Error(_)"),
+            Self::None => write!(f, "ResBody::None"),
+            Self::Once(bytes) => write!(f, "ResBody::Once({:?})", bytes),
+            Self::Chunks(chunks) => write!(f, "ResBody::Chunks({:?})", chunks),
+            Self::Hyper(_) => write!(f, "ResBody::Hyper(_)"),
+            Self::Boxed(_) => write!(f, "ResBody::Boxed(_)"),
+            Self::Stream(_) => write!(f, "ResBody::Stream(_)"),
+            Self::Channel { .. } => write!(f, "ResBody::Channel{{..}}"),
+            Self::Error(_) => write!(f, "ResBody::Error(_)"),
         }
     }
 }

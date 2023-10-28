@@ -16,7 +16,7 @@
     <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
 </a>
 <br>
-<a href="https://discord.gg/rUHf3spK">
+<a href="https://discord.gg/G8KfmS6ByH">
     <img src="https://img.shields.io/discord/1041442427006890014.svg?logo=discord">
 </a>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
@@ -40,15 +40,15 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
 - HTTP1, HTTP2 and **HTTP3**;
 - Unified middleware and handle interface;
-- Limitless routers nesting;
-- Every router can have one or many middlewares;
+- Router can be nested infinitely, and multiple middlewares can be attached to any router;
 - Integrated Multipart form processing;
 - Support WebSocket, WebTransport;
-- Support OpenAPI;
-- Acme support, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+- Support OpenAPI, generate OpenAPI data automatic;
+- Support Acme, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
+- Support Tower service and layer.
 
 ## ⚡️ Quick Start
-You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [offical website](https://salvo.rs).
+You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [official website](https://salvo.rs).
 
 ### Hello World with ACME and HTTP3
 
@@ -299,9 +299,6 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 ## ☕ Supporters
 
 Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy a coffee here**](https://ko-fi.com/chrislearn).
-<p style="text-align: center;">
-<img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
-</p>
 
 ## ⚠️ License
 

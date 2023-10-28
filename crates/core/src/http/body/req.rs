@@ -13,6 +13,7 @@ use bytes::Bytes;
 use crate::BoxedError;
 
 /// Body for request.
+#[non_exhaustive]
 #[derive(Default)]
 pub enum ReqBody {
     /// None body.
@@ -22,17 +23,35 @@ pub enum ReqBody {
     Once(Bytes),
     /// Hyper default body.
     Hyper(Incoming),
-    /// Inner body.
-    Inner(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + Unpin + 'static>>),
+    /// Boxed body.
+    Boxed(Pin<Box<dyn Body<Data = Bytes, Error = BoxedError> + Send + Sync + 'static>>),
 }
-impl fmt::Debug for ReqBody {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
-            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
-            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
-            ReqBody::Inner(_) => f.debug_tuple("ReqBody::Inner").finish(),
-        }
+impl ReqBody {
+    /// Check is that body is not set.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        matches!(*self, Self::None)
+    }
+    /// Check is that body is once.
+    #[inline]
+    pub fn is_once(&self) -> bool {
+        matches!(*self, Self::Once(_))
+    }
+    /// Check is that body is hyper default body type.
+    #[inline]
+    pub fn is_hyper(&self) -> bool {
+        matches!(*self, Self::Hyper(_))
+    }
+    /// Check is that body is stream.
+    #[inline]
+    pub fn is_boxed(&self) -> bool {
+        matches!(*self, Self::Boxed(_))
+    }
+
+    /// Set body to none and returns current body.
+    #[inline]
+    pub fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::None)
     }
 }
 
@@ -45,8 +64,8 @@ impl Body for ReqBody {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         match &mut *self {
-            ReqBody::None => Poll::Ready(None),
-            ReqBody::Once(bytes) => {
+            Self::None => Poll::Ready(None),
+            Self::Once(bytes) => {
                 if bytes.is_empty() {
                     Poll::Ready(None)
                 } else {
@@ -54,10 +73,10 @@ impl Body for ReqBody {
                     Poll::Ready(Some(Ok(Frame::data(bytes))))
                 }
             }
-            ReqBody::Hyper(body) => Pin::new(body)
+            Self::Hyper(body) => Pin::new(body)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
-            ReqBody::Inner(inner) => Pin::new(inner)
+            Self::Boxed(inner) => Pin::new(inner)
                 .poll_frame(cx)
                 .map_err(|e| IoError::new(ErrorKind::Other, e)),
         }
@@ -65,28 +84,28 @@ impl Body for ReqBody {
 
     fn is_end_stream(&self) -> bool {
         match self {
-            ReqBody::None => true,
-            ReqBody::Once(bytes) => bytes.is_empty(),
-            ReqBody::Hyper(body) => body.is_end_stream(),
-            ReqBody::Inner(inner) => inner.is_end_stream(),
+            Self::None => true,
+            Self::Once(bytes) => bytes.is_empty(),
+            Self::Hyper(body) => body.is_end_stream(),
+            Self::Boxed(body) => body.is_end_stream(),
         }
     }
 
     fn size_hint(&self) -> SizeHint {
         match self {
-            ReqBody::None => SizeHint::with_exact(0),
-            ReqBody::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
-            ReqBody::Hyper(body) => body.size_hint(),
-            ReqBody::Inner(inner) => inner.size_hint(),
+            Self::None => SizeHint::with_exact(0),
+            Self::Once(bytes) => SizeHint::with_exact(bytes.len() as u64),
+            Self::Hyper(body) => body.size_hint(),
+            Self::Boxed(body) => body.size_hint(),
         }
     }
 }
 impl Stream for ReqBody {
-    type Item = IoResult<Bytes>;
+    type Item = IoResult<Frame<Bytes>>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Body::poll_frame(self, cx) {
-            Poll::Ready(Some(Ok(frame))) => Poll::Ready(frame.into_data().map(Ok).ok()),
+            Poll::Ready(Some(Ok(frame))) => Poll::Ready(Some(Ok(frame))),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::new(ErrorKind::Other, e)))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
@@ -95,43 +114,46 @@ impl Stream for ReqBody {
 }
 
 impl From<Bytes> for ReqBody {
-    fn from(value: Bytes) -> ReqBody {
-        ReqBody::Once(value)
+    fn from(value: Bytes) -> Self {
+        Self::Once(value)
     }
 }
 impl From<Incoming> for ReqBody {
-    fn from(value: Incoming) -> ReqBody {
-        ReqBody::Hyper(value)
+    fn from(value: Incoming) -> Self {
+        Self::Hyper(value)
     }
 }
 impl From<String> for ReqBody {
     #[inline]
-    fn from(value: String) -> ReqBody {
-        ReqBody::Once(value.into())
+    fn from(value: String) -> Self {
+        Self::Once(value.into())
     }
 }
 
 impl From<&'static [u8]> for ReqBody {
-    fn from(value: &'static [u8]) -> ReqBody {
-        ReqBody::Once(value.into())
+    fn from(value: &'static [u8]) -> Self {
+        Self::Once(Bytes::from_static(value))
     }
 }
 
 impl From<&'static str> for ReqBody {
-    fn from(value: &'static str) -> ReqBody {
-        ReqBody::Once(value.into())
+    fn from(value: &'static str) -> Self {
+        Self::Once(Bytes::from_static(value.as_bytes()))
     }
 }
 
 impl From<Vec<u8>> for ReqBody {
-    fn from(value: Vec<u8>) -> ReqBody {
-        ReqBody::Once(value.into())
+    fn from(value: Vec<u8>) -> Self {
+        Self::Once(value.into())
     }
 }
 
-impl From<Box<[u8]>> for ReqBody {
-    fn from(value: Box<[u8]>) -> ReqBody {
-        ReqBody::Once(value.into())
+impl<T> From<Box<T>> for ReqBody
+where
+    T: Into<ReqBody>,
+{
+    fn from(value: Box<T>) -> Self {
+        (*value).into()
     }
 }
 
@@ -202,8 +224,19 @@ cfg_feature! {
             B: Buf + Send + Sync +  Unpin + 'static,
         {
             fn from(value: H3ReqBody<S, B>) -> ReqBody {
-                ReqBody::Inner(Box::pin(value))
+                ReqBody::Boxed(Box::pin(value))
             }
+        }
+    }
+}
+
+impl fmt::Debug for ReqBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
+            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
+            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
+            ReqBody::Boxed(_) => f.debug_tuple("ReqBody::Boxed").finish(),
         }
     }
 }

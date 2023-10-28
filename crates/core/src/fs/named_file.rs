@@ -163,7 +163,7 @@ impl NamedFileBuilder {
 
         let file = File::open(&path).await?;
         let content_type = content_type.unwrap_or_else(|| {
-            let ct = mime_guess::from_path(&path).first_or_octet_stream();
+            let ct = mime_infer::from_path(&path).first_or_octet_stream();
             let ftype = ct.type_();
             let stype = ct.subtype();
             if (ftype == mime::TEXT || stype == mime::JSON || stype == mime::JAVASCRIPT)
@@ -510,7 +510,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(reader.total_size));
-            res.streaming(reader).ok();
+            res.stream(reader);
         } else {
             res.status_code(StatusCode::OK);
             let reader = ChunkedFile {
@@ -521,7 +521,7 @@ impl NamedFile {
                 buffer_size: self.buffer_size,
             };
             res.headers_mut().typed_insert(ContentLength(length));
-            res.streaming(reader).ok();
+            res.stream(reader);
         }
     }
 }

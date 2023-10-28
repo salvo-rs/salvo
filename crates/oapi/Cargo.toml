@@ -14,8 +14,9 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrisle
 
 [features]
 default = []
-full = ["swagger-ui", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml"]
+full = ["swagger-ui", "scalar", "rapidoc", "redoc", "chrono", "decimal", "url", "ulid", "uuid", "time", "smallvec", "indexmap", "yaml"]
 swagger-ui = ["dep:rust-embed"]
+scalar = []
 rapidoc = []
 redoc = []
 chrono = ["salvo-oapi-macros/chrono", "dep:chrono"]
@@ -33,13 +34,12 @@ yaml = ["dep:serde_yaml"]
 salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 base64 = { workspace = true }
-num-traits = { workspace = true }
 thiserror = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 inventory = { workspace = true }
-mime_guess = { workspace = true }
+mime-infer = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

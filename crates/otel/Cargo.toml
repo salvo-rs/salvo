@@ -23,7 +23,6 @@ default = []
 [dependencies]
 opentelemetry-http = { workspace = true }
 opentelemetry-semantic-conventions = { workspace = true }
-opentelemetry-prometheus = { workspace = true }
 opentelemetry = { workspace = true, features = ["metrics"] }
 salvo_core = { workspace = true, default-features = false }
 

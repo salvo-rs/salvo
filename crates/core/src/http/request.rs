@@ -171,6 +171,48 @@ impl Request {
             scheme,
         }
     }
+
+    /// Strip the request to [`hyper::Request`].
+    #[doc(hidden)]
+    #[inline]
+    pub fn strip_to_hyper(&mut self) -> Result<hyper::Request<ReqBody>, http::Error> {
+        let mut builder = http::request::Builder::new()
+            .method(self.method.clone())
+            .uri(self.uri.clone())
+            .version(self.version);
+        if let Some(headers) = builder.headers_mut() {
+            *headers = std::mem::take(&mut self.headers);
+        }
+        if let Some(extensions) = builder.extensions_mut() {
+            *extensions = std::mem::take(&mut self.extensions);
+        }
+        builder.body(std::mem::take(&mut self.body))
+    }
+
+    /// Merge data from [`hyper::Request`].
+    #[doc(hidden)]
+    #[inline]
+    pub fn merge_hyper(&mut self, hyper_req: hyper::Request<ReqBody>) {
+        let (
+            http::request::Parts {
+                method,
+                uri,
+                version,
+                headers,
+                extensions,
+                ..
+            },
+            body,
+        ) = hyper_req.into_parts();
+
+        self.method = method;
+        self.uri = uri;
+        self.version = version;
+        self.headers = headers;
+        self.extensions = extensions;
+        self.body = body;
+    }
+
     /// Returns a reference to the associated URI.
     ///
     /// # Examples

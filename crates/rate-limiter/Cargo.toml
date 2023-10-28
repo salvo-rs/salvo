@@ -25,7 +25,7 @@ fixed-guard = []
 sliding-guard = []
 
 [dependencies]
-moka = { workspace = true, optional = true }
+moka = { workspace = true, optional = true, features=["future"] }
 salvo_core = { workspace = true, default-features = false }
 serde = { workspace = true }
 time = { workspace = true, features = ["serde"] }

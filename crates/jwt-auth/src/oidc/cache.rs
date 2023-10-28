@@ -16,7 +16,7 @@ use salvo_core::http::header::HeaderValue;
 use super::{current_time, decode_jwk, DecodingInfo, JwkSetFetch};
 
 /// Determines settings about updating the cached JWKS data.
-/// The JWKS will be lazily revalidated every time [validate](crate::Validator) validates a token.
+/// The JWKS will be lazily revalidated every time validator validates a token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CachePolicy {
     /// Time in Seconds to refresh the JWKS from the OIDC Provider

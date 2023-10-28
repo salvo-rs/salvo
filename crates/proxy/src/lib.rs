@@ -209,8 +209,6 @@ where
         for (key, value) in req.headers() {
             if key != HOST {
                 build = build.header(key, value);
-            } else {
-                build = build.header(HOST, forward_url.host().unwrap());
             }
         }
         if let Some(host) = forward_url.host().and_then(|host| HeaderValue::from_str(host).ok()) {
@@ -245,7 +243,8 @@ where
     ) -> Result<HyperResponse, Error> {
         let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request = proxied_request.map(reqwest::Body::wrap_stream);
+        let proxied_request =
+            proxied_request.map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
         let response = self
             .client
             .execute(proxied_request.try_into().map_err(Error::other)?)
@@ -289,7 +288,7 @@ where
             hyper_response.body(ResBody::None).map_err(Error::other)?
         } else {
             hyper_response
-                .body(ResBody::Stream(Box::pin(response.bytes_stream().map_err(|e| e.into()))))
+                .body(ResBody::stream(response.bytes_stream()))
                 .map_err(Error::other)?
         };
         *hyper_response.headers_mut() = res_headers;

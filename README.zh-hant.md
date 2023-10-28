@@ -16,7 +16,7 @@
     <img alt="build status" src="https://github.com/salvo-rs/salvo/workflows/ci-windows/badge.svg?branch=main&event=push" />
 </a>
 <br>
-<a href="https://discord.gg/rUHf3spK">
+<a href="https://discord.gg/G8KfmS6ByH">
     <img src="https://img.shields.io/discord/1041442427006890014.svg?logo=discord">
 </a>
 <a href="https://crates.io/crates/salvo"><img alt="crates.io" src="https://img.shields.io/crates/v/salvo" /></a>
@@ -42,12 +42,12 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 - 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
 - 統一的中間件和句柄接口;
 - 支持 HTTP1, HTTP2 和 **HTTP3**;
-- 路由支持無限層次嵌套;
-- 每一個路由都可以擁有一個或者多個中間件;
+- 路由可以無限嵌套，並且可以在任何路由是附加多個中間件;
 - 集成 Multipart 錶單處理;
 - 支持 WebSocket, WebTransport;
 - 支持 OpenAPI;
 - 支持 Acme, 自動從 [let's encrypt](https://letsencrypt.org/) 獲取 TLS 證書.
+- 支持 Tower serivce 和 layer.
 
 ## ⚡️ 快速開始
 

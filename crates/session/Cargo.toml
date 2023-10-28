@@ -25,5 +25,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"]}
-tracing-test = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

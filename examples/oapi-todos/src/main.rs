@@ -1,10 +1,24 @@
 use once_cell::sync::Lazy;
-use salvo::oapi::extract::*;
+use salvo::oapi::{extract::*, ToSchema};
 use salvo::prelude::*;
-
-use self::models::*;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 static STORE: Lazy<Db> = Lazy::new(new_store);
+pub type Db = Mutex<Vec<Todo>>;
+
+pub fn new_store() -> Db {
+    Mutex::new(Vec::new())
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
+pub struct Todo {
+    #[salvo(schema(example = 1))]
+    pub id: u64,
+    #[salvo(schema(example = "Buy coffee"))]
+    pub text: String,
+    pub completed: bool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -24,6 +38,7 @@ async fn main() {
     let router = router
         .unshift(doc.into_router("/api-doc/openapi.json"))
         .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"))
+        .unshift(Scalar::new("/api-doc/openapi.json").into_router("/scalar"))
         .unshift(RapiDoc::new("/api-doc/openapi.json").into_router("/rapidoc"))
         .unshift(ReDoc::new("/api-doc/openapi.json").into_router("/redoc"));
 
@@ -38,6 +53,7 @@ pub async fn index() -> Text<&'static str> {
 
 /// List todos.
 #[endpoint(
+    tags("todos"),
     parameters(
         ("offset", description = "Offset is an optional query paramter."),
     )
@@ -54,7 +70,7 @@ pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usiz
 }
 
 /// Create new todo.
-#[endpoint(status_codes(201, 409))]
+#[endpoint(tags("todos"), status_codes(201, 409))]
 pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?new_todo, "create todo");
 
@@ -72,7 +88,7 @@ pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusE
 }
 
 /// Update existing todo.
-#[endpoint(status_codes(200, 404))]
+#[endpoint(tags("todos"), status_codes(200, 404))]
 pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
     tracing::debug!(todo = ?updated, id = ?id, "update todo");
     let mut vec = STORE.lock().await;
@@ -89,7 +105,7 @@ pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<
 }
 
 /// Delete todo.
-#[endpoint(status_codes(200, 401, 404))]
+#[endpoint(tags("todos"), status_codes(200, 401, 404))]
 pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> {
     tracing::debug!(id = ?id, "delete todo");
 
@@ -107,27 +123,6 @@ pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> 
     }
 }
 
-mod models {
-    use salvo::oapi::ToSchema;
-    use serde::{Deserialize, Serialize};
-    use tokio::sync::Mutex;
-
-    pub type Db = Mutex<Vec<Todo>>;
-
-    pub fn new_store() -> Db {
-        Mutex::new(Vec::new())
-    }
-
-    #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-    pub struct Todo {
-        #[salvo(schema(example = 1))]
-        pub id: u64,
-        #[salvo(schema(example = "Buy coffee"))]
-        pub text: String,
-        pub completed: bool,
-    }
-}
-
 static INDEX_HTML: &str = r#"<!DOCTYPE html>
 <html>
     <head>
@@ -136,6 +131,7 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
     <body>
         <ul>
         <li><a href="swagger-ui" target="_blank">swagger-ui</a></li>
+        <li><a href="scalar" target="_blank">scalar</a></li>
         <li><a href="rapidoc" target="_blank">rapidoc</a></li>
         <li><a href="redoc" target="_blank">redoc</a></li>
         </ul>

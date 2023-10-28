@@ -20,19 +20,19 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = ["embed"]
-embed = ["dep:rust-embed"]
+embed = ["dep:rust-embed", "dep:hex", "dep:path-slash"]
 
 [dependencies]
-hex = { workspace = true }
+hex = { workspace = true, optional = true }
 mime = { workspace = true }
-mime_guess = { workspace = true }
-path-slash = { workspace = true }
+mime-infer = { workspace = true }
+path-slash = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-time = {workspace = true, features = ["formatting", "macros", "serde"] }
+time = { workspace = true, features = ["formatting", "macros", "serde"] }
 tracing = { workspace = true }
 tokio = { workspace = true }
 

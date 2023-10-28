@@ -30,7 +30,7 @@
 //! }
 //! #[handler]
 //! async fn handle(res: &mut Response) {
-//!     sse::streaming(res, sse_events());
+//!     sse::stream(res, sse_events());
 //! }
 //! #[tokio::main]
 //! async fn main() {
@@ -254,13 +254,13 @@ where
 
     /// Send stream.
     #[inline]
-    pub fn streaming(self, res: &mut Response) -> salvo_core::Result<()> {
-        streaming(res, self)
+    pub fn stream(self, res: &mut Response) {
+        stream(res, self)
     }
 }
 
 #[inline]
-fn write_request_headers(res: &mut Response) {
+fn write_response_headers(res: &mut Response) {
     res.headers_mut()
         .insert(CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
     // Disable response body caching
@@ -268,14 +268,14 @@ fn write_request_headers(res: &mut Response) {
         .insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 }
 
-/// Streaming
+/// Send event stream.
 #[inline]
-pub fn streaming<S>(res: &mut Response, event_stream: S) -> salvo_core::Result<()>
+pub fn stream<S>(res: &mut Response, event_stream: S)
 where
     S: TryStream<Ok = SseEvent> + Send + 'static,
     S::Error: StdError + Send + Sync + 'static,
 {
-    write_request_headers(res);
+    write_response_headers(res);
     let body_stream = event_stream
         .map_err(|e| {
             tracing::error!("sse stream error: {}", e);
@@ -283,7 +283,7 @@ where
         })
         .into_stream()
         .and_then(|event| future::ready(Ok(event.to_string())));
-    res.streaming(body_stream)
+    res.stream(body_stream)
 }
 
 impl<S> Stream for SseKeepAlive<S>
@@ -338,7 +338,7 @@ mod tests {
             Ok::<_, Infallible>(SseEvent::default().text("2")),
         ]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("data:1") && text.contains("data:2"));
     }
@@ -350,8 +350,7 @@ mod tests {
         SseKeepAlive::new(event_stream)
             .comment("love you")
             .max_interval(Duration::from_secs(1))
-            .streaming(&mut res)
-            .unwrap();
+            .stream(&mut res);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("data:1"));
     }
@@ -367,7 +366,7 @@ mod tests {
             name: "jobs".to_owned(),
         })]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains(r#"data:{"name":"jobs"}"#));
     }
@@ -376,7 +375,7 @@ mod tests {
     async fn test_sse_comment() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().comment("comment"))]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains(":comment"));
     }
@@ -385,7 +384,7 @@ mod tests {
     async fn test_sse_name() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().name("evt2"))]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("event:evt2"));
     }
@@ -396,7 +395,7 @@ mod tests {
             SseEvent::default().retry(std::time::Duration::from_secs_f32(1.0)),
         )]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("retry:1000"));
 
@@ -404,7 +403,7 @@ mod tests {
             SseEvent::default().retry(std::time::Duration::from_secs_f32(1.001)),
         )]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("retry:1001"));
     }
@@ -413,7 +412,7 @@ mod tests {
     async fn test_sse_id() {
         let event_stream = tokio_stream::iter(vec![Ok::<_, Infallible>(SseEvent::default().id("jobs"))]);
         let mut res = Response::new();
-        super::streaming(&mut res, event_stream).unwrap();
+        super::stream(&mut res, event_stream);
         let text = res.take_string().await.unwrap();
         assert!(text.contains("id:jobs"));
     }

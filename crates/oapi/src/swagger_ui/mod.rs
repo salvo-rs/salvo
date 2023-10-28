@@ -17,7 +17,7 @@ use salvo_core::{async_trait, Depot, Error, FlowCtrl, Handler, Request, Response
 use serde::Serialize;
 
 #[derive(RustEmbed)]
-#[folder = "src/swagger_ui/v5.7.0"]
+#[folder = "src/swagger_ui/v5.9.0"]
 struct SwaggerUiDist;
 
 const INDEX_TMPL: &str = r#"
@@ -27,8 +27,6 @@ const INDEX_TMPL: &str = r#"
     <meta charset="UTF-8">
     <title>Swagger UI</title>
     <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
-    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
     <style>
     html {
         box-sizing: border-box;
@@ -114,7 +112,7 @@ impl SwaggerUi {
 
     /// Add multiple [`Url`]s to Swagger UI.
     ///
-    /// Takes one [`Vec`] argument containing tuples of [`Url`] and [`OpenApi`].
+    /// Takes one [`Vec`] argument containing tuples of [`Url`] and [OpenApi][crate::OpenApi].
     ///
     /// Situations where this comes handy is when there is a need or wish to separate different parts
     /// of the api to separate api docs.
@@ -353,7 +351,7 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
     };
     let file = bytes.map(|bytes| SwaggerFile {
         bytes,
-        content_type: mime_guess::from_path(path).first_or_octet_stream().to_string(),
+        content_type: mime_infer::from_path(path).first_or_octet_stream().to_string(),
     });
 
     Ok(file)
