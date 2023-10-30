@@ -32,13 +32,12 @@ acme = ["http1", "http2", "dep:base64", "hyper/client", "dep:reqwest", "dep:rcge
 tower-compat = ["dep:tower"]
 
 [dependencies]
-cruet = { workspace = true }
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true }
 base64 = { workspace = true, optional = true }
-http-body-util = { workspace = true }
 bytes = { workspace = true }
 cookie = { workspace = true, features = ["percent-encode", "private", "signed"], optional = true }
+cruet = { workspace = true }
 encoding_rs = { workspace = true, optional = true }
 enumflags2 = { workspace = true }
 eyre = { workspace = true, optional = true }
@@ -47,6 +46,7 @@ futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 headers = { workspace = true }
 http = { workspace = true }
+http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap = { workspace = true }
 mime = { workspace = true }
@@ -60,6 +60,7 @@ percent-encoding = { workspace = true }
 pin-project = { workspace = true }
 parking_lot = { workspace = true }
 quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
+rand = { workspace = true }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["rustls-tls", "json"] }
@@ -74,14 +75,13 @@ serde-xml-rs = { workspace = true }
 serde_urlencoded = { workspace = true, optional = true }
 sync_wrapper = { workspace = true }
 tempfile = { workspace = true }
-textnonce = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io"] }
-tower = { workspace = true, optional = true, default-features = false, features = ["buffer"]}
+tower = { workspace = true, optional = true, default-features = false, features = ["buffer"] }
 tracing = { workspace = true }
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }
