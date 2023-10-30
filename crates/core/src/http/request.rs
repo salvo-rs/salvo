@@ -1,7 +1,7 @@
 //! Http request.
 
-use std::fmt::{self, Formatter};
 use std::error::Error as StdError;
+use std::fmt::{self, Formatter};
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
