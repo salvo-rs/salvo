@@ -15,7 +15,7 @@ use crate::http::{ReqBody, ResBody, StatusError};
 use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 /// Trait for tower service compat.
-pub trait TowerServiceCompat<B, E, Fut> {
+pub trait TowerServiceCompat<QB, SB, E, Fut> {
     /// Converts a tower service to a salvo handler.
     fn compat(self) -> TowerServiceHandler<Self>
     where
@@ -25,14 +25,15 @@ pub trait TowerServiceCompat<B, E, Fut> {
     }
 }
 
-impl<T, B, E, Fut> TowerServiceCompat<B, E, Fut> for T
+impl<T, QB, SB, E, Fut> TowerServiceCompat<QB, SB, E, Fut> for T
 where
-    B: Body + Send + Sync + 'static,
-    B::Data: Into<Bytes> + Send + fmt::Debug + 'static,
-    B::Error: StdError + Send + Sync + 'static,
+    QB: Into<ReqBody> + Send + Sync + 'static,
+    SB: Body + Send + Sync + 'static,
+    SB::Data: Into<Bytes> + Send + fmt::Debug + 'static,
+    SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
-    T: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>, Future = Fut> + Clone + Send + Sync + 'static,
-    Fut: Future<Output = Result<hyper::Response<B>, E>> + Send + 'static,
+    T: Service<hyper::Request<QB>, Response = hyper::Response<SB>, Future = Fut> + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
 {
 }
 
@@ -40,14 +41,15 @@ where
 pub struct TowerServiceHandler<Svc>(Svc);
 
 #[async_trait]
-impl<Svc, B, E, Fut> Handler for TowerServiceHandler<Svc>
+impl<Svc, QB, SB, E, Fut> Handler for TowerServiceHandler<Svc>
 where
-    B: Body + Send + Sync + 'static,
-    B::Data: Into<Bytes> + Send + fmt::Debug + 'static,
-    B::Error: StdError + Send + Sync + 'static,
+    QB: Into<ReqBody> + Send + Sync + 'static,
+    SB: Body + Send + Sync + 'static,
+    SB::Data: Into<Bytes> + Send + fmt::Debug + 'static,
+    SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
-    Svc: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>, Future = Fut> + Send + Sync + Clone + 'static,
-    Fut: Future<Output = Result<hyper::Response<B>, E>> + Send + 'static,
+    Svc: Service<hyper::Request<QB>, Response = hyper::Response<SB>, Future = Fut> + Send + Sync + Clone + 'static,
+    Fut: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let mut svc = self.0.clone();
