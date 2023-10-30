@@ -3,6 +3,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
+use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
@@ -17,33 +18,34 @@ use crate::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 /// Trait for tower service compat.
 pub trait TowerServiceCompat<QB, SB, E, Fut> {
     /// Converts a tower service to a salvo handler.
-    fn compat(self) -> TowerServiceHandler<Self>
+    fn compat(self) -> TowerServiceHandler<Self, QB>
     where
         Self: Sized,
     {
-        TowerServiceHandler(self)
+        TowerServiceHandler(self, PhantomData)
     }
 }
 
 impl<T, QB, SB, E, Fut> TowerServiceCompat<QB, SB, E, Fut> for T
 where
-    QB: Into<ReqBody> + Send + Sync + 'static,
+    QB: From<ReqBody> + Send + Sync + 'static,
     SB: Body + Send + Sync + 'static,
     SB::Data: Into<Bytes> + Send + fmt::Debug + 'static,
     SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
-    T: Service<hyper::Request<QB>, Response = hyper::Response<SB>, Future = Fut> + Clone + Send + Sync + 'static,
+    T: Service<hyper::Request<ReqBody>, Response = hyper::Response<SB>, Future = Fut> + Clone + Send + Sync + 'static,
     Fut: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
 {
 }
 
 /// Tower service compat handler.
-pub struct TowerServiceHandler<Svc>(Svc);
+pub struct TowerServiceHandler<Svc, QB>(Svc, PhantomData<QB>);
 
 #[async_trait]
-impl<Svc, QB, SB, E, Fut> Handler for TowerServiceHandler<Svc>
+impl<Svc, QB, SB, E, Fut> Handler for TowerServiceHandler<Svc, QB>
 where
-    QB: Into<ReqBody> + Send + Sync + 'static,
+    QB: TryFrom<ReqBody> + Body + Send + Sync + 'static,
+    <QB as TryFrom<ReqBody>>::Error: StdError + Send + Sync + 'static,
     SB: Body + Send + Sync + 'static,
     SB::Data: Into<Bytes> + Send + fmt::Debug + 'static,
     SB::Error: StdError + Send + Sync + 'static,
@@ -58,7 +60,7 @@ where
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
         }
-        let hyper_req = match req.strip_to_hyper() {
+        let hyper_req = match req.strip_to_hyper::<QB>() {
             Ok(hyper_req) => hyper_req,
             Err(_) => {
                 tracing::error!("strip request to hyper failed.");
@@ -157,12 +159,14 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
 /// Trait for tower layer compat.
 pub trait TowerLayerCompat {
     /// Converts a tower layer to a salvo handler.
-    fn compat(self) -> TowerLayerHandler<Self::Service>
+    fn compat<QB>(self) -> TowerLayerHandler<Self::Service, QB>
     where
+        QB: TryFrom<ReqBody> + Body + Send + Sync + 'static,
+        <QB as TryFrom<ReqBody>>::Error: StdError + Send + Sync + 'static,
         Self: Layer<FlowCtrlService> + Sized,
-        Self::Service: tower::Service<hyper::Request<ReqBody>> + Sync + Send + 'static,
-        <Self::Service as Service<hyper::Request<ReqBody>>>::Future: Send,
-        <Self::Service as Service<hyper::Request<ReqBody>>>::Error: StdError + Send + Sync,
+        Self::Service: tower::Service<hyper::Request<QB>> + Sync + Send + 'static,
+        <Self::Service as Service<hyper::Request<QB>>>::Future: Send,
+        <Self::Service as Service<hyper::Request<QB>>>::Error: StdError + Send + Sync,
     {
         TowerLayerHandler(Buffer::new(self.layer(FlowCtrlService), 32))
     }
@@ -171,17 +175,19 @@ pub trait TowerLayerCompat {
 impl<T> TowerLayerCompat for T where T: Layer<FlowCtrlService> + Send + Sync + Sized + 'static {}
 
 /// Tower service compat handler.
-pub struct TowerLayerHandler<Svc: Service<hyper::Request<ReqBody>>>(Buffer<Svc, hyper::Request<ReqBody>>);
+pub struct TowerLayerHandler<Svc: Service<hyper::Request<QB>>, QB>(Buffer<Svc, hyper::Request<QB>>);
 
 #[async_trait]
-impl<Svc, B, E> Handler for TowerLayerHandler<Svc>
+impl<Svc, QB, SB, E> Handler for TowerLayerHandler<Svc, QB>
 where
-    B: Body + Send + Sync + 'static,
-    B::Data: Into<Bytes> + Send + fmt::Debug + 'static,
-    B::Error: StdError + Send + Sync + 'static,
+    QB: TryFrom<ReqBody> + Body + Send + Sync + 'static,
+    <QB as TryFrom<ReqBody>>::Error: StdError + Send + Sync + 'static,
+    SB: Body + Send + Sync + 'static,
+    SB::Data: Into<Bytes> + Send + fmt::Debug + 'static,
+    SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
-    Svc: Service<hyper::Request<ReqBody>, Response = hyper::Response<B>> + Send + 'static,
-    Svc::Future: Future<Output = Result<hyper::Response<B>, E>> + Send + 'static,
+    Svc: Service<hyper::Request<QB>, Response = hyper::Response<SB>> + Send + 'static,
+    Svc::Future: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
     Svc::Error: StdError + Send + Sync,
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
@@ -192,7 +198,7 @@ where
             return;
         }
 
-        let mut hyper_req = match req.strip_to_hyper() {
+        let mut hyper_req = match req.strip_to_hyper::<QB>() {
             Ok(hyper_req) => hyper_req,
             Err(_) => {
                 tracing::error!("strip request to hyper failed.");
