@@ -1,14 +1,18 @@
 //! form parse module
 use std::ffi::OsStr;
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::Engine;
 use futures_util::StreamExt;
 use http_body_util::BodyExt;
 use mime::Mime;
 use multer::{Field, Multipart};
 use multimap::MultiMap;
+use rand::rngs::OsRng;
+use rand::RngCore;
 use tempfile::Builder;
-use textnonce::TextNonce;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -147,7 +151,7 @@ impl FilePart {
         let name = field.file_name().map(|s| s.to_owned());
         path.push(format!(
             "{}.{}",
-            TextNonce::sized_urlsafe(32).unwrap().into_string(),
+            text_nonce(),
             name.as_deref()
                 .and_then(|name| { Path::new(name).extension().and_then(OsStr::to_str) })
                 .unwrap_or("unknown")
@@ -178,4 +182,28 @@ impl Drop for FilePart {
             });
         }
     }
+}
+
+// Port from https://github.com/mikedilger/textnonce/blob/master/src/lib.rs
+fn text_nonce() -> String {
+    const BYTE_LEN: usize = 24;
+    let mut raw: Vec<u8> = vec![0; BYTE_LEN];
+
+    // Get the first 12 bytes from the current time
+    if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        let secs: u64 = now.as_secs();
+        let nsecs: u32 = now.subsec_nanos();
+
+        let mut cursor = Cursor::new(&mut *raw);
+        Write::write_all(&mut cursor, &nsecs.to_le_bytes()).unwrap();
+        Write::write_all(&mut cursor, &secs.to_le_bytes()).unwrap();
+
+        // Get the last bytes from random data
+        OsRng.fill_bytes(&mut raw[12..BYTE_LEN]);
+    } else {
+        OsRng.fill_bytes(&mut raw[..]);
+    }
+
+    // base64 encode
+    URL_SAFE_NO_PAD.encode(&raw)
 }
