@@ -186,6 +186,14 @@ impl Metadata {
         self.rename_all = rename_all.into();
         self
     }
+
+    /// Check is this type has body required.
+    pub(crate) fn has_body_required(&self) -> bool {
+        if self.default_sources.iter().any(|s| s.from == SourceFrom::Body) {
+            return true;
+        }
+        self.fields.iter().any(|f| f.has_body_required())
+    }
 }
 
 /// Information about struct field.
@@ -248,6 +256,11 @@ impl Field {
     pub fn rename(mut self, rename: &'static str) -> Self {
         self.rename = Some(rename);
         self
+    }
+
+    /// Check is this field has body required.
+    pub(crate) fn has_body_required(&self) -> bool {
+        self.sources.iter().any(|s| s.from == SourceFrom::Body)
     }
 }
 

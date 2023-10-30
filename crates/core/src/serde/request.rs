@@ -23,8 +23,21 @@ where
     T: Deserialize<'de>,
 {
     // Ensure body is parsed correctly.
-    req.form_data().await.ok();
-    req.payload().await.ok();
+    if let Some(ctype) = req.content_type() {
+        match ctype.subtype() {
+            mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
+                if metadata.has_body_required() {
+                    req.form_data().await.ok();
+                }
+            }
+            mime::JSON => {
+                if metadata.has_body_required() {
+                    req.payload().await.ok();
+                }
+            }
+            _ => {}
+        }
+    }
     Ok(T::deserialize(RequestDeserializer::new(req, metadata)?)?)
 }
 
@@ -58,14 +71,18 @@ impl<'de> RequestDeserializer<'de> {
         if let Some(ctype) = request.content_type() {
             match ctype.subtype() {
                 mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
-                    payload = request.form_data.get().map(Payload::FormData);
+                    if metadata.has_body_required() {
+                        payload = request.form_data.get().map(Payload::FormData);
+                    }
                 }
                 mime::JSON => {
-                    if let Some(data) = request.payload.get() {
-                        payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
-                            Ok(map) => Some(Payload::JsonMap(map)),
-                            Err(_) => Some(Payload::JsonStr(std::str::from_utf8(data)?)),
-                        };
+                    if metadata.has_body_required() {
+                        if let Some(data) = request.payload.get() {
+                            payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                                Ok(map) => Some(Payload::JsonMap(map)),
+                                Err(_) => Some(Payload::JsonStr(std::str::from_utf8(data)?)),
+                            };
+                        }
                     }
                 }
                 _ => {}
