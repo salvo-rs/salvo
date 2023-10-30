@@ -5,7 +5,7 @@ Macro accepts set of attributes that can be used to configure and override defau
 You can use the Rust's own `#[deprecated]` attribute on functions to mark it as deprecated and it will
 reflect to the generated OpenAPI spec. Only **parameters** has a special **deprecated** attribute to define them as deprecated.
 
-`#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is is not supported in
+`#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is not supported in
 OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 
