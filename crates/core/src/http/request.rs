@@ -1,5 +1,6 @@
 //! Http request.
 
+use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
 
 use bytes::Bytes;
@@ -175,7 +176,11 @@ impl Request {
     /// Strip the request to [`hyper::Request`].
     #[doc(hidden)]
     #[inline]
-    pub fn strip_to_hyper(&mut self) -> Result<hyper::Request<ReqBody>, http::Error> {
+    pub fn strip_to_hyper<QB>(&mut self) -> Result<hyper::Request<QB>, crate::Error>
+    where
+        QB: TryFrom<ReqBody>,
+        <QB as TryFrom<ReqBody>>::Error: StdError + Send + Sync + 'static,
+    {
         let mut builder = http::request::Builder::new()
             .method(self.method.clone())
             .uri(self.uri.clone())
@@ -186,7 +191,11 @@ impl Request {
         if let Some(extensions) = builder.extensions_mut() {
             *extensions = std::mem::take(&mut self.extensions);
         }
-        builder.body(std::mem::take(&mut self.body))
+
+        std::mem::take(&mut self.body)
+            .try_into()
+            .map_err(crate::Error::other)
+            .and_then(|body| builder.body(body).map_err(crate::Error::other))
     }
 
     /// Merge data from [`hyper::Request`].
