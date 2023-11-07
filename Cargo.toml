@@ -63,7 +63,7 @@ openssl = "0.10"
 opentelemetry-http = { version = "0.9", default-features = false }
 opentelemetry-semantic-conventions = { version = "0.12", default-features = false }
 opentelemetry-prometheus = { version = "0.13", default-features = false }
-opentelemetry = { version = "0.20", default-features = false }
+opentelemetry = { version = "0.21", default-features = false }
 parking_lot = "0.12"
 path-slash = "0.2"
 percent-encoding = "2"
