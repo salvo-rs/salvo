@@ -32,7 +32,7 @@ pub struct Response {
     pub cookies: CookieJar,
     /// The HTTP body.
     pub body: ResBody,
-    pub(crate) extensions: Extensions,
+    pub extensions: Extensions,
 }
 impl Default for Response {
     #[inline]
