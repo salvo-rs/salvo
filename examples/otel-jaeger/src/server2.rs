@@ -1,5 +1,5 @@
 use opentelemetry::global;
-use opentelemetry::sdk::{propagation::TraceContextPropagator, trace::Tracer};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 
@@ -12,7 +12,7 @@ fn init_tracer() -> Tracer {
         .with_service_name("salvo")
         .with_endpoint("http://localhost:14268/api/traces")
         .with_hyper()
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }
 
