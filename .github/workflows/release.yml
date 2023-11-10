@@ -79,10 +79,9 @@ jobs:
           - crate: salvo
             path: crates/salvo
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          components: rustfmt, clippy
 
       - name: Checkout
         uses: actions/checkout@v4
