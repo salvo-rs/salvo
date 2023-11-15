@@ -77,16 +77,7 @@ where
                 return;
             }
         }
-        .map(|res| {
-            ResBody::Boxed(Box::pin(
-                res.map_frame(|f| match f.into_data() {
-                    //TODO: should use Frame::map_data after new version of hyper is released.
-                    Ok(data) => Frame::data(data.into()),
-                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-                })
-                .map_err(|e| e.into()),
-            ))
-        });
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())))));
 
         res.merge_hyper(hyper_res);
     }
@@ -222,16 +213,7 @@ where
                 return;
             }
         }
-        .map(|res| {
-            ResBody::Boxed(Box::pin(
-                res.map_frame(|f| match f.into_data() {
-                    //TODO: should use Frame::map_data after new version of hyper is released.
-                    Ok(data) => Frame::data(data.into()),
-                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-                })
-                .map_err(|e| e.into()),
-            ))
-        });
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())))));
         let origin_depot = depot;
         let origin_ctrl = ctrl;
         if let Some(FlowCtrlOutContext { ctrl, request, depot }) =

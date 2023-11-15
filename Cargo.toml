@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.58.3"
+version = "0.59.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 rust-version = "1.67"
@@ -19,6 +19,25 @@ license = "MIT OR Apache-2.0"
 categories = ["web-programming::http-server", "web-programming::websocket", "network-programming", "asynchronous"]
 
 [workspace.dependencies]
+salvo-utils = { version = "0.0.7", default-features = true }
+salvo_macros = { version = "0.59.0", path = "crates/macros", default-features = false }
+salvo_core = { version = "0.59.0", path = "crates/core", default-features = false }
+salvo_extra = { version = "0.59.0", path = "crates/extra", default-features = false }
+salvo-compression = { version = "0.59.0", path = "crates/compression", default-features = false }
+salvo-cache = { version = "0.59.0", path = "crates/cache", default-features = false }
+salvo-cors = { version = "0.59.0", path = "crates/cors", default-features = false }
+salvo-csrf = { version = "0.59.0", path = "crates/csrf", default-features = false }
+salvo-flash = { version = "0.59.0", path = "crates/flash", default-features = false }
+salvo-http3 = { version = "0.0.5", default-features = false }
+salvo-jwt-auth = { version = "0.59.0", path = "crates/jwt-auth", default-features = false }
+salvo-oapi = { version = "0.59.0", path = "./crates/oapi", default-features = false }
+salvo-oapi-macros = { version = "0.59.0", path = "crates/oapi-macros", default-features = false }
+salvo-otel = { version = "0.59.0", path = "crates/otel", default-features = false }
+salvo-proxy = { version = "0.59.0", path = "crates/proxy", default-features = false }
+salvo-rate-limiter = { version = "0.59.0", path = "crates/rate-limiter", default-features = false }
+salvo-serve-static = { version = "0.59.0", path = "crates/serve-static", default-features = false }
+salvo-session = { version = "0.59.0", path = "crates/session", default-features = false }
+
 aead = "0.5"
 aes-gcm = "0.10"
 anyhow = "1"
@@ -43,12 +62,12 @@ form_urlencoded = "1"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
 headers = "0.3"
-http = "0.2"
-http-body-util = "0.1.0-rc.3"
+http = "1"
+http-body-util = "0.1"
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
-hyper = "=1.0.0-rc.4"
+hyper = "=1"
 indexmap = "2"
 inventory = "0.3"
 jsonwebtoken = "9.1"
@@ -82,24 +101,6 @@ rust_decimal = "1"
 rustls = "0.21"
 rustls-pemfile = "1"
 rust-embed = { version = ">= 6, <= 8" }
-salvo-utils = { version = "0.0.6", default-features = true }
-salvo_macros = { version = "0.58.3", path = "crates/macros", default-features = false }
-salvo_core = { version = "0.58.3", path = "crates/core", default-features = false }
-salvo_extra = { version = "0.58.3", path = "crates/extra", default-features = false }
-salvo-compression = { version = "0.58.3", path = "crates/compression", default-features = false }
-salvo-cache = { version = "0.58.3", path = "crates/cache", default-features = false }
-salvo-cors = { version = "0.58.3", path = "crates/cors", default-features = false }
-salvo-csrf = { version = "0.58.3", path = "crates/csrf", default-features = false }
-salvo-flash = { version = "0.58.3", path = "crates/flash", default-features = false }
-salvo-http3 = { version = "0.0.4", default-features = false }
-salvo-jwt-auth = { version = "0.58.3", path = "crates/jwt-auth", default-features = false }
-salvo-oapi = { version = "0.58.3", path = "./crates/oapi", default-features = false }
-salvo-oapi-macros = { version = "0.58.3", path = "crates/oapi-macros", default-features = false }
-salvo-otel = { version = "0.58.3", path = "crates/otel", default-features = false }
-salvo-proxy = { version = "0.58.3", path = "crates/proxy", default-features = false }
-salvo-rate-limiter = { version = "0.58.3", path = "crates/rate-limiter", default-features = false }
-salvo-serve-static = { version = "0.58.3", path = "crates/serve-static", default-features = false }
-salvo-session = { version = "0.58.3", path = "crates/session", default-features = false }
 serde = "1"
 serde_json = "1"
 serde-xml-rs = "0.6"
