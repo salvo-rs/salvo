@@ -32,7 +32,8 @@ pub struct Response {
     pub cookies: CookieJar,
     /// The HTTP body.
     pub body: ResBody,
-    pub(crate) extensions: Extensions,
+    /// Used to store extra data derived from the underlying protocol.
+    pub extensions: Extensions,
 }
 impl Default for Response {
     #[inline]

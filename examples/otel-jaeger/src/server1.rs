@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use opentelemetry::sdk::{propagation::TraceContextPropagator, trace::Tracer};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
 use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
@@ -20,7 +20,7 @@ fn init_tracer() -> Tracer {
         .with_service_name("salvo")
         .with_endpoint("http://localhost:14268/api/traces")
         .with_hyper()
-        .install_batch(opentelemetry::runtime::Tokio)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
         .unwrap()
 }
 

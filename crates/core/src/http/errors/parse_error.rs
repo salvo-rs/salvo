@@ -15,11 +15,11 @@ pub type ParseResult<T> = Result<T, ParseError>;
 #[non_exhaustive]
 pub enum ParseError {
     /// The Hyper request did not have a valid Content-Type header.
-    #[error("The Hyper request did not have a valid Content-Type header.")]
+    #[error("The request did not have a valid Content-Type header.")]
     InvalidContentType,
 
     /// The Hyper request's body is empty.
-    #[error("The Hyper request's body is empty.")]
+    #[error("The request's body is empty.")]
     EmptyBody,
 
     /// Parse error when parse from str.

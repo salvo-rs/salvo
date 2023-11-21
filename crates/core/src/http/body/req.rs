@@ -129,6 +129,17 @@ impl From<String> for ReqBody {
         Self::Once(value.into())
     }
 }
+impl TryFrom<ReqBody> for Incoming {
+    type Error = crate::Error;
+    fn try_from(body: ReqBody) -> Result<Self, Self::Error> {
+        match body {
+            ReqBody::None => Err(crate::Error::other("ReqBody::None cannot convert to Incoming")),
+            ReqBody::Once(_) => Err(crate::Error::other("ReqBody::Bytes cannot convert to Incoming")),
+            ReqBody::Hyper(body) => Ok(body),
+            ReqBody::Boxed(_) => Err(crate::Error::other("ReqBody::Boxed cannot convert to Incoming")),
+        }
+    }
+}
 
 impl From<&'static [u8]> for ReqBody {
     fn from(value: &'static [u8]) -> Self {

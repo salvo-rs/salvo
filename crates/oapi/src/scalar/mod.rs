@@ -53,7 +53,7 @@ impl Scalar {
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
         Self {
-            lib_url: "https://www.unpkg.com/@scalar/api-reference".into(),
+            lib_url: "https://cdn.jsdelivr.net/npm/@scalar/api-reference".into(),
             spec_url: spec_url.into(),
         }
     }
