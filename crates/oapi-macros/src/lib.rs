@@ -575,7 +575,7 @@ mod tests {
                     #[inline]
                     async fn handle(
                         &self,
-                        req: &mut salvo::Request,
+                        __macro_generated_req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
                         ctrl: &mut salvo::FlowCtrl

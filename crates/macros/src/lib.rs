@@ -69,7 +69,7 @@ mod tests {
     fn test_handler_for_fn() {
         let input = quote! {
             #[handler]
-            async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+            async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                 res.render_plain_text("Hello World");
             }
         };
@@ -82,7 +82,7 @@ mod tests {
                 struct hello;
                 impl hello {
                     #[handler]
-                    async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+                    async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                         {
                             res.render_plain_text("Hello World");
                         }
@@ -93,12 +93,12 @@ mod tests {
                     #[inline]
                     async fn handle(
                         &self,
-                        req: &mut salvo::Request,
+                        __macro_generated_req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
                         ctrl: &mut salvo::FlowCtrl
                     ) {
-                        Self::hello(req, depot, res, ctrl).await
+                        Self::hello(__macro_generated_req, depot, res, ctrl).await
                     }
                 }
             }
@@ -110,7 +110,7 @@ mod tests {
     fn test_handler_for_fn_return_result() {
         let input = quote! {
             #[handler]
-            async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) -> Result<(), Error> {
+            async fn hello(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) -> Result<(), Error> {
                 Ok(())
             }
         };
@@ -124,7 +124,7 @@ mod tests {
                 impl hello {
                     #[handler]
                     async fn hello(
-                        req: &mut Request,
+                        __macro_generated_req: &mut Request,
                         depot: &mut Depot,
                         res: &mut Response,
                         ctrl: &mut FlowCtrl
@@ -139,12 +139,12 @@ mod tests {
                     #[inline]
                     async fn handle(
                         &self,
-                        req: &mut salvo::Request,
+                        __macro_generated_req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
                         ctrl: &mut salvo::FlowCtrl
                     ) {
-                        salvo::Writer::write(Self::hello(req, depot, res, ctrl).await, req, depot, res).await;
+                        salvo::Writer::write(Self::hello(__macro_generated_req, depot, res, ctrl).await, __macro_generated_req, depot, res).await;
                     }
                 }
             }
@@ -157,7 +157,7 @@ mod tests {
         let input = quote! {
             #[handler]
             impl Hello {
-                fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                fn handle(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response) {
                     res.render_plain_text("Hello World");
                 }
             }
@@ -168,7 +168,7 @@ mod tests {
             quote! {
                 #[handler]
                 impl Hello {
-                    fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
+                    fn handle(__macro_generated_req: &mut Request, depot: &mut Depot, res: &mut Response) {
                         res.render_plain_text("Hello World");
                     }
                 }
@@ -177,12 +177,12 @@ mod tests {
                     #[inline]
                     async fn handle(
                         &self,
-                        req: &mut salvo::Request,
+                        __macro_generated_req: &mut salvo::Request,
                         depot: &mut salvo::Depot,
                         res: &mut salvo::Response,
                         ctrl: &mut salvo::FlowCtrl
                     ) {
-                        Self::handle(req, depot, res)
+                        Self::handle(__macro_generated_req, depot, res)
                     }
                 }
             }
