@@ -82,7 +82,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push(Ident::new("req", Span::call_site()));
+                call_args.push(Ident::new("__macro_generated_req", Span::call_site()));
             }
             InputType::Depot(_pat) => {
                 call_args.push(Ident::new("depot", Span::call_site()));
@@ -106,7 +106,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     let idv = id.to_token_stream().to_string();
 
                     extract_ts.push(quote! {
-                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(req, #idv).await {
+                        let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_generated_req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
                                 #salvo::__private::tracing::error!(error = ?e, "failed to extract data");
@@ -134,7 +134,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             if sig.asyncness.is_none() {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
@@ -142,7 +142,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             } else {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }
@@ -153,17 +153,17 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
             if sig.asyncness.is_none() {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*), req, depot, res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_generated_req, depot, res).await;
                     }
                 })
             } else {
                 Ok(quote! {
                     #[inline]
-                    async fn handle(&self, req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
-                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, req, depot, res).await;
+                        #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_generated_req, depot, res).await;
                     }
                 })
             }
