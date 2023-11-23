@@ -241,7 +241,7 @@ where
             *origin_ctrl = ctrl;
             *req = request;
         } else {
-            tracing::error!("`FlowCtrlOutContext` should exists in response extensions.");
+            tracing::debug!("`FlowCtrlOutContext` does not exists in response extensions, `FlowCtrlService` may not be used.");
         }
 
         res.merge_hyper(hyper_res);

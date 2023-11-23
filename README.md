@@ -58,7 +58,7 @@ cargo install salvo-cli
 ```
 #### create a new salvo project
 ```bash
-salvo-cli new project_name
+salvo new project_name
 ```
 ___
 

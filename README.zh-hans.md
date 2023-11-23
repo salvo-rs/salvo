@@ -62,7 +62,7 @@ cargo install salvo-cli
 ```
 #### 创建一个salvo项目
 ```bash
-salvo-cli new project_name
+salvo new project_name
 ```
 ___
 
