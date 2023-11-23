@@ -25,10 +25,14 @@ impl TryFrom<&Field> for FieldInfo {
         let mut sources: Vec<SourceInfo> = Vec::with_capacity(field.attrs.len());
         let mut aliases = Vec::with_capacity(field.attrs.len());
         let mut rename = None;
+        let mut flatten = false;
+        let mut skipped = false;
         for attr in attrs {
             if attr.path().is_ident("salvo") {
                 if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
                     let info: ExtractFieldInfo = metas.parse_args()?;
+                    flatten = info.flatten;
+                    skipped = info.skipped;
                     sources.extend(info.sources);
                     aliases.extend(info.aliases);
                     if info.rename.is_some() {
@@ -60,20 +64,25 @@ impl Parse for ExtractFieldInfo {
         let mut extract = Self::default();
         while !input.is_empty() {
             let id = input.parse::<syn::Ident>()?;
-            if id == "source" {
-                let item;
-                syn::parenthesized!(item in input);
-                extract.sources.push(item.parse::<SourceInfo>()?);
-            } else if id == "rename" {
-                input.parse::<Token![=]>()?;
-                let expr = input.parse::<Expr>()?;
-                extract.rename = Some(expr_lit_value(&expr)?);
-            } else if id == "alias" {
-                input.parse::<Token![=]>()?;
-                let expr = input.parse::<Expr>()?;
-                extract.aliases.push(expr_lit_value(&expr)?);
-            } else {
-                return Err(input.error("unexpected attribute"));
+            match id {
+                "source" => {
+                    let item;
+                    syn::parenthesized!(item in input);
+                    extract.sources.push(item.parse::<SourceInfo>()?);
+                }
+                "rename" => {
+                    input.parse::<Token![=]>()?;
+                    let expr = input.parse::<Expr>()?;
+                    extract.rename = Some(expr_lit_value(&expr)?);
+                }
+                "alias" => {
+                    input.parse::<Token![=]>()?;
+                    let expr = input.parse::<Expr>()?;
+                    extract.aliases.push(expr_lit_value(&expr)?);
+                }
+                _ => {
+                    return Err(input.error("unexpected attribute"));
+                }
             }
             input.parse::<Token![,]>().ok();
         }
@@ -90,7 +99,7 @@ struct SourceInfo {
 impl Parse for SourceInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut source = SourceInfo {
-            from: "request".to_string(),
+            from: "body".to_string(),
             format: "".to_string(),
         };
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
@@ -104,28 +113,18 @@ impl Parse for SourceInfo {
             }
         }
         if source.format.is_empty() {
-            if source.from == "request" {
-                source.format = "request".to_string();
-            } else {
-                source.format = "multimap".to_string();
-            }
+            source.format = "multimap".to_string();
         }
-        if !["request", "param", "query", "header", "body"].contains(&source.from.as_str()) {
+        if !["param", "query", "header", "body"].contains(&source.from.as_str()) {
             return Err(Error::new(
                 input.span(),
                 format!("source from is invalid: {}", source.from),
             ));
         }
-        if !["multimap", "json", "request"].contains(&source.format.as_str()) {
+        if !["multimap", "json"].contains(&source.format.as_str()) {
             return Err(Error::new(
                 input.span(),
                 format!("source format is invalid: {}", source.format),
-            ));
-        }
-        if source.from == "request" && source.format != "request" {
-            return Err(Error::new(
-                input.span(),
-                "source format must be `request` for `request` sources",
             ));
         }
         Ok(source)

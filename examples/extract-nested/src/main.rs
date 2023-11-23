@@ -63,7 +63,7 @@ struct GoodMan<'a> {
     first_name: String,
     last_name: String,
     lovers: Vec<String>,
-    #[salvo(extract(source(from = "request")))]
+    #[salvo(extract(flatten))]
     nested: Nested<'a>,
 }
 

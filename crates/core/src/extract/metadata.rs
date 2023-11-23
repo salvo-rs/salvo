@@ -20,8 +20,6 @@ pub enum SourceFrom {
     Cookie,
     /// The field will extracted from http payload.
     Body,
-    /// The field will extracted from request.
-    Request,
 }
 
 impl FromStr for SourceFrom {
@@ -35,7 +33,6 @@ impl FromStr for SourceFrom {
             #[cfg(feature = "cookie")]
             "cookie" => Ok(Self::Cookie),
             "body" => Ok(Self::Body),
-            "request" => Ok(Self::Request),
             _ => Err(crate::Error::Other(format!("invalid source from `{input}`").into())),
         }
     }
@@ -126,7 +123,6 @@ impl FromStr for SourceFormat {
         match input {
             "multimap" => Ok(Self::MultiMap),
             "json" => Ok(Self::Json),
-            "request" => Ok(Self::Request),
             _ => Err(crate::Error::Other("invalid source format".into())),
         }
     }
@@ -202,6 +198,12 @@ impl Metadata {
 pub struct Field {
     /// Field name.
     pub name: &'static str,
+    /// Field flatten, this field will extracted from request.
+    pub flatten: bool,
+    /// Field skipped, this field will not extracted from request.
+    /// 
+    /// Will use `Default::default()` or the function given by `default = "..."` to get a default value for this field.
+    pub skipped: bool,
     /// Field sources.
     pub sources: Vec<Source>,
     /// Field aliaes.
@@ -221,11 +223,25 @@ impl Field {
     pub fn with_sources(name: &'static str, sources: Vec<Source>) -> Self {
         Self {
             name,
+            flatten: false,
+            skipped: sources.is_empty(),
             sources,
             aliases: vec![],
             rename: None,
             metadata: None,
         }
+    }
+
+    /// Sets the flatten to the given value.
+    pub fn set_flatten(mut self, flatten: bool) -> Self {
+        self.flatten = flatten;
+        self
+    }
+
+    /// Sets the skipped to the given value.
+    pub fn set_skipped(mut self, skipped: bool) -> Self {
+        self.skipped = skipped;
+        self
     }
 
     /// Sets the metadata to the field type.
@@ -293,7 +309,6 @@ mod tests {
             #[cfg(feature = "cookie")]
             ("cookie", SourceFrom::Cookie),
             ("body", SourceFrom::Body),
-            ("request", SourceFrom::Request),
         ] {
             assert_eq!(key.parse::<SourceFrom>().unwrap(), value);
         }
@@ -305,7 +320,6 @@ mod tests {
         for (key, value) in [
             ("multimap", SourceFormat::MultiMap),
             ("json", SourceFormat::Json),
-            ("request", SourceFormat::Request),
         ] {
             assert_eq!(key.parse::<SourceFormat>().unwrap(), value);
         }

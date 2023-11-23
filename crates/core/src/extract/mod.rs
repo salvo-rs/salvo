@@ -41,7 +41,7 @@
 //!     last_name: String,
 //!     lovers: Vec<String>,
 //!     /// The nested field is completely reparsed from Request.
-//!     #[salvo(extract(source(from = "request")))]
+//!     #[serde(flatten)]
 //!     nested: Nested<'a>,
 //! }
 //!
