@@ -71,19 +71,19 @@ pub async fn list_todos(offset: QueryParam<usize, false>, limit: QueryParam<usiz
 
 /// Create new todo.
 #[endpoint(tags("todos"), status_codes(201, 409))]
-pub async fn create_todo(new_todo: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
-    tracing::debug!(todo = ?new_todo, "create todo");
+pub async fn create_todo(req: JsonBody<Todo>) -> Result<StatusCode, StatusError> {
+    tracing::debug!(todo = ?req, "create todo");
 
     let mut vec = STORE.lock().await;
 
     for todo in vec.iter() {
-        if todo.id == new_todo.id {
-            tracing::debug!(id = ?new_todo.id, "todo already exists");
+        if todo.id == req.id {
+            tracing::debug!(id = ?req.id, "todo already exists");
             return Err(StatusError::bad_request().brief("todo already exists"));
         }
     }
 
-    vec.push(new_todo.into_inner());
+    vec.push(req.into_inner());
     Ok(StatusCode::CREATED)
 }
 
