@@ -37,10 +37,26 @@ async fn main() {
 
     let router = router
         .unshift(doc.into_router("/api-doc/openapi.json"))
-        .unshift(SwaggerUi::new("/api-doc/openapi.json").into_router("/swagger-ui"))
-        .unshift(Scalar::new("/api-doc/openapi.json").into_router("/scalar"))
-        .unshift(RapiDoc::new("/api-doc/openapi.json").into_router("/rapidoc"))
-        .unshift(ReDoc::new("/api-doc/openapi.json").into_router("/redoc"));
+        .unshift(
+            SwaggerUi::new("/api-doc/openapi.json")
+                .title("Todos - SwaggerUI")
+                .into_router("/swagger-ui"),
+        )
+        .unshift(
+            Scalar::new("/api-doc/openapi.json")
+                .title("Todos - Scalar")
+                .into_router("/scalar"),
+        )
+        .unshift(
+            RapiDoc::new("/api-doc/openapi.json")
+                .title("Todos - RapiDoc")
+                .into_router("/rapidoc"),
+        )
+        .unshift(
+            ReDoc::new("/api-doc/openapi.json")
+                .title("Todos - ReDoc")
+                .into_router("/redoc"),
+        );
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
     Server::new(acceptor).serve(router).await;
