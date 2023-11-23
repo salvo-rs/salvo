@@ -62,7 +62,7 @@ cargo install salvo-cli
 
 #### 創建一個新的salvo項目
 ```bash
-salvo-cli new project_name
+salvo new project_name
 ```
 ___
 ### Hello World with ACME and HTTP3
