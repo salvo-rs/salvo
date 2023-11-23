@@ -25,14 +25,12 @@ impl TryFrom<&Field> for FieldInfo {
         let mut sources: Vec<SourceInfo> = Vec::with_capacity(field.attrs.len());
         let mut aliases = Vec::with_capacity(field.attrs.len());
         let mut rename = None;
-        let mut flatten = false;
-        let mut skipped = false;
+        // let mut flatten = false;
+        // let mut skipped = false;
         for attr in attrs {
             if attr.path().is_ident("salvo") {
                 if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
                     let info: ExtractFieldInfo = metas.parse_args()?;
-                    flatten = info.flatten;
-                    skipped = info.skipped;
                     sources.extend(info.sources);
                     aliases.extend(info.aliases);
                     if info.rename.is_some() {
@@ -63,8 +61,8 @@ impl Parse for ExtractFieldInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut extract = Self::default();
         while !input.is_empty() {
-            let id = input.parse::<syn::Ident>()?;
-            match id {
+            let id: String = input.parse::<syn::Ident>()?.to_string();
+            match &*id {
                 "source" => {
                     let item;
                     syn::parenthesized!(item in input);

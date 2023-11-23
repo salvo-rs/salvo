@@ -120,26 +120,6 @@ impl<'de> RequestDeserializer<'de> {
 
             seed.deserialize(&mut value)
                 .map_err(|_| ValError::custom("parse value error"))
-        } else if source.from == SourceFrom::Request {
-            let field = self
-                .metadata
-                .fields
-                .get(self.field_index as usize)
-                .expect("Field must exist");
-            let metadata = field.metadata.expect("Field's metadata must exist");
-            seed.deserialize(RequestDeserializer {
-                params: self.params,
-                queries: self.queries,
-                headers: self.headers,
-                #[cfg(feature = "cookie")]
-                cookies: self.cookies,
-                payload: self.payload.clone(),
-                metadata,
-                field_index: -1,
-                field_source: None,
-                field_str_value: None,
-                field_vec_value: None,
-            })
         } else if let Some(value) = self.field_str_value.take() {
             seed.deserialize(CowValue(value.into()))
         } else if let Some(value) = self.field_vec_value.take() {
@@ -177,10 +157,6 @@ impl<'de> RequestDeserializer<'de> {
 
         for source in sources {
             match source.from {
-                SourceFrom::Request => {
-                    self.field_source = Some(source);
-                    return true;
-                }
                 SourceFrom::Param => {
                     let mut value = self.params.get(&*field_name);
                     if value.is_none() {
