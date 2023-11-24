@@ -12,6 +12,7 @@ async fn main() {
             "static/boy",
             "static/girl",
         ])
+        .dot_files(true)
         .defaults("index.html")
         .listing(true),
     );
