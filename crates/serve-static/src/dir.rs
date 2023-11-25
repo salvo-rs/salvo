@@ -268,16 +268,14 @@ impl Handler for StaticDir {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
                 while let Ok(Some(entry)) = entries.next_entry().await {
-                    if let Ok(metadata) = entry.metadata().await {
-                        if metadata.is_dir() {
-                            dirs.entry(entry.file_name().to_string_lossy().to_string())
-                                .or_insert(metadata);
-                        } else {
-                            let file_name = entry.file_name().to_string_lossy().to_string();
-                            if !self.dot_files && file_name.starts_with('.') {
-                                continue;
+                    let file_name = entry.file_name().to_string_lossy().to_string();
+                    if self.dot_files || (!self.dot_files && !file_name.starts_with('.')) {
+                        if let Ok(metadata) = entry.metadata().await {
+                            if metadata.is_dir() {
+                                dirs.entry(file_name).or_insert(metadata);
+                            } else {
+                                files.entry(file_name).or_insert(metadata);
                             }
-                            files.entry(file_name).or_insert(metadata);
                         }
                     }
                 }
