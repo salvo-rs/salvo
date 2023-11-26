@@ -45,7 +45,9 @@ form_urlencoded = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 headers = { workspace = true }
+headers03 = { workspace = true }
 http = { workspace = true }
+http02 = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap = { workspace = true }
@@ -68,7 +70,7 @@ ring = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
-salvo-utils = { workspace = true, features = ["runtime"] }
+hyper-util = { workspace = true, features = ["tokio"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde-xml-rs = { workspace = true }
