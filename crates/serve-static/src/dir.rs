@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::{self, Write, Display};
+use std::fmt::{self, Display, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
