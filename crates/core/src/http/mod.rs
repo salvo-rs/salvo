@@ -54,8 +54,36 @@ pub trait HttpConnection {
 //     }
 // }
 
+#[doc(hidden)]
+pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
+    let mut vec = header
+        .split(',')
+        .filter_map(|s| {
+            let mut iter = s.trim().split(';');
+            let (algo, q) = (iter.next()?, iter.next());
+            let algo = algo.trim();
+            let q = q
+                .and_then(|q| {
+                    q.trim()
+                        .strip_prefix("q=")
+                        .and_then(|q| q.parse::<f32>().map(|f| (f * 100.0) as u8).ok())
+                })
+                .unwrap_or(100u8);
+            Some((algo.to_owned(), q))
+        })
+        .collect::<Vec<(String, u8)>>();
+
+    vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
+        std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+        other => other,
+    });
+
+    vec
+}
+
+#[doc(hidden)]
 #[inline]
-pub(crate) fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
+pub fn guess_accept_mime(req: &Request, default_type: Option<Mime>) -> Mime {
     let dmime: Mime = default_type.unwrap_or_else(|| "text/html".parse().unwrap());
     let accept = req.accept();
     accept.first().unwrap_or(&dmime).to_string().parse().unwrap_or(dmime)
