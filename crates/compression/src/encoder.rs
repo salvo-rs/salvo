@@ -105,7 +105,6 @@ pub(super) enum Encoder {
 }
 
 impl Encoder {
-    #[allow(unused_variables)]
     pub(super) fn new(algo: CompressionAlgo, level: CompressionLevel) -> Self {
         match algo {
             #[cfg(feature = "brotli")]
