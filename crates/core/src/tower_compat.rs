@@ -4,6 +4,7 @@ use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
@@ -141,7 +142,7 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
             ctrl.call_next(&mut request, &mut depot, &mut response).await;
             response
                 .extensions
-                .insert(FlowCtrlOutContext::new(ctrl, request, depot));
+                .insert(Arc::new(FlowCtrlOutContext::new(ctrl, request, depot)));
             Ok(response.strip_to_hyper())
         })
     }
@@ -203,7 +204,7 @@ where
             std::mem::take(depot),
             std::mem::take(res),
         );
-        hyper_req.extensions_mut().insert(ctx);
+        hyper_req.extensions_mut().insert(Arc::new(ctx));
 
         let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
@@ -223,7 +224,9 @@ where
             *origin_ctrl = ctrl;
             *req = request;
         } else {
-            tracing::debug!("`FlowCtrlOutContext` does not exists in response extensions, `FlowCtrlService` may not be used.");
+            tracing::debug!(
+                "`FlowCtrlOutContext` does not exists in response extensions, `FlowCtrlService` may not be used."
+            );
         }
 
         res.merge_hyper(hyper_res);

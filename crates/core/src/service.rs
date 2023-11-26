@@ -235,19 +235,19 @@ impl HyperHandler {
                     .extensions
                     .remove::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>()
                 {
-                    res.extensions.insert(session);
+                    res.extensions.insert(Arc::new(session));
                 }
                 if let Some(conn) = req
                     .extensions
                     .remove::<Mutex<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>>()
                 {
-                    res.extensions.insert(conn);
+                    res.extensions.insert(Arc::new(conn));
                 }
                 if let Some(stream) = req
                     .extensions
                     .remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>()
                 {
-                    res.extensions.insert(stream);
+                    res.extensions.insert(Arc::new(stream));
                 }
             }
             res
