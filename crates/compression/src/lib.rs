@@ -1,8 +1,8 @@
 //! Compression middleware for for Savlo web server framework.
 //!
 //! Read more: <https://salvo.rs>
-use std::str::FromStr;
 use std::fmt::{self, Display};
+use std::str::FromStr;
 
 use indexmap::IndexMap;
 

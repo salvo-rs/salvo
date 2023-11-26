@@ -54,7 +54,6 @@ pub trait HttpConnection {
 //     }
 // }
 
-
 #[doc(hidden)]
 pub fn parse_accept_encoding(header: &str) -> Vec<(String, u8)> {
     let mut vec = header
