@@ -9,7 +9,7 @@ use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
 use http_body_util::BodyExt;
-use hyper::body::{Body, Bytes, Frame};
+use hyper::body::{Body, Bytes};
 use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
@@ -78,7 +78,7 @@ where
                 return;
             }
         }
-        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())))));
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
 
         res.merge_hyper(hyper_res);
     }
@@ -214,7 +214,7 @@ where
                 return;
             }
         }
-        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())))));
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
         let origin_depot = depot;
         let origin_ctrl = ctrl;
         if let Some(FlowCtrlOutContext { ctrl, request, depot }) =

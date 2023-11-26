@@ -6,7 +6,6 @@ use std::{
 
 use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
-use http::header;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
