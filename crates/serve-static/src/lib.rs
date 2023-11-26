@@ -97,8 +97,8 @@ mod tests {
     async fn test_serve_static_dir() {
         let router = Router::with_path("<*path>").get(
             StaticDir::new(vec!["test/static"])
-                .dot_files(false)
-                .listing(true)
+                .include_dot_files(false)
+                .auto_list(true)
                 .defaults("index.html"),
         );
         let service = Service::new(router);
