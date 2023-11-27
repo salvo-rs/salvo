@@ -42,7 +42,7 @@ fastrand = "2"
 form_urlencoded = "1"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
-headers = "0.3"
+headers = "0.4"
 http = "0.2"
 http-body-util = "0.1.0-rc.3"
 hmac = "0.12"
