@@ -17,8 +17,8 @@ mod xml;
 pub(crate) use self::{
     enum_schemas::*,
     feature::{FromAttributes, NamedFieldStructFeatures, UnnamedFieldStructFeatures},
-    struct_schemas::*,
     flattened_map_schema::*,
+    struct_schemas::*,
     xml::XmlAttr,
 };
 
@@ -27,7 +27,6 @@ use super::{
     serde::{self, SerdeValue},
     ComponentSchema, FieldRename, VariantRename,
 };
-
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
