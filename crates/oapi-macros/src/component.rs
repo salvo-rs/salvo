@@ -429,7 +429,7 @@ impl<'c> ComponentSchema {
         }
     }
 
-    fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
+    pub(crate) fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
         comments
             .and_then(|comments| {
                 let comment = CommentAttributes::as_formatted_string(comments);
@@ -442,7 +442,7 @@ impl<'c> ComponentSchema {
             .map(|description| quote! { .description(#description) })
     }
 
-    fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
+    pub(crate) fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
     }
 }
