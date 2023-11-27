@@ -2,6 +2,7 @@
 //!
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 use std::cmp::{Ord, Ordering, PartialOrd};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,10 @@ pub struct Tag {
     /// Additional external documentation for the tag.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_docs: Option<ExternalDocs>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 impl Ord for Tag {
     fn cmp(&self, other: &Self) -> Ordering {

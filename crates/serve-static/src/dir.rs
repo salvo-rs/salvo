@@ -37,11 +37,11 @@ impl FromStr for CompressionAlgo {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "br" => Ok(CompressionAlgo::Brotli),
-            "brotli" => Ok(CompressionAlgo::Brotli),
-            "deflate" => Ok(CompressionAlgo::Deflate),
-            "gzip" => Ok(CompressionAlgo::Gzip),
-            "zstd" => Ok(CompressionAlgo::Zstd),
+            "br" => Ok(Self::Brotli),
+            "brotli" => Ok(Self::Brotli),
+            "deflate" => Ok(Self::Deflate),
+            "gzip" => Ok(Self::Gzip),
+            "zstd" => Ok(Self::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
     }
@@ -50,10 +50,10 @@ impl FromStr for CompressionAlgo {
 impl Display for CompressionAlgo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompressionAlgo::Brotli => write!(f, "br"),
-            CompressionAlgo::Deflate => write!(f, "deflate"),
-            CompressionAlgo::Gzip => write!(f, "gzip"),
-            CompressionAlgo::Zstd => write!(f, "zstd"),
+            Self::Brotli => write!(f, "br"),
+            Self::Deflate => write!(f, "deflate"),
+            Self::Gzip => write!(f, "gzip"),
+            Self::Zstd => write!(f, "zstd"),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Implements [OpenApi Responses][responses].
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use indexmap::IndexMap;
@@ -144,6 +144,10 @@ pub struct Response {
     #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
     #[serde(rename = "content")]
     pub contents: IndexMap<String, Content>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl Response {
