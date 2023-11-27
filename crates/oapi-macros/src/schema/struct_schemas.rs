@@ -162,17 +162,15 @@ impl ToTokens for NamedStructSchema<'_> {
                                 .property(#name, #property)
                             });
 
-                            if let Property::Schema(_) = property {
-                                if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
-                                    || required
-                                        .as_ref()
-                                        .map(crate::feature::Required::is_true)
-                                        .unwrap_or(false)
-                                {
-                                    object_tokens.extend(quote! {
-                                        .required(#name)
-                                    })
-                                }
+                            if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
+                                || required
+                                    .as_ref()
+                                    .map(crate::feature::Required::is_true)
+                                    .unwrap_or(false)
+                            {
+                                object_tokens.extend(quote! {
+                                    .required(#name)
+                                })
                             }
 
                             object_tokens

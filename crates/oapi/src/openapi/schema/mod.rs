@@ -2,6 +2,8 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::RefOr;

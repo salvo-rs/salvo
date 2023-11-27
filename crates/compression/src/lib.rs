@@ -89,7 +89,7 @@ impl Display for CompressionAlgo {
             CompressionAlgo::Gzip => write!(f, "gzip"),
             #[cfg(feature = "zstd")]
             CompressionAlgo::Zstd => write!(f, "zstd"),
-            _ => write!(f, "unreached"),
+            _ => unreachable!(),
         }
     }
 }
