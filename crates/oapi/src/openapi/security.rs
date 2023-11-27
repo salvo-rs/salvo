@@ -3,7 +3,10 @@
 //! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-use std::{collections::BTreeMap, iter};
+use std::{
+    collections::{BTreeMap, HashMap},
+    iter,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -334,6 +337,10 @@ pub struct OAuth2 {
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl OAuth2 {
@@ -374,6 +381,7 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: None,
+            extensions: None,
         }
     }
 
@@ -413,6 +421,7 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             description: Some(description.into()),
+            extensions: None,
         }
     }
 }

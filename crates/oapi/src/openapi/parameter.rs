@@ -1,6 +1,8 @@
 //! Implements [OpenAPI Parameter Object][parameter] types.
 //!
 //! [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -137,6 +139,10 @@ pub struct Parameter {
     /// within [`Parameter::schema`] if defined.
     #[serde(skip_serializing_if = "Option::is_none")]
     example: Option<Value>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl Parameter {
@@ -176,6 +182,7 @@ impl Parameter {
             explode,
             allow_reserved,
             example,
+            extensions,
         } = other;
         if name != self.name || parameter_in != self.parameter_in {
             return false;
@@ -205,6 +212,13 @@ impl Parameter {
         }
         if let Some(example) = example {
             self.example = Some(example);
+        }
+        if let Some(extensions) = extensions {
+            if self.extensions.is_none() {
+                self.extensions = Some(HashMap::new());
+            } else {
+                self.extensions.as_mut().unwrap().extend(extensions);
+            }
         }
         true
     }
