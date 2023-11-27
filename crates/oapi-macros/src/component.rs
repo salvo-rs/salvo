@@ -67,6 +67,15 @@ impl<'c> ComponentSchema {
                 deprecated_stream,
                 type_definition,
             ),
+            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+                type_definition,
+            ),
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -212,6 +221,8 @@ impl<'c> ComponentSchema {
             .next()
             .expect("CompnentSchema Vec should have 1 child");
 
+        let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
+
         // is octet-stream
         let schema = if child
             .path
@@ -234,8 +245,16 @@ impl<'c> ComponentSchema {
                 type_definition,
             });
 
+            let unique = match unique {
+                true => quote! {
+                    .unique_items(true)
+                },
+                false => quote! {},
+            };
+
             quote! {
                 #oapi::oapi::schema::Array::new(#component_schema)
+                #unique
             }
         };
 

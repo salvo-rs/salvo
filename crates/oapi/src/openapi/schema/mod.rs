@@ -786,10 +786,9 @@ mod tests {
         discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
             .into_iter()
             .collect::<BTreeMap<_, _>>();
-        let one_of = OneOfBuilder::new()
+        let one_of = OneOf::new()
             .item(Ref::from_schema_name("MyInt"))
-            .discriminator(Some(discriminator))
-            .build();
+            .discriminator(discriminator);
         let json_value = serde_json::to_value(one_of).unwrap();
 
         assert_json_eq!(

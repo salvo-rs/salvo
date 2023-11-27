@@ -199,6 +199,7 @@ impl<'t> TypeTree<'t> {
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            "BTreeSet" | "HashSet" => Some(GenericType::Set),
             "LinkedList" => Some(GenericType::LinkedList),
             #[cfg(feature = "smallvec")]
             "SmallVec" => Some(GenericType::SmallVec),
@@ -273,6 +274,7 @@ pub(crate) enum ValueType {
 pub(crate) enum GenericType {
     Vec,
     LinkedList,
+    Set,
     #[cfg(feature = "smallvec")]
     SmallVec,
     Map,
