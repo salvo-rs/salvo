@@ -261,6 +261,11 @@ impl<'t> TypeTree<'t> {
     pub(crate) fn is_option(&self) -> bool {
         matches!(self.generic_type, Some(GenericType::Option))
     }
+
+    /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Map`]
+    pub(crate) fn is_map(&self) -> bool {
+        matches!(self.generic_type, Some(GenericType::Map))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

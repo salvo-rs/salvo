@@ -35,8 +35,8 @@ pub enum CompressionLevel {
 }
 
 /// CompressionAlgo
-#[non_exhaustive]
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+#[non_exhaustive]
 pub enum CompressionAlgo {
     #[cfg(feature = "brotli")]
     #[cfg_attr(docsrs, doc(cfg(feature = "brotli")))]
@@ -61,34 +61,37 @@ impl FromStr for CompressionAlgo {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             #[cfg(feature = "brotli")]
-            "br" => Ok(Self::Brotli),
+            "br" => Ok(CompressionAlgo::Brotli),
             #[cfg(feature = "brotli")]
-            "brotli" => Ok(Self::Brotli),
+            "brotli" => Ok(CompressionAlgo::Brotli),
 
             #[cfg(feature = "deflate")]
-            "deflate" => Ok(Self::Deflate),
+            "deflate" => Ok(CompressionAlgo::Deflate),
 
             #[cfg(feature = "gzip")]
-            "gzip" => Ok(Self::Gzip),
+            "gzip" => Ok(CompressionAlgo::Gzip),
 
             #[cfg(feature = "zstd")]
-            "zstd" => Ok(Self::Zstd),
+            "zstd" => Ok(CompressionAlgo::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
         }
     }
 }
 
 impl Display for CompressionAlgo {
+    #[allow(unreachable_patterns)]
+    #[allow(unused_variables)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             #[cfg(feature = "brotli")]
-            Self::Brotli => write!(f, "br"),
+            CompressionAlgo::Brotli => write!(f, "br"),
             #[cfg(feature = "deflate")]
-            Self::Deflate => write!(f, "deflate"),
+            CompressionAlgo::Deflate => write!(f, "deflate"),
             #[cfg(feature = "gzip")]
-            Self::Gzip => write!(f, "gzip"),
+            CompressionAlgo::Gzip => write!(f, "gzip"),
             #[cfg(feature = "zstd")]
-            Self::Zstd => write!(f, "zstd"),
+            CompressionAlgo::Zstd => write!(f, "zstd"),
+            _ => unreachable!(),
         }
     }
 }
