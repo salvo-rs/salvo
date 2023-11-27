@@ -1,7 +1,7 @@
 //! Implements [OpenApi Responses][responses].
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-use std::collections::{HashMap,BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use indexmap::IndexMap;
