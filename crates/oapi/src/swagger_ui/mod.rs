@@ -25,7 +25,9 @@ const INDEX_TMPL: &str = r#"
 <html charset="UTF-8">
   <head>
     <meta charset="UTF-8">
-    <title>Swagger UI</title>
+    <title>{{title}}</title>
+    {{keywords}}
+    {{description}}
     <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
     <style>
     html {
@@ -75,6 +77,12 @@ const INDEX_TMPL: &str = r#"
 #[derive(Clone, Debug)]
 pub struct SwaggerUi {
     config: Config<'static>,
+    /// The title of the html page. The default title is "Swagger UI".
+    pub title: String,
+    /// The keywords of the html page.
+    pub keywords: Option<String>,
+    /// The description of the html page.
+    pub description: Option<String>,
 }
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
@@ -89,7 +97,30 @@ impl SwaggerUi {
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}");
     /// ```
     pub fn new(config: impl Into<Config<'static>>) -> Self {
-        Self { config: config.into() }
+        Self {
+            config: config.into(),
+            title: "Swagger UI".into(),
+            keywords: None,
+            description: None,
+        }
+    }
+
+    /// Set title of the html page. The default title is "Swagger UI".
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    /// Set keywords of the html page.
+    pub fn keywords(mut self, keywords: impl Into<String>) -> Self {
+        self.keywords = Some(keywords.into());
+        self
+    }
+
+    /// Set description of the html page.
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
     }
 
     /// Add api doc [`Url`] into [`SwaggerUi`].
@@ -202,7 +233,22 @@ impl Handler for SwaggerUi {
             redirect_to_dir_url(req.uri(), res);
             return;
         }
-        match serve(path, &self.config) {
+        let keywords = self
+            .keywords
+            .as_ref()
+            .map(|s| {
+                format!(
+                    "<meta name=\"keywords\" content=\"{}\">",
+                    s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
+                )
+            })
+            .unwrap_or_default();
+        let description = self
+            .description
+            .as_ref()
+            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .unwrap_or_default();
+        match serve(path, &self.title, &keywords, &description, &self.config) {
             Ok(Some(file)) => {
                 res.headers_mut()
                     .insert(header::CONTENT_TYPE, HeaderValue::from_str(&file.content_type).unwrap());
@@ -328,7 +374,13 @@ pub struct SwaggerFile<'a> {
 /// _There are also implementations in [examples of salvo repository][examples]._
 ///
 /// [examples]: https://github.com/salvo-rs/salvo/tree/master/examples
-pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'a>>, Error> {
+pub fn serve<'a>(
+    path: &str,
+    title: &str,
+    keywords: &str,
+    description: &str,
+    config: &Config<'a>,
+) -> Result<Option<SwaggerFile<'a>>, Error> {
     let path = if path.is_empty() || path == "/" {
         "index.html"
     } else {
@@ -339,7 +391,11 @@ pub fn serve<'a>(path: &str, config: &Config<'a>) -> Result<Option<SwaggerFile<'
         let config_json = serde_json::to_string(&config)?;
 
         // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
-        let mut index = INDEX_TMPL.replace("{{config}}", &config_json);
+        let mut index = INDEX_TMPL
+            .replacen("{{config}}", &config_json, 1)
+            .replacen("{{title}}", title, 1)
+            .replacen("{{keywords}}", keywords, 1)
+            .replacen("{{description}}", description, 1);
 
         if let Some(oauth) = &config.oauth {
             let oauth_json = serde_json::to_string(oauth)?;

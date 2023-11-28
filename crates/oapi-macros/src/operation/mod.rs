@@ -279,7 +279,7 @@ impl PathTypeTree for TypeTree<'_> {
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool {
         match self.generic_type {
-            Some(GenericType::Vec) => true,
+            Some(GenericType::Vec | GenericType::Set) => true,
             Some(_) => self.children.as_ref().unwrap().iter().any(|child| child.is_array()),
             None => false,
         }

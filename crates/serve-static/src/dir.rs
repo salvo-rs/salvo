@@ -1,14 +1,16 @@
 //! serve static dir
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::fmt::Write;
+use std::fmt::{self, Display, Write};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::SystemTime;
 
 use salvo_core::fs::NamedFile;
-use salvo_core::http::{Request, Response, StatusCode, StatusError};
+use salvo_core::http::header::ACCEPT_ENCODING;
+use salvo_core::http::{self, HeaderValue, Request, Response, StatusCode, StatusError};
 use salvo_core::writing::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 use serde::{Deserialize, Serialize};
@@ -16,6 +18,57 @@ use serde_json::json;
 use time::{macros::format_description, OffsetDateTime};
 
 use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url};
+
+/// CompressionAlgo
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+#[non_exhaustive]
+pub enum CompressionAlgo {
+    /// Brotli
+    Brotli,
+    /// Deflate
+    Deflate,
+    /// Gzip
+    Gzip,
+    /// Zstd
+    Zstd,
+}
+impl FromStr for CompressionAlgo {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "br" => Ok(Self::Brotli),
+            "brotli" => Ok(Self::Brotli),
+            "deflate" => Ok(Self::Deflate),
+            "gzip" => Ok(Self::Gzip),
+            "zstd" => Ok(Self::Zstd),
+            _ => Err(format!("unknown compression algorithm: {s}")),
+        }
+    }
+}
+
+impl Display for CompressionAlgo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Brotli => write!(f, "br"),
+            Self::Deflate => write!(f, "deflate"),
+            Self::Gzip => write!(f, "gzip"),
+            Self::Zstd => write!(f, "zstd"),
+        }
+    }
+}
+
+impl From<CompressionAlgo> for HeaderValue {
+    #[inline]
+    fn from(algo: CompressionAlgo) -> Self {
+        match algo {
+            CompressionAlgo::Brotli => HeaderValue::from_static("br"),
+            CompressionAlgo::Deflate => HeaderValue::from_static("deflate"),
+            CompressionAlgo::Gzip => HeaderValue::from_static("gzip"),
+            CompressionAlgo::Zstd => HeaderValue::from_static("zstd"),
+        }
+    }
+}
 
 /// Trait for collecting static roots.
 pub trait StaticRoots {
@@ -68,7 +121,6 @@ where
 
 /// Handler that serves a directory.
 #[non_exhaustive]
-#[derive(Clone)]
 pub struct StaticDir {
     /// Static roots.
     pub roots: Vec<PathBuf>,
@@ -80,9 +132,15 @@ pub struct StaticDir {
     /// The default is 1M.
     pub chunk_size: Option<u64>,
     /// List dot files.
-    pub dot_files: bool,
-    /// Listing dir
-    pub listing: bool,
+    pub include_dot_files: bool,
+    exclude_filters: Vec<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+    /// Auto list the directory if default file not found.
+    pub auto_list: bool,
+    /// Compressed variations.
+    ///
+    /// The key is the compression algorithm, and the value is the file extension.
+    /// If the compression file exists, it will serve the compressed file instead of the original file.
+    pub compressed_variations: HashMap<CompressionAlgo, Vec<String>>,
     /// Default file names list.
     pub defaults: Vec<String>,
     /// Fallback file name. This is used when the requested file is not found.
@@ -92,27 +150,58 @@ impl StaticDir {
     /// Create new `StaticDir`.
     #[inline]
     pub fn new<T: StaticRoots + Sized>(roots: T) -> Self {
+        let mut compressed_variations = HashMap::new();
+        compressed_variations.insert(CompressionAlgo::Brotli, vec!["br".to_owned()]);
+        compressed_variations.insert(CompressionAlgo::Zstd, vec!["zst".to_owned()]);
+        compressed_variations.insert(CompressionAlgo::Gzip, vec!["gz".to_owned()]);
+        compressed_variations.insert(CompressionAlgo::Deflate, vec!["deflate".to_owned()]);
+
         StaticDir {
             roots: roots.collect(),
             chunk_size: None,
-            dot_files: false,
-            listing: false,
+            include_dot_files: false,
+            exclude_filters: vec![],
+            auto_list: false,
+            compressed_variations,
             defaults: vec![],
             fallback: None,
         }
     }
 
-    /// Sets dot_files and returns a new `StaticDirOptions`.
+    /// Sets include_dot_files and returns a new `StaticDirOptions`.
     #[inline]
-    pub fn dot_files(mut self, dot_files: bool) -> Self {
-        self.dot_files = dot_files;
+    pub fn include_dot_files(mut self, include_dot_files: bool) -> Self {
+        self.include_dot_files = include_dot_files;
         self
     }
 
-    /// Sets listing and returns a new `StaticDirOptions`.
+    /// Exclude files.
+    ///
+    /// The filter function returns true to exclude the file.
     #[inline]
-    pub fn listing(mut self, listing: bool) -> Self {
-        self.listing = listing;
+    pub fn exclude<F>(mut self, filter: F) -> Self
+    where
+        F: Fn(&str) -> bool + Send + Sync + 'static,
+    {
+        self.exclude_filters.push(Box::new(filter));
+        self
+    }
+
+    /// Sets auto_list and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn auto_list(mut self, auto_list: bool) -> Self {
+        self.auto_list = auto_list;
+        self
+    }
+
+    /// Sets compressed_variations and returns a new `StaticDirOptions`.
+    #[inline]
+    pub fn compressed_variation<A>(mut self, algo: A, exts: &str) -> Self
+    where
+        A: Into<CompressionAlgo>,
+    {
+        self.compressed_variations
+            .insert(algo.into(), exts.split(',').map(|s| s.trim().to_string()).collect());
         self
     }
 
@@ -139,6 +228,16 @@ impl StaticDir {
     pub fn chunk_size(mut self, size: u64) -> Self {
         self.chunk_size = Some(size);
         self
+    }
+
+    #[inline]
+    fn is_compressed_ext(&self, ext: &str) -> bool {
+        for exts in self.compressed_variations.values() {
+            if exts.iter().any(|e| e == ext) {
+                return true;
+            }
+        }
+        false
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -195,6 +294,12 @@ impl Handler for StaticDir {
             decode_url_path_safely(req_path)
         };
         let rel_path = format_url_path_safely(&rel_path);
+        for filter in &self.exclude_filters {
+            if filter(&rel_path) {
+                res.render(StatusError::not_found());
+                return;
+            }
+        }
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let is_dot_file = Path::new(&rel_path)
@@ -203,7 +308,7 @@ impl Handler for StaticDir {
             .map(|s| s.starts_with('.'))
             .unwrap_or(false);
         let mut abs_path = None;
-        if self.dot_files || !is_dot_file {
+        if self.include_dot_files || !is_dot_file {
             for root in &self.roots {
                 let path = root.join(&rel_path);
                 if path.is_dir() {
@@ -220,7 +325,7 @@ impl Handler for StaticDir {
                         }
                     }
 
-                    if self.listing && abs_path.is_none() {
+                    if self.auto_list && abs_path.is_none() {
                         abs_path = Some(path);
                     }
                     if abs_path.is_some() {
@@ -251,8 +356,55 @@ impl Handler for StaticDir {
         };
 
         if abs_path.is_file() {
+            let ext = abs_path.extension().and_then(|s| s.to_str()).map(|s| s.to_lowercase());
+            let is_compressed_ext = ext.as_deref().map(|ext| self.is_compressed_ext(ext)).unwrap_or(false);
+            let mut content_encoding = None;
+            let named_path = if !is_compressed_ext {
+                if !self.compressed_variations.is_empty() {
+                    let mut new_abs_path = None;
+                    let header = req
+                        .headers()
+                        .get(ACCEPT_ENCODING)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or_default();
+                    let accept_algos = http::parse_accept_encoding(header)
+                        .into_iter()
+                        .filter_map(|(algo, _level)| {
+                            if let Ok(algo) = algo.parse::<CompressionAlgo>() {
+                                Some(algo)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<HashSet<_>>();
+                    for (algo, exts) in &self.compressed_variations {
+                        if accept_algos.contains(algo) {
+                            for zip_ext in exts {
+                                let mut path = abs_path.clone();
+                                path.as_mut_os_string().push(&*format!(".{}", zip_ext));
+                                if path.is_file() {
+                                    new_abs_path = Some(path);
+                                    content_encoding = Some(algo.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    new_abs_path.unwrap_or(abs_path)
+                } else {
+                    abs_path
+                }
+            } else {
+                abs_path
+            };
+
             let builder = {
-                let mut builder = NamedFile::builder(abs_path);
+                println!("named_path {named_path:?}");
+                let mut builder = NamedFile::builder(named_path)
+                    .content_type(mime_infer::from_ext(ext.as_deref().unwrap_or_default()).first_or_octet_stream());
+                if let Some(content_encoding) = content_encoding {
+                    builder = builder.content_encoding(content_encoding);
+                }
                 if let Some(size) = self.chunk_size {
                     builder = builder.buffer_size(size);
                 }
@@ -268,16 +420,14 @@ impl Handler for StaticDir {
             // list the dir
             if let Ok(mut entries) = tokio::fs::read_dir(&abs_path).await {
                 while let Ok(Some(entry)) = entries.next_entry().await {
-                    if let Ok(metadata) = entry.metadata().await {
-                        if metadata.is_dir() {
-                            dirs.entry(entry.file_name().to_string_lossy().to_string())
-                                .or_insert(metadata);
-                        } else {
-                            let file_name = entry.file_name().to_string_lossy().to_string();
-                            if !self.dot_files && file_name.starts_with('.') {
-                                continue;
+                    let file_name = entry.file_name().to_string_lossy().to_string();
+                    if self.include_dot_files || (!self.include_dot_files && !file_name.starts_with('.')) {
+                        if let Ok(metadata) = entry.metadata().await {
+                            if metadata.is_dir() {
+                                dirs.entry(file_name).or_insert(metadata);
+                            } else {
+                                files.entry(file_name).or_insert(metadata);
                             }
-                            files.entry(file_name).or_insert(metadata);
                         }
                     }
                 }

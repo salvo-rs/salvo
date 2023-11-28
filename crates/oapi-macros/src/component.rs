@@ -67,6 +67,15 @@ impl<'c> ComponentSchema {
                 deprecated_stream,
                 type_definition,
             ),
+            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+                type_definition,
+            ),
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -212,6 +221,8 @@ impl<'c> ComponentSchema {
             .next()
             .expect("CompnentSchema Vec should have 1 child");
 
+        let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
+
         // is octet-stream
         let schema = if child
             .path
@@ -234,8 +245,16 @@ impl<'c> ComponentSchema {
                 type_definition,
             });
 
+            let unique = match unique {
+                true => quote! {
+                    .unique_items(true)
+                },
+                false => quote! {},
+            };
+
             quote! {
                 #oapi::oapi::schema::Array::new(#component_schema)
+                #unique
             }
         };
 
@@ -410,7 +429,7 @@ impl<'c> ComponentSchema {
         }
     }
 
-    fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
+    pub(crate) fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
         comments
             .and_then(|comments| {
                 let comment = CommentAttributes::as_formatted_string(comments);
@@ -423,7 +442,7 @@ impl<'c> ComponentSchema {
             .map(|description| quote! { .description(#description) })
     }
 
-    fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
+    pub(crate) fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
     }
 }

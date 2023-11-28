@@ -12,8 +12,9 @@ async fn main() {
             "static/boy",
             "static/girl",
         ])
+        .include_dot_files(false)
         .defaults("index.html")
-        .listing(true),
+        .auto_list(true),
     );
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;

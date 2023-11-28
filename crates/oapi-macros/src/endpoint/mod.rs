@@ -167,7 +167,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
     for input in &sig.inputs {
         match parse_input_type(input) {
             InputType::Request(_pat) => {
-                call_args.push(Ident::new("req", Span::call_site()));
+                call_args.push(Ident::new("__macro_generated_req", Span::call_site()));
             }
             InputType::Depot(_pat) => {
                 call_args.push(Ident::new("depot", Span::call_site()));

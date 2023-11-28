@@ -7,9 +7,17 @@ use syn::{punctuated::Punctuated, Attribute, Data, Fields, FieldsNamed, FieldsUn
 
 use crate::feature::{Inline, Symbol};
 
+mod enum_schemas;
+mod enum_variant;
+mod feature;
+mod flattened_map_schema;
+mod struct_schemas;
+mod xml;
+
 pub(crate) use self::{
     enum_schemas::*,
     feature::{FromAttributes, NamedFieldStructFeatures, UnnamedFieldStructFeatures},
+    flattened_map_schema::*,
     struct_schemas::*,
     xml::XmlAttr,
 };
@@ -19,12 +27,6 @@ use super::{
     serde::{self, SerdeValue},
     ComponentSchema, FieldRename, VariantRename,
 };
-
-mod enum_schemas;
-mod enum_variant;
-mod feature;
-mod struct_schemas;
-mod xml;
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,
@@ -222,14 +224,16 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 #[derive(Debug)]
 enum Property {
     Schema(ComponentSchema),
-    WithSchema(Feature),
+    SchemaWith(Feature),
+    FlattenedMap(FlattenedMapSchema),
 }
 
 impl ToTokens for Property {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Schema(schema) => schema.to_tokens(tokens),
-            Self::WithSchema(with_schema) => with_schema.to_tokens(tokens),
+            Self::FlattenedMap(schema) => schema.to_tokens(tokens),
+            Self::SchemaWith(with_schema) => with_schema.to_tokens(tokens),
         }
     }
 }
