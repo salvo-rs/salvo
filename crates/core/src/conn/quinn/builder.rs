@@ -175,11 +175,9 @@ async fn process_web_transport(
                     if let Err(e) = stream.send_data(frame.into_data().unwrap_or_default()).await {
                         tracing::error!(error = ?e, "unable to send data to connection peer");
                     }
-                } else {
-                    if let Err(e) = stream.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                } else  if let Err(e) = stream.send_trailers(frame.into_trailers().unwrap_or_default()).await {
                         tracing::error!(error = ?e, "unable to send trailers to connection peer");
                     }
-                }
             }
             Err(e) => {
                 tracing::error!(error = ?e, "unable to poll data from connection");
@@ -231,11 +229,9 @@ where
                     if let Err(e) = tx.send_data(frame.into_data().unwrap_or_default()).await {
                         tracing::error!(error = ?e, "unable to send data to connection peer");
                     }
-                } else {
-                    if let Err(e) = tx.send_trailers(frame.into_trailers().unwrap_or_default()).await {
+                } else if let Err(e) = tx.send_trailers(frame.into_trailers().unwrap_or_default()).await {
                         tracing::error!(error = ?e, "unable to send trailers to connection peer");
                     }
-                }
             }
             Err(e) => {
                 tracing::error!(error = ?e, "unable to poll data from connection");
