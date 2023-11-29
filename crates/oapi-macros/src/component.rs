@@ -3,7 +3,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
-use crate::feature::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
+use crate::feature::{pop_feature, Feature, AdditionalProperties, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
 use crate::schema_type::{SchemaFormat, SchemaType};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
@@ -336,15 +336,22 @@ impl<'c> ComponentSchema {
                 let is_inline = features.is_inline();
 
                 if type_tree.is_object() {
-                    ComponentSchema::map_to_tokens(
-                        tokens,
-                        features,
-                        type_tree,
-                        object_name,
-                        description_stream,
-                        deprecated_stream,
-                        type_definition,
-                    );
+                    let oapi = crate::oapi_crate();
+                    let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+                    let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_))
+                        .unwrap_or_else(|| Feature::AdditionalProperties(AdditionalProperties(true)));
+                    let nullable = pop_feature!(features => Feature::Nullable(_));
+                    let default = pop_feature!(features => Feature::Default(_));
+
+                    tokens.extend(quote! {
+                        #oapi::oapi::Object::new()
+                            #additional_properties
+                            #description_stream
+                            #deprecated_stream
+                            #default
+                    });
+                    example.to_tokens(tokens);
+                    nullable.to_tokens(tokens)
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let schema = if type_definition {
