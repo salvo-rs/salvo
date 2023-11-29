@@ -31,7 +31,7 @@
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(extract(default_source(from = "body", format = "json")))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct GoodMan<'a> {
 //!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
@@ -46,7 +46,7 @@
 //! }
 //!
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(extract(default_source(from = "body", format = "json")))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct Nested<'a> {
 //!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,

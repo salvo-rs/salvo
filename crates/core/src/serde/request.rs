@@ -383,6 +383,7 @@ impl<'de> RequestDeserializer<'de> {
         while self.field_index < self.metadata.fields.len() as isize - 1 {
             self.field_index += 1;
             let field = &self.metadata.fields[self.field_index as usize];
+            self.field_flatten = field.flatten;
             self.field_str_value = None;
             self.field_vec_value = None;
 
@@ -656,7 +657,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_str() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(default_source(from = "body", format = "json")))]
+        #[salvo(extract(default_source(from = "body", parser = "json")))]
         struct RequestData<'a> {
             #[salvo(extract(source(from = "param")))]
             p2: &'a str,

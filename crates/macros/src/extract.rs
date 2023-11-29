@@ -291,6 +291,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 let ty = omit_type_path_lifetimes(ty);
                 nested_metadata = Some(quote! {
                     field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
+                    field = field.set_flatten(true);
                 });
             } else {
                 return Err(Error::new_spanned(name, "Invalid type for request source."));
