@@ -8,7 +8,7 @@ pub(crate) struct FlattenedMapSchema {
     tokens: TokenStream,
 }
 
-impl<'c> FlattenedMapSchema {
+impl FlattenedMapSchema {
     pub(crate) fn new(
         ComponentSchemaProps {
             type_tree,
