@@ -123,9 +123,13 @@ impl<'de> RequestDeserializer<'de> {
     fn real_parser(&self, source: &Source) -> SourceParser {
         let mut parser = source.parser;
         if parser == SourceParser::Smart {
-            if let Some(payload) = &self.payload {
-                if payload.is_json_map() || payload.is_json_str() {
-                    parser = SourceParser::Json;
+            if source.from  == SourceFrom::Body {
+                if let Some(payload) = &self.payload {
+                    if payload.is_json_map() || payload.is_json_str() {
+                        parser = SourceParser::Json;
+                    } else {
+                        parser = SourceParser::MultiMap;
+                    }
                 } else {
                     parser = SourceParser::MultiMap;
                 }
@@ -674,6 +678,33 @@ mod tests {
             RequestData {
                 p2: "921",
                 s: "abcd-good"
+            }
+        );
+    }
+    #[tokio::test]
+    async fn test_de_request_with_form_json_str() {
+        #[derive(Deserialize, Eq, PartialEq, Debug)]
+        struct User<'a> {
+            name: &'a str,
+            age: usize,
+        }
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(default_source(from = "body", parser = "json")))]
+        struct RequestData<'a> {
+            #[salvo(extract(source(from = "param")))]
+            p2: &'a str,
+            user: User<'a>,
+        }
+        let mut req = TestClient::get("http://127.0.0.1:5800/test/1234/param2v")
+            .raw_form(r#"user={"name": "chris", "age": 20}"#)
+            .build();
+        req.params.insert("p2".into(), "921".into());
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                p2: "921",
+                user: User { name: "chris", age: 20 }
             }
         );
     }
