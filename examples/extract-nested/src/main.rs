@@ -63,19 +63,19 @@ struct GoodMan<'a> {
     first_name: String,
     last_name: String,
     lovers: Vec<String>,
-    #[serde(flatten)]
-    nested: Nested,
+    #[salvo(extract(flatten))]
+    nested: Nested<'a>,
 }
 
 #[derive(Serialize, Deserialize, Extractible, Debug)]
 #[salvo(extract(default_source(from = "body", format = "json")))]
-struct Nested {
-    // #[salvo(extract(source(from = "param")))]
-    // id: i64,
-    // #[salvo(extract(source(from = "query")))]
-    // username: &'a str,
-    // first_name: String,
-    // last_name: String,
+struct Nested<'a> {
+    #[salvo(extract(source(from = "param")))]
+    id: i64,
+    #[salvo(extract(source(from = "query")))]
+    username: &'a str,
+    first_name: String,
+    last_name: String,
     #[salvo(rename = "lovers")]
     #[serde(default)]
     pets: Vec<String>,

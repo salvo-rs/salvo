@@ -15,6 +15,7 @@ struct FieldInfo {
     sources: Vec<SourceInfo>,
     aliases: Vec<String>,
     rename: Option<String>,
+    flatten: bool,
 }
 impl TryFrom<&Field> for FieldInfo {
     type Error = Error;
@@ -25,14 +26,14 @@ impl TryFrom<&Field> for FieldInfo {
         let mut sources: Vec<SourceInfo> = Vec::with_capacity(field.attrs.len());
         let mut aliases = Vec::with_capacity(field.attrs.len());
         let mut rename = None;
-        // let mut flatten = false;
-        // let mut skipped = false;
+        let mut flatten = false;
         for attr in attrs {
             if attr.path().is_ident("salvo") {
                 if let Ok(Some(metas)) = attribute::find_nested_list(&attr, "extract") {
                     let info: ExtractFieldInfo = metas.parse_args()?;
                     sources.extend(info.sources);
                     aliases.extend(info.aliases);
+                    flatten = info.flatten;
                     if info.rename.is_some() {
                         rename = info.rename;
                     }
@@ -47,6 +48,7 @@ impl TryFrom<&Field> for FieldInfo {
             sources,
             aliases,
             rename,
+            flatten,
         })
     }
 }
@@ -56,6 +58,7 @@ struct ExtractFieldInfo {
     sources: Vec<SourceInfo>,
     aliases: Vec<String>,
     rename: Option<String>,
+    flatten: bool,
 }
 impl Parse for ExtractFieldInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -78,11 +81,22 @@ impl Parse for ExtractFieldInfo {
                     let expr = input.parse::<Expr>()?;
                     extract.aliases.push(expr_lit_value(&expr)?);
                 }
+                "flatten" => {
+                    extract.flatten = true;
+                }
                 _ => {
                     return Err(input.error("unexpected attribute"));
                 }
             }
             input.parse::<Token![,]>().ok();
+        }
+        if extract.flatten {
+            if !extract.sources.is_empty() {
+                return Err(input.error("flatten field should not define souces"));
+            }
+            if !extract.aliases.is_empty() {
+                return Err(input.error("flatten field should not define aliases"));
+            }
         }
         Ok(extract)
     }
@@ -270,25 +284,28 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             .as_ref()
             .ok_or_else(|| Error::new_spanned(name, "All fields must be named."))?
             .to_string();
-
-        let mut sources = Vec::with_capacity(field.sources.len());
         let mut nested_metadata = None;
-        for source in &field.sources {
-            let from = &source.from;
-            if from == "request" {
-                if let Type::Path(ty) = &field.ty {
-                    let ty = omit_type_path_lifetimes(ty);
-                    nested_metadata = Some(quote! {
-                        field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
-                    });
-                } else {
-                    return Err(Error::new_spanned(name, "Invalid type for request source."));
-                }
+        let mut sources = Vec::with_capacity(field.sources.len());
+        if field.flatten {
+            if let Type::Path(ty) = &field.ty {
+                let ty = omit_type_path_lifetimes(ty);
+                nested_metadata = Some(quote! {
+                    field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
+                });
+                let source = metadata_source(&salvo, source);
+                sources.push(quote! {
+                    field = field.add_source(#source);
+                });
+            } else {
+                return Err(Error::new_spanned(name, "Invalid type for request source."));
             }
-            let source = metadata_source(&salvo, source);
-            sources.push(quote! {
-                field = field.add_source(#source);
-            });
+        } else {
+            for source in &field.sources {
+                let source = metadata_source(&salvo, source);
+                sources.push(quote! {
+                    field = field.add_source(#source);
+                });
+            }
         }
         if nested_metadata.is_some() && field.sources.len() > 1 {
             return Err(Error::new_spanned(name, "Only one source can be from request."));

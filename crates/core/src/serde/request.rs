@@ -130,6 +130,7 @@ impl<'de> RequestDeserializer<'de> {
     }
 
     #[inline]
+    #[allow(unreachable_patterns)]
     fn fill_value(&mut self, field: &'de Field) -> bool {
         let sources = if !field.sources.is_empty() {
             &field.sources

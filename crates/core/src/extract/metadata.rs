@@ -103,8 +103,10 @@ impl RenameRule {
     }
 }
 
-/// Source format for a source. This format is just means that field format, not the request mime type.
-/// For example, the request is posted as form, but if the field is string as json format, it can be parsed as json.
+/// Source format for a source. 
+/// 
+/// This format is just means that field format, not the request mime type.
+/// For example, if request is posted as form, but the field is string as json format, it can be parsed as json.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum SourceFormat {
@@ -112,8 +114,6 @@ pub enum SourceFormat {
     MultiMap,
     /// Json format.
     Json,
-    /// Request format means this field will extract from the request.
-    Request,
 }
 
 impl FromStr for SourceFormat {
@@ -200,10 +200,6 @@ pub struct Field {
     pub name: &'static str,
     /// Field flatten, this field will extracted from request.
     pub flatten: bool,
-    /// Field skipped, this field will not extracted from request.
-    /// 
-    /// Will use `Default::default()` or the function given by `default = "..."` to get a default value for this field.
-    pub skipped: bool,
     /// Field sources.
     pub sources: Vec<Source>,
     /// Field aliaes.
@@ -224,7 +220,6 @@ impl Field {
         Self {
             name,
             flatten: false,
-            skipped: sources.is_empty(),
             sources,
             aliases: vec![],
             rename: None,
@@ -235,12 +230,6 @@ impl Field {
     /// Sets the flatten to the given value.
     pub fn set_flatten(mut self, flatten: bool) -> Self {
         self.flatten = flatten;
-        self
-    }
-
-    /// Sets the skipped to the given value.
-    pub fn set_skipped(mut self, skipped: bool) -> Self {
-        self.skipped = skipped;
         self
     }
 
