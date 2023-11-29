@@ -20,8 +20,6 @@ pub enum SourceFrom {
     Cookie,
     /// The field will extracted from http payload.
     Body,
-    /// The field will extracted from request.
-    Request,
 }
 
 impl FromStr for SourceFrom {
@@ -105,26 +103,29 @@ impl RenameRule {
     }
 }
 
-/// Source format for a source. 
+/// Source parser for a source. 
 /// 
-/// This format is just means that field format, not the request mime type.
+/// This parser is used to parse field data, not the request mime type.
 /// For example, if request is posted as form, but the field is string as json format, it can be parsed as json.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[non_exhaustive]
-pub enum SourceFormat {
-    /// MulitMap format. This is the default.
+pub enum SourceParser {
+    /// MulitMap parser.
     MultiMap,
-    /// Json format.
+    /// Json parser.
     Json,
+    /// Smart parser.
+    Smart,
 }
 
-impl FromStr for SourceFormat {
+impl FromStr for SourceParser {
     type Err = crate::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
             "multimap" => Ok(Self::MultiMap),
             "json" => Ok(Self::Json),
+            "smart" => Ok(Self::Smart),
             _ => Err(crate::Error::Other("invalid source format".into())),
         }
     }
@@ -208,7 +209,7 @@ pub struct Field {
     pub aliases: Vec<&'static str>,
     /// Field rename.
     pub rename: Option<&'static str>,
-    /// Field metadata. This is used for nested extractible types.
+    /// Field metadata, this is used for nested extractible types.
     pub metadata: Option<&'static Metadata>,
 }
 impl Field {
@@ -277,13 +278,13 @@ impl Field {
 pub struct Source {
     /// The source from.
     pub from: SourceFrom,
-    /// the origin data format of the field.
-    pub format: SourceFormat,
+    /// The parser used to parse data.
+    pub parser: SourceParser,
 }
 impl Source {
     /// Create a new source from a string.
-    pub fn new(from: SourceFrom, format: SourceFormat) -> Self {
-        Self { from, format }
+    pub fn new(from: SourceFrom, parser: SourceParser) -> Self {
+        Self { from, parser }
     }
 }
 
@@ -309,12 +310,12 @@ mod tests {
     #[test]
     fn test_parse_source_format() {
         for (key, value) in [
-            ("multimap", SourceFormat::MultiMap),
-            ("json", SourceFormat::Json),
+            ("multimap", SourceParser::MultiMap),
+            ("json", SourceParser::Json),
         ] {
-            assert_eq!(key.parse::<SourceFormat>().unwrap(), value);
+            assert_eq!(key.parse::<SourceParser>().unwrap(), value);
         }
-        assert!("abcd".parse::<SourceFormat>().is_err());
+        assert!("abcd".parse::<SourceParser>().is_err());
     }
 
     #[test]

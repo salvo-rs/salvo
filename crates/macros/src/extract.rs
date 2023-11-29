@@ -105,27 +105,27 @@ impl Parse for ExtractFieldInfo {
 #[derive(Eq, PartialEq, Debug)]
 struct SourceInfo {
     from: String,
-    format: String,
+    parser: String,
 }
 
 impl Parse for SourceInfo {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut source = SourceInfo {
-            from: "body".to_string(),
-            format: "".to_string(),
+            from: "body".to_owned(),
+            parser: "smart".to_owned(),
         };
         let fields: Punctuated<MetaNameValue, Token![,]> = Punctuated::parse_terminated(input)?;
         for field in fields {
             if field.path.is_ident("from") {
                 source.from = expr_lit_value(&field.value)?;
-            } else if field.path.is_ident("format") {
-                source.format = expr_lit_value(&field.value)?;
+            } else if field.path.is_ident("parser") {
+                source.parser = expr_lit_value(&field.value)?;
             } else {
                 return Err(input.error("unexpected attribute"));
             }
         }
-        if source.format.is_empty() {
-            source.format = "multimap".to_string();
+        if source.parser.is_empty() {
+            source.parser = "smart".to_string();
         }
         if !["param", "query", "header", "body"].contains(&source.from.as_str()) {
             return Err(Error::new(
@@ -133,10 +133,10 @@ impl Parse for SourceInfo {
                 format!("source from is invalid: {}", source.from),
             ));
         }
-        if !["multimap", "json"].contains(&source.format.as_str()) {
+        if !["multimap", "json", "smart"].contains(&source.parser.as_str()) {
             return Err(Error::new(
                 input.span(),
-                format!("source format is invalid: {}", source.format),
+                format!("source parser is invalid: {}", source.parser),
             ));
         }
         Ok(source)
@@ -238,19 +238,19 @@ fn metadata_rename_rule(salvo: &Ident, input: &str) -> Result<TokenStream, Error
 }
 fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
     let from = Ident::new(&source.from.to_pascal_case(), Span::call_site());
-    let format = if source.format.to_lowercase() == "multimap" {
+    let parser = if source.parser.to_lowercase() == "multimap" {
         Ident::new("MultiMap", Span::call_site())
     } else {
-        Ident::new(&source.format.to_pascal_case(), Span::call_site())
+        Ident::new(&source.parser.to_pascal_case(), Span::call_site())
     };
     let from = quote! {
         #salvo::extract::metadata::SourceFrom::#from
     };
-    let format = quote! {
-        #salvo::extract::metadata::SourceFormat::#format
+    let parser = quote! {
+        #salvo::extract::metadata::SourceParser::#parser
     };
     quote! {
-        #salvo::extract::metadata::Source::new(#from, #format)
+        #salvo::extract::metadata::Source::new(#from, #parser)
     }
 }
 
@@ -291,10 +291,6 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
                 let ty = omit_type_path_lifetimes(ty);
                 nested_metadata = Some(quote! {
                     field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
-                });
-                let source = metadata_source(&salvo, source);
-                sources.push(quote! {
-                    field = field.add_source(#source);
                 });
             } else {
                 return Err(Error::new_spanned(name, "Invalid type for request source."));
