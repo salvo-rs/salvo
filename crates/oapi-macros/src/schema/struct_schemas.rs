@@ -51,7 +51,7 @@ impl NamedStructSchema<'_> {
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
         let mut field_features = field.attrs.parse_features::<NamedFieldFeatures>().into_inner();
-        
+
         let schema_default = self
             .features
             .as_ref()
