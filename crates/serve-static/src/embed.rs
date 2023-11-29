@@ -6,19 +6,7 @@ use salvo_core::http::header::{CONTENT_TYPE, ETAG, IF_NONE_MATCH};
 use salvo_core::http::{Mime, Request, Response, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, IntoVecString};
 
-use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url};
-
-macro_rules! join_path {
-    ($($part:expr),+) => {
-        {
-            let mut p = std::path::PathBuf::new();
-            $(
-                p.push($part);
-            )*
-            path_slash::PathBufExt::to_slash_lossy(&p).to_string()
-        }
-    }
-}
+use super::{decode_url_path_safely, format_url_path_safely, redirect_to_dir_url, join_path};
 
 /// Handler that serves embed file.
 #[non_exhaustive]

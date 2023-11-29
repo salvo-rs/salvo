@@ -24,6 +24,20 @@ pub use file::StaticFile;
 #[macro_use]
 mod cfg;
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! join_path {
+    ($($part:expr),+) => {
+        {
+            let mut p = std::path::PathBuf::new();
+            $(
+                p.push($part);
+            )*
+            path_slash::PathBufExt::to_slash_lossy(&p).to_string()
+        }
+    }
+}
+
 cfg_feature! {
     #![feature = "embed"]
     mod embed;

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use time::{macros::format_description, OffsetDateTime};
 
-use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url};
+use super::{decode_url_path_safely, encode_url_path, format_url_path_safely, redirect_to_dir_url, join_path};
 
 /// CompressionAlgo
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
@@ -295,12 +295,6 @@ impl Handler for StaticDir {
             decode_url_path_safely(req_path)
         };
         let rel_path = format_url_path_safely(&rel_path);
-        for filter in &self.exclude_filters {
-            if filter(&rel_path) {
-                res.render(StatusError::not_found());
-                return;
-            }
-        }
         let mut files: HashMap<String, Metadata> = HashMap::new();
         let mut dirs: HashMap<String, Metadata> = HashMap::new();
         let is_dot_file = Path::new(&rel_path)
@@ -311,7 +305,13 @@ impl Handler for StaticDir {
         let mut abs_path = None;
         if self.include_dot_files || !is_dot_file {
             for root in &self.roots {
-                let path = root.join(&rel_path);
+                let raw_path = join_path!(root, &rel_path);
+                for filter in &self.exclude_filters {
+                    if filter(&raw_path) {
+                        continue;
+                    }
+                }
+                let path = Path::new(&raw_path);
                 if path.is_dir() {
                     if !req_path.ends_with('/') && !req_path.is_empty() {
                         redirect_to_dir_url(req.uri(), res);
@@ -327,22 +327,28 @@ impl Handler for StaticDir {
                     }
 
                     if self.auto_list && abs_path.is_none() {
-                        abs_path = Some(path);
+                        abs_path = Some(path.to_path_buf());
                     }
                     if abs_path.is_some() {
                         break;
                     }
                 } else if path.is_file() {
-                    abs_path = Some(path);
+                    abs_path = Some(path.to_path_buf());
                 }
             }
         }
         let fallback = self.fallback.as_deref().unwrap_or_default();
         if abs_path.is_none() && !fallback.is_empty() {
             for root in &self.roots {
-                let path = root.join(fallback);
+                let raw_path = join_path!(root, fallback);
+                for filter in &self.exclude_filters {
+                    if filter(&raw_path) {
+                        continue;
+                    }
+                }
+                let path = Path::new(&raw_path);
                 if path.is_file() {
-                    abs_path = Some(path);
+                    abs_path = Some(path.to_path_buf());
                     break;
                 }
             }
@@ -423,6 +429,12 @@ impl Handler for StaticDir {
                 while let Ok(Some(entry)) = entries.next_entry().await {
                     let file_name = entry.file_name().to_string_lossy().to_string();
                     if self.include_dot_files || !file_name.starts_with('.') {
+                        let raw_path = join_path!(&abs_path, &file_name);
+                        for filter in &self.exclude_filters {
+                            if filter(&raw_path) {
+                                continue;
+                            }
+                        }
                         if let Ok(metadata) = entry.metadata().await {
                             if metadata.is_dir() {
                                 dirs.entry(file_name).or_insert(metadata);
