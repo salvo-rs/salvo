@@ -336,10 +336,7 @@ impl<'c> ComponentSchema {
                 let is_inline = features.is_inline();
 
                 if type_tree.is_object() {
-                    tokens.extend(quote! {
-                        #oapi::oapi::Object::new()
-                            #description_stream #deprecated_stream #nullable
-                    })
+                    ComponentSchema::map_to_tokens(tokens, features, type_tree, object_name, description_stream, deprecated_stream, type_definition);
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let schema = if type_definition {
