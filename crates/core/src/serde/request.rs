@@ -18,37 +18,27 @@ use crate::Request;
 
 use super::{CowValue, VecValue};
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
-pub(crate) enum RequestDataType {
-    Form,
-    Json,
-    None,
-}
 pub async fn from_request<'de, T>(req: &'de mut Request, metadata: &'de Metadata) -> Result<T, ParseError>
 where
     T: Deserialize<'de>,
 {
     // Ensure body is parsed correctly.
-    let data_type = if let Some(ctype) = req.content_type() {
+    if let Some(ctype) = req.content_type() {
         match ctype.subtype() {
             mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
                 if metadata.has_body_required() {
                     req.form_data().await.ok();
                 }
-                RequestDataType::Form
             }
             mime::JSON => {
                 if metadata.has_body_required() {
                     req.payload().await.ok();
                 }
-                RequestDataType::Json
             }
-            _ => RequestDataType::None,
+            _ => {}
         }
-    } else {
-        RequestDataType::None
-    };
-    Ok(T::deserialize(RequestDeserializer::new(req, metadata, data_type)?)?)
+    }
+    Ok(T::deserialize(RequestDeserializer::new(req, metadata)?)?)
 }
 
 #[derive(Clone, Debug)]
@@ -57,10 +47,21 @@ pub(crate) enum Payload<'a> {
     JsonStr(&'a str),
     JsonMap(HashMap<&'a str, &'a RawValue>),
 }
+impl<'a> Payload<'a> {
+    #[allow(dead_code)]
+    pub(crate) fn is_form_data(&self) -> bool {
+        matches!(*self, Self::FormData(_))
+    }
+    pub(crate) fn is_json_str(&self) -> bool {
+        matches!(*self, Self::JsonStr(_))
+    }
+    pub(crate) fn is_json_map(&self) -> bool {
+        matches!(*self, Self::JsonMap(_))
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct RequestDeserializer<'de> {
-    data_type: RequestDataType,
     params: &'de IndexMap<String, String>,
     queries: &'de MultiMap<String, String>,
     #[cfg(feature = "cookie")]
@@ -78,29 +79,31 @@ pub(crate) struct RequestDeserializer<'de> {
 impl<'de> RequestDeserializer<'de> {
     /// Construct a new `RequestDeserializer<I, E>`.
     #[inline]
-    pub(crate) fn new(
-        request: &'de Request,
-        metadata: &'de Metadata,
-        data_type: RequestDataType,
-    ) -> Result<RequestDeserializer<'de>, ParseError> {
+    pub(crate) fn new(request: &'de Request, metadata: &'de Metadata) -> Result<RequestDeserializer<'de>, ParseError> {
         let mut payload = None;
+
         if metadata.has_body_required() {
-            if data_type == RequestDataType::Json {
-                if let Some(data) = request.payload.get() {
-                    payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
-                        Ok(map) => Some(Payload::JsonMap(map)),
-                        Err(e) => {
-                            tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
-                            Some(Payload::JsonStr(std::str::from_utf8(data)?))
+            if let Some(ctype) = request.content_type() {
+                match ctype.subtype() {
+                    mime::WWW_FORM_URLENCODED | mime::FORM_DATA => {
+                        payload = request.form_data.get().map(Payload::FormData);
+                    }
+                    mime::JSON => {
+                        if let Some(data) = request.payload.get() {
+                            payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
+                                Ok(map) => Some(Payload::JsonMap(map)),
+                                Err(e) => {
+                                    tracing::warn!(error = ?e, "`RequestDeserializer` serde parse json payload failed");
+                                    Some(Payload::JsonStr(std::str::from_utf8(data)?))
+                                }
+                            };
                         }
-                    };
+                    }
+                    _ => {}
                 }
-            } else {
-                payload = request.form_data.get().map(Payload::FormData);
             }
         }
         Ok(RequestDeserializer {
-            data_type,
             params: request.params(),
             queries: request.queries(),
             headers: request.headers(),
@@ -115,6 +118,24 @@ impl<'de> RequestDeserializer<'de> {
             field_vec_value: None,
         })
     }
+
+    #[inline]
+    fn real_parser(&self, source: &Source) -> SourceParser {
+        let mut parser = source.parser;
+        if parser == SourceParser::Smart {
+            if let Some(payload) = &self.payload {
+                if payload.is_json_map() || payload.is_json_str() {
+                    parser = SourceParser::Json;
+                } else {
+                    parser = SourceParser::MultiMap;
+                }
+            } else {
+                parser = SourceParser::MultiMap;
+            }
+        }
+        parser
+    }
+
     #[inline]
     fn deserialize_value<T>(&mut self, seed: T) -> Result<T::Value, ValError>
     where
@@ -128,7 +149,6 @@ impl<'de> RequestDeserializer<'de> {
                 .expect("Field must exist");
             let metadata = field.metadata.expect("Field's metadata must exist");
             seed.deserialize(RequestDeserializer {
-                data_type: self.data_type,
                 params: self.params,
                 queries: self.queries,
                 headers: self.headers,
@@ -147,7 +167,9 @@ impl<'de> RequestDeserializer<'de> {
                 .field_source
                 .take()
                 .expect("MapAccess::next_value called before next_key");
-            if source.from == SourceFrom::Body && source.parser == SourceParser::Json {
+
+            let parser = self.real_parser(source);
+            if source.from == SourceFrom::Body && parser == SourceParser::Json {
                 // Panic because this indicates a bug in the program rather than an expected failure.
                 let value = self
                     .field_str_value
@@ -274,21 +296,12 @@ impl<'de> RequestDeserializer<'de> {
                     }
                 }
                 SourceFrom::Body => {
-                    let mut parser = source.parser;
-                    if parser == SourceParser::Smart {
-                        if self.data_type == RequestDataType::Json {
-                            parser = SourceParser::Json;
-                        } else {
-                            parser = SourceParser::MultiMap;
-                        }
-                    }
-                    println!("VVVVVVVVV {:?}", parser);
+                    let parser = self.real_parser(source);
                     match parser {
                         SourceParser::Json => {
                             if let Some(payload) = &self.payload {
                                 match payload {
                                     Payload::FormData(form_data) => {
-                                        println!("--------------------------1");
                                         let mut value = form_data.fields.get(field_name.as_ref());
                                         if value.is_none() {
                                             for alias in &field.aliases {
@@ -307,7 +320,6 @@ impl<'de> RequestDeserializer<'de> {
                                         }
                                     }
                                     Payload::JsonMap(ref map) => {
-                                        println!("--------------------------2");
                                         let mut value = map.get(field_name.as_ref());
                                         if value.is_none() {
                                             for alias in &field.aliases {
@@ -326,7 +338,6 @@ impl<'de> RequestDeserializer<'de> {
                                         }
                                     }
                                     Payload::JsonStr(value) => {
-                                        println!("--------------------------3");
                                         self.field_str_value = Some(*value);
                                         self.field_source = Some(source);
                                         return true;
