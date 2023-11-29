@@ -42,7 +42,7 @@ struct NamedStructFieldOptions<'a> {
 }
 
 impl NamedStructSchema<'_> {
-    fn field_to_schema_property<R>(
+    fn field_as_schema_property<R>(
         &self,
         field: &Field,
         flatten: bool,
@@ -144,7 +144,7 @@ impl ToTokens for NamedStructSchema<'_> {
                         field_name = &field_name[2..];
                     }
 
-                    self.field_to_schema_property(
+                    self.field_as_schema_property(
                         field,
                         false,
                         &container_rules,
@@ -201,7 +201,7 @@ impl ToTokens for NamedStructSchema<'_> {
             let mut flattened_map_field = None;
 
             for field in flatten_fields {
-                self.field_to_schema_property(
+                self.field_as_schema_property(
                     field,
                     true,
                     &container_rules,
