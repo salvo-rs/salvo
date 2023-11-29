@@ -570,7 +570,7 @@ mod tests {
             q1: String,
             // #[salvo(extract(source(from = "query")))]
             q2: i64,
-            // #[salvo(extract(source(from = "body", parser = "json")))]
+            // #[salvo(extract(source(from = "body", parse = "json")))]
             // body: RequestBody<'a>,
         }
 
@@ -597,7 +597,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_vec() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(default_source(from = "body", parser = "json")))]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
         struct RequestData<'a> {
             #[salvo(extract(source(from = "param")))]
             p2: &'a str,
@@ -644,7 +644,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_bool() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(default_source(from = "body", parser = "json")))]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
         struct RequestData<'a> {
             #[salvo(extract(source(from = "param")))]
             p2: &'a str,
@@ -661,7 +661,7 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_json_str() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(default_source(from = "body", parser = "json")))]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
         struct RequestData<'a> {
             #[salvo(extract(source(from = "param")))]
             p2: &'a str,
@@ -689,7 +689,7 @@ mod tests {
             age: usize,
         }
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(default_source(from = "body", parser = "json")))]
+        #[salvo(extract(default_source(from = "body", parse = "json")))]
         struct RequestData<'a> {
             #[salvo(extract(source(from = "param")))]
             p2: &'a str,

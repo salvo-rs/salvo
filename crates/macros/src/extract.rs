@@ -118,7 +118,7 @@ impl Parse for SourceInfo {
         for field in fields {
             if field.path.is_ident("from") {
                 source.from = expr_lit_value(&field.value)?;
-            } else if field.path.is_ident("parser") {
+            } else if field.path.is_ident("parse") {
                 source.parser = expr_lit_value(&field.value)?;
             } else {
                 return Err(input.error("unexpected attribute"));
