@@ -259,15 +259,15 @@ mod tests {
                     let mut metadata = salvo::extract::Metadata::new("BadMan");
                     metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
                         salvo::extract::metadata::SourceFrom::Query,
-                        salvo::extract::metadata::SourceParser::MultiMap
+                        salvo::extract::metadata::SourceParser::Smart
                     ));
                     metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
                         salvo::extract::metadata::SourceFrom::Param,
-                        salvo::extract::metadata::SourceParser::MultiMap
+                        salvo::extract::metadata::SourceParser::Smart
                     ));
                     metadata = metadata.add_default_source(salvo::extract::metadata::Source::new(
                         salvo::extract::metadata::SourceFrom::Body,
-                        salvo::extract::metadata::SourceParser::MultiMap
+                        salvo::extract::metadata::SourceParser::Smart
                     ));
                     let mut field = salvo::extract::metadata::Field::new("id");
                     metadata = metadata.add_field(field);
