@@ -103,8 +103,8 @@ impl RenameRule {
     }
 }
 
-/// Source parser for a source. 
-/// 
+/// Source parser for a source.
+///
 /// This parser is used to parse field data, not the request mime type.
 /// For example, if request is posted as form, but the field is string as json format, it can be parsed as json.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
@@ -309,10 +309,7 @@ mod tests {
 
     #[test]
     fn test_parse_source_format() {
-        for (key, value) in [
-            ("multimap", SourceParser::MultiMap),
-            ("json", SourceParser::Json),
-        ] {
+        for (key, value) in [("multimap", SourceParser::MultiMap), ("json", SourceParser::Json)] {
             assert_eq!(key.parse::<SourceParser>().unwrap(), value);
         }
         assert!("abcd".parse::<SourceParser>().is_err());
