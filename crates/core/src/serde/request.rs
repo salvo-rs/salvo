@@ -123,7 +123,7 @@ impl<'de> RequestDeserializer<'de> {
     fn real_parser(&self, source: &Source) -> SourceParser {
         let mut parser = source.parser;
         if parser == SourceParser::Smart {
-            if source.from  == SourceFrom::Body {
+            if source.from == SourceFrom::Body {
                 if let Some(payload) = &self.payload {
                     if payload.is_json_map() || payload.is_json_str() {
                         parser = SourceParser::Json;
