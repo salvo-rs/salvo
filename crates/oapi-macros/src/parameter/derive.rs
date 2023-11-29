@@ -106,7 +106,7 @@ impl ToTokens for ToParameters {
         } else {
             quote! { #salvo::extract::metadata::SourceFrom::Query }
         };
-        let default_source = quote! { #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceFormat::MultiMap) };
+        let default_source = quote! { #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceParser::MultiMap) };
         let fields = self
         .get_struct_fields(&names.as_ref())
         .enumerate()

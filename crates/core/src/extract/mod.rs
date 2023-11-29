@@ -31,7 +31,7 @@
 //! # use salvo_core::prelude::*;
 //! # use serde::{Deserialize, Serialize};
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(extract(default_source(from = "body", format = "json")))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct GoodMan<'a> {
 //!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
@@ -41,12 +41,12 @@
 //!     last_name: String,
 //!     lovers: Vec<String>,
 //!     /// The nested field is completely reparsed from Request.
-//!     #[salvo(extract(source(from = "request")))]
+//!     #[serde(flatten)]
 //!     nested: Nested<'a>,
 //! }
 //!
 //! #[derive(Serialize, Deserialize, Extractible, Debug)]
-//! #[salvo(extract(default_source(from = "body", format = "json")))]
+//! #[salvo(extract(default_source(from = "body")))]
 //! struct Nested<'a> {
 //!     #[salvo(extract(source(from = "param")))]
 //!     id: i64,
