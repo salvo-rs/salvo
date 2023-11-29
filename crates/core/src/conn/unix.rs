@@ -1,4 +1,5 @@
 //! UnixListener module
+use std::fs::{set_permissions, Permissions};
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
 use std::sync::Arc;
@@ -6,7 +7,8 @@ use std::time::Duration;
 
 use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::CancellationToken;        
+use nix::unistd::{Gid, chown, Uid};    
 
 use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
@@ -18,26 +20,63 @@ use super::{Accepted, Acceptor, Listener};
 /// `UnixListener` is used to create a Unix socket connection listener.
 #[cfg(unix)]
 pub struct UnixListener<T> {
-    path: T,
+    path: T,    
+    permissions: Option<Permissions>,
+    owner: Option<(Option<Uid>, Option<Gid>)>,
 }
 #[cfg(unix)]
 impl<T> UnixListener<T> {
     /// Creates a new `UnixListener` bind to the specified path.
     #[inline]
     pub fn new(path: T) -> UnixListener<T> {
-        UnixListener { path }
+        UnixListener { path,
+            permissions: None,
+            owner: None, }
+    }
+
+    /// Provides permissions to be set on actual bind.
+    #[inline]
+    pub fn permissions(mut self, permissions: impl Into<Option<Permissions>>) -> Self {
+        self.permissions = permissions.into();
+        self
+    }
+
+    #[inline]
+    /// Provides owner to be set on actual bind.
+    pub fn owner(mut self, uid: Option<u32>, gid: Option<u32>) -> Self {
+        self.owner =  Some((uid.map(|v| Uid::from_raw(v)), gid.map(|v| Gid::from_raw(v))));
+        self
     }
 }
 
 #[async_trait]
 impl<T> Listener for UnixListener<T>
 where
-    T: AsRef<Path> + Send,
+    T: AsRef<Path> + Send + Clone,
 {
     type Acceptor = UnixAcceptor;
 
     async fn try_bind(self) -> IoResult<Self::Acceptor> {
-        let inner = TokioUnixListener::bind(self.path)?;
+        let inner = match (self.permissions, self.owner) {
+            (Some(permissions), Some((uid, gid))) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                set_permissions(self.path.clone(), permissions)?;
+                chown(self.path.as_ref().as_os_str().into(), uid, gid)?;
+                inner
+            }
+            (Some(permissions), None) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                set_permissions(self.path.clone(), permissions)?;
+                inner
+            }
+            (None, Some((uid, gid))) => {
+                let inner = TokioUnixListener::bind(self.path.clone())?;
+                chown(self.path.as_ref().as_os_str().into(), uid, gid)?;
+                inner
+            }
+            (None, None) => TokioUnixListener::bind(self.path)?,
+        };
+
         let holding = Holding {
             local_addr: inner.local_addr()?.into(),
             http_versions: vec![Version::HTTP_11],
