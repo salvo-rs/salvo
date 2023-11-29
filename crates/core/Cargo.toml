@@ -90,5 +90,8 @@ brotli = { workspace = true, optional = true, features = ["default"] }
 flate2 = { workspace = true, optional = true, features = ["default"] }
 zstd = { workspace = true, optional = true, features = ["default"] }
 
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["fs", "user"] }
+
 [dev-dependencies]
 fastrand = { workspace = true }
