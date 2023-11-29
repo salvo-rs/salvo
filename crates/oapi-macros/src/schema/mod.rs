@@ -104,7 +104,6 @@ impl ToTokens for ToSchema<'_> {
                 }
             }
         };
-        println!("mmmm   {body}");
         tokens.extend(quote! {
             impl #impl_generics #oapi::oapi::ToSchema for #ident #ty_generics #where_clause {
                 fn to_schema(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::schema::Schema> {
