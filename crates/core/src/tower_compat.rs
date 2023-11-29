@@ -55,7 +55,7 @@ where
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let mut svc = self.0.clone();
-        if let Err(_) = svc.ready().await {
+        if svc.ready().await.is_err() {
             tracing::error!("tower service not ready.");
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
@@ -192,7 +192,7 @@ where
 {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let mut svc = self.0.clone();
-        if let Err(_) = svc.ready().await {
+        if svc.ready().await.is_err() {
             tracing::error!("tower service not ready.");
             res.render(StatusError::internal_server_error().cause("tower service not ready."));
             return;
