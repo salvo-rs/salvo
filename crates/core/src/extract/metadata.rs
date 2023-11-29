@@ -20,6 +20,8 @@ pub enum SourceFrom {
     Cookie,
     /// The field will extracted from http payload.
     Body,
+    /// The field will extracted from request.
+    Request,
 }
 
 impl FromStr for SourceFrom {
