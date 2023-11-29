@@ -3,7 +3,9 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
-use crate::feature::{pop_feature, Feature, AdditionalProperties, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
+use crate::feature::{
+    pop_feature, AdditionalProperties, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable,
+};
 use crate::schema_type::{SchemaFormat, SchemaType};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
