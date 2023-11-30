@@ -88,7 +88,7 @@ rust_decimal = "1"
 rustls = "0.21"
 rustls-pemfile = "1"
 rust-embed = { version = ">= 6, <= 8" }
-salvo-utils = { version = "0.0.6", default-features = true }
+salvo-utils = { version = "0.0.7", default-features = true }
 salvo_macros = { version = "0.59.0", path = "crates/macros", default-features = false }
 salvo_core = { version = "0.59.0", path = "crates/core", default-features = false }
 salvo_extra = { version = "0.59.0", path = "crates/extra", default-features = false }
