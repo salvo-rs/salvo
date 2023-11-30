@@ -48,7 +48,7 @@ form_urlencoded = "1"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
 headers = "0.3"
-http = "0.2"
+http = "1.0"
 http-body-util = "0.1.0-rc.3"
 hmac = "0.12"
 hex = "0.4"
