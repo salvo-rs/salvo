@@ -190,6 +190,9 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let id = &pat.pat;
                     let ty = omit_type_path_lifetimes(ty);
                     let idv = id.to_token_stream().to_string();
+                    // If id like `mut pdata`, then idv is `pdata`;
+                    let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
+                    let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
                     extract_ts.push(quote! {
                             let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_generated_req, #idv).await {
