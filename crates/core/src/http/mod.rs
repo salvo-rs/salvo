@@ -26,8 +26,6 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio_util::sync::CancellationToken;
-
 use crate::async_trait;
 use crate::conn::HttpBuilder;
 use crate::service::HyperHandler;
@@ -40,8 +38,7 @@ pub trait HttpConnection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        server_shutdown_token: CancellationToken,
-        idle_connection_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
     ) -> IoResult<()>;
 }
 
