@@ -8,8 +8,7 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::pin::Pin;
 use std::task::{self, ready, Context, Poll};
 
-use futures_channel::mpsc;
-use futures_channel::oneshot;
+use futures_channel::{mpsc, oneshot};
 use futures_util::stream::{BoxStream, FusedStream, Stream, TryStreamExt};
 use hyper::body::{Body, Frame, Incoming, SizeHint};
 use sync_wrapper::SyncWrapper;

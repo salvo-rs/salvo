@@ -1,5 +1,4 @@
 //! Server module
-use std::future::Future;
 use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -8,6 +7,7 @@ use std::sync::Arc;
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
 use hyper::server::conn::http2;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::Notify;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -18,13 +18,68 @@ use crate::conn::{Accepted, Acceptor, Holding, HttpBuilder};
 use crate::http::{HeaderValue, HttpConnection, Version};
 use crate::Service;
 
+/// Server handle is used to stop server.
+#[derive(Clone)]
+pub struct ServerHandle {
+    tx_cmd: UnboundedSender<ServerCommand>,
+}
+
+impl ServerHandle {
+    /// Force stop server.
+    ///
+    /// Call this function will stop server immediately.
+    pub fn stop_forcible(&self) {
+        self.tx_cmd.send(ServerCommand::StopForcible).ok();
+    }
+    /// Graceful stop server.
+    ///
+    /// Call this function will stop server after all connections are closed,
+    /// allowing it to finish processing any ongoing requests before terminating. 
+    /// It ensures that all connections are closed properly and any resources are released.
+    /// 
+    /// You can specify a timeout to force stop server. 
+    /// If `timeout` is `None`, it will wait util all connections are closed.
+    /// Gracefully shuts down the server.
+    ///
+    /// This function gracefully shuts down the server, allowing it to finish processing any
+    /// ongoing requests before terminating. It ensures that all connections are closed
+    /// properly and any resources are released.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use salvo_core::prelude::*;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    /// let server = Server::new(acceptor);
+    /// let handle = server.handle();
+    ///
+    /// // Gracefully shut down the server
+    /// handle.shutdown_graceful();
+    /// # }
+    /// ```
+    /// 
+    pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
+        self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
+    }
+}
+
+enum ServerCommand {
+    StopForcible,
+    StopGraceful(Option<Duration>),
+}
+
 /// HTTP Server
 ///
 /// A `Server` is created to listen on a port, parse HTTP requests, and hand them off to a [`Service`].
 pub struct Server<A> {
     acceptor: A,
     builder: HttpBuilder,
-    idle_timeout: Option<Duration>,
+    conn_idle_timeout: Option<Duration>,
+    tx_cmd: UnboundedSender<ServerCommand>,
+    rx_cmd: UnboundedReceiver<ServerCommand>,
 }
 
 impl<A: Acceptor + Send> Server<A> {
@@ -33,19 +88,18 @@ impl<A: Acceptor + Send> Server<A> {
     /// # Example
     ///
     /// ```no_run
-    /// # use salvo_core::prelude::*;
+    /// use salvo_core::prelude::*;
     ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    /// Server::new(acceptor);
-    /// # }
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    ///     Server::new(acceptor);
+    /// }
     /// ```
-    #[inline]
     pub fn new(acceptor: A) -> Self {
-        Server {
+        Self::with_http_builder(
             acceptor,
-            builder: HttpBuilder {
+            HttpBuilder {
                 #[cfg(feature = "http1")]
                 http1: http1::Builder::new(),
                 #[cfg(feature = "http2")]
@@ -53,8 +107,42 @@ impl<A: Acceptor + Send> Server<A> {
                 #[cfg(feature = "quinn")]
                 quinn: crate::conn::quinn::Builder::new(),
             },
-            idle_timeout: None,
+        )
+    }
+
+    /// Create new `Server` with [`Acceptor`] and [`HttpBuilder`].
+    pub fn with_http_builder(acceptor: A, builder: HttpBuilder) -> Self {
+        let (tx_cmd, rx_cmd) = tokio::sync::mpsc::unbounded_channel();
+        Self {
+            acceptor,
+            builder,
+            conn_idle_timeout: None,
+            tx_cmd,
+            rx_cmd,
         }
+    }
+
+    /// Get a [`ServerHandle`] to stop server.
+    pub fn handle(&self) -> ServerHandle {
+        ServerHandle {
+            tx_cmd: self.tx_cmd.clone(),
+        }
+    }
+
+    /// Force stop server.
+    ///
+    /// Call this function will stop server immediately.
+    pub fn stop_forcible(&self) {
+        self.tx_cmd.send(ServerCommand::StopForcible).ok();
+    }
+
+    /// Graceful stop server.
+    ///
+    /// Call this function will stop server after all connections are closed.
+    /// You can specify a timeout to force stop server. 
+    /// If `timeout` is `None`, it will wait util all connections are closed.
+    pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
+        self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
 
     /// Get holding information of this server.
@@ -90,12 +178,30 @@ impl<A: Acceptor + Send> Server<A> {
     /// Specify connection idle timeout. Connections will be terminated if there was no activity
     /// within this period of time.
     #[must_use]
-    pub fn idle_timeout(mut self, timeout: Duration) -> Self {
-        self.idle_timeout = Some(timeout);
+    pub fn conn_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.conn_idle_timeout = Some(timeout);
         self
     }
 
-    /// Serve a [`Service`]
+    /// Serve a [`Service`].
+    /// 
+    /// # Example
+    ///
+    /// ```no_run
+    /// use salvo_core::prelude::*;
+
+    /// #[handler]
+    /// async fn hello() -> &'static str {
+    ///     "Hello World"
+    /// }
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    ///     let router = Router::new().get(hello);
+    ///     Server::new(acceptor).serve(router).await;
+    /// }
+    /// ```
     #[inline]
     pub async fn serve<S>(self, service: S)
     where
@@ -104,80 +210,22 @@ impl<A: Acceptor + Send> Server<A> {
         self.try_serve(service).await.unwrap();
     }
 
-    /// Try to serve a [`Service`]
+    /// Try to serve a [`Service`].
     #[inline]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
         S: Into<Service> + Send,
     {
-        self.try_serve_with_graceful_shutdown(service, futures_util::future::pending(), None)
-            .await
-    }
-
-    /// Serve with graceful shutdown signal.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tokio::sync::oneshot;
-    ///
-    /// use salvo_core::prelude::*;
-    ///
-    /// #[handler]
-    /// async fn hello(res: &mut Response) {
-    ///     res.render("Hello World!");
-    /// }
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let (tx, rx) = oneshot::channel();
-    ///     let router = Router::new().get(hello);
-    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    ///     let server = Server::new(acceptor).serve_with_graceful_shutdown(router, async {
-    ///         rx.await.ok();
-    ///     }, None);
-    ///
-    ///     // Spawn the server into a runtime
-    ///     tokio::task::spawn(server);
-    ///
-    ///     // Later, start the shutdown...
-    ///     let _ = tx.send(());
-    /// }
-    /// ```
-    #[inline]
-    pub async fn serve_with_graceful_shutdown<S, G>(self, service: S, signal: G, timeout: Option<Duration>)
-    where
-        S: Into<Service> + Send,
-        G: Future<Output = ()> + Send + 'static,
-    {
-        self.try_serve_with_graceful_shutdown(service, signal, timeout)
-            .await
-            .unwrap();
-    }
-
-    /// Serve with graceful shutdown signal.
-    #[inline]
-    pub async fn try_serve_with_graceful_shutdown<S, G>(
-        self,
-        service: S,
-        signal: G,
-        timeout: Option<Duration>,
-    ) -> IoResult<()>
-    where
-        S: Into<Service> + Send,
-        G: Future<Output = ()> + Send + 'static,
-    {
         let Self {
             mut acceptor,
             builder,
-            idle_timeout,
+            conn_idle_timeout,
+            mut rx_cmd,
+            ..
         } = self;
         let alive_connections = Arc::new(AtomicUsize::new(0));
         let notify = Arc::new(Notify::new());
         let timeout_token = CancellationToken::new();
-        let server_shutdown_token = CancellationToken::new();
-
-        tokio::pin!(signal);
 
         let mut alt_svc_h3 = None;
         for holding in acceptor.holdings() {
@@ -198,25 +246,32 @@ impl<A: Acceptor + Send> Server<A> {
         let builder = Arc::new(builder);
         loop {
             tokio::select! {
-                _ = &mut signal => {
-                    server_shutdown_token.cancel();
-                    if let Some(timeout) = timeout {
-                        tracing::info!(
-                            timeout_in_seconds = timeout.as_secs_f32(),
-                            "initiate graceful shutdown",
-                        );
+                Some(cmd) = rx_cmd.recv() => {
+                    match cmd {
+                        ServerCommand::StopGraceful(timeout) => {
+                            if let Some(timeout) = timeout {
+                                tracing::info!(
+                                    timeout_in_seconds = timeout.as_secs_f32(),
+                                    "initiate graceful stop server",
+                                );
 
-                        let timeout_token = timeout_token.clone();
-                        tokio::spawn(async move {
-                            tokio::time::sleep(timeout).await;
+                                let timeout_token = timeout_token.clone();
+                                tokio::spawn(async move {
+                                    tokio::time::sleep(timeout).await;
+                                    timeout_token.cancel();
+                                });
+                            } else {
+                                tracing::info!("initiate graceful stop server");
+                            }
+                        },
+                        ServerCommand::StopForcible => {
+                            tracing::info!("force stop server");
                             timeout_token.cancel();
-                        });
-                    } else {
-                        tracing::info!("initiate graceful shutdown");
+                        },
                     }
                     break;
                 },
-                 accepted = acceptor.accept() => {
+                accepted = acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
                             alive_connections.fetch_add(1, Ordering::Release);
@@ -228,19 +283,14 @@ impl<A: Acceptor + Send> Server<A> {
                             let builder = builder.clone();
 
                             let timeout_token = timeout_token.clone();
-                            let server_shutdown_token = server_shutdown_token.clone();
 
                             tokio::spawn(async move {
-                                let conn = conn.serve(handler, builder, server_shutdown_token, idle_timeout);
-                                if timeout.is_some() {
-                                    tokio::select! {
-                                        _ = conn => {
-                                        },
-                                        _ = timeout_token.cancelled() => {
-                                        }
+                                let conn = conn.serve(handler, builder, conn_idle_timeout);
+                                tokio::select! {
+                                    _ = conn => {
+                                    },
+                                    _ = timeout_token.cancelled() => {
                                     }
-                                } else {
-                                    conn.await.ok();
                                 }
 
                                 if alive_connections.fetch_sub(1, Ordering::Acquire) == 1 {
