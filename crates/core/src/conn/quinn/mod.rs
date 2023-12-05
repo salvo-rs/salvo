@@ -11,7 +11,6 @@ use futures_util::Stream;
 use salvo_http3::http3_quinn;
 pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::rustls::RustlsConfig;
@@ -78,12 +77,11 @@ impl HttpConnection for H3Connection {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        server_shutdown_token: CancellationToken,
-        idle_connection_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
     ) -> IoResult<()> {
         builder
             .quinn
-            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
+            .serve_connection(self, handler, idle_timeout)
             .await
     }
 }

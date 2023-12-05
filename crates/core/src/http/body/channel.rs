@@ -4,8 +4,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
-use futures_channel::mpsc;
-use futures_channel::oneshot;
+use futures_channel::{mpsc, oneshot};
 use hyper::HeaderMap;
 
 /// A sender half created through [`ResBody::channel()`].
