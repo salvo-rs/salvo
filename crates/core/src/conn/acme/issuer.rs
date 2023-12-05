@@ -119,10 +119,7 @@ pub(crate) async fn issue_cert(
         .to_vec();
     let key_pem = cert.serialize_private_key_pem();
     let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice())
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid pem: {}", e)))?
-        .into_iter()
-        .map(tokio_rustls::rustls::Certificate)
-        .collect();
+        .collect::<IoResult<Vec<_>>>()?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
     *resolver.cert.write() = Some(Arc::new(cert_key));
     tracing::debug!("certificate obtained");
