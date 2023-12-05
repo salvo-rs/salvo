@@ -39,26 +39,25 @@ impl ServerHandle {
     /// 
     /// You can specify a timeout to force stop server. 
     /// If `timeout` is `None`, it will wait util all connections are closed.
-    /// Gracefully shuts down the server.
     ///
-    /// This function gracefully shuts down the server, allowing it to finish processing any
+    /// This function gracefully stop the server, allowing it to finish processing any
     /// ongoing requests before terminating. It ensures that all connections are closed
     /// properly and any resources are released.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// # use salvo_core::prelude::*;
+    /// use salvo_core::prelude::*;
     ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    /// let server = Server::new(acceptor);
-    /// let handle = server.handle();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    ///     let server = Server::new(acceptor);
+    ///     let handle = server.handle();
     ///
-    /// // Gracefully shut down the server
-    /// handle.shutdown_graceful();
-    /// # }
+    ///     // Gracefully shut down the server
+    ///     handle.stop_graceful(None);
+    /// }
     /// ```
     /// 
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
