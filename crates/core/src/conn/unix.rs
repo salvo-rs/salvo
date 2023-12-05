@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
-use tokio_util::sync::CancellationToken;        
 use nix::unistd::{Gid, chown, Uid};    
 
 use crate::async_trait;
