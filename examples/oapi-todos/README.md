@@ -10,4 +10,4 @@ and then try:
 
 http://0.0.0.0:5800/api-doc/openapi.json
 
-http://0.0.0.0:5800/swagger-ui/
+http://0.0.0.0:5800/

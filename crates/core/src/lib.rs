@@ -33,7 +33,7 @@ pub mod routing;
 pub mod rt;
 #[doc(hidden)]
 pub mod serde;
-mod server;
+pub mod server;
 mod service;
 pub mod writing;
 cfg_feature! {
