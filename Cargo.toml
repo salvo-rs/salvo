@@ -120,7 +120,7 @@ thiserror = "1"
 time = "0.3"
 tokio = "1"
 tokio-native-tls = "0.3"
-tokio-rustls = "0.24"
+tokio-rustls = "0.25"
 tokio-openssl = "0.6"
 tokio-stream = { version = "0.1", default-features = false }
 tokio-tungstenite = { version = "0.20", default-features = false }
