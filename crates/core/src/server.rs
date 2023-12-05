@@ -26,10 +26,41 @@ pub struct ServerHandle {
 
 impl ServerHandle {
     /// Force stop server.
+    ///
+    /// Call this function will stop server immediately.
     pub fn stop_forcible(&self) {
         self.tx_cmd.send(ServerCommand::StopForcible).ok();
     }
     /// Graceful stop server.
+    ///
+    /// Call this function will stop server after all connections are closed,
+    /// allowing it to finish processing any ongoing requests before terminating. 
+    /// It ensures that all connections are closed properly and any resources are released.
+    /// 
+    /// You can specify a timeout to force stop server. 
+    /// If `timeout` is `None`, it will wait util all connections are closed.
+    /// Gracefully shuts down the server.
+    ///
+    /// This function gracefully shuts down the server, allowing it to finish processing any
+    /// ongoing requests before terminating. It ensures that all connections are closed
+    /// properly and any resources are released.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use salvo_core::prelude::*;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    /// let server = Server::new(acceptor);
+    /// let handle = server.handle();
+    ///
+    /// // Gracefully shut down the server
+    /// handle.shutdown_graceful();
+    /// # }
+    /// ```
+    /// 
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
@@ -57,13 +88,13 @@ impl<A: Acceptor + Send> Server<A> {
     /// # Example
     ///
     /// ```no_run
-    /// # use salvo_core::prelude::*;
+    /// use salvo_core::prelude::*;
     ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
-    /// Server::new(acceptor);
-    /// # }
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+    ///     Server::new(acceptor);
+    /// }
     /// ```
     pub fn new(acceptor: A) -> Self {
         Self::with_http_builder(
@@ -99,10 +130,17 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Force stop server.
+    ///
+    /// Call this function will stop server immediately.
     pub fn stop_forcible(&self) {
         self.tx_cmd.send(ServerCommand::StopForcible).ok();
     }
+
     /// Graceful stop server.
+    ///
+    /// Call this function will stop server after all connections are closed.
+    /// You can specify a timeout to force stop server. 
+    /// If `timeout` is `None`, it will wait util all connections are closed.
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
@@ -145,7 +183,25 @@ impl<A: Acceptor + Send> Server<A> {
         self
     }
 
-    /// Serve a [`Service`]
+    /// Serve a [`Service`].
+    /// 
+    /// # Example
+    ///
+    /// ```no_run
+    /// use salvo_core::prelude::*;
+
+    /// #[handler]
+    /// async fn hello() -> &'static str {
+    ///     "Hello World"
+    /// }
+    /// 
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
+    ///     let router = Router::new().get(hello);
+    ///     Server::new(acceptor).serve(router).await;
+    /// }
+    /// ```
     #[inline]
     pub async fn serve<S>(self, service: S)
     where
@@ -154,7 +210,7 @@ impl<A: Acceptor + Send> Server<A> {
         self.try_serve(service).await.unwrap();
     }
 
-    /// Try to serve a [`Service`]
+    /// Try to serve a [`Service`].
     #[inline]
     pub async fn try_serve<S>(self, service: S) -> IoResult<()>
     where
@@ -215,7 +271,7 @@ impl<A: Acceptor + Send> Server<A> {
                     }
                     break;
                 },
-                 accepted = acceptor.accept() => {
+                accepted = acceptor.accept() => {
                     match accepted {
                         Ok(Accepted { conn, local_addr, remote_addr, http_scheme, ..}) => {
                             alive_connections.fetch_add(1, Ordering::Release);
