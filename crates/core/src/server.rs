@@ -34,10 +34,10 @@ impl ServerHandle {
     /// Graceful stop server.
     ///
     /// Call this function will stop server after all connections are closed,
-    /// allowing it to finish processing any ongoing requests before terminating. 
+    /// allowing it to finish processing any ongoing requests before terminating.
     /// It ensures that all connections are closed properly and any resources are released.
-    /// 
-    /// You can specify a timeout to force stop server. 
+    ///
+    /// You can specify a timeout to force stop server.
     /// If `timeout` is `None`, it will wait util all connections are closed.
     ///
     /// This function gracefully stop the server, allowing it to finish processing any
@@ -59,7 +59,7 @@ impl ServerHandle {
     ///     handle.stop_graceful(None);
     /// }
     /// ```
-    /// 
+    ///
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
@@ -138,7 +138,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// Graceful stop server.
     ///
     /// Call this function will stop server after all connections are closed.
-    /// You can specify a timeout to force stop server. 
+    /// You can specify a timeout to force stop server.
     /// If `timeout` is `None`, it will wait util all connections are closed.
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
@@ -183,7 +183,7 @@ impl<A: Acceptor + Send> Server<A> {
     }
 
     /// Serve a [`Service`].
-    /// 
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -193,7 +193,7 @@ impl<A: Acceptor + Send> Server<A> {
     /// async fn hello() -> &'static str {
     ///     "Hello World"
     /// }
-    /// 
+    ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
