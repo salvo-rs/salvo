@@ -1,7 +1,7 @@
 //! Implements [OpenAPI Operation Object][operation] types.
 //!
 //! [operation]: https://spec.openapis.org/oas/latest.html#operation-object
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
@@ -156,6 +156,10 @@ pub struct Operation {
     /// Alternative [`Server`]s for this [`Operation`].
     #[serde(skip_serializing_if = "Servers::is_empty")]
     pub servers: Servers,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl Operation {

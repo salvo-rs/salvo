@@ -24,6 +24,20 @@ pub use file::StaticFile;
 #[macro_use]
 mod cfg;
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! join_path {
+    ($($part:expr),+) => {
+        {
+            let mut p = std::path::PathBuf::new();
+            $(
+                p.push($part);
+            )*
+            path_slash::PathBufExt::to_slash_lossy(&p).to_string()
+        }
+    }
+}
+
 cfg_feature! {
     #![feature = "embed"]
     mod embed;
@@ -97,8 +111,8 @@ mod tests {
     async fn test_serve_static_dir() {
         let router = Router::with_path("<*path>").get(
             StaticDir::new(vec!["test/static"])
-                .dot_files(false)
-                .listing(true)
+                .include_dot_files(false)
+                .auto_list(true)
                 .defaults("index.html"),
         );
         let service = Service::new(router);

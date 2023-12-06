@@ -20,13 +20,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 full = ["embed"]
-embed = ["dep:rust-embed", "dep:hex", "dep:path-slash"]
+embed = ["dep:rust-embed", "dep:hex"]
 
 [dependencies]
 hex = { workspace = true, optional = true }
 mime = { workspace = true }
 mime-infer = { workspace = true }
-path-slash = { workspace = true, optional = true }
+path-slash = { workspace = true }
 percent-encoding = { workspace = true }
 rust-embed = { workspace = true, optional = true }
 salvo_core = { workspace = true, default-features = false }

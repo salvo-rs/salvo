@@ -38,6 +38,8 @@ use crate::http::StatusCode;
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
 /// Handler
+///
+/// `Handler` is used for handle [`Request`]. View [module level documentation](index.html) for more details.
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {
     #[doc(hidden)]
@@ -88,6 +90,8 @@ where
     }
 }
 
+/// `Skipper` is used to check if the request should be skipped.
+///
 /// `Skipper` is used in many middlewares.
 pub trait Skipper: Send + Sync + 'static {
     /// Check if the request should be skipped.

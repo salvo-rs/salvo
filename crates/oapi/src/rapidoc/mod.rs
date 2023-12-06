@@ -11,6 +11,9 @@ const INDEX_TMPL: &str = r#"
 <!doctype html>
 <html>
   <head>
+    <title>{{title}}</title>
+    {{keywords}}
+    {{description}}
     <meta charset="utf-8">
     <script type="module" src="{{lib_url}}"></script>
   </head>
@@ -24,6 +27,12 @@ const INDEX_TMPL: &str = r#"
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct RapiDoc {
+    /// The title of the html page. The default title is "RapiDoc".
+    pub title: String,
+    /// The version of the html page.
+    pub keywords: Option<String>,
+    /// The description of the html page.
+    pub description: Option<String>,
     /// The lib url path.
     pub lib_url: String,
     /// The spec url path.
@@ -43,9 +52,30 @@ impl RapiDoc {
     /// ```
     pub fn new(spec_url: impl Into<String>) -> Self {
         Self {
+            title: "RapiDoc".into(),
+            keywords: None,
+            description: None,
             lib_url: "https://unpkg.com/rapidoc/dist/rapidoc-min.js".into(),
             spec_url: spec_url.into(),
         }
+    }
+
+    /// Set title of the html page. The default title is "RapiDoc".
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    /// Set keywords of the html page.
+    pub fn keywords(mut self, keywords: impl Into<String>) -> Self {
+        self.keywords = Some(keywords.into());
+        self
+    }
+
+    /// Set description of the html page.
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
     }
 
     /// Set the lib url path.
@@ -63,9 +93,27 @@ impl RapiDoc {
 #[async_trait]
 impl Handler for RapiDoc {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
+        let keywords = self
+        .keywords
+        .as_ref()
+        .map(|s| {
+            format!(
+                "<meta name=\"keywords\" content=\"{}\">",
+                s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
+            )
+        })
+        .unwrap_or_default();
+    let description = self
+        .description
+        .as_ref()
+        .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+        .unwrap_or_default();
         let html = INDEX_TMPL
-            .replace("{{lib_url}}", &self.lib_url)
-            .replace("{{spec_url}}", &self.spec_url);
+            .replacen("{{lib_url}}", &self.lib_url, 1)
+            .replacen("{{spec_url}}", &self.spec_url, 1)
+            .replacen("{{title}}", &self.title, 1)
+            .replacen("{{keywords}}", &keywords, 1)
+            .replacen("{{description}}", &description, 1);
         res.render(Text::Html(html));
     }
 }
