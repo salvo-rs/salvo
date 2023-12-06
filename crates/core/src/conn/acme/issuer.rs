@@ -3,8 +3,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rcgen::{Certificate, CertificateParams, CustomExtension, DistinguishedName, PKCS_ECDSA_P256_SHA256};
-use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
-use tokio_rustls::rustls::PrivateKey;
+use rustls_pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::{
+    crypto::ring::sign::{any_ecdsa_type, any_eddsa_type},
+    sign::CertifiedKey,
+};
 
 use super::cache::AcmeCache;
 use super::client::AcmeClient;
@@ -79,7 +82,7 @@ pub(crate) async fn issue_cert(
     params.alg = &PKCS_ECDSA_P256_SHA256;
     let cert = Certificate::from_params(params)
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed create certificate request: {}", e)))?;
-    let pk = any_ecdsa_type(&PrivateKey(cert.serialize_private_key_der())).unwrap();
+    let pk = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(cert.serialize_private_key_der()))).unwrap();
     let csr = cert
         .serialize_request_der()
         .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to serialize request der {}", e)))?;
@@ -118,11 +121,7 @@ pub(crate) async fn issue_cert(
         .as_ref()
         .to_vec();
     let key_pem = cert.serialize_private_key_pem();
-    let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice())
-        .map_err(|e| IoError::new(ErrorKind::Other, format!("invalid pem: {}", e)))?
-        .into_iter()
-        .map(tokio_rustls::rustls::Certificate)
-        .collect();
+    let cert_chain = rustls_pemfile::certs(&mut cert_pem.as_slice()).collect::<IoResult<Vec<_>>>()?;
     let cert_key = CertifiedKey::new(cert_chain, pk);
     *resolver.cert.write() = Some(Arc::new(cert_key));
     tracing::debug!("certificate obtained");
@@ -144,11 +143,11 @@ fn gen_acme_cert(domain: &str, acme_hash: &[u8]) -> IoResult<CertifiedKey> {
     params.custom_extensions = vec![CustomExtension::new_acme_identifier(acme_hash)];
     let cert = Certificate::from_params(params)
         .map_err(|_| IoError::new(ErrorKind::Other, "failed to generate acme certificate"))?;
-    let key = any_ecdsa_type(&PrivateKey(cert.serialize_private_key_der())).unwrap();
+    let key = any_ecdsa_type(&PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(cert.serialize_private_key_der()))).unwrap();
     Ok(CertifiedKey::new(
-        vec![tokio_rustls::rustls::Certificate(cert.serialize_der().map_err(
-            |_| IoError::new(ErrorKind::Other, "failed to serialize acme certificate"),
-        )?)],
+        vec![CertificateDer::from(cert.serialize_der().map_err(|_| {
+            IoError::new(ErrorKind::Other, "failed to serialize acme certificate")
+        })?)],
         key,
     ))
 }

@@ -199,6 +199,7 @@ impl<'t> TypeTree<'t> {
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            "BTreeSet" | "HashSet" => Some(GenericType::Set),
             "LinkedList" => Some(GenericType::LinkedList),
             #[cfg(feature = "smallvec")]
             "SmallVec" => Some(GenericType::SmallVec),
@@ -260,6 +261,11 @@ impl<'t> TypeTree<'t> {
     pub(crate) fn is_option(&self) -> bool {
         matches!(self.generic_type, Some(GenericType::Option))
     }
+
+    /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Map`]
+    pub(crate) fn is_map(&self) -> bool {
+        matches!(self.generic_type, Some(GenericType::Map))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -273,6 +279,7 @@ pub(crate) enum ValueType {
 pub(crate) enum GenericType {
     Vec,
     LinkedList,
+    Set,
     #[cfg(feature = "smallvec")]
     SmallVec,
     Map,

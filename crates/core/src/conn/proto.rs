@@ -14,7 +14,7 @@ use http::{Request, Response, Version};
 use hyper::service::Service;
 use pin_project::pin_project;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::sync::{oneshot, Notify};
+use tokio::sync::Notify;
 use tokio_util::either::Either;
 use tokio_util::sync::CancellationToken;
 
@@ -51,8 +51,7 @@ impl HttpBuilder {
         &self,
         socket: I,
         #[allow(unused_variables)] service: S,
-        #[allow(unused_variables)] server_shutdown_token: CancellationToken,
-        idle_connection_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
     ) -> Result<()>
     where
         S: Service<Request<HyperBody>, Response = Response<B>> + Send,
@@ -73,7 +72,7 @@ impl HttpBuilder {
         #[cfg(all(not(feature = "http1"), feature = "http2"))]
         let version = Version::HTTP_2;
         #[allow(unused_variables)]
-        let socket = match idle_connection_timeout {
+        let socket = match idle_timeout {
             Some(timeout) => Either::Left(ClosingInactiveConnection::new(socket, timeout, {
                 let conn_shutdown_token = conn_shutdown_token.clone();
 
@@ -106,7 +105,6 @@ impl HttpBuilder {
                         _ = conn_shutdown_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
                         }
-                        _ = server_shutdown_token.cancelled() => {}
                     }
 
                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
@@ -128,7 +126,6 @@ impl HttpBuilder {
                         _ = conn_shutdown_token.cancelled() => {
                             tracing::info!("closing connection due to inactivity");
                         }
-                        _ = server_shutdown_token.cancelled() => {}
                     }
 
                     // Init graceful shutdown for connection (`GOAWAY` for `HTTP/2` or disabling `keep-alive` for `HTTP/1`)
@@ -152,7 +149,6 @@ struct ClosingInactiveConnection<T> {
     #[pin]
     alive: Arc<Notify>,
     timeout: Duration,
-    stop_tx: oneshot::Sender<()>,
 }
 
 impl<T> AsyncRead for ClosingInactiveConnection<T>
@@ -213,33 +209,18 @@ impl<T> ClosingInactiveConnection<T> {
         Fut: Future + Send + 'static,
     {
         let alive = Arc::new(Notify::new());
-        let (stop_tx, stop_rx) = oneshot::channel();
         tokio::spawn({
             let alive = alive.clone();
-
             async move {
-                let check_timeout = async {
-                    loop {
-                        match tokio::time::timeout(timeout, alive.notified()).await {
-                            Ok(()) => {}
-                            Err(_) => {
-                                f().await;
-                            }
-                        }
+                loop {
+                    if tokio::time::timeout(timeout, alive.notified()).await.is_err() {
+                        f().await;
+                        break;
                     }
-                };
-                tokio::select! {
-                    _ = stop_rx => {},
-                    _ = check_timeout => {}
                 }
             }
         });
-        Self {
-            inner,
-            alive,
-            timeout,
-            stop_tx,
-        }
+        Self { inner, alive, timeout }
     }
 }
 

@@ -1,13 +1,14 @@
 //! Compression middleware for for Savlo web server framework.
 //!
 //! Read more: <https://salvo.rs>
+use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use indexmap::IndexMap;
 
 use salvo_core::http::body::ResBody;
 use salvo_core::http::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use salvo_core::http::{Mime, StatusCode};
+use salvo_core::http::{self, Mime, StatusCode};
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response};
 
 mod encoder;
@@ -53,7 +54,6 @@ pub enum CompressionAlgo {
     #[cfg_attr(docsrs, doc(cfg(feature = "zstd")))]
     Zstd,
 }
-impl CompressionAlgo {}
 
 impl FromStr for CompressionAlgo {
     type Err = String;
@@ -74,6 +74,24 @@ impl FromStr for CompressionAlgo {
             #[cfg(feature = "zstd")]
             "zstd" => Ok(CompressionAlgo::Zstd),
             _ => Err(format!("unknown compression algorithm: {s}")),
+        }
+    }
+}
+
+impl Display for CompressionAlgo {
+    #[allow(unreachable_patterns)]
+    #[allow(unused_variables)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            #[cfg(feature = "brotli")]
+            CompressionAlgo::Brotli => write!(f, "br"),
+            #[cfg(feature = "deflate")]
+            CompressionAlgo::Deflate => write!(f, "deflate"),
+            #[cfg(feature = "gzip")]
+            CompressionAlgo::Gzip => write!(f, "gzip"),
+            #[cfg(feature = "zstd")]
+            CompressionAlgo::Zstd => write!(f, "zstd"),
+            _ => unreachable!(),
         }
     }
 }
@@ -267,7 +285,16 @@ impl Compression {
         }
         let header = req.headers().get(ACCEPT_ENCODING).and_then(|v| v.to_str().ok())?;
 
-        let accept_algos = parse_accept_encoding(header);
+        let accept_algos = http::parse_accept_encoding(header)
+            .into_iter()
+            .filter_map(|(algo, level)| {
+                if let Ok(algo) = algo.parse::<CompressionAlgo>() {
+                    Some((algo, level))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
         if self.force_priority {
             let accept_algos = accept_algos.into_iter().map(|(algo, _)| algo).collect::<Vec<_>>();
             self.algos
@@ -280,32 +307,6 @@ impl Compression {
                 .find_map(|(algo, _)| self.algos.get(&algo).map(|level| (algo, *level)))
         }
     }
-}
-
-fn parse_accept_encoding(header: &str) -> Vec<(CompressionAlgo, u8)> {
-    let mut vec = header
-        .split(',')
-        .filter_map(|s| {
-            let mut iter = s.trim().split(';');
-            let (algo, q) = (iter.next()?, iter.next());
-            let algo = algo.trim().parse().ok()?;
-            let q = q
-                .and_then(|q| {
-                    q.trim()
-                        .strip_prefix("q=")
-                        .and_then(|q| q.parse::<f32>().map(|f| (f * 100.0) as u8).ok())
-                })
-                .unwrap_or(100u8);
-            Some((algo, q))
-        })
-        .collect::<Vec<(CompressionAlgo, u8)>>();
-
-    vec.sort_by(|(_, a), (_, b)| match b.cmp(a) {
-        std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-        other => other,
-    });
-
-    vec
 }
 
 #[async_trait]

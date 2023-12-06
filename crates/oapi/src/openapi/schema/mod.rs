@@ -2,6 +2,8 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::RefOr;
@@ -85,6 +87,12 @@ pub struct Discriminator {
     /// Defines a discriminator property name which must be found within all composite
     /// objects.
     pub property_name: String,
+
+    /// An object to hold mappings between payload values and schema names or references.
+    /// This field can only be populated manually. There is no macro support and no
+    /// validation.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    pub mapping: BTreeMap<String, String>,
 }
 
 impl Discriminator {
@@ -100,6 +108,7 @@ impl Discriminator {
     pub fn new<I: Into<String>>(property_name: I) -> Self {
         Self {
             property_name: property_name.into(),
+            mapping: BTreeMap::new(),
         }
     }
 }
@@ -769,5 +778,34 @@ mod tests {
         println!("{json_de_str}");
 
         assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_discriminator_with_mapping() {
+        let mut discriminator = Discriminator::new("type");
+        discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
+            .into_iter()
+            .collect::<BTreeMap<_, _>>();
+        let one_of = OneOf::new()
+            .item(Ref::from_schema_name("MyInt"))
+            .discriminator(discriminator);
+        let json_value = serde_json::to_value(one_of).unwrap();
+
+        assert_json_eq!(
+            json_value,
+            json!({
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/MyInt"
+                    }
+                ],
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                        "int": "#/components/schemas/MyInt"
+                    }
+                }
+            })
+        );
     }
 }

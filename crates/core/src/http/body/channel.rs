@@ -4,11 +4,10 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
-use futures_channel::mpsc;
-use futures_channel::oneshot;
+use futures_channel::{mpsc, oneshot};
 use hyper::HeaderMap;
 
-/// A sender half created through [`ResBody::channel()`].
+/// A sender half created through [`ResBody ::Channel`].
 ///
 /// Useful when wanting to stream chunks from another thread.
 ///
@@ -155,7 +154,7 @@ impl fmt::Debug for BodySender {
     }
 }
 
-/// A receiver for [`ResBody`]
+/// A receiver for [`ResBody`](super::ResBody).
 pub struct BodyReceiver {
     pub(crate) data_rx: mpsc::Receiver<Result<Bytes, IoError>>,
     pub(crate) trailers_rx: oneshot::Receiver<HeaderMap>,

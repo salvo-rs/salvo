@@ -5,7 +5,6 @@ use std::time::Duration;
 use std::vec;
 
 use tokio::net::{TcpListener as TokioTcpListener, TcpStream, ToSocketAddrs};
-use tokio_util::sync::CancellationToken;
 
 use crate::async_trait;
 use crate::conn::{Holding, HttpBuilder};
@@ -135,11 +134,10 @@ impl HttpConnection for TcpStream {
         self,
         handler: HyperHandler,
         builder: Arc<HttpBuilder>,
-        server_shutdown_token: CancellationToken,
-        idle_connection_timeout: Option<Duration>,
+        idle_timeout: Option<Duration>,
     ) -> IoResult<()> {
         builder
-            .serve_connection(self, handler, server_shutdown_token, idle_connection_timeout)
+            .serve_connection(self, handler, idle_timeout)
             .await
             .map_err(|e| IoError::new(ErrorKind::Other, e.to_string()))
     }

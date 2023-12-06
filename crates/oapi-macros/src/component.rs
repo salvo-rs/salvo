@@ -3,7 +3,9 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::doc_comment::CommentAttributes;
-use crate::feature::{pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable};
+use crate::feature::{
+    pop_feature, AdditionalProperties, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable,
+};
 use crate::schema_type::{SchemaFormat, SchemaType};
 use crate::type_tree::{GenericType, TypeTree, ValueType};
 use crate::Deprecated;
@@ -59,6 +61,15 @@ impl<'c> ComponentSchema {
                 type_definition,
             ),
             Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+                type_definition,
+            ),
+            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -212,6 +223,8 @@ impl<'c> ComponentSchema {
             .next()
             .expect("CompnentSchema Vec should have 1 child");
 
+        let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
+
         // is octet-stream
         let schema = if child
             .path
@@ -234,8 +247,16 @@ impl<'c> ComponentSchema {
                 type_definition,
             });
 
+            let unique = match unique {
+                true => quote! {
+                    .unique_items(true)
+                },
+                false => quote! {},
+            };
+
             quote! {
                 #oapi::oapi::schema::Array::new(#component_schema)
+                #unique
             }
         };
 
@@ -317,10 +338,22 @@ impl<'c> ComponentSchema {
                 let is_inline = features.is_inline();
 
                 if type_tree.is_object() {
+                    let oapi = crate::oapi_crate();
+                    let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+                    let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_))
+                        .unwrap_or_else(|| Feature::AdditionalProperties(AdditionalProperties(true)));
+                    let nullable = pop_feature!(features => Feature::Nullable(_));
+                    let default = pop_feature!(features => Feature::Default(_));
+
                     tokens.extend(quote! {
                         #oapi::oapi::Object::new()
-                            #description_stream #deprecated_stream #nullable
-                    })
+                            #additional_properties
+                            #description_stream
+                            #deprecated_stream
+                            #default
+                    });
+                    example.to_tokens(tokens);
+                    nullable.to_tokens(tokens)
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let schema = if type_definition {
@@ -410,7 +443,7 @@ impl<'c> ComponentSchema {
         }
     }
 
-    fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
+    pub(crate) fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
         comments
             .and_then(|comments| {
                 let comment = CommentAttributes::as_formatted_string(comments);
@@ -423,7 +456,7 @@ impl<'c> ComponentSchema {
             .map(|description| quote! { .description(#description) })
     }
 
-    fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
+    pub(crate) fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
     }
 }

@@ -23,7 +23,7 @@ http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = ["hyper/http2"]
 quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
-rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pemfile"]
+rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pki-types", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
 unix = ["http1"]
@@ -67,6 +67,7 @@ rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["rustls-tls", "json"] }
 ring = { workspace = true, optional = true }
+rustls-pki-types  = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
 salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
@@ -91,6 +92,9 @@ x509-parser = { workspace = true, optional = true }
 brotli = { workspace = true, optional = true, features = ["default"] }
 flate2 = { workspace = true, optional = true, features = ["default"] }
 zstd = { workspace = true, optional = true, features = ["default"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["fs", "user"] }
 
 [dev-dependencies]
 fastrand = { workspace = true }

@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use rustls_pki_types::{PrivateKeyDer, CertificateDer};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_rustls::rustls::crypto::ring::sign::{any_ecdsa_type, any_supported_type};
 use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::sign::{any_ecdsa_type, CertifiedKey};
-use tokio_rustls::rustls::PrivateKey;
+use tokio_rustls::rustls::sign::{CertifiedKey, SigningKey};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
@@ -98,9 +99,10 @@ impl<T> AcmeListener<T> {
             let handler = Http01Handler {
                 keys: keys_for_http01.clone(),
             };
-            router
-                .routers
-                .insert(0, Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).goal(handler));
+            router.routers.insert(
+                0,
+                Router::with_path(format!("{}/<token>", WELL_KNOWN_PATH)).goal(handler),
+            );
         } else {
             panic!("`HTTP-01` challenge's key should not be none");
         }
@@ -157,49 +159,53 @@ where
         } = self;
         let acme_config = config_builder.build()?;
         let mut cached_key = None;
-        let mut cached_cert = None;
+        let mut cached_certs = None;
         if let Some(cache_path) = &acme_config.cache_path {
             let key_data = cache_path
                 .read_key(&acme_config.directory_name, &acme_config.domains)
                 .await?;
             if let Some(key_data) = key_data {
                 tracing::debug!("load private key from cache");
-                match rustls_pemfile::pkcs8_private_keys(&mut key_data.as_slice()) {
-                    Ok(key) => cached_key = key.into_iter().next(),
-                    Err(e) => {
-                        tracing::warn!(error = ?e, "parse cached private key failed")
+                if let Some(key) = rustls_pemfile::pkcs8_private_keys(&mut key_data.as_slice()).next() {
+                    match key {
+                        Ok(key) => {
+                            cached_key = Some(key);
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = ?e, "parse cached private key failed");
+                        }
                     }
-                };
+                } else {
+                    tracing::warn!("parse cached private key failed");
+                }
             }
             let cert_data = cache_path
                 .read_cert(&acme_config.directory_name, &acme_config.domains)
                 .await?;
             if let Some(cert_data) = cert_data {
                 tracing::debug!("load certificate from cache");
-                match rustls_pemfile::certs(&mut cert_data.as_slice()) {
-                    Ok(cert) => cached_cert = Some(cert),
-                    Err(e) => {
-                        tracing::warn!(error = ?e, "parse cached tls certificates failed")
-                    }
+                let certs = rustls_pemfile::certs(&mut cert_data.as_slice())
+                    .filter_map(|i| i.ok())
+                    .collect::<Vec<_>>();
+                if !certs.is_empty() {
+                    cached_certs = Some(certs);
+                } else {
+                    tracing::warn!("parse cached tls certificates failed")
                 };
             }
         };
 
         let cert_resolver = Arc::new(ResolveServerCert::default());
-        if let (Some(cached_cert), Some(cached_key)) = (cached_cert, cached_key) {
-            let certs = cached_cert
-                .into_iter()
-                .map(tokio_rustls::rustls::Certificate)
-                .collect::<Vec<_>>();
+        if let (Some(cached_certs), Some(cached_key)) = (cached_certs, cached_key) {
+            let certs = cached_certs.into_iter().collect::<Vec<CertificateDer<'static>>>();
             tracing::debug!("using cached tls certificates");
             *cert_resolver.cert.write() = Some(Arc::new(CertifiedKey::new(
                 certs,
-                any_ecdsa_type(&PrivateKey(cached_key)).unwrap(),
+                any_ecdsa_type(&PrivateKeyDer::Pkcs8(cached_key)).unwrap(),
             )));
         }
 
         let mut server_config = ServerConfig::builder()
-            .with_safe_defaults()
             .with_no_client_auth()
             .with_cert_resolver(cert_resolver.clone());
 
@@ -212,7 +218,15 @@ where
 
         let tls_acceptor = TlsAcceptor::from(server_config.clone());
         let inner = inner.try_bind().await?;
-        let acceptor = AcmeAcceptor::new(acme_config, server_config, cert_resolver, inner, tls_acceptor, check_duration).await?;
+        let acceptor = AcmeAcceptor::new(
+            acme_config,
+            server_config,
+            cert_resolver,
+            inner,
+            tls_acceptor,
+            check_duration,
+        )
+        .await?;
         Ok(acceptor)
     }
 }

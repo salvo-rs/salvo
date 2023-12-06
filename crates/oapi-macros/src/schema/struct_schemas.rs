@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::{punctuated::Punctuated, Attribute, Field, Generics, Token};
+use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Field, Generics, Token};
 
 use crate::{
     component::ComponentSchemaProps,
@@ -17,7 +18,7 @@ use super::{
     feature::{FromAttributes, NamedFieldFeatures},
     is_flatten, is_not_skipped,
     serde::{self, SerdeContainer},
-    ComponentSchema, FieldRename, Property,
+    ComponentSchema, FieldRename, FlattenedMapSchema, Property,
 };
 
 #[derive(Debug)]
@@ -41,9 +42,10 @@ struct NamedStructFieldOptions<'a> {
 }
 
 impl NamedStructSchema<'_> {
-    fn field_to_schema_property<R>(
+    fn field_as_schema_property<R>(
         &self,
         field: &Field,
+        flatten: bool,
         container_rules: &Option<SerdeContainer>,
         yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
     ) -> R {
@@ -93,16 +95,21 @@ impl NamedStructSchema<'_> {
 
         yield_(NamedStructFieldOptions {
             property: if let Some(with_schema) = with_schema {
-                Property::WithSchema(with_schema)
+                Property::SchemaWith(with_schema)
             } else {
-                Property::Schema(ComponentSchema::new(ComponentSchemaProps {
+                let cs = ComponentSchemaProps {
                     type_tree,
                     features: field_features,
                     description: Some(&comments),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                     type_definition: true,
-                }))
+                };
+                if flatten && type_tree.is_map() {
+                    Property::FlattenedMap(FlattenedMapSchema::new(cs))
+                } else {
+                    Property::Schema(ComponentSchema::new(cs))
+                }
             },
             rename_field_value: rename_field,
             required,
@@ -116,7 +123,7 @@ impl ToTokens for NamedStructSchema<'_> {
         let oapi = crate::oapi_crate();
         let container_rules = serde::parse_container(self.attributes);
 
-        let object_tokens = self
+        let mut object_tokens = self
             .fields
             .iter()
             .filter_map(|field| {
@@ -137,8 +144,9 @@ impl ToTokens for NamedStructSchema<'_> {
                         field_name = &field_name[2..];
                     }
 
-                    self.field_to_schema_property(
+                    self.field_as_schema_property(
                         field,
+                        false,
                         &container_rules,
                         |NamedStructFieldOptions {
                              property,
@@ -162,17 +170,15 @@ impl ToTokens for NamedStructSchema<'_> {
                                 .property(#name, #property)
                             });
 
-                            if let Property::Schema(_) = property {
-                                if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
-                                    || required
-                                        .as_ref()
-                                        .map(crate::feature::Required::is_true)
-                                        .unwrap_or(false)
-                                {
-                                    object_tokens.extend(quote! {
-                                        .required(#name)
-                                    })
-                                }
+                            if (!is_option && crate::is_required(field_rule.as_ref(), container_rules.as_ref()))
+                                || required
+                                    .as_ref()
+                                    .map(crate::feature::Required::is_true)
+                                    .unwrap_or(false)
+                            {
+                                object_tokens.extend(quote! {
+                                    .required(#name)
+                                })
                             }
 
                             object_tokens
@@ -191,23 +197,45 @@ impl ToTokens for NamedStructSchema<'_> {
             .collect();
 
         if !flatten_fields.is_empty() {
-            tokens.extend(quote! {
-                #oapi::oapi::schema::AllOf::new()
-            });
+            let mut flattened_tokens = TokenStream::new();
+            let mut flattened_map_field = None;
 
             for field in flatten_fields {
-                self.field_to_schema_property(
+                self.field_as_schema_property(
                     field,
+                    true,
                     &container_rules,
-                    |NamedStructFieldOptions { property, .. }| {
-                        tokens.extend(quote! { .item(#property) });
+                    |NamedStructFieldOptions { property, .. }| match property {
+                        Property::Schema(_) | Property::SchemaWith(_) => {
+                            flattened_tokens.extend(quote! { .item(#property) })
+                        }
+                        Property::FlattenedMap(_) => match flattened_map_field {
+                            None => {
+                                object_tokens
+                                    .extend(quote! { .additional_properties(Some(#property)) });
+                                flattened_map_field = Some(field);
+                            }
+                            Some(flattened_map_field) => {
+                                abort!(self.fields,
+                                       "The structure `{}` contains multiple flattened map fields.",
+                                                                             self.struct_name;
+                                       note = flattened_map_field.span() => "first flattened map field was declared here as `{}`", flattened_map_field.ident.as_ref().unwrap();
+                                       note = field.span() => "second flattened map field was declared here as `{}`", field.ident.as_ref().unwrap());
+                            },
+                        },
                     },
                 )
             }
 
-            tokens.extend(quote! {
-                .item(#object_tokens)
-            })
+            if flattened_tokens.is_empty() {
+                tokens.extend(object_tokens)
+            } else {
+                tokens.extend(quote! {
+                    utoipa::openapi::AllOfBuilder::new()
+                        #flattened_tokens
+                    .item(#object_tokens)
+                })
+            }
         } else {
             tokens.extend(object_tokens)
         }

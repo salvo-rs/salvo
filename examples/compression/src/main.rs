@@ -4,9 +4,10 @@ use salvo::prelude::*;
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let base_dir = std::env::current_exe()
+    println!("current_dir: {:?}", std::env::current_dir().unwrap());
+    let base_dir = std::env::current_dir()
         .unwrap()
-        .join("../../../examples/compression/static")
+        .join("compression/static")
         .canonicalize()
         .unwrap();
     println!("Base Dir: {base_dir:?}");

@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = ["Chrislearn Young <chrislearn@hotmail.com>"]
 edition = "2021"
 publish = false
-rust-version = "1.65"
+rust-version = "1.70"
 description = """
 Salvo is a powerful and simple Rust web server framework.
 """
