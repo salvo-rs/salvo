@@ -7,12 +7,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use futures_util::stream::{once, Once, Stream};
-pub use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::server::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
-};
+use rustls_pki_types::{CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::crypto::ring::sign::{any_ecdsa_type, any_supported_type};
+use tokio_rustls::rustls::server::{ClientHello, NoClientAuth, ResolvesServerCert, WebPkiClientVerifier};
 use tokio_rustls::rustls::sign::{self, CertifiedKey};
-use tokio_rustls::rustls::{Certificate, PrivateKey};
+
+pub use tokio_rustls::rustls::server::ServerConfig;
 
 use crate::conn::IntoConfigStream;
 
@@ -84,27 +84,30 @@ impl Keycert {
 
     fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
-            .map(|certs| certs.into_iter().map(Certificate).collect())
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
+            .map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
+            .next()
+            .ok_or_else(|| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
 
         let key = {
             let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
+                .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
             if !pkcs8.is_empty() {
-                PrivateKey(pkcs8.remove(0))
+                PrivateKeyDer::Pkcs8(pkcs8.remove(0))
             } else {
                 let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
+                    .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
 
                 if !rsa.is_empty() {
-                    PrivateKey(rsa.remove(0))
+                    PrivateKeyDer::Pkcs1(rsa.remove(0))
                 } else {
                     return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
                 }
             }
         };
 
-        let key = sign::any_supported_type(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
+        let key = any_supported_type(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
 
         Ok(CertifiedKey {
             cert,
@@ -114,7 +117,6 @@ impl Keycert {
             } else {
                 None
             },
-            sct_list: None,
         })
     }
 }
@@ -225,17 +227,21 @@ impl RustlsConfig {
         }
 
         let client_auth = match &self.client_auth {
-            TlsClientAuth::Off => NoClientAuth::boxed(),
+            TlsClientAuth::Off => WebPkiClientVerifier::no_client_auth(),
             TlsClientAuth::Optional(trust_anchor) => {
-                AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
+                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                    .allow_unauthenticated()
+                    .build()
+                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
             }
             TlsClientAuth::Required(trust_anchor) => {
-                AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
+                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                    .build()
+                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
             }
         };
 
         let mut config = ServerConfig::builder()
-            .with_safe_defaults()
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
                 certified_keys,
@@ -254,6 +260,7 @@ impl TryInto<ServerConfig> for RustlsConfig {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct CertResolver {
     fallback: Option<Arc<CertifiedKey>>,
     certified_keys: HashMap<String, Arc<CertifiedKey>>,

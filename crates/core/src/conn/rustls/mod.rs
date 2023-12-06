@@ -1,7 +1,8 @@
 //! rustls module
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use tokio_rustls::rustls::{Certificate, RootCertStore};
+use tokio_rustls::rustls::{RootCertStore};
+use rustls_pki_types::CertificateDer;
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
@@ -15,7 +16,7 @@ pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertSto
     let mut store = RootCertStore::empty();
     for cert in certs {
         store
-            .add(&Certificate(cert))
+            .add(&CertificateDer(cert))
             .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
     }
     Ok(store)

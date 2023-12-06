@@ -9,7 +9,7 @@ use x509_parser::prelude::{FromDer, X509Certificate};
 
 pub(crate) const ACME_TLS_ALPN_NAME: &[u8] = b"acme-tls/1";
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct ResolveServerCert {
     pub(crate) cert: RwLock<Option<Arc<CertifiedKey>>>,
     pub(crate) acme_keys: RwLock<HashMap<String, Arc<CertifiedKey>>>,
