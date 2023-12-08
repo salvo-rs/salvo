@@ -6,7 +6,7 @@ use salvo_core::{prelude::StatusError, writing};
 use crate::{Components, Operation, Response, ToResponse, ToResponses, ToSchema};
 
 /// Represents an endpoint.
-/// 
+///
 /// View [module level documentation](index.html) for more details.
 pub struct Endpoint {
     /// The operation information of the endpoint.
