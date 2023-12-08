@@ -90,7 +90,8 @@ impl<'de> RequestDeserializer<'de> {
                     }
                     mime::JSON => {
                         if let Some(data) = request.payload.get() {
-                            if !data.is_empty() {// https://github.com/serde-rs/json/issues/903
+                            if !data.is_empty() {
+                                // https://github.com/serde-rs/json/issues/903
                                 payload = match serde_json::from_slice::<HashMap<&str, &RawValue>>(data) {
                                     Ok(map) => Some(Payload::JsonMap(map)),
                                     Err(e) => {
