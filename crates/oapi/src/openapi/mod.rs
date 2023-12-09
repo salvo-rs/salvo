@@ -259,6 +259,62 @@ impl OpenApi {
             .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
         self
     }
+    
+
+    /// Add [`Schema`] to [`Components`] and returns `Self`.
+    ///
+    /// Accepts two arguments where first is name of the schema and second is the schema itself.
+    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+        self.components.schemas.insert(name.into(), schema.into());
+        self
+    }
+
+    /// Add [`Schema`]s from iterator.
+    ///
+    /// # Examples
+    /// ```
+    /// # use salvo_oapi::{OpenApi, Object, SchemaType, Schema};
+    /// OpenApi::new("api", "0.0.1").extend_schemas([(
+    ///     "Pet",
+    ///     Schema::from(
+    ///         Object::new()
+    ///             .property(
+    ///                 "name",
+    ///                 Object::new().schema_type(SchemaType::String),
+    ///             )
+    ///             .required("name")
+    ///     ),
+    /// )]);
+    /// ```
+    pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
+    where
+        I: IntoIterator<Item = (S, C)>,
+        C: Into<RefOr<Schema>>,
+        S: Into<String>,
+    {
+        self.components.schemas
+            .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
+        self
+    }
+
+    /// Add a new response and returns `self`.
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, name: S, response: R) -> Self {
+        self.components.responses.insert(name.into(), response.into());
+        self
+    }
+
+    /// Extends responses with the contents of an iterator.
+    pub fn extend_responses<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        responses: I,
+    ) -> Self {
+        self.components.responses.extend(
+            responses
+                .into_iter()
+                .map(|(name, response)| (name.into(), response.into())),
+        );
+        self
+    }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
     pub fn tags<I, T>(mut self, tags: I) -> Self
