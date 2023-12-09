@@ -45,7 +45,7 @@ impl Components {
     pub fn new() -> Self {
         Default::default()
     }
-    
+
     /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
