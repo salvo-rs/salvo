@@ -240,7 +240,9 @@ impl OpenApi {
         name: N,
         security_scheme: S,
     ) -> Self {
-        self.components.security_schemes.insert(name.into(), security_scheme.into());
+        self.components
+            .security_schemes
+            .insert(name.into(), security_scheme.into());
 
         self
     }
@@ -255,11 +257,11 @@ impl OpenApi {
         mut self,
         schemas: I,
     ) -> Self {
-        self.components.security_schemes
+        self.components
+            .security_schemes
             .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
         self
     }
-    
 
     /// Add [`Schema`] to [`Components`] and returns `Self`.
     ///
@@ -292,7 +294,8 @@ impl OpenApi {
         C: Into<RefOr<Schema>>,
         S: Into<String>,
     {
-        self.components.schemas
+        self.components
+            .schemas
             .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
         self
     }
