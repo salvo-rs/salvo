@@ -291,7 +291,7 @@ impl ToTokens for ResponseTuple<'_> {
                                 quote!((#name, #example))
                             })
                             .collect::<Array<TokenStream2>>();
-                        content.extend(quote!( .examples_from_iter(#examples)))
+                        content.extend(quote!( .extend_examples(#examples)))
                     }
                     quote! {
                         #content

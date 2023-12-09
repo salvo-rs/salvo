@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_schema_components() {
         let components = Components::new()
-            .schemas_from_iter(vec![(
+            .extend_schemas(vec![(
                 "Comp",
                 Schema::from(
                     Object::new()

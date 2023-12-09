@@ -66,7 +66,7 @@ impl Content {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
-    pub fn examples_from_iter<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<RefOr<Example>>>(
+    pub fn extend_examples<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<RefOr<Example>>>(
         mut self,
         examples: E,
     ) -> Self {

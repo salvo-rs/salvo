@@ -229,6 +229,40 @@ impl OpenApi {
         self
     }
 
+    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
+    ///
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+        mut self,
+        name: N,
+        security_scheme: S,
+    ) -> Self {
+        self.components
+            .security_schemes
+            .insert(name.into(), security_scheme.into());
+
+        self
+    }
+
+    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    ///
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+        mut self,
+        schemas: I,
+    ) -> Self {
+        self.components
+            .security_schemes
+            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+        self
+    }
+
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
     pub fn tags<I, T>(mut self, tags: I) -> Self
     where
