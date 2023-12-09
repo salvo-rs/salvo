@@ -115,6 +115,21 @@ pub enum SecurityScheme {
         description: Option<String>,
     },
 }
+impl From<OAuth2> for SecurityScheme {
+    fn from(oauth2: OAuth2) -> Self {
+        Self::OAuth2(oauth2)
+    }
+}
+impl From<ApiKey> for SecurityScheme {
+    fn from(api_key: ApiKey) -> Self {
+        Self::ApiKey(api_key)
+    }
+}
+impl From<OpenIdConnect> for SecurityScheme {
+    fn from(open_id_connect: OpenIdConnect) -> Self {
+        Self::OpenIdConnect(open_id_connect)
+    }
+}
 
 /// Api key authentication [`SecurityScheme`].
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]

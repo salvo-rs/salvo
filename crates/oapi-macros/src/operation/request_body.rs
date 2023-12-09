@@ -161,7 +161,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                     })
                     .collect::<Array<TokenStream2>>();
                 content.extend(quote!(
-                    .examples_from_iter(#examples)
+                    .extend_examples(#examples)
                 ))
             }
 
