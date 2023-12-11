@@ -61,7 +61,7 @@ impl ServerHandle {
     ///         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     ///         handle.stop_graceful(None);
     ///     });
-    ///     server.serve(router).await;
+    ///     server.serve(Router::new()).await;
     /// }
     /// ```
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
