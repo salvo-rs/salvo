@@ -75,6 +75,7 @@ hex = "0.4"
 hostname-validator = "1"
 hyper = "1"
 hyper-util = { version = "0.1.1", default-features = true }
+hyper-tls = "0.6"
 indexmap = "2"
 inventory = "0.3"
 jsonwebtoken = "9.1"
