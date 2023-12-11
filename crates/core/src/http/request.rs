@@ -793,10 +793,15 @@ impl Request {
         let ctype = self.content_type();
         if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
-                return self
-                    .payload_with_max_size(max_size)
-                    .await
-                    .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
+                return self.payload_with_max_size(max_size).await.and_then(|payload| {
+                    // fix issue https://github.com/salvo-rs/salvo/issues/545
+                    let payload = if payload.is_empty() {
+                        "null".as_bytes()
+                    } else {
+                        payload.as_ref()
+                    };
+                    serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
+                });
             }
         }
         Err(ParseError::InvalidContentType)

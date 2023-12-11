@@ -128,7 +128,7 @@ tokio-native-tls = "0.3"
 tokio-rustls = "0.25"
 tokio-openssl = "0.6"
 tokio-stream = { version = "0.1", default-features = false }
-tokio-tungstenite = { version = "0.20", default-features = false }
+tokio-tungstenite = { version = "0.21", default-features = false }
 tokio-util = "0.7"
 tower = { version = "0.4", default-features = false }
 tracing-subscriber = { version = "0.3" }

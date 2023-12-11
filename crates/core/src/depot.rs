@@ -4,7 +4,9 @@ use std::fmt::{self, Formatter};
 
 /// `Depot` is for store temp data of current request.
 ///
-/// `Depot` is created for each request, each handler can read and write data from it.
+/// A depot instance is created when server get a request from client. The depot will dropped when all process
+/// for this request done. For example, we can set ```current_user``` in ```set_user```, and then use this value
+/// in the following middlewares and handlers.
 ///
 /// # Example
 ///
@@ -12,18 +14,18 @@ use std::fmt::{self, Formatter};
 /// use salvo_core::prelude::*;
 ///
 /// #[handler]
-/// async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+/// async fn set_user(depot: &mut Depot) {
 ///     depot.insert("user", "client");
-///     ctrl.call_next(req, depot, res).await;
 /// }
 /// #[handler]
 /// async fn hello(depot: &mut Depot) -> String {
-///     format!("Hello {}", depot.get::<&str>("user").map(|s|*s).unwrap_or_default())
+///     format!("Hello {}", depot.get::<&str>("user").copied().unwrap_or_default())
 /// }
+///
 /// #[tokio::main]
 /// async fn main() {
 ///     let router = Router::new().hoop(set_user).goal(hello);
-///     let acceptor = TcpListener::new("127.0.0.1:5800").bind().await;
+///     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
 ///     Server::new(acceptor).serve(router).await;
 /// }
 /// ```

@@ -1,9 +1,8 @@
 use salvo::prelude::*;
 
 #[handler]
-async fn set_user(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+async fn set_user(depot: &mut Depot) {
     depot.insert("user", "client");
-    ctrl.call_next(req, depot, res).await;
 }
 #[handler]
 async fn hello(depot: &mut Depot) -> String {
