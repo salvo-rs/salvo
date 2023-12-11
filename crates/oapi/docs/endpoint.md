@@ -438,17 +438,17 @@ async fn get_user() -> Json<User> {
 }
 ```
 
-[in_enum]: salvo_oapi/openapi/path/enum.ParameterIn.html
+[in_enum]: enum.ParameterIn.html
 [path]: trait.Path.html
 [to_schema]: trait.ToSchema.html
 [openapi]: derive.OpenApi.html
-[security]: openapi/security/struct.SecurityRequirement.html
-[security_scheme]: openapi/security/struct.SecuritySchema.html
+[security]: security/struct.SecurityRequirement.html
+[security_scheme]: security/struct.SecuritySchema.html
 [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 [to_parameters]: trait.ToParameters.html
-[style]: openapi/path/enum.ParameterStyle.html
+[style]: enum.ParameterStyle.html
 [to_responses_trait]: trait.ToResponses.html
 [to_parameters_derive]: derive.ToParameters.html
 [to_response_trait]: trait.ToResponse.html
-[known_format]: openapi/schema/enum.KnownFormat.html
-[xml]: openapi/xml/struct.Xml.html
+[known_format]: enum.KnownFormat.html
+[xml]: struct.Xml.html
