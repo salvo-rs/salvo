@@ -11,6 +11,8 @@
 //! It can be added to a function to make it implement `Handler`:
 //! 
 //! ```
+//! use salvo_core::prelude::*;
+//! 
 //! #[handler]
 //! async fn hello() -> &'static str {
 //!     "hello world!"
@@ -20,11 +22,13 @@
 //! This is equivalent to:
 //! 
 //! ```
+//! use salvo_core::prelude::*;
+//! 
 //! struct hello;
 //! 
 //! #[async_trait]
 //! impl Handler for hello {
-//!     async fn handle(&self) {
+//!     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
 //!         res.render(Text::Plain("hello world!"));
 //!     }
 //! }
@@ -38,11 +42,13 @@
 //! `#[handler]` can not only be added to the function, but also can be added to the `impl` of `struct` to let `struct` implement `Handler`. At this time, the `handle` function in the `impl` code block will be Identified as the specific implementation of `handle` in `Handler`:
 //! 
 //! ```
+//! use salvo_core::prelude::*;
+//! 
 //! struct Hello;
 //! 
 //! #[handler]
 //! impl Hello {
-//!     async fn handle(&self) {
+//!     async fn handle(&self, res: &mut Response) {
 //!         res.render(Text::Plain("hello world!"));
 //!     }
 //! }
@@ -51,28 +57,20 @@
 //! ## Handle errors
 //! 
 //! `Handler` in Salvo can return `Result`, only the types of `Ok` and `Err` in `Result` are implemented `Writer` trait. 
-//! Taking into account the widespread use of `anyhow`, the `Writer` implementation of `anyhow::Error` is provided by default, and `anyhow::Error` is Mapped to `InternalServerError`. 
 //! 
-//! ```
-//! #[cfg(feature = "anyhow")]
-//! #[async_trait]
-//! impl Writer for ::anyhow::Error {
-//!     async fn write(mut self, res: &mut Response) {
-//!         res.render(StatusError::internal_server_error());
-//!     }
-//! }
-//! ```
+//! Taking into account the widespread use of `anyhow`, the `Writer` implementation of `anyhow::Error` is provided by 
+//! default if `anyhow` feature is enabled, and `anyhow::Error` is Mapped to `InternalServerError`. 
 //! 
 //! For custom error types, you can output different error pages according to your needs. 
 //! 
 //! ```no_run
-//! use salvo_core::anyhow;
+//! use anyhow::anyhow;
 //! use salvo_core::prelude::*;
 //! 
 //! struct CustomError;
 //! #[async_trait]
 //! impl Writer for CustomError {
-//!     async fn write(mut self, res: &mut Response) {
+//!     async fn write(mut self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
 //!         res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
 //!         res.render("custom error");
 //!     }
@@ -102,11 +100,14 @@
 //! Under certain circumstances, We need to implment `Handler` direclty.
 //! 
 //! ```
+//! use salvo_core::prelude::*;
+//!  use crate::salvo_core::http::Body;
+//! 
 //! pub struct MaxSizeHandler(u64);
 //! #[async_trait]
 //! impl Handler for MaxSizeHandler {
-//!     async fn handle(&self, req: &mut Request, res: &mut Response, ctrl: &mut FlowCtrl) {
-//!         if let Some(upper) = req.body().and_then(|body| body.size_hint().upper()) {
+//!     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+//!         if let Some(upper) = req.body().size_hint().upper() {
 //!             if upper > self.0 {
 //!                 res.render(StatusError::payload_too_large());
 //!                 ctrl.skip_rest();
