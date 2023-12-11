@@ -1,31 +1,31 @@
 //! Handler module for handle [`Request`].
 //!
 //! Middleware is actually also a `Handler`. They can do some processing before or after the request reaches the `Handler` that officially handles the request, such as: login verification, data compression, etc.
-//! 
+//!
 //! Middleware is added through the `hoop` function of `Router`. The added middleware will affect the current `Router` and all its internal descendants `Router`.
-//! 
+//!
 //! ## Macro `#[handler]`
-//! 
-//! `#[handler]` can greatly simplify the writing of the code, and improve the flexibility of the code. 
-//! 
+//!
+//! `#[handler]` can greatly simplify the writing of the code, and improve the flexibility of the code.
+//!
 //! It can be added to a function to make it implement `Handler`:
-//! 
+//!
 //! ```
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! #[handler]
 //! async fn hello() -> &'static str {
 //!     "hello world!"
 //! }
 //! ````
-//! 
+//!
 //! This is equivalent to:
-//! 
+//!
 //! ```
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! struct hello;
-//! 
+//!
 //! #[async_trait]
 //! impl Handler for hello {
 //!     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
@@ -33,19 +33,19 @@
 //!     }
 //! }
 //! ````
-//! 
+//!
 //! As you can see, in the case of using `#[handler]`, the code becomes much simpler:
 //! - No need to manually add `#[async_trait]`.
 //! - The parameters that are not needed in the function have been omitted, and the required parameters can be arranged in any order.
 //! - For objects that implement `Writer` or `Scribe` abstraction, it can be directly used as the return value of the function. Here `&'static str` implements `Scribe`, so it can be returned directly as the return value of the function.
-//! 
+//!
 //! `#[handler]` can not only be added to the function, but also can be added to the `impl` of `struct` to let `struct` implement `Handler`. At this time, the `handle` function in the `impl` code block will be Identified as the specific implementation of `handle` in `Handler`:
-//! 
+//!
 //! ```
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! struct Hello;
-//! 
+//!
 //! #[handler]
 //! impl Hello {
 //!     async fn handle(&self, res: &mut Response) {
@@ -53,20 +53,20 @@
 //!     }
 //! }
 //! ````
-//! 
+//!
 //! ## Handle errors
-//! 
-//! `Handler` in Salvo can return `Result`, only the types of `Ok` and `Err` in `Result` are implemented `Writer` trait. 
-//! 
-//! Taking into account the widespread use of `anyhow`, the `Writer` implementation of `anyhow::Error` is provided by 
-//! default if `anyhow` feature is enabled, and `anyhow::Error` is Mapped to `InternalServerError`. 
-//! 
-//! For custom error types, you can output different error pages according to your needs. 
-//! 
+//!
+//! `Handler` in Salvo can return `Result`, only the types of `Ok` and `Err` in `Result` are implemented `Writer` trait.
+//!
+//! Taking into account the widespread use of `anyhow`, the `Writer` implementation of `anyhow::Error` is provided by
+//! default if `anyhow` feature is enabled, and `anyhow::Error` is Mapped to `InternalServerError`.
+//!
+//! For custom error types, you can output different error pages according to your needs.
+//!
 //! ```no_run
 //! use anyhow::anyhow;
 //! use salvo_core::prelude::*;
-//! 
+//!
 //! struct CustomError;
 //! #[async_trait]
 //! impl Writer for CustomError {
@@ -75,7 +75,7 @@
 //!         res.render("custom error");
 //!     }
 //! }
-//! 
+//!
 //! #[handler]
 //! async fn handle_anyhow() -> Result<(), anyhow::Error> {
 //!     Err(anyhow::anyhow!("anyhow error"))
@@ -84,7 +84,7 @@
 //! async fn handle_custom() -> Result<(), CustomError> {
 //!     Err(CustomError)
 //! }
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() {
 //!     let router = Router::new()
@@ -94,15 +94,15 @@
 //!     Server::new(acceptor).serve(router).await;
 //! }
 //! ```
-//! 
+//!
 //! ## Implement Handler trait directly
-//! 
+//!
 //! Under certain circumstances, We need to implment `Handler` direclty.
-//! 
+//!
 //! ```
 //! use salvo_core::prelude::*;
 //!  use crate::salvo_core::http::Body;
-//! 
+//!
 //! pub struct MaxSizeHandler(u64);
 //! #[async_trait]
 //! impl Handler for MaxSizeHandler {
@@ -119,9 +119,8 @@
 use crate::http::StatusCode;
 use crate::{async_trait, Depot, FlowCtrl, Request, Response};
 
-
-/// `Handler` is used for handle [`Request`]. 
-/// 
+/// `Handler` is used for handle [`Request`].
+///
 /// View [module level documentation](index.html) for more details.
 #[async_trait]
 pub trait Handler: Send + Sync + 'static {

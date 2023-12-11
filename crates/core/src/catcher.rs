@@ -1,6 +1,6 @@
 //! Catch and handle errors.
 //!
-//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then salvo 
+//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then salvo
 //! will try to use `Catcher` to catch the error and display a friendly error page.
 //!
 //! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to [`Service`](crate::Service):
@@ -27,10 +27,10 @@
 //!
 //! The default [`Catcher`] supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 //!
-//! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`. 
+//! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`.
 //! The error handler is still [`Handler`].
-//! 
-//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error handler can call 
+//!
+//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error handler can call
 //! the [`FlowCtrl::skip_rest`] method after handling the error to skip next error handlers and return early.
 
 use std::borrow::Cow;
@@ -143,8 +143,8 @@ impl DefaultGoal {
         Self::new().footer(footer)
     }
 
-    /// Set custom footer which is only used in html error page. 
-    /// 
+    /// Set custom footer which is only used in html error page.
+    ///
     /// If footer is `None`, then use default footer.
     /// Default footer is `<a href="https://salvo.rs" target="_blank">salvo</a>`.
     pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
