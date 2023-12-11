@@ -31,6 +31,7 @@ impl ServerHandle {
     pub fn stop_forcible(&self) {
         self.tx_cmd.send(ServerCommand::StopForcible).ok();
     }
+
     /// Graceful stop server.
     ///
     /// Call this function will stop server after all connections are closed,
@@ -55,11 +56,14 @@ impl ServerHandle {
     ///     let server = Server::new(acceptor);
     ///     let handle = server.handle();
     ///
-    ///     // Gracefully shut down the server
-    ///     handle.stop_graceful(None);
+    ///     // Graceful shutdown the server
+    ///       tokio::spawn(async move {
+    ///         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    ///         handle.stop_graceful(None);
+    ///     });
+    ///     server.serve(router).await;
     /// }
     /// ```
-    ///
     pub fn stop_graceful(&self, timeout: impl Into<Option<Duration>>) {
         self.tx_cmd.send(ServerCommand::StopGraceful(timeout.into())).ok();
     }
