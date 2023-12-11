@@ -1,4 +1,4 @@
-//! addr module
+//! Socket Address module.
 use std::fmt::{self, Display, Formatter};
 #[cfg(unix)]
 use std::sync::Arc;

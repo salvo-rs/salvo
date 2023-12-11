@@ -1,4 +1,4 @@
-//! native_tls module
+//! `NativeTlsListener` and utils.
 pub mod listener;
 pub use listener::NativeTlsListener;
 

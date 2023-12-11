@@ -1,4 +1,4 @@
-//! rustls module
+//! `RustlsListener` and utils.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
 use tokio_rustls::rustls::{Certificate, RootCertStore};

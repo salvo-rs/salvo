@@ -1,4 +1,4 @@
-//! QuinnListener and it's implements.
+//! `QuinnListener`` and utils.
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;

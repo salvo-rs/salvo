@@ -129,7 +129,7 @@ pub enum FlowCtrlStage {
 /// All handlers in this list will executed one by one. Each handler can use `FlowCtrl` to control this
 /// flow, let the flow call next handler or skip all rest handlers.
 ///
-/// **NOTE**: When `Response`'s status code is set, and the status code `is_success()` is returns false,
+/// **NOTE**: When `Response`'s status code is set, and the status code [`Response::is_stamped()`] is returns false,
 /// all rest handlers will skipped.
 ///
 /// [`Router`]: crate::routing::Router
