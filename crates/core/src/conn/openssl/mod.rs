@@ -1,4 +1,4 @@
-//! openssl module
+//! OpensslListener and utils.
 mod config;
 pub use config::{Keycert, OpensslConfig, SslAcceptorBuilder};
 

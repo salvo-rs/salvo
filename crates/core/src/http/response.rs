@@ -185,8 +185,7 @@ impl Response {
         self.replace_body(ResBody::None)
     }
 
-    // If return `true`, it means this response is ready for write back and the reset handlers should be skipped.
-    #[doc(hidden)]
+    /// If returns `true`, it means this response is ready for write back and the reset handlers should be skipped.
     #[inline]
     pub fn is_stamped(&mut self) -> bool {
         if let Some(code) = self.status_code {
