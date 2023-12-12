@@ -27,7 +27,7 @@ salvo-cache = { version = "0.60.0", path = "crates/cache", default-features = fa
 salvo-cors = { version = "0.60.0", path = "crates/cors", default-features = false }
 salvo-csrf = { version = "0.60.0", path = "crates/csrf", default-features = false }
 salvo-flash = { version = "0.60.0", path = "crates/flash", default-features = false }
-# salvo-http3 = { version = "0.0.6", default-features = false }
+salvo-http3 = { version = "0.0.6", default-features = false }
 salvo-jwt-auth = { version = "0.60.0", path = "crates/jwt-auth", default-features = false }
 salvo-oapi = { version = "0.60.0", path = "./crates/oapi", default-features = false }
 salvo-oapi-macros = { version = "0.60.0", path = "crates/oapi-macros", default-features = false }
@@ -92,7 +92,6 @@ pin-project = "1"
 proc-macro-crate = "2"
 proc-macro-error = "1"
 proc-macro2 = "1"
-# quinn = { version = "0.10", default-features = false }
 quote = "1"
 rand = "0.8"
 rcgen = "0.11"
