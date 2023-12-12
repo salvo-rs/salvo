@@ -1,10 +1,10 @@
+use headers03::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
 use opentelemetry::{global, Context};
 use opentelemetry_http::HeaderExtractor;
 use opentelemetry_semantic_conventions::{resource, trace};
 use salvo_core::http::headers::{self, HeaderMapExt};
 use salvo_core::prelude::*;
-use headers03::{HeaderMap, HeaderName, HeaderValue};
 
 /// Middleware for tracing with OpenTelemetry.
 pub struct Tracing<T> {
@@ -35,8 +35,7 @@ where
             (name, value)
         }));
 
-        let parent_cx =
-            global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(&headers)));
+        let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(&headers)));
 
         let mut attributes = Vec::new();
         attributes.push(resource::TELEMETRY_SDK_NAME.string(env!("CARGO_CRATE_NAME")));

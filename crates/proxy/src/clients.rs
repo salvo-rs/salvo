@@ -67,7 +67,7 @@ impl super::Client for HyperClient {
                 return Err(Error::other("upgrade type mismatch"));
             }
         }
-        Ok(response.map(|b| ResBody::Hyper(b)))
+        Ok(response.map(ResBody::Hyper))
     }
 }
 
