@@ -61,13 +61,12 @@ form_urlencoded = "1"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false }
 headers = "0.4"
-headers03 = { version = "0.3", package = "headers" }
 http = "1"
 http-body-util = "0.1"
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
-hyper = { version = "1", features = ["full"] }
+hyper = { version = "1", features = ["full"], path="D:/Repositories/hyper" }
 hyper-util = { version = "0.1.1", default-features = true }
 hyper-tls = "0.6"
 indexmap = "2"

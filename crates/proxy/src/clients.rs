@@ -5,7 +5,7 @@ use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClie
 use hyper_util::rt::TokioExecutor;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::{ReqBody, ResBody, StatusCode};
+use salvo_core::http::{response, ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
 use tokio::io::copy_bidirectional;
@@ -43,12 +43,13 @@ impl super::Client for HyperClient {
 
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
-            println!("=======response_upgrade_type {:?}", response_upgrade_type);
-
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                // let mut hyper_response = hyper_response.body(ResBody::None).map_err(Error::other)?;
-                println!("--------------------0");
-                let response_upgraded = hyper::upgrade::on(&mut response).await.unwrap();
+                let hyper_response = hyper::Response::builder()
+                    .status(response.status())
+                    .version(response.version())
+                    .body(ResBody::None)
+                    .map_err(Error::other)?;
+                let response_upgraded = hyper::upgrade::on(response).await.unwrap();
                 println!("--------------------1");
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
@@ -67,15 +68,16 @@ impl super::Client for HyperClient {
                             }
                         }
                     });
+                    Ok(hyper_response)
                 } else {
                     return Err(Error::other("request does not have an upgrade extension."));
                 }
             } else {
                 return Err(Error::other("upgrade type mismatch"));
             }
+        } else {
+            Ok(response.map(|b| ResBody::Hyper(b)))
         }
-        
-        Ok(response.map(|b|ResBody::Hyper(b)))
     }
 }
 
