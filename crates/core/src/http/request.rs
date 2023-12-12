@@ -2,6 +2,7 @@
 
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
+#[cfg(feature = "quinn")]
 use std::sync::Arc;
 
 use bytes::Bytes;

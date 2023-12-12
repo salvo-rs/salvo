@@ -43,11 +43,11 @@ cfg_feature! {
     #![feature = "http2"]
     pub use hyper::server::conn::http2;
 }
-cfg_feature! {
-    #![feature = "quinn"]
-    pub mod quinn;
-    pub use self::quinn::{QuinnListener, H3Connection};
-}
+// cfg_feature! {
+//     #![feature = "quinn"]
+//     pub mod quinn;
+//     pub use self::quinn::{QuinnListener, H3Connection};
+// }
 cfg_feature! {
     #![unix]
     pub mod unix;

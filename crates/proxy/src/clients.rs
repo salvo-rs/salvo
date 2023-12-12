@@ -1,12 +1,8 @@
-use std::convert::{Infallible, TryFrom};
-
 use futures_util::TryStreamExt;
-use hyper::upgrade::{OnUpgrade, Upgraded};
+use hyper::upgrade::OnUpgrade;
 use hyper_tls::HttpsConnector;
 use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClient};
 use hyper_util::rt::TokioExecutor;
-use percent_encoding::{utf8_percent_encode, CONTROLS};
-use reqwest::Client;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
@@ -43,23 +39,22 @@ impl super::Client for HyperClient {
     ) -> Result<HyperResponse, Self::Error> {
         let request_upgrade_type = crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let response = self.inner.request(proxied_request).await.map_err(Error::other)?;
+        let mut response = self.inner.request(proxied_request).await.map_err(Error::other)?;
 
-        let res_headers = response.headers().clone();
-        let hyper_response = hyper::Response::builder()
-            .status(response.status())
-            .version(response.version());
-
-        let mut hyper_response = if response.status() == StatusCode::SWITCHING_PROTOCOLS {
+        if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
+            println!("=======response_upgrade_type {:?}", response_upgrade_type);
 
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let mut hyper_response = hyper_response.body(ResBody::None).map_err(Error::other)?;
-                let response_upgraded = hyper::upgrade::on(&mut hyper_response).await?;
+                // let mut hyper_response = hyper_response.body(ResBody::None).map_err(Error::other)?;
+                println!("--------------------0");
+                let response_upgraded = hyper::upgrade::on(&mut response).await.unwrap();
+                println!("--------------------1");
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
                             Ok(request_upgraded) => {
+                                println!("--------------------2");
                                 let mut request_upgraded = TokioIo::new(request_upgraded);
                                 let mut response_upgraded = TokioIo::new(response_upgraded);
                                 if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
@@ -75,16 +70,13 @@ impl super::Client for HyperClient {
                 } else {
                     return Err(Error::other("request does not have an upgrade extension."));
                 }
-                hyper_response
             } else {
                 return Err(Error::other("upgrade type mismatch"));
             }
-        } else {
-            hyper_response
-                .body(ResBody::Hyper(response.into_body()))
-                .map_err(Error::other)?
-        };
-        *hyper_response.headers_mut() = res_headers;
-        Ok(hyper_response)
+        }
+        
+        Ok(response.map(|b|ResBody::Hyper(b)))
     }
 }
+
+//TODO: ReqwestClient

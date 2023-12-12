@@ -1,8 +1,8 @@
 //! `RustlsListener` and utils.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use tokio_rustls::rustls::{RootCertStore};
 use rustls_pki_types::CertificateDer;
+use tokio_rustls::rustls::RootCertStore;
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
@@ -12,11 +12,11 @@ pub use listener::{RustlsAcceptor, RustlsListener};
 
 #[inline]
 pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertStore> {
-    let certs = rustls_pemfile::certs(&mut trust_anchor)?;
+    let certs = rustls_pemfile::certs(&mut trust_anchor).collect::<IoResult<Vec<_>>>()?;
     let mut store = RootCertStore::empty();
     for cert in certs {
         store
-            .add(&CertificateDer(cert))
+            .add(CertificateDer::from(cert))
             .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
     }
     Ok(store)
