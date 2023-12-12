@@ -150,7 +150,7 @@ where
 {
     type Acceptor = AcmeAcceptor<T::Acceptor>;
 
-    async fn try_bind(mut self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(mut self) -> crate::Result<Self::Acceptor> {
         let Self {
             inner,
             config_builder,
@@ -257,7 +257,7 @@ cfg_feature! {
     {
         type Acceptor = JoinedAcceptor<AcmeAcceptor<T::Acceptor>, QuinnAcceptor<BoxStream<'static, crate::conn::quinn::ServerConfig>, crate::conn::quinn::ServerConfig, std::convert::Infallible>>;
 
-        async fn try_bind(self) -> IoResult<Self::Acceptor> {
+        async fn try_bind(self) -> crate::Result<Self::Acceptor> {
             let Self { acme, local_addr } = self;
             let a = acme.try_bind().await?;
 
@@ -291,7 +291,7 @@ where
         inner: T,
         tls_acceptor: TlsAcceptor,
         check_duration: Duration,
-    ) -> IoResult<AcmeAcceptor<T>>
+    ) -> crate::Result<AcmeAcceptor<T>>
     where
         T: Send,
     {

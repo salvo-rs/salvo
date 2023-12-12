@@ -66,7 +66,7 @@ http-body-util = "0.1"
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
-hyper = { version = "1", features = ["full"], path="D:/Repositories/hyper" }
+hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1.1", default-features = true }
 hyper-tls = "0.6"
 indexmap = "2"
@@ -97,7 +97,6 @@ quote = "1"
 rand = "0.8"
 rcgen = "0.11"
 regex = "1"
-reqwest = { version = "0.11", default-features = false }
 ring = "0.17"
 rust_decimal = "1"
 rustls-pki-types = "1"
@@ -136,7 +135,3 @@ x509-parser = "0.15"
 brotli = { version = "3.3", default-features = false }
 flate2 = { version = "1.0", default-features = false }
 zstd = { version = "0.13", default-features = false }
-
-
-# [patch.crates-io]
-# multer = { git = "https://github.com/rousan/multer-rs.git" }

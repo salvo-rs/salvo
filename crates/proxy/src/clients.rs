@@ -44,12 +44,7 @@ impl super::Client for HyperClient {
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let hyper_response = hyper::Response::builder()
-                    .status(response.status())
-                    .version(response.version())
-                    .body(ResBody::None)
-                    .map_err(Error::other)?;
-                let response_upgraded = hyper::upgrade::on(response).await.unwrap();
+                let response_upgraded = hyper::upgrade::on(&mut response).await.unwrap();
                 println!("--------------------1");
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
@@ -68,16 +63,14 @@ impl super::Client for HyperClient {
                             }
                         }
                     });
-                    Ok(hyper_response)
                 } else {
                     return Err(Error::other("request does not have an upgrade extension."));
                 }
             } else {
                 return Err(Error::other("upgrade type mismatch"));
             }
-        } else {
-            Ok(response.map(|b| ResBody::Hyper(b)))
         }
+        Ok(response.map(|b| ResBody::Hyper(b)))
     }
 }
 

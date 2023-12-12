@@ -55,7 +55,7 @@ where
 {
     type Acceptor = UnixAcceptor;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let inner = match (self.permissions, self.owner) {
             (Some(permissions), Some((uid, gid))) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;

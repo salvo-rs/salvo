@@ -201,7 +201,7 @@ pub trait Listener {
     }
 
     /// Bind and returns acceptor.
-    async fn try_bind(self) -> IoResult<Self::Acceptor>;
+    async fn try_bind(self) -> crate::Result<Self::Acceptor>;
 
     /// Join current Listener with the other.
     #[inline]
