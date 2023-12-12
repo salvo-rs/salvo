@@ -64,13 +64,13 @@ pub enum JwtAuthError {
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("ClientError")]
     ClientError(#[from] hyper_util::client::legacy::Error),
-    
+
     /// Error happened in hyper.
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
     #[error("HyperError")]
     Hyper(#[from] salvo_core::hyper::Error),
-    
+
     /// InvalidUri
     #[error("InvalidUri")]
     InvalidUri(#[from] salvo_core::http::uri::InvalidUri),
