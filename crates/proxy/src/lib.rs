@@ -14,6 +14,8 @@ use std::convert::{Infallible, TryFrom};
 
 use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
+use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::connect::{Connect, HttpConnector};
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Uri;
@@ -110,7 +112,7 @@ pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String>
 }
 
 /// Handler that can proxy request to other server.
-#[non_exhaustive] 
+#[non_exhaustive]
 pub struct Proxy<U, C>
 where
     U: Upstreams,
@@ -132,7 +134,7 @@ where
 {
     /// Create new `Proxy` with hyper util client.
     pub fn with_hyper_client(upstreams: U) -> Self {
-        Proxy::new(upstreams, HyperClient::new())
+        Proxy::new(upstreams, HyperClient::default())
     }
 }
 
@@ -263,30 +265,28 @@ where
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot) {
             Ok(proxied_request) => {
-                match self
-                    .clint.execute(proxied_request, req.extensions_mut().remove())
+                if let Ok(response) = self
+                    .client
+                    .execute(proxied_request, req.extensions_mut().remove())
                     .await
                 {
-                    Ok(response) => {
-                        let (
-                            salvo_core::http::response::Parts {
-                                status,
-                                // version,
-                                headers,
-                                // extensions,
-                                ..
-                            },
-                            body,
-                        ) = response.into_parts();
-                        res.status_code(status);
-                        res.set_headers(headers);
-                        res.body(body);
-                    }
-                    Err(e) => {
-                        tracing::error!(error = ?e, uri = ?req.uri(), "get response data failed");
-                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
-                };
+                    let (
+                        salvo_core::http::response::Parts {
+                            status,
+                            // version,
+                            headers,
+                            // extensions,
+                            ..
+                        },
+                        body,
+                    ) = response.into_parts();
+                    res.status_code(status);
+                    res.set_headers(headers);
+                    res.body(body);
+                } else {
+                    tracing::error!( uri = ?req.uri(), "get response data failed");
+                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                }
             }
             Err(e) => {
                 tracing::error!(error = ?e, "build proxied request failed");

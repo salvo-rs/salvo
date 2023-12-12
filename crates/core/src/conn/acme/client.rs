@@ -292,7 +292,7 @@ async fn create_acme_account(
     .await?;
     let kid = res
         .headers()
-        .get(http02::header::LOCATION)
+        .get("location")
         .ok_or_else(|| IoError::new(ErrorKind::Other, "unable to get account id"))?
         .to_str()
         .map(|s| s.to_owned())

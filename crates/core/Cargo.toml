@@ -47,7 +47,6 @@ futures-util = { workspace = true, features = ["io"] }
 headers = { workspace = true }
 headers03 = { workspace = true }
 http = { workspace = true }
-http02 = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["http1", "client", "server"] }
 indexmap = { workspace = true }

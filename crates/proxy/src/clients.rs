@@ -1,25 +1,14 @@
-//! Proxy support for Savlo web server framework.
-//!
-//! Read more: <https://salvo.rs>
-#![doc(html_favicon_url = "https://salvo.rs/favicon-32x32.png")]
-#![doc(html_logo_url = "https://salvo.rs/images/logo.svg")]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![deny(unreachable_pub)]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(clippy::future_not_send)]
-#![warn(rustdoc::broken_intra_doc_links)]
-
 use std::convert::{Infallible, TryFrom};
 
 use futures_util::TryStreamExt;
-use hyper::upgrade::OnUpgrade;
+use hyper::upgrade::{OnUpgrade, Upgraded};
+use hyper_tls::HttpsConnector;
 use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClient};
 use hyper_util::rt::TokioExecutor;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use reqwest::Client;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
-use salvo_core::http::uri::Uri;
+use salvo_core::http::uri::{Scheme, Uri};
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
@@ -28,30 +17,24 @@ use tokio::io::copy_bidirectional;
 use super::{HyperRequest, HyperResponse};
 
 pub struct HyperClient {
-    http_client: HyperUtilClient<TokioExecutor, ReqBody>,
-    https_client: HyperUtilClient<TokioExecutor, ReqBody>,
+    inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>,
 }
-impl HyperClient {
-    pub fn new() -> Self {
+impl Default for HyperClient {
+    fn default() -> Self {
         Self {
-            http_client: HyperUtilClient::builder(TokioExecutor::new()).build(HttpConnector::new()),
-            https_client: HyperUtilClient::builder(TokioExecutor::new()).build(HttpConnector::new()),
+            inner: HyperUtilClient::builder(TokioExecutor::new()).build(HttpsConnector::new()),
         }
     }
-    pub fn custom(
-        http_client: HyperUtilClient<TokioExecutor, ReqBody>,
-        https_client: HyperUtilClient<TokioExecutor, ReqBody>,
-    ) -> Self {
-        Self {
-            http_client,
-            https_client,
-        }
+}
+impl HyperClient {
+    pub fn new(inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>) -> Self {
+        Self { inner }
     }
 }
 
 #[async_trait]
 impl super::Client for HyperClient {
-    type Error = hyper::Error;
+    type Error = salvo_core::Error;
 
     async fn execute(
         &self,
@@ -60,12 +43,7 @@ impl super::Client for HyperClient {
     ) -> Result<HyperResponse, Self::Error> {
         let request_upgrade_type = crate::get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
 
-        let proxied_request =
-            proxied_request.map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
-        let response: ! = self.http_client
-            .execute(proxied_request.try_into().map_err(Error::other)?)
-            .await
-            .map_err(Error::other)?;
+        let response = self.inner.request(proxied_request).await.map_err(Error::other)?;
 
         let res_headers = response.headers().clone();
         let hyper_response = hyper::Response::builder()
@@ -76,35 +54,34 @@ impl super::Client for HyperClient {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
 
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let mut response_upgraded = response
-                    .upgrade()
-                    .await
-                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {}", e)))?;
+                let mut hyper_response = hyper_response.body(ResBody::None).map_err(Error::other)?;
+                let response_upgraded = hyper::upgrade::on(&mut hyper_response).await?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
                             Ok(request_upgraded) => {
                                 let mut request_upgraded = TokioIo::new(request_upgraded);
+                                let mut response_upgraded = TokioIo::new(response_upgraded);
                                 if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
                                 {
-                                    tracing::error!(error = ?e, "coping between upgraded connections failed");
+                                    tracing::error!(error = ?e, "coping between upgraded connections failed.");
                                 }
                             }
                             Err(e) => {
-                                tracing::error!(error = ?e, "upgrade request failed");
+                                tracing::error!(error = ?e, "upgrade request failed.");
                             }
                         }
                     });
                 } else {
-                    return Err(Error::other("request does not have an upgrade extension"));
+                    return Err(Error::other("request does not have an upgrade extension."));
                 }
+                hyper_response
             } else {
                 return Err(Error::other("upgrade type mismatch"));
             }
-            hyper_response.body(ResBody::None).map_err(Error::other)?
         } else {
             hyper_response
-                .body(ResBody::stream(response.bytes_stream()))
+                .body(ResBody::Hyper(response.into_body()))
                 .map_err(Error::other)?
         };
         *hyper_response.headers_mut() = res_headers;
