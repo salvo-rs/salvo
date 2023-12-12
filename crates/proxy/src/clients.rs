@@ -1,17 +1,15 @@
-use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
 use hyper_tls::HttpsConnector;
 use hyper_util::client::legacy::{connect::HttpConnector, Client as HyperUtilClient};
 use hyper_util::rt::TokioExecutor;
-use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
-use salvo_core::http::uri::{Scheme, Uri};
-use salvo_core::http::{response, ReqBody, ResBody, StatusCode};
+use salvo_core::http::{ReqBody, ResBody, StatusCode};
 use salvo_core::rt::tokio::TokioIo;
-use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
+use salvo_core::{async_trait, Error};
 use tokio::io::copy_bidirectional;
 
 use super::{HyperRequest, HyperResponse};
 
+/// A [`Client`] implementation based on [`hyper_util::client::legacy::Client`].
 pub struct HyperClient {
     inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>,
 }
@@ -23,6 +21,7 @@ impl Default for HyperClient {
     }
 }
 impl HyperClient {
+    /// Create a new `HyperClient` with the given `HyperClient`.
     pub fn new(inner: HyperUtilClient<HttpsConnector<HttpConnector>, ReqBody>) -> Self {
         Self { inner }
     }
@@ -45,12 +44,10 @@ impl super::Client for HyperClient {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
             if request_upgrade_type.as_deref() == response_upgrade_type {
                 let response_upgraded = hyper::upgrade::on(&mut response).await.unwrap();
-                println!("--------------------1");
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {
                             Ok(request_upgraded) => {
-                                println!("--------------------2");
                                 let mut request_upgraded = TokioIo::new(request_upgraded);
                                 let mut response_upgraded = TokioIo::new(response_upgraded);
                                 if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await

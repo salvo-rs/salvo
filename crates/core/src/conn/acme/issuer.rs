@@ -1,13 +1,10 @@
-use std::io::{Error as IoError, ErrorKind, Result as IoResult};
+use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
 use rcgen::{Certificate, CertificateParams, CustomExtension, DistinguishedName, PKCS_ECDSA_P256_SHA256};
 use rustls_pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use tokio_rustls::rustls::{
-    crypto::ring::sign::{any_ecdsa_type, any_eddsa_type},
-    sign::CertifiedKey,
-};
+use tokio_rustls::rustls::{crypto::ring::sign::any_ecdsa_type, sign::CertifiedKey};
 
 use super::cache::AcmeCache;
 use super::client::AcmeClient;

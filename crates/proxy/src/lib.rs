@@ -12,7 +12,6 @@
 
 use std::convert::{Infallible, TryFrom};
 
-use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};

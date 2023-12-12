@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use rustls_pki_types::{PrivateKeyDer, CertificateDer};
+use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_rustls::rustls::crypto::ring::sign::{any_ecdsa_type, any_supported_type};
+use tokio_rustls::rustls::crypto::ring::sign::any_ecdsa_type;
 use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::sign::{CertifiedKey, SigningKey};
+use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 

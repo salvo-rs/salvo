@@ -3,7 +3,6 @@ use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use super::client::HyperClient;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
-use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Incoming as HyperBody, Method};
 use ring::digest::{digest, Digest, SHA256};

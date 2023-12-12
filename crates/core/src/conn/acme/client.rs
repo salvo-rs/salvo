@@ -1,13 +1,9 @@
-use std::{
-    io::{Error as IoError, ErrorKind, Result as IoResult},
-    sync::Arc,
-    time::Duration,
-};
+use std::sync::Arc;
 
 use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Incoming as HyperBody, Uri};
+use hyper::Uri;
 use hyper_tls::HttpsConnector;
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
