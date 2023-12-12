@@ -11,6 +11,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::convert::{Infallible, TryFrom};
+use std::error::Error as StdError;
 
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
@@ -38,7 +39,7 @@ pub(crate) fn encode_url_path(path: &str) -> String {
 #[async_trait]
 pub trait Client: Send + Sync + 'static {
     /// Error type.
-    type Error;
+    type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
     async fn execute(&self, req: HyperRequest, upgraded: Option<OnUpgrade>) -> Result<HyperResponse, Self::Error>;
 }
@@ -46,7 +47,7 @@ pub trait Client: Send + Sync + 'static {
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
-    type Error;
+    type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
     fn elect(&self) -> Result<&str, Self::Error>;
 }
@@ -260,27 +261,30 @@ where
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot) {
             Ok(proxied_request) => {
-                if let Ok(response) = self
+                match self
                     .client
                     .execute(proxied_request, req.extensions_mut().remove())
                     .await
                 {
-                    let (
-                        salvo_core::http::response::Parts {
-                            status,
-                            // version,
-                            headers,
-                            // extensions,
-                            ..
-                        },
-                        body,
-                    ) = response.into_parts();
-                    res.status_code(status);
-                    res.set_headers(headers);
-                    res.body(body);
-                } else {
-                    tracing::error!( uri = ?req.uri(), "get response data failed");
-                    res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    Ok(response) => {
+                        let (
+                            salvo_core::http::response::Parts {
+                                status,
+                                // version,
+                                headers,
+                                // extensions,
+                                ..
+                            },
+                            body,
+                        ) = response.into_parts();
+                        res.status_code(status);
+                        res.set_headers(headers);
+                        res.body(body);
+                    }
+                    Err(e) => {
+                        tracing::error!( error = ?e, uri = ?req.uri(), "get response data failed: {}", e);
+                        res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 }
             }
             Err(e) => {

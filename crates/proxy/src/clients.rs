@@ -43,7 +43,7 @@ impl super::Client for HyperClient {
         if response.status() == StatusCode::SWITCHING_PROTOCOLS {
             let response_upgrade_type = crate::get_upgrade_type(response.headers());
             if request_upgrade_type.as_deref() == response_upgrade_type {
-                let response_upgraded = hyper::upgrade::on(&mut response).await.unwrap();
+                let response_upgraded = hyper::upgrade::on(&mut response).await?;
                 if let Some(request_upgraded) = request_upgraded {
                     tokio::spawn(async move {
                         match request_upgraded.await {

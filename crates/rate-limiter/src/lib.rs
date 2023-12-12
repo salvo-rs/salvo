@@ -169,7 +169,7 @@ where
         let quota = match self.quota_getter.get(&key).await {
             Ok(quota) => quota,
             Err(e) => {
-                tracing::error!(error = ?e, "RateLimiter error");
+                tracing::error!(error = ?e, "RateLimiter error: {}", e);
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
@@ -178,7 +178,7 @@ where
         let mut guard = match self.store.load_guard(&key, &self.guard).await {
             Ok(guard) => guard,
             Err(e) => {
-                tracing::error!(error = ?e, "RateLimiter error");
+                tracing::error!(error = ?e, "RateLimiter error: {}", e);
                 res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                 ctrl.skip_rest();
                 return;
