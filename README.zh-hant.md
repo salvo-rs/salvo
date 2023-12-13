@@ -39,7 +39,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 
 ## 🎯 功能特色
 
-- 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
+- 基於 [Hyper 1.0](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
 - 統一的中間件和句柄接口;
 - 支持 HTTP1, HTTP2 和 **HTTP3**;
 - 路由可以無限嵌套，並且可以在任何路由是附加多個中間件;
@@ -52,7 +52,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 ## ⚡️ 快速開始
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
-### 🛠️ Salvo-cli
+### 🛠️ Salvo CLI
 Salvo CLI是一個命令行工具，可以簡化創建新的Salvo項目的過程，支援Web API、網站、資料庫（包括透過SQLx、SeaORM、Diesel、Rbatis支援的SQLite、PostgreSQL、MySQL）和基本的中介軟體的模板。
 你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来來創建一個新的 Salvo 項目:
 #### 安裝
@@ -300,8 +300,7 @@ Benchmark 測試結果可以從這裏查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
-![techempower](assets/tp.jpg)
+[https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
 ## 🩸 貢獻
 

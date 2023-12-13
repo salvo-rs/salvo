@@ -12,7 +12,7 @@ cfg_feature! {
     use tokio_rustls_old::rustls::{
         server::{
             ClientHello as OldClientHello,
-            ResolvesServerCert as OldResolvesServerCert,
+            ResolvesServerCert as ResolvesServerCertOld,
         },
         sign::{CertifiedKey as CertifiedKeyOld},
     };
@@ -78,7 +78,8 @@ pub(crate) struct ResolveServerCertOld {
     pub(crate) cert: RwLock<Option<Arc<CertifiedKeyOld>>>,
     pub(crate) acme_keys: RwLock<HashMap<String, Arc<CertifiedKeyOld>>>,
 }
-impl OldResolvesServerCert for ResolveServerCertOld {
+#[cfg(feature = "quinn")]
+impl ResolvesServerCertOld for ResolveServerCertOld {
     #[inline]
     fn resolve(&self, client_hello: OldClientHello) -> Option<Arc<CertifiedKeyOld>> {
         if client_hello

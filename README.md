@@ -37,7 +37,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 ## 🎯 Features
 
-- Built with [Hyper](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+- Built with [Hyper 1.0](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
 - HTTP1, HTTP2 and **HTTP3**;
 - Unified middleware and handle interface;
 - Router can be nested infinitely, and multiple middlewares can be attached to any router;
@@ -49,7 +49,8 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 ## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [official website](https://salvo.rs).
-### 🛠️ Salvo-cli
+
+### 🛠️ Salvo CLI
 Salvo CLI is a command-line tool that simplifies the creation of new Salvo projects, supporting templates for web APIs, websites, databases (including SQLite, PostgreSQL, and MySQL via SQLx, SeaORM, Diesel, Rbatis), and basic middleware.
 You can use [salvo-cli](https://github.com/salvo-rs/salvo-cli) to create a new Salvo project:
 #### install
@@ -294,8 +295,7 @@ Benchmark testing result can be found from here:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
-![techempower](assets/tp.jpg)
+[https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
 ## 🩸 Contributing
 
