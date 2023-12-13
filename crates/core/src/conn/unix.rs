@@ -9,7 +9,7 @@ use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use nix::unistd::{Gid, chown, Uid};    
 
-use crate::async_trait;
+use crate::{Error, async_trait};
 use crate::conn::{Holding, HttpBuilder};
 use crate::http::{HttpConnection, Version};
 use crate::service::HyperHandler;
@@ -60,7 +60,7 @@ where
             (Some(permissions), Some((uid, gid))) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;
                 set_permissions(self.path.clone(), permissions)?;
-                chown(self.path.as_ref().as_os_str().into(), uid, gid)?;
+                chown(self.path.as_ref().as_os_str().into(), uid, gid).map_err(Error::other)?;
                 inner
             }
             (Some(permissions), None) => {
@@ -70,7 +70,7 @@ where
             }
             (None, Some((uid, gid))) => {
                 let inner = TokioUnixListener::bind(self.path.clone())?;
-                chown(self.path.as_ref().as_os_str().into(), uid, gid)?;
+                chown(self.path.as_ref().as_os_str().into(), uid, gid).map_err(Error::other)?;
                 inner
             }
             (None, None) => TokioUnixListener::bind(self.path)?,
