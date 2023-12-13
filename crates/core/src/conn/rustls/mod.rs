@@ -10,7 +10,6 @@ pub use config::{Keycert, RustlsConfig, ServerConfig};
 mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
 
-#[inline]
 pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertStore> {
     let certs = rustls_pemfile::certs(&mut trust_anchor).collect::<IoResult<Vec<_>>>()?;
     let mut store = RootCertStore::empty();

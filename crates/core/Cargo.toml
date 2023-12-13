@@ -17,12 +17,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["cookie", "http1", "fix-http1-request-uri", "http2", "test"]
-full = ["cookie", "http1", "fix-http1-request-uri", "http2", "rustls", "native-tls", "openssl", "unix", "test", "tower-compat", "anyhow", "eyre"]
+full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "test", "tower-compat", "anyhow", "eyre"]
 cookie = ["dep:cookie"]
 http1 = []
 fix-http1-request-uri = ["http1"]
 http2 = ["hyper/http2"]
-# quinn = ["dep:salvo-http3", "dep:quinn", "rustls"]
+quinn = ["dep:salvo-http3", "dep:quinn", "dep:tokio-rustls-old", "dep:rustls-pemfile-old", "rustls"]
 rustls = ["http1", "http2", "dep:tokio-rustls", "dep:rustls-pki-types", "dep:rustls-pemfile"]
 native-tls = ["http1", "http2", "dep:tokio-native-tls", "dep:native-tls"]
 openssl = ["http2", "dep:openssl", "dep:tokio-openssl"]
@@ -32,6 +32,9 @@ acme = ["http1", "http2", "hyper-util/http1", "hyper-util/http2","hyper-util/cli
 tower-compat = ["dep:tower"]
 
 [dependencies]
+rustls-pemfile-old = { version = "1", package = "rustls-pemfile", optional = true }
+tokio-rustls-old = { version = "0.24", package = "tokio-rustls", optional = true }
+
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
@@ -59,14 +62,14 @@ openssl = { workspace = true, optional = true }
 percent-encoding = { workspace = true }
 pin-project = { workspace = true }
 parking_lot = { workspace = true }
-# quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
+quinn = { workspace = true, optional = true, features = ["runtime-tokio", "ring", "tls-rustls"] }
 rand = { workspace = true }
 rcgen = { workspace = true, optional = true }
 regex = { workspace = true }
 ring = { workspace = true, optional = true }
 rustls-pki-types  = { workspace = true, optional = true }
 rustls-pemfile = { workspace = true, optional = true }
-# salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
+salvo-http3 = { workspace = true, optional = true, features = ["quinn"] }
 salvo_macros = { workspace = true }
 hyper-tls = { workspace = true, optional = true }
 hyper-util = { workspace = true, features = ["tokio"] }

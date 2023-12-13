@@ -1,4 +1,5 @@
 use salvo::conn::rustls::{Keycert, RustlsConfig};
+use salvo::conn::rustls_old;
 use salvo::prelude::*;
 
 #[handler]
@@ -14,9 +15,11 @@ async fn main() {
 
     let router = Router::new().get(hello);
     let config = RustlsConfig::new(Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
-    let listener = TcpListener::new(("0.0.0.0", 5800)).rustls(config.clone());
+    let config_old =
+        rustls_old::RustlsConfig::new(rustls_old::Keycert::new().cert(cert.as_slice()).key(key.as_slice()));
+    let listener = TcpListener::new(("0.0.0.0", 5800)).rustls(config);
 
-    let acceptor = QuinnListener::new(config, ("0.0.0.0", 5800))
+    let acceptor = QuinnListener::new(config_old, ("0.0.0.0", 5800))
         .join(listener)
         .bind()
         .await;

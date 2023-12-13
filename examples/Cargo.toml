@@ -1,6 +1,6 @@
 [workspace]
 members = ["*"]
-exclude = ["db-prisma-orm", "target", "temp", "acme-http01-quinn", "hello-h3", "webtransport", "webtransport-acme-http01"]
+exclude = ["db-prisma-orm", "target", "temp"]
 resolver = "2"
 
 [workspace.package]
