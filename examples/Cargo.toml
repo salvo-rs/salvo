@@ -1,6 +1,6 @@
 [workspace]
 members = ["*"]
-exclude = ["db-prisma-orm", "target", "temp"]
+exclude = ["db-prisma-orm", "target", "temp", "acme-http01-quinn", "webtransport-acme-http01"]
 resolver = "2"
 
 [workspace.package]
@@ -28,7 +28,7 @@ rbdc-mysql = "4.3"
 rbs = "4.3"
 async-std = "1.12"
 async-trait = "0.1"
-hyper = "=1.0.0-rc.4"
+hyper = "1"
 sea-orm = "0.12"
 sea-orm-migration = "0.12"
 eyre = "0.6"
@@ -39,8 +39,6 @@ opentelemetry-http = "0.10.0"
 opentelemetry-jaeger = "0.20.0"
 opentelemetry-prometheus = "0.14.0"
 opentelemetry_sdk = "0.21"
-utoipa = "3.3.0"
-utoipa-swagger-ui = "*"
 tokio-stream = "0.1.14"
 async-stream = "0.3.5"
 futures-util = { version = "0.3", default-features = true }
@@ -60,6 +58,3 @@ chrono = "0.4"
 sqlx = "0.7"
 rust-embed = "8"
 time = "0.3"
-
-[patch.crates-io]
-hyper-util = { rev = "99409f5", git = "https://github.com/hyperium/hyper-util" }

@@ -5,9 +5,7 @@ use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::Tracer};
 use opentelemetry::trace::{FutureExt, SpanKind, TraceContextExt, Tracer as _};
 use opentelemetry::{global, KeyValue};
 use opentelemetry_http::HeaderInjector;
-use reqwest::Client;
-use reqwest::Url;
-use salvo::http::Method;
+use reqwest::{Url, Method, Client};
 use salvo::otel::{Metrics, Tracing};
 use salvo::prelude::*;
 

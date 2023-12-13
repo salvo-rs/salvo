@@ -56,7 +56,7 @@ where
 {
     type Acceptor = RustlsAcceptor<BoxStream<'static, C>, C, T::Acceptor, E>;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         Ok(RustlsAcceptor::new(
             self.config_stream.into_stream().boxed(),
             self.inner.try_bind().await?,

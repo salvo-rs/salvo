@@ -150,8 +150,8 @@ async fn process_web_transport(
 ) -> IoResult<Option<salvo_http3::server::Connection<salvo_http3::http3_quinn::Connection, Bytes>>> {
     let (parts, _body) = request.into_parts();
     let mut request = hyper::Request::from_parts(parts, ReqBody::None);
-    request.extensions_mut().insert(Mutex::new(conn));
-    request.extensions_mut().insert(stream);
+    request.extensions_mut().insert(Arc::new(Mutex::new(conn)));
+    request.extensions_mut().insert(Arc::new(stream));
 
     let mut response = hyper::service::Service::call(&hyper_handler, request)
         .await

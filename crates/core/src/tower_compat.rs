@@ -4,11 +4,12 @@ use std::fmt;
 use std::future::Future;
 use std::io::{Error as IoError, ErrorKind};
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use futures_util::future::{BoxFuture, FutureExt};
 use http_body_util::BodyExt;
-use hyper::body::{Body, Bytes, Frame};
+use hyper::body::{Body, Bytes};
 use tower::buffer::Buffer;
 use tower::{Layer, Service, ServiceExt};
 
@@ -51,6 +52,7 @@ where
     SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
     Svc: Service<hyper::Request<QB>, Response = hyper::Response<SB>, Future = Fut> + Send + Sync + Clone + 'static,
+    Svc::Error: StdError + Send + Sync + 'static,
     Fut: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
@@ -71,22 +73,13 @@ where
 
         let hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
-            Err(_) => {
-                tracing::error!("call tower service failed.");
-                res.render(StatusError::internal_server_error().cause("call tower service failed."));
+            Err(e) => {
+                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                res.render(StatusError::internal_server_error().cause(format!("call tower service failed: {}", e)));
                 return;
             }
         }
-        .map(|res| {
-            ResBody::Boxed(Box::pin(
-                res.map_frame(|f| match f.into_data() {
-                    //TODO: should use Frame::map_data after new version of hyper is released.
-                    Ok(data) => Frame::data(data.into()),
-                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-                })
-                .map_err(|e| e.into()),
-            ))
-        });
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
 
         res.merge_hyper(hyper_res);
     }
@@ -132,12 +125,13 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
     }
 
     fn call(&mut self, mut hyper_req: hyper::Request<ReqBody>) -> Self::Future {
+        let ctx = hyper_req.extensions_mut().remove::<Arc<FlowCtrlInContext>>().and_then(Arc::into_inner);
         let Some(FlowCtrlInContext {
             mut ctrl,
             mut request,
             mut depot,
             mut response,
-        }) = hyper_req.extensions_mut().remove::<FlowCtrlInContext>()
+        }) = ctx
         else {
             return futures_util::future::ready(Err(IoError::new(
                 ErrorKind::Other,
@@ -150,7 +144,7 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
             ctrl.call_next(&mut request, &mut depot, &mut response).await;
             response
                 .extensions
-                .insert(FlowCtrlOutContext::new(ctrl, request, depot));
+                .insert(Arc::new(FlowCtrlOutContext::new(ctrl, request, depot)));
             Ok(response.strip_to_hyper())
         })
     }
@@ -212,36 +206,30 @@ where
             std::mem::take(depot),
             std::mem::take(res),
         );
-        hyper_req.extensions_mut().insert(ctx);
+        hyper_req.extensions_mut().insert(Arc::new(ctx));
 
         let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
-            Err(_) => {
-                tracing::error!("call tower service failed.");
-                res.render(StatusError::internal_server_error().cause("call tower service failed."));
+            Err(e) => {
+                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                res.render(StatusError::internal_server_error().cause(format!("call tower service failed: {}", e)));
                 return;
             }
         }
-        .map(|res| {
-            ResBody::Boxed(Box::pin(
-                res.map_frame(|f| match f.into_data() {
-                    //TODO: should use Frame::map_data after new version of hyper is released.
-                    Ok(data) => Frame::data(data.into()),
-                    Err(frame) => Frame::trailers(frame.into_trailers().expect("frame must be trailers")),
-                })
-                .map_err(|e| e.into()),
-            ))
-        });
+        .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
         let origin_depot = depot;
         let origin_ctrl = ctrl;
-        if let Some(FlowCtrlOutContext { ctrl, request, depot }) =
-            hyper_res.extensions_mut().remove::<FlowCtrlOutContext>()
+        
+        let ctx = hyper_res.extensions_mut().remove::<Arc<FlowCtrlOutContext>>().and_then(Arc::into_inner);
+        if let Some(FlowCtrlOutContext { ctrl, request, depot }) = ctx
         {
             *origin_depot = depot;
             *origin_ctrl = ctrl;
             *req = request;
         } else {
-            tracing::debug!("`FlowCtrlOutContext` does not exists in response extensions, `FlowCtrlService` may not be used.");
+            tracing::debug!(
+                "`FlowCtrlOutContext` does not exists in response extensions, `FlowCtrlService` may not be used."
+            );
         }
 
         res.merge_hyper(hyper_res);
