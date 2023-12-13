@@ -52,6 +52,7 @@ where
     SB::Error: StdError + Send + Sync + 'static,
     E: StdError + Send + Sync + 'static,
     Svc: Service<hyper::Request<QB>, Response = hyper::Response<SB>, Future = Fut> + Send + Sync + Clone + 'static,
+    Svc::Error: StdError + Send + Sync + 'static,
     Fut: Future<Output = Result<hyper::Response<SB>, E>> + Send + 'static,
 {
     async fn handle(&self, req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
@@ -72,9 +73,9 @@ where
 
         let hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
-            Err(_) => {
-                tracing::error!("call tower service failed.");
-                res.render(StatusError::internal_server_error().cause("call tower service failed."));
+            Err(e) => {
+                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                res.render(StatusError::internal_server_error().cause(format!("call tower service failed: {}", e)));
                 return;
             }
         }
@@ -124,12 +125,13 @@ impl Service<hyper::Request<ReqBody>> for FlowCtrlService {
     }
 
     fn call(&mut self, mut hyper_req: hyper::Request<ReqBody>) -> Self::Future {
+        let ctx = hyper_req.extensions_mut().remove::<Arc<FlowCtrlInContext>>().and_then(Arc::into_inner);
         let Some(FlowCtrlInContext {
             mut ctrl,
             mut request,
             mut depot,
             mut response,
-        }) = hyper_req.extensions_mut().remove::<FlowCtrlInContext>()
+        }) = ctx
         else {
             return futures_util::future::ready(Err(IoError::new(
                 ErrorKind::Other,
@@ -208,17 +210,18 @@ where
 
         let mut hyper_res = match svc.call(hyper_req).await {
             Ok(hyper_res) => hyper_res,
-            Err(_) => {
-                tracing::error!("call tower service failed.");
-                res.render(StatusError::internal_server_error().cause("call tower service failed."));
+            Err(e) => {
+                tracing::error!(error = ?e, "call tower service failed: {}", e);
+                res.render(StatusError::internal_server_error().cause(format!("call tower service failed: {}", e)));
                 return;
             }
         }
         .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
         let origin_depot = depot;
         let origin_ctrl = ctrl;
-        if let Some(FlowCtrlOutContext { ctrl, request, depot }) =
-            hyper_res.extensions_mut().remove::<FlowCtrlOutContext>()
+        
+        let ctx = hyper_res.extensions_mut().remove::<Arc<FlowCtrlOutContext>>().and_then(Arc::into_inner);
+        if let Some(FlowCtrlOutContext { ctrl, request, depot }) = ctx
         {
             *origin_depot = depot;
             *origin_ctrl = ctrl;
