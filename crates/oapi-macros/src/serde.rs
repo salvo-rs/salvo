@@ -392,7 +392,7 @@ mod tests {
         ];
 
         let expected = SerdeContainer {
-            default: true,
+            is_default: true,
             deny_unknown_fields: true,
             ..Default::default()
         };
