@@ -306,7 +306,9 @@ impl Response {
         ///
         /// A "removal" cookie is a cookie that has the same name as the original
         /// cookie but has an empty value, a max-age of 0, and an expiration date
-        /// far in the past. Read more about [removal cookies](https://docs.rs/cookie/0.18.0/cookie/struct.CookieJar.html#method.remove).
+        /// far in the past. 
+        /// 
+        /// Read more about [removal cookies](https://docs.rs/cookie/0.18.0/cookie/struct.CookieJar.html#method.remove).
         #[inline]
         pub fn remove_cookie(&mut self, name: &str) -> &mut Self
         {
