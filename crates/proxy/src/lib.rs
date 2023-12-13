@@ -128,8 +128,8 @@ where
     U: Upstreams,
     U::Error: Into<BoxedError>,
 {
-    /// Create new `Proxy` with hyper util client.
-    pub fn with_hyper_client(upstreams: U) -> Self {
+    /// Create new `Proxy` which use default hyper util client.
+    pub fn default_hyper_client(upstreams: U) -> Self {
         Proxy::new(upstreams, HyperClient::default())
     }
 }
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn test_upstreams_elect() {
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
-        let proxy = Proxy::new(upstreams.clone());
+        let proxy = Proxy::default_hyper_client(upstreams.clone());
         let elected_upstream = proxy.upstreams().elect().unwrap();
         assert!(upstreams.contains(&elected_upstream));
     }
@@ -348,7 +348,7 @@ mod tests {
     #[tokio::test]
     async fn test_proxy() {
         let router =
-            Router::new().push(Router::with_path("rust/<**rest>").goal(Proxy::new(vec!["https://www.rust-lang.org"])));
+            Router::new().push(Router::with_path("rust/<**rest>").goal(Proxy::default_hyper_client(vec!["https://www.rust-lang.org"])));
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
             .send(router)
@@ -360,7 +360,7 @@ mod tests {
     }
     #[test]
     fn test_others() {
-        let mut handler = Proxy::new(["https://www.bing.com"]);
+        let mut handler = Proxy::default_hyper_client(["https://www.bing.com"]);
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
     }
