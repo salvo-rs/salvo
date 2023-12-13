@@ -13,7 +13,7 @@ pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::rustls_old::RustlsConfig;
+use crate::conn::rustls::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;
@@ -26,7 +26,7 @@ pub use listener::{QuinnAcceptor, QuinnListener};
 impl TryInto<ServerConfig> for RustlsConfig {
     type Error = IoError;
     fn try_into(self) -> IoResult<ServerConfig> {
-        let mut crypto = self.build_server_config()?;
+        let mut crypto = self.build_server_config_old()?;
         crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
         Ok(ServerConfig::with_crypto(Arc::new(crypto)))
     }
