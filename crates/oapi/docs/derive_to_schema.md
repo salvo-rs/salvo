@@ -166,6 +166,7 @@ be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect t
 * `untagged` Supported at the container level. Allows [untagged
 enum representation](https://serde.rs/enum-representations.html#untagged).
 * `default` Supported at the container level and field level according to [serde attributes].
+* `deny_unknown_fields` Supported at the container level.
 * `flatten` Supported at the field level.
 
 Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
