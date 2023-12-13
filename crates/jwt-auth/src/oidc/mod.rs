@@ -1,20 +1,22 @@
-//! Oidc(OpenID Connect) support module
+//! Oidc(OpenID Connect) supports.
 
 use std::future::Future;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use bytes::Bytes;
+use http_body_util::{BodyExt, Full};
+use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::{connect::HttpConnector, Client};
+use hyper_util::rt::TokioExecutor;
 use jsonwebtoken::jwk::{Jwk, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
-use reqwest::Client;
-use salvo_core::async_trait;
-use salvo_core::http::header::CACHE_CONTROL;
-use salvo_core::Depot;
+use salvo_core::http::{header::CACHE_CONTROL, uri::Uri};
+use salvo_core::{async_trait, Depot};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use tokio::sync::{Notify, RwLock};
@@ -25,11 +27,13 @@ mod cache;
 
 pub use cache::{CachePolicy, CacheState, JwkSetStore, UpdateAction};
 
+pub(super) type HyperClient = Client<HttpsConnector<HttpConnector>, Full<Bytes>>;
+
 /// ConstDecoder will decode token with a static secret.
 #[derive(Clone)]
 pub struct OidcDecoder {
     issuer: String,
-    http_client: reqwest::Client,
+    http_client: HyperClient,
     cache: Arc<RwLock<JwkSetStore>>,
     cache_state: Arc<CacheState>,
     notifier: Arc<Notify>,
@@ -62,7 +66,7 @@ where
     /// The issuer URL of the token. eg: `https://xx-xx.clerk.accounts.dev`
     pub issuer: T,
     /// The http client for the decoder.
-    pub http_client: Option<reqwest::Client>,
+    pub http_client: Option<HyperClient>,
     /// The validation options for the decoder.
     pub validation: Option<Validation>,
 }
@@ -79,7 +83,7 @@ where
         }
     }
     /// Set the http client for the decoder.
-    pub fn http_client(mut self, client: reqwest::Client) -> Self {
+    pub fn http_client(mut self, client: HyperClient) -> Self {
         self.http_client = Some(client);
         self
     }
@@ -106,7 +110,7 @@ where
         let cache_state = Arc::new(CacheState::new());
 
         let http_client =
-            http_client.unwrap_or_else(|| Client::builder().timeout(Duration::from_secs(30)).build().unwrap());
+            http_client.unwrap_or_else(|| Client::builder(TokioExecutor::new()).build(HttpsConnector::new()));
         let decoder = OidcDecoder {
             issuer,
             http_client,
@@ -139,8 +143,9 @@ impl OidcDecoder {
         format!("{}/.well-known/openid-configuration", &self.issuer)
     }
     async fn get_config(&self) -> Result<OidcConfig, JwtAuthError> {
-        let res = self.http_client.get(self.config_url()).send().await?;
-        let config = res.json().await?;
+        let res = self.http_client.get(self.config_url().parse::<Uri>()?).await?;
+        let body = res.into_body().collect().await?.to_bytes();
+        let config = serde_json::from_slice(&body)?;
         Ok(config)
     }
     async fn jwks_uri(&self) -> Result<String, JwtAuthError> {
@@ -149,10 +154,10 @@ impl OidcDecoder {
 
     /// Triggers an HTTP Request to get a fresh `JwkSet`
     async fn get_jwks(&self) -> Result<JwkSetFetch, JwtAuthError> {
-        let uri = &self.jwks_uri().await?;
+        let uri = self.jwks_uri().await?.parse::<Uri>()?;
         // Get the jwks endpoint
         tracing::debug!("Requesting JWKS From Uri: {uri}");
-        let res = self.http_client.get(uri).send().await?;
+        let res = self.http_client.get(uri).await?;
 
         let cache_policy = {
             // Determine it from the cache_control header
@@ -160,10 +165,11 @@ impl OidcDecoder {
             let cache_policy = CachePolicy::from_header_val(cache_control);
             Some(cache_policy)
         };
+        let jwks = res.into_body().collect().await?.to_bytes();
 
         let fetched_at = current_time();
         Ok(JwkSetFetch {
-            jwks: res.json().await?,
+            jwks: serde_json::from_slice(&jwks)?,
             cache_policy,
             fetched_at,
         })

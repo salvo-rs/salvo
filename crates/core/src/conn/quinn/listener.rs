@@ -54,7 +54,7 @@ where
 {
     type Acceptor = QuinnAcceptor<BoxStream<'static, C>, C, C::Error>;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let Self {
             config_stream,
             local_addr,

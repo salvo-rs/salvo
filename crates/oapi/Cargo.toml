@@ -3,7 +3,7 @@ name = "salvo-oapi"
 version = { workspace = true }
 edition = "2021"
 description = "OpenApi support for Salvo web framework"
-readme = { workspace = true }
+readme = "./README.md"
 license = { workspace = true }
 documentation = "https://docs.rs/salvo-oapi/"
 homepage = { workspace = true }

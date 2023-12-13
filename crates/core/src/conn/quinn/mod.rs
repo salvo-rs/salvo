@@ -13,7 +13,7 @@ pub use salvo_http3::http3_quinn::ServerConfig;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::async_trait;
-use crate::conn::rustls::RustlsConfig;
+use crate::conn::rustls_old::RustlsConfig;
 use crate::conn::{HttpBuilder, IntoConfigStream};
 use crate::http::HttpConnection;
 use crate::service::HyperHandler;

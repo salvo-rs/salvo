@@ -23,6 +23,8 @@ pub enum Error {
     Io(IoError),
     /// SerdeJson error.
     SerdeJson(serde_json::Error),
+    /// Invalid URI error.
+    InvalidUri(http::uri::InvalidUri),
     #[cfg(feature = "quinn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "quinn")))]
     /// H3 error.
@@ -55,6 +57,7 @@ impl Display for Error {
             Self::HttpStatus(e) => Display::fmt(e, f),
             Self::Io(e) => Display::fmt(e, f),
             Self::SerdeJson(e) => Display::fmt(e, f),
+            Self::InvalidUri(e) => Display::fmt(e, f),
             #[cfg(feature = "quinn")]
             Self::H3(e) => Display::fmt(e, f),
             #[cfg(feature = "anyhow")]
@@ -96,6 +99,12 @@ impl From<IoError> for Error {
     #[inline]
     fn from(e: IoError) -> Error {
         Error::Io(e)
+    }
+}
+impl From<http::uri::InvalidUri> for Error {
+    #[inline]
+    fn from(e: http::uri::InvalidUri) -> Error {
+        Error::InvalidUri(e)
     }
 }
 impl From<serde_json::Error> for Error {

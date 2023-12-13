@@ -11,17 +11,17 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::convert::{Infallible, TryFrom};
+use std::error::Error as StdError;
 
-use futures_util::TryStreamExt;
 use hyper::upgrade::OnUpgrade;
 use percent_encoding::{utf8_percent_encode, CONTROLS};
-use reqwest::Client;
 use salvo_core::http::header::{HeaderMap, HeaderName, HeaderValue, CONNECTION, HOST, UPGRADE};
 use salvo_core::http::uri::Uri;
 use salvo_core::http::{ReqBody, ResBody, StatusCode};
-use salvo_core::rt::tokio::TokioIo;
 use salvo_core::{async_trait, BoxedError, Depot, Error, FlowCtrl, Handler, Request, Response};
-use tokio::io::copy_bidirectional;
+
+mod clients;
+pub use clients::*;
 
 type HyperRequest = hyper::Request<ReqBody>;
 type HyperResponse = hyper::Response<ResBody>;
@@ -35,10 +35,19 @@ pub(crate) fn encode_url_path(path: &str) -> String {
         .join("/")
 }
 
+/// Client trait.
+#[async_trait]
+pub trait Client: Send + Sync + 'static {
+    /// Error type.
+    type Error: StdError + Send + Sync + 'static;
+    /// Elect a upstream to process current request.
+    async fn execute(&self, req: HyperRequest, upgraded: Option<OnUpgrade>) -> Result<HyperResponse, Self::Error>;
+}
+
 /// Upstreams trait.
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
-    type Error;
+    type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
     fn elect(&self) -> Result<&str, Self::Error>;
 }
@@ -100,34 +109,39 @@ pub fn default_url_query_getter(req: &Request, _depot: &Depot) -> Option<String>
 
 /// Handler that can proxy request to other server.
 #[non_exhaustive]
-
-pub struct Proxy<U> {
+pub struct Proxy<U, C>
+where
+    U: Upstreams,
+    C: Client,
+{
     /// Upstreams list.
     pub upstreams: U,
     /// [`Client`] for proxy.
-    pub client: Client,
+    pub client: C,
     /// Url path getter.
     pub url_path_getter: UrlPartGetter,
     /// Url query getter.
     pub url_query_getter: UrlPartGetter,
 }
-
-impl<U> Proxy<U>
+impl<U> Proxy<U, HyperClient>
 where
     U: Upstreams,
     U::Error: Into<BoxedError>,
 {
-    /// Create new `Proxy` with upstreams list.
-    pub fn new(upstreams: U) -> Self {
-        Proxy {
-            upstreams,
-            client: Client::new(),
-            url_path_getter: Box::new(default_url_path_getter),
-            url_query_getter: Box::new(default_url_query_getter),
-        }
+    /// Create new `Proxy` which use default hyper util client.
+    pub fn default_hyper_client(upstreams: U) -> Self {
+        Proxy::new(upstreams, HyperClient::default())
     }
-    /// Create new `Proxy` with upstreams list and [`Client`].
-    pub fn with_client(upstreams: U, client: Client) -> Self {
+}
+
+impl<U, C> Proxy<U, C>
+where
+    U: Upstreams,
+    U::Error: Into<BoxedError>,
+    C: Client,
+{
+    /// Create new `Proxy` with upstreams list.
+    pub fn new(upstreams: U, client: C) -> Self {
         Proxy {
             upstreams,
             client,
@@ -169,12 +183,12 @@ where
 
     /// Get client reference.
     #[inline]
-    pub fn client(&self) -> &Client {
+    pub fn client(&self) -> &C {
         &self.client
     }
     /// Get client mutable reference.
     #[inline]
-    pub fn client_mut(&mut self) -> &mut Client {
+    pub fn client_mut(&mut self) -> &mut C {
         &mut self.client
     }
 
@@ -234,80 +248,22 @@ where
         // }
         build.body(req.take_body()).map_err(Error::other)
     }
-
-    #[inline]
-    async fn call_proxied_server(
-        &self,
-        proxied_request: HyperRequest,
-        request_upgraded: Option<OnUpgrade>,
-    ) -> Result<HyperResponse, Error> {
-        let request_upgrade_type = get_upgrade_type(proxied_request.headers()).map(|s| s.to_owned());
-
-        let proxied_request =
-            proxied_request.map(|s| reqwest::Body::wrap_stream(s.map_ok(|s| s.into_data().unwrap_or_default())));
-        let response = self
-            .client
-            .execute(proxied_request.try_into().map_err(Error::other)?)
-            .await
-            .map_err(Error::other)?;
-
-        let res_headers = response.headers().clone();
-        let hyper_response = hyper::Response::builder()
-            .status(response.status())
-            .version(response.version());
-
-        let mut hyper_response = if response.status() == StatusCode::SWITCHING_PROTOCOLS {
-            let response_upgrade_type = get_upgrade_type(response.headers());
-
-            if request_upgrade_type.as_deref() == response_upgrade_type {
-                let mut response_upgraded = response
-                    .upgrade()
-                    .await
-                    .map_err(|e| Error::other(format!("response does not have an upgrade extension. {}", e)))?;
-                if let Some(request_upgraded) = request_upgraded {
-                    tokio::spawn(async move {
-                        match request_upgraded.await {
-                            Ok(request_upgraded) => {
-                                let mut request_upgraded = TokioIo::new(request_upgraded);
-                                if let Err(e) = copy_bidirectional(&mut response_upgraded, &mut request_upgraded).await
-                                {
-                                    tracing::error!(error = ?e, "coping between upgraded connections failed");
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!(error = ?e, "upgrade request failed");
-                            }
-                        }
-                    });
-                } else {
-                    return Err(Error::other("request does not have an upgrade extension"));
-                }
-            } else {
-                return Err(Error::other("upgrade type mismatch"));
-            }
-            hyper_response.body(ResBody::None).map_err(Error::other)?
-        } else {
-            hyper_response
-                .body(ResBody::stream(response.bytes_stream()))
-                .map_err(Error::other)?
-        };
-        *hyper_response.headers_mut() = res_headers;
-        Ok(hyper_response)
-    }
 }
 
 #[async_trait]
-impl<U> Handler for Proxy<U>
+impl<U, C> Handler for Proxy<U, C>
 where
     U: Upstreams,
     U::Error: Into<BoxedError>,
+    C: Client,
 {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         match self.build_proxied_request(req, depot) {
             Ok(proxied_request) => {
                 match self
-                    .call_proxied_server(proxied_request, req.extensions_mut().remove())
+                    .client
+                    .execute(proxied_request, req.extensions_mut().remove())
                     .await
                 {
                     Ok(response) => {
@@ -326,10 +282,10 @@ where
                         res.body(body);
                     }
                     Err(e) => {
-                        tracing::error!(error = ?e, uri = ?req.uri(), "get response data failed");
+                        tracing::error!( error = ?e, uri = ?req.uri(), "get response data failed: {}", e);
                         res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
                     }
-                };
+                }
             }
             Err(e) => {
                 tracing::error!(error = ?e, "build proxied request failed");
@@ -375,7 +331,7 @@ mod tests {
     #[test]
     fn test_upstreams_elect() {
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
-        let proxy = Proxy::new(upstreams.clone());
+        let proxy = Proxy::default_hyper_client(upstreams.clone());
         let elected_upstream = proxy.upstreams().elect().unwrap();
         assert!(upstreams.contains(&elected_upstream));
     }
@@ -391,8 +347,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy() {
-        let router =
-            Router::new().push(Router::with_path("rust/<**rest>").goal(Proxy::new(vec!["https://www.rust-lang.org"])));
+        let router = Router::new().push(
+            Router::with_path("rust/<**rest>").goal(Proxy::default_hyper_client(vec!["https://www.rust-lang.org"])),
+        );
 
         let content = TestClient::get("http://127.0.0.1:5801/rust/tools/install")
             .send(router)
@@ -404,7 +361,7 @@ mod tests {
     }
     #[test]
     fn test_others() {
-        let mut handler = Proxy::new(["https://www.bing.com"]);
+        let mut handler = Proxy::default_hyper_client(["https://www.bing.com"]);
         assert_eq!(handler.upstreams().len(), 1);
         assert_eq!(handler.upstreams_mut().len(), 1);
     }

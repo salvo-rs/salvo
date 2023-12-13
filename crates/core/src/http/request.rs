@@ -2,6 +2,8 @@
 
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
+#[cfg(feature = "quinn")]
+use std::sync::Arc;
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -455,14 +457,14 @@ impl Request {
                     let stream = self.extensions.remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
                     if conn.is_some() && stream.is_some() {
                         let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
-                        self.extensions.insert(session);
+                        self.extensions.insert(Arc::new(session));
                         Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
                     } else {
                         if let Some(conn) = conn {
-                            self.extensions_mut().insert(conn);
+                            self.extensions_mut().insert(Arc::new(conn));
                         }
                         if let Some(stream) = stream {
-                            self.extensions_mut().insert(stream);
+                            self.extensions_mut().insert(Arc::new(stream));
                         }
                         Err(crate::Error::Other("invalid web transport".into()))
                     }

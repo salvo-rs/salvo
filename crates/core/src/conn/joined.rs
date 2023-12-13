@@ -93,7 +93,7 @@ where
 {
     type Acceptor = JoinedAcceptor<A::Acceptor, B::Acceptor>;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
         let a = self.a.try_bind().await?;
         let b = self.b.try_bind().await?;
         let holdings = a.holdings().iter().chain(b.holdings().iter()).cloned().collect();
