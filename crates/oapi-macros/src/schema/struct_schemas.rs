@@ -247,7 +247,7 @@ impl ToTokens for NamedStructSchema<'_> {
         if !all_of
             && container_rules
                 .as_ref()
-                .and_then(|container_rule| Some(container_rule.deny_unknown_fields))
+                .map(|container_rule| container_rule.deny_unknown_fields)
                 .unwrap_or(false)
         {
             tokens.extend(quote! {

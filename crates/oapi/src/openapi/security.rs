@@ -62,6 +62,20 @@ impl SecurityRequirement {
             })),
         }
     }
+
+    /// Allows to add multiple names to security requirement.
+    ///
+    /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
+    /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
+    /// Scopes must match to the ones defined in [`SecurityScheme`].
+    pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(mut self, name: N, scopes: S) -> Self {
+        self.value.insert(
+            Into::<String>::into(name),
+            scopes.into_iter().map(Into::<String>::into).collect(),
+        );
+
+        self
+    }
 }
 
 /// OpenAPI [security scheme][security] for path operations.
