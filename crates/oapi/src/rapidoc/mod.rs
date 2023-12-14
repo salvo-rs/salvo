@@ -4,6 +4,8 @@
 //!
 //! [salvo]: <https://docs.rs/salvo/>
 //!
+use std::borrow::Cow;
+
 use salvo_core::writing::Text;
 use salvo_core::{async_trait, Depot, FlowCtrl, Handler, Request, Response, Router};
 
@@ -28,15 +30,15 @@ const INDEX_TMPL: &str = r#"
 #[derive(Clone, Debug)]
 pub struct RapiDoc {
     /// The title of the html page. The default title is "RapiDoc".
-    pub title: String,
+    pub title: Cow<'static, str>,
     /// The version of the html page.
-    pub keywords: Option<String>,
+    pub keywords: Option<Cow<'static, str>>,
     /// The description of the html page.
-    pub description: Option<String>,
+    pub description: Option<Cow<'static, str>>,
     /// The lib url path.
-    pub lib_url: String,
+    pub lib_url: Cow<'static, str>,
     /// The spec url path.
-    pub spec_url: String,
+    pub spec_url: Cow<'static, str>,
 }
 impl RapiDoc {
     /// Create a new [`RapiDoc`] for given path.
@@ -50,7 +52,7 @@ impl RapiDoc {
     /// # use salvo_oapi::rapidoc::RapiDoc;
     /// let doc = RapiDoc::new("/openapi.json");
     /// ```
-    pub fn new(spec_url: impl Into<String>) -> Self {
+    pub fn new(spec_url: impl Into<Cow<'static, str>>) -> Self {
         Self {
             title: "RapiDoc".into(),
             keywords: None,
@@ -61,25 +63,25 @@ impl RapiDoc {
     }
 
     /// Set title of the html page. The default title is "RapiDoc".
-    pub fn title(mut self, title: impl Into<String>) -> Self {
+    pub fn title(mut self, title: impl Into<Cow<'static, str>>) -> Self {
         self.title = title.into();
         self
     }
 
     /// Set keywords of the html page.
-    pub fn keywords(mut self, keywords: impl Into<String>) -> Self {
+    pub fn keywords(mut self, keywords: impl Into<Cow<'static, str>>) -> Self {
         self.keywords = Some(keywords.into());
         self
     }
 
     /// Set description of the html page.
-    pub fn description(mut self, description: impl Into<String>) -> Self {
+    pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
         self.description = Some(description.into());
         self
     }
 
     /// Set the lib url path.
-    pub fn lib_url(mut self, lib_url: impl Into<String>) -> Self {
+    pub fn lib_url(mut self, lib_url: impl Into<Cow<'static, str>>) -> Self {
         self.lib_url = lib_url.into();
         self
     }
