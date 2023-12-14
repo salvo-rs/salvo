@@ -4,22 +4,31 @@ use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    token::Comma,
     LitStr, Token,
 };
 
 use crate::Array;
 
 #[derive(Default, Debug)]
-pub(crate) struct SecurityRequirementAttr {
-    name: Option<String>,
-    scopes: Option<Vec<String>>,
+pub(crate) struct SecurityRequirementsAttrItem {
+    pub(crate) name: Option<String>,
+    pub(crate) scopes: Option<Vec<String>>,
 }
 
-impl Parse for SecurityRequirementAttr {
+#[derive(Default, Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub(crate) struct SecurityRequirementsAttr(Punctuated<SecurityRequirementsAttrItem, Comma>);
+
+impl Parse for SecurityRequirementsAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.is_empty() {
-            return Ok(Self { ..Default::default() });
-        }
+        Punctuated::<SecurityRequirementsAttrItem, Comma>::parse_terminated(input)
+            .map(|o| Self(o.into_iter().collect()))
+    }
+}
+
+impl Parse for SecurityRequirementsAttrItem {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let name = input.parse::<LitStr>()?.value();
         input.parse::<Token![=]>()?;
 
@@ -37,20 +46,22 @@ impl Parse for SecurityRequirementAttr {
     }
 }
 
-impl ToTokens for SecurityRequirementAttr {
+impl ToTokens for SecurityRequirementsAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        if let (Some(name), Some(scopes)) = (&self.name, &self.scopes) {
-            let scopes_array = scopes.iter().collect::<Array<&String>>();
-            let scopes_len = scopes.len();
+        tokens.extend(quote! {
+            #oapi::oapi::security::SecurityRequirement::default()
+        });
 
-            tokens.extend(quote! {
-                #oapi::oapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
-            })
-        } else {
-            tokens.extend(quote! {
-                #oapi::oapi::security::SecurityRequirement::default()
-            })
+        for requirement in &self.0 {
+            if let (Some(name), Some(scopes)) = (&requirement.name, &requirement.scopes) {
+                let scopes = scopes.iter().collect::<Array<&String>>();
+                let scopes_len = scopes.len();
+
+                tokens.extend(quote! {
+                    .add::<&str, [&str; #scopes_len], &str>(#name, #scopes)
+                });
+            }
         }
     }
 }

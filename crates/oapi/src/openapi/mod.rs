@@ -847,7 +847,8 @@ mod tests {
         security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),
-            ("token_jwt" = [])
+            ("token_jwt" = []),
+            ("api_key1" = [], "api_key2" = []),
         )
     )]
         pub async fn get_pet_by_id(pet_id: PathParam<u64>) -> Json<Pet> {
@@ -940,6 +941,10 @@ mod tests {
                                 },
                                 {
                                    "token_jwt": []
+                                },
+                                {
+                                    "api_key1": [],
+                                    "api_key2": []
                                 }
                              ]
                           }
