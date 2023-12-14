@@ -10,7 +10,7 @@ edition = "2021"
 publish = false
 rust-version = "1.70"
 description = """
-Salvo is a powerful and simple Rust web server framework.
+Salvo is a powerful web framework that can make your work easier.
 """
 homepage = "https://salvo.rs"
 repository = "https://github.com/salvo-rs/salvo"
