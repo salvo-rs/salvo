@@ -75,7 +75,7 @@ jsonwebtoken = "9.1"
 mime = "0.3"
 mime-infer = "3"
 moka = "0.12"
-multer = "2"
+multer = "3"
 multimap = "0.9"
 native-tls = "0.2"
 nix = { version = "0.27", default-features = false }
