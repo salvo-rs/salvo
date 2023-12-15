@@ -23,10 +23,10 @@ fn endpoint() {}
 # Endpoint Attributes
 
 * `operation_id = ...` Unique operation id for the endpoint. By default this is mapped to function name.
-  The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long
+  The operation_id can be any "valid expression (e.g. string literals, macro invocations, variables) so long
   as its result can be converted to a `String` using `String::from`.
 
-* `tags = "..."` Can be used to group operations. Operations with same tag are grouped together. By default
+* `tags(...)` Can be used to group operations. Operations with same tag are grouped together. By default
   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
   then default value _`crate`_ is used instead.
 
