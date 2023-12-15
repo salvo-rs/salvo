@@ -44,8 +44,8 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 - Integrated Multipart form processing;
 - Support WebSocket, WebTransport;
 - Support OpenAPI, generate OpenAPI data automatic;
-- Support Acme, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/).
-- Support Tower service and layer.
+- Support Acme, automatically get TLS certificate from [let's encrypt](https://letsencrypt.org/);
+- Support Tower service and layer;
 
 ## ⚡️ Quick Start
 You can view samples [here](https://github.com/salvo-rs/salvo/tree/main/examples), or view [official website](https://salvo.rs).
