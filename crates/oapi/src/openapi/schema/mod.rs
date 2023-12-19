@@ -25,7 +25,7 @@ pub use one_of::OneOf;
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(Object::new().nullable(true).default(serde_json::Value::Null))
+    Schema::Object(Object::new().nullable(true).default_value(serde_json::Value::Null))
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -334,7 +334,7 @@ mod tests {
                                     .schema_type(SchemaType::Integer)
                                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                                     .description("Id of credential")
-                                    .default(json!(1i32)),
+                                    .default_value(json!(1i32)),
                             )
                             .property(
                                 "name",
@@ -346,7 +346,7 @@ mod tests {
                                 "status",
                                 Object::new()
                                     .schema_type(SchemaType::String)
-                                    .default(json!("Active"))
+                                    .default_value(json!("Active"))
                                     .description("Credential status")
                                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
                             )
@@ -410,7 +410,7 @@ mod tests {
                     .schema_type(SchemaType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(json!(1i32)),
+                    .default_value(json!(1i32)),
             )
             .property(
                 "name",
@@ -422,7 +422,7 @@ mod tests {
                 "status",
                 Object::new()
                     .schema_type(SchemaType::String)
-                    .default(json!("Active"))
+                    .default_value(json!("Active"))
                     .description("Credential status")
                     .enum_values(["Active", "NotActive", "Locked", "Expired"]),
             )
@@ -515,7 +515,7 @@ mod tests {
                     .schema_type(SchemaType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(json!(1i32)),
+                    .default_value(json!(1i32)),
             ),
         );
 
@@ -531,7 +531,7 @@ mod tests {
                     .schema_type(SchemaType::Integer)
                     .format(SchemaFormat::KnownFormat(KnownFormat::Int32))
                     .description("Id of credential")
-                    .default(json!(1i32)),
+                    .default_value(json!(1i32)),
             ),
         );
 

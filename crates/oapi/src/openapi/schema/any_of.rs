@@ -25,8 +25,8 @@ pub struct AnyOf {
     pub description: Option<String>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<Value>,
 
     /// Example shown in UI of the value for richer documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,8 +88,8 @@ impl AnyOf {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Value) -> Self {
-        self.default = Some(default);
+    pub fn default_value(mut self, default: Value) -> Self {
+        self.default_value = Some(default);
         self
     }
 
