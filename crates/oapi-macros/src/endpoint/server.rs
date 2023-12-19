@@ -191,13 +191,13 @@ impl Server {
     /// Add url to the target [`Server`].
     pub fn url<U: Into<String>>(mut self, url: U) -> Self {
         self.url = url.into();
-self
+        self
     }
 
     /// Add or change description of the [`Server`].
     pub fn description<S: Into<String>>(mut self, description: S) -> Self {
         self.description = Some(description.into());
-self
+        self
     }
 
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].
@@ -304,21 +304,21 @@ impl ServerVariable {
         Default::default()
     }
     /// Add default value for substitution.
-    pub fn default_value<S: Into<String>>(mut self, default_value: S) -> Self {
-        self.default_value = default_value.into();
-self
+    pub fn default_value(mut self, default: impl Into<String>) -> Self {
+        self.default_value = Some(default.into());
+        self
     }
 
     /// Add or change description of substituted parameter.
-    pub fn description<S: Into<String>>(mut self, description: S) -> Self {
+    pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
-self
+        self
     }
 
     /// Add or change possible values used to substitute parameter.
     pub fn enum_values<I: IntoIterator<Item = V>, V: Into<String>>(mut self, enum_values: I) -> Self {
         self.enum_values = enum_values.into_iter().map(|value| value.into()).collect();
-self
+        self
     }
 }
 

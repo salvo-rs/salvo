@@ -62,7 +62,7 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Object::default())
+        Schema::Object(Default::default())
     }
 }
 
