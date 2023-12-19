@@ -865,7 +865,7 @@ mod tests {
                 .description("this is description of the server")
                 .add_variable(
                     "username",
-                    ServerVariable::new().default("the_user").description("this is user"),
+                    ServerVariable::new().default_value("the_user").description("this is user"),
                 ),
         );
         doc.components.security_schemes.insert(
