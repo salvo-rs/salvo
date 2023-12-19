@@ -31,9 +31,9 @@
 //! Server::new("/api/{version}/{username}")
 //!     .add_variable("version", ServerVariable::new()
 //!         .enum_values(["v1", "v2"])
-//!         .default_value("v1"))
+//!         .default("v1"))
 //!     .add_variable("username", ServerVariable::new()
-//!         .default_value("the_user"));
+//!         .default("the_user"));
 //! ```
 //!
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
@@ -352,9 +352,9 @@ mod tests {
         .add_variable("version", ServerVariable::new()
             .enum_values(["v1", "v2"])
             .description("api version")
-            .default_value("v1"))
+            .default("v1"))
         .add_variable("username", ServerVariable::new()
-            .default_value("the_user"));
+            .default("the_user"));
     r###"{
   "url": "/api/{version}/{username}",
   "variables": {

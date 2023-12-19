@@ -88,7 +88,7 @@ impl OneOf {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default_value(mut self, default: Value) -> Self {
+    pub fn default(mut self, default: Value) -> Self {
         self.default = Some(default);
         self
     }

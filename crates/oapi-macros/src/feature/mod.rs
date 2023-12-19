@@ -157,7 +157,7 @@ impl ToTokens for Feature {
         let feature = match &self {
             Feature::Default(default) => {
                 if let Some(default) = &default.0 {
-                    quote! { .default_value(#default) }
+                    quote! { .default(#default) }
                 } else {
                     quote! {}
                 }

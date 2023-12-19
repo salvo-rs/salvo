@@ -866,7 +866,7 @@ mod tests {
                 .add_variable(
                     "username",
                     ServerVariable::new()
-                        .default_value("the_user")
+                        .default("the_user")
                         .description("this is user"),
                 ),
         );
