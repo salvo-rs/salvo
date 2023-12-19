@@ -152,7 +152,6 @@ impl Request {
                 }
             }
             cookie_jar
-
         };
 
         Request {
