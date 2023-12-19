@@ -3,6 +3,9 @@ use std::io::Result as IoResult;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+#[cfg(not(any(feature = "http1", feature = "http2", feature = "quinn")))]
+compile_error!("You have enabled `server` feature, it requires at least one of the following features: http1, http2, quinn.");
+
 #[cfg(feature = "http1")]
 use hyper::server::conn::http1;
 #[cfg(feature = "http2")]
