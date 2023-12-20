@@ -3,7 +3,7 @@
 //! Scalar.
 //!
 //! [salvo]: <https://docs.rs/salvo/>
-//! 
+//!
 use std::borrow::Cow;
 
 use salvo_core::writing::Text;
@@ -128,11 +128,11 @@ impl Handler for Scalar {
         let html = INDEX_TMPL
             .replacen("{{lib_url}}", &self.lib_url, 1)
             .replacen("{{spec_url}}", &self.spec_url, 1)
-            .replacen("{{title}}", &self.title, 1)
-            .replacen("{{keywords}}", &keywords, 1)
-            .replacen("{{description}}", &description, 1)
+            .replacen("{{header}}", self.header.as_deref().unwrap_or_default(), 1)
             .replacen("{{style}}", &style, 1)
-            .replacen("{{header}}", self.header.as_deref().unwrap_or_default(), 1);
+            .replacen("{{description}}", &description, 1)
+            .replacen("{{keywords}}", &keywords, 1)
+            .replacen("{{title}}", &self.title, 1);
         res.render(Text::Html(html));
     }
 }

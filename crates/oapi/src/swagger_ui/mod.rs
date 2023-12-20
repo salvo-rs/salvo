@@ -393,9 +393,9 @@ pub fn serve<'a>(
         // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
         let mut index = INDEX_TMPL
             .replacen("{{config}}", &config_json, 1)
-            .replacen("{{title}}", title, 1)
+            .replacen("{{description}}", description, 1)
             .replacen("{{keywords}}", keywords, 1)
-            .replacen("{{description}}", description, 1);
+            .replacen("{{title}}", title, 1);
 
         if let Some(oauth) = &config.oauth {
             let oauth_json = serde_json::to_string(oauth)?;

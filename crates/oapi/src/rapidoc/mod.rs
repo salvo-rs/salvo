@@ -96,26 +96,26 @@ impl RapiDoc {
 impl Handler for RapiDoc {
     async fn handle(&self, _req: &mut Request, _depot: &mut Depot, res: &mut Response, _ctrl: &mut FlowCtrl) {
         let keywords = self
-        .keywords
-        .as_ref()
-        .map(|s| {
-            format!(
-                "<meta name=\"keywords\" content=\"{}\">",
-                s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
-            )
-        })
-        .unwrap_or_default();
-    let description = self
-        .description
-        .as_ref()
-        .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
-        .unwrap_or_default();
+            .keywords
+            .as_ref()
+            .map(|s| {
+                format!(
+                    "<meta name=\"keywords\" content=\"{}\">",
+                    s.split(',').map(|s| s.trim()).collect::<Vec<_>>().join(",")
+                )
+            })
+            .unwrap_or_default();
+        let description = self
+            .description
+            .as_ref()
+            .map(|s| format!("<meta name=\"description\" content=\"{}\">", s))
+            .unwrap_or_default();
         let html = INDEX_TMPL
-            .replacen("{{lib_url}}", &self.lib_url, 1)
             .replacen("{{spec_url}}", &self.spec_url, 1)
-            .replacen("{{title}}", &self.title, 1)
+            .replacen("{{lib_url}}", &self.lib_url, 1)
+            .replacen("{{description}}", &description, 1)
             .replacen("{{keywords}}", &keywords, 1)
-            .replacen("{{description}}", &description, 1);
+            .replacen("{{title}}", &self.title, 1);
         res.render(Text::Html(html));
     }
 }
