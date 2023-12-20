@@ -85,7 +85,7 @@ tokio-native-tls = { workspace = true, optional = true }
 tokio-openssl = { workspace = true, optional = true }
 tokio-rustls = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io"] }
-tower = { workspace = true, optional = true, default-features = false, features = ["buffer"] }
+tower = { workspace = true, optional = true, default-features = false, features = ["buffer", "util"] }
 tracing = { workspace = true }
 url = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }

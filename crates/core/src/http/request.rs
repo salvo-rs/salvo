@@ -8,7 +8,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
 use cookie::{Cookie, CookieJar};
-use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT_TYPE, COOKIE};
+use http::header::{AsHeaderName, HeaderMap, HeaderValue, IntoHeaderName, CONTENT_TYPE};
 use http::method::Method;
 pub use http::request::Parts;
 use http::uri::{Scheme, Uri};
@@ -142,7 +142,7 @@ impl Request {
         #[cfg(feature = "cookie")]
         let cookies = {
             let mut cookie_jar = CookieJar::new();
-            for header in headers.get_all(COOKIE) {
+            for header in headers.get_all(http::header::COOKIE) {
                 if let Ok(header) = header.to_str() {
                     for cookie_str in header.split(';').map(|s| s.trim()) {
                         if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
