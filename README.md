@@ -37,7 +37,7 @@ Salvo is an extremely simple and powerful Rust web backend framework. Only basic
 
 ## 🎯 Features
 
-- Built with [Hyper 1.0](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
+- Built with [Hyper 1](https://crates.io/crates/hyper) and [Tokio](https://crates.io/crates/tokio);
 - HTTP1, HTTP2 and **HTTP3**;
 - Unified middleware and handle interface;
 - Router can be nested infinitely, and multiple middlewares can be attached to any router;

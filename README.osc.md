@@ -39,7 +39,7 @@ Salvo(赛风) 是一个极其简单且功能强大的 Rust Web 后端框架. 仅
 
 ## 🎯 功能特色
 
-- 基于 [Hyper 1.0](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
+- 基于 [Hyper 1](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 开发;
 - 支持 HTTP1, HTTP2 和 **HTTP3**;
 - 统一的中间件和句柄接口;
 - 路由可以无限嵌套，并且可以在任何路由是附加多个中间件;
