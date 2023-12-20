@@ -58,6 +58,3 @@ chrono = "0.4"
 sqlx = "0.7"
 rust-embed = "8"
 time = "0.3"
-
-[patch.crates-io]
-hyper-util = { rev = "99409f5", git = "https://github.com/hyperium/hyper-util" }
