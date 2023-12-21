@@ -244,10 +244,10 @@ cfg_feature! {
 impl fmt::Debug for ReqBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReqBody::None => f.debug_tuple("ReqBody::None").finish(),
-            ReqBody::Once(_) => f.debug_tuple("ReqBody::Once").finish(),
-            ReqBody::Hyper(_) => f.debug_tuple("ReqBody::Hyper").finish(),
-            ReqBody::Boxed(_) => f.debug_tuple("ReqBody::Boxed").finish(),
+            ReqBody::None => write!(f, "ReqBody::None"),
+            ReqBody::Once(value) => f.debug_tuple("ReqBody::Once").field(value).finish(),
+            ReqBody::Hyper(value) => f.debug_tuple("ReqBody::Hyper").field(value).finish(),
+            ReqBody::Boxed(_) => write!(f, "ReqBody::Boxed(_)"),
         }
     }
 }
