@@ -159,7 +159,7 @@ Router::new()
     );
 ```
 
-`<id>` 匹配了路径中的一个片段, 正常情况下文章的 `id` 只是一个数字, 这是我们可以使用正则表达式限制 `id` 的匹配规则, `r"<id:/\d+/>"`. 
+`<id>` 匹配了路径中的一个片段, 正常情况下文章的 `id` 只是一个数字, 这是我们可以使用正则表达式限制 `id` 的匹配规则, `r"<id:/\d+/>"`.
 
 还可以通过 `<**>`, `<*+>` 或者 `<*?>` 匹配所有剩余的路径片段. 为了代码易读性性强些, 也可以添加适合的名字, 让路径语义更清晰, 比如: `<**file_path>`.
 
@@ -203,7 +203,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 
 ### 提取请求数据
 
-可以轻松地从多个不同数据源获取数据, 并且组装为你想要的类型. 可以先定义一个自定义的类型, 比如: 
+可以轻松地从多个不同数据源获取数据, 并且组装为你想要的类型. 可以先定义一个自定义的类型, 比如:
 
 ```rust
 #[derive(Serialize, Deserialize, Extractible, Debug)]
@@ -317,7 +317,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ☕ 支持
 
-`Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://ko-fi.com/chrislearn). 
+`Salvo`是一个开源项目, 如果想支持本项目, 可以 ☕ [**在这里买一杯咖啡**](https://ko-fi.com/chrislearn).
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>

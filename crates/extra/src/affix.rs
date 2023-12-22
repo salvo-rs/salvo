@@ -81,7 +81,7 @@ mod tests {
     use salvo_core::test::{ResponseExt, TestClient};
 
     use super::*;
-    
+
     struct User {
         name: String,
     }

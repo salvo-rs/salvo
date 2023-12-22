@@ -385,7 +385,7 @@ impl Response {
 
     /// Attempts to send a file. If file not exists, not found error will occur.
     ///
-    /// If you want more settings, you can use `NamedFile::builder` to create a new [`NamedFileBuilder`](crate::fs::NamedFileBuilder).      
+    /// If you want more settings, you can use `NamedFile::builder` to create a new [`NamedFileBuilder`](crate::fs::NamedFileBuilder).
     #[inline]
     pub async fn send_file<P>(&mut self, path: P, req_headers: &HeaderMap)
     where

@@ -443,7 +443,7 @@ where
 /// Set the configuration for a new client.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # use salvo::http3::quic;
 /// # async fn doc<C, O, B>(quic: C)

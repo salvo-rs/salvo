@@ -47,7 +47,7 @@ static HOME_HTML: &str = r#"
     <body>
         <h2>Cache Example</h2>
         <p>
-            This examples shows how to use cache middleware. 
+            This examples shows how to use cache middleware.
         </p>
         <p>
             <a href="/short" target="_blank">Cache 5 seconds</a>

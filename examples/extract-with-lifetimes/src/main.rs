@@ -15,10 +15,10 @@ async fn show(req: &mut Request, res: &mut Response) {
             <form action="/{}?username=jobs" method="post">
                 <label>First Name:</label><input type="text" name="first_name" />
                 <label>Last Name:</label><input type="text" name="last_name" />
-                <legend>What is Your Favorite Pet?</legend>      
-                <input type="checkbox" name="lovers" value="Cats">Cats<br>      
-                <input type="checkbox" name="lovers" value="Dogs">Dogs<br>      
-                <input type="checkbox" name="lovers" value="Birds">Birds<br>    
+                <legend>What is Your Favorite Pet?</legend>
+                <input type="checkbox" name="lovers" value="Cats">Cats<br>
+                <input type="checkbox" name="lovers" value="Dogs">Dogs<br>
+                <input type="checkbox" name="lovers" value="Birds">Birds<br>
                 <input type="submit" value="Submit" />
             </form>
         </body>

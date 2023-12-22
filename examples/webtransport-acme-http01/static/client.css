@@ -1,12 +1,12 @@
 body {
     font-family: sans-serif;
   }
-  
+
   h1 {
     margin: 0 auto;
     width: fit-content;
   }
-  
+
   h2 {
     border-bottom: 1px dotted #333;
     font-size: 120%;
@@ -14,22 +14,22 @@ body {
     padding-bottom: 0.2em;
     padding-top: 0.5em;
   }
-  
+
   code {
     background-color: #eee;
   }
-  
+
   input[type=text], textarea {
     font-family: monospace;
   }
-  
+
   #top {
     display: flex;
     flex-direction: row-reverse;
     flex-wrap: wrap;
     justify-content: center;
   }
-  
+
   #explanation {
     border: 1px dotted black;
     font-size: 90%;
@@ -38,7 +38,7 @@ body {
     padding: 1em;
     width: 13em;
   }
-  
+
   #tool {
     flex-grow: 1;
     margin: 0 auto;
@@ -46,26 +46,26 @@ body {
     padding: 0 1em;
     width: 26em;
   }
-  
+
   .input-line {
     display: flex;
   }
-  
+
   .input-line input[type=text] {
     flex-grow: 1;
     margin: 0 0.5em;
   }
-  
+
   textarea {
     height: 3em;
     width: 100%;
   }
-  
+
   #send {
     margin-top: 0.5em;
     width: 15em;
   }
-  
+
   #event-log {
     border: 1px dotted black;
     font-family: monospace;
@@ -74,11 +74,11 @@ body {
     padding-bottom: 1em;
     padding-top: 1em;
   }
-  
+
   .log-error {
     color: darkred;
   }
-  
+
   #explanation ul {
     padding-left: 1em;
   }

@@ -72,7 +72,7 @@ static HOME_HTML: &str = r#"
     <body>
         <h2>Rate Limiter Dynamic</h2>
         <p>
-            This example shows how to set limit for different users. 
+            This example shows how to set limit for different users.
         </p>
         <p>
             <a href="/limited?user=user1" target="_blank">Limited page for user1: 1/second</a>
