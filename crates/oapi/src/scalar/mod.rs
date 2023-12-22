@@ -146,12 +146,12 @@ const DEFAULT_STYLE: &'static str = r#":root {
     --theme-color-2: #38495c;
     --theme-color-3: #445569;
     --theme-color-accent: #3faf7c;
-  
+
     --theme-background-1: #fff;
     --theme-background-2: #f6f6f6;
     --theme-background-3: #e7e7e7;
     --theme-background-accent: #8ab4f81f;
-  
+
     --theme-border-color: rgba(0, 0, 0, 0.1);
   }
   .dark-mode {
@@ -159,12 +159,12 @@ const DEFAULT_STYLE: &'static str = r#":root {
     --theme-color-2: rgba(150, 167, 183, 0.72);
     --theme-color-3: rgba(150, 167, 183, 0.54);
     --theme-color-accent: #329066;
-  
+
     --theme-background-1: #22272e;
     --theme-background-2: #282c34;
     --theme-background-3: #343841;
     --theme-background-accent: #3290661f;
-  
+
     --theme-border-color: rgba(255, 255, 255, 0.1);
   }
   /* Document header */
@@ -176,7 +176,7 @@ const DEFAULT_STYLE: &'static str = r#":root {
     --header-background-toggle: var(--theme-color-3);
     --header-call-to-action-color: var(--theme-color-accent);
   }
-  
+
   .dark-mode .t-doc__header {
     --header-background-1: var(--theme-background-1);
     --header-border-color: var(--theme-border-color);
@@ -205,20 +205,20 @@ const DEFAULT_STYLE: &'static str = r#":root {
     background: transparent !important;
     box-shadow: inset 3px 0 0 var(--theme-color-accent);
   }
-  
+
   /* advanced */
   .light-mode {
     --theme-button-1: rgb(49 53 56);
     --theme-button-1-color: #fff;
     --theme-button-1-hover: rgb(28 31 33);
-  
+
     --theme-color-green: #069061;
     --theme-color-red: #ef0006;
     --theme-color-yellow: #edbe20;
     --theme-color-blue: #0082d0;
     --theme-color-orange: #fb892c;
     --theme-color-purple: #5203d1;
-  
+
     --theme-scrollbar-color: rgba(0, 0, 0, 0.18);
     --theme-scrollbar-color-active: rgba(0, 0, 0, 0.36);
   }
@@ -226,14 +226,14 @@ const DEFAULT_STYLE: &'static str = r#":root {
     --theme-button-1: #f6f6f6;
     --theme-button-1-color: #000;
     --theme-button-1-hover: #e7e7e7;
-  
+
     --theme-color-green: #00b648;
     --theme-color-red: #dc1b19;
     --theme-color-yellow: #ffc90d;
     --theme-color-blue: #4eb3ec;
     --theme-color-orange: #ff8d4d;
     --theme-color-purple: #b191f9;
-  
+
     --theme-scrollbar-color: var(--theme-color-accent);
     --theme-scrollbar-color-active: var(--theme-color-accent);
   }

@@ -219,7 +219,7 @@ where
         .map(|res| ResBody::Boxed(Box::pin(res.map_frame(|f| f.map_data(|data| data.into())).map_err(|e|e.into()))));
         let origin_depot = depot;
         let origin_ctrl = ctrl;
-        
+
         let ctx = hyper_res.extensions_mut().remove::<Arc<FlowCtrlOutContext>>().and_then(Arc::into_inner);
         if let Some(FlowCtrlOutContext { ctrl, request, depot }) = ctx
         {

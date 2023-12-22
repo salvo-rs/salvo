@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use http::uri::Scheme;
 use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
-use nix::unistd::{Gid, chown, Uid};    
+use nix::unistd::{Gid, chown, Uid};
 
 use crate::{Error, async_trait};
 use crate::conn::{Holding, HttpBuilder};
@@ -19,7 +19,7 @@ use super::{Accepted, Acceptor, Listener};
 /// `UnixListener` is used to create a Unix socket connection listener.
 #[cfg(unix)]
 pub struct UnixListener<T> {
-    path: T,    
+    path: T,
     permissions: Option<Permissions>,
     owner: Option<(Option<Uid>, Option<Gid>)>,
 }

@@ -105,7 +105,7 @@ where
             inner: MokaCache::new(max_capacity),
         }
     }
-    
+
     /// Returns a [`Builder`], which can builds a `MokaStore`
     pub fn builder() -> Builder<K> {
         Builder {
