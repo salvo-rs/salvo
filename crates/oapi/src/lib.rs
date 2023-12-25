@@ -169,8 +169,7 @@ macro_rules! impl_to_schema_primitive {
 pub mod oapi {
     pub use super::*;
 }
-// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
-// from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
+
 #[doc(hidden)]
 pub mod __private {
     pub use inventory;

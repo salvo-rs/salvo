@@ -95,12 +95,27 @@ mod tests {
 
     #[test]
     fn xml_new() {
-        let xml = Xml::new();
+        let mut xml = Xml::new();
 
         assert!(xml.name.is_none());
         assert!(xml.namespace.is_none());
         assert!(xml.prefix.is_none());
         assert!(xml.attribute.is_none());
         assert!(xml.wrapped.is_none());
+
+        xml = xml.name("name");
+        assert!(xml.name.is_some());
+
+        xml = xml.namespace("namespave");
+        assert!(xml.namespace.is_some());
+
+        xml = xml.prefix("prefix");
+        assert!(xml.prefix.is_some());
+
+        xml = xml.attribute(true);
+        assert!(xml.attribute.is_some());
+
+        xml = xml.wrapped(true);
+        assert!(xml.wrapped.is_some());
     }
 }
