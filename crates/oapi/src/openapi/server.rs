@@ -349,12 +349,17 @@ mod tests {
     test_fn! {
     create_server_with_builder_and_variable_substitution:
     Server::new("/api/{version}/{username}")
-        .add_variable("version", ServerVariable::new()
-            .enum_values(["v1", "v2"])
-            .description("api version")
-            .default_value("v1"))
-        .add_variable("username", ServerVariable::new()
-            .default_value("the_user"));
+        .add_variable(
+            "version",
+            ServerVariable::new()
+                .enum_values(["v1", "v2"])
+                .description("api version")
+                .default_value("v1")
+        )
+        .add_variable(
+            "username",
+            ServerVariable::new().default_value("the_user")
+        );
     r###"{
   "url": "/api/{version}/{username}",
   "variables": {
@@ -368,5 +373,168 @@ mod tests {
       }
   }
 }"###
+    }
+
+    #[test]
+    fn test_servers_is_empty() {
+        let servers = Servers::new();
+        assert!(servers.is_empty());
+    }
+
+    #[test]
+    fn test_servers_server() {
+        let servers = Servers::new();
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        let servers = servers.server(server);
+        assert!(servers.len() == 1);
+    }
+
+    #[test]
+    fn test_servers_insert() {
+        let mut servers = Servers::new();
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        servers.insert(server);
+        assert!(servers.len() == 1);
+    }
+
+    #[test]
+    fn test_servers_insert_existed_server() {
+        let mut servers = Servers::new();
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        servers.insert(server);
+
+        let server = Server::new("/api/v1")
+            .description("api v1 new description");
+        servers.insert(server);
+        assert!(servers.len() == 1);
+    }
+
+    #[test]
+    fn test_servers_append() {
+        let mut servers = Servers::new();
+
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        let mut other_servers: Servers = Servers::new();
+
+        other_servers.insert(server);
+        assert!(!other_servers.is_empty());
+
+        servers.append(&mut other_servers);
+        assert!(!servers.is_empty());
+    }
+
+    #[test]
+    fn test_servers_extend() {
+        let mut servers = Servers::new();
+
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        let mut other_servers: Servers = Servers::new();
+
+        other_servers.insert(server);
+        assert!(!other_servers.is_empty());
+
+        servers.extend(other_servers);
+        assert!(!servers.is_empty());
+    }
+
+    #[test]
+    fn test_servers_deref() {
+        let mut servers = Servers::new();
+        let server = Server::new("/api/v1")
+            .description("api v1");
+        servers.insert(server);
+        assert!(servers.len() == 1);
+        assert!(servers.deref().len() == 1);
+
+        servers.deref_mut().clear();
+        assert!(servers.is_empty());
+    }
+
+    #[test]
+    fn test_server_set_url() {
+        let server = Server::new("/api/v1");
+        assert_eq!(server.url, "/api/v1");
+
+        let server = server.url("/new/api/v1");
+        assert_eq!(server.url, "/new/api/v1");
+    }
+
+    #[test]
+    fn test_server_cmp() {
+        let server_a = Server::new("/api/v1");
+        let server_b = Server::new("/api/v2");
+        assert!(server_a < server_b);
+    }
+
+    #[test]
+    fn test_server_variables_is_empty() {
+        let server_variables = ServerVariables::new();
+        assert!(server_variables.is_empty());
+    }
+
+    #[test]
+    fn test_server_variables_server_varible() {
+        let server_variables = ServerVariables::new();
+        let variable = ServerVariable::new();
+        let server_variables = server_variables.server_varible("key", variable);
+
+        assert!(!server_variables.is_empty());
+    }
+
+    #[test]
+    fn test_server_variables_insert() {
+        let mut server_variables = ServerVariables::new();
+        let variable = ServerVariable::new();
+        server_variables.insert("key", variable);
+        assert!(server_variables.len() == 1);
+
+        let new_variable = ServerVariable::new()
+            .description("description");
+        server_variables.insert("key", new_variable);
+        assert!(server_variables.len() == 1);
+    }
+
+    #[test]
+    fn test_server_variables_append() {
+        let mut server_variables = ServerVariables::new();
+
+        let mut other_server_variables = ServerVariables::new();
+        let variable = ServerVariable::new();
+        other_server_variables.insert("key", variable);
+
+        server_variables.append(&mut other_server_variables);
+        assert!(server_variables.len() == 1);
+    }
+
+    #[test]
+    fn test_server_variables_extend() {
+        let mut server_variables = ServerVariables::new();
+
+        let mut other_server_variables = ServerVariables::new();
+        let variable = ServerVariable::new();
+        other_server_variables.insert("key", variable);
+
+        server_variables.extend(other_server_variables.0);
+        assert!(server_variables.len() == 1);
+    }
+
+    #[test]
+    fn test_server_variables_deref() {
+        let mut server_variables = ServerVariables::new();
+
+        let variable = ServerVariable::new()
+            .default_value("default_value");
+        server_variables.insert("key", variable);
+
+        assert!(!server_variables.is_empty());
+        assert!(server_variables.deref().len() == 1);
+
+        server_variables.deref_mut().clear();
+        assert!(server_variables.is_empty());
     }
 }
