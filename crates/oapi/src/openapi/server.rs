@@ -384,8 +384,7 @@ mod tests {
     #[test]
     fn test_servers_server() {
         let servers = Servers::new();
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         let servers = servers.server(server);
         assert!(servers.len() == 1);
     }
@@ -393,8 +392,7 @@ mod tests {
     #[test]
     fn test_servers_insert() {
         let mut servers = Servers::new();
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         servers.insert(server);
         assert!(servers.len() == 1);
     }
@@ -402,12 +400,10 @@ mod tests {
     #[test]
     fn test_servers_insert_existed_server() {
         let mut servers = Servers::new();
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         servers.insert(server);
 
-        let server = Server::new("/api/v1")
-            .description("api v1 new description");
+        let server = Server::new("/api/v1").description("api v1 new description");
         servers.insert(server);
         assert!(servers.len() == 1);
     }
@@ -416,8 +412,7 @@ mod tests {
     fn test_servers_append() {
         let mut servers = Servers::new();
 
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         let mut other_servers: Servers = Servers::new();
 
         other_servers.insert(server);
@@ -431,8 +426,7 @@ mod tests {
     fn test_servers_extend() {
         let mut servers = Servers::new();
 
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         let mut other_servers: Servers = Servers::new();
 
         other_servers.insert(server);
@@ -445,8 +439,7 @@ mod tests {
     #[test]
     fn test_servers_deref() {
         let mut servers = Servers::new();
-        let server = Server::new("/api/v1")
-            .description("api v1");
+        let server = Server::new("/api/v1").description("api v1");
         servers.insert(server);
         assert!(servers.len() == 1);
         assert!(servers.deref().len() == 1);
@@ -493,8 +486,7 @@ mod tests {
         server_variables.insert("key", variable);
         assert!(server_variables.len() == 1);
 
-        let new_variable = ServerVariable::new()
-            .description("description");
+        let new_variable = ServerVariable::new().description("description");
         server_variables.insert("key", new_variable);
         assert!(server_variables.len() == 1);
     }
@@ -527,8 +519,7 @@ mod tests {
     fn test_server_variables_deref() {
         let mut server_variables = ServerVariables::new();
 
-        let variable = ServerVariable::new()
-            .default_value("default_value");
+        let variable = ServerVariable::new().default_value("default_value");
         server_variables.insert("key", variable);
 
         assert!(!server_variables.is_empty());
