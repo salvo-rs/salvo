@@ -925,11 +925,18 @@ mod tests {
     }
 
     test_fn! {
-    security_scheme_correct_http_bearer_json:
-    SecurityScheme::Http(
-        Http::new(HttpAuthScheme::Bearer).bearer_format("JWT")
-    );
-    r###"{
+        security_scheme_correct_default_http_auth:
+        SecurityScheme::Http(Http::new(HttpAuthScheme::default()));
+        r###"{
+  "type": "http",
+  "scheme": "basic"
+}"###
+    }
+
+    test_fn! {
+        security_scheme_correct_http_bearer_json:
+        SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer).bearer_format("JWT"));
+        r###"{
   "type": "http",
   "scheme": "bearer",
   "bearerFormat": "JWT"
@@ -942,6 +949,16 @@ mod tests {
         r###"{
   "type": "http",
   "scheme": "basic"
+}"###
+    }
+
+    test_fn! {
+        security_scheme_correct_basic_auth_change_to_digest_auth_with_description:
+        SecurityScheme::Http(Http::new(HttpAuthScheme::Basic).scheme(HttpAuthScheme::Digest).description(String::from("digest auth")));
+        r###"{
+  "type": "http",
+  "scheme": "digest",
+  "description": "digest auth"
 }"###
     }
 
@@ -1010,7 +1027,7 @@ mod tests {
 
     test_fn! {
         security_scheme_correct_api_key_cookie_auth:
-        SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new(String::from("api_key"))));
+        SecurityScheme::from(ApiKey::Cookie(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -1020,7 +1037,7 @@ mod tests {
 
     test_fn! {
         security_scheme_correct_api_key_header_auth:
-        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("api_key")));
+        SecurityScheme::from(ApiKey::Header(ApiKeyValue::new("api_key")));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -1030,7 +1047,7 @@ mod tests {
 
     test_fn! {
         security_scheme_correct_api_key_query_auth:
-        SecurityScheme::ApiKey(ApiKey::Query(ApiKeyValue::new(String::from("api_key"))));
+        SecurityScheme::from(ApiKey::Query(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -1039,8 +1056,19 @@ mod tests {
     }
 
     test_fn! {
+        security_scheme_correct_api_key_query_auth_with_description:
+        SecurityScheme::from(ApiKey::Query(ApiKeyValue::with_description(String::from("api_key"), String::from("my api_key"))));
+        r###"{
+  "type": "apiKey",
+  "name": "api_key",
+  "description": "my api_key",
+  "in": "query"
+}"###
+    }
+
+    test_fn! {
         security_scheme_correct_open_id_connect_auth:
-        SecurityScheme::OpenIdConnect(OpenIdConnect::new("https://localhost/openid"));
+        SecurityScheme::from(OpenIdConnect::new("https://localhost/openid"));
         r###"{
   "type": "openIdConnect",
   "openIdConnectUrl": "https://localhost/openid"
@@ -1048,8 +1076,18 @@ mod tests {
     }
 
     test_fn! {
+        security_scheme_correct_open_id_connect_auth_with_description:
+        SecurityScheme::from(OpenIdConnect::with_description("https://localhost/openid", "OpenIdConnect auth"));
+        r###"{
+  "type": "openIdConnect",
+  "openIdConnectUrl": "https://localhost/openid",
+  "description": "OpenIdConnect auth"
+}"###
+    }
+
+    test_fn! {
         security_scheme_correct_oauth2_implicit:
-        SecurityScheme::OAuth2(
+        SecurityScheme::from(
             OAuth2::with_description([Flow::Implicit(
                 Implicit::new(
                     "https://localhost/auth/dialog",
@@ -1076,7 +1114,65 @@ mod tests {
     }
 
     test_fn! {
+        security_scheme_correct_oauth2_implicit_with_refresh_url:
+        SecurityScheme::from(
+            OAuth2::with_description([Flow::Implicit(
+                Implicit::with_refresh_url(
+                    "https://localhost/auth/dialog",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ]),
+                    "https://localhost/refresh-token"
+                ),
+            )], "my oauth2 flow")
+        );
+        r###"{
+  "type": "oauth2",
+  "flows": {
+    "implicit": {
+      "authorizationUrl": "https://localhost/auth/dialog",
+      "refreshUrl": "https://localhost/refresh-token",
+      "scopes": {
+        "edit:items": "edit my items",
+        "read:items": "read my items"
+      }
+    }
+  },
+  "description": "my oauth2 flow"
+}"###
+    }
+
+    test_fn! {
         security_scheme_correct_oauth2_password:
+        SecurityScheme::OAuth2(
+            OAuth2::with_description([Flow::Password(
+                Password::new(
+                    "https://localhost/oauth/token",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ])
+                ),
+            )], "my oauth2 flow")
+        );
+        r###"{
+  "type": "oauth2",
+  "flows": {
+    "password": {
+      "tokenUrl": "https://localhost/oauth/token",
+      "scopes": {
+        "edit:items": "edit my items",
+        "read:items": "read my items"
+      }
+    }
+  },
+  "description": "my oauth2 flow"
+}"###
+    }
+
+    test_fn! {
+        security_scheme_correct_oauth2_password_with_refresh_url:
         SecurityScheme::OAuth2(
             OAuth2::with_description([Flow::Password(
                 Password::with_refresh_url(
@@ -1107,6 +1203,33 @@ mod tests {
 
     test_fn! {
         security_scheme_correct_oauth2_client_credentials:
+        SecurityScheme::OAuth2(
+            OAuth2::new([Flow::ClientCredentials(
+                ClientCredentials::new(
+                    "https://localhost/oauth/token",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ])
+                ),
+            )])
+        );
+        r###"{
+  "type": "oauth2",
+  "flows": {
+    "clientCredentials": {
+      "tokenUrl": "https://localhost/oauth/token",
+      "scopes": {
+        "edit:items": "edit my items",
+        "read:items": "read my items"
+      }
+    }
+  }
+}"###
+    }
+
+    test_fn! {
+        security_scheme_correct_oauth2_client_credentials_with_refresh_url:
         SecurityScheme::OAuth2(
             OAuth2::new([Flow::ClientCredentials(
                 ClientCredentials::with_refresh_url(
@@ -1169,11 +1292,10 @@ mod tests {
         security_scheme_correct_oauth2_authorization_code_no_scopes:
         SecurityScheme::OAuth2(
             OAuth2::new([Flow::AuthorizationCode(
-                AuthorizationCode::with_refresh_url(
+                AuthorizationCode::new(
                     "https://localhost/authorization/token",
                     "https://localhost/token/url",
-                    Scopes::new(),
-                    "https://localhost/refresh/token"
+                    Scopes::new()
                 ),
             )])
         );
@@ -1183,8 +1305,32 @@ mod tests {
     "authorizationCode": {
       "authorizationUrl": "https://localhost/authorization/token",
       "tokenUrl": "https://localhost/token/url",
-      "refreshUrl": "https://localhost/refresh/token",
       "scopes": {}
+    }
+  }
+}"###
+    }
+
+    test_fn! {
+        security_scheme_correct_oauth2_authorization_code_one_scopes:
+        SecurityScheme::OAuth2(
+            OAuth2::new([Flow::AuthorizationCode(
+                AuthorizationCode::new(
+                    "https://localhost/authorization/token",
+                    "https://localhost/token/url",
+                    Scopes::one("edit:items", "edit my items")
+                ),
+            )])
+        );
+        r###"{
+  "type": "oauth2",
+  "flows": {
+    "authorizationCode": {
+      "authorizationUrl": "https://localhost/authorization/token",
+      "tokenUrl": "https://localhost/token/url",
+      "scopes": {
+        "edit:items": "edit my items"
+      }
     }
   }
 }"###
