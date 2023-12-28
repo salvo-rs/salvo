@@ -203,7 +203,7 @@ mod tests {
             .description("A sample response description")
             .add_content(
                 "application/json",
-                Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
+                Content::new(Ref::from_schema_name("MySchemaPayload")),
             )
             .add_header("content-type", Header::default().description("application/json"));
 
