@@ -187,7 +187,7 @@ impl From<Ref> for RefOr<Response> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Content, Response, Responses};
+    use super::{BTreeMap, Content, Header, Ref, RefOr, Response, Responses};
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
@@ -199,25 +199,114 @@ mod tests {
 
     #[test]
     fn response_builder() -> Result<(), serde_json::Error> {
-        let request_body = Response::new("A sample response").add_content(
-            "application/json",
-            Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
-        );
-        let serialized = serde_json::to_string_pretty(&request_body)?;
-        println!("serialized json:\n {serialized}");
+        let request_body = Response::new("A sample response")
+            .description("A sample response description")
+            .add_content(
+                "application/json",
+                Content::new(crate::Ref::from_schema_name("MySchemaPayload")),
+            )
+            .add_header("content-type", Header::default().description("application/json"));
+
         assert_json_eq!(
             request_body,
             json!({
-              "description": "A sample response",
+              "description": "A sample response description",
               "content": {
                 "application/json": {
                   "schema": {
                     "$ref": "#/components/schemas/MySchemaPayload"
                   }
                 }
+              },
+              "headers": {
+                "content-type": {
+                  "description": "application/json",
+                  "schema": {
+                    "type": "string"
+                  }
+                }
               }
             })
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_responses_from_btree_map() {
+        let input = BTreeMap::from([
+            ("response1".to_string(), Response::new("response1")),
+            ("response2".to_string(), Response::new("response2")),
+        ]);
+
+        let expected = Responses {
+            0: BTreeMap::from([
+                ("response1".to_string(), RefOr::T(Response::new("response1"))),
+                ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            ]),
+        };
+
+        let actual = Responses::from(input);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_responses_from_kv_sequence() {
+        let input = [
+            ("response1".to_string(), Response::new("response1")),
+            ("response2".to_string(), Response::new("response2")),
+        ];
+
+        let expected = Responses {
+            0: BTreeMap::from([
+                ("response1".to_string(), RefOr::T(Response::new("response1"))),
+                ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            ]),
+        };
+
+        let actual = Responses::from(input);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_responses_from_iter() {
+        let input = [
+            ("response1".to_string(), Response::new("response1")),
+            ("response2".to_string(), Response::new("response2")),
+        ];
+
+        let expected = Responses {
+            0: BTreeMap::from([
+                ("response1".to_string(), RefOr::T(Response::new("response1"))),
+                ("response2".to_string(), RefOr::T(Response::new("response2"))),
+            ]),
+        };
+
+        let actual = Responses::from_iter(input);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_responses_into_iter() {
+        let responses = Responses::new();
+        let responses = responses.response("response1", Response::new("response1"));
+        assert_eq!(1, responses.into_iter().collect::<Vec<_>>().len());
+    }
+
+    #[test]
+    fn test_btree_map_from_responses() {
+        let expected = BTreeMap::from([
+            ("response1".to_string(), RefOr::T(Response::new("response1"))),
+            ("response2".to_string(), RefOr::T(Response::new("response2"))),
+        ]);
+
+        let actual = BTreeMap::from(
+            Responses::new()
+                .response("response1", Response::new("response1"))
+                .response("response2", Response::new("response2")),
+        );
+        assert_eq!(expected, actual);
     }
 }

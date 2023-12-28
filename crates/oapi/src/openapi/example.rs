@@ -76,3 +76,30 @@ impl Example {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_example() {
+        let example = Example::new();
+        assert!(example.summary.is_empty());
+        assert!(example.description.is_empty());
+        assert!(example.value.is_none());
+        assert!(example.external_value.is_empty());
+
+        let example = example.summary("summary");
+        assert!(example.summary == "summary");
+
+        let example = example.description("description");
+        assert!(example.description == "description");
+
+        let example = example.external_value("external_value");
+        assert!(example.external_value == "external_value");
+
+        let example = example.value(serde_json::Value::String("value".to_string()));
+        assert!(example.value.is_some());
+        assert!(example.value.unwrap() == serde_json::Value::String("value".to_string()));
+    }
+}

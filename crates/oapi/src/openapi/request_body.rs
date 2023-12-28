@@ -93,8 +93,7 @@ mod tests {
                 "application/json",
                 Content::new(crate::Ref::from_schema_name("EmailPayload")),
             );
-        let serialized = serde_json::to_string_pretty(&request_body)?;
-        println!("serialized json:\n {serialized}");
+
         assert_json_eq!(
             request_body,
             json!({
@@ -110,5 +109,33 @@ mod tests {
             })
         );
         Ok(())
+    }
+
+    #[test]
+    fn request_body_merge() {
+        let mut request_body = RequestBody::new();
+        let other_request_body = RequestBody::new()
+            .description("Merged requestBody")
+            .required(Required::True)
+            .add_content(
+                "application/json",
+                Content::new(crate::Ref::from_schema_name("EmailPayload")),
+            );
+
+        request_body.merge(other_request_body);
+        assert_json_eq!(
+            request_body,
+            json!({
+              "description": "Merged requestBody",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EmailPayload"
+                  }
+                }
+              },
+              "required": true
+            })
+        );
     }
 }
