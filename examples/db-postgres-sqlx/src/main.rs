@@ -7,7 +7,7 @@ static POSTGRES: OnceCell<PgPool> = OnceCell::new();
 
 #[inline]
 pub fn get_postgres() -> &'static PgPool {
-    unsafe { POSTGRES.get_unchecked() }
+    POSTGRES.get().unwrap()
 }
 
 #[derive(FromRow, Serialize, Debug)]

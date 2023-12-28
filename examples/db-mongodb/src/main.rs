@@ -35,7 +35,7 @@ static MONGODB_CLIENT: OnceCell<Client> = OnceCell::new();
 
 #[inline]
 pub fn get_mongodb_client() -> &'static Client {
-    unsafe { MONGODB_CLIENT.get_unchecked() }
+    MONGODB_CLIENT.get().unwrap()
 }
 
 #[handler]
