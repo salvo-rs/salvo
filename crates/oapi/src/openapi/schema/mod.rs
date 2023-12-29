@@ -549,8 +549,10 @@ mod tests {
                         .required("name"),
                 ),
             )])
+            .response("204", Response::new("No Content"))
             .extend_responses(vec![("200", Response::new("Okay"))])
-            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None });
+            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .extend_security_schemes(vec![("APIKey", SecurityScheme::Http(security::Http::default()))]);
 
         let serialized_components = serde_json::to_string(&components).unwrap();
 

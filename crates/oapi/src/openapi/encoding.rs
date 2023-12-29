@@ -82,3 +82,43 @@ impl Encoding {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    #[test]
+    fn test_encoding_default() {
+        let encoding = Encoding::default();
+        assert_json_eq!(encoding, json!({}));
+    }
+
+    #[test]
+    fn test_build_encoding() {
+        let encoding = Encoding::default()
+            .content_type("application/json")
+            .header("header1", Header::default())
+            .style(ParameterStyle::Simple)
+            .explode(true)
+            .allow_reserved(false);
+
+        assert_json_eq!(
+            encoding,
+            json!({
+              "contentType": "application/json",
+              "headers": {
+                "header1": {
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "style": "simple",
+              "explode": true,
+              "allowReserved": false
+            })
+        );
+    }
+}
