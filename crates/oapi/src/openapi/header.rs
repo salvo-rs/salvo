@@ -84,7 +84,9 @@ mod tests {
             })
         );
 
-        let header = header.description("test description").schema(Object::with_type(SchemaType::Number));
+        let header = header
+            .description("test description")
+            .schema(Object::with_type(SchemaType::Number));
         assert_json_eq!(
             header,
             json!({

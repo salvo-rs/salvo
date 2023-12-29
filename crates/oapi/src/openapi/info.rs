@@ -219,7 +219,10 @@ mod tests {
         assert!(contact.url.is_none());
         assert!(contact.email.is_none());
 
-        let contact = contact.name("salvo api").url("https://github.com/salvo-rs/salvo").email("salvo.rs@some.mail.com");
+        let contact = contact
+            .name("salvo api")
+            .url("https://github.com/salvo-rs/salvo")
+            .email("salvo.rs@some.mail.com");
         assert_json_eq!(
             contact,
             json!({
