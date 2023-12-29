@@ -628,14 +628,20 @@ mod tests {
                 "name": "MIT",
                 "url": "http://mit.licence"
               },
-              "version": "1.0.0"
+              "version": "1.0.0",
+              "contact": {},
+              "termsOfService": "terms of service"
             },
             "paths": {}
           }"#;
         let doc: OpenApi = OpenApi::with_info(
-            Info::new("My api", "1.0.0")
+            Info::default()
                 .description("My api description")
-                .license(License::new("MIT").url("http://mit.licence")),
+                .license(License::new("MIT").url("http://mit.licence"))
+                .title("My api")
+                .version("1.0.0")
+                .terms_of_service("terms of service")
+                .contact(Contact::default()),
         );
         let serialized = doc.to_json()?;
 
