@@ -44,3 +44,26 @@ impl ExternalDocs {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_external_docs() {
+        let external_docs = ExternalDocs::default();
+        assert_eq!(external_docs.url, "");
+        assert_eq!(external_docs.description, None);
+    }
+
+    #[test]
+    fn test_build_external_docs() {
+        let external_docs = ExternalDocs::default();
+        let external_docs_with_url = external_docs
+            .url("https://pet-api.external.docs")
+            .description("description");
+
+        assert_eq!(external_docs_with_url.url, "https://pet-api.external.docs");
+        assert_eq!(external_docs_with_url.description, Some("description".to_string()));
+    }
+}

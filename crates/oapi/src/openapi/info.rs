@@ -204,14 +204,41 @@ impl License {
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::License;
+
     use super::Contact;
 
     #[test]
-    fn contact_new() {
+    fn build_contact() {
         let contact = Contact::new();
 
         assert!(contact.name.is_none());
         assert!(contact.url.is_none());
         assert!(contact.email.is_none());
+
+        let contact = contact
+            .name("salvo api")
+            .url("https://github.com/salvo-rs/salvo")
+            .email("salvo.rs@some.mail.com");
+        assert_json_eq!(
+            contact,
+            json!({
+                "name": "salvo api",
+                "url": "https://github.com/salvo-rs/salvo",
+                "email": "salvo.rs@some.mail.com"
+            })
+        );
+    }
+
+    #[test]
+    fn test_license_set_name() {
+        let license = License::default();
+        assert!(license.name.is_empty());
+
+        let license = license.name("MIT");
+        assert_json_eq!(license, json!({ "name": "MIT" }));
     }
 }
