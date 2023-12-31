@@ -272,8 +272,13 @@ impl Operation {
 
 #[cfg(test)]
 mod tests {
-    use super::Operation;
-    use crate::{security::SecurityRequirement, server::Server};
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::{Operation, Operations};
+    use crate::{
+        security::SecurityRequirement, server::Server, Deprecated, Parameter, PathItemType, RequestBody, Responses,
+    };
 
     #[test]
     fn operation_new() {
@@ -294,6 +299,56 @@ mod tests {
     }
 
     #[test]
+    fn test_build_operation() {
+        let operation = Operation::new()
+            .tags(["tag1", "tag2"])
+            .add_tag("tag3")
+            .summary("summary")
+            .description("description")
+            .operation_id("operation_id")
+            .parameters([Parameter::new("param1")])
+            .add_parameter(Parameter::new("param2"))
+            .request_body(RequestBody::new())
+            .responses(Responses::new())
+            .deprecated(Deprecated::False)
+            .securities([SecurityRequirement::new("api_key", ["read:items"])])
+            .servers([Server::new("/api")]);
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "responses": {},
+                "parameters": [
+                    {
+                        "name": "param1",
+                        "in": "path",
+                        "required": false
+                    },
+                    {
+                        "name": "param2",
+                        "in": "path",
+                        "required": false
+                    }
+                ],
+                "operationId": "operation_id",
+                "deprecated": false,
+                "security": [
+                    {
+                        "api_key": ["read:items"]
+                    }
+                ],
+                "servers": [{"url": "/api"}],
+                "summary": "summary",
+                "tags": ["tag1", "tag2", "tag3"],
+                "description": "description",
+                "requestBody": {
+                    "content": {}
+                }
+            })
+        );
+    }
+
+    #[test]
     fn operation_security() {
         let security_requirement1 = SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
@@ -310,5 +365,40 @@ mod tests {
         let server2 = Server::new("/admin");
         let operation = Operation::new().add_server(server1).add_server(server2);
         assert!(!operation.servers.is_empty());
+    }
+
+    #[test]
+    fn test_operations() {
+        let operations = Operations::new();
+        assert!(operations.is_empty());
+
+        let mut operations = operations.operation(PathItemType::Get, Operation::new());
+        operations.insert(PathItemType::Post, Operation::new());
+        operations.extend([(PathItemType::Head, Operation::new())]);
+        assert_eq!(3, operations.len());
+    }
+
+    #[test]
+    fn test_operations_into_iter() {
+        let mut operations = Operations::new();
+        operations.insert(PathItemType::Get, Operation::new());
+        operations.insert(PathItemType::Post, Operation::new());
+        operations.insert(PathItemType::Head, Operation::new());
+
+        let mut iter = operations.into_iter();
+        assert_eq!((PathItemType::Get, Operation::new()), iter.next().unwrap());
+        assert_eq!((PathItemType::Post, Operation::new()), iter.next().unwrap());
+        assert_eq!((PathItemType::Head, Operation::new()), iter.next().unwrap());
+    }
+
+    #[test]
+    fn test_operations_then() {
+        let print_operation = |operation: Operation| {
+            println!("{:?}", operation);
+            operation
+        };
+        let operation = Operation::new();
+
+        operation.then(print_operation);
     }
 }
