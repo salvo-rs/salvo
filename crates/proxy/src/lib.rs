@@ -45,29 +45,30 @@ pub trait Client: Send + Sync + 'static {
 }
 
 /// Upstreams trait.
+#[async_trait]
 pub trait Upstreams: Send + Sync + 'static {
     /// Error type.
     type Error: StdError + Send + Sync + 'static;
     /// Elect a upstream to process current request.
-    fn elect(&self) -> Result<&str, Self::Error>;
+    async fn elect(&self) -> Result<&str, Self::Error>;
 }
 impl Upstreams for &'static str {
     type Error = Infallible;
 
-    fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self) -> Result<&str, Self::Error> {
         Ok(*self)
     }
 }
 impl Upstreams for String {
     type Error = Infallible;
-    fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self) -> Result<&str, Self::Error> {
         Ok(self.as_str())
     }
 }
 
 impl<const N: usize> Upstreams for [&'static str; N] {
     type Error = Error;
-    fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -81,7 +82,7 @@ where
     T: AsRef<str> + Send + Sync + 'static,
 {
     type Error = Error;
-    fn elect(&self) -> Result<&str, Self::Error> {
+    async fn elect(&self) -> Result<&str, Self::Error> {
         if self.is_empty() {
             return Err(Error::other("upstreams is empty"));
         }
@@ -193,8 +194,8 @@ where
     }
 
     #[inline]
-    fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
-        let upstream = self.upstreams.elect().map_err(Error::other)?;
+    async fn build_proxied_request(&self, req: &mut Request, depot: &Depot) -> Result<HyperRequest, Error> {
+        let upstream = self.upstreams.elect().await.map_err(Error::other)?;
         if upstream.is_empty() {
             tracing::error!("upstreams is empty");
             return Err(Error::other("upstreams is empty"));
@@ -259,7 +260,7 @@ where
 {
     #[inline]
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        match self.build_proxied_request(req, depot) {
+        match self.build_proxied_request(req, depot).await {
             Ok(proxied_request) => {
                 match self
                     .client
@@ -328,11 +329,11 @@ mod tests {
         assert_eq!(encoded_path, "/test/path");
     }
 
-    #[test]
-    fn test_upstreams_elect() {
+    #[tokio::test]
+    async fn test_upstreams_elect() {
         let upstreams = vec!["https://www.example.com", "https://www.example2.com"];
         let proxy = Proxy::default_hyper_client(upstreams.clone());
-        let elected_upstream = proxy.upstreams().elect().unwrap();
+        let elected_upstream = proxy.upstreams().elect().await.unwrap();
         assert!(upstreams.contains(&elected_upstream));
     }
 
