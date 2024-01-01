@@ -52,6 +52,7 @@ pub trait Upstreams: Send + Sync + 'static {
     /// Elect a upstream to process current request.
     async fn elect(&self) -> Result<&str, Self::Error>;
 }
+#[async_trait]
 impl Upstreams for &'static str {
     type Error = Infallible;
 
@@ -59,6 +60,7 @@ impl Upstreams for &'static str {
         Ok(*self)
     }
 }
+#[async_trait]
 impl Upstreams for String {
     type Error = Infallible;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -66,6 +68,7 @@ impl Upstreams for String {
     }
 }
 
+#[async_trait]
 impl<const N: usize> Upstreams for [&'static str; N] {
     type Error = Error;
     async fn elect(&self) -> Result<&str, Self::Error> {
@@ -77,6 +80,7 @@ impl<const N: usize> Upstreams for [&'static str; N] {
     }
 }
 
+#[async_trait]
 impl<T> Upstreams for Vec<T>
 where
     T: AsRef<str> + Send + Sync + 'static,
