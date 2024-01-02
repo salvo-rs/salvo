@@ -466,8 +466,6 @@ mod tests {
     fn test_build_parameters() {
         let parameters = Parameters::new();
         assert!(parameters.is_empty());
-
-        // let parameters = parameters.parameter(Parameter::new("param"));
     }
 
     #[test]
