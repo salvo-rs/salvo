@@ -131,7 +131,7 @@ impl PathItem {
         self.operations.append(&mut other.operations);
         self.servers.append(&mut other.servers);
         self.parameters.append(&mut other.parameters);
-        if other.description.is_none() {
+        if other.description.is_some() {
             self.description = other.description.take();
         }
         if other.summary.is_some() {
@@ -195,4 +195,152 @@ pub enum PathItemType {
     Trace,
     /// Type mapping for HTTP _CONNECT_ request.
     Connect,
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::*;
+    use crate::oapi::response::Response;
+
+    #[test]
+    fn test_build_path_item() {
+        let path_item = PathItem::new(PathItemType::Get, Operation::new())
+            .summary("summary")
+            .description("description")
+            .servers(Servers::new())
+            .parameters(Parameters::new());
+
+        assert_json_eq!(
+            path_item,
+            json!({
+                "description": "description",
+                "summary": "summary",
+                "get": {
+                    "responses": {}
+                }
+            })
+        )
+    }
+
+    #[test]
+    fn test_path_item_append() {
+        let mut path_item = PathItem::new(
+            PathItemType::Get,
+            Operation::new().add_response("200", Response::new("Get success")),
+        );
+        let mut other_path_item = PathItem::new(
+            PathItemType::Post,
+            Operation::new().add_response("200", Response::new("Post success")),
+        )
+        .description("description")
+        .summary("summary");
+        path_item.append(&mut other_path_item);
+
+        assert_json_eq!(
+            path_item,
+            json!({
+                "description": "description",
+                "summary": "summary",
+                "get": {
+                    "responses": {
+                        "200": {
+                            "description": "Get success"
+                        }
+                    }
+                },
+                "post": {
+                    "responses": {
+                        "200": {
+                            "description": "Post success"
+                        }
+                    }
+                }
+            })
+        )
+    }
+
+    #[test]
+    fn test_path_item_add_operation() {
+        let path_item = PathItem::new(
+            PathItemType::Get,
+            Operation::new().add_response("200", Response::new("Get success")),
+        )
+        .add_operation(
+            PathItemType::Post,
+            Operation::new().add_response("200", Response::new("Post success")),
+        );
+
+        assert_json_eq!(
+            path_item,
+            json!({
+                "get": {
+                    "responses": {
+                        "200": {
+                            "description": "Get success"
+                        }
+                    }
+                },
+                "post": {
+                    "responses": {
+                        "200": {
+                            "description": "Post success"
+                        }
+                    }
+                }
+            })
+        )
+    }
+
+    #[test]
+    fn test_paths_extend() {
+        let mut paths = Paths::new().path(
+            "/api/do_something",
+            PathItem::new(
+                PathItemType::Get,
+                Operation::new().add_response("200", Response::new("Get success")),
+            ),
+        );
+        paths.extend([(
+            "/api/do_something",
+            PathItem::new(
+                PathItemType::Post,
+                Operation::new().add_response("200", Response::new("Post success")),
+            )
+            .summary("summary")
+            .description("description"),
+        )]);
+
+        assert_json_eq!(
+            paths,
+            json!({
+                "/api/do_something": {
+                    "description": "description",
+                    "summary": "summary",
+                    "get": {
+                        "responses": {
+                            "200": {
+                                "description": "Get success"
+                            }
+                        }
+                    },
+                    "post": {
+                        "responses": {
+                            "200": {
+                                "description": "Post success"
+                            }
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_paths_deref() {
+        let paths = Paths::new();
+        assert_eq!(0, paths.len());
+    }
 }

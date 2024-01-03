@@ -96,6 +96,7 @@ impl Servers {
             if description.is_some() {
                 exist_server.description = description;
             }
+            self.0.remove(&exist_server);
             self.0.insert(exist_server);
         } else {
             self.0.insert(server);
@@ -323,6 +324,9 @@ impl ServerVariable {
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
     use super::*;
 
     macro_rules! test_fn {
@@ -400,12 +404,34 @@ mod tests {
     #[test]
     fn test_servers_insert_existed_server() {
         let mut servers = Servers::new();
-        let server = Server::new("/api/v1").description("api v1");
-        servers.insert(server);
+        let server1 = Server::new("/api/v1".to_string())
+            .description("api v1")
+            .add_variable("key1", ServerVariable::new());
+        servers.insert(server1);
 
-        let server = Server::new("/api/v1").description("api v1 new description");
-        servers.insert(server);
+        let server2 = Server::new("/api/v1".to_string())
+            .description("api v1 new description")
+            .add_variable("key2", ServerVariable::new());
+        servers.insert(server2);
+
         assert!(servers.len() == 1);
+        assert_json_eq!(
+            servers,
+            json!([
+                {
+                    "description": "api v1 new description",
+                    "url": "/api/v1",
+                    "variables": {
+                        "key1": {
+                            "default": ""
+                        },
+                        "key2": {
+                            "default": ""
+                        }
+                    }
+                }
+            ])
+        )
     }
 
     #[test]
