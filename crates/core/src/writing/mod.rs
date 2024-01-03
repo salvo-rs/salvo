@@ -29,7 +29,7 @@ pub trait Writer {
 
 /// `Scribe` is used to write data to [`Response`].
 ///
-/// `Scribe` is simpler than [`Writer`] ant it implements [`Writer`].
+/// `Scribe` is simpler than [`Writer`] and it implements [`Writer`].
 pub trait Scribe {
     /// Render data to [`Response`].
     fn render(self, res: &mut Response);
