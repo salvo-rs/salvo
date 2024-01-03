@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
-use salvo_core::{async_trait, Request};
+use salvo_core::Request;
 use serde::Deserialize;
 use serde::Deserializer;
 
@@ -81,7 +81,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for QueryParam<T, true>
 where
     T: Deserialize<'de>,
@@ -90,9 +89,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .query(arg)
@@ -100,7 +101,6 @@ where
         Ok(Self(value))
     }
 }
-#[async_trait]
 impl<'de, T> Extractible<'de> for QueryParam<T, false>
 where
     T: Deserialize<'de>,
@@ -109,9 +109,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         Ok(Self(req.query(arg)))
     }

@@ -170,13 +170,13 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                 call_args.push(Ident::new("__macro_generated_req", Span::call_site()));
             }
             InputType::Depot(_pat) => {
-                call_args.push(Ident::new("depot", Span::call_site()));
+                call_args.push(Ident::new("__macro_generated_depot", Span::call_site()));
             }
             InputType::Response(_pat) => {
-                call_args.push(Ident::new("res", Span::call_site()));
+                call_args.push(Ident::new("__macro_generated_res", Span::call_site()));
             }
             InputType::FlowCtrl(_pat) => {
-                call_args.push(Ident::new("ctrl", Span::call_site()));
+                call_args.push(Ident::new("__macro_generated_ctrl", Span::call_site()));
             }
             InputType::Unknown => {
                 return Err(syn::Error::new_spanned(
@@ -200,10 +200,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                                     data
                                 },
                                 Err(e) => {
-                                    #salvo::__private::tracing::error!(error = ?e, "failed to extract data in endpoint macro");
-                                    res.render(#salvo::http::errors::StatusError::bad_request().brief(
-                                        "Failed to extract data in endpoint macro."
-                                    ).cause(e));
+                                    e.write(__macro_generated_req, __macro_generated_depot, __macro_generated_res).await;
                                     return;
                                 }
                             };
@@ -226,7 +223,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             if sig.asyncness.is_none() {
                 quote! {
                     #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, __macro_generated_depot: &mut #salvo::Depot, __macro_generated_res: &mut #salvo::Response, __macro_generated_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
@@ -234,7 +231,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             } else {
                 quote! {
                     #[inline]
-                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, depot: &mut #salvo::Depot, res: &mut #salvo::Response, ctrl: &mut #salvo::FlowCtrl) {
+                    async fn handle(&self, __macro_generated_req: &mut #salvo::Request, __macro_generated_depot: &mut #salvo::Depot, __macro_generated_res: &mut #salvo::Response, __macro_generated_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
                     }

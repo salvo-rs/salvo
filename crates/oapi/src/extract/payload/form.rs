@@ -2,8 +2,7 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
-use salvo_core::{async_trait, Request};
+use salvo_core::{async_trait, Writer, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
@@ -65,7 +64,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for FormBody<T>
 where
     T: Deserialize<'de> + Send,
@@ -74,10 +72,10 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(req: &'de mut Request) -> Result<Self, impl Writer> {
         req.parse_form().await
     }
-    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, impl Writer> {
         Self::extract(req).await
     }
 }

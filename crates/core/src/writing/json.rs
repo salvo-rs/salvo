@@ -7,6 +7,7 @@ use crate::http::{Response, StatusError};
 
 /// Write serializable content to response as json content. It will set `content-type` to `application/json; charset=utf-8`.
 pub struct Json<T>(pub T);
+
 #[async_trait]
 impl<T> Scribe for Json<T>
 where

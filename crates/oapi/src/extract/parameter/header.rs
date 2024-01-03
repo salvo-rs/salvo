@@ -2,10 +2,8 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
-use salvo_core::{async_trait, Request};
-use serde::Deserialize;
-use serde::Deserializer;
+use salvo_core::http::{Request, ParseError};
+use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
@@ -91,7 +89,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for HeaderParam<T, true>
 where
     T: Deserialize<'de>,
@@ -100,9 +97,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("header parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.header(arg).ok_or_else(|| {
             ParseError::other(format!("header parameter {} not found or convert to type failed", arg))
@@ -110,7 +109,7 @@ where
         Ok(Self(value))
     }
 }
-#[async_trait]
+
 impl<'de, T> Extractible<'de> for HeaderParam<T, false>
 where
     T: Deserialize<'de>,
@@ -119,9 +118,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("header parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         Ok(Self(req.header(arg)))
     }
