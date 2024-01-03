@@ -1,17 +1,18 @@
-//! [`Catcher`] is the default implement [`Handler`] for catch page error.
+//! Catch and handle errors.
 //!
-//! A web application can specify several different Catchers to handle errors.
+//! If the status code of [`Response`] is an error, and the body of [`Response`] is empty, then salvo
+//! will try to use `Catcher` to catch the error and display a friendly error page.
 //!
-//! They can be set via the `with_catchers` function of `Server`:
+//! You can return a system default [`Catcher`] through [`Catcher::default()`], and then add it to [`Service`](crate::Service):
 //!
 //! # Example
 //!
 //! ```
-//! # use salvo_core::prelude::*;
-//! # use salvo_core::catcher::Catcher;
+//! use salvo_core::prelude::*;
+//! use salvo_core::catcher::Catcher;
 //!
 //! #[handler]
-//! async fn handle404(&self, _req: &Request, _depot: &Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
+//! async fn handle404(&self, res: &mut Response, ctrl: &mut FlowCtrl) {
 //!     if let Some(StatusCode::NOT_FOUND) = res.status_code {
 //!         res.render("Custom 404 Error Page");
 //!         ctrl.skip_rest();
@@ -24,12 +25,13 @@
 //! }
 //! ```
 //!
-//! When there is an error in the website request result, first try to set the error page
-//! through the [`Catcher`] set by the user. If the [`Catcher`] catches the error,
-//! it will return `true`.
+//! The default [`Catcher`] supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 //!
-//! If your custom catchers does not capture this error, then the system uses
-//! [`write_error_default`] to capture processing errors and send the default error page.
+//! You can add a custom error handler to [`Catcher`] by adding `hoop` to the default `Catcher`.
+//! The error handler is still [`Handler`].
+//!
+//! You can add multiple custom error catching handlers to [`Catcher`] through [`Catcher::hoop`]. The custom error handler can call
+//! the [`FlowCtrl::skip_rest`] method after handling the error to skip next error handlers and return early.
 
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -48,133 +50,15 @@ static SUPPORTED_FORMATS: Lazy<Vec<mime::Name>> = Lazy::new(|| vec![mime::JSON, 
 const EMPTY_CAUSE_MSG: &str = "There is no more detailed explanation.";
 const SALVO_LINK: &str = r#"<a href="https://salvo.rs" target="_blank">salvo</a>"#;
 
-#[inline]
-fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&str>, footer: Option<&str>) -> String {
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>{0}: {1}</title>
-    <style>
-    :root {{
-        --bg-color: #fff;
-        --text-color: #222;
-    }}
-    body {{
-        background: var(--bg-color);
-        color: var(--text-color);
-        text-align: center;
-    }}
-    pre {{ text-align: left; padding: 0 1rem; }}
-    footer{{text-align:center;}}
-    @media (prefers-color-scheme: dark) {{
-        :root {{
-            --bg-color: #222;
-            --text-color: #ddd;
-        }}
-        a:link {{ color: red; }}
-        a:visited {{ color: #a8aeff; }}
-        a:hover {{color: #a8aeff;}}
-        a:active {{color: #a8aeff;}}
-    }}
-    </style>
-</head>
-<body>
-    <div><h1>{0}: {1}</h1><h3>{2}</h3><pre>{3}</pre><hr><footer>{4}</footer></div>
-</body>
-</html>"#,
-        code.as_u16(),
-        name,
-        brief,
-        cause.unwrap_or(EMPTY_CAUSE_MSG),
-        footer.unwrap_or(SALVO_LINK)
-    )
-}
-#[inline]
-fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
-    #[derive(Serialize)]
-    struct Data<'a> {
-        error: Error<'a>,
-    }
-    #[derive(Serialize)]
-    struct Error<'a> {
-        code: u16,
-        name: &'a str,
-        brief: &'a str,
-        cause: &'a str,
-    }
-    let data = Data {
-        error: Error {
-            code: code.as_u16(),
-            name,
-            brief,
-            cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
-        },
-    };
-    serde_json::to_string(&data).unwrap()
-}
-#[inline]
-fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
-    format!(
-        "code: {}\n\nname: {}\n\nbrief: {}\n\ncause: {}",
-        code.as_u16(),
-        name,
-        brief,
-        cause.unwrap_or(EMPTY_CAUSE_MSG)
-    )
-}
-#[inline]
-fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
-    #[derive(Serialize)]
-    struct Data<'a> {
-        code: u16,
-        name: &'a str,
-        brief: &'a str,
-        cause: &'a str,
-    }
-
-    let data = Data {
-        code: code.as_u16(),
-        name,
-        brief,
-        cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
-    };
-    serde_xml_rs::to_string(&data).unwrap()
-}
-/// Create bytes from `StatusError`.
-#[inline]
-pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Bytes) {
-    let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
-        "text/html".parse().unwrap()
-    } else {
-        prefer_format.clone()
-    };
-    #[cfg(debug_assertions)]
-    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e.as_ref()));
-    #[cfg(not(debug_assertions))]
-    let cause: Option<String> = None;
-    let content = match format.subtype().as_ref() {
-        "plain" => status_error_plain(err.code, &err.name, &err.brief, cause.as_deref()),
-        "json" => status_error_json(err.code, &err.name, &err.brief, cause.as_deref()),
-        "xml" => status_error_xml(err.code, &err.name, &err.brief, cause.as_deref()),
-        _ => status_error_html(err.code, &err.name, &err.brief, cause.as_deref(), footer),
-    };
-    (format, Bytes::from(content))
-}
-
-/// Default implementation of [`Catcher`].
+/// `Catcher` is used to catch errors.
 ///
-/// If http status is error, and user is not set custom catcher to catch them,
-/// `write_error_default` will used to catch them.
-///
-/// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+/// View [module level documentation](index.html) for more details.
 pub struct Catcher {
     goal: Arc<dyn Handler>,
     hoops: Vec<Arc<dyn Handler>>,
 }
 impl Default for Catcher {
+    /// Create new `Catcher` with it's goal handler is [`DefaultGoal`].
     fn default() -> Self {
         Catcher {
             goal: Arc::new(DefaultGoal::new()),
@@ -238,28 +122,31 @@ where
     }
 }
 
-/// Default [`Handler`] for [`Catcher`].
+/// Default [`Handler`] used as goal for [`Catcher`].
 ///
-/// If http status is error, and user is not set custom catcher to catch them,
-/// `write_error_default` will used to catch them.
+/// If http status is error, and all custom handlers is not catch it and write body,
+/// `DefaultGoal` will used to catch them.
 ///
-/// `Catcher` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
+/// `DefaultGoal` supports sending error pages in `XML`, `JSON`, `HTML`, `Text` formats.
 #[derive(Default)]
 pub struct DefaultGoal {
     footer: Option<Cow<'static, str>>,
 }
 impl DefaultGoal {
-    /// Create new `Catcher`.
+    /// Create new `DefaultGoal`.
     pub fn new() -> Self {
         DefaultGoal { footer: None }
     }
-    /// Create with footer.
+    /// Create new `DefaultGoal` with custom footer.
     #[inline]
     pub fn with_footer(footer: impl Into<Cow<'static, str>>) -> Self {
         Self::new().footer(footer)
     }
 
-    /// Set footer.
+    /// Set custom footer which is only used in html error page.
+    ///
+    /// If footer is `None`, then use default footer.
+    /// Default footer is `<a href="https://salvo.rs" target="_blank">salvo</a>`.
     pub fn footer(mut self, footer: impl Into<Cow<'static, str>>) -> Self {
         self.footer = Some(footer.into());
         self
@@ -273,6 +160,127 @@ impl Handler for DefaultGoal {
             write_error_default(req, res, self.footer.as_deref());
         }
     }
+}
+
+#[inline]
+fn status_error_html(code: StatusCode, name: &str, brief: &str, cause: Option<&str>, footer: Option<&str>) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>{0}: {1}</title>
+    <style>
+    :root {{
+        --bg-color: #fff;
+        --text-color: #222;
+    }}
+    body {{
+        background: var(--bg-color);
+        color: var(--text-color);
+        text-align: center;
+    }}
+    pre {{ text-align: left; padding: 0 1rem; }}
+    footer{{text-align:center;}}
+    @media (prefers-color-scheme: dark) {{
+        :root {{
+            --bg-color: #222;
+            --text-color: #ddd;
+        }}
+        a:link {{ color: red; }}
+        a:visited {{ color: #a8aeff; }}
+        a:hover {{color: #a8aeff;}}
+        a:active {{color: #a8aeff;}}
+    }}
+    </style>
+</head>
+<body>
+    <div><h1>{0}: {1}</h1><h3>{2}</h3><pre>{3}</pre><hr><footer>{4}</footer></div>
+</body>
+</html>"#,
+        code.as_u16(),
+        name,
+        brief,
+        cause.unwrap_or(EMPTY_CAUSE_MSG),
+        footer.unwrap_or(SALVO_LINK)
+    )
+}
+
+#[inline]
+fn status_error_json(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
+    #[derive(Serialize)]
+    struct Data<'a> {
+        error: Error<'a>,
+    }
+    #[derive(Serialize)]
+    struct Error<'a> {
+        code: u16,
+        name: &'a str,
+        brief: &'a str,
+        cause: &'a str,
+    }
+    let data = Data {
+        error: Error {
+            code: code.as_u16(),
+            name,
+            brief,
+            cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
+        },
+    };
+    serde_json::to_string(&data).unwrap()
+}
+
+#[inline]
+fn status_error_plain(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
+    format!(
+        "code: {}\n\nname: {}\n\nbrief: {}\n\ncause: {}",
+        code.as_u16(),
+        name,
+        brief,
+        cause.unwrap_or(EMPTY_CAUSE_MSG)
+    )
+}
+
+#[inline]
+fn status_error_xml(code: StatusCode, name: &str, brief: &str, cause: Option<&str>) -> String {
+    #[derive(Serialize)]
+    struct Data<'a> {
+        code: u16,
+        name: &'a str,
+        brief: &'a str,
+        cause: &'a str,
+    }
+
+    let data = Data {
+        code: code.as_u16(),
+        name,
+        brief,
+        cause: cause.unwrap_or(EMPTY_CAUSE_MSG),
+    };
+    serde_xml_rs::to_string(&data).unwrap()
+}
+
+/// Create bytes from `StatusError`.
+#[doc(hidden)]
+#[inline]
+pub fn status_error_bytes(err: &StatusError, prefer_format: &Mime, footer: Option<&str>) -> (Mime, Bytes) {
+    let format = if !SUPPORTED_FORMATS.contains(&prefer_format.subtype()) {
+        "text/html".parse().unwrap()
+    } else {
+        prefer_format.clone()
+    };
+    #[cfg(debug_assertions)]
+    let cause = err.cause.as_ref().map(|e| format!("{:#?}", e.as_ref()));
+    #[cfg(not(debug_assertions))]
+    let cause: Option<String> = None;
+    let content = match format.subtype().as_ref() {
+        "plain" => status_error_plain(err.code, &err.name, &err.brief, cause.as_deref()),
+        "json" => status_error_json(err.code, &err.name, &err.brief, cause.as_deref()),
+        "xml" => status_error_xml(err.code, &err.name, &err.brief, cause.as_deref()),
+        _ => status_error_html(err.code, &err.name, &err.brief, cause.as_deref(), footer),
+    };
+    (format, Bytes::from(content))
 }
 
 #[doc(hidden)]

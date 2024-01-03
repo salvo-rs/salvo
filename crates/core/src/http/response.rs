@@ -185,8 +185,7 @@ impl Response {
         self.replace_body(ResBody::None)
     }
 
-    // If return `true`, it means this response is ready for write back and the reset handlers should be skipped.
-    #[doc(hidden)]
+    /// If returns `true`, it means this response is ready for write back and the reset handlers should be skipped.
     #[inline]
     pub fn is_stamped(&mut self) -> bool {
         if let Some(code) = self.status_code {
@@ -299,13 +298,17 @@ impl Response {
 
         /// Helper function for remove cookie.
         ///
-        /// Removes `cookie` from this CookieJar. If an _original_ cookie with the same
+        /// Removes `cookie` from this [`CookieJar`]. If an _original_ cookie with the same
         /// name as `cookie` is present in the jar, a _removal_ cookie will be
-        /// present in the `delta` computation.
+        /// present in the `delta` computation. **To properly generate the removal
+        /// cookie, `cookie` must contain the same `path` and `domain` as the cookie
+        /// that was initially set.**
         ///
         /// A "removal" cookie is a cookie that has the same name as the original
         /// cookie but has an empty value, a max-age of 0, and an expiration date
-        /// far in the past. Read more about [removal cookies](https://docs.rs/cookie/0.16.1/cookie/struct.CookieJar.html#method.remove).
+        /// far in the past.
+        ///
+        /// Read more about [removal cookies](https://docs.rs/cookie/0.18.0/cookie/struct.CookieJar.html#method.remove).
         #[inline]
         pub fn remove_cookie(&mut self, name: &str) -> &mut Self
         {
@@ -382,7 +385,7 @@ impl Response {
 
     /// Attempts to send a file. If file not exists, not found error will occur.
     ///
-    /// If you want more settings, you can use `NamedFile::builder` to create a new [`NamedFileBuilder`](crate::fs::NamedFileBuilder).      
+    /// If you want more settings, you can use `NamedFile::builder` to create a new [`NamedFileBuilder`](crate::fs::NamedFileBuilder).
     #[inline]
     pub async fn send_file<P>(&mut self, path: P, req_headers: &HeaderMap)
     where

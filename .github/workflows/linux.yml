@@ -25,7 +25,7 @@ jobs:
 
       - name: Check unused dependencies on full features
         run: cargo udeps --features full
-        
+
       - name: Check unused dependencies on all features
         run: cargo udeps --all-features
   msrv:
@@ -36,7 +36,7 @@ jobs:
       - name: Get MSRV from package metadata
         id: msrv
         run: grep rust-version Cargo.toml | cut -d'"' -f2 | sed 's/^/version=/' >> $GITHUB_OUTPUT
-        
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ steps.msrv.outputs.version }}
@@ -69,7 +69,7 @@ jobs:
 
       - name: check release build
         run: cargo check --all --bins --examples --tests --release
-        
+
       - name: Cargo test
         timeout-minutes: 40
         run: cargo test --all --all-features --no-fail-fast -- --nocapture
@@ -94,7 +94,7 @@ jobs:
         run: cargo install cargo-hack
 
       - name: check --feature-powerset
-        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps
+        run: cargo hack check --feature-powerset --depth 1 -Z avoid-dev-deps --exclude-features server
 
   cover:
     strategy:

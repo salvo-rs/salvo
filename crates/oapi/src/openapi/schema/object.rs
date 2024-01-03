@@ -43,8 +43,8 @@ pub struct Object {
     pub description: Option<String>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<Value>,
 
     /// Enum variants of fields that can be represented as `unit` type `enums`
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
@@ -213,7 +213,7 @@ impl Object {
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
     pub fn default_value(mut self, default: Value) -> Self {
-        self.default = Some(default);
+        self.default_value = Some(default);
         self
     }
 

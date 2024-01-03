@@ -196,7 +196,7 @@ impl ToTokens for NamedStructSchema<'_> {
             })
             .collect();
 
-        if !flatten_fields.is_empty() {
+        let all_of = if !flatten_fields.is_empty() {
             let mut flattened_tokens = TokenStream::new();
             let mut flattened_map_field = None;
 
@@ -228,16 +228,31 @@ impl ToTokens for NamedStructSchema<'_> {
             }
 
             if flattened_tokens.is_empty() {
-                tokens.extend(object_tokens)
+                tokens.extend(object_tokens);
+                false
             } else {
                 tokens.extend(quote! {
                     utoipa::openapi::AllOfBuilder::new()
                         #flattened_tokens
                     .item(#object_tokens)
-                })
+                });
+
+                true
             }
         } else {
-            tokens.extend(object_tokens)
+            tokens.extend(object_tokens);
+            false
+        };
+
+        if !all_of
+            && container_rules
+                .as_ref()
+                .map(|container_rule| container_rule.deny_unknown_fields)
+                .unwrap_or(false)
+        {
+            tokens.extend(quote! {
+                .additional_properties(Some(utoipa::openapi::schema::AdditionalProperties::FreeForm(false)))
+            });
         }
 
         if let Some(deprecated) = crate::get_deprecated(self.attributes) {

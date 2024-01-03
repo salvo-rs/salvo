@@ -78,11 +78,11 @@ const INDEX_TMPL: &str = r#"
 pub struct SwaggerUi {
     config: Config<'static>,
     /// The title of the html page. The default title is "Swagger UI".
-    pub title: String,
+    pub title: Cow<'static, str>,
     /// The keywords of the html page.
-    pub keywords: Option<String>,
+    pub keywords: Option<Cow<'static, str>>,
     /// The description of the html page.
-    pub description: Option<String>,
+    pub description: Option<Cow<'static, str>>,
 }
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
@@ -106,19 +106,19 @@ impl SwaggerUi {
     }
 
     /// Set title of the html page. The default title is "Swagger UI".
-    pub fn title(mut self, title: impl Into<String>) -> Self {
+    pub fn title(mut self, title: impl Into<Cow<'static, str>>) -> Self {
         self.title = title.into();
         self
     }
 
     /// Set keywords of the html page.
-    pub fn keywords(mut self, keywords: impl Into<String>) -> Self {
+    pub fn keywords(mut self, keywords: impl Into<Cow<'static, str>>) -> Self {
         self.keywords = Some(keywords.into());
         self
     }
 
     /// Set description of the html page.
-    pub fn description(mut self, description: impl Into<String>) -> Self {
+    pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
         self.description = Some(description.into());
         self
     }
@@ -393,9 +393,9 @@ pub fn serve<'a>(
         // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
         let mut index = INDEX_TMPL
             .replacen("{{config}}", &config_json, 1)
-            .replacen("{{title}}", title, 1)
+            .replacen("{{description}}", description, 1)
             .replacen("{{keywords}}", keywords, 1)
-            .replacen("{{description}}", description, 1);
+            .replacen("{{title}}", title, 1);
 
         if let Some(oauth) = &config.oauth {
             let oauth_json = serde_json::to_string(oauth)?;

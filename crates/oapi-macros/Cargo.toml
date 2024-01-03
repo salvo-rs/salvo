@@ -1,12 +1,12 @@
 [package]
 name = "salvo-oapi-macros"
 version = { workspace = true }
-edition = "2021"
+edition = { workspace = true }
 description = "Macros for salvo-oapi"
-license = "MIT/Apache-2.0"
+license = { workspace = true }
 documentation = "https://docs.rs/salvo-oapi-macros/"
-homepage = "https://github.com/salvo-rs/salvo"
-repository = "https://github.com/salvo-rs/salvo"
+homepage = { workspace = true }
+repository = { workspace = true }
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislearn@hotmail.com>"]

@@ -46,6 +46,7 @@ cfg_feature! {
 cfg_feature! {
     #![feature = "quinn"]
     pub mod quinn;
+    pub(crate) mod rustls_old;
     pub use self::quinn::{QuinnListener, H3Connection};
 }
 cfg_feature! {
@@ -201,7 +202,7 @@ pub trait Listener {
     }
 
     /// Bind and returns acceptor.
-    async fn try_bind(self) -> IoResult<Self::Acceptor>;
+    async fn try_bind(self) -> crate::Result<Self::Acceptor>;
 
     /// Join current Listener with the other.
     #[inline]

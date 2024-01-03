@@ -14,6 +14,7 @@ mod cfg;
 mod openapi;
 pub use openapi::*;
 
+#[doc = include_str!("../docs/endpoint.md")]
 pub mod endpoint;
 pub use endpoint::{Endpoint, EndpointArgRegister, EndpointOutRegister, EndpointRegistry};
 pub mod extract;
@@ -36,7 +37,6 @@ cfg_feature! {
     pub mod redoc;
 }
 
-#[doc = include_str!("../docs/endpoint.md")]
 pub use salvo_oapi_macros::endpoint;
 pub(crate) use salvo_oapi_macros::schema;
 #[doc = include_str!("../docs/derive_to_parameters.md")]
@@ -169,8 +169,7 @@ macro_rules! impl_to_schema_primitive {
 pub mod oapi {
     pub use super::*;
 }
-// Create `salvo-oapi` module so we can use `salvo-oapi-macros` directly
-// from `salvo-oapi` crate. ONLY FOR INTERNAL USE!
+
 #[doc(hidden)]
 pub mod __private {
     pub use inventory;
@@ -267,7 +266,7 @@ impl<T: ToSchema> ToSchema for Option<T> {
 
 impl<T> ToSchema for PhantomData<T> {
     fn to_schema(_components: &mut Components) -> RefOr<schema::Schema> {
-        Schema::Object(Object::default()).into()
+        Schema::Object(Default::default()).into()
     }
 }
 

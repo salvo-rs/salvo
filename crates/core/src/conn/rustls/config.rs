@@ -7,12 +7,26 @@ use std::path::Path;
 use std::sync::Arc;
 
 use futures_util::stream::{once, Once, Stream};
-pub use tokio_rustls::rustls::server::ServerConfig;
-use tokio_rustls::rustls::server::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, ClientHello, NoClientAuth, ResolvesServerCert,
+use tokio_rustls::rustls::crypto::ring::sign::any_supported_type;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::server::{ClientHello, ResolvesServerCert, WebPkiClientVerifier};
+use tokio_rustls::rustls::sign::CertifiedKey;
+
+#[cfg(feature = "quinn")]
+use tokio_rustls_old::rustls::{
+    server::{
+        AllowAnyAnonymousOrAuthenticatedClient as AllowAnyAnonymousOrAuthenticatedClientOld,
+        AllowAnyAuthenticatedClient as AllowAnyAuthenticatedClientOld, NoClientAuth as NoClientAuthOld,
+        ServerConfig as ServerConfigOld,
+    },
+    sign::{any_supported_type as any_supported_type_old, CertifiedKey as CertifiedKeyOld},
+    {Certificate as CertificateOld, PrivateKey as PrivateKeyOld},
 };
-use tokio_rustls::rustls::sign::{self, CertifiedKey};
-use tokio_rustls::rustls::{Certificate, PrivateKey};
+
+#[cfg(feature = "quinn")]
+use crate::conn::rustls_old::CertResolver as CertResolverOld;
+
+pub use tokio_rustls::rustls::server::ServerConfig;
 
 use crate::conn::IntoConfigStream;
 
@@ -84,29 +98,68 @@ impl Keycert {
 
     fn build_certified_key(&mut self) -> IoResult<CertifiedKey> {
         let cert = rustls_pemfile::certs(&mut self.cert.as_ref())
-            .map(|certs| certs.into_iter().map(Certificate).collect())
-            .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
+            .map(|certs| certs.into_iter().collect::<Vec<CertificateDer<'static>>>())
+            .next()
+            .ok_or_else(|| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
 
         let key = {
             let mut pkcs8 = rustls_pemfile::pkcs8_private_keys(&mut self.key.as_ref())
+                .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
             if !pkcs8.is_empty() {
-                PrivateKey(pkcs8.remove(0))
+                PrivateKeyDer::Pkcs8(pkcs8.remove(0))
             } else {
                 let mut rsa = rustls_pemfile::rsa_private_keys(&mut self.key.as_ref())
+                    .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
 
                 if !rsa.is_empty() {
-                    PrivateKey(rsa.remove(0))
+                    PrivateKeyDer::Pkcs1(rsa.remove(0))
                 } else {
                     return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
                 }
             }
         };
 
-        let key = sign::any_supported_type(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
+        let key = any_supported_type(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
 
         Ok(CertifiedKey {
+            cert,
+            key,
+            ocsp: if !self.ocsp_resp.is_empty() {
+                Some(self.ocsp_resp.clone())
+            } else {
+                None
+            },
+        })
+    }
+
+    #[cfg(feature = "quinn")]
+    fn build_certified_key_old(&mut self) -> IoResult<CertifiedKeyOld> {
+        let cert = rustls_pemfile_old::certs(&mut self.cert.as_ref())
+            .map(|certs| certs.into_iter().map(CertificateOld).collect())
+            .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls certificates"))?;
+
+        let key = {
+            let mut pkcs8 = rustls_pemfile_old::pkcs8_private_keys(&mut self.key.as_ref())
+                .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+            if !pkcs8.is_empty() {
+                PrivateKeyOld(pkcs8.remove(0))
+            } else {
+                let mut rsa = rustls_pemfile_old::rsa_private_keys(&mut self.key.as_ref())
+                    .map_err(|_| IoError::new(ErrorKind::Other, "failed to parse tls private keys"))?;
+
+                if !rsa.is_empty() {
+                    PrivateKeyOld(rsa.remove(0))
+                } else {
+                    return Err(IoError::new(ErrorKind::Other, "failed to parse tls private keys"));
+                }
+            }
+        };
+
+        let key = any_supported_type_old(&key).map_err(|_| IoError::new(ErrorKind::Other, "invalid private key"))?;
+
+        Ok(CertifiedKeyOld {
             cert,
             key,
             ocsp: if !self.ocsp_resp.is_empty() {
@@ -225,19 +278,60 @@ impl RustlsConfig {
         }
 
         let client_auth = match &self.client_auth {
-            TlsClientAuth::Off => NoClientAuth::boxed(),
+            TlsClientAuth::Off => WebPkiClientVerifier::no_client_auth(),
             TlsClientAuth::Optional(trust_anchor) => {
-                AllowAnyAnonymousOrAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
+                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                    .allow_unauthenticated()
+                    .build()
+                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
             }
             TlsClientAuth::Required(trust_anchor) => {
-                AllowAnyAuthenticatedClient::new(read_trust_anchor(trust_anchor)?).boxed()
+                WebPkiClientVerifier::builder(read_trust_anchor(trust_anchor)?.into())
+                    .build()
+                    .map_err(|e| IoError::new(ErrorKind::Other, format!("failed to build server config: {}", e)))?
             }
         };
 
         let mut config = ServerConfig::builder()
-            .with_safe_defaults()
             .with_client_cert_verifier(client_auth)
             .with_cert_resolver(Arc::new(CertResolver {
+                certified_keys,
+                fallback,
+            }));
+        config.alpn_protocols = self.alpn_protocols;
+        Ok(config)
+    }
+
+    /// ServerConfigOld
+    #[cfg(feature = "quinn")]
+    pub(crate) fn build_server_config_old(mut self) -> IoResult<ServerConfigOld> {
+        let fallback = self
+            .fallback
+            .as_mut()
+            .map(|fallback| fallback.build_certified_key_old())
+            .transpose()?
+            .map(Arc::new);
+        let mut certified_keys = HashMap::new();
+
+        for (name, keycert) in &mut self.keycerts {
+            certified_keys.insert(name.clone(), Arc::new(keycert.build_certified_key_old()?));
+        }
+
+        let client_auth = match &self.client_auth {
+            TlsClientAuth::Off => NoClientAuthOld::boxed(),
+            TlsClientAuth::Optional(trust_anchor) => AllowAnyAnonymousOrAuthenticatedClientOld::new(
+                crate::conn::rustls_old::read_trust_anchor(trust_anchor)?,
+            )
+            .boxed(),
+            TlsClientAuth::Required(trust_anchor) => {
+                AllowAnyAuthenticatedClientOld::new(crate::conn::rustls_old::read_trust_anchor(trust_anchor)?).boxed()
+            }
+        };
+
+        let mut config = ServerConfigOld::builder()
+            .with_safe_defaults()
+            .with_client_cert_verifier(client_auth)
+            .with_cert_resolver(Arc::new(CertResolverOld {
                 certified_keys,
                 fallback,
             }));
@@ -254,6 +348,16 @@ impl TryInto<ServerConfig> for RustlsConfig {
     }
 }
 
+#[cfg(feature = "quinn")]
+impl TryInto<ServerConfigOld> for RustlsConfig {
+    type Error = IoError;
+
+    fn try_into(self) -> IoResult<ServerConfigOld> {
+        self.build_server_config_old()
+    }
+}
+
+#[derive(Debug)]
 pub(crate) struct CertResolver {
     fallback: Option<Arc<CertifiedKey>>,
     certified_keys: HashMap<String, Arc<CertifiedKey>>,

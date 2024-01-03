@@ -22,23 +22,10 @@ use shared::*;
 
 /// `handler` is a macro to help create `Handler` from function or impl block easily.
 ///
-/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`.
+/// `Handler` is a trait, if `#[handler]` applied to `fn`,  `fn` will converted to a struct, and then implement `Handler`,
+/// after use `handler`, you don't need to care arguments' order, omit unused arguments.
 ///
-/// ```ignore
-/// #[async_trait]
-/// pub trait Handler: Send + Sync + 'static {
-///     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl);
-/// }
-/// ```
-///
-/// After use `handler`, you don't need to care arguments' order, omit unused arguments:
-///
-/// ```ignore
-/// #[handler]
-/// async fn hello() -> &'static str {
-///     "Hello World"
-/// }
-/// ```
+/// View `salvo_core::handler` for more details.
 #[proc_macro_attribute]
 pub fn handler(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);

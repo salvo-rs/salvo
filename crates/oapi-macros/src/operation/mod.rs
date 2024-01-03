@@ -7,7 +7,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Expr, ExprPath, Path, Token
 
 use crate::endpoint::EndpointAttr;
 use crate::schema_type::SchemaType;
-use crate::security_requirement::SecurityRequirementAttr;
+use crate::security_requirement::SecurityRequirementsAttr;
 use crate::type_tree::{GenericType, TypeTree};
 use crate::Array;
 
@@ -27,7 +27,7 @@ pub(crate) struct Operation<'a> {
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
-    security: Option<&'a Array<'a, SecurityRequirementAttr>>,
+    security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
 }
 
 impl<'a> Operation<'a> {

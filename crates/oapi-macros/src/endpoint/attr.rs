@@ -4,7 +4,7 @@ use syn::{parenthesized, parse::Parse};
 use syn::{Expr, LitStr};
 
 use crate::operation::request_body::RequestBodyAttr;
-use crate::{parse_utils, security_requirement::SecurityRequirementAttr, Array, Parameter, Response, Token};
+use crate::{parse_utils, security_requirement::SecurityRequirementsAttr, Array, Parameter, Response, Token};
 
 #[derive(Default, Debug)]
 pub(crate) struct EndpointAttr<'p> {
@@ -14,7 +14,7 @@ pub(crate) struct EndpointAttr<'p> {
     pub(crate) operation_id: Option<Expr>,
     pub(crate) tags: Option<Vec<String>>,
     pub(crate) parameters: Vec<Parameter<'p>>,
-    pub(crate) security: Option<Array<'p, SecurityRequirementAttr>>,
+    pub(crate) security: Option<Array<'p, SecurityRequirementsAttr>>,
 
     pub(crate) doc_comments: Option<Vec<String>>,
     pub(crate) deprecated: Option<bool>,

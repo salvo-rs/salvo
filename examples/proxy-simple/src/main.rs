@@ -8,15 +8,15 @@ async fn main() {
     let router = Router::new()
         .push(
             Router::new()
-                .host("0.0.0.0")
+                .host("127.0.0.1")
                 .path("<**rest>")
-                .goal(Proxy::new("https://www.rust-lang.org")),
+                .goal(Proxy::default_hyper_client("https://www.rust-lang.org")),
         )
         .push(
             Router::new()
                 .host("localhost")
                 .path("<**rest>")
-                .goal(Proxy::new("https://crates.io")),
+                .goal(Proxy::default_hyper_client("https://crates.io")),
         );
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;

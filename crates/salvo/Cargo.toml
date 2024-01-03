@@ -24,11 +24,12 @@ name = "salvo"
 path = "src/lib.rs"
 
 [features]
-default = ["cookie", "http1", "fix-http1-request-uri", "http2", "test"]
-full = ["cookie", "http1", "fix-http1-request-uri", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "acme", "tower-compat", "anyhow", "eyre", "test", "affix", "basic-auth", "force-https", "jwt-auth", "catch-panic", "compression", "logging", "proxy", "concurrency-limiter", "rate-limiter", "sse", "trailing-slash", "timeout", "websocket", "request-id", "caching-headers", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static", "otel", "oapi"]
+default = ["cookie", "fix-http1-request-uri", "server", "http1", "http2"]
+full = ["cookie", "fix-http1-request-uri", "server", "http1", "http2", "quinn", "rustls", "native-tls", "openssl", "unix", "acme", "tower-compat", "anyhow", "eyre", "test", "affix", "basic-auth", "force-https", "jwt-auth", "catch-panic", "compression", "logging", "proxy", "concurrency-limiter", "rate-limiter", "sse", "trailing-slash", "timeout", "websocket", "request-id", "caching-headers", "cache", "cors", "csrf", "flash", "rate-limiter", "session", "serve-static", "otel", "oapi"]
 cookie = ["salvo_core/cookie"]
-http1 = ["salvo_core/http1"]
 fix-http1-request-uri = ["salvo_core/fix-http1-request-uri"]
+server = ["salvo_core/server"]
+http1 = ["salvo_core/http1"]
 http2 = ["salvo_core/http2"]
 quinn = ["salvo_core/quinn"]
 rustls = ["salvo_core/rustls"]

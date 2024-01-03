@@ -64,3 +64,37 @@ impl Default for Header {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_build_header() {
+        let header = Header::new(Object::with_type(SchemaType::String));
+        assert_json_eq!(
+            header,
+            json!({
+                "schema": {
+                    "type": "string"
+                }
+            })
+        );
+
+        let header = header
+            .description("test description")
+            .schema(Object::with_type(SchemaType::Number));
+        assert_json_eq!(
+            header,
+            json!({
+                "description": "test description",
+                "schema": {
+                    "type": "number"
+                }
+            })
+        );
+    }
+}

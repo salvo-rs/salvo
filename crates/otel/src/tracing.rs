@@ -1,3 +1,4 @@
+use headers03::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer};
 use opentelemetry::{global, Context};
 use opentelemetry_http::HeaderExtractor;
@@ -26,8 +27,15 @@ where
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
         let remote_addr = req.remote_addr().to_string();
 
-        let parent_cx =
-            global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(req.headers())));
+        //TODO: Will remove after opentelemetry_http updated
+        let mut headers = HeaderMap::with_capacity(req.headers().len());
+        headers.extend(req.headers().into_iter().map(|(name, value)| {
+            let name = HeaderName::from_bytes(name.as_ref()).unwrap();
+            let value = HeaderValue::from_bytes(value.as_ref()).unwrap();
+            (name, value)
+        }));
+
+        let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(&headers)));
 
         let mut attributes = Vec::new();
         attributes.push(resource::TELEMETRY_SDK_NAME.string(env!("CARGO_CRATE_NAME")));

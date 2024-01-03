@@ -283,9 +283,9 @@ impl Debug for ResBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::None => write!(f, "ResBody::None"),
-            Self::Once(bytes) => write!(f, "ResBody::Once({:?})", bytes),
-            Self::Chunks(chunks) => write!(f, "ResBody::Chunks({:?})", chunks),
-            Self::Hyper(_) => write!(f, "ResBody::Hyper(_)"),
+            Self::Once(value) => f.debug_tuple("ResBody::Once").field(value).finish(),
+            Self::Chunks(value) => f.debug_tuple("ResBody::Chunks").field(value).finish(),
+            Self::Hyper(value) => f.debug_tuple("ResBody::Hyper").field(value).finish(),
             Self::Boxed(_) => write!(f, "ResBody::Boxed(_)"),
             Self::Stream(_) => write!(f, "ResBody::Stream(_)"),
             Self::Channel { .. } => write!(f, "ResBody::Channel{{..}}"),

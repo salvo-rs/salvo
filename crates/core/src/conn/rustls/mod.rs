@@ -1,7 +1,7 @@
-//! rustls module
+//! `RustlsListener` and utils.
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 
-use tokio_rustls::rustls::{Certificate, RootCertStore};
+use tokio_rustls::rustls::{pki_types::CertificateDer, RootCertStore};
 
 pub(crate) mod config;
 pub use config::{Keycert, RustlsConfig, ServerConfig};
@@ -9,13 +9,12 @@ pub use config::{Keycert, RustlsConfig, ServerConfig};
 mod listener;
 pub use listener::{RustlsAcceptor, RustlsListener};
 
-#[inline]
 pub(crate) fn read_trust_anchor(mut trust_anchor: &[u8]) -> IoResult<RootCertStore> {
-    let certs = rustls_pemfile::certs(&mut trust_anchor)?;
+    let certs = rustls_pemfile::certs(&mut trust_anchor).collect::<IoResult<Vec<_>>>()?;
     let mut store = RootCertStore::empty();
     for cert in certs {
         store
-            .add(&Certificate(cert))
+            .add(CertificateDer::from(cert))
             .map_err(|err| IoError::new(ErrorKind::Other, err.to_string()))?;
     }
     Ok(store)
@@ -27,7 +26,7 @@ mod tests {
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpStream;
-    use tokio_rustls::rustls::{ClientConfig, ServerName};
+    use tokio_rustls::rustls::{ClientConfig, pki_types::ServerName};
     use tokio_rustls::TlsConnector;
 
     use super::*;
@@ -51,7 +50,6 @@ mod tests {
             let stream = TcpStream::connect(addr).await.unwrap();
             let trust_anchor = include_bytes!("../../../certs/chain.pem");
             let client_config = ClientConfig::builder()
-                .with_safe_defaults()
                 .with_root_certificates(read_trust_anchor(trust_anchor.as_slice()).unwrap())
                 .with_no_client_auth();
             let connector = TlsConnector::from(Arc::new(client_config));

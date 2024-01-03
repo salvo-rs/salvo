@@ -39,7 +39,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 
 ## 🎯 功能特色
 
-- 基於 [Hyper](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
+- 基於 [Hyper 1](https://crates.io/crates/hyper), [Tokio](https://crates.io/crates/tokio) 開發;
 - 統一的中間件和句柄接口;
 - 支持 HTTP1, HTTP2 和 **HTTP3**;
 - 路由可以無限嵌套，並且可以在任何路由是附加多個中間件;
@@ -52,7 +52,7 @@ Salvo(賽風) 是一個極其簡單且功能強大的 Rust Web 後端框架. 僅
 ## ⚡️ 快速開始
 
 你可以查看[實例代碼](https://github.com/salvo-rs/salvo/tree/main/examples),  或者訪問[官網](https://salvo.rs).
-### 🛠️ Salvo-cli
+### 🛠️ Salvo CLI
 Salvo CLI是一個命令行工具，可以簡化創建新的Salvo項目的過程，支援Web API、網站、資料庫（包括透過SQLx、SeaORM、Diesel、Rbatis支援的SQLite、PostgreSQL、MySQL）和基本的中介軟體的模板。
 你可以使用 [salvo-cli](https://github.com/salvo-rs/salvo-cli) 来來創建一個新的 Salvo 項目:
 #### 安裝
@@ -158,7 +158,7 @@ Router::new()
     );
 ```
 
-`<id>` 匹配了路徑中的一個片段, 正常情況下文章的 `id` 隻是一個數字, 這是我們可以使用正則錶達式限製 `id` 的匹配規則, `r"<id:/\d+/>"`. 
+`<id>` 匹配了路徑中的一個片段, 正常情況下文章的 `id` 隻是一個數字, 這是我們可以使用正則錶達式限製 `id` 的匹配規則, `r"<id:/\d+/>"`.
 
 還可以通過 `<**>`, `<*+>` 或者 `<*?>` 匹配所有剩餘的路徑片段. 為了代碼易讀性性強些, 也可以添加適合的名字, 讓路徑語義更清晰, 比如: `<**file_path>`.
 
@@ -202,7 +202,7 @@ async fn upload(req: &mut Request, res: &mut Response) {
 
 ### 提取請求數據
 
-可以輕鬆地從多個不同數據源獲取數據, 並且組裝為你想要的類型. 可以先定義一個自定義的類型, 比如: 
+可以輕鬆地從多個不同數據源獲取數據, 並且組裝為你想要的類型. 可以先定義一個自定義的類型, 比如:
 
 ```rust
 #[derive(Serialize, Deserialize, Extractible, Debug)]
@@ -300,8 +300,7 @@ Benchmark 測試結果可以從這裏查看:
 
 [https://web-frameworks-benchmark.netlify.app/result?l=rust](https://web-frameworks-benchmark.netlify.app/result?l=rust)
 
-[https://www.techempower.com/benchmarks/#section=data-r21](https://www.techempower.com/benchmarks/#section=data-r21)
-![techempower](assets/tp.jpg)
+[https://www.techempower.com/benchmarks/#section=data-r22](https://www.techempower.com/benchmarks/#section=data-r22)
 
 ## 🩸 貢獻
 
@@ -316,7 +315,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ☕ 支持
 
-`Salvo`是一個開源項目, 如果想支持本項目, 可以 ☕ [**在這裏買一杯咖啡**](https://ko-fi.com/chrislearn). 
+`Salvo`是一個開源項目, 如果想支持本項目, 可以 ☕ [**在這裏買一杯咖啡**](https://ko-fi.com/chrislearn).
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>

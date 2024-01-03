@@ -59,11 +59,18 @@ const ALL_METHODS: [Method; 9] = [
 /// JwtAuthError
 #[derive(Debug, Error)]
 pub enum JwtAuthError {
-    /// HTTP request failed
+    /// HTTP client error
     #[cfg(feature = "oidc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
-    #[error("HTTP request failed")]
-    ReqwestError(#[from] reqwest::Error),
+    #[error("ClientError")]
+    ClientError(#[from] hyper_util::client::legacy::Error),
+
+    /// Error happened in hyper.
+    #[cfg(feature = "oidc")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "oidc")))]
+    #[error("HyperError")]
+    Hyper(#[from] salvo_core::hyper::Error),
+
     /// InvalidUri
     #[error("InvalidUri")]
     InvalidUri(#[from] salvo_core::http::uri::InvalidUri),

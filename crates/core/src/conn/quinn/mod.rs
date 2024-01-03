@@ -1,4 +1,4 @@
-//! QuinnListener and it's implements.
+//! `QuinnListener`` and utils.
 use std::io::{Error as IoError, Result as IoResult};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
@@ -26,7 +26,7 @@ pub use listener::{QuinnAcceptor, QuinnListener};
 impl TryInto<ServerConfig> for RustlsConfig {
     type Error = IoError;
     fn try_into(self) -> IoResult<ServerConfig> {
-        let mut crypto = self.build_server_config()?;
+        let mut crypto = self.build_server_config_old()?;
         crypto.alpn_protocols = vec![b"h3-29".to_vec(), b"h3-28".to_vec(), b"h3-27".to_vec(), b"h3".to_vec()];
         Ok(ServerConfig::with_crypto(Arc::new(crypto)))
     }

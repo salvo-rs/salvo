@@ -66,7 +66,7 @@ impl Content {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
-    pub fn examples_from_iter<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<RefOr<Example>>>(
+    pub fn extend_examples<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<RefOr<Example>>>(
         mut self,
         examples: E,
     ) -> Self {
@@ -99,5 +99,72 @@ impl From<RefOr<Schema>> for Content {
             schema,
             ..Self::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::{json, Map};
+
+    use super::*;
+
+    #[test]
+    fn test_build_content() {
+        let content = Content::new(RefOr::Ref(crate::Ref::from_schema_name("MySchema")))
+            .example(Value::Object(Map::from_iter([(
+                "schema".into(),
+                Value::String("MySchema".to_string()),
+            )])))
+            .encoding("schema".to_string(), Encoding::default().content_type("text/plain"));
+        assert_json_eq!(
+            content,
+            json!({
+              "schema": {
+                "$ref": "#/components/schemas/MySchema"
+              },
+              "example": {
+                "schema": "MySchema"
+              },
+              "encoding": {
+                  "schema": {
+                    "contentType": "text/plain"
+                  }
+              }
+            })
+        );
+
+        let content = content
+            .schema(RefOr::Ref(crate::Ref::from_schema_name("NewSchema")))
+            .extend_examples([(
+                "example1".to_string(),
+                Example::new().value(Value::Object(Map::from_iter([(
+                    "schema".into(),
+                    Value::String("MySchema".to_string()),
+                )]))),
+            )]);
+        assert_json_eq!(
+            content,
+            json!({
+              "schema": {
+                "$ref": "#/components/schemas/NewSchema"
+              },
+              "example": {
+                "schema": "MySchema"
+              },
+              "examples": {
+                "example1": {
+                  "value": {
+                    "schema": "MySchema"
+                  }
+                }
+              },
+              "encoding": {
+                  "schema": {
+                    "contentType": "text/plain"
+                  }
+              }
+            })
+        );
     }
 }

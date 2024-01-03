@@ -34,8 +34,8 @@ pub struct Array {
     pub example: Option<Value>,
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<Value>,
 
     /// Max length of the array.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,7 +69,7 @@ impl Default for Array {
             description: Default::default(),
             deprecated: Default::default(),
             example: Default::default(),
-            default: Default::default(),
+            default_value: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
@@ -125,8 +125,8 @@ impl Array {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Value) -> Self {
-        self.default = Some(default);
+    pub fn default_value(mut self, default: Value) -> Self {
+        self.default_value = Some(default);
         self
     }
 

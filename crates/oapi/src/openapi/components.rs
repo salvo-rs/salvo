@@ -45,6 +45,7 @@ impl Components {
     pub fn new() -> Self {
         Default::default()
     }
+
     /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
@@ -67,21 +68,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
-        &mut self,
-        schemas: I,
-    ) {
-        self.security_schemes
-            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
-    }
-
-    /// Add iterator of [`SecurityScheme`]s to [`Components`].
-    ///
-    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_schemes_from_iter<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         schemas: I,
     ) -> Self {
@@ -103,7 +90,7 @@ impl Components {
     /// # Examples
     /// ```
     /// # use salvo_oapi::{Components, Object, SchemaType, Schema};
-    /// Components::new().schemas_from_iter([(
+    /// Components::new().extend_schemas([(
     ///     "Pet",
     ///     Schema::from(
     ///         Object::new()
@@ -115,7 +102,7 @@ impl Components {
     ///     ),
     /// )]);
     /// ```
-    pub fn schemas_from_iter<I, C, S>(mut self, schemas: I) -> Self
+    pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
     where
         I: IntoIterator<Item = (S, C)>,
         C: Into<RefOr<Schema>>,

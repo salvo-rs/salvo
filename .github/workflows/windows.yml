@@ -39,7 +39,7 @@ jobs:
 
       - name: check release build
         run: cargo check --all --bins --examples --tests --release
-          
+
       - name: Cargo test
         timeout-minutes: 40
         run: cargo test --all --all-features --no-fail-fast -- --nocapture

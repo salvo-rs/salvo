@@ -84,3 +84,56 @@ impl Tag {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ExternalDocs;
+    use super::Tag;
+
+    #[test]
+    fn tag_new() {
+        let tag = Tag::new("tag name");
+        assert_eq!(tag.name, "tag name");
+        assert!(tag.description.is_none());
+        assert!(tag.external_docs.is_none());
+        assert!(tag.extensions.is_none());
+
+        let tag = tag.name("new tag name");
+        assert_eq!(tag.name, "new tag name");
+
+        let tag = tag.description("description");
+        assert!(tag.description.is_some());
+
+        let tag = tag.external_docs(ExternalDocs::new(""));
+        assert!(tag.external_docs.is_some());
+    }
+
+    #[test]
+    fn from_string() {
+        let name = "tag name".to_string();
+        let tag = Tag::from(name);
+        assert_eq!(tag.name, "tag name".to_string());
+    }
+
+    #[test]
+    fn from_string_ref() {
+        let name = "tag name".to_string();
+        let tag = Tag::from(&name);
+        assert_eq!(tag.name, "tag name".to_string());
+    }
+
+    #[test]
+    fn from_str() {
+        let name = "tag name";
+        let tag = Tag::from(name);
+        assert_eq!(tag.name, "tag name");
+    }
+
+    #[test]
+    fn cmp() {
+        let tag1 = Tag::new("a");
+        let tag2 = Tag::new("b");
+
+        assert!(tag1 < tag2);
+    }
+}

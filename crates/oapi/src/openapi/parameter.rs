@@ -327,3 +327,191 @@ pub enum ParameterStyle {
     /// Allowed with [`ParameterIn::Query`].
     DeepObject,
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::Object;
+
+    use super::*;
+
+    #[test]
+    fn test_build_parameter() {
+        let parameter = Parameter::new("name");
+        assert_eq!(parameter.name, "name");
+
+        let parameter = parameter
+            .name("new name")
+            .parameter_in(ParameterIn::Query)
+            .required(Required::True)
+            .description("description")
+            .deprecated(Deprecated::False)
+            .schema(Schema::Object(Object::new()))
+            .style(ParameterStyle::Simple)
+            .explode(true)
+            .allow_reserved(true)
+            .example(Value::String("example".to_string()));
+        assert_json_eq!(
+            parameter,
+            json!({
+                "name": "new name",
+                "in": "query",
+                "required": true,
+                "description": "description",
+                "deprecated": false,
+                "schema": {
+                    "type": "object"
+                },
+                "style": "simple",
+                "explode": true,
+                "allowReserved": true,
+                "example": "example"
+            })
+        );
+    }
+
+    #[test]
+    fn test_parameter_merge_fail() {
+        let mut parameter1 = Parameter::new("param1");
+        let parameter2 = Parameter::new("param2");
+
+        assert!(!parameter1.merge(parameter2));
+    }
+
+    #[test]
+    fn test_parameter_merge_success() {
+        let mut parameter1 = Parameter::new("param1");
+        let mut parameter2 = Parameter::new("param1")
+            .description("description")
+            .required(Required::True)
+            .deprecated(Deprecated::True)
+            .schema(Schema::Object(Object::new()))
+            .style(ParameterStyle::Form)
+            .explode(true)
+            .allow_reserved(true)
+            .example(Value::String("example".to_string()));
+
+        parameter1.extensions = Some(HashMap::from([(
+            "key1".to_string(),
+            Value::String("value1".to_string()),
+        )]));
+        parameter2.extensions = Some(HashMap::from([(
+            "key2".to_string(),
+            Value::String("value2".to_string()),
+        )]));
+
+        assert!(parameter1.merge(parameter2));
+        assert_json_eq!(
+            parameter1,
+            json!({
+                "name": "param1",
+                "in": "path",
+                "description": "description",
+                "required": true,
+                "deprecated": true,
+                "schema": {
+                    "type": "object"
+                },
+                "style": "form",
+                "explode": true,
+                "allowReserved": true,
+                "example": "example",
+                "key1": "value1",
+                "key2": "value2"
+            })
+        )
+    }
+
+    #[test]
+    fn test_parameter_merge_no_extensions() {
+        let mut parameter1 = Parameter::new("param1");
+        let mut parameter2 = Parameter::new("param1")
+            .description("description")
+            .required(Required::True)
+            .deprecated(Deprecated::True)
+            .schema(Schema::Object(Object::new()))
+            .style(ParameterStyle::Form)
+            .explode(true)
+            .allow_reserved(true)
+            .example(Value::String("example".to_string()));
+
+        parameter2.extensions = Some(HashMap::from([(
+            "key2".to_string(),
+            Value::String("value2".to_string()),
+        )]));
+
+        assert!(parameter1.merge(parameter2));
+        assert_json_eq!(
+            parameter1,
+            json!({
+                "name": "param1",
+                "in": "path",
+                "description": "description",
+                "required": true,
+                "deprecated": true,
+                "schema": {
+                    "type": "object"
+                },
+                "style": "form",
+                "explode": true,
+                "allowReserved": true,
+                "example": "example",
+            })
+        )
+    }
+
+    #[test]
+    fn test_build_parameters() {
+        let parameters = Parameters::new();
+        assert!(parameters.is_empty());
+    }
+
+    #[test]
+    fn test_parameters_into_iter() {
+        let parameters = Parameters::new().parameter(Parameter::new("param"));
+        let mut iter = parameters.into_iter();
+        assert_eq!(iter.next(), Some(Parameter::new("param")));
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_parameters_contain() {
+        let parameters = Parameters::new().parameter(Parameter::new("param"));
+        assert!(parameters.contains("param", ParameterIn::Path));
+    }
+
+    #[test]
+    fn test_parameters_insert_existed_item() {
+        let mut parameters = Parameters::new();
+        parameters.insert(Parameter::new("param"));
+        assert!(parameters.contains("param", ParameterIn::Path));
+
+        parameters.insert(Parameter::new("param"));
+        assert_eq!(parameters.0.len(), 1);
+    }
+
+    #[test]
+    fn test_parameters_append() {
+        let mut parameters1 = Parameters::new().parameter(Parameter::new("param1"));
+        let mut parameters2 = Parameters::new().parameter(Parameter::new("param2"));
+
+        parameters1.append(&mut parameters2);
+        assert_json_eq!(
+            parameters1,
+            json!([
+                {
+                    "in": "path",
+                    "name": "param1",
+                    "required": false
+                },
+                {
+                    "in": "path",
+                    "name": "param2",
+                    "required": false
+                }
+            ])
+        );
+    }
+}

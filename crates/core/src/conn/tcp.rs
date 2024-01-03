@@ -102,8 +102,8 @@ where
 {
     type Acceptor = TcpAcceptor;
 
-    async fn try_bind(self) -> IoResult<Self::Acceptor> {
-        TokioTcpListener::bind(self.local_addr).await?.try_into()
+    async fn try_bind(self) -> crate::Result<Self::Acceptor> {
+        Ok(TokioTcpListener::bind(self.local_addr).await?.try_into()?)
     }
 }
 /// `TcpAcceptor` is used to accept a TCP connection.

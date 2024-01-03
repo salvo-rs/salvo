@@ -25,6 +25,7 @@ opentelemetry-http = { workspace = true }
 opentelemetry-semantic-conventions = { workspace = true }
 opentelemetry = { workspace = true, features = ["metrics"] }
 salvo_core = { workspace = true, default-features = false }
+headers03 = {version = "0.3", package = "headers"}
 
 [dev-dependencies]
 salvo_core = { workspace = true, features = ["test"] }

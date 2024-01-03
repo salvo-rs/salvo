@@ -33,7 +33,11 @@ pub mod routing;
 pub mod rt;
 #[doc(hidden)]
 pub mod serde;
-pub mod server;
+cfg_feature! {
+    #![feature ="server"]
+    pub mod server;
+    pub use self::server::Server;
+}
 mod service;
 pub mod writing;
 cfg_feature! {
@@ -57,7 +61,6 @@ pub use self::extract::Extractible;
 pub use self::handler::Handler;
 pub use self::http::{Request, Response};
 pub use self::routing::{FlowCtrl, Router};
-pub use self::server::Server;
 pub use self::service::Service;
 pub use self::writing::{Scribe, Writer};
 /// Result type which has `salvo::Error` as it's error type.
@@ -101,7 +104,10 @@ pub mod prelude {
     pub use crate::conn::{JoinedListener, Listener, TcpListener};
     pub use crate::handler::{self, Handler};
     pub use crate::routing::{FlowCtrl, Router};
-    pub use crate::server::Server;
+    cfg_feature! {
+        #![feature = "server"]
+        pub use crate::server::Server;
+    }
     pub use crate::service::Service;
     pub use crate::writing::{Json, Redirect, Scribe, Text, Writer};
 }

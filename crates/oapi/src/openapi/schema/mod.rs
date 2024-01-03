@@ -62,7 +62,7 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Object::default())
+        Schema::Object(Default::default())
     }
 }
 
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_schema_components() {
         let components = Components::new()
-            .schemas_from_iter(vec![(
+            .extend_schemas(vec![(
                 "Comp",
                 Schema::from(
                     Object::new()
@@ -549,8 +549,10 @@ mod tests {
                         .required("name"),
                 ),
             )])
+            .response("204", Response::new("No Content"))
             .extend_responses(vec![("200", Response::new("Okay"))])
-            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None });
+            .add_security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .extend_security_schemes(vec![("APIKey", SecurityScheme::Http(security::Http::default()))]);
 
         let serialized_components = serde_json::to_string(&components).unwrap();
 

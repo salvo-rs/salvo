@@ -3,11 +3,11 @@ name = "salvo-oapi"
 version = { workspace = true }
 edition = "2021"
 description = "OpenApi support for Salvo web framework"
-readme = "README.md"
-license = "MIT/Apache-2.0"
+readme = "./README.md"
+license = { workspace = true }
 documentation = "https://docs.rs/salvo-oapi/"
-homepage = "https://github.com/salvo-rs/salvo"
-repository = "https://github.com/salvo-rs/salvo"
+homepage = { workspace = true }
+repository = { workspace = true }
 keywords = ["http", "async", "salvo", "openapi", "swagger-ui"]
 categories = ["network-programming", "asynchronous"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chrislearn@hotmail.com>"]
@@ -43,7 +43,6 @@ mime-infer = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_urlencoded = { workspace = true }
 regex = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

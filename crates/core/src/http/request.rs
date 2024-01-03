@@ -2,6 +2,8 @@
 
 use std::error::Error as StdError;
 use std::fmt::{self, Formatter};
+#[cfg(feature = "quinn")]
+use std::sync::Arc;
 
 use bytes::Bytes;
 #[cfg(feature = "cookie")]
@@ -138,18 +140,18 @@ impl Request {
 
         // Set the request cookies, if they exist.
         #[cfg(feature = "cookie")]
-        let cookies = if let Some(header) = headers.get("Cookie") {
+        let cookies = {
             let mut cookie_jar = CookieJar::new();
-            if let Ok(header) = header.to_str() {
-                for cookie_str in header.split(';').map(|s| s.trim()) {
-                    if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
-                        cookie_jar.add_original(cookie);
+            for header in headers.get_all(http::header::COOKIE) {
+                if let Ok(header) = header.to_str() {
+                    for cookie_str in header.split(';').map(|s| s.trim()) {
+                        if let Ok(cookie) = Cookie::parse_encoded(cookie_str).map(|c| c.into_owned()) {
+                            cookie_jar.add_original(cookie);
+                        }
                     }
                 }
             }
             cookie_jar
-        } else {
-            CookieJar::new()
         };
 
         Request {
@@ -455,14 +457,14 @@ impl Request {
                     let stream = self.extensions.remove::<salvo_http3::server::RequestStream<salvo_http3::http3_quinn::BidiStream<Bytes>, Bytes>>();
                     if conn.is_some() && stream.is_some() {
                         let session =  crate::proto::WebTransportSession::accept(stream.unwrap(), conn.unwrap().into_inner().unwrap()).await?;
-                        self.extensions.insert(session);
+                        self.extensions.insert(Arc::new(session));
                         Ok(self.extensions.get_mut::<crate::proto::WebTransportSession<salvo_http3::http3_quinn::Connection, Bytes>>().unwrap())
                     } else {
                         if let Some(conn) = conn {
-                            self.extensions_mut().insert(conn);
+                            self.extensions_mut().insert(Arc::new(conn));
                         }
                         if let Some(stream) = stream {
-                            self.extensions_mut().insert(stream);
+                            self.extensions_mut().insert(Arc::new(stream));
                         }
                         Err(crate::Error::Other("invalid web transport".into()))
                     }
@@ -792,10 +794,15 @@ impl Request {
         let ctype = self.content_type();
         if let Some(ctype) = ctype {
             if ctype.subtype() == mime::JSON {
-                return self
-                    .payload_with_max_size(max_size)
-                    .await
-                    .and_then(|payload| serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson));
+                return self.payload_with_max_size(max_size).await.and_then(|payload| {
+                    // fix issue https://github.com/salvo-rs/salvo/issues/545
+                    let payload = if payload.is_empty() {
+                        "null".as_bytes()
+                    } else {
+                        payload.as_ref()
+                    };
+                    serde_json::from_slice::<T>(payload).map_err(ParseError::SerdeJson)
+                });
             }
         }
         Err(ParseError::InvalidContentType)

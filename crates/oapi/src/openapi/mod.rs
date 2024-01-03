@@ -229,6 +229,96 @@ impl OpenApi {
         self
     }
 
+    /// Add [`SecurityScheme`] to [`Components`] and returns `Self`.
+    ///
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+        mut self,
+        name: N,
+        security_scheme: S,
+    ) -> Self {
+        self.components
+            .security_schemes
+            .insert(name.into(), security_scheme.into());
+
+        self
+    }
+
+    /// Add iterator of [`SecurityScheme`]s to [`Components`].
+    ///
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn extend_security_schemes<I: IntoIterator<Item = (N, S)>, N: Into<String>, S: Into<SecurityScheme>>(
+        mut self,
+        schemas: I,
+    ) -> Self {
+        self.components
+            .security_schemes
+            .extend(schemas.into_iter().map(|(name, item)| (name.into(), item.into())));
+        self
+    }
+
+    /// Add [`Schema`] to [`Components`] and returns `Self`.
+    ///
+    /// Accepts two arguments where first is name of the schema and second is the schema itself.
+    pub fn add_schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+        self.components.schemas.insert(name.into(), schema.into());
+        self
+    }
+
+    /// Add [`Schema`]s from iterator.
+    ///
+    /// # Examples
+    /// ```
+    /// # use salvo_oapi::{OpenApi, Object, SchemaType, Schema};
+    /// OpenApi::new("api", "0.0.1").extend_schemas([(
+    ///     "Pet",
+    ///     Schema::from(
+    ///         Object::new()
+    ///             .property(
+    ///                 "name",
+    ///                 Object::new().schema_type(SchemaType::String),
+    ///             )
+    ///             .required("name")
+    ///     ),
+    /// )]);
+    /// ```
+    pub fn extend_schemas<I, C, S>(mut self, schemas: I) -> Self
+    where
+        I: IntoIterator<Item = (S, C)>,
+        C: Into<RefOr<Schema>>,
+        S: Into<String>,
+    {
+        self.components
+            .schemas
+            .extend(schemas.into_iter().map(|(name, schema)| (name.into(), schema.into())));
+        self
+    }
+
+    /// Add a new response and returns `self`.
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(mut self, name: S, response: R) -> Self {
+        self.components.responses.insert(name.into(), response.into());
+        self
+    }
+
+    /// Extends responses with the contents of an iterator.
+    pub fn extend_responses<I: IntoIterator<Item = (S, R)>, S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        responses: I,
+    ) -> Self {
+        self.components.responses.extend(
+            responses
+                .into_iter()
+                .map(|(name, response)| (name.into(), response.into())),
+        );
+        self
+    }
+
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
     pub fn tags<I, T>(mut self, tags: I) -> Self
     where
@@ -538,14 +628,20 @@ mod tests {
                 "name": "MIT",
                 "url": "http://mit.licence"
               },
-              "version": "1.0.0"
+              "version": "1.0.0",
+              "contact": {},
+              "termsOfService": "terms of service"
             },
             "paths": {}
           }"#;
         let doc: OpenApi = OpenApi::with_info(
-            Info::new("My api", "1.0.0")
+            Info::default()
                 .description("My api description")
-                .license(License::new("MIT").url("http://mit.licence")),
+                .license(License::new("MIT").url("http://mit.licence"))
+                .title("My api")
+                .version("1.0.0")
+                .terms_of_service("terms of service")
+                .contact(Contact::default()),
         );
         let serialized = doc.to_json()?;
 
@@ -757,7 +853,8 @@ mod tests {
         security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),
-            ("token_jwt" = [])
+            ("token_jwt" = []),
+            ("api_key1" = [], "api_key2" = []),
         )
     )]
         pub async fn get_pet_by_id(pet_id: PathParam<u64>) -> Json<Pet> {
@@ -850,6 +947,10 @@ mod tests {
                                 },
                                 {
                                    "token_jwt": []
+                                },
+                                {
+                                    "api_key1": [],
+                                    "api_key2": []
                                 }
                              ]
                           }
