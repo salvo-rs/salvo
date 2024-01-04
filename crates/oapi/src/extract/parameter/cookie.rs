@@ -2,7 +2,7 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::{Request, ParseError};
+use salvo_core::http::{ParseError, Request};
 use salvo_core::serde::from_str_val;
 use serde::Deserialize;
 use serde::Deserializer;

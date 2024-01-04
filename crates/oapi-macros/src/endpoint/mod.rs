@@ -15,8 +15,14 @@ fn metadata(
     name: &Ident,
     mut modifiers: Vec<TokenStream>,
 ) -> syn::Result<TokenStream> {
-    let tfn = Ident::new(&format!("__macro_gen_oapi_endpoint_type_id_{}", name), Span::call_site());
-    let cfn = Ident::new(&format!("__macro_gen_oapi_endpoint_creator_{}", name), Span::call_site());
+    let tfn = Ident::new(
+        &format!("__macro_gen_oapi_endpoint_type_id_{}", name),
+        Span::call_site(),
+    );
+    let cfn = Ident::new(
+        &format!("__macro_gen_oapi_endpoint_creator_{}", name),
+        Span::call_site(),
+    );
     let opt = Operation::new(&attr);
     modifiers.append(opt.modifiers().as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {

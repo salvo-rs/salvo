@@ -88,7 +88,10 @@ pub trait Extractible<'de>: Deserialize<'de> {
         async { from_request(req, Self::metadata()).await }
     }
     /// Extract data from request with a argument. This function used in macros internal.
-    fn extract_with_arg(req: &'de mut Request, _arg: &str) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
+    fn extract_with_arg(
+        req: &'de mut Request,
+        _arg: &str,
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
     where
         Self: Sized,
     {
