@@ -75,7 +75,6 @@ use crate::serde::from_request;
 use crate::Writer;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
-// #[async_trait]
 pub trait Extractible<'de>: Deserialize<'de> {
     /// Metadata for Extractible type.
     fn metadata() -> &'de Metadata;
