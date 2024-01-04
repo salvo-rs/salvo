@@ -111,7 +111,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
-                                // e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                                e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                                 return;
                             }
                         };

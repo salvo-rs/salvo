@@ -4,8 +4,7 @@ use std::ops::{Deref, DerefMut};
 use salvo_core::extract::{Extractible, Metadata};
 use salvo_core::http::ParseError;
 use salvo_core::Request;
-use serde::Deserialize;
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
