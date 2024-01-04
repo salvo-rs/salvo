@@ -66,7 +66,7 @@ http-body-util = "0.1"
 hmac = "0.12"
 hex = "0.4"
 hostname-validator = "1"
-hyper = { version = "1", features = ["full"] }
+hyper = { version = "1.1.0", features = ["full"] }
 hyper-util = { version = "0.1.2", default-features = true }
 hyper-tls = "0.6"
 indexmap = "2"
