@@ -572,21 +572,20 @@ mod tests {
                 }
                 #[salvo::async_trait]
                 impl salvo::Handler for hello {
-                    #[inline]
                     async fn handle(
                         &self,
-                        __macro_generated_req: &mut salvo::Request,
-                        depot: &mut salvo::Depot,
-                        res: &mut salvo::Response,
-                        ctrl: &mut salvo::FlowCtrl
+                        __macro_gen_req: &mut salvo::Request,
+                        __macro_gen_depot: &mut salvo::Depot,
+                        __macro_gen_res: &mut salvo::Response,
+                        __macro_gen_ctrl: &mut salvo::FlowCtrl
                     ) {
                         Self::hello().await
                     }
                 }
-                fn __salvo_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
+                fn __macro_gen_oapi_endpoint_type_id_hello() -> ::std::any::TypeId {
                     ::std::any::TypeId::of::<hello>()
                 }
-                fn __salvo_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
+                fn __macro_gen_oapi_endpoint_creator_hello() -> salvo::oapi::Endpoint {
                     let mut components = salvo::oapi::Components::new();
                     let status_codes: &[salvo::http::StatusCode] = &[];
                     fn modify(components: &mut salvo::oapi::Components, operation: &mut salvo::oapi::Operation) {}
@@ -610,7 +609,7 @@ mod tests {
                         components,
                     }
                 }
-                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__salvo_oapi_endpoint_type_id_hello , __salvo_oapi_endpoint_creator_hello) }
+                salvo::oapi::__private::inventory::submit! { salvo :: oapi :: EndpointRegistry :: save (__macro_gen_oapi_endpoint_type_id_hello , __macro_gen_oapi_endpoint_creator_hello) }
             }
             .to_string()
         );

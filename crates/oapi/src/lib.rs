@@ -384,7 +384,6 @@ where
 ///     }
 /// }
 ///
-/// #[async_trait]
 /// impl<'de> Extractible<'de> for PetParams {
 ///    fn metadata() -> &'de Metadata {
 ///      static METADATA: Metadata = Metadata::new("");

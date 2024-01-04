@@ -2,8 +2,7 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
-use salvo_core::Request;
+use salvo_core::{Writer, Request};
 use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
@@ -69,12 +68,10 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    #[allow(refining_impl_trait)]
-    async fn extract(req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(req: &'de mut Request) -> Result<Self, impl Writer + Send + 'static> {
         req.parse_json().await
     }
-    #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, impl Writer + Send + 'static> {
         Self::extract(req).await
     }
 }

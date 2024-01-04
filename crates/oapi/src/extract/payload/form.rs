@@ -72,10 +72,10 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, impl Writer> {
+    async fn extract(req: &'de mut Request) -> Result<Self, impl Writer + Send + 'static> {
         req.parse_form().await
     }
-    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, impl Writer> {
+    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, impl Writer + Send + 'static> {
         Self::extract(req).await
     }
 }
