@@ -597,19 +597,20 @@ pub enum RefOr<T> {
 mod tests {
     use std::str::FromStr;
 
+    use bytes::Bytes;
     use serde_json::{json, Value};
 
     use super::{response::Response, *};
     use crate::{
         extract::*,
         info::Info,
-        security::{Http, HttpAuthScheme, SecurityScheme},
+        security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme},
         server::{Server, ServerVariable},
         OpenApi, Operation, Paths, ToSchema,
     };
 
-    use salvo_core::prelude::*;
     use salvo_core::Router;
+    use salvo_core::{http::ResBody, prelude::*};
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
@@ -843,20 +844,20 @@ mod tests {
         ///
         /// Get pet from database by pet database id
         #[salvo_oapi::endpoint(
-        responses(
-            (status_code = 200, description = "Pet found successfully"),
-            (status_code = 404, description = "Pet was not found")
-        ),
-        parameters(
-            ("id", description = "Pet database id to get Pet for"),
-        ),
-        security(
-            (),
-            ("my_auth" = ["read:items", "edit:items"]),
-            ("token_jwt" = []),
-            ("api_key1" = [], "api_key2" = []),
-        )
-    )]
+            responses(
+                (status_code = 200, description = "Pet found successfully"),
+                (status_code = 404, description = "Pet was not found")
+            ),
+            parameters(
+                ("id", description = "Pet database id to get Pet for"),
+            ),
+            security(
+                (),
+                ("my_auth" = ["read:items", "edit:items"]),
+                ("token_jwt" = []),
+                ("api_key1" = [], "api_key2" = []),
+            )
+        )]
         pub async fn get_pet_by_id(pet_id: PathParam<u64>) -> Json<Pet> {
             let pet = Pet {
                 id: pet_id.into_inner(),
@@ -997,6 +998,144 @@ mod tests {
             )
             .unwrap(),
             Value::from_str(&doc.to_json().unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_build_openapi() {
+        let doc = OpenApi::new("pet api", "0.1.0")
+            .info(Info::new("my pet api", "0.2.0"))
+            .servers(Servers::new())
+            .add_path("/api/v1", PathItem::new(PathItemType::Get, Operation::new()))
+            .security([SecurityRequirement::default()])
+            .add_security_scheme(
+                "api_key",
+                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
+            )
+            .extend_security_schemes([("TLS", SecurityScheme::MutualTls { description: None })])
+            .add_schema("example", Schema::Object(Object::new()))
+            .extend_schemas([("", Schema::from(Object::new()))])
+            .response("200", Response::new("OK"))
+            .extend_responses([("404", Response::new("Not Found"))])
+            .tags(["tag1", "tag2"])
+            .external_docs(ExternalDocs::default())
+            .into_router("/openapi/doc");
+    }
+
+    #[test]
+    fn test_openapi_to_pretty_json() -> Result<(), serde_json::Error> {
+        let raw_json = r#"{
+            "openapi": "3.1.0",
+            "info": {
+                "title": "My api",
+                "description": "My api description",
+                "license": {
+                "name": "MIT",
+                "url": "http://mit.licence"
+                },
+                "version": "1.0.0",
+                "contact": {},
+                "termsOfService": "terms of service"
+            },
+            "paths": {}
+        }"#;
+        let doc: OpenApi = OpenApi::with_info(
+            Info::default()
+                .description("My api description")
+                .license(License::new("MIT").url("http://mit.licence"))
+                .title("My api")
+                .version("1.0.0")
+                .terms_of_service("terms of service")
+                .contact(Contact::default()),
+        );
+        let serialized = doc.to_pretty_json()?;
+
+        assert_eq!(
+            Value::from_str(&serialized)?,
+            Value::from_str(raw_json)?,
+            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_deprecated_from_bool() {
+        assert_eq!(Deprecated::True, Deprecated::from(true));
+        assert_eq!(Deprecated::False, Deprecated::from(false));
+    }
+
+    #[test]
+    fn test_deprecated_deserialize() {
+        let deserialize_result = serde_json::from_str::<Deprecated>("true");
+        assert_eq!(deserialize_result.unwrap(), Deprecated::True);
+        let deserialize_result = serde_json::from_str::<Deprecated>("false");
+        assert_eq!(deserialize_result.unwrap(), Deprecated::False);
+    }
+
+    #[test]
+    fn test_required_from_bool() {
+        assert_eq!(Required::True, Required::from(true));
+        assert_eq!(Required::False, Required::from(false));
+    }
+
+    #[test]
+    fn test_required_deserialize() {
+        let deserialize_result = serde_json::from_str::<Required>("true");
+        assert_eq!(deserialize_result.unwrap(), Required::True);
+        let deserialize_result = serde_json::from_str::<Required>("false");
+        assert_eq!(deserialize_result.unwrap(), Required::False);
+    }
+
+    #[tokio::test]
+    async fn test_openapi_handle() {
+        let doc = OpenApi::new("pet api", "0.1.0");
+        let mut req = Request::new();
+        let mut depot = Depot::new();
+        let mut res = salvo_core::Response::new();
+        let mut ctrl = FlowCtrl::default();
+        doc.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
+
+        let bytes = match res.body.take() {
+            ResBody::Once(bytes) => bytes,
+            _ => Bytes::new(),
+        };
+
+        assert_eq!(
+            res.content_type().unwrap().to_string(),
+            "application/json; charset=utf-8".to_string()
+        );
+        assert_eq!(
+            bytes,
+            Bytes::from_static(
+                b"{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"pet api\",\"version\":\"0.1.0\"},\"paths\":{}}"
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn test_openapi_handle_pretty() {
+        let doc = OpenApi::new("pet api", "0.1.0");
+
+        let mut req = Request::new();
+        req.queries_mut().insert("pretty".to_string(), "true".to_string());
+
+        let mut depot = Depot::new();
+        let mut res = salvo_core::Response::new();
+        let mut ctrl = FlowCtrl::default();
+        doc.handle(&mut req, &mut depot, &mut res, &mut ctrl).await;
+
+        let bytes = match res.body.take() {
+            ResBody::Once(bytes) => bytes,
+            _ => Bytes::new(),
+        };
+
+        assert_eq!(
+            res.content_type().unwrap().to_string(),
+            "application/json; charset=utf-8".to_string()
+        );
+        assert_eq!(
+            bytes,
+            Bytes::from_static(b"{\n  \"openapi\": \"3.1.0\",\n  \"info\": {\n    \"title\": \"pet api\",\n    \"version\": \"0.1.0\"\n  },\n  \"paths\": {}\n}")
         );
     }
 }
