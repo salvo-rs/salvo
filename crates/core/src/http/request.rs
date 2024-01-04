@@ -577,7 +577,7 @@ impl Request {
         })
     }
     /// Get mutable queries reference.
-    pub fn queries_mut(&mut self) -> &MultiMap<String, String> {
+    pub fn queries_mut(&mut self) -> &mut MultiMap<String, String> {
         let _ = self.queries();
         self.queries.get_mut().unwrap()
     }
