@@ -315,7 +315,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ☕ 支持
 
-`Salvo`是一個開源項目, 如果想支持本項目, 可以 ☕ [**在這裏買一杯咖啡**](https://ko-fi.com/chrislearn).
+`Salvo`是一個開源項目, 如果想支持本項目, 可以 ☕ [**請我喝杯咖啡**](https://ko-fi.com/chrislearn).
 <p style="text-align: center;">
 <img src="https://salvo.rs/images/alipay.png" alt="Alipay" width="180"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://salvo.rs/images/weixin.png" alt="Weixin" width="180"/>
 </p>
