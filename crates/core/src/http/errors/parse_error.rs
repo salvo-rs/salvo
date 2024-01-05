@@ -1,11 +1,12 @@
+use std::fmt::Debug;
 use std::io::Error as IoError;
 use std::str::Utf8Error;
 
 use serde::de::value::Error as DeError;
 use thiserror::Error;
 
-use crate::http::StatusError;
-use crate::{BoxedError, Response, Scribe};
+use crate::http::{Request, Response, StatusError};
+use crate::{async_trait, BoxedError, Depot, Writer};
 
 /// Result type with `ParseError` has it's error type.
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -74,22 +75,18 @@ pub enum ParseError {
     #[error("Other error: {0}")]
     Other(BoxedError),
 }
+
 impl ParseError {
     /// Create a custom error.
-    #[inline]
     pub fn other(error: impl Into<BoxedError>) -> Self {
         Self::Other(error.into())
     }
 }
 
-impl Scribe for ParseError {
-    #[inline]
-    fn render(self, res: &mut Response) {
-        res.render(
-            StatusError::internal_server_error()
-                .brief("http read error happened")
-                .cause(self),
-        );
+#[async_trait]
+impl Writer for ParseError {
+    async fn write(self, _req: &mut Request, _depot: &mut Depot, res: &mut Response) {
+        res.render(StatusError::bad_request().brief("parse http data failed.").cause(self));
     }
 }
 

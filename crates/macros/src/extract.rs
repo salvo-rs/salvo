@@ -1,6 +1,6 @@
 use cruet::Inflector;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
@@ -257,7 +257,7 @@ fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
 pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     let mut args: ExtractibleArgs = ExtractibleArgs::from_derive_input(&args)?;
     let salvo = salvo_crate();
-    let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
+    let (_, ty_generics, where_clause) = args.generics.split_for_impl();
 
     let name = &args.ident;
     let mut default_sources = Vec::new();
@@ -327,43 +327,44 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         });
     }
 
-    let sv: Ident = format_ident!("__salvo_extract_{}", name);
     let mt = name.to_string();
-    let imp_code = if args.generics.lifetimes().next().is_none() {
-        let de_life_def = syn::parse_str("'de").unwrap();
+    let metadata = quote! {
+        fn metadata() ->  &'static #salvo::extract::Metadata {
+            static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
+            METADATA.get_or_init(|| {
+                let mut metadata = #salvo::extract::Metadata::new(#mt);
+                #(
+                    #default_sources
+                )*
+                #rename_all
+                #(
+                    #fields
+                )*
+                metadata
+            })
+        }
+    };
+    let life_param = args.generics.lifetimes().next();
+    let code = if let Some(life_param) = life_param {
+        let de_life_def = syn::parse_str(&format!("'__macro_gen_de:{}", life_param.lifetime)).unwrap();
         let mut generics = args.generics.clone();
         generics.params.insert(0, de_life_def);
         let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'de> for #name #ty_generics #where_clause {
-                fn metadata() ->  &'static #salvo::extract::Metadata {
-                    &*#sv
-                }
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_de> for #name #ty_generics #where_clause {
+                #metadata
             }
         }
     } else {
+        let de_life_def = syn::parse_str("'__macro_gen_de").unwrap();
+        let mut generics = args.generics.clone();
+        generics.params.insert(0, de_life_def);
+        let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics #salvo::extract::Extractible #impl_generics for #name #ty_generics #where_clause {
-                fn metadata() ->  &'static #salvo::extract::Metadata {
-                    &*#sv
-                }
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_de> for #name #ty_generics #where_clause {
+                #metadata
             }
         }
-    };
-    let code = quote! {
-        #[allow(non_upper_case_globals)]
-        static #sv: #salvo::__private::once_cell::sync::Lazy<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::Lazy::new(||{
-            let mut metadata = #salvo::extract::Metadata::new(#mt);
-            #(
-                #default_sources
-            )*
-            #rename_all
-            #(
-                #fields
-            )*
-            metadata
-        });
-        #imp_code
     };
     Ok(code)
 }

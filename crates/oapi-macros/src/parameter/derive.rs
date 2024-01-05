@@ -195,7 +195,6 @@ impl ToTokens for ToParameters {
                     }
                 }
             }
-            #[#salvo::async_trait]
             impl #de_impl_generics #salvo::Extractible<'__de> for #ident #ty_generics #where_clause {
                 fn metadata() -> &'__de #salvo::extract::Metadata {
                     static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
@@ -206,10 +205,10 @@ impl ToTokens for ToParameters {
                             .rename_all(#rename_all)
                     )
                 }
-                async fn extract(req: &'__de mut #salvo::Request) -> Result<Self, #salvo::http::ParseError> {
+                async fn extract(req: &'__de mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__de mut #salvo::Request, _arg: &str) -> Result<Self, #salvo::http::ParseError> {
+                async fn extract_with_arg(req: &'__de mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + 'static> {
                     Self::extract(req).await
                 }
             }

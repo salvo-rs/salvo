@@ -2,11 +2,9 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
+use salvo_core::http::{ParseError, Request};
 use salvo_core::serde::from_str_val;
-use salvo_core::{async_trait, Request};
-use serde::Deserialize;
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
@@ -82,7 +80,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for CookieParam<T, true>
 where
     T: Deserialize<'de>,
@@ -91,9 +88,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
-        unimplemented!("cookie parameter can not be extracted from request")
+        unimplemented!("cookie parameter can not be extracted from request");
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .cookies()
@@ -106,7 +105,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for CookieParam<T, false>
 where
     T: Deserialize<'de>,
@@ -115,9 +113,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))

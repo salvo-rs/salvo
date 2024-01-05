@@ -2,10 +2,8 @@ use std::fmt::{self, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use salvo_core::extract::{Extractible, Metadata};
-use salvo_core::http::ParseError;
-use salvo_core::{async_trait, Request};
-use serde::Deserialize;
-use serde::Deserializer;
+use salvo_core::http::{ParseError, Request};
+use serde::{Deserialize, Deserializer};
 
 use crate::endpoint::EndpointArgRegister;
 use crate::{Components, Operation, Parameter, ParameterIn, ToSchema};
@@ -63,7 +61,6 @@ where
     }
 }
 
-#[async_trait]
 impl<'de, T> Extractible<'de> for PathParam<T>
 where
     T: Deserialize<'de>,
@@ -72,9 +69,11 @@ where
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
+    #[allow(refining_impl_trait)]
     async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
         unimplemented!("path parameter can not be extracted from request")
     }
+    #[allow(refining_impl_trait)]
     async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .param(arg)
