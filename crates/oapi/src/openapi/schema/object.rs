@@ -337,3 +337,94 @@ impl From<Object> for RefOr<Schema> {
         Self::T(Schema::Object(obj))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_build_string_object() {
+        let object = Object::new()
+            .schema_type(SchemaType::String)
+            .deprecated(Deprecated::True)
+            .write_only(false)
+            .read_only(true)
+            .xml(Xml::new())
+            .max_length(10)
+            .min_length(1)
+            .pattern(r"^[a-z]+$");
+
+        assert_json_eq!(
+            object,
+            json!({
+                "type": "string",
+                "deprecated": true,
+                "readOnly": true,
+                "writeOnly": false,
+                "xml": {},
+                "minLength": 1,
+                "maxLength": 10,
+                "pattern": "^[a-z]+$"
+            })
+        );
+    }
+
+    #[test]
+    fn test_build_number_object() {
+        let object = Object::new()
+            .schema_type(SchemaType::Number)
+            .deprecated(Deprecated::True)
+            .write_only(false)
+            .read_only(true)
+            .xml(Xml::new())
+            .multiple_of(10.0)
+            .minimum(0.0)
+            .maximum(1000.0)
+            .exclusive_minimum(0.0)
+            .exclusive_maximum(1000.0);
+
+        assert_json_eq!(
+            object,
+            json!({
+                "type": "number",
+                "deprecated": true,
+                "readOnly": true,
+                "writeOnly": false,
+                "xml": {},
+                "multipleOf": 10.0,
+                "minimum": 0.0,
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0,
+                "exclusiveMaximum": 1000.0
+            })
+        );
+    }
+
+    #[test]
+    fn test_build_object_object() {
+        let object = Object::new()
+            .schema_type(SchemaType::Object)
+            .deprecated(Deprecated::True)
+            .write_only(false)
+            .read_only(true)
+            .xml(Xml::new())
+            .min_properties(1)
+            .max_properties(10);
+
+        assert_json_eq!(
+            object,
+            json!({
+                "type": "object",
+                "deprecated": true,
+                "readOnly": true,
+                "writeOnly": false,
+                "xml": {},
+                "minProperties": 1,
+                "maxProperties": 10
+            })
+        );
+    }
+}
