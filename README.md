@@ -310,7 +310,7 @@ All pull requests are code reviewed and tested by the CI. Note that unless you e
 
 ## ☕ Supporters
 
-Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy a coffee here**](https://ko-fi.com/chrislearn).
+Salvo is an open source project. If you want to support Salvo, you can ☕ [**buy me a coffee here**](https://ko-fi.com/chrislearn).
 
 ## ⚠️ License
 
