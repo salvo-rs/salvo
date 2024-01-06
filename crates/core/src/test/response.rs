@@ -119,7 +119,7 @@ impl ResponseExt for Response {
                     full = decoder.get_mut().take();
                 }
                 _ => {
-                    tracing::error!(compress = %algo, "unknown compress format");
+                    tracing::error!(algo, "unknown compress format");
                 }
             }
         }

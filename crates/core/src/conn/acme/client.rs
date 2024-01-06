@@ -110,7 +110,7 @@ impl AcmeClient {
 
     #[inline]
     pub(crate) async fn fetch_authorization(&self, auth_url: &str) -> crate::Result<FetchAuthorizationResponse> {
-        tracing::debug!(auth_uri = %auth_url, "fetch authorization");
+        tracing::debug!(auth_url, "fetch authorization");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
         let res: FetchAuthorizationResponse = jose::request_json(
@@ -162,7 +162,7 @@ impl AcmeClient {
 
     #[inline]
     pub(crate) async fn send_csr(&self, url: &str, csr: &[u8]) -> crate::Result<NewOrderResponse> {
-        tracing::debug!(url = %url, "send certificate request");
+        tracing::debug!(url, "send certificate request");
 
         #[derive(Debug, Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -186,7 +186,7 @@ impl AcmeClient {
 
     #[inline]
     pub(crate) async fn obtain_certificate(&self, url: &str) -> crate::Result<Bytes> {
-        tracing::debug!(url = %url, "send certificate request");
+        tracing::debug!(url, "send certificate request");
 
         let nonce = get_nonce(&self.client, &self.directory.new_nonce).await?;
         let res = jose::request(
@@ -301,6 +301,6 @@ async fn create_acme_account(
         .map(|s| s.to_owned())
         .map_err(|_| Error::other("unable to get account id"));
 
-    tracing::debug!(kid = ?kid, "account created");
+    tracing::debug!(?kid, "account created");
     kid
 }

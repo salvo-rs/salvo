@@ -73,14 +73,14 @@ pub async fn update_todo(req: &mut Request, res: &mut Response) {
         }
     }
 
-    tracing::debug!(id = ?id, "todo is not found");
+    tracing::debug!(?id, "todo is not found");
     res.status_code(StatusCode::NOT_FOUND);
 }
 
 #[handler]
 pub async fn delete_todo(req: &mut Request, res: &mut Response) {
     let id = req.param::<u64>("id").unwrap();
-    tracing::debug!(id = ?id, "delete todo");
+    tracing::debug!(?id, "delete todo");
 
     let mut vec = STORE.lock().await;
 
@@ -91,7 +91,7 @@ pub async fn delete_todo(req: &mut Request, res: &mut Response) {
     if deleted {
         res.status_code(StatusCode::NO_CONTENT);
     } else {
-        tracing::debug!(id = ?id, "todo is not found");
+        tracing::debug!(?id, "todo is not found");
         res.status_code(StatusCode::NOT_FOUND);
     }
 }
