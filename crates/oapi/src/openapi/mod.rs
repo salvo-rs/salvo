@@ -1003,7 +1003,7 @@ mod tests {
 
     #[test]
     fn test_build_openapi() {
-        let doc = OpenApi::new("pet api", "0.1.0")
+        let _doc = OpenApi::new("pet api", "0.1.0")
             .info(Info::new("my pet api", "0.2.0"))
             .servers(Servers::new())
             .add_path("/api/v1", PathItem::new(PathItemType::Get, Operation::new()))

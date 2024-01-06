@@ -206,6 +206,11 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                             },
                             Err(e) => {
                                 e.write(__macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
+                                // If status code is not set or is not error, set it to 400.
+                                let status_code = __macro_gen_res.status_code.unwrap_or_default();
+                                if !status_code.is_client_error() && !status_code.is_server_error() {
+                                    __macro_gen_res.status_code(#salvo::http::StatusCode::BAD_REQUEST);
+                                }
                                 return;
                             }
                         };

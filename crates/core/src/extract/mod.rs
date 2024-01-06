@@ -80,6 +80,8 @@ pub trait Extractible<'de>: Deserialize<'de> {
     fn metadata() -> &'de Metadata;
 
     /// Extract data from request.
+    ///
+    /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
     fn extract(req: &'de mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
     where
         Self: Sized,
