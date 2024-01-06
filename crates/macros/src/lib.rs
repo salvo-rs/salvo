@@ -183,7 +183,7 @@ mod tests {
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
             quote! {
-                impl<'__macro_gen_de: 'a, 'a> salvo::extract::Extractible<'__macro_gen_de> for BadMan<'a> {
+                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
                             salvo::__private::once_cell::sync::OnceCell::new();
@@ -203,6 +203,11 @@ mod tests {
                             metadata = metadata.add_field(field);
                             metadata
                         })
+                    }
+                    async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
+                    where
+                        Self: Sized {
+                        salvo::serde::from_request(req, Self::metadata()).await
                     }
                 }
             }
@@ -230,7 +235,7 @@ mod tests {
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
             quote! {
-                impl<'__macro_gen_de: 'a, 'a> salvo::extract::Extractible<'__macro_gen_de> for BadMan<'a> {
+                impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
                             salvo::__private::once_cell::sync::OnceCell::new();
@@ -260,6 +265,11 @@ mod tests {
                             metadata = metadata.add_field(field);
                             metadata
                         })
+                    }
+                    async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
+                    where
+                        Self: Sized {
+                        salvo::serde::from_request(req, Self::metadata()).await
                     }
                 }
             }
