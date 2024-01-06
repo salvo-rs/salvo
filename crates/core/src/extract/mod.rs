@@ -68,10 +68,7 @@ pub use metadata::Metadata;
 
 use std::future::Future;
 
-use serde::Deserialize;
-
 use crate::http::Request;
-use crate::serde::from_request;
 use crate::Writer;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
@@ -82,7 +79,7 @@ pub trait Extractible<'ex>{
     /// Extract data from request.
     ///
     /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
-    fn extract(req: &'de mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
+    fn extract(req: &'ex mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
     where
         Self: Sized;
 
