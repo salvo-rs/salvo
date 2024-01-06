@@ -80,7 +80,9 @@ pub trait Extractible<'ex>{
     fn metadata() -> &'ex Metadata;
 
     /// Extract data from request.
-    fn extract(req: &'ex mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
+    ///
+    /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
+    fn extract(req: &'de mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
     where
         Self: Sized;
 

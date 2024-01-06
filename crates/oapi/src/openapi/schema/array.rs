@@ -190,7 +190,7 @@ where
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde_json::{json, Map};
+    use serde_json::json;
 
     use super::*;
     use crate::{Object, SchemaType};
