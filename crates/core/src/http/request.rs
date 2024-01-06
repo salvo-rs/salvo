@@ -714,7 +714,7 @@ impl Request {
     #[inline]
     pub async fn extract<'de, T>(&'de mut self) -> Result<T, ParseError>
     where
-        T: Extractible<'de> + Send,
+        T: Extractible<'de> + Deserialize<'de> + Send,
     {
         self.extract_with_metadata(T::metadata()).await
     }

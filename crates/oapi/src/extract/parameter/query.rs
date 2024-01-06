@@ -80,40 +80,40 @@ where
     }
 }
 
-impl<'de, T> Extractible<'de> for QueryParam<T, true>
+impl<'ex, T> Extractible<'ex> for QueryParam<T, true>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .query(arg)
             .ok_or_else(|| ParseError::other(format!("query parameter {} not found or convert to type failed", arg)))?;
         Ok(Self(value))
     }
 }
-impl<'de, T> Extractible<'de> for QueryParam<T, false>
+impl<'ex, T> Extractible<'ex> for QueryParam<T, false>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         panic!("query parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         Ok(Self(req.query(arg)))
     }
 }

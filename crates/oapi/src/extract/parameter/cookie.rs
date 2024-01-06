@@ -80,20 +80,20 @@ where
     }
 }
 
-impl<'de, T> Extractible<'de> for CookieParam<T, true>
+impl<'ex, T> Extractible<'ex> for CookieParam<T, true>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request");
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .cookies()
             .get(arg)
@@ -105,20 +105,20 @@ where
     }
 }
 
-impl<'de, T> Extractible<'de> for CookieParam<T, false>
+impl<'ex, T> Extractible<'ex> for CookieParam<T, false>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         unimplemented!("cookie parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req.cookies().get(arg).and_then(|v| from_str_val(v.value()).ok());
         Ok(Self(value))
     }
