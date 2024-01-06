@@ -72,7 +72,7 @@ use crate::http::Request;
 use crate::Writer;
 
 /// If a type implements this trait, it will give a metadata, this will help request to extracts data to this type.
-pub trait Extractible<'ex>{
+pub trait Extractible<'ex> {
     /// Metadata for Extractible type.
     fn metadata() -> &'ex Metadata;
 
