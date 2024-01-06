@@ -346,23 +346,35 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     };
     let life_param = args.generics.lifetimes().next();
     let code = if let Some(life_param) = life_param {
-        let de_life_def = syn::parse_str(&format!("'__macro_gen_de:{}", life_param.lifetime)).unwrap();
+        let ex_life_def = syn::parse_str(&format!("'__macro_gen_ex:{}", life_param.lifetime)).unwrap();
         let mut generics = args.generics.clone();
-        generics.params.insert(0, de_life_def);
+        generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_de> for #name #ty_generics #where_clause {
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
                 #metadata
+
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                where
+                    Self: Sized {
+                    #salvo::serde::from_request(req, Self::metadata()).await
+                }
             }
         }
     } else {
-        let de_life_def = syn::parse_str("'__macro_gen_de").unwrap();
+        let ex_life_def = syn::parse_str("'__macro_gen_ex").unwrap();
         let mut generics = args.generics.clone();
-        generics.params.insert(0, de_life_def);
+        generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
         quote! {
-            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_de> for #name #ty_generics #where_clause {
+            impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
                 #metadata
+
+                async fn extract(req: &'__macro_gen_ex mut #salvo::http::Request) -> Result<Self, #salvo::http::ParseError>
+                where
+                    Self: Sized {
+                    #salvo::serde::from_request(req, Self::metadata()).await
+                }
             }
         }
     };

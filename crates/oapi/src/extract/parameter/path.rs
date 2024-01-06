@@ -61,20 +61,20 @@ where
     }
 }
 
-impl<'de, T> Extractible<'de> for PathParam<T>
+impl<'ex, T> Extractible<'ex> for PathParam<T>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'ex>,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
     #[allow(refining_impl_trait)]
-    async fn extract(_req: &'de mut Request) -> Result<Self, ParseError> {
+    async fn extract(_req: &'ex mut Request) -> Result<Self, ParseError> {
         unimplemented!("path parameter can not be extracted from request")
     }
     #[allow(refining_impl_trait)]
-    async fn extract_with_arg(req: &'de mut Request, arg: &str) -> Result<Self, ParseError> {
+    async fn extract_with_arg(req: &'ex mut Request, arg: &str) -> Result<Self, ParseError> {
         let value = req
             .param(arg)
             .ok_or_else(|| ParseError::other(format!("path parameter {} not found or convert to type failed", arg)))?;

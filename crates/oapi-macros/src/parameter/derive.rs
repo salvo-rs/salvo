@@ -58,11 +58,11 @@ impl ToTokens for ToParameters {
         let oapi = crate::oapi_crate();
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let de_life = &Lifetime::new("'__de", Span::call_site());
-        let de_lifetime: GenericParam = LifetimeParam::new(de_life.clone()).into();
-        let mut de_generics = self.generics.clone();
-        de_generics.params.insert(0, de_lifetime);
-        let de_impl_generics = de_generics.split_for_impl().0;
+        let ex_life = &Lifetime::new("'__macro_gen_ex", Span::call_site());
+        let ex_lifetime: GenericParam = LifetimeParam::new(ex_life.clone()).into();
+        let mut ex_generics = self.generics.clone();
+        ex_generics.params.insert(0, ex_lifetime);
+        let ex_impl_generics = ex_generics.split_for_impl().0;
 
         let mut parameters_features = self
             .attrs
@@ -183,7 +183,7 @@ impl ToTokens for ToParameters {
             .unwrap_or_else(|| quote! {None});
         let name = ident.to_string();
         tokens.extend(quote! {
-            impl #de_impl_generics #oapi::oapi::ToParameters<'__de> for #ident #ty_generics #where_clause {
+            impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
                 fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
                 }
@@ -195,8 +195,8 @@ impl ToTokens for ToParameters {
                     }
                 }
             }
-            impl #de_impl_generics #salvo::Extractible<'__de> for #ident #ty_generics #where_clause {
-                fn metadata() -> &'__de #salvo::extract::Metadata {
+            impl #ex_impl_generics #salvo::Extractible<'__macro_gen_ex> for #ident #ty_generics #where_clause {
+                fn metadata() -> &'__macro_gen_ex #salvo::extract::Metadata {
                     static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
                     METADATA.get_or_init(||
                         #salvo::extract::Metadata::new(#name)
@@ -205,10 +205,10 @@ impl ToTokens for ToParameters {
                             .rename_all(#rename_all)
                     )
                 }
-                async fn extract(req: &'__de mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__de mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + 'static> {
                     Self::extract(req).await
                 }
             }

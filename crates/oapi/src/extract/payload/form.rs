@@ -64,18 +64,18 @@ where
     }
 }
 
-impl<'de, T> Extractible<'de> for FormBody<T>
+impl<'ex, T> Extractible<'ex> for FormBody<T>
 where
-    T: Deserialize<'de> + Send,
+    T: Deserialize<'ex> + Send,
 {
-    fn metadata() -> &'de Metadata {
+    fn metadata() -> &'ex Metadata {
         static METADATA: Metadata = Metadata::new("");
         &METADATA
     }
-    async fn extract(req: &'de mut Request) -> Result<Self, impl Writer + Send + 'static> {
+    async fn extract(req: &'ex mut Request) -> Result<Self, impl Writer + Send + 'static> {
         req.parse_form().await
     }
-    async fn extract_with_arg(req: &'de mut Request, _arg: &str) -> Result<Self, impl Writer + Send + 'static> {
+    async fn extract_with_arg(req: &'ex mut Request, _arg: &str) -> Result<Self, impl Writer + Send + 'static> {
         Self::extract(req).await
     }
 }
