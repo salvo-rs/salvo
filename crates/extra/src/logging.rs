@@ -38,8 +38,8 @@ impl Handler for Logger {
 
             let status = res.status_code.unwrap_or(StatusCode::OK);
             tracing::info!(
-                status = %status,
-                duration = ?duration,
+                %status,
+                ?duration,
                 "Response"
             );
         }

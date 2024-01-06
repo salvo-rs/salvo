@@ -55,7 +55,7 @@ pub(crate) async fn issue_cert(
                     .trigger_challenge(&res.identifier.value, config.challenge_type, &challenge.url)
                     .await?;
             } else if res.status == "invalid" {
-                tracing::error!(res = ?res, "unable to authorize");
+                tracing::error!(response = ?res, "unable to authorize");
                 return Err(Error::other(format!(
                     "unable to authorize `{}`: {}",
                     res.identifier.value,

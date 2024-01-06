@@ -116,14 +116,14 @@ pub async fn update_todo(id: PathParam<u64>, updated: JsonBody<Todo>) -> Result<
         }
     }
 
-    tracing::debug!(id = ?id, "todo is not found");
+    tracing::debug!(?id, "todo is not found");
     Err(StatusError::not_found())
 }
 
 /// Delete todo.
 #[endpoint(tags("todos"), status_codes(200, 401, 404))]
 pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> {
-    tracing::debug!(id = ?id, "delete todo");
+    tracing::debug!(?id, "delete todo");
 
     let mut vec = STORE.lock().await;
 
@@ -134,7 +134,7 @@ pub async fn delete_todo(id: PathParam<u64>) -> Result<StatusCode, StatusError> 
     if deleted {
         Ok(StatusCode::NO_CONTENT)
     } else {
-        tracing::debug!(id = ?id, "todo is not found");
+        tracing::debug!(?id, "todo is not found");
         Err(StatusError::not_found())
     }
 }
@@ -154,3 +154,4 @@ static INDEX_HTML: &str = r#"<!DOCTYPE html>
     </body>
 </html>
 "#;
+ 

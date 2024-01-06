@@ -255,11 +255,11 @@ impl Handler for SwaggerUi {
                 res.body(ResBody::Once(file.bytes.to_vec().into()));
             }
             Ok(None) => {
-                tracing::warn!(path = path, "swagger ui file not found");
+                tracing::warn!(path, "swagger ui file not found");
                 res.render(StatusError::not_found());
             }
             Err(e) => {
-                tracing::error!(error = ?e, path = path, "failed to fetch swagger ui file");
+                tracing::error!(error = ?e, path, "failed to fetch swagger ui file");
                 res.render(StatusError::internal_server_error());
             }
         }
