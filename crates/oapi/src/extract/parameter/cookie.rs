@@ -137,3 +137,62 @@ where
         operation.parameters.insert(parameter);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_required_cookie_param_into_inner() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!("param".to_string(), param.into_inner());
+    }
+
+    #[test]
+    fn test_required_cookie_param_deref() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&"param".to_string(), param.deref())
+    }
+
+    #[test]
+    fn test_required_cookie_param_deref_mut() {
+        let mut param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&mut "param".to_string(), param.deref_mut())
+    }
+
+    #[test]
+    fn test_unrequired_cookie_param_into_inner() {
+        let param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(Some("param".to_string()), param.into_inner());
+    }
+
+    #[test]
+    fn test_unrequired_cookie_param_deref() {
+        let param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&Some("param".to_string()), param.deref())
+    }
+
+    #[test]
+    fn test_unrequired_cookie_param_deref_mut() {
+        let mut param = CookieParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+    }
+
+    #[test]
+    fn test_cookie_param_deserialize() {
+        let param = serde_json::from_str::<CookieParam<String, true>>(r#""param""#).unwrap();
+        assert_eq!(param.0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_debug() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+    }
+
+    #[test]
+    fn test_cookie_param_display() {
+        let param = CookieParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{}", param), "param");
+    }
+}
