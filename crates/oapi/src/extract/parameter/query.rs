@@ -131,3 +131,62 @@ where
         operation.parameters.insert(parameter);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_required_query_param_into_inner() {
+        let param = QueryParam::<String, true>(Some("param".to_string()));
+        assert_eq!("param".to_string(), param.into_inner());
+    }
+
+    #[test]
+    fn test_required_query_param_deref() {
+        let param = QueryParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&"param".to_string(), param.deref())
+    }
+
+    #[test]
+    fn test_required_query_param_deref_mut() {
+        let mut param = QueryParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&mut "param".to_string(), param.deref_mut())
+    }
+
+    #[test]
+    fn test_unrequired_query_param_into_inner() {
+        let param = QueryParam::<String, false>(Some("param".to_string()));
+        assert_eq!(Some("param".to_string()), param.into_inner());
+    }
+
+    #[test]
+    fn test_unrequired_query_param_deref() {
+        let param = QueryParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&Some("param".to_string()), param.deref())
+    }
+
+    #[test]
+    fn test_unrequired_query_param_deref_mut() {
+        let mut param = QueryParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+    }
+
+    #[test]
+    fn test_query_param_deserialize() {
+        let param = serde_json::from_str::<QueryParam<String, true>>(r#""param""#).unwrap();
+        assert_eq!(param.0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_query_param_debug() {
+        let param = QueryParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+    }
+
+    #[test]
+    fn test_query_param_display() {
+        let param = QueryParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{}", param), "param");
+    }
+}

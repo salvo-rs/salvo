@@ -95,3 +95,44 @@ where
         operation.parameters.insert(parameter);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_param_into_inner() {
+        let param = PathParam::<String>("param".to_string());
+        assert_eq!("param".to_string(), param.into_inner());
+    }
+
+    #[test]
+    fn test_path_param_deref() {
+        let param = PathParam::<String>("param".to_string());
+        assert_eq!(&"param".to_string(), param.deref())
+    }
+
+    #[test]
+    fn test_path_param_deref_mut() {
+        let mut param = PathParam::<String>("param".to_string());
+        assert_eq!(&mut "param".to_string(), param.deref_mut())
+    }
+
+    #[test]
+    fn test_path_param_deserialize() {
+        let param = serde_json::from_str::<PathParam<String>>(r#""param""#).unwrap();
+        assert_eq!(param.0, "param");
+    }
+
+    #[test]
+    fn test_path_param_debug() {
+        let param = PathParam::<String>("param".to_string());
+        assert_eq!(format!("{:?}", param), r#""param""#);
+    }
+
+    #[test]
+    fn test_path_param_display() {
+        let param = PathParam::<String>("param".to_string());
+        assert_eq!(format!("{}", param), "param");
+    }
+}

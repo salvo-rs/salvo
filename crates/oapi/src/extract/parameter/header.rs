@@ -141,3 +141,62 @@ where
         operation.parameters.insert(parameter);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_required_header_param_into_inner() {
+        let param = HeaderParam::<String, true>(Some("param".to_string()));
+        assert_eq!("param".to_string(), param.into_inner());
+    }
+
+    #[test]
+    fn test_required_header_param_deref() {
+        let param = HeaderParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&"param".to_string(), param.deref())
+    }
+
+    #[test]
+    fn test_required_header_param_deref_mut() {
+        let mut param = HeaderParam::<String, true>(Some("param".to_string()));
+        assert_eq!(&mut "param".to_string(), param.deref_mut())
+    }
+
+    #[test]
+    fn test_unrequired_header_param_into_inner() {
+        let param = HeaderParam::<String, false>(Some("param".to_string()));
+        assert_eq!(Some("param".to_string()), param.into_inner());
+    }
+
+    #[test]
+    fn test_unrequired_header_param_deref() {
+        let param = HeaderParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&Some("param".to_string()), param.deref())
+    }
+
+    #[test]
+    fn test_unrequired_header_param_deref_mut() {
+        let mut param = HeaderParam::<String, false>(Some("param".to_string()));
+        assert_eq!(&mut Some("param".to_string()), param.deref_mut())
+    }
+
+    #[test]
+    fn test_header_param_deserialize() {
+        let param = serde_json::from_str::<HeaderParam<String, true>>(r#""param""#).unwrap();
+        assert_eq!(param.0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_header_param_debug() {
+        let param = HeaderParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{:?}", param), r#"Some("param")"#);
+    }
+
+    #[test]
+    fn test_header_param_display() {
+        let param = HeaderParam::<String, true>(Some("param".to_string()));
+        assert_eq!(format!("{}", param), "param");
+    }
+}
