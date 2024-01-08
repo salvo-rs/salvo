@@ -140,6 +140,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use http::header::HeaderValue;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -161,19 +166,19 @@ mod tests {
     }
 
     #[test]
-    fn test_unrequired_cookie_param_into_inner() {
+    fn test_cookie_param_into_inner() {
         let param = CookieParam::<String, false>(Some("param".to_string()));
         assert_eq!(Some("param".to_string()), param.into_inner());
     }
 
     #[test]
-    fn test_unrequired_cookie_param_deref() {
+    fn test_cookie_param_deref() {
         let param = CookieParam::<String, false>(Some("param".to_string()));
         assert_eq!(&Some("param".to_string()), param.deref())
     }
 
     #[test]
-    fn test_unrequired_cookie_param_deref_mut() {
+    fn test_cookie_param_deref_mut() {
         let mut param = CookieParam::<String, false>(Some("param".to_string()));
         assert_eq!(&mut Some("param".to_string()), param.deref_mut())
     }
@@ -194,5 +199,98 @@ mod tests {
     fn test_cookie_param_display() {
         let param = CookieParam::<String, true>(Some("param".to_string()));
         assert_eq!(format!("{}", param), "param");
+    }
+
+    #[test]
+    fn test_required_cookie_param_metadata() {
+        let metadata = CookieParam::<String, true>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_cookie_prarm_extract() {
+        let mut req = Request::new();
+        let _ = CookieParam::<String, true>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_required_cookie_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut()
+            .append("cookie", HeaderValue::from_static("param=param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_cookie_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_metadata() {
+        let metadata = CookieParam::<String, false>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_cookie_prarm_extract() {
+        let mut req = Request::new();
+        let _ = CookieParam::<String, false>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_cookie_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut()
+            .append("cookie", HeaderValue::from_static("param=param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_cookie_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = CookieParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_cookie_param_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        CookieParam::<String, false>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "parameters": [
+                    {
+                        "name": "arg",
+                        "in": "cookie",
+                        "description": "Get parameter `arg` from request cookie.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {}
+            })
+        )
     }
 }

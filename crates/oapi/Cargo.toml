@@ -31,7 +31,7 @@ indexmap = ["salvo-oapi-macros/indexmap"]
 yaml = ["dep:serde_yaml"]
 
 [dependencies]
-salvo_core = { workspace = true, default-features = false, features = ["cookie"] }
+salvo_core = { workspace = true, default-features = false, features = ["cookie", "test"] }
 salvo-oapi-macros = { workspace = true, default-features = false }
 base64 = { workspace = true }
 thiserror = { workspace = true }
@@ -46,6 +46,7 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+http = { workspace = true }
 
 # Feature optional dependencies
 chrono = { workspace = true, optional = true }
