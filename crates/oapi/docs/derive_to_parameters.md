@@ -34,10 +34,8 @@ deriving `ToParameters`:
    __Only__ supported on __unnamed structs__.
 * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
    values are based on _`parameter_in`_ attribute.
-* `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-   [`parameter::ParameterIn`][in_enum]. There is no default value, if this attribute is not
-   supplied, then the value is determined by the `parameter_in_provider` in
-   [`ToParameters::parameters()`](trait.ToParameters.html#tymethod.parameters).
+* `default_parameter_in = ...` =  Defines default where the parameters of this field are used with a value from
+   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 
 Use `names` to define name for single unnamed argument.
@@ -63,6 +61,9 @@ struct IdAndName(u64, String);
 The following attributes are available for use in the `#[salvo(parameter(...))]` on struct fields:
 
 * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
+
+* `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
+   [`parameter::ParameterIn`][in_enum]. If this attribute is not supplied, then the default value is from query.
 
 * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter within _`object`_ or _`array`_.
 

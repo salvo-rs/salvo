@@ -88,7 +88,7 @@ impl ToTokens for Example {
             .as_ref()
             .map(|external_value| quote!(.external_value(#external_value)));
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #oapi::oapi::Example::new()
                 #summary
                 #description

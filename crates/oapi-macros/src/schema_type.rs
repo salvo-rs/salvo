@@ -146,35 +146,35 @@ impl ToTokens for SchemaType<'_> {
         let name = &*last_segment.ident.to_string();
 
         match name {
-            "String" | "str" | "char" => tokens.extend(quote! {#oapi::oapi::SchemaType::String}),
-            "bool" => tokens.extend(quote! { #oapi::oapi::SchemaType::Boolean }),
+            "String" | "str" | "char" => tokens.extend(quote!{#oapi::oapi::SchemaType::String}),
+            "bool" => tokens.extend(quote!{ #oapi::oapi::SchemaType::Boolean }),
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaType::Integer })
+                tokens.extend(quote!{ #oapi::oapi::SchemaType::Integer })
             }
-            "f32" | "f64" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
+            "f32" | "f64" => tokens.extend(quote!{ #oapi::oapi::SchemaType::Number }),
             #[cfg(feature = "chrono")]
-            "DateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "DateTime" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "chrono")]
-            "NaiveDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "NaiveDateTime" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "chrono")]
             "NaiveDate" => tokens.extend(quote!(#oapi::oapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
-            "Date" | "Duration" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Date" | "Duration" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(all(feature = "decimal", feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Decimal" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(all(feature = "decimal", not(feature = "decimal-float")))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Decimal" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(all(not(feature = "decimal"), feature = "decimal-float"))]
-            "Decimal" => tokens.extend(quote! { #oapi::oapi::SchemaType::Number }),
+            "Decimal" => tokens.extend(quote!{ #oapi::oapi::SchemaType::Number }),
             #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Url" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "ulid")]
-            "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Ulid" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
+            "Uuid" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
             #[cfg(feature = "time")]
-            "PrimitiveDateTime" | "OffsetDateTime" => tokens.extend(quote! { #oapi::oapi::SchemaType::String }),
-            _ => tokens.extend(quote! { #oapi::oapi::SchemaType::Object }),
+            "PrimitiveDateTime" | "OffsetDateTime" => tokens.extend(quote!{ #oapi::oapi::SchemaType::String }),
+            _ => tokens.extend(quote!{ #oapi::oapi::SchemaType::Object }),
         }
     }
 }
@@ -223,7 +223,7 @@ impl ToTokens for SchemaFormat<'_> {
 pub(crate) struct Type<'a>(&'a syn::Path);
 
 impl Type<'_> {
-    /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
+    /// Check is the format know format. Known formats can be used within `quote!{...}` statements.
     pub(crate) fn is_known_format(&self) -> bool {
         let last_segment = match self.0.segments.last() {
             Some(segment) => segment,
@@ -311,40 +311,40 @@ impl ToTokens for Type<'_> {
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int32) })
             }
             "i64" | "u64" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Int64) })
             }
-            "f32" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
-            "f64" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
+            "f32" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Float) }),
+            "f64" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Double) }),
             #[cfg(any(feature = "decimal", feature = "decimal-float"))]
             "Decimal" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Decimal) })
             }
             #[cfg(feature = "chrono")]
             "NaiveDate" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) })
             }
             #[cfg(feature = "chrono")]
             "DateTime" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
             }
             #[cfg(feature = "chrono")]
             "NaiveDateTime" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
             }
             #[cfg(feature = "time")]
-            "Date" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
+            "Date" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Date) }),
             #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Url) }),
+            "Url" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Url) }),
             #[cfg(feature = "ulid")]
-            "Ulid" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ulid) }),
+            "Ulid" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Ulid) }),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Uuid) }),
+            "Uuid" => tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Uuid) }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
+                tokens.extend(quote!{ #oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::DateTime) })
             }
             _ => (),
         }

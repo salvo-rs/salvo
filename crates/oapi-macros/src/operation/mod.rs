@@ -49,7 +49,7 @@ impl<'a> Operation<'a> {
         let oapi = crate::oapi_crate();
 
         if let Some(rb) = self.request_body {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 if let Some(request_body) = operation.request_body.as_mut() {
                     request_body.merge(#rb);
                 } else {
@@ -62,35 +62,35 @@ impl<'a> Operation<'a> {
         }
 
         // let responses = Responses(self.responses);
-        // modifiers.push(quote! {
+        // modifiers.push(quote!{
         //     .responses(#responses)
         // });
         if let Some(security_requirements) = self.security {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 operation.securities.append(&mut #security_requirements.into_iter().collect());
             })
         }
         if let Some(operation_id) = &self.operation_id {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 operation.operation_id = Some(#operation_id);
             });
         }
 
         if let Some(deprecated) = self.deprecated {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 operation.deprecated = Some(#deprecated.into());
             })
         }
 
         if let Some(tags) = self.tags {
             let tags = tags.iter().collect::<Array<_>>();
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 operation.tags.extend(#tags.into_iter().map(|t|t.into()));
             })
         }
 
         if let Some(summary) = self.summary {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 operation.summary = Some(#summary.into());
             })
         }
@@ -98,14 +98,14 @@ impl<'a> Operation<'a> {
         if let Some(description) = self.description {
             let description = description.join("\n");
             if !description.is_empty() {
-                modifiers.push(quote! {
+                modifiers.push(quote!{
                     operation.description = Some(#description.into());
                 })
             }
         }
 
         self.parameters.iter().for_each(|parameter| {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 #parameter
             })
         });
@@ -113,7 +113,7 @@ impl<'a> Operation<'a> {
         for response in self.responses {
             match response {
                 Response::ToResponses(path) => {
-                    modifiers.push(quote! {
+                    modifiers.push(quote!{
                         operation.responses.append(&mut <#path as #oapi::oapi::ToResponses>::to_responses(components));
                     });
                 }
@@ -123,7 +123,7 @@ impl<'a> Operation<'a> {
                         match inner {
                             ResponseTupleInner::Ref(inline) => {
                                 let ty = &inline.ty;
-                                modifiers.push(quote! {
+                                modifiers.push(quote!{
                                     let _= <#ty as #oapi::oapi::ToSchema>::to_schema(components);
                                 });
                             }
@@ -134,7 +134,7 @@ impl<'a> Operation<'a> {
                             }
                         }
                     }
-                    modifiers.push(quote! {
+                    modifiers.push(quote!{
                         operation.responses.insert(#code, #tuple);
                     });
                 }
@@ -148,13 +148,13 @@ fn generate_register_schemas(oapi: &Ident, content: &PathType) -> Vec<TokenStrea
     let mut modifiers = vec![];
     match content {
         PathType::RefPath(path) => {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 let _ = <#path as #oapi::oapi::ToSchema>::to_schema(components);
             });
         }
         PathType::MediaType(inline) => {
             let ty = &inline.ty;
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 let _ = <#ty as #oapi::oapi::ToSchema>::to_schema(components);
             });
         }

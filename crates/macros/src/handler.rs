@@ -20,7 +20,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let sdef = quote! {
+            let sdef = quote!{
                 #(#docs)*
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             };
 
             let hfn = handle_fn(&salvo, sig)?;
-            Ok(quote! {
+            Ok(quote!{
                 #sdef
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
@@ -59,7 +59,7 @@ pub(crate) fn generate(input: Item) -> syn::Result<TokenStream> {
             let ty = &item_impl.self_ty;
             let (impl_generics, _, where_clause) = &item_impl.generics.split_for_impl();
 
-            Ok(quote! {
+            Ok(quote!{
                 #item_impl
                 #[#salvo::async_trait]
                 impl #impl_generics #salvo::Handler for #ty #where_clause {
@@ -107,7 +107,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
 
-                    extract_ts.push(quote! {
+                    extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {
@@ -134,14 +134,14 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
     match sig.output {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
-                Ok(quote! {
+                Ok(quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
                 })
             } else {
-                Ok(quote! {
+                Ok(quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
@@ -151,14 +151,14 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
         }
         ReturnType::Type(_, _) => {
             if sig.asyncness.is_none() {
-                Ok(quote! {
+                Ok(quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 })
             } else {
-                Ok(quote! {
+                Ok(quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;

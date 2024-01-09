@@ -47,7 +47,7 @@ impl FlattenedMapSchema {
             type_definition,
         });
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #schema_property
                 #description_stream
                 #deprecated_stream

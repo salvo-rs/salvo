@@ -183,10 +183,10 @@ impl<'c> ComponentSchema {
                     type_definition,
                 });
 
-                quote! { .additional_properties(#schema_property) }
+                quote!{ .additional_properties(#schema_property) }
             });
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #oapi::oapi::Object::new()
                 #additional_properties
                 #description_stream
@@ -232,7 +232,7 @@ impl<'c> ComponentSchema {
             .map(|path| SchemaType(path).is_byte())
             .unwrap_or(false)
         {
-            quote! {
+            quote!{
                 #oapi::oapi::Object::new()
                     .schema_type(#oapi::oapi::schema::SchemaType::String)
                     .format(#oapi::oapi::SchemaFormat::KnownFormat(#oapi::oapi::KnownFormat::Binary))
@@ -248,13 +248,13 @@ impl<'c> ComponentSchema {
             });
 
             let unique = match unique {
-                true => quote! {
+                true => quote!{
                     .unique_items(true)
                 },
-                false => quote! {},
+                false => quote!{},
             };
 
-            quote! {
+            quote!{
                 #oapi::oapi::schema::Array::new(#component_schema)
                 #unique
             }
@@ -266,7 +266,7 @@ impl<'c> ComponentSchema {
             feature.validate(&schema_type, type_tree);
         };
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #schema
             #deprecated_stream
             #description_stream
@@ -315,13 +315,13 @@ impl<'c> ComponentSchema {
                     }
                 }
 
-                tokens.extend(quote! {
+                tokens.extend(quote!{
                     #oapi::oapi::Object::new().schema_type(#schema_type)
                 });
 
                 let format: SchemaFormat = (type_path).into();
                 if format.is_known_format() {
-                    tokens.extend(quote! {
+                    tokens.extend(quote!{
                         .format(#format)
                     })
                 }
@@ -345,7 +345,7 @@ impl<'c> ComponentSchema {
                     let nullable = pop_feature!(features => Feature::Nullable(_));
                     let default = pop_feature!(features => Feature::Default(_));
 
-                    tokens.extend(quote! {
+                    tokens.extend(quote!{
                         #oapi::oapi::Object::new()
                             #additional_properties
                             #description_stream
@@ -357,7 +357,7 @@ impl<'c> ComponentSchema {
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let schema = if type_definition {
-                        quote! {
+                        quote!{
                             if std::any::TypeId::of::<#type_path>() == std::any::TypeId::of::<Self>() {
                                 #oapi::oapi::RefOr::<#oapi::oapi::Schema>::Ref(#oapi::oapi::schema::Ref::new("#"))
                             } else {
@@ -365,7 +365,7 @@ impl<'c> ComponentSchema {
                             }
                         }
                     } else {
-                        quote! {
+                        quote!{
                             <#type_path as #oapi::oapi::ToSchema>::to_schema(components)
                         }
                     };
@@ -387,14 +387,14 @@ impl<'c> ComponentSchema {
                     } else {
                         let default = pop_feature!(features => Feature::Default(_));
                         let schema = if default.is_some() || nullable.is_some() {
-                            quote! {
+                            quote!{
                                 #oapi::oapi::schema::AllOf::new()
                                     #nullable
                                     .item(#schema)
                                     #default
                             }
                         } else {
-                            quote! {
+                            quote!{
                                 #schema
                             }
                         };
@@ -410,7 +410,7 @@ impl<'c> ComponentSchema {
                         let all_of =
                             children
                                 .iter()
-                                .fold(quote! { #oapi::oapi::schema::AllOf::new() }, |mut all_of, child| {
+                                .fold(quote!{ #oapi::oapi::schema::AllOf::new() }, |mut all_of, child| {
                                     let features = if child.is_option() {
                                         Some(vec![Feature::Nullable(Nullable::new())])
                                     } else {
@@ -429,7 +429,7 @@ impl<'c> ComponentSchema {
 
                                     all_of
                                 });
-                        quote! {
+                        quote!{
                             #oapi::oapi::schema::Array::new(#all_of)
                                 #nullable
                                 #description_stream
@@ -453,11 +453,11 @@ impl<'c> ComponentSchema {
                     Some(comment)
                 }
             })
-            .map(|description| quote! { .description(#description) })
+            .map(|description| quote!{ .description(#description) })
     }
 
     pub(crate) fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
-        deprecated.map(|deprecated| quote! { .deprecated(#deprecated) })
+        deprecated.map(|deprecated| quote!{ .deprecated(#deprecated) })
     }
 }
 

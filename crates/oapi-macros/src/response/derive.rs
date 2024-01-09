@@ -58,7 +58,7 @@ impl ToTokens for ToResponse<'_> {
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::ToResponse for #ident #ty_generics #where_clause {
                 fn to_response(components: &mut #oapi::oapi::Components) -> #oapi::oapi::RefOr<#oapi::oapi::Response> {
                     let response = #response;
@@ -139,7 +139,7 @@ impl ToTokens for ToResponses {
         } else {
             quote!( #oapi::oapi::Responses::new())
         };
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             impl #impl_generics #oapi::oapi::ToResponses for #ident #ty_generics #where_clause {
                 fn to_responses(components: &mut #oapi::oapi::Components) -> #oapi::oapi::response::Responses {
                     #responses

@@ -2,9 +2,11 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 
 use crate::{
-    feature::{Feature, Rename, RenameAll, ValueType},
+    feature::{Feature, Rename, RenameAll, Style, ValueType},
     type_tree::TypeTree,
 };
+
+use super::ParameterIn;
 
 pub(crate) trait ToTokensExt {
     fn to_token_stream(&self) -> TokenStream;
@@ -23,6 +25,12 @@ pub(crate) trait FeaturesExt {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
 
     fn pop_value_type_feature(&mut self) -> Option<ValueType>;
+
+    /// Pop [`parameter_in`] feature if exists in [`Vec<Feature>`] list.
+    fn pop_parameter_in_feature(&mut self) -> Option<ParameterIn>;
+
+    /// Pop [`style`] feature if exists in [`Vec<Feature>`] list.
+    fn pop_style_feature(&mut self) -> Option<Style>;
 
     /// Pop [`Rename`] feature if exists in [`Vec<Feature>`] list.
     fn pop_rename_feature(&mut self) -> Option<Rename>;
@@ -43,6 +51,22 @@ impl FeaturesExt for Vec<Feature> {
         self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
             .and_then(|feature| match feature {
                 Feature::ValueType(value_type) => Some(value_type),
+                _ => None,
+            })
+    }
+
+    fn pop_parameter_in_feature(&mut self) -> Option<ParameterIn> {
+        self.pop_by(|feature| matches!(feature, Feature::ParameterIn(_)))
+            .and_then(|feature| match feature {
+                Feature::ParameterIn(parameter_in) => Some(parameter_in),
+                _ => None,
+            })
+    }
+
+    fn pop_style_feature(&mut self) -> Option<Style> {
+        self.pop_by(|feature| matches!(feature, Feature::Style(_)))
+            .and_then(|feature| match feature {
+                Feature::Style(style) => Some(style),
                 _ => None,
             })
     }
@@ -87,6 +111,14 @@ impl FeaturesExt for Option<Vec<Feature>> {
 
     fn pop_value_type_feature(&mut self) -> Option<ValueType> {
         self.as_mut().and_then(|features| features.pop_value_type_feature())
+    }
+
+    fn pop_parameter_in_feature(&mut self) -> Option<ParameterIn> {
+        self.as_mut().and_then(|features| features.pop_parameter_in_feature())
+    }
+
+    fn pop_style_feature(&mut self) -> Option<Style> {
+        self.as_mut().and_then(|features| features.pop_style_feature())
     }
 
     fn pop_rename_feature(&mut self) -> Option<Rename> {

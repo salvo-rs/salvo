@@ -56,8 +56,8 @@ impl Parse for Default {
 impl ToTokens for Default {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match &self.0 {
-            Some(inner) => tokens.extend(quote! {Some(#inner)}),
-            None => tokens.extend(quote! {None}),
+            Some(inner) => tokens.extend(quote!{Some(#inner)}),
+            None => tokens.extend(quote!{None}),
         }
     }
 }
@@ -306,6 +306,31 @@ impl From<RenameAll> for Feature {
 }
 impl_name!(RenameAll = "rename_all");
 
+
+#[derive(Clone, Debug)]
+pub(crate) struct DefaultStyle(pub(crate) ParameterStyle);
+impl From<ParameterStyle> for DefaultStyle {
+    fn from(style: ParameterStyle) -> Self {
+        Self(style)
+    }
+}
+impl Parse for DefaultStyle {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<ParameterStyle>().map(Self))
+    }
+}
+impl ToTokens for DefaultStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+impl From<DefaultStyle> for Feature {
+    fn from(value: DefaultStyle) -> Self {
+        Feature::DefaultStyle(value)
+    }
+}
+impl_name!(DefaultStyle = "default_style");
+
 #[derive(Clone, Debug)]
 pub(crate) struct Style(pub(crate) ParameterStyle);
 impl From<ParameterStyle> for Style {
@@ -367,6 +392,25 @@ impl From<Explode> for Feature {
     }
 }
 impl_name!(Explode = "explode");
+
+#[derive(Clone, Debug)]
+pub(crate) struct DefaultParameterIn(pub(crate) parameter::ParameterIn);
+impl Parse for DefaultParameterIn {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
+    }
+}
+impl ToTokens for DefaultParameterIn {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+impl From<DefaultParameterIn> for Feature {
+    fn from(value: DefaultParameterIn) -> Self {
+        Feature::DefaultParameterIn(value)
+    }
+}
+impl_name!(DefaultParameterIn = "default_parameter_in");
 
 #[derive(Clone, Debug)]
 pub(crate) struct ParameterIn(pub(crate) parameter::ParameterIn);
@@ -778,7 +822,7 @@ impl Parse for SchemaWith {
 impl ToTokens for SchemaWith {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = &self.0;
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #path()
         })
     }

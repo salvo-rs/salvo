@@ -27,17 +27,17 @@ fn metadata(
     modifiers.append(opt.modifiers().as_mut());
     let status_codes = Array::from_iter(attr.status_codes.iter().map(|expr| match expr {
         Expr::Lit(lit) => {
-            quote! {
+            quote!{
                 #salvo::http::StatusCode::from_u16(#lit).unwrap()
             }
         }
         _ => {
-            quote! {
+            quote!{
                 #expr
             }
         }
     }));
-    let stream = quote! {
+    let stream = quote!{
         fn #tfn() -> ::std::any::TypeId {
             ::std::any::TypeId::of::<#name>()
         }
@@ -90,7 +90,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let sdef = quote! {
+            let sdef = quote!{
                 #(#docs)*
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
@@ -112,7 +112,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
 
             let (hfn, modifiers) = handle_fn(&salvo, &oapi, sig)?;
             let meta = metadata(&salvo, &oapi, attr, name, modifiers)?;
-            Ok(quote! {
+            Ok(quote!{
                 #sdef
                 #[#salvo::async_trait]
                 impl #salvo::Handler for #name {
@@ -149,7 +149,7 @@ pub(crate) fn generate(mut attr: EndpointAttr, input: Item) -> syn::Result<Token
             let name = Ident::new(&ty.to_token_stream().to_string(), Span::call_site());
             let meta = metadata(&salvo, &oapi, attr, &name, modifiers)?;
 
-            Ok(quote! {
+            Ok(quote!{
                 #item_impl
                 #[#salvo::async_trait]
                 impl #impl_generics #salvo::Handler for #ty #where_clause {
@@ -199,7 +199,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
-                    extract_ts.push(quote! {
+                    extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => {
                                 data
@@ -215,7 +215,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                             }
                         };
                     });
-                    modifiers.push(quote! {
+                    modifiers.push(quote!{
                          <#ty as #oapi::oapi::EndpointArgRegister>::register(components, operation, #idv);
                     });
                 } else {
@@ -231,14 +231,14 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
     let hfn = match &sig.output {
         ReturnType::Default => {
             if sig.asyncness.is_none() {
-                quote! {
+                quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*)
                     }
                 }
             } else {
-                quote! {
+                quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         Self::#name(#(#call_args),*).await
@@ -247,18 +247,18 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
             }
         }
         ReturnType::Type(_, ty) => {
-            modifiers.push(quote! {
+            modifiers.push(quote!{
                 <#ty as #oapi::oapi::EndpointOutRegister>::register(components, operation);
             });
             if sig.asyncness.is_none() {
-                quote! {
+                quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*), __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
                     }
                 }
             } else {
-                quote! {
+                quote!{
                     async fn handle(&self, __macro_gen_req: &mut #salvo::Request, __macro_gen_depot: &mut #salvo::Depot, __macro_gen_res: &mut #salvo::Response, __macro_gen_ctrl: &mut #salvo::FlowCtrl) {
                         #(#extract_ts)*
                         #salvo::Writer::write(Self::#name(#(#call_args),*).await, __macro_gen_req, __macro_gen_depot, __macro_gen_res).await;
