@@ -159,53 +159,53 @@ impl ToTokens for Feature {
         let feature = match &self {
             Feature::Default(default) => {
                 if let Some(default) = &default.0 {
-                    quote!{ .default_value(#default) }
+                    quote! { .default_value(#default) }
                 } else {
-                    quote!{}
+                    quote! {}
                 }
             }
-            Feature::Example(example) => quote!{ .example(#example) },
-            Feature::XmlAttr(xml) => quote!{ .xml(#xml) },
-            Feature::Format(format) => quote!{ .format(#format) },
-            Feature::WriteOnly(write_only) => quote!{ .write_only(#write_only) },
-            Feature::ReadOnly(read_only) => quote!{ .read_only(#read_only) },
-            Feature::Symbol(symbol) => quote!{ .symbol(#symbol) },
-            Feature::Nullable(nullable) => quote!{ .nullable(#nullable) },
-            Feature::Required(required) => quote!{ .required(#required) },
+            Feature::Example(example) => quote! { .example(#example) },
+            Feature::XmlAttr(xml) => quote! { .xml(#xml) },
+            Feature::Format(format) => quote! { .format(#format) },
+            Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
+            Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
+            Feature::Symbol(symbol) => quote! { .symbol(#symbol) },
+            Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+            Feature::Required(required) => quote! { .required(#required) },
             Feature::Rename(rename) => rename.to_token_stream(),
-            Feature::Style(style) => quote!{ .style(#style) },
-            Feature::DefaultStyle(style) => quote!{ .style(#style) },
-            Feature::ParameterIn(parameter_in) => quote!{ .parameter_in(#parameter_in) },
-            Feature::DefaultParameterIn(parameter_in) => quote!{ .parameter_in(#parameter_in) },
-            Feature::MultipleOf(multiple_of) => quote!{ .multiple_of(#multiple_of) },
+            Feature::Style(style) => quote! { .style(#style) },
+            Feature::DefaultStyle(style) => quote! { .style(#style) },
+            Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+            Feature::DefaultParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+            Feature::MultipleOf(multiple_of) => quote! { .multiple_of(#multiple_of) },
             Feature::AllowReserved(allow_reserved) => {
-                quote!{ .allow_reserved(Some(#allow_reserved)) }
+                quote! { .allow_reserved(Some(#allow_reserved)) }
             }
-            Feature::Explode(explode) => quote!{ .explode(#explode) },
-            Feature::Maximum(maximum) => quote!{ .maximum(#maximum) },
-            Feature::Minimum(minimum) => quote!{ .minimum(#minimum) },
+            Feature::Explode(explode) => quote! { .explode(#explode) },
+            Feature::Maximum(maximum) => quote! { .maximum(#maximum) },
+            Feature::Minimum(minimum) => quote! { .minimum(#minimum) },
             Feature::ExclusiveMaximum(exclusive_maximum) => {
-                quote!{ .exclusive_maximum(#exclusive_maximum) }
+                quote! { .exclusive_maximum(#exclusive_maximum) }
             }
             Feature::ExclusiveMinimum(exclusive_minimum) => {
-                quote!{ .exclusive_minimum(#exclusive_minimum) }
+                quote! { .exclusive_minimum(#exclusive_minimum) }
             }
-            Feature::MaxLength(max_length) => quote!{ .max_length(#max_length) },
-            Feature::MinLength(min_length) => quote!{ .min_length(#min_length) },
-            Feature::Pattern(pattern) => quote!{ .pattern(#pattern) },
-            Feature::MaxItems(max_items) => quote!{ .max_items(#max_items) },
-            Feature::MinItems(min_items) => quote!{ .min_items(#min_items) },
+            Feature::MaxLength(max_length) => quote! { .max_length(#max_length) },
+            Feature::MinLength(min_length) => quote! { .min_length(#min_length) },
+            Feature::Pattern(pattern) => quote! { .pattern(#pattern) },
+            Feature::MaxItems(max_items) => quote! { .max_items(#max_items) },
+            Feature::MinItems(min_items) => quote! { .min_items(#min_items) },
             Feature::MaxProperties(max_properties) => {
-                quote!{ .max_properties(#max_properties) }
+                quote! { .max_properties(#max_properties) }
             }
             Feature::MinProperties(min_properties) => {
-                quote!{ .max_properties(#min_properties) }
+                quote! { .max_properties(#min_properties) }
             }
             Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
-            Feature::Description(description) => quote!{ .description(#description) },
-            Feature::Deprecated(deprecated) => quote!{ .deprecated(#deprecated) },
+            Feature::Description(description) => quote! { .description(#description) },
+            Feature::Deprecated(deprecated) => quote! { .deprecated(#deprecated) },
             Feature::AdditionalProperties(additional_properties) => {
-                quote!{ .additional_properties(#additional_properties) }
+                quote! { .additional_properties(#additional_properties) }
             }
             Feature::RenameAll(_) => {
                 abort! {

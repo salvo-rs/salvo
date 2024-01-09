@@ -15,7 +15,7 @@ pub(crate) trait Variant {
 
     /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
-        (SchemaType(&parse_quote!(str)).to_token_stream(), quote!{&str})
+        (SchemaType(&parse_quote!(str)).to_token_stream(), quote! {&str})
     }
 }
 
@@ -71,7 +71,7 @@ where
         let variant = &self.item;
         let name = &self.name;
 
-        quote!{
+        quote! {
             #oapi::oapi::schema::Object::new()
                 #symbol
                 #example
@@ -127,7 +127,7 @@ where
         let enum_type = &self.enum_type;
         let description = &self.description;
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #oapi::oapi::Object::new()
                 #symbol
                 #description
@@ -141,8 +141,8 @@ where
 impl<V: Variant> FromIterator<V> for Enum<'_, V> {
     fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
         let mut len = 0;
-        let mut schema_type: TokenStream = quote!{};
-        let mut enum_type: TokenStream = quote!{};
+        let mut schema_type: TokenStream = quote! {};
+        let mut enum_type: TokenStream = quote! {};
 
         let items = iter
             .into_iter()
@@ -190,7 +190,7 @@ where
         let len = &self.len;
         let items = &self.items;
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
@@ -210,7 +210,7 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
 
                 let (schema_type, enum_type) = variant.get_type();
                 let item = variant.to_tokens();
-                quote!{
+                quote! {
                     .item(
                         #oapi::oapi::schema::Object::new()
                             .property(
@@ -252,7 +252,7 @@ impl ToTokens for UntaggedEnum {
         let oapi = crate::oapi_crate();
         let symbol = &self.symbol;
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #oapi::oapi::schema::Object::new()
                 .nullable(true)
                 .default_value(serde_json::Value::Null)
@@ -282,7 +282,7 @@ where
         let len = &self.len;
         let items = &self.items;
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         })
@@ -302,7 +302,7 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for Adjacentl
 
                 let (schema_type, enum_type) = variant.get_type();
                 let item = variant.to_tokens();
-                quote!{
+                quote! {
                     .item(
                         #oapi::oapi::schema::Object::new()
                             .property(
@@ -359,12 +359,12 @@ where
         // currently uses serde `tag` attribute as a discriminator. This discriminator
         // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
-            quote!{
+            quote! {
                 .discriminator(#oapi::oapi::schema::Discriminator::new(#tag))
             }
         });
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #discriminator
         });
     }
@@ -380,7 +380,7 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
             .enumerate()
             .map(|(index, variant)| {
                 len = index + 1;
-                quote!{
+                quote! {
                     .item(
                         #variant
                     )
@@ -390,7 +390,7 @@ impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
 
         let mut tokens = TokenStream::new();
 
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             Into::<#oapi::oapi::schema::OneOf>::into(#oapi::oapi::schema::OneOf::with_capacity(#len))
                 #items
         });

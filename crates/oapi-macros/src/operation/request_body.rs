@@ -126,7 +126,7 @@ impl ToTokens for RequestBodyAttr<'_> {
         let oapi = crate::oapi_crate();
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
-                PathType::RefPath(ref_type) => quote!{
+                PathType::RefPath(ref_type) => quote! {
                     <#ref_type as #oapi::oapi::schema::Schema>::to_schema(components)
                 },
                 PathType::MediaType(body_type) => {
@@ -143,12 +143,12 @@ impl ToTokens for RequestBodyAttr<'_> {
                 }
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };
-            let mut content = quote!{
+            let mut content = quote! {
                 #oapi::oapi::Content::new(#media_type_schema)
             };
 
             if let Some(ref example) = self.example {
-                content.extend(quote!{
+                content.extend(quote! {
                     .example(#example)
                 })
             }
@@ -167,7 +167,7 @@ impl ToTokens for RequestBodyAttr<'_> {
 
             match body_type {
                 PathType::RefPath(_) => {
-                    tokens.extend(quote!{
+                    tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
                             .add_content("application/json", #content)
                     });
@@ -179,7 +179,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                         .content_type
                         .as_deref()
                         .unwrap_or_else(|| type_tree.get_default_content_type());
-                    tokens.extend(quote!{
+                    tokens.extend(quote! {
                         #oapi::oapi::request_body::RequestBody::new()
                             .add_content(#content_type, #content)
                             .required(#required)
@@ -192,7 +192,7 @@ impl ToTokens for RequestBodyAttr<'_> {
         }
 
         if let Some(description) = &self.description {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .description(#description)
             })
         }

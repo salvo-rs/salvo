@@ -292,8 +292,8 @@ impl ToTokens for Deprecated {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote!{ #oapi::oapi::Deprecated::False },
-            Self::True => quote!{ #oapi::oapi::Deprecated::True },
+            Self::False => quote! { #oapi::oapi::Deprecated::False },
+            Self::True => quote! { #oapi::oapi::Deprecated::True },
         })
     }
 }
@@ -325,8 +325,8 @@ impl ToTokens for Required {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::False => quote!{ #oapi::oapi::Required::False },
-            Self::True => quote!{ #oapi::oapi::Required::True },
+            Self::False => quote! { #oapi::oapi::Required::False },
+            Self::True => quote! { #oapi::oapi::Required::True },
         })
     }
 }
@@ -372,13 +372,13 @@ impl ToTokens for ExternalDocs {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let oapi = crate::oapi_crate();
         let url = &self.url;
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #oapi::oapi::external_docs::ExternalDocsBuilder::new()
                 .url(#url)
         });
 
         if let Some(ref description) = self.description {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .description(#description)
             });
         }
@@ -428,7 +428,7 @@ impl AnyValue {
                     syn::Error::new(error.span(), "expected literal value, json!(...) or method reference")
                 })?;
 
-                Ok(AnyValue::Json(quote!{ #method() }))
+                Ok(AnyValue::Json(quote! { #method() }))
             }
         }
     }
@@ -452,14 +452,14 @@ impl AnyValue {
 impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
-            Self::Json(json) => tokens.extend(quote!{
+            Self::Json(json) => tokens.extend(quote! {
                 serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
             Self::DefaultTrait {
                 struct_ident,
                 field_ident,
-            } => tokens.extend(quote!{
+            } => tokens.extend(quote! {
                 serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
         }
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn test_handler_for_fn() {
-        let input = quote!{
+        let input = quote! {
             #[endpoint]
             async fn hello() {
                 res.render_plain_text("Hello World");

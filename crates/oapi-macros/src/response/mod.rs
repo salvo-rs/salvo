@@ -247,7 +247,7 @@ impl ToTokens for ResponseTuple<'_> {
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
-                tokens.extend(quote!{
+                tokens.extend(quote! {
                     #oapi::oapi::Response::new(#description)
                 });
 
@@ -256,7 +256,7 @@ impl ToTokens for ResponseTuple<'_> {
                                       examples: &Option<Punctuated<Example, Token![,]>>|
                  -> TokenStream2 {
                     let content_schema = match path_type {
-                        PathType::RefPath(ref_type) => quote!{
+                        PathType::RefPath(ref_type) => quote! {
                             <#ref_type as #oapi::oapi::ToSchema>::to_schema(components)
                         }
                         .to_token_stream(),
@@ -276,10 +276,10 @@ impl ToTokens for ResponseTuple<'_> {
                         PathType::InlineSchema(schema, _) => schema.to_token_stream(),
                     };
 
-                    let mut content = quote!{ #oapi::oapi::Content::new(#content_schema) };
+                    let mut content = quote! { #oapi::oapi::Content::new(#content_schema) };
 
                     if let Some(example) = &example {
-                        content.extend(quote!{
+                        content.extend(quote! {
                             .example(#example)
                         })
                     }
@@ -293,7 +293,7 @@ impl ToTokens for ResponseTuple<'_> {
                             .collect::<Array<TokenStream2>>();
                         content.extend(quote!( .extend_examples(#examples)))
                     }
-                    quote!{
+                    quote! {
                         #content
                     }
                 };
@@ -303,28 +303,28 @@ impl ToTokens for ResponseTuple<'_> {
 
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
-                            tokens.extend(quote!{
+                            tokens.extend(quote! {
                                 .add_content(#content_type, #content)
                             })
                         })
                     } else {
                         match response_type {
                             PathType::RefPath(_) => {
-                                tokens.extend(quote!{
+                                tokens.extend(quote! {
                                     .add_content("application/json", #content)
                                 });
                             }
                             PathType::MediaType(path_type) => {
                                 let type_tree = path_type.as_type_tree();
                                 let default_type = type_tree.get_default_content_type();
-                                tokens.extend(quote!{
+                                tokens.extend(quote! {
                                     .add_content(#default_type, #content)
                                 })
                             }
                             PathType::InlineSchema(_, ty) => {
                                 let type_tree = TypeTree::from_type(ty);
                                 let default_type = type_tree.get_default_content_type();
-                                tokens.extend(quote!{
+                                tokens.extend(quote! {
                                     .add_content(#default_type, #content)
                                 })
                             }
@@ -339,12 +339,12 @@ impl ToTokens for ResponseTuple<'_> {
                         (Cow::Borrowed(&**content_type), content)
                     })
                     .for_each(|(content_type, content)| {
-                        tokens.extend(quote!{ .add_content(#content_type, #content) })
+                        tokens.extend(quote! { .add_content(#content_type, #content) })
                     });
 
                 val.headers.iter().for_each(|header| {
                     let name = &header.name;
-                    tokens.extend(quote!{
+                    tokens.extend(quote! {
                         .add_header(#name, #header)
                     })
                 });
@@ -669,7 +669,7 @@ impl ToTokens for Responses<'_> {
         tokens.extend(
             self.0
                 .iter()
-                .fold(quote!{ #oapi::oapi::Responses::new() }, |mut acc, response| {
+                .fold(quote! { #oapi::oapi::Responses::new() }, |mut acc, response| {
                     match response {
                         Response::ToResponses(path) => {
                             let span = path.span();
@@ -679,7 +679,7 @@ impl ToTokens for Responses<'_> {
                         }
                         Response::Tuple(response) => {
                             let code = &response.status_code;
-                            acc.extend(quote!{ .response(#code, #response) });
+                            acc.extend(quote! { .response(#code, #response) });
                         }
                     }
 
@@ -812,18 +812,18 @@ impl ToTokens for Header {
             })
             .to_token_stream();
 
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 #oapi::oapi::Header::new(#media_type_schema)
             })
         } else {
             // default header (string type)
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 Into::<#oapi::oapi::Header>::into(#oapi::oapi::Header::default())
             })
         };
 
         if let Some(description) = &self.description {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .description(#description)
             })
         }

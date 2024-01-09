@@ -372,16 +372,16 @@ mod tests {
 
     #[test]
     fn test_serde_parse_container() {
-        let default_attribute_1: syn::Attribute = parse_quote!{
+        let default_attribute_1: syn::Attribute = parse_quote! {
             #[serde(default)]
         };
-        let default_attribute_2: syn::Attribute = parse_quote!{
+        let default_attribute_2: syn::Attribute = parse_quote! {
             #[serde(default)]
         };
-        let deny_unknown_fields_attribute: syn::Attribute = parse_quote!{
+        let deny_unknown_fields_attribute: syn::Attribute = parse_quote! {
             #[serde(deny_unknown_fields)]
         };
-        let unsupported_attribute: syn::Attribute = parse_quote!{
+        let unsupported_attribute: syn::Attribute = parse_quote! {
             #[serde(expecting = "...")]
         };
         let attributes: &[Attribute] = &[

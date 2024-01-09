@@ -243,13 +243,13 @@ fn metadata_source(salvo: &Ident, source: &SourceInfo) -> TokenStream {
     } else {
         Ident::new(&source.parser.to_pascal_case(), Span::call_site())
     };
-    let from = quote!{
+    let from = quote! {
         #salvo::extract::metadata::SourceFrom::#from
     };
-    let parser = quote!{
+    let parser = quote! {
         #salvo::extract::metadata::SourceParser::#parser
     };
-    quote!{
+    quote! {
         #salvo::extract::metadata::Source::new(#from, #parser)
     }
 }
@@ -265,13 +265,13 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
 
     for source in &args.default_sources {
         let source = metadata_source(&salvo, source);
-        default_sources.push(quote!{
+        default_sources.push(quote! {
             metadata = metadata.add_default_source(#source);
         });
     }
     let rename_all = if let Some(rename_all) = &args.rename_all {
         let rename = metadata_rename_rule(&salvo, rename_all)?;
-        Some(quote!{
+        Some(quote! {
             metadata = metadata.rename_all(#rename);
         })
     } else {
@@ -289,7 +289,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         if field.flatten {
             if let Type::Path(ty) = &field.ty {
                 let ty = omit_type_path_lifetimes(ty);
-                nested_metadata = Some(quote!{
+                nested_metadata = Some(quote! {
                     field = field.metadata(<#ty as #salvo::extract::Extractible>::metadata());
                     field = field.set_flatten(true);
                 });
@@ -299,7 +299,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         } else {
             for source in &field.sources {
                 let source = metadata_source(&salvo, source);
-                sources.push(quote!{
+                sources.push(quote! {
                     field = field.add_source(#source);
                 });
             }
@@ -308,16 +308,16 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
             return Err(Error::new_spanned(name, "Only one source can be from request."));
         }
         let aliases = field.aliases.iter().map(|alias| {
-            quote!{
+            quote! {
                 field = field.add_alias(#alias);
             }
         });
         let rename = field.rename.as_ref().map(|rename| {
-            quote!{
+            quote! {
                 field = field.rename(#rename);
             }
         });
-        fields.push(quote!{
+        fields.push(quote! {
             let mut field = #salvo::extract::metadata::Field::new(#field_ident);
             #nested_metadata
             #(#sources)*
@@ -328,7 +328,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
     }
 
     let mt = name.to_string();
-    let metadata = quote!{
+    let metadata = quote! {
         fn metadata() ->  &'static #salvo::extract::Metadata {
             static METADATA: #salvo::__private::once_cell::sync::OnceCell<#salvo::extract::Metadata> = #salvo::__private::once_cell::sync::OnceCell::new();
             METADATA.get_or_init(|| {
@@ -350,7 +350,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let mut generics = args.generics.clone();
         generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
-        quote!{
+        quote! {
             impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
                 #metadata
 
@@ -366,7 +366,7 @@ pub(crate) fn generate(args: DeriveInput) -> Result<TokenStream, Error> {
         let mut generics = args.generics.clone();
         generics.params.insert(0, ex_life_def);
         let impl_generics_de = generics.split_for_impl().0;
-        quote!{
+        quote! {
             impl #impl_generics_de #salvo::extract::Extractible<'__macro_gen_ex> for #name #ty_generics #where_clause {
                 #metadata
 

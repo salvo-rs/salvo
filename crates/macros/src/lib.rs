@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_handler_for_fn() {
-        let input = quote!{
+        let input = quote! {
             #[handler]
             async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
                 res.render_plain_text("Hello World");
@@ -64,7 +64,7 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             handler::generate(item).unwrap().to_string(),
-            quote!{
+            quote! {
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_handler_for_fn_return_result() {
-        let input = quote!{
+        let input = quote! {
             #[handler]
             async fn hello(req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) -> Result<(), Error> {
                 Ok(())
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_handler_for_impl() {
-        let input = quote!{
+        let input = quote! {
             #[handler]
             impl Hello {
                 fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
@@ -145,7 +145,7 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             handler::generate(item).unwrap().to_string(),
-            quote!{
+            quote! {
                 #[handler]
                 impl Hello {
                     fn handle(req: &mut Request, depot: &mut Depot, res: &mut Response) {
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_extract_simple() {
-        let input = quote!{
+        let input = quote! {
             #[salvo(extract(default_source(from = "body")))]
             struct BadMan<'a> {
                 #[salvo(extract(source(from = "query")))]
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_extract_with_lifetime() {
-        let input = quote!{
+        let input = quote! {
             #[salvo(extract(
                 default_source(from = "query"),
                 default_source(from = "param"),

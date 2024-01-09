@@ -56,8 +56,8 @@ impl Parse for Default {
 impl ToTokens for Default {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match &self.0 {
-            Some(inner) => tokens.extend(quote!{Some(#inner)}),
-            None => tokens.extend(quote!{None}),
+            Some(inner) => tokens.extend(quote! {Some(#inner)}),
+            None => tokens.extend(quote! {None}),
         }
     }
 }
@@ -305,7 +305,6 @@ impl From<RenameAll> for Feature {
     }
 }
 impl_name!(RenameAll = "rename_all");
-
 
 #[derive(Clone, Debug)]
 pub(crate) struct DefaultStyle(pub(crate) ParameterStyle);
@@ -822,7 +821,7 @@ impl Parse for SchemaWith {
 impl ToTokens for SchemaWith {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = &self.0;
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #path()
         })
     }

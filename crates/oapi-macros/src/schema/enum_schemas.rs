@@ -178,12 +178,12 @@ impl ToTokens for EnumSchemaType<'_> {
         };
 
         if let Some(deprecated) = crate::get_deprecated(attributes) {
-            tokens.extend(quote!{ .deprecated(#deprecated) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
         if !description.is_empty() {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .description(#description)
             })
         }
@@ -214,7 +214,7 @@ impl ToTokens for ReprEnum<'_> {
                     if is_not_skipped(&variant_rules) {
                         let repr_type = &self.enum_type;
                         Some(enum_variant::ReprVariant {
-                            value: quote!{ Self::#variant_type as #repr_type },
+                            value: quote! { Self::#variant_type as #repr_type },
                             type_path: repr_type,
                         })
                     } else {
@@ -554,7 +554,7 @@ impl ComplexEnum<'_> {
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
-                quote!{
+                quote! {
                     #named_enum
                         #symbol
                         .property(#tag, #variant_name_tokens)
@@ -598,7 +598,7 @@ impl ComplexEnum<'_> {
                     });
 
                     if is_reference {
-                        quote!{
+                        quote! {
                             #oapi::oapi::schema::AllOf::new()
                                 #symbol
                                 .item(#unnamed_enum)
@@ -609,7 +609,7 @@ impl ComplexEnum<'_> {
                                 )
                         }
                     } else {
-                        quote!{
+                        quote! {
                             #unnamed_enum
                                 #symbol
                                 .schema_type(#oapi::oapi::schema::SchemaType::Object)
@@ -647,7 +647,7 @@ impl ComplexEnum<'_> {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
 
-                quote!{
+                quote! {
                     #oapi::oapi::schema::Object::new()
                         #symbol
                         .property(#tag, #variant_tokens)
@@ -701,7 +701,7 @@ impl ComplexEnum<'_> {
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
-                quote!{
+                quote! {
                     #oapi::oapi::schema::Object::new()
                         #symbol
                         .schema_type(#oapi::oapi::schema::SchemaType::Object)
@@ -741,7 +741,7 @@ impl ComplexEnum<'_> {
                         value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                     }]);
 
-                    quote!{
+                    quote! {
                         #oapi::oapi::schema::Object::new()
                             #symbol
                             .schema_type(#oapi::oapi::schema::SchemaType::Object)
@@ -782,7 +782,7 @@ impl ComplexEnum<'_> {
                     value: variant_name.unwrap_or(Cow::Borrowed(&name)).to_token_stream(),
                 }]);
 
-                quote!{
+                quote! {
                     #oapi::oapi::schema::Object::new()
                         #symbol
                         .property(#tag, #variant_tokens)

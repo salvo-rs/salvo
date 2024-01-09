@@ -70,7 +70,7 @@ impl ToTokens for ToSchema<'_> {
             let ty_params = ty_params
                 .map(|ty_param| {
                     let ty = &ty_param.ident;
-                    quote!{
+                    quote! {
                         if let Some(symbol) = <#ty as #oapi::oapi::ToSchema>::schema().0 {
                             symbol
                         } else {
@@ -80,24 +80,24 @@ impl ToTokens for ToSchema<'_> {
                 })
                 .collect::<Punctuated<TokenStream, Token![,]>>();
             if ty_params.is_empty() {
-                Some(quote!{ #symbol.to_string().replace(" :: ", ".") })
+                Some(quote! { #symbol.to_string().replace(" :: ", ".") })
             } else {
-                Some(quote!{ format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") })
+                Some(quote! { format!("{}<{}>", #symbol, [#ty_params].join(",")).replace("::", ".") })
             }
         } else {
-            Some(quote!{ std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
+            Some(quote! { std::any::type_name::<#ident #ty_generics>().replace("::", ".") })
         };
 
         let (impl_generics, _, _) = self.generics.split_for_impl();
 
         let body = match symbol {
             None => {
-                quote!{
+                quote! {
                     #variant.into()
                 }
             }
             Some(symbol) => {
-                quote!{
+                quote! {
                     let schema = #variant;
                     components.schemas.insert(#symbol, schema.into());
                     #oapi::oapi::RefOr::Ref(#oapi::oapi::Ref::new(format!("#/components/schemas/{}", #symbol)))
@@ -212,7 +212,7 @@ struct UnitStructVariant;
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #oapi::oapi::schema::empty()
         });
     }

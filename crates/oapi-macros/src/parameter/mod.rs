@@ -68,10 +68,10 @@ impl ToTokens for Parameter<'_> {
                         }
                     });
                 } else {
-                    tokens.extend(quote!{ operation.parameters.insert(#parameter); })
+                    tokens.extend(quote! { operation.parameters.insert(#parameter); })
                 }
             }
-            Parameter::Struct(StructParameter { path }) => tokens.extend(quote!{
+            Parameter::Struct(StructParameter { path }) => tokens.extend(quote! {
                 operation.parameters.extend(
                     <#path as #oapi::oapi::ToParameters>::to_parameters(components)
                 );
@@ -89,7 +89,7 @@ struct ParameterSchema<'p> {
 impl ToTokens for ParameterSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut to_tokens = |param_schema, required| {
-            tokens.extend(quote!{ .schema(#param_schema).required(#required) });
+            tokens.extend(quote! { .schema(#param_schema).required(#required) });
         };
 
         match &self.parameter_type {
@@ -253,11 +253,11 @@ impl ToTokens for ValueParameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let name = &*self.name;
-        tokens.extend(quote!{
+        tokens.extend(quote! {
             #oapi::oapi::parameter::Parameter::from(#oapi::oapi::parameter::Parameter::new(#name))
         });
         if let Some(parameter_in) = &self.parameter_in {
-            tokens.extend(quote!{ .parameter_in(#parameter_in) });
+            tokens.extend(quote! { .parameter_in(#parameter_in) });
         }
 
         let (schema_features, param_features) = &self.features;
@@ -330,10 +330,10 @@ impl ToTokens for ParameterIn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         tokens.extend(match self {
-            Self::Path => quote!{ #oapi::oapi::parameter::ParameterIn::Path },
-            Self::Query => quote!{ #oapi::oapi::parameter::ParameterIn::Query },
-            Self::Header => quote!{ #oapi::oapi::parameter::ParameterIn::Header },
-            Self::Cookie => quote!{ #oapi::oapi::parameter::ParameterIn::Cookie },
+            Self::Path => quote! { #oapi::oapi::parameter::ParameterIn::Path },
+            Self::Query => quote! { #oapi::oapi::parameter::ParameterIn::Query },
+            Self::Header => quote! { #oapi::oapi::parameter::ParameterIn::Header },
+            Self::Cookie => quote! { #oapi::oapi::parameter::ParameterIn::Cookie },
         })
     }
 }
@@ -373,17 +373,17 @@ impl ToTokens for ParameterStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         match self {
-            ParameterStyle::Matrix => tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::Matrix }),
-            ParameterStyle::Label => tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::Label }),
-            ParameterStyle::Form => tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::Form }),
-            ParameterStyle::Simple => tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::Simple }),
+            ParameterStyle::Matrix => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Matrix }),
+            ParameterStyle::Label => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Label }),
+            ParameterStyle::Form => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Form }),
+            ParameterStyle::Simple => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::Simple }),
             ParameterStyle::SpaceDelimited => {
-                tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::SpaceDelimited })
             }
             ParameterStyle::PipeDelimited => {
-                tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
+                tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::PipeDelimited })
             }
-            ParameterStyle::DeepObject => tokens.extend(quote!{ #oapi::oapi::parameter::ParameterStyle::DeepObject }),
+            ParameterStyle::DeepObject => tokens.extend(quote! { #oapi::oapi::parameter::ParameterStyle::DeepObject }),
         }
     }
 }

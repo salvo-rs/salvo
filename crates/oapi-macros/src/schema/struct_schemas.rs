@@ -136,7 +136,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 }
             })
             .fold(
-                quote!{ #oapi::oapi::Object::new() },
+                quote! { #oapi::oapi::Object::new() },
                 |mut object_tokens, (field, field_rule)| {
                     let mut field_name = &*field.ident.as_ref().unwrap().to_string();
 
@@ -166,7 +166,7 @@ impl ToTokens for NamedStructSchema<'_> {
                             let name = crate::rename::<FieldRename>(field_name, rename_to, rename_all)
                                 .unwrap_or(Cow::Borrowed(field_name));
 
-                            object_tokens.extend(quote!{
+                            object_tokens.extend(quote! {
                                 .property(#name, #property)
                             });
 
@@ -176,7 +176,7 @@ impl ToTokens for NamedStructSchema<'_> {
                                     .map(crate::feature::Required::is_true)
                                     .unwrap_or(false)
                             {
-                                object_tokens.extend(quote!{
+                                object_tokens.extend(quote! {
                                     .required(#name)
                                 })
                             }
@@ -231,7 +231,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 tokens.extend(object_tokens);
                 false
             } else {
-                tokens.extend(quote!{
+                tokens.extend(quote! {
                     utoipa::openapi::AllOfBuilder::new()
                         #flattened_tokens
                     .item(#object_tokens)
@@ -250,13 +250,13 @@ impl ToTokens for NamedStructSchema<'_> {
                 .map(|container_rule| container_rule.deny_unknown_fields)
                 .unwrap_or(false)
         {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .additional_properties(Some(utoipa::openapi::schema::AdditionalProperties::FreeForm(false)))
             });
         }
 
         if let Some(deprecated) = crate::get_deprecated(self.attributes) {
-            tokens.extend(quote!{ .deprecated(#deprecated) });
+            tokens.extend(quote! { .deprecated(#deprecated) });
         }
 
         if let Some(struct_features) = self.features.as_ref() {
@@ -265,7 +265,7 @@ impl ToTokens for NamedStructSchema<'_> {
 
         let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
         if !description.is_empty() {
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 .description(#description)
             })
         }
@@ -333,12 +333,12 @@ impl ToTokens for UnnamedStructSchema<'_> {
             // See: https://serde.rs/json.html
             // Typically OpenAPI does not support multi type arrays thus we simply consider the case
             // as generic object array
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 #oapi::oapi::Object::new()
             });
 
             if let Some(deprecated) = deprecated {
-                tokens.extend(quote!{ .deprecated(#deprecated) });
+                tokens.extend(quote! { .deprecated(#deprecated) });
             }
 
             if let Some(ref attrs) = self.features {
