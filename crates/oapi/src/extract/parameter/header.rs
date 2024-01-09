@@ -144,6 +144,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use http::header::HeaderValue;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -165,19 +170,19 @@ mod tests {
     }
 
     #[test]
-    fn test_unrequired_header_param_into_inner() {
+    fn test_header_param_into_inner() {
         let param = HeaderParam::<String, false>(Some("param".to_string()));
         assert_eq!(Some("param".to_string()), param.into_inner());
     }
 
     #[test]
-    fn test_unrequired_header_param_deref() {
+    fn test_header_param_deref() {
         let param = HeaderParam::<String, false>(Some("param".to_string()));
         assert_eq!(&Some("param".to_string()), param.deref())
     }
 
     #[test]
-    fn test_unrequired_header_param_deref_mut() {
+    fn test_header_param_deref_mut() {
         let mut param = HeaderParam::<String, false>(Some("param".to_string()));
         assert_eq!(&mut Some("param".to_string()), param.deref_mut())
     }
@@ -198,5 +203,96 @@ mod tests {
     fn test_header_param_display() {
         let param = HeaderParam::<String, true>(Some("param".to_string()));
         assert_eq!(format!("{}", param), "param");
+    }
+
+    #[test]
+    fn test_required_header_param_metadata() {
+        let metadata = HeaderParam::<String, true>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_header_prarm_extract() {
+        let mut req = Request::new();
+        let _ = HeaderParam::<String, true>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_required_header_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut().append("param", HeaderValue::from_static("param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = HeaderParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_header_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = HeaderParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_header_param_metadata() {
+        let metadata = HeaderParam::<String, false>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_header_prarm_extract() {
+        let mut req = Request::new();
+        let _ = HeaderParam::<String, false>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_header_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        req.headers_mut().append("param", HeaderValue::from_static("param"));
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = HeaderParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_header_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = HeaderParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_header_param_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        HeaderParam::<String, false>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "parameters": [
+                    {
+                        "name": "arg",
+                        "in": "header",
+                        "description": "Get parameter `arg` from request headers.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {}
+            })
+        )
     }
 }

@@ -98,6 +98,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -134,5 +138,63 @@ mod tests {
     fn test_path_param_display() {
         let param = PathParam::<String>("param".to_string());
         assert_eq!(format!("{}", param), "param");
+    }
+
+    #[test]
+    fn test_path_param_metadata() {
+        let metadata = PathParam::<String>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_path_prarm_extract() {
+        let mut req = Request::new();
+        let _ = PathParam::<String>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_path_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        req.params_mut().insert("param".to_string(), "param".to_string());
+        let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0, "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_path_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = PathParam::<String>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0, "param");
+    }
+
+    #[test]
+    fn test_path_param_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        PathParam::<String>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "parameters": [
+                    {
+                        "name": "arg",
+                        "in": "path",
+                        "description": "Get parameter `arg` from request url path.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {}
+            })
+        )
     }
 }

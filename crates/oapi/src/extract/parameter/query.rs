@@ -134,6 +134,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
+    use salvo_core::test::TestClient;
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -155,19 +159,19 @@ mod tests {
     }
 
     #[test]
-    fn test_unrequired_query_param_into_inner() {
+    fn test_query_param_into_inner() {
         let param = QueryParam::<String, false>(Some("param".to_string()));
         assert_eq!(Some("param".to_string()), param.into_inner());
     }
 
     #[test]
-    fn test_unrequired_query_param_deref() {
+    fn test_query_param_deref() {
         let param = QueryParam::<String, false>(Some("param".to_string()));
         assert_eq!(&Some("param".to_string()), param.deref())
     }
 
     #[test]
-    fn test_unrequired_query_param_deref_mut() {
+    fn test_query_param_deref_mut() {
         let mut param = QueryParam::<String, false>(Some("param".to_string()));
         assert_eq!(&mut Some("param".to_string()), param.deref_mut())
     }
@@ -188,5 +192,96 @@ mod tests {
     fn test_query_param_display() {
         let param = QueryParam::<String, true>(Some("param".to_string()));
         assert_eq!(format!("{}", param), "param");
+    }
+
+    #[test]
+    fn test_required_query_param_metadata() {
+        let metadata = QueryParam::<String, true>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_query_prarm_extract() {
+        let mut req = Request::new();
+        let _ = QueryParam::<String, true>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_required_query_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        req.queries_mut().insert("param".to_string(), "param".to_string());
+        let result = QueryParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_required_query_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = QueryParam::<String, true>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_query_param_metadata() {
+        let metadata = QueryParam::<String, false>::metadata();
+        assert_eq!("", metadata.name);
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_query_prarm_extract() {
+        let mut req = Request::new();
+        let _ = QueryParam::<String, false>::extract(&mut req).await;
+    }
+
+    #[tokio::test]
+    async fn test_query_prarm_extract_with_value() {
+        let mut req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        req.queries_mut().insert("param".to_string(), "param".to_string());
+        let result = QueryParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn test_query_prarm_extract_with_value_panic() {
+        let req = TestClient::get("http://127.0.0.1:5801").build_hyper();
+        let schema = req.uri().scheme().cloned().unwrap();
+        let mut req = Request::from_hyper(req, schema);
+        let result = QueryParam::<String, false>::extract_with_arg(&mut req, "param").await;
+        assert_eq!(result.unwrap().0.unwrap(), "param");
+    }
+
+    #[test]
+    fn test_query_param_register() {
+        let mut components = Components::new();
+        let mut operation = Operation::new();
+        QueryParam::<String, false>::register(&mut components, &mut operation, "arg");
+
+        assert_json_eq!(
+            operation,
+            json!({
+                "parameters": [
+                    {
+                        "name": "arg",
+                        "in": "query",
+                        "description": "Get parameter `arg` from request url query.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {}
+            })
+        )
     }
 }
