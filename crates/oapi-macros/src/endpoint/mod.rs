@@ -199,7 +199,7 @@ fn handle_fn(salvo: &Ident, oapi: &Ident, sig: &Signature) -> syn::Result<(Token
                     let idv = idv.rsplit_once(' ').map(|(_, v)| v.to_owned()).unwrap_or(idv);
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
-                    extract_ts.push(quote! {
+                    extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => {
                                 data

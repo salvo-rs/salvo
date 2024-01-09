@@ -224,7 +224,7 @@ fn metadata_rename_rule(salvo: &Ident, input: &str) -> Result<TokenStream, Error
     match rule {
         Some(rule) => {
             let rule = Ident::new(rule, Span::call_site());
-            Ok(quote! {
+            Ok(quote!{
                 #salvo::extract::metadata::RenameRule::#rule
             })
         }

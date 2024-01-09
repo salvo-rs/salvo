@@ -557,10 +557,10 @@ mod tests {
         };
         let item = parse2(input).unwrap();
         assert_eq!(
-            endpoint::generate(parse2(quote! {}).unwrap(), item)
+            endpoint::generate(parse2(quote!{}).unwrap(), item)
                 .unwrap()
                 .to_string(),
-            quote! {
+            quote!{
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;

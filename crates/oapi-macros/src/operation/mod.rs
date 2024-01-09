@@ -62,7 +62,7 @@ impl<'a> Operation<'a> {
         }
 
         // let responses = Responses(self.responses);
-        // modifiers.push(quote! {
+        // modifiers.push(quote!{
         //     .responses(#responses)
         // });
         if let Some(security_requirements) = self.security {

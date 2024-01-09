@@ -73,18 +73,18 @@ impl ToTokens for Tag {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let name = &self.name;
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #oapi::oapi::tag::Tag::default().name(#name)
         });
 
         if let Some(ref description) = self.description {
-            tokens.extend(quote! {
+            tokens.extend(quote!{
                 .description(#description)
             });
         }
 
         if let Some(ref external_docs) = self.external_docs {
-            tokens.extend(quote! {
+            tokens.extend(quote!{
                 .external_docs(#external_docs)
             });
         }
@@ -141,7 +141,7 @@ impl ToTokens for Server {
         let description = &self
             .description
             .as_ref()
-            .map(|description| quote! { .description(#description) });
+            .map(|description| quote!{ .description(#description) });
 
         let parameters = self
             .variables
@@ -152,14 +152,14 @@ impl ToTokens for Server {
                 let description = &variable
                     .description
                     .as_ref()
-                    .map(|description| quote! { .description(#description) });
+                    .map(|description| quote!{ .description(#description) });
                 let enum_values = &variable.enum_values.as_ref().map(|enum_values| {
                     let enum_values = enum_values.iter().collect::<Array<&LitStr>>();
 
-                    quote! { .enum_values(#enum_values) }
+                    quote!{ .enum_values(#enum_values) }
                 });
 
-                quote! {
+                quote!{
                     .add_variable(#name, #oapi::oapi::server::ServerVariable::new()
                         .default_value(#default_value)
                         #description
@@ -169,7 +169,7 @@ impl ToTokens for Server {
             })
             .collect::<TokenStream>();
 
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             #oapi::oapi::server::ServerBuilder::new()
                 .url(#url)
                 #description
@@ -290,7 +290,7 @@ impl ToTokens for Components {
         let builder_tokens =
             self.schemas
                 .iter()
-                .fold(quote! { #oapi::oapi::Components::new() }, |mut tokens, schema| {
+                .fold(quote!{ #oapi::oapi::Components::new() }, |mut tokens, schema| {
                     let Schema(path) = schema;
 
                     tokens.extend(quote_spanned!(path.span()=>
@@ -312,6 +312,6 @@ impl ToTokens for Components {
                 builder_tokens
             });
 
-        tokens.extend(quote! { #builder_tokens });
+        tokens.extend(quote!{ #builder_tokens });
     }
 }

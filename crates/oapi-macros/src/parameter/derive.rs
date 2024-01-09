@@ -12,9 +12,9 @@ use crate::component::{self, ComponentSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::feature::{
     self, impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, AdditionalProperties,
-    AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format, Inline,
-    IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable, Pattern,
-    ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
+    AllowReserved, DefaultStyle, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Feature, FeaturesExt, Format,
+    Inline, IntoInner, MaxItems, MaxLength, Maximum, Merge, MinItems, MinLength, Minimum, MultipleOf, Names, Nullable,
+    Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
 use crate::serde::{self, RenameRule, SerdeContainer, SerdeValue};
@@ -29,8 +29,8 @@ pub(crate) struct ToParametersFeatures(Vec<Feature>);
 impl Parse for ToParametersFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
-            input as Style,
-            feature::ParameterIn,
+            input as DefaultStyle,
+            feature::DefaultParameterIn,
             Names,
             RenameAll
         )))
@@ -93,38 +93,23 @@ impl ToTokens for ToParameters {
                 })
         });
 
-        let style = pop_feature!(parameters_features => Feature::Style(_));
-        let parameter_in = pop_feature!(parameters_features => Feature::ParameterIn(_));
+        let default_style = pop_feature!(parameters_features => Feature::DefaultStyle(_));
+        let default_parameter_in = pop_feature!(parameters_features => Feature::DefaultParameterIn(_));
         let rename_all = pop_feature!(parameters_features => Feature::RenameAll(_));
-        let source_from = if let Some(Feature::ParameterIn(feature::ParameterIn(parameter_in))) = parameter_in {
-            match parameter_in {
-                ParameterIn::Query => quote! {  #salvo::extract::metadata::SourceFrom::Query },
-                ParameterIn::Header => quote! {  #salvo::extract::metadata::SourceFrom::Header },
-                ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
-                ParameterIn::Cookie => quote! {  #salvo::extract::metadata::SourceFrom::Cookie },
-            }
-        } else {
-            quote! { #salvo::extract::metadata::SourceFrom::Query }
-        };
-        let default_source = quote! { #salvo::extract::metadata::Source::new(#source_from, #salvo::extract::metadata::SourceParser::MultiMap) };
-        let fields = self
-        .get_struct_fields(&names.as_ref())
-        .enumerate()
-        .map(|(index, field)| {
-            let name = if let Some(ident) = field.ident.as_ref() {
-                ident.to_string()
-            } else if let Some(name) = names.as_ref().and_then(|names|names.get(index)) {
-                name.to_string()
-            } else {
-                abort!{
-                    field,
-                    "tuple structs are not supported";
-                    help = "consider using a struct with named fields instead, or use `#[salvo(parameters(names(\"...\")))]` to specify a name for each field",
+        let default_source_from =
+            if let Some(Feature::DefaultParameterIn(feature::DefaultParameterIn(default_parameter_in))) =
+                default_parameter_in
+            {
+                match default_parameter_in {
+                    ParameterIn::Query => quote! { #salvo::extract::metadata::SourceFrom::Query },
+                    ParameterIn::Header => quote! { #salvo::extract::metadata::SourceFrom::Header },
+                    ParameterIn::Path => quote! { #salvo::extract::metadata::SourceFrom::Param },
+                    ParameterIn::Cookie => quote! { #salvo::extract::metadata::SourceFrom::Cookie },
                 }
+            } else {
+                quote! { #salvo::extract::metadata::SourceFrom::Query }
             };
-            quote!{ #salvo::extract::metadata::Field::new(#name)}
-        })
-        .collect::<Vec<_>>();
+        let default_source = quote! { #salvo::extract::metadata::Source::new(#default_source_from, #salvo::extract::metadata::SourceParser::MultiMap) };
         let params = self
             .get_struct_fields(&names.as_ref())
             .enumerate()
@@ -147,8 +132,8 @@ impl ToTokens for ToParameters {
                                 _ => None
                             }
                         }),
-                        style: &style,
-                        parameter_in: &parameter_in,
+                        default_style: &default_style,
+                        default_parameter_in: &default_parameter_in,
                         name: names.as_ref()
                             .map(|names| names.get(index).unwrap_or_else(|| abort!(
                                 ident,
@@ -160,6 +145,20 @@ impl ToTokens for ToParameters {
                 }
             })
             .collect::<Array<Parameter>>();
+
+        let extract_fields = if self.is_named_struct() {
+            params
+                .iter()
+                .map(|param| param.to_extract_field_token_stream(&salvo))
+                .collect::<Vec<_>>()
+        } else if let Some(names) = &names {
+            names
+                .iter()
+                .map(|name| quote! { #salvo::extract::metadata::Field::new(#name)})
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
 
         let rename_all = rename_all
             .as_ref()
@@ -182,7 +181,7 @@ impl ToTokens for ToParameters {
             })
             .unwrap_or_else(|| quote! {None});
         let name = ident.to_string();
-        tokens.extend(quote! {
+        tokens.extend(quote!{
             impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
                 fn to_parameters(components: &mut #oapi::oapi::Components) -> #oapi::oapi::Parameters {
                     #oapi::oapi::Parameters(#params.to_vec())
@@ -201,7 +200,7 @@ impl ToTokens for ToParameters {
                     METADATA.get_or_init(||
                         #salvo::extract::Metadata::new(#name)
                             .default_sources(vec![#default_source])
-                            .fields(vec![#(#fields),*])
+                            .fields(vec![#(#extract_fields),*])
                             .rename_all(#rename_all)
                     )
                 }
@@ -217,6 +216,9 @@ impl ToTokens for ToParameters {
 }
 
 impl ToParameters {
+    fn is_named_struct(&self) -> bool {
+        matches!(&self.data, Data::Struct(data_struct) if matches!(&data_struct.fields, syn::Fields::Named(_)))
+    }
     fn get_struct_fields(&self, field_names: &Option<&Vec<String>>) -> impl Iterator<Item = &Field> {
         let ident = &self.ident;
         let abort = |note: &str| {
@@ -278,12 +280,12 @@ impl ToParameters {
 
 #[derive(Debug)]
 pub(crate) struct FieldParameterContainerAttributes<'a> {
-    /// See [`ToParametersAttr::style`].
-    style: &'a Option<Feature>,
+    /// See [`ToParameterAttr::style`].
+    default_style: &'a Option<Feature>,
     /// See [`ToParametersAttr::names`]. The name that applies to this field.
     name: Option<&'a String>,
     /// See [`ToParametersAttr::parameter_in`].
-    parameter_in: &'a Option<Feature>,
+    default_parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
     rename_all: Option<&'a RenameAll>,
 }
@@ -299,6 +301,7 @@ impl Parse for FieldFeatures {
             input as feature::ValueType,
             Rename,
             Style,
+            feature::ParameterIn,
             AllowReserved,
             Example,
             Explode,
@@ -345,7 +348,7 @@ impl Parameter<'_> {
     ///
     /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
     fn resolve_field_features(&self) -> (Vec<Feature>, Vec<Feature>) {
-        let mut field_features = self
+        let field_features = self
             .field
             .attrs
             .iter()
@@ -361,15 +364,6 @@ impl Parameter<'_> {
             })
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
-
-        if let Some(ref style) = self.container_attributes.style {
-            if !field_features
-                .iter()
-                .any(|feature| matches!(&feature, Feature::Style(_)))
-            {
-                field_features.push(style.clone()); // could try to use cow to avoid cloning
-            };
-        }
 
         field_features.into_iter().fold(
             (Vec::<Feature>::new(), Vec::<Feature>::new()),
@@ -403,6 +397,40 @@ impl Parameter<'_> {
                 (schema_features, param_features)
             },
         )
+    }
+
+    fn to_extract_field_token_stream(&self, salvo: &Ident) -> TokenStream {
+        let (_, mut param_features) = self.resolve_field_features();
+        let name = self
+            .field
+            .ident
+            .as_ref()
+            .expect("struct field name should be exists")
+            .to_string();
+        if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
+            let source = match parameter_in {
+                feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
+                    quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Query, #salvo::extract::metadata::SourceParser::Smart) }
+                }
+                feature::ParameterIn(crate::parameter::ParameterIn::Header) => {
+                    quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Header, #salvo::extract::metadata::SourceParser::Smart) }
+                }
+                feature::ParameterIn(crate::parameter::ParameterIn::Path) => {
+                    quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Param, #salvo::extract::metadata::SourceParser::Smart) }
+                }
+                feature::ParameterIn(crate::parameter::ParameterIn::Cookie) => {
+                    quote! { #salvo::extract::metadata::Source::new(#salvo::extract::metadata::SourceFrom::Cookie, #salvo::extract::metadata::SourceParser::Smart) }
+                }
+            };
+            quote! {
+                #salvo::extract::metadata::Field::new(#name)
+                    .add_source(#source)
+            }
+        } else {
+            quote! {
+                #salvo::extract::metadata::Field::new(#name)
+            }
+        }
     }
 }
 
@@ -447,8 +475,17 @@ impl ToTokens for Parameter<'_> {
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
-        if let Some(ref parameter_in) = self.container_attributes.parameter_in {
-            tokens.extend(parameter_in.into_token_stream());
+
+        if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
+            tokens.extend(quote! { .parameter_in(#parameter_in) });
+        } else if let Some(parameter_in) = &self.container_attributes.default_parameter_in {
+            tokens.extend(parameter_in.to_token_stream());
+        }
+
+        if let Some(style) = param_features.pop_style_feature() {
+            tokens.extend(quote! { .style(#style) });
+        } else if let Some(style) = &self.container_attributes.default_style {
+            tokens.extend(style.to_token_stream());
         }
 
         if let Some(deprecated) = crate::get_deprecated(&field.attrs) {

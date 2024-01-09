@@ -107,7 +107,7 @@ fn handle_fn(salvo: &Ident, sig: &Signature) -> syn::Result<TokenStream> {
                     let id = Ident::new(&idv, Span::call_site());
                     let idv = idv.trim_start_matches('_');
 
-                    extract_ts.push(quote! {
+                    extract_ts.push(quote!{
                         let #id: #ty = match <#ty as #salvo::Extractible>::extract_with_arg(__macro_gen_req, #idv).await {
                             Ok(data) => data,
                             Err(e) => {

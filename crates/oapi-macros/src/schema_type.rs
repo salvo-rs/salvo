@@ -223,7 +223,7 @@ impl ToTokens for SchemaFormat<'_> {
 pub(crate) struct Type<'a>(&'a syn::Path);
 
 impl Type<'_> {
-    /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
+    /// Check is the format know format. Known formats can be used within `quote!{...}` statements.
     pub(crate) fn is_known_format(&self) -> bool {
         let last_segment = match self.0.segments.last() {
             Some(segment) => segment,

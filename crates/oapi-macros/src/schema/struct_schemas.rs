@@ -207,12 +207,12 @@ impl ToTokens for NamedStructSchema<'_> {
                     &container_rules,
                     |NamedStructFieldOptions { property, .. }| match property {
                         Property::Schema(_) | Property::SchemaWith(_) => {
-                            flattened_tokens.extend(quote! { .item(#property) })
+                            flattened_tokens.extend(quote!{ .item(#property) })
                         }
                         Property::FlattenedMap(_) => match flattened_map_field {
                             None => {
                                 object_tokens
-                                    .extend(quote! { .additional_properties(Some(#property)) });
+                                    .extend(quote!{ .additional_properties(Some(#property)) });
                                 flattened_map_field = Some(field);
                             }
                             Some(flattened_map_field) => {
@@ -349,7 +349,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
         if fields_len > 1 {
             let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
             tokens.extend(
-                quote! { .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
+                quote!{ .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
     }

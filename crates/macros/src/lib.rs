@@ -104,7 +104,7 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             handler::generate(item).unwrap().to_string(),
-            quote! {
+            quote!{
                 #[allow(non_camel_case_types)]
                 #[derive(Debug)]
                 struct hello;
@@ -182,7 +182,7 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
-            quote! {
+            quote!{
                 impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
@@ -234,7 +234,7 @@ mod tests {
         let item = parse2(input).unwrap();
         assert_eq!(
             extract::generate(item).unwrap().to_string(),
-            quote! {
+            quote!{
                 impl<'__macro_gen_ex: 'a, 'a> salvo::extract::Extractible<'__macro_gen_ex> for BadMan<'a> {
                     fn metadata() -> &'static salvo::extract::Metadata {
                         static METADATA: salvo::__private::once_cell::sync::OnceCell<salvo::extract::Metadata> =
