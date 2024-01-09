@@ -195,7 +195,7 @@ _**Override `String` with `i64` using `value_type` attribute.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Filter {
     #[salvo(parameter(value_type = i64))]
     id: String,
@@ -207,7 +207,7 @@ _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Filter {
     #[salvo(parameter(value_type = Object))]
     id: String,
@@ -219,7 +219,7 @@ _**You can use a generic type to override the default type of the field.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Filter {
     #[salvo(parameter(value_type = Option<String>))]
     id: String
@@ -231,7 +231,7 @@ _**You can even override a [`Vec`] with another one.**_
 # use salvo_oapi::ToParameters;
 #
 #[derive(ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Filter {
     #[salvo(parameter(value_type = Vec<i32>))]
     id: Vec<String>
@@ -248,7 +248,7 @@ struct Id {
 }
 
 #[derive(ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Filter {
     #[salvo(parameter(value_type = Id))]
     id: String
@@ -281,7 +281,7 @@ fn custom_type() -> Object {
 }
 
 #[derive(salvo_oapi::ToParameters, serde::Deserialize)]
-#[salvo(parameters(parameter_in = Query))]
+#[salvo(parameters(default_parameter_in = Query))]
 struct Query {
     #[salvo(parameter(schema_with = custom_type))]
     email: String,
