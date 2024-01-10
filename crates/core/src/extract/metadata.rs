@@ -1,9 +1,7 @@
 use std::str::FromStr;
 use std::vec;
 
-use cruet::Inflector;
-
-use self::RenameRule::*;
+use crate::extract::RenameRule;
 
 /// Source for a field.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
@@ -34,71 +32,6 @@ impl FromStr for SourceFrom {
             "cookie" => Ok(Self::Cookie),
             "body" => Ok(Self::Body),
             _ => Err(crate::Error::Other(format!("invalid source from `{input}`").into())),
-        }
-    }
-}
-
-/// Rename rule for a field.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-#[non_exhaustive]
-pub enum RenameRule {
-    /// Rename direct children to "lowercase" style.
-    LowerCase,
-    /// Rename direct children to "UPPERCASE" style.
-    UpperCase,
-    /// Rename direct children to "PascalCase" style, as typically used for
-    /// enum variants.
-    PascalCase,
-    /// Rename direct children to "camelCase" style.
-    CamelCase,
-    /// Rename direct children to "snake_case" style, as commonly used for
-    /// fields.
-    SnakeCase,
-    /// Rename direct children to "SCREAMING_SNAKE_CASE" style, as commonly
-    /// used for constants.
-    ScreamingSnakeCase,
-    /// Rename direct children to "kebab-case" style.
-    KebabCase,
-    /// Rename direct children to "SCREAMING-KEBAB-CASE" style.
-    ScreamingKebabCase,
-}
-
-impl FromStr for RenameRule {
-    type Err = crate::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        for (name, rule) in RENAME_RULES {
-            if input == *name {
-                return Ok(*rule);
-            }
-        }
-        Err(crate::Error::other(format!("invalid rename rule: {input}")))
-    }
-}
-
-static RENAME_RULES: &[(&str, RenameRule)] = &[
-    ("lowercase", LowerCase),
-    ("UPPERCASE", UpperCase),
-    ("PascalCase", PascalCase),
-    ("camelCase", CamelCase),
-    ("snake_case", SnakeCase),
-    ("SCREAMING_SNAKE_CASE", ScreamingSnakeCase),
-    ("kebab-case", KebabCase),
-    ("SCREAMING-KEBAB-CASE", ScreamingKebabCase),
-];
-impl RenameRule {
-    /// Apply a renaming rule to an variant, returning the version expected in the source.
-    pub fn rename(&self, name: impl AsRef<str>) -> String {
-        let name = name.as_ref();
-        match *self {
-            PascalCase => name.to_pascal_case(),
-            LowerCase => name.to_lowercase(),
-            UpperCase => name.to_uppercase(),
-            CamelCase => name.to_camel_case(),
-            SnakeCase => name.to_snake_case(),
-            ScreamingSnakeCase => SnakeCase.rename(name).to_ascii_uppercase(),
-            KebabCase => SnakeCase.rename(name).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase.rename(name).replace('_', "-"),
         }
     }
 }
@@ -143,6 +76,8 @@ pub struct Metadata {
     pub fields: Vec<Field>,
     /// Rename rule for all fields of this type.
     pub rename_all: Option<RenameRule>,
+    /// Rename rule for all fields of this type defined by serde.
+    pub serde_rename_all: Option<RenameRule>,
 }
 
 impl Metadata {
@@ -153,6 +88,7 @@ impl Metadata {
             default_sources: vec![],
             fields: vec![],
             rename_all: None,
+            serde_rename_all: None,
         }
     }
 
@@ -186,6 +122,12 @@ impl Metadata {
         self
     }
 
+    /// Rule for rename all fields of type defined by serde.
+    pub fn serde_rename_all(mut self, serde_rename_all: impl Into<Option<RenameRule>>) -> Self {
+        self.serde_rename_all = serde_rename_all.into();
+        self
+    }
+
     /// Check is this type has body required.
     pub(crate) fn has_body_required(&self) -> bool {
         if self.default_sources.iter().any(|s| s.from == SourceFrom::Body) {
@@ -199,39 +141,42 @@ impl Metadata {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Field {
-    /// Field name.
-    pub name: &'static str,
+    /// Field declare name in struct definition.
+    pub decl_name: &'static str,
     /// Field flatten, this field will extracted from request.
     pub flatten: bool,
     /// Field sources.
     pub sources: Vec<Source>,
     /// Field aliaes.
     pub aliases: Vec<&'static str>,
-    /// Field rename.
+    /// Field rename defined by `#[derive(salvo(extract(rename="")))]`.
     pub rename: Option<&'static str>,
+    /// Field rename defined by `#[derive(serde(rename=""))]`.
+    pub serde_rename: Option<&'static str>,
     /// Field metadata, this is used for nested extractible types.
     pub metadata: Option<&'static Metadata>,
 }
 impl Field {
     /// Create a new field with the given name and kind.
-    pub fn new(name: &'static str) -> Self {
-        Self::with_sources(name, vec![])
+    pub fn new(decl_name: &'static str) -> Self {
+        Self::with_sources(decl_name, vec![])
     }
 
     /// Create a new field with the given name and kind, and the given sources.
-    pub fn with_sources(name: &'static str, sources: Vec<Source>) -> Self {
+    pub fn with_sources(decl_name: &'static str, sources: Vec<Source>) -> Self {
         Self {
-            name,
+            decl_name,
             flatten: false,
             sources,
             aliases: vec![],
             rename: None,
+            serde_rename: None,
             metadata: None,
         }
     }
 
     /// Sets the flatten to the given value.
-    pub fn set_flatten(mut self, flatten: bool) -> Self {
+    pub fn flatten(mut self, flatten: bool) -> Self {
         self.flatten = flatten;
         self
     }
@@ -249,7 +194,7 @@ impl Field {
     }
 
     /// Sets the aliases list to a new value.
-    pub fn set_aliases(mut self, aliases: Vec<&'static str>) -> Self {
+    pub fn aliases(mut self, aliases: Vec<&'static str>) -> Self {
         self.aliases = aliases;
         self
     }
@@ -263,6 +208,12 @@ impl Field {
     /// Sets the rename to the given value.
     pub fn rename(mut self, rename: &'static str) -> Self {
         self.rename = Some(rename);
+        self
+    }
+
+    /// Sets the rename to the given value.
+    pub fn serde_rename(mut self, serde_rename: &'static str) -> Self {
+        self.serde_rename = Some(serde_rename);
         self
     }
 
@@ -313,25 +264,5 @@ mod tests {
             assert_eq!(key.parse::<SourceParser>().unwrap(), value);
         }
         assert!("abcd".parse::<SourceParser>().is_err());
-    }
-
-    #[test]
-    fn test_parse_rename_rule() {
-        for (key, value) in RENAME_RULES {
-            assert_eq!(key.parse::<RenameRule>().unwrap(), *value);
-        }
-        assert!("abcd".parse::<RenameRule>().is_err());
-    }
-
-    #[test]
-    fn test_rename_rule() {
-        assert_eq!(PascalCase.rename("rename_rule"), "RenameRule");
-        assert_eq!(LowerCase.rename("RenameRule"), "renamerule");
-        assert_eq!(UpperCase.rename("rename_rule"), "RENAME_RULE");
-        assert_eq!(CamelCase.rename("RenameRule"), "renameRule");
-        assert_eq!(SnakeCase.rename("RenameRule"), "rename_rule");
-        assert_eq!(ScreamingSnakeCase.rename("rename_rule"), "RENAME_RULE");
-        assert_eq!(KebabCase.rename("rename_rule"), "rename-rule");
-        assert_eq!(ScreamingKebabCase.rename("rename_rule"), "RENAME-RULE");
     }
 }

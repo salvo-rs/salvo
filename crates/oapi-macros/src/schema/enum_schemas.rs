@@ -11,10 +11,8 @@ use crate::{
         parse_features, pop_feature, pop_feature_as_inner, Example, Feature, FeaturesExt, IntoInner, Rename, RenameAll,
         Symbol, ToTokensExt,
     },
-    schema::{
-        serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-        Inline, VariantRename,
-    },
+    schema::{Inline, VariantRename},
+    serde_util::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
     type_tree::{TypeTree, ValueType},
 };
 
@@ -202,14 +200,14 @@ pub(super) struct ReprEnum<'a> {
 #[cfg(feature = "repr")]
 impl ToTokens for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let container_rules = serde::parse_container(self.attributes);
+        let container_rules = serde_util::parse_container(self.attributes);
 
         regular_enum_to_tokens(tokens, &container_rules, &self.enum_features, || {
             self.variants
                 .iter()
                 .filter_map(|variant| {
                     let variant_type = &variant.ident;
-                    let variant_rules = serde::parse_value(&variant.attrs);
+                    let variant_rules = serde_util::parse_value(&variant.attrs);
 
                     if is_not_skipped(&variant_rules) {
                         let repr_type = &self.enum_type;
@@ -257,13 +255,13 @@ pub(super) struct SimpleEnum<'a> {
 
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let container_rules = serde::parse_container(self.attributes);
+        let container_rules = serde_util::parse_container(self.attributes);
 
         regular_enum_to_tokens(tokens, &container_rules, &self.enum_features, || {
             self.variants
                 .iter()
                 .filter_map(|variant| {
-                    let variant_rules = serde::parse_value(&variant.attrs);
+                    let variant_rules = serde_util::parse_value(&variant.attrs);
 
                     if is_not_skipped(&variant_rules) {
                         Some((variant, variant_rules))
@@ -796,7 +794,7 @@ impl ComplexEnum<'_> {
 impl ToTokens for ComplexEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let attributes = &self.attributes;
-        let container_rules = serde::parse_container(attributes);
+        let container_rules = serde_util::parse_container(attributes);
 
         let enum_repr = container_rules
             .as_ref()
@@ -813,7 +811,7 @@ impl ToTokens for ComplexEnum<'_> {
             .variants
             .iter()
             .filter_map(|variant: &Variant| {
-                let variant_serde_rules = serde::parse_value(&variant.attrs);
+                let variant_serde_rules = serde_util::parse_value(&variant.attrs);
                 if is_not_skipped(&variant_serde_rules) {
                     Some((variant, variant_serde_rules))
                 } else {

@@ -1,12 +1,31 @@
 //! Provides serde related features parsing serde attributes from types.
-
-use std::str::FromStr;
-
 use proc_macro2::{Ident, Span, TokenTree};
 use proc_macro_error::abort;
 use syn::{buffer::Cursor, Attribute, Error};
 
-use crate::ResultExt;
+pub(crate) mod case;
+pub use case::RenameRule;
+
+trait ResultExt<T> {
+    fn unwrap_or_abort(self) -> T;
+    fn expect_or_abort(self, message: &str) -> T;
+}
+
+impl<T> ResultExt<T> for Result<T, syn::Error> {
+    fn unwrap_or_abort(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => abort!(error.span(), format!("{error}")),
+        }
+    }
+
+    fn expect_or_abort(self, message: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => abort!(error.span(), format!("{error}: {message}")),
+        }
+    }
+}
 
 #[inline]
 fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
@@ -21,13 +40,13 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct SerdeValue {
-    pub(crate) skip: bool,
-    pub(crate) rename: Option<String>,
-    pub(crate) is_default: bool,
-    pub(crate) flatten: bool,
-    pub(crate) skip_serializing_if: bool,
-    pub(crate) double_option: bool,
+pub struct SerdeValue {
+    pub skip: bool,
+    pub rename: Option<String>,
+    pub is_default: bool,
+    pub flatten: bool,
+    pub skip_serializing_if: bool,
+    pub double_option: bool,
 }
 
 impl SerdeValue {
@@ -67,7 +86,7 @@ impl SerdeValue {
 /// The default case (when no serde attributes are present) is `ExternallyTagged`.
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) enum SerdeEnumRepr {
+pub enum SerdeEnumRepr {
     #[default]
     ExternallyTagged,
     InternallyTagged {
@@ -89,11 +108,11 @@ pub(crate) enum SerdeEnumRepr {
 /// Attributes defined within a `#[serde(...)]` container attribute.
 #[derive(Default, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) struct SerdeContainer {
-    pub(crate) rename_all: Option<RenameRule>,
-    pub(crate) enum_repr: SerdeEnumRepr,
-    pub(crate) is_default: bool,
-    pub(crate) deny_unknown_fields: bool,
+pub struct SerdeContainer {
+    pub rename_all: Option<RenameRule>,
+    pub enum_repr: SerdeEnumRepr,
+    pub is_default: bool,
+    pub deny_unknown_fields: bool,
 }
 
 impl SerdeContainer {
@@ -182,7 +201,7 @@ impl SerdeContainer {
     }
 }
 
-pub(crate) fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
+pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
@@ -211,7 +230,7 @@ pub(crate) fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         })
 }
 
-pub(crate) fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
+pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
@@ -240,135 +259,10 @@ pub(crate) fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer
         })
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) enum RenameRule {
-    Lower,
-    Upper,
-    Camel,
-    Snake,
-    ScreamingSnake,
-    Pascal,
-    Kebab,
-    ScreamingKebab,
-}
-
-impl RenameRule {
-    pub(crate) fn rename(&self, value: &str) -> String {
-        match self {
-            RenameRule::Lower => value.to_ascii_lowercase(),
-            RenameRule::Upper => value.to_ascii_uppercase(),
-            RenameRule::Camel => {
-                let mut camel_case = String::new();
-
-                let mut upper = false;
-                for letter in value.chars() {
-                    if letter == '_' {
-                        upper = true;
-                        continue;
-                    }
-
-                    if upper {
-                        camel_case.push(letter.to_ascii_uppercase());
-                        upper = false;
-                    } else {
-                        camel_case.push(letter)
-                    }
-                }
-
-                camel_case
-            }
-            RenameRule::Snake => value.to_string(),
-            RenameRule::ScreamingSnake => Self::Snake.rename(value).to_ascii_uppercase(),
-            RenameRule::Pascal => {
-                let mut pascal_case = String::from(&value[..1].to_ascii_uppercase());
-                pascal_case.push_str(&Self::Camel.rename(&value[1..]));
-
-                pascal_case
-            }
-            RenameRule::Kebab => Self::Snake.rename(value).replace('_', "-"),
-            RenameRule::ScreamingKebab => Self::Kebab.rename(value).to_ascii_uppercase(),
-        }
-    }
-
-    pub(crate) fn rename_variant(&self, variant: &str) -> String {
-        match self {
-            RenameRule::Lower => variant.to_ascii_lowercase(),
-            RenameRule::Upper => variant.to_ascii_uppercase(),
-            RenameRule::Camel => {
-                let mut snake_case = String::from(&variant[..1].to_ascii_lowercase());
-                snake_case.push_str(&variant[1..]);
-
-                snake_case
-            }
-            RenameRule::Snake => {
-                let mut snake_case = String::new();
-
-                for (index, letter) in variant.char_indices() {
-                    if index > 0 && letter.is_uppercase() {
-                        snake_case.push('_');
-                    }
-                    snake_case.push(letter);
-                }
-
-                snake_case.to_ascii_lowercase()
-            }
-            RenameRule::ScreamingSnake => Self::Snake.rename_variant(variant).to_ascii_uppercase(),
-            RenameRule::Pascal => variant.to_string(),
-            RenameRule::Kebab => Self::Snake.rename_variant(variant).replace('_', "-"),
-            RenameRule::ScreamingKebab => Self::Kebab.rename_variant(variant).to_ascii_uppercase(),
-        }
-    }
-}
-
-const RENAME_RULE_NAME_MAPPING: [(&str, RenameRule); 8] = [
-    ("lowercase", RenameRule::Lower),
-    ("UPPERCASE", RenameRule::Upper),
-    ("PascalCase", RenameRule::Pascal),
-    ("camelCase", RenameRule::Camel),
-    ("snake_case", RenameRule::Snake),
-    ("SCREAMING_SNAKE_CASE", RenameRule::ScreamingSnake),
-    ("kebab-case", RenameRule::Kebab),
-    ("SCREAMING-KEBAB-CASE", RenameRule::ScreamingKebab),
-];
-
-impl FromStr for RenameRule {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let expected_one_of = RENAME_RULE_NAME_MAPPING
-            .into_iter()
-            .map(|(name, _)| format!(r#""{name}""#))
-            .collect::<Vec<_>>()
-            .join(", ");
-        RENAME_RULE_NAME_MAPPING
-            .into_iter()
-            .find_map(|(case, rule)| if case == s { Some(rule) } else { None })
-            .ok_or_else(|| {
-                Error::new(
-                    Span::call_site(),
-                    format!(r#"unexpected rename rule, expected one of: {expected_one_of}"#),
-                )
-            })
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{parse_container, RenameRule, SerdeContainer, RENAME_RULE_NAME_MAPPING};
+    use super::{case::RENAME_RULES, parse_container, RenameRule, SerdeContainer};
     use syn::{parse_quote, Attribute};
-
-    macro_rules! test_rename_rule {
-        ( $($case:expr=> $value:literal = $expected:literal)* ) => {
-            #[test]
-            fn rename_all_rename_rules() {
-                $(
-                    let value = $case.rename($value);
-                    assert_eq!(value, $expected, "expected case: {} => {} != {}", stringify!($case), $value, $expected);
-                )*
-            }
-        };
-    }
 
     #[test]
     fn test_serde_parse_container() {
@@ -401,61 +295,9 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    macro_rules! test_rename_variant_rule {
-        ( $($case:expr=> $value:literal = $expected:literal)* ) => {
-            #[test]
-            fn rename_all_rename_variant_rules() {
-                $(
-                    let value = $case.rename_variant($value);
-                    assert_eq!(value, $expected, "expected case: {} => {} != {}", stringify!($case), $value, $expected);
-                )*
-            }
-        };
-    }
-
-    test_rename_rule! {
-        RenameRule::Lower=> "single" = "single"
-        RenameRule::Upper=> "single" = "SINGLE"
-        RenameRule::Pascal=> "single" = "Single"
-        RenameRule::Camel=> "single" = "single"
-        RenameRule::Snake=> "single" = "single"
-        RenameRule::ScreamingSnake=> "single" = "SINGLE"
-        RenameRule::Kebab=> "single" = "single"
-        RenameRule::ScreamingKebab=> "single" = "SINGLE"
-
-        RenameRule::Lower=> "multi_value" = "multi_value"
-        RenameRule::Upper=> "multi_value" = "MULTI_VALUE"
-        RenameRule::Pascal=> "multi_value" = "MultiValue"
-        RenameRule::Camel=> "multi_value" = "multiValue"
-        RenameRule::Snake=> "multi_value" = "multi_value"
-        RenameRule::ScreamingSnake=> "multi_value" = "MULTI_VALUE"
-        RenameRule::Kebab=> "multi_value" = "multi-value"
-        RenameRule::ScreamingKebab=> "multi_value" = "MULTI-VALUE"
-    }
-
-    test_rename_variant_rule! {
-        RenameRule::Lower=> "Single" = "single"
-        RenameRule::Upper=> "Single" = "SINGLE"
-        RenameRule::Pascal=> "Single" = "Single"
-        RenameRule::Camel=> "Single" = "single"
-        RenameRule::Snake=> "Single" = "single"
-        RenameRule::ScreamingSnake=> "Single" = "SINGLE"
-        RenameRule::Kebab=> "Single" = "single"
-        RenameRule::ScreamingKebab=> "Single" = "SINGLE"
-
-        RenameRule::Lower=> "MultiValue" = "multivalue"
-        RenameRule::Upper=> "MultiValue" = "MULTIVALUE"
-        RenameRule::Pascal=> "MultiValue" = "MultiValue"
-        RenameRule::Camel=> "MultiValue" = "multiValue"
-        RenameRule::Snake=> "MultiValue" = "multi_value"
-        RenameRule::ScreamingSnake=> "MultiValue" = "MULTI_VALUE"
-        RenameRule::Kebab=> "MultiValue" = "multi-value"
-        RenameRule::ScreamingKebab=> "MultiValue" = "MULTI-VALUE"
-    }
-
     #[test]
     fn test_serde_rename_rule_from_str() {
-        for (s, _) in RENAME_RULE_NAME_MAPPING {
+        for (s, _) in RENAME_RULES {
             s.parse::<RenameRule>().unwrap();
         }
     }

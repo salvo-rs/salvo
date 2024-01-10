@@ -1,0 +1,18 @@
+[package]
+name = "salvo-serde-util"
+version = { workspace = true }
+edition = { workspace = true }
+description = "serde util for salvo."
+license = { workspace = true }
+documentation = "https://docs.rs/salvo-serde-util/"
+homepage = { workspace = true }
+repository = { workspace = true }
+keywords = ["http", "async", "openapi", "swagger"]
+categories = ["network-programming", "asynchronous"]
+authors = ["Chrislearn Young <chislearn@hotmail.com>"]
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+proc-macro-error = { workspace = true }
+syn = { workspace = true, features = ["full", "extra-traits"] }

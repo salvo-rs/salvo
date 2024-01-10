@@ -41,7 +41,6 @@ mod response;
 mod schema;
 mod schema_type;
 mod security_requirement;
-mod serde;
 mod shared;
 mod type_tree;
 
@@ -55,11 +54,10 @@ pub(crate) use self::{
     response::derive::{ToResponse, ToResponses},
     response::Response,
     schema::ToSchema,
-    serde::RenameRule,
-    serde::{SerdeContainer, SerdeValue},
     shared::*,
     type_tree::TypeTree,
 };
+pub(crate) use salvo_serde_util::{self as serde_util, RenameRule, SerdeContainer, SerdeValue};
 
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -527,7 +525,7 @@ struct VariantRename;
 
 impl Rename for VariantRename {
     fn rename(rule: &RenameRule, value: &str) -> String {
-        rule.rename_variant(value)
+        rule.apply_to_variant(value)
     }
 }
 
@@ -536,7 +534,7 @@ pub(crate) struct FieldRename;
 
 impl Rename for FieldRename {
     fn rename(rule: &RenameRule, value: &str) -> String {
-        rule.rename(value)
+        rule.apply_to_field(value)
     }
 }
 

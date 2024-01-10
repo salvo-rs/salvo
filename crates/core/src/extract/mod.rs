@@ -65,6 +65,8 @@
 /// Metadata types.
 pub mod metadata;
 pub use metadata::Metadata;
+mod case;
+pub use case::RenameRule;
 
 use std::future::Future;
 

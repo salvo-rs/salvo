@@ -17,7 +17,7 @@ use crate::feature::{
     Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, ToTokensExt, WriteOnly, XmlAttr,
 };
 use crate::parameter::ParameterIn;
-use crate::serde::{self, RenameRule, SerdeContainer, SerdeValue};
+use crate::serde_util::{self, RenameRule, SerdeContainer, SerdeValue};
 use crate::type_tree::TypeTree;
 use crate::{attribute, Array, FieldRename, Required, ResultExt};
 
@@ -71,7 +71,7 @@ impl ToTokens for ToParameters {
             .filter_map(|attr| attribute::find_nested_list(attr, "parameters").ok().flatten())
             .map(|meta| meta.parse_args::<ToParametersFeatures>().unwrap_or_abort().into_inner())
             .reduce(|acc, item| acc.merge(item));
-        let serde_container = serde::parse_container(&self.attrs);
+        let serde_container = serde_util::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
         if self.attrs.iter().any(|attr| {
@@ -114,9 +114,9 @@ impl ToTokens for ToParameters {
             .get_struct_fields(&names.as_ref())
             .enumerate()
             .filter_map(|(index, field)| {
-                let field_params = serde::parse_value(&field.attrs);
-                if matches!(&field_params, Some(params) if !params.skip) {
-                    Some((index, field, field_params))
+                let field_serde_params = serde_util::parse_value(&field.attrs);
+                if matches!(&field_serde_params, Some(params) if !params.skip) {
+                    Some((index, field, field_serde_params))
                 } else {
                     None
                 }
@@ -160,26 +160,44 @@ impl ToTokens for ToParameters {
             vec![]
         };
 
+        fn quote_rename_rule(salvo: &Ident, rename_all: &RenameRule) -> TokenStream {
+            let rename_all = match rename_all {
+                RenameRule::LowerCase => "LowerCase",
+                RenameRule::UpperCase => "UpperCase",
+                RenameRule::PascalCase => "PascalCase",
+                RenameRule::CamelCase => "CamelCase",
+                RenameRule::SnakeCase => "SnakeCase",
+                RenameRule::ScreamingSnakeCase => "ScreamingSnakeCase",
+                RenameRule::KebabCase => "KebabCase",
+                RenameRule::ScreamingKebabCase => "ScreamingKebabCase",
+            };
+            let rule = Ident::new(&rename_all, Span::call_site());
+            quote! {
+                #salvo::extract::RenameRule::#rule
+            }
+        }
         let rename_all = rename_all
             .as_ref()
             .map(|feature| match feature {
-                Feature::RenameAll(RenameAll(rename_rule)) => match rename_rule {
-                    RenameRule::Lower => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::Upper => quote! { Some(#salvo::extract::metadata::RenameRule::UpperCase) },
-                    RenameRule::Camel => quote! { Some(#salvo::extract::metadata::RenameRule::CamelCase) },
-                    RenameRule::Snake => quote! { Some(#salvo::extract::metadata::RenameRule::SnakeCase) },
-                    RenameRule::ScreamingSnake => {
-                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingSnakeCase) }
-                    }
-                    RenameRule::Pascal => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::Kebab => quote! { Some(#salvo::extract::metadata::RenameRule::KebabCase) },
-                    RenameRule::ScreamingKebab => {
-                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingKebabCase) }
-                    }
-                },
-                _ => quote! {None},
+                Feature::RenameAll(RenameAll(rename_rule)) => {
+                    let rule = quote_rename_rule(&salvo, rename_rule);
+                    Some(quote! {
+                        .rename_all(#rule)
+                    })
+                }
+                _ => None,
             })
-            .unwrap_or_else(|| quote! {None});
+            .unwrap_or_else(|| None);
+        let serde_rename_all =
+            if let Some(serde_rename_all) = serde_container.as_ref().and_then(|container| container.rename_all) {
+                let rule = quote_rename_rule(&salvo, &serde_rename_all);
+                Some(quote! {
+                    .serde_rename_all(#rule)
+                })
+            } else {
+                None
+            };
+
         let name = ident.to_string();
         tokens.extend(quote!{
             impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
@@ -201,7 +219,8 @@ impl ToTokens for ToParameters {
                         #salvo::extract::Metadata::new(#name)
                             .default_sources(vec![#default_source])
                             .fields(vec![#(#extract_fields),*])
-                            .rename_all(#rename_all)
+                            #rename_all
+                            #serde_rename_all
                     )
                 }
                 async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
@@ -408,9 +427,14 @@ impl Parameter<'_> {
             .expect("struct field name should be exists")
             .to_string();
 
-        let rename = param_features
-            .pop_rename_feature()
-            .map(|rename| quote!(.rename(#rename)));
+        let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
+        let rename = rename.map(|rename| quote!(.rename(#rename)));
+        let serde_rename = self.field_serde_params.as_ref().map(|field_param_serde| {
+            field_param_serde
+                .rename
+                .as_ref()
+                .map(|rename| quote!(.serde_rename(#rename)))
+        });
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
@@ -428,11 +452,15 @@ impl Parameter<'_> {
             };
             quote! {
                 #salvo::extract::metadata::Field::new(#name)
-                    .add_source(#source)#rename
+                    .add_source(#source)
+                    #rename
+                    #serde_rename
             }
         } else {
             quote! {
-                #salvo::extract::metadata::Field::new(#name)#rename
+                #salvo::extract::metadata::Field::new(#name)
+                #rename
+                #serde_rename
             }
         }
     }
@@ -442,7 +470,6 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let oapi = crate::oapi_crate();
         let field = self.field;
-        let field_serde_params = &self.field_serde_params;
         let ident = &field.ident;
         let mut name = &*ident
             .as_ref()
@@ -461,21 +488,24 @@ impl ToTokens for Parameter<'_> {
 
         let (schema_features, mut param_features) = self.resolve_field_features();
 
-        let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
-        let rename_to = field_serde_params
-            .as_ref()
-            .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
-            .or_else(|| rename.map(Cow::Owned));
-        let rename_all = self
-            .serde_container
-            .as_ref()
-            .and_then(|serde_container| serde_container.rename_all.as_ref())
+        let rename = param_features
+            .pop_rename_feature()
+            .map(|rename| Cow::Owned(rename.into_value()))
             .or_else(|| {
-                self.container_attributes
-                    .rename_all
-                    .map(|rename_all| rename_all.as_rename_rule())
+                self.field_serde_params
+                    .as_ref()
+                    .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
             });
-        let name = crate::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
+        let rename_all = self
+            .container_attributes
+            .rename_all
+            .map(|rename_all| rename_all.as_rename_rule())
+            .or_else(|| {
+                self.serde_container
+                    .as_ref()
+                    .and_then(|serde_container| serde_container.rename_all.as_ref())
+            });
+        let name = crate::rename::<FieldRename>(name, rename, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { #oapi::oapi::parameter::Parameter::new(#name)});
@@ -517,7 +547,7 @@ impl ToTokens for Parameter<'_> {
                 .unwrap_or(false);
 
             let non_required = (component.is_option() && !required)
-                || !crate::is_required(field_serde_params.as_ref(), self.serde_container);
+                || !crate::is_required(self.field_serde_params.as_ref(), self.serde_container);
             let required: Required = (!non_required).into();
 
             tokens.extend(quote! {

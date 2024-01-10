@@ -10,7 +10,7 @@ use crate::{
     parameter::{self, ParameterStyle},
     parse_utils, schema,
     schema_type::SchemaFormat,
-    serde::RenameRule,
+    serde_util::RenameRule,
     type_tree::{GenericType, TypeTree},
     AnyValue,
 };

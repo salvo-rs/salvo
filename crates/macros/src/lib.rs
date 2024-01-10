@@ -18,6 +18,7 @@ mod extract;
 mod handler;
 mod shared;
 
+pub(crate) use salvo_serde_util as serde_util;
 use shared::*;
 
 /// `handler` is a macro to help create `Handler` from function or impl block easily.
