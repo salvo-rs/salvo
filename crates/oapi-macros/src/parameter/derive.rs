@@ -407,6 +407,10 @@ impl Parameter<'_> {
             .as_ref()
             .expect("struct field name should be exists")
             .to_string();
+
+        let rename = param_features
+            .pop_rename_feature()
+            .map(|rename|quote!(.rename(#rename)));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
@@ -424,11 +428,11 @@ impl Parameter<'_> {
             };
             quote! {
                 #salvo::extract::metadata::Field::new(#name)
-                    .add_source(#source)
+                    .add_source(#source)#rename
             }
         } else {
             quote! {
-                #salvo::extract::metadata::Field::new(#name)
+                #salvo::extract::metadata::Field::new(#name)#rename
             }
         }
     }
