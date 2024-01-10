@@ -5,8 +5,6 @@ use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, Attribute, Data, Fields, FieldsNamed, FieldsUnnamed, Generics, Token};
 
-use crate::feature::{Inline, Symbol};
-
 mod enum_schemas;
 mod enum_variant;
 mod feature;
@@ -24,9 +22,10 @@ pub(crate) use self::{
 
 use super::{
     feature::{pop_feature_as_inner, Feature, FeaturesExt, IntoInner},
-    serde::{self, SerdeValue},
     ComponentSchema, FieldRename, VariantRename,
 };
+use crate::feature::{Inline, Symbol};
+use crate::serde_util::SerdeValue;
 
 pub(crate) struct ToSchema<'a> {
     ident: &'a Ident,

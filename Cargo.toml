@@ -34,6 +34,7 @@ salvo-oapi-macros = { version = "0.63.1", path = "crates/oapi-macros", default-f
 salvo-otel = { version = "0.63.1", path = "crates/otel", default-features = false }
 salvo-proxy = { version = "0.63.1", path = "crates/proxy", default-features = false }
 salvo-rate-limiter = { version = "0.63.1", path = "crates/rate-limiter", default-features = false }
+salvo-serde-util = { version = "0.63.1", path = "crates/serde-util", default-features = true }
 salvo-serve-static = { version = "0.63.1", path = "crates/serve-static", default-features = false }
 salvo-session = { version = "0.63.1", path = "crates/session", default-features = false }
 
@@ -50,7 +51,6 @@ bcrypt = "0.15"
 cookie = "0.18"
 chacha20poly1305 = "0.10"
 chrono = "0.4"
-cruet = "0.14"
 encoding_rs = "0.8"
 email_address = "0.2"
 enumflags2 = "0.7"

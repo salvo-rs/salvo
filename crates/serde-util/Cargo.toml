@@ -1,18 +1,15 @@
 [package]
-name = "salvo-oapi-macros"
+name = "salvo-serde-util"
 version = { workspace = true }
 edition = { workspace = true }
-description = "Macros for salvo-oapi"
+description = "serde util for salvo."
 license = { workspace = true }
-documentation = "https://docs.rs/salvo-oapi-macros/"
+documentation = "https://docs.rs/salvo-serde-util/"
 homepage = { workspace = true }
 repository = { workspace = true }
 keywords = ["http", "async", "openapi", "swagger"]
 categories = ["network-programming", "asynchronous"]
-authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>", "Chrislearn Young <chislearn@hotmail.com>"]
-
-[lib]
-proc-macro = true
+authors = ["Chrislearn Young <chislearn@hotmail.com>"]
 
 [dependencies]
 proc-macro2 = { workspace = true }
@@ -20,18 +17,4 @@ quote = { workspace = true }
 proc-macro-crate = { workspace = true }
 proc-macro-error = { workspace = true }
 regex = { workspace = true }
-salvo-serde-util = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits"] }
-
-[features]
-default = []
-chrono = []
-decimal = []
-decimal-float = []
-ulid = []
-url = []
-uuid = []
-time = []
-smallvec = []
-repr = []
-indexmap = []

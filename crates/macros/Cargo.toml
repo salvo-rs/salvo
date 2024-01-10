@@ -17,9 +17,9 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-cruet = { workspace = true }
 proc-macro-crate = { workspace = true }
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 regex = { workspace = true }
+salvo-serde-util = { workspace = true }
 syn = { workspace = true, features = ["full", "parsing"] }
