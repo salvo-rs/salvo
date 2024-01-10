@@ -410,7 +410,7 @@ impl Parameter<'_> {
 
         let rename = param_features
             .pop_rename_feature()
-            .map(|rename|quote!(.rename(#rename)));
+            .map(|rename| quote!(.rename(#rename)));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
