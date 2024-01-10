@@ -160,26 +160,45 @@ impl ToTokens for ToParameters {
             vec![]
         };
 
+        fn quote_rename_rule(salvo: &Ident, rename_all: &RenameRule) -> TokenStream {
+            let rename_all = match rename_all {
+                RenameRule::LowerCase => "LowerCase",
+                RenameRule::UpperCase => "UpperCase",
+                RenameRule::PascalCase => "PascalCase",
+                RenameRule::CamelCase => "CamelCase",
+                RenameRule::SnakeCase => "SnakeCase",
+                RenameRule::ScreamingSnakeCase => "ScreamingSnakeCase",
+                RenameRule::KebabCase => "KebabCase",
+                RenameRule::ScreamingKebabCase => "ScreamingKebabCase",
+            };
+            let rule = Ident::new(&rename_all, Span::call_site());
+            quote! {
+                #salvo::extract::RenameRule::#rule
+            }
+        }
         let rename_all = rename_all
             .as_ref()
             .map(|feature| match feature {
-                Feature::RenameAll(RenameAll(rename_rule)) => match rename_rule {
-                    RenameRule::LowerCase => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::UpperCase => quote! { Some(#salvo::extract::metadata::RenameRule::UpperCase) },
-                    RenameRule::CamelCase => quote! { Some(#salvo::extract::metadata::RenameRule::CamelCase) },
-                    RenameRule::SnakeCase => quote! { Some(#salvo::extract::metadata::RenameRule::SnakeCase) },
-                    RenameRule::ScreamingSnakeCase => {
-                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingSnakeCase) }
-                    }
-                    RenameRule::PascalCase => quote! { Some(#salvo::extract::metadata::RenameRule::LowerCase) },
-                    RenameRule::KebabCase => quote! { Some(#salvo::extract::metadata::RenameRule::KebabCase) },
-                    RenameRule::ScreamingKebabCase => {
-                        quote! { Some(#salvo::extract::metadata::RenameRule::ScreamingKebabCase) }
-                    }
-                },
-                _ => quote! {None},
+                Feature::RenameAll(RenameAll(rename_rule)) =>
+                {
+                    let rule = quote_rename_rule(&salvo, rename_rule);
+                    Some(quote! {
+                        .rename_all(#rule)
+                    })
+                } ,
+                _ => None,
             })
-            .unwrap_or_else(|| quote! {None});
+            .unwrap_or_else(|| None);
+        let serde_rename_all =
+            if let Some(serde_rename_all) = serde_container.as_ref().and_then(|container| container.rename_all) {
+                let rule = quote_rename_rule(&salvo, &serde_rename_all);
+                Some(quote! {
+                    .serde_rename_all(#rule)
+                })
+            } else {
+                None
+            };
+
         let name = ident.to_string();
         tokens.extend(quote!{
             impl #ex_impl_generics #oapi::oapi::ToParameters<'__macro_gen_ex> for #ident #ty_generics #where_clause {
@@ -201,7 +220,8 @@ impl ToTokens for ToParameters {
                         #salvo::extract::Metadata::new(#name)
                             .default_sources(vec![#default_source])
                             .fields(vec![#(#extract_fields),*])
-                            .rename_all(#rename_all)
+                            #rename_all
+                            #serde_rename_all
                     )
                 }
                 async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
@@ -408,15 +428,12 @@ impl Parameter<'_> {
             .expect("struct field name should be exists")
             .to_string();
 
-        let rename = param_features
-            .pop_rename_feature()
-            .map(|rename| rename.into_value())
-            .or_else(|| {
-                self.field_serde_params
-                    .as_ref()
-                    .and_then(|field_param_serde| field_param_serde.rename.clone())
-            });
+        let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
         let rename = rename.map(|rename| quote!(.rename(#rename)));
+        let serde_rename = self
+            .field_serde_params
+            .as_ref()
+            .map(|field_param_serde| field_param_serde.rename.as_ref().map(|rename| quote!(.serde_rename(#rename))));
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
@@ -434,11 +451,15 @@ impl Parameter<'_> {
             };
             quote! {
                 #salvo::extract::metadata::Field::new(#name)
-                    .add_source(#source)#rename
+                    .add_source(#source)
+                    #rename
+                    #serde_rename
             }
         } else {
             quote! {
-                #salvo::extract::metadata::Field::new(#name)#rename
+                #salvo::extract::metadata::Field::new(#name)
+                #rename
+                #serde_rename
             }
         }
     }
