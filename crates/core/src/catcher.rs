@@ -86,16 +86,16 @@ impl Catcher {
         &mut self.hoops
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or it's descendants
-    /// handle the request.
+    /// Add a handler as middleware, it will run the handler when error catched.
     #[inline]
     pub fn hoop<H: Handler>(mut self, hoop: H) -> Self {
         self.hoops.push(Arc::new(hoop));
         self
     }
 
-    /// Add a handler as middleware, it will run the handler in current router or it's descendants
-    /// handle the request. This middleware only effective when the filter return true.
+    /// Add a handler as middleware, it will run the handler when error catched.
+    /// 
+    /// This middleware only effective when the filter return true.
     #[inline]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
     where
