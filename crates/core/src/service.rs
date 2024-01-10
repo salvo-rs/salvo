@@ -203,6 +203,7 @@ impl HyperHandler {
                 }
             } else if res.body.is_none()
                 && !has_error
+                && !status.is_redirection()
                 && res.status_code != Some(StatusCode::NO_CONTENT)
                 && res.status_code != Some(StatusCode::SWITCHING_PROTOCOLS)
                 && [Method::GET, Method::POST, Method::PATCH, Method::PUT].contains(req.method())
