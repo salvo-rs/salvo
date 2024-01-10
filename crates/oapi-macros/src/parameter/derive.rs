@@ -179,13 +179,12 @@ impl ToTokens for ToParameters {
         let rename_all = rename_all
             .as_ref()
             .map(|feature| match feature {
-                Feature::RenameAll(RenameAll(rename_rule)) =>
-                {
+                Feature::RenameAll(RenameAll(rename_rule)) => {
                     let rule = quote_rename_rule(&salvo, rename_rule);
                     Some(quote! {
                         .rename_all(#rule)
                     })
-                } ,
+                }
                 _ => None,
             })
             .unwrap_or_else(|| None);
@@ -430,10 +429,12 @@ impl Parameter<'_> {
 
         let rename = param_features.pop_rename_feature().map(|rename| rename.into_value());
         let rename = rename.map(|rename| quote!(.rename(#rename)));
-        let serde_rename = self
-            .field_serde_params
-            .as_ref()
-            .map(|field_param_serde| field_param_serde.rename.as_ref().map(|rename| quote!(.serde_rename(#rename))));
+        let serde_rename = self.field_serde_params.as_ref().map(|field_param_serde| {
+            field_param_serde
+                .rename
+                .as_ref()
+                .map(|rename| quote!(.serde_rename(#rename)))
+        });
         if let Some(parameter_in) = param_features.pop_parameter_in_feature() {
             let source = match parameter_in {
                 feature::ParameterIn(crate::parameter::ParameterIn::Query) => {
