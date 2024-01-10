@@ -8,8 +8,9 @@ use syn::{parenthesized, parse::ParseStream, LitStr, TypePath};
 use super::{impl_name, parse_integer, parse_number, Feature, Parse, Validate, Validator};
 use crate::{
     parameter::{self, ParameterStyle},
-    parse_utils, schema,serde_util::RenameRule,
+    parse_utils, schema,
     schema_type::SchemaFormat,
+    serde_util::RenameRule,
     type_tree::{GenericType, TypeTree},
     AnyValue,
 };
