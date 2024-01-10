@@ -217,6 +217,8 @@ impl<'de> RequestDeserializer<'de> {
             Cow::from(serde_rename)
         } else if let Some(rename_all) = self.metadata.rename_all {
             rename_all.apply_to_field(field.decl_name).into()
+        } else if let Some(serde_rename_all) = self.metadata.serde_rename_all {
+            serde_rename_all.apply_to_field(field.decl_name).into()
         } else {
             field.decl_name.into()
         };
@@ -735,8 +737,29 @@ mod tests {
     #[tokio::test]
     async fn test_de_request_with_serde_rename_all() {
         #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
-        #[salvo(extract(rename_all = "kebab-case", default_source(from = "query")))]
+        #[salvo(extract(default_source(from = "query")))]
         #[serde(rename_all = "kebab-case")]
+        struct RequestData {
+            full_name: String,
+            #[salvo(extract(rename = "currAge"))]
+            curr_age: usize,
+        }
+        let mut req =
+            TestClient::get("http://127.0.0.1:5800/test/1234/param2v?full-name=chris+young&currAge=20").build();
+        let data: RequestData = req.extract().await.unwrap();
+        assert_eq!(
+            data,
+            RequestData {
+                full_name: "chris young".into(),
+                curr_age: 20
+            }
+        );
+    }
+    #[tokio::test]
+    async fn test_de_request_with_both_rename_all() {
+        #[derive(Deserialize, Extractible, Eq, PartialEq, Debug)]
+        #[salvo(extract(rename_all = "kebab-case", default_source(from = "query")))]
+        #[serde(rename_all = "camelCase")]
         struct RequestData {
             full_name: String,
             #[salvo(extract(rename = "currAge"))]
