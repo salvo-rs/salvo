@@ -14,7 +14,5 @@ authors = ["Chrislearn Young <chislearn@hotmail.com>"]
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
-proc-macro-crate = { workspace = true }
 proc-macro-error = { workspace = true }
-regex = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits"] }
