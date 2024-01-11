@@ -223,10 +223,10 @@ impl ToTokens for ToParameters {
                             #serde_rename_all
                     )
                 }
-                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + std::fmt::Debug + 'static> {
                     Self::extract(req).await
                 }
             }

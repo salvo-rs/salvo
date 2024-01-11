@@ -68,6 +68,7 @@ pub use metadata::Metadata;
 mod case;
 pub use case::RenameRule;
 
+use std::fmt::Debug;
 use std::future::Future;
 
 use crate::http::Request;
@@ -81,7 +82,9 @@ pub trait Extractible<'ex> {
     /// Extract data from request.
     ///
     /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
-    fn extract(req: &'ex mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
+    fn extract(
+        req: &'ex mut Request,
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
     where
         Self: Sized;
 
@@ -89,7 +92,7 @@ pub trait Extractible<'ex> {
     fn extract_with_arg(
         req: &'ex mut Request,
         _arg: &str,
-    ) -> impl Future<Output = Result<Self, impl Writer + Send + 'static>> + Send
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
     where
         Self: Sized,
     {
