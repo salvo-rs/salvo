@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
@@ -223,10 +224,10 @@ impl ToTokens for ToParameters {
                             #serde_rename_all
                     )
                 }
-                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract(req: &'__macro_gen_ex mut #salvo::Request) -> Result<Self, impl #salvo::Writer + Send + Debug + 'static> {
                     #salvo::serde::from_request(req, Self::metadata()).await
                 }
-                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + 'static> {
+                async fn extract_with_arg(req: &'__macro_gen_ex mut #salvo::Request, _arg: &str) -> Result<Self, impl #salvo::Writer + Send + Debug + 'static> {
                     Self::extract(req).await
                 }
             }
