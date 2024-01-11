@@ -10,8 +10,9 @@ async fn hello() -> &'static str {
 async fn main() {
     tracing_subscriber::fmt().init();
 
-    let router = Router::new().hoop(Logger::new()).get(hello);
+    let router = Router::new().get(hello);
+    let service = Service::new(router).hoop(Logger::new());
 
     let acceptor = TcpListener::new("0.0.0.0:5800").bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(acceptor).serve(service).await;
 }

@@ -21,12 +21,10 @@ async fn backend_server() {
         .allow_headers("authorization")
         .into_handler();
 
-    let router = Router::with_hoop(cors.clone())
-        .push(Router::with_path("hello").post(hello))
-        .options(handler::empty());
+    let router = Router::with_path("hello").post(hello);
+    let service = Service::new(router).hoop(cors);
 
     let acceptor = TcpListener::new("0.0.0.0:5600").bind().await;
-    let service = Service::new(router).catcher(Catcher::default().hoop(cors));
     Server::new(acceptor).serve(service).await;
 }
 
