@@ -205,6 +205,7 @@ mod tests {
                             metadata
                         })
                     }
+                    #[allow(refining_impl_trait)]
                     async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
                     where
                         Self: Sized {
@@ -267,6 +268,7 @@ mod tests {
                             metadata
                         })
                     }
+                    #[allow(refining_impl_trait)]
                     async fn extract(req: &'__macro_gen_ex mut salvo::http::Request) -> Result<Self, salvo::http::ParseError>
                     where
                         Self: Sized {
