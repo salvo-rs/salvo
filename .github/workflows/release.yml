@@ -45,7 +45,7 @@ jobs:
       matrix:
         package:
           - crate: salvo-serde-util
-            path: crates/salvo-serde-util
+            path: crates/serde-util
           - crate: salvo_macros
             path: crates/macros
           - crate: salvo_core
