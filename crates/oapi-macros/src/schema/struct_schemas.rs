@@ -231,7 +231,7 @@ impl ToTokens for NamedStructSchema<'_> {
                 false
             } else {
                 tokens.extend(quote! {
-                    #oapi:::AllOfBuilder::new()
+                    #oapi::oapi::schema::AllOf::new()
                         #flattened_tokens
                     .item(#object_tokens)
                 });
