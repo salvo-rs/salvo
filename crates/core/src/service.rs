@@ -206,6 +206,9 @@ impl HyperHandler {
                 req.params = path_state.params;
                 let mut ctrl = FlowCtrl::new(hoops);
                 ctrl.call_next(&mut req, &mut depot, &mut res).await;
+                if res.status_code.is_none() {
+                    res.status_code = Some(StatusCode::NOT_FOUND);
+                }
             } else {
                 res.status_code(StatusCode::NOT_FOUND);
             }
