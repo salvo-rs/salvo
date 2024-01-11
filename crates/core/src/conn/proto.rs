@@ -98,7 +98,7 @@ impl HttpBuilder {
                         .with_upgrades();
 
                     tokio::select! {
-                        _ = &mut conn => {  
+                        _ = &mut conn => {
                             // Connection completed successfully.
                             return Ok(());
                         },

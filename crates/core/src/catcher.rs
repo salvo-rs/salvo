@@ -94,7 +94,7 @@ impl Catcher {
     }
 
     /// Add a handler as middleware, it will run the handler when error catched.
-    /// 
+    ///
     /// This middleware only effective when the filter return true.
     #[inline]
     pub fn hoop_when<H, F>(mut self, hoop: H, filter: F) -> Self
