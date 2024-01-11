@@ -75,7 +75,10 @@ where
     async fn extract(req: &'ex mut Request) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
         req.parse_form().await
     }
-    async fn extract_with_arg(req: &'ex mut Request, _arg: &str) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
+    async fn extract_with_arg(
+        req: &'ex mut Request,
+        _arg: &str,
+    ) -> Result<Self, impl Writer + Send + fmt::Debug + 'static> {
         Self::extract(req).await
     }
 }

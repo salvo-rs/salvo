@@ -82,7 +82,9 @@ pub trait Extractible<'ex> {
     /// Extract data from request.
     ///
     /// **NOTE:** Set status code to 400 if extract failed and status code is not error.
-    fn extract(req: &'ex mut Request) -> impl Future<Output = Result<Self, impl Writer + Send + Debug +'static>> + Send
+    fn extract(
+        req: &'ex mut Request,
+    ) -> impl Future<Output = Result<Self, impl Writer + Send + Debug + 'static>> + Send
     where
         Self: Sized;
 
